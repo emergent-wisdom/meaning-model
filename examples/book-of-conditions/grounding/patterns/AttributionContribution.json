@@ -1,0 +1,22 @@
+{
+  "handle": "AttributionContribution",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Causally relevant work toward one bounded result, kept separate from ownership, authority, and later public credit.\",\"id\":\"concept.attribution.contribution\",\"label\":\"contribution\",\"sema_handle\":\"AttributionContribution\",\"specializes\":[]}",
+  "gloss": "contribution: Causally relevant work toward one bounded result, kept separate from ownership, authority, and later public credit.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:AttributionContribution#mh:SHA-256:16849ba64383377ada56a4ec47e7b6bc370754c9c1c1dda58cea6b8175c7ec3b",
+  "sema_ref": "AttributionContribution#1684",
+  "sema_stub": "1684"
+}

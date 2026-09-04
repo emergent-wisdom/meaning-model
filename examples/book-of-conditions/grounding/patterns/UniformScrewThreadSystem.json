@@ -1,0 +1,22 @@
+{
+  "handle": "UniformScrewThreadSystem",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"A proposed shared system of screw-thread form and dimensions derived from comparative measurement, distinct from the paper that describes it and from later institutional adoption.\",\"id\":\"concept.standard.uniform-screw-thread-system\",\"label\":\"uniform screw-thread system\",\"sema_handle\":\"UniformScrewThreadSystem\",\"specializes\":[]}",
+  "gloss": "uniform screw-thread system: A proposed shared system of screw-thread form and dimensions derived from comparative measurement, distinct from the paper that describes it and from later institutional adoption.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:UniformScrewThreadSystem#mh:SHA-256:d0060f8cc02c4dec2664fe7732863788c8d4517c65e8d6a3a810d84132b850ad",
+  "sema_ref": "UniformScrewThreadSystem#d006",
+  "sema_stub": "d006"
+}

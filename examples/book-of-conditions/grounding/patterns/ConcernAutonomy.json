@@ -1,0 +1,22 @@
+{
+  "handle": "ConcernAutonomy",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"First-run concern for self-direction and meaningful control, with coercion or loss of control as its threat reading.\",\"id\":\"concept.concern.autonomy\",\"label\":\"autonomy\",\"sema_handle\":\"ConcernAutonomy\",\"specializes\":[]}",
+  "gloss": "autonomy: First-run concern for self-direction and meaningful control, with coercion or loss of control as its threat reading.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:ConcernAutonomy#mh:SHA-256:7371f76958b297e79c7a697d9b956b343771a6e76ef1badc1ee8bb8e930222aa",
+  "sema_ref": "ConcernAutonomy#7371",
+  "sema_stub": "7371"
+}

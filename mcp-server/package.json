@@ -1,0 +1,30 @@
+{
+  "name": "@emergent-wisdom/meaning-model-mcp",
+  "version": "0.1.0",
+  "description": "Meaning Model MCP server with a Rust engine and versioned modeling resources",
+  "license": "(MIT AND CC-BY-4.0)",
+  "type": "module",
+  "bin": {
+    "meaning-model-mcp": "bin/meaning-model-mcp.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "start": "node bin/meaning-model-mcp.mjs",
+    "build:engine": "node bin/meaning-model-mcp.mjs --build-engine",
+    "test": "node --test test/*.test.mjs",
+    "pack:release": "node scripts/pack-release.mjs",
+    "prepack": "node scripts/require-staged-package.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.0.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.0.0"
+  }
+}

@@ -1,0 +1,310 @@
+{
+  "schema": "book-of-conditions-sema-index/v1",
+  "status": "minted_and_verified_checkpoint_03",
+  "adapter_schema": "book-of-conditions-sema-adapter/v1",
+  "database_roots": {
+    "semantic_set_root": {
+      "scheme": "sema-semantic-set-v1",
+      "hash": "0dfc3df494ba5bb0f068e3ccec3c0f0ddff10a1bff12f9e34679b077bb3e444e",
+      "full_sema_id": "sema:vocab#mh:SHA-256:0dfc3df494ba5bb0f068e3ccec3c0f0ddff10a1bff12f9e34679b077bb3e444e",
+      "strict_handshake_verified": true
+    },
+    "handle_binding_root": {
+      "scheme": "sema-catalog-v1",
+      "hash": "102615ce9e6c578239d78a45c1ddec16952a9ad3c15cf0c129ad333c98c77156",
+      "full_sema_id": "sema:catalog#mh:SHA-256:102615ce9e6c578239d78a45c1ddec16952a9ad3c15cf0c129ad333c98c77156",
+      "strict_handshake_verified": true
+    },
+    "pattern_count": 34,
+    "definition_count": 34
+  },
+  "entries": [
+    {
+      "concept_id": "concept.attribution.contribution",
+      "sema_handle": "AttributionContribution",
+      "bundle_sha256": "1bcf1e91ed9984c6c1c77a2ea648a19dd772fa053d1097f01c8c97a0fa2c7e78",
+      "sema_id": "sema:AttributionContribution#mh:SHA-256:16849ba64383377ada56a4ec47e7b6bc370754c9c1c1dda58cea6b8175c7ec3b",
+      "grounding_version": "sema:AttributionContribution#mh:SHA-256:16849ba64383377ada56a4ec47e7b6bc370754c9c1c1dda58cea6b8175c7ec3b",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.attribution.recognition",
+      "sema_handle": "AttributionRecognition",
+      "bundle_sha256": "54753b896c8d1b1ce6132cfa4ccef8cb8b88ce040cc9bae44c98ed88ae9753a3",
+      "sema_id": "sema:AttributionRecognition#mh:SHA-256:a6f1fb6dc4f5fe5be958690ee78b8ae02df1812a2f1830bcb0d97ad49565ab13",
+      "grounding_version": "sema:AttributionRecognition#mh:SHA-256:a6f1fb6dc4f5fe5be958690ee78b8ae02df1812a2f1830bcb0d97ad49565ab13",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.concern.autonomy",
+      "sema_handle": "ConcernAutonomy",
+      "bundle_sha256": "e110bdf2a5954ca79817060b8667e9860d9922e205cd1a26396832a0173080ed",
+      "sema_id": "sema:ConcernAutonomy#mh:SHA-256:7371f76958b297e79c7a697d9b956b343771a6e76ef1badc1ee8bb8e930222aa",
+      "grounding_version": "sema:ConcernAutonomy#mh:SHA-256:7371f76958b297e79c7a697d9b956b343771a6e76ef1badc1ee8bb8e930222aa",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.concern.belonging",
+      "sema_handle": "ConcernBelonging",
+      "bundle_sha256": "f3dfee5a9e489768dbb7a36452a3ab88d044f78dc2066773ad9fdce3d54f9e8f",
+      "sema_id": "sema:ConcernBelonging#mh:SHA-256:028b1f36bd86f27308b2c971ed3e9b9de2d9cd656a5d37d4cb830d3bcd85d470",
+      "grounding_version": "sema:ConcernBelonging#mh:SHA-256:028b1f36bd86f27308b2c971ed3e9b9de2d9cd656a5d37d4cb830d3bcd85d470",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.concern.competence",
+      "sema_handle": "ConcernCompetence",
+      "bundle_sha256": "dd256b14e6105375da6218875a34fcf1898efd065b6f71c40b28828989b078c2",
+      "sema_id": "sema:ConcernCompetence#mh:SHA-256:8c14acc416cad4bc03f7ba7b0dc2d5c4ff59113b1ed1d54708ffaac2c1075108",
+      "grounding_version": "sema:ConcernCompetence#mh:SHA-256:8c14acc416cad4bc03f7ba7b0dc2d5c4ff59113b1ed1d54708ffaac2c1075108",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.concern.understanding",
+      "sema_handle": "ConcernUnderstanding",
+      "bundle_sha256": "75175c40477522fe2ead0341a3369fd6fdd636165647f3413c443e5c8eecb842",
+      "sema_id": "sema:ConcernUnderstanding#mh:SHA-256:c6b8c8f92b5bde56420274d3c4d8061bd262a21e5d6ba2b770cf53cc502fa7c3",
+      "grounding_version": "sema:ConcernUnderstanding#mh:SHA-256:c6b8c8f92b5bde56420274d3c4d8061bd262a21e5d6ba2b770cf53cc502fa7c3",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.concern.well-being",
+      "sema_handle": "ConcernWellBeing",
+      "bundle_sha256": "5387cc1fc55b355c3cebdf08e84472355a38176ac9b8d54ec401f6b58a8672b6",
+      "sema_id": "sema:ConcernWellBeing#mh:SHA-256:a4866fa28877626586f89fe4b138e43a37e193e372aeccea1004b1d361c0ca8c",
+      "grounding_version": "sema:ConcernWellBeing#mh:SHA-256:a4866fa28877626586f89fe4b138e43a37e193e372aeccea1004b1d361c0ca8c",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.emotion.anger",
+      "sema_handle": "EmotionAnger",
+      "bundle_sha256": "f5f899a60f7c48dc5179970f313057ce03d8e8874ef6d6e5f6296b6df2d11bf3",
+      "sema_id": "sema:EmotionAnger#mh:SHA-256:ea0ee02c8e5550a455bf550264dd8573b515a0b2689cbbf9879ba9c72b53823e",
+      "grounding_version": "sema:EmotionAnger#mh:SHA-256:ea0ee02c8e5550a455bf550264dd8573b515a0b2689cbbf9879ba9c72b53823e",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.emotion.anticipation",
+      "sema_handle": "EmotionAnticipation",
+      "bundle_sha256": "bd3cef1a5deef46447712c7bf050be62e40a24b29eba6190eee005340f81ce37",
+      "sema_id": "sema:EmotionAnticipation#mh:SHA-256:312f474b73f2f526fa7b22cebc24669cd287d797cf8f00a2b1b31e13705ebce6",
+      "grounding_version": "sema:EmotionAnticipation#mh:SHA-256:312f474b73f2f526fa7b22cebc24669cd287d797cf8f00a2b1b31e13705ebce6",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.emotion.disgust",
+      "sema_handle": "EmotionDisgust",
+      "bundle_sha256": "2d8171d84d15bb7027d928231b2fedafab1939c3a1d80e9eca8acb5889e3c9f3",
+      "sema_id": "sema:EmotionDisgust#mh:SHA-256:54ad4415b5d41533df904057c61f3d513f7ccd76e691be414bb0e286b199b367",
+      "grounding_version": "sema:EmotionDisgust#mh:SHA-256:54ad4415b5d41533df904057c61f3d513f7ccd76e691be414bb0e286b199b367",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.emotion.fear",
+      "sema_handle": "EmotionFear",
+      "bundle_sha256": "2c4fefcc97560bb05ba4c0ccf35bd1a43308f344dce7acbce0e283900953691c",
+      "sema_id": "sema:EmotionFear#mh:SHA-256:fde64504b9e71339fc02d5c0a16eb1a8cd6ecf12c0b100139170b1cde8469450",
+      "grounding_version": "sema:EmotionFear#mh:SHA-256:fde64504b9e71339fc02d5c0a16eb1a8cd6ecf12c0b100139170b1cde8469450",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.emotion.joy",
+      "sema_handle": "EmotionJoy",
+      "bundle_sha256": "fb09d40695117e7c6fd016f1e5b48ffbc92e2d2e80fbb8cca874b6c8ef7e3c1b",
+      "sema_id": "sema:EmotionJoy#mh:SHA-256:6489a543e922d02368a2201eaeffc53ffd94b0422e40638d3e059eb2e7ec4173",
+      "grounding_version": "sema:EmotionJoy#mh:SHA-256:6489a543e922d02368a2201eaeffc53ffd94b0422e40638d3e059eb2e7ec4173",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.emotion.neutral",
+      "sema_handle": "EmotionNeutral",
+      "bundle_sha256": "80e0f44dc2aa14ef4ce3e7d8fdb849e5e748b328441b9129fe3c628062a1176c",
+      "sema_id": "sema:EmotionNeutral#mh:SHA-256:63a347b48e3a78c177430914965c4e183058f3acca838ab0a27a20ae8f48cd48",
+      "grounding_version": "sema:EmotionNeutral#mh:SHA-256:63a347b48e3a78c177430914965c4e183058f3acca838ab0a27a20ae8f48cd48",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.emotion.sadness",
+      "sema_handle": "EmotionSadness",
+      "bundle_sha256": "1c852f4137cb38c2b3f32e08930e7039fc1adf103645dadc4adc8e6d0cfc51c5",
+      "sema_id": "sema:EmotionSadness#mh:SHA-256:014c35ae2fcabdfad164d5c762c79f46831c83cef2b863d2345dce28d078607a",
+      "grounding_version": "sema:EmotionSadness#mh:SHA-256:014c35ae2fcabdfad164d5c762c79f46831c83cef2b863d2345dce28d078607a",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.emotion.surprise",
+      "sema_handle": "EmotionSurprise",
+      "bundle_sha256": "7d02748a57bc50071703c4cb3423995cf580efc17c5e352badf1bc9e4354592b",
+      "sema_id": "sema:EmotionSurprise#mh:SHA-256:874812340b1b58ff7965f89323c5118215037cfb6cf5d7b9655aa70e974b2ed9",
+      "grounding_version": "sema:EmotionSurprise#mh:SHA-256:874812340b1b58ff7965f89323c5118215037cfb6cf5d7b9655aa70e974b2ed9",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.emotion.trust",
+      "sema_handle": "EmotionTrust",
+      "bundle_sha256": "2663ac4c48328effe4708e8eaa872c123b115a70f36e42d422ac6d89069442fd",
+      "sema_id": "sema:EmotionTrust#mh:SHA-256:847ec3c3c84741f961c7fd0243715c76f6fa214bba6ee890efb9731204c59b59",
+      "grounding_version": "sema:EmotionTrust#mh:SHA-256:847ec3c3c84741f961c7fd0243715c76f6fa214bba6ee890efb9731204c59b59",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.evaluation.kindness",
+      "sema_handle": "EvaluativeKindness",
+      "bundle_sha256": "566285b0c14a0b12e24c4b108f70cf4b51ac608b7d8327cf1ccd37222b32c965",
+      "sema_id": "sema:EvaluativeKindness#mh:SHA-256:629c49dea0d8f1eb7cd1ca168773b10a55e621255d676da91f174a989b0256ac",
+      "grounding_version": "sema:EvaluativeKindness#mh:SHA-256:629c49dea0d8f1eb7cd1ca168773b10a55e621255d676da91f174a989b0256ac",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.evaluation.situated-intelligence",
+      "sema_handle": "SituatedIntelligence",
+      "bundle_sha256": "348b871ae0d1ae911b46327a6914a734f4791bc9c77339bafb09267e8e1bf0cb",
+      "sema_id": "sema:SituatedIntelligence#mh:SHA-256:05b2c8dec4c216970d6d62463ae79c7f493f40db8bbd8061ec6a35c5bdfc4be3",
+      "grounding_version": "sema:SituatedIntelligence#mh:SHA-256:05b2c8dec4c216970d6d62463ae79c7f493f40db8bbd8061ec6a35c5bdfc4be3",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.governance.independent-works-authority",
+      "sema_handle": "IndependentWorksAuthority",
+      "bundle_sha256": "1eff04abc63e6be31a6952482bc6502b16c11e26fa427c78d58a7552ea9646c1",
+      "sema_id": "sema:IndependentWorksAuthority#mh:SHA-256:c1c120f1f29902caa4139edd66347de67507b6a059991b890e96f618224ec0a6",
+      "grounding_version": "sema:IndependentWorksAuthority#mh:SHA-256:c1c120f1f29902caa4139edd66347de67507b6a059991b890e96f618224ec0a6",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.governance.scope-freeze",
+      "sema_handle": "ScopeFreeze",
+      "bundle_sha256": "183bcff2ac016176fa91e62645a2dd190de439790a6fcc736281a32ee7613f73",
+      "sema_id": "sema:ScopeFreeze#mh:SHA-256:19f439b3e795456aae71ef961422f9c6839e5e0d5c83eb377743458e82834de8",
+      "grounding_version": "sema:ScopeFreeze#mh:SHA-256:19f439b3e795456aae71ef961422f9c6839e5e0d5c83eb377743458e82834de8",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.problem-solving.abstract",
+      "sema_handle": "ProblemSolvingAbstract",
+      "bundle_sha256": "806d9ab1a8820b9ae1d2350e0a7bb39f16fb6ff9a10e689ef9b0e029e4d385c9",
+      "sema_id": "sema:ProblemSolvingAbstract#mh:SHA-256:560bacb7b3f928bfc90086a135cd4fe5e5c0431aedb596c64fcec7e1f8d08e26",
+      "grounding_version": "sema:ProblemSolvingAbstract#mh:SHA-256:560bacb7b3f928bfc90086a135cd4fe5e5c0431aedb596c64fcec7e1f8d08e26",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.problem-solving.concrete",
+      "sema_handle": "ProblemSolvingConcrete",
+      "bundle_sha256": "c59484eb6ffc1207417e81c0c6f652c6cdec704dfc0a2f2b51339d2d2496fbab",
+      "sema_id": "sema:ProblemSolvingConcrete#mh:SHA-256:ff43ee409cae41eb02c9b8af07af68452a61714a7682894da32499d46d435b09",
+      "grounding_version": "sema:ProblemSolvingConcrete#mh:SHA-256:ff43ee409cae41eb02c9b8af07af68452a61714a7682894da32499d46d435b09",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.problem-solving.deciding",
+      "sema_handle": "ProblemSolvingDeciding",
+      "bundle_sha256": "2b00050c0fa6b161bc05e2bf2998d51f0659bfec9e9dd95f71a253d1e827bad5",
+      "sema_id": "sema:ProblemSolvingDeciding#mh:SHA-256:9342fe5fe4c2eae5815eec10b09cad2731f89a17d97eb1f94afbb41f9edbdc2f",
+      "grounding_version": "sema:ProblemSolvingDeciding#mh:SHA-256:9342fe5fe4c2eae5815eec10b09cad2731f89a17d97eb1f94afbb41f9edbdc2f",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.problem-solving.framing",
+      "sema_handle": "ProblemSolvingFraming",
+      "bundle_sha256": "ab86d68365d4af144aa92b51d6692a24f0858fac18586500e5cb8ffcf37343ab",
+      "sema_id": "sema:ProblemSolvingFraming#mh:SHA-256:84262e23dcc143339d7d4bd425aa035fa394186167516cc613abb2f66308e218",
+      "grounding_version": "sema:ProblemSolvingFraming#mh:SHA-256:84262e23dcc143339d7d4bd425aa035fa394186167516cc613abb2f66308e218",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.problem-solving.impartial",
+      "sema_handle": "ProblemSolvingImpartial",
+      "bundle_sha256": "99a3892cab513d39ac14b10fd9b90c799daf1514a9146803855ca863c0f9318f",
+      "sema_id": "sema:ProblemSolvingImpartial#mh:SHA-256:99d91a06c92b96365081a80d16a24634dc8a93f435935d1c6a653faeaa029c4f",
+      "grounding_version": "sema:ProblemSolvingImpartial#mh:SHA-256:99d91a06c92b96365081a80d16a24634dc8a93f435935d1c6a653faeaa029c4f",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.problem-solving.personal",
+      "sema_handle": "ProblemSolvingPersonal",
+      "bundle_sha256": "5ccf02ce21dd3621276de484c4bbdce5f5bbc79bbc160686c687bf062192027d",
+      "sema_id": "sema:ProblemSolvingPersonal#mh:SHA-256:b4470957724dd7262bfdc985a66ab00186ca41c6c88672238a5c49382630618d",
+      "grounding_version": "sema:ProblemSolvingPersonal#mh:SHA-256:b4470957724dd7262bfdc985a66ab00186ca41c6c88672238a5c49382630618d",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.process.adaptation",
+      "sema_handle": "ProcessAdaptation",
+      "bundle_sha256": "087635baf945da2f79649e08ed862a32d2bb6c228e79e72880c47242192d4854",
+      "sema_id": "sema:ProcessAdaptation#mh:SHA-256:d25bc738fa42a952772dcf7ef953889b28af9ac6f9b738a01c6e793289555bea",
+      "grounding_version": "sema:ProcessAdaptation#mh:SHA-256:d25bc738fa42a952772dcf7ef953889b28af9ac6f9b738a01c6e793289555bea",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.process.shock",
+      "sema_handle": "ProcessShock",
+      "bundle_sha256": "9f320d0f5c0627206210c3909669e998ba5efb8cfacdc663dbe4016400f5c5f4",
+      "sema_id": "sema:ProcessShock#mh:SHA-256:a096de5e94043d898cb14c02fbe30fdd2ac0fabb2319026b4d707c994eaecb17",
+      "grounding_version": "sema:ProcessShock#mh:SHA-256:a096de5e94043d898cb14c02fbe30fdd2ac0fabb2319026b4d707c994eaecb17",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.service.verified-calculation",
+      "sema_handle": "VerifiedCalculation",
+      "bundle_sha256": "87b4c4ba587c1472e4f82f0cae67f2f585424e120525bfe0320e5544223b7ded",
+      "sema_id": "sema:VerifiedCalculation#mh:SHA-256:cb2df490c553d00693dbfa53219a55490a3a8f93e20a45e9348720d876075a18",
+      "grounding_version": "sema:VerifiedCalculation#mh:SHA-256:cb2df490c553d00693dbfa53219a55490a3a8f93e20a45e9348720d876075a18",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.standard.uniform-screw-thread-system",
+      "sema_handle": "UniformScrewThreadSystem",
+      "bundle_sha256": "671fc3c6cee26c2bf5294069c972c8e909bb1b9ce04f0896cacb7607141e3e58",
+      "sema_id": "sema:UniformScrewThreadSystem#mh:SHA-256:d0060f8cc02c4dec2664fe7732863788c8d4517c65e8d6a3a810d84132b850ad",
+      "grounding_version": "sema:UniformScrewThreadSystem#mh:SHA-256:d0060f8cc02c4dec2664fe7732863788c8d4517c65e8d6a3a810d84132b850ad",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.strategy.conditional-negotiation",
+      "sema_handle": "StrategyConditionalNegotiation",
+      "bundle_sha256": "773ddec615539aaeb8d3b0b788ee62b3a98dd70f7ad8e43ff8a419b44dba24a6",
+      "sema_id": "sema:StrategyConditionalNegotiation#mh:SHA-256:931da56f03ad26df9512d8e705eab76b7fff46ad5171c48007794ec5ebed4f01",
+      "grounding_version": "sema:StrategyConditionalNegotiation#mh:SHA-256:931da56f03ad26df9512d8e705eab76b7fff46ad5171c48007794ec5ebed4f01",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.strategy.evidence-triggered-revision",
+      "sema_handle": "StrategyEvidenceTriggeredRevision",
+      "bundle_sha256": "cd0675f632cf559249bf9c141f9d8c96b6d6b78bafbb1951d0055e327d19413e",
+      "sema_id": "sema:StrategyEvidenceTriggeredRevision#mh:SHA-256:a09580c72d1fcce9e7350154b5a03a41f24befc43b70091eaf5dfb8324c88366",
+      "grounding_version": "sema:StrategyEvidenceTriggeredRevision#mh:SHA-256:a09580c72d1fcce9e7350154b5a03a41f24befc43b70091eaf5dfb8324c88366",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.strategy.staged-commitment",
+      "sema_handle": "StrategyStagedCommitment",
+      "bundle_sha256": "eb4a0adff987235653186c1fad9bc44965cc1b2168b79e5cba0b46e4f5852468",
+      "sema_id": "sema:StrategyStagedCommitment#mh:SHA-256:b79cab41102072e193543a97d75707817cf355eee6d78a4ed04817b69561694f",
+      "grounding_version": "sema:StrategyStagedCommitment#mh:SHA-256:b79cab41102072e193543a97d75707817cf355eee6d78a4ed04817b69561694f",
+      "lookup_verified": true
+    },
+    {
+      "concept_id": "concept.theme.historically-premature-architecture",
+      "sema_handle": "HistoricallyPrematureArchitecture",
+      "bundle_sha256": "aec38485dca5e476fa57c0acb51661a9870c05c873a52b5a85e1add6483c02dc",
+      "sema_id": "sema:HistoricallyPrematureArchitecture#mh:SHA-256:8e61bb84480c04b07d1b380b47d6febc961146cc9f95e8ce63649f42d95fb533",
+      "grounding_version": "sema:HistoricallyPrematureArchitecture#mh:SHA-256:8e61bb84480c04b07d1b380b47d6febc961146cc9f95e8ce63649f42d95fb533",
+      "lookup_verified": true
+    }
+  ],
+  "expected_concept_source": "registry/concepts.json",
+  "entry_shape_after_mint": {
+    "concept_id": "concept.*",
+    "sema_handle": "CamelCaseHandle",
+    "bundle_sha256": "64 lowercase hexadecimal characters",
+    "sema_id": "sema:Handle#mh:SHA-256:<64 lowercase hexadecimal characters>",
+    "grounding_version": "the same full sema_id",
+    "lookup_verified": true
+  },
+  "source_verification": {
+    "concept_source_sha256": "b4d13ae2078dd44cac5b4ba1ed0295d28f66a73fd8f183391d5ca1d1fcdaa223",
+    "adapter_source_sha256": "78a5674cb4c30ce1969f465e04d007b650d783c17b4007bf47b6b0acedf57457",
+    "bundle_manifest": "checkpoints/03-registry-and-prefix/sema/bundle-manifest.json",
+    "verification_report": "checkpoints/03-registry-and-prefix/sema/verification.json"
+  }
+}

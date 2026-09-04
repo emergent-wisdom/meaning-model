@@ -1,0 +1,52 @@
+% emergentwisdom-longform.sty --- monograph-like Emergent Wisdom papers.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{emergentwisdom-longform}[2026/08/14 v1.0 Emergent Wisdom long form]
+
+\RequirePackage[margin=1in,top=0.8in]{geometry}
+\RequirePackage[T1]{fontenc}
+\RequirePackage{XCharter}
+\RequirePackage[scaled=0.95]{helvet}
+\RequirePackage{inconsolata}
+\RequirePackage{iftex}
+\ifPDFTeX\else
+  \renewcommand{\ttfamily}{\fontencoding{T1}\fontfamily{zi4}\selectfont}
+\fi
+\RequirePackage{amsmath}
+\RequirePackage{amsthm}
+\RequirePackage[xcharter]{newtxmath}
+\RequirePackage{microtype}
+
+\RequirePackage[nobottomtitles*]{titlesec}
+\renewcommand{\bottomtitlespace}{0.15\textheight}
+\RequirePackage[defaultlines=2]{nowidow}
+
+\widowpenalty=10000
+\clubpenalty=10000
+\brokenpenalty=10000
+\predisplaypenalty=10000
+\postdisplaypenalty=10000
+\interlinepenalty=2500
+\raggedbottom
+\setlength{\emergencystretch}{3em}
+
+\AtBeginDocument{%
+  \@ifpackageloaded{hyperref}{\hypersetup{hidelinks}}{}%
+}
+
+\newcommand{\ewlongtitle}[2]{\title{#1\\\large\itshape #2}}
+\newcommand{\ewpublicationdate}[1]{\date{#1}}
+\newcommand{\ewreviseddates}[2]{\date{#1\\\small Revised: #2}}
+\newcommand{\ewrevisedtoday}[1]{\date{#1\\\small Revised: \today}}
+
+% Visible bibliographic keywords follow the abstract in long-form papers.
+\newcommand{\keywords}[1]{%
+  \begin{quote}
+    \small\noindent\textbf{Keywords:} #1
+  \end{quote}%
+}
+
+% Long-form front matter owns the opening page. Use this after the abstract and
+% any provenance note so the introduction always starts on a fresh page.
+\newcommand{\ewfrontmatterend}{\clearpage}
+
+\endinput

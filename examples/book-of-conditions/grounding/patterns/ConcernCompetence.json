@@ -1,0 +1,22 @@
+{
+  "handle": "ConcernCompetence",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"First-run concern for effective action, mastery, or achievement, with failure or incapacity as its threat reading.\",\"id\":\"concept.concern.competence\",\"label\":\"competence\",\"sema_handle\":\"ConcernCompetence\",\"specializes\":[]}",
+  "gloss": "competence: First-run concern for effective action, mastery, or achievement, with failure or incapacity as its threat reading.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:ConcernCompetence#mh:SHA-256:8c14acc416cad4bc03f7ba7b0dc2d5c4ff59113b1ed1d54708ffaac2c1075108",
+  "sema_ref": "ConcernCompetence#8c14",
+  "sema_stub": "8c14"
+}

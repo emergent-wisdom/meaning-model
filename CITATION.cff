@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "For the method, cite the Meaning Model paper. For the software or example, also identify the released revision or artifact digest."
+type: software
+repository-code: "https://github.com/emergent-wisdom/meaning-model"
+version: 0.1.0
+license:
+  - MIT
+  - CC-BY-4.0
+title: "The Meaning Model: Constructing Worlds and Stories at Progressive Resolution"
+authors:
+  - family-names: Westerberg
+    given-names: Henrik
+    affiliation: Emergent Wisdom
+abstract: "A grammar, construction method, Rust implementation, and worked Book example for progressively resolved worlds, concepts, understanding, and stories."
+preferred-citation:
+  type: article
+  title: "The Meaning Model: Constructing Worlds and Stories at Progressive Resolution"
+  authors:
+    - family-names: Westerberg
+      given-names: Henrik
+  year: 2026

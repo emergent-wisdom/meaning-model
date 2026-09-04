@@ -1,0 +1,2282 @@
+% Canonical Meaning Model theory manuscript.
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[longtitle]{emergentwisdom-preprint}
+\usepackage{mathtools}
+\usepackage{booktabs,tabularx,array,float}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\usepackage{microtype}
+\usepackage{hyperref}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\input{includes/interface-blocks}
+
+\hypersetup{
+  hidelinks,
+  pdftitle={The Meaning Model: Constructing Worlds and Stories at Progressive Resolution},
+  pdfauthor={Henrik Westerberg},
+  pdfsubject={A compact grammar and method for jointly constructing worlds, concepts, understanding, and stories at progressive resolution},
+  pdfkeywords={meaning model, concept grounding, event decomposition, realization, finite resolution, recursive refinement}
+}
+
+\renewcommand{\shorttitle}{The Meaning Model}
+\setlist[itemize]{leftmargin=1.4em}
+\setlist[enumerate]{leftmargin=1.6em}
+
+\title{The Meaning Model:\\Constructing Worlds and Stories at Progressive Resolution}
+\author{Henrik Westerberg\\Emergent Wisdom\\
+  \texttt{henrik.westerberg@emergentwisdom.org}}
+\ewpublicationdate{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The Meaning Model proposes a shared medium for constructing a world, its
+meanings, interpretations, and story together. A world can remain coherent at a
+coarse resolution for a declared purpose before its finer history is constructed. Opening that history
+must preserve declared commitments or explicitly revise them, including their
+dependent accounts and passages. The contribution is this coordinated authoring
+method, not a new record type or the storage of prose beside a graph.
+
+Six record forms---Concept, Thing, Event, Binding, Cut, and Realization---support
+the method. Abstract meaning uses the same world machinery: a Concept may
+remain lightly specified or have canonical fragments whose roles and processes
+can be inspected alongside their instances. Semantic numbers are comparative
+commitments rather than freestanding scores. Each Cut names an Event parent,
+question, and unit, allocating one unit among exclusive answers and an explicit
+remainder. Ordinary process links remain unweighted; measurements retain
+external units. The modeled world, rooted Understanding Graphs, and document
+nodes share one address space without sharing authority. Event descriptions,
+concept groundings, reasons, and narration can therefore participate in one
+revision while retaining what each actually asserts.
+
+The resulting workspace supports human or AI authorship and supplies a
+candidate training language: a learner could acquire how to choose, deepen,
+and repair representations, not only predict content within a fixed schema.
+Life Simulation develops the construction-to-learning loop and its tests; this
+paper specifies the representation and preservation contracts. The completed
+manuscript, \emph{The Book of Conditions}, supplies a partial descriptive
+witness, not an end-to-end implementation or controlled comparison. Learned
+representation, computational savings, and alignment remain research aims,
+not results established by the construction.
+\end{abstract}
+
+\keywords{Meaning Model, Recursive World Grammar, Concept Grounding,
+Event-Processes, Progressive Detail, Finite Resolution}
+
+\section{Introduction}
+
+Reality does not arrive already divided into every ``thing'' to which people
+give a word. We identify a person's life, an expedition within that life, a
+marriage, an avalanche, a species, a recession, and a story. Each term makes
+some portion or pattern of experience addressable while leaving other
+variation in the background. The same evening of reading can belong to a
+person's biography, a book's history, human culture, biological evolution, and
+the physical history of Earth.
+
+A boundary alone does not preserve reference. The same person may participate
+in a life, an expedition, a rescue, and a later conversation; those events need
+a stable way to state that they concern the same continuing individual.
+Conversely, a person may be opened into organs, cells, or devices for one
+question without discarding person-level identity. The difficulty is therefore
+not producing one description, but preserving identity and meaning when a
+description is opened, revised, compared with another world, or rendered into
+language. Ordinary prose can silently change what a term refers to. A flat
+graph can store relations without stating how coarse and fine descriptions
+agree. An unqualified numerical rating can preserve neither who attributed it
+nor the sibling alternatives that give it meaning.
+
+The Meaning Model proposes one grammar for those responsibilities. At a declared
+resolution, reusable Concepts are coupled to continuing Things and Events. Cuts
+open question-relative structure while a remainder keeps the unknown or
+deliberately unresolved visible. A Concept may remain lightly specified or be
+grounded in a canonical world fragment written in the same grammar. Finer
+articulation reuses the same identities and must respect what has already been
+committed.
+
+The representation is intended for narrative worlds, simulation and knowledge
+systems, corpus annotation, and perspective-separated accounts of people.
+Across these uses its job is the same: preserve which entity and meaning a
+statement addresses, which typed ancestry locates it, and how a finer
+description relates to a coarser one. These are possible uses rather than
+benefits guaranteed by the grammar.
+
+The grammar is a representational substrate rather than an annotation shell
+around a finished simulator. A model is complete only relative to a declared
+question and resolution. Domain-specific processes, measurements, and laws may
+be attached without becoming new universal record forms. Minimality is
+therefore measured against the distinctions a validator must preserve, not
+against a metaphysical claim about the world's ultimate furniture.
+
+The immediate value is a working model that helps an author decide what happens,
+not just catalogue a finished story. A whole life or institution can be sketched
+first, then opened where its decisions and consequences matter; incompatible
+detail prompts revision of the larger account. This external semantic workspace
+supports human or AI authorship, exercised by the Book at a bounded resolution.
+
+Progressive resolution and a shared construction medium are the proposal's two
+linked architectural contributions. They organize four representational changes:
+
+\begin{itemize}
+  \item \textbf{Construct detail under commitments.} A useful world can precede
+    its finer history. An opening preserves declared coarse answers or makes
+    the necessary revision explicit; it does not merely reveal precomputed detail.
+  \item \textbf{Revise the account across surfaces.} World state, abstract concept
+    models, Event descriptions, document text, and externalized understanding
+    participate in one authoring operation. Exact dependencies identify which
+    interpretations, reasons, and passages a changed commitment puts in question.
+  \item \textbf{Construct meanings as well as instances.} A concept can be
+    articulated through the same roles and processes as a situation that realizes
+    it. Definition, application, and revision become inspectable operations,
+    without requiring deep grounding for every concept.
+  \item \textbf{Give semantic numbers their comparison context.} A numerical
+    judgment retains its question, alternatives, remainder, and perspective.
+    Measurements keep external units; concurrent processes do not become shares
+    merely because they describe one person or world.
+\end{itemize}
+
+These changes act together. A character's comparative wants and appraisals can
+guide a decision before a scene is written. Opening the decision may reveal
+that the proposed action does not fit what the character could know, prompting
+revision of the action, its explanation, or the larger plan. A changed concept
+definition can instead require reassessing what the action exemplifies without
+changing the action itself. The proposed novelty lies in coordinating these
+operations, not in any record form alone. Each surface retains its own authority
+and refinement rules, and the person vocabulary remains replaceable.
+
+A recurring descriptive pattern links these resolutions: an established
+process encounters a consequential Event, and its subsequent organization
+changes. Where agents anticipate the Event, preparation or avoidance can begin
+earlier. The same questions can organize a daily encounter, a life, or an
+institutional history without assuming that all three obey one dynamical law.
+
+Progressive resolution also offers a computational possibility for interactive
+worlds: keep most of the world coarse but consequential, and construct finer
+detail where interaction requires it. This is not merely displaying a small
+part of an already detailed simulation. Some of the finer state and history
+have not yet been constructed. Opening them must preserve the commitments
+protected by the selected profile, including recorded observations and shared
+facts accessible to different players, under its declared checks and
+tolerances. The benefit sought is less unnecessary construction without losing
+the coherence required by those interactions, not exhaustive microscopic
+simulation out of sight.
+
+For example, a regional harvest failure may constrain a town's supply without
+specifying every household or warehouse. A player's visit can require opening
+one warehouse's inventory and staff; a conversation can then require one
+worker's experience of the shortage. The coarse supply commitments and any
+selected domain rules constrain these openings without uniquely determining
+them. A distant disruption may still require a coarse update before anyone
+visits, and a later visitor must encounter a history compatible with what was
+already observed, including any intervening changes. Detail that fails the
+declared checks is rejected or requires an explicit revision of the affected
+commitments; returning to a place does not license silently replacing its
+history. Whether such selective construction yields a net computational saving
+at comparable fidelity remains to be tested; the Book does not measure that
+benefit.
+
+A further hypothesis is that a learner can acquire these representational
+practices, not merely consume their finished products. Worlds, observations,
+and construction histories could form a training language for learning to
+identify persistent processes, open useful distinctions, and revise an account
+when later evidence contradicts it. The learning target would include choosing
+what to represent and when to change the questions, rather than only assigning
+values within a fixed vocabulary. External records would remain inspectable;
+the learner need not reproduce their syntax internally. Whether these practices
+improve prediction, generation, or transfer is an empirical question. Life
+Simulation develops the learning and transfer methods for testing it
+\cite{westerbergLifeSimulation2026}.
+
+This is a program of representational compression: use few domain-neutral forms
+while retaining the distinctions a task needs. A new scientific or social
+domain should normally add content and external models, not enlarge the common
+record inventory. The aim is consequently broad in scope but finite in every
+construction; it is not a promise to compute the universe at maximum detail.
+
+The scope includes attributed inner life. Beliefs, feelings, wants, and private
+interpretations may be represented without turning a character's report, an
+observer's estimate, and accepted public state into one claim. Accepted world
+Events descend from History; an attributed interior Event additionally descends
+through the relevant person's lifecycle and inner-process root. This ancestry
+preserves the boundary without making private experience directly observable or
+selecting one universal psychology.
+
+Refinement should preserve semantic continuity. Starting from the coarse claim
+that Babbage builds an Engine, a construction may later expose the machine's
+parts, its workforce, or competing accounts of the work without changing which
+Babbage, Engine, or building process earlier records addressed. Unopened regions
+can remain coarse; openings must fit the accepted boundary or revise it visibly.
+
+The claim has two parts that must not be confused.
+
+\begin{itemize}
+  \item \textbf{Recursive refinement} is a property of the world grammar:
+    every finer articulation uses the same records and the local contracts of
+    its declared construction profile. A deeply grounded concept may reuse that grammar as a canonical
+    model, but need not do so.
+  \item \textbf{Finite-resolution sufficiency} is a constructive hypothesis:
+    for a declared purpose and tolerance, the distinctions required by the
+    task can be represented through those records without claiming that the
+    representation is unique, complete at every resolution, or mechanically true.
+\end{itemize}
+
+The paper also owns the construction discipline required to build all three
+surfaces together: frozen-parent whole candidates, direction rolls, atomic
+commit or rejection, explicit revision, rendering routes, and read-back. Life
+Simulation studies how process histories are generated, advanced, inferred
+from observations, and learned, including comparisons of candidate temporal
+laws \cite{westerbergLifeSimulation2026}. A compact law is optional, not a
+condition of using the representation. The boundary is one of responsibility:
+the Meaning Model specifies what records mean and how proposed changes preserve
+or explicitly revise a world; Life Simulation develops methods for producing
+those changes and testing their predictive and learning value. When combined,
+they operate throughout an ongoing construction.
+Life Simulation's methods therefore include advancing coarse processes,
+deciding when finer resolution is needed, and evaluating the cost and fidelity
+of those choices; the preservation and revision contracts remain the Meaning
+Model's part.
+
+The proposal combines explicit character-state modeling before prose generation
+with recursive conceptual decomposition from Fractal Intelligence
+\cite{westerbergFractal2026}. The
+resulting question was whether reusable meaning, continuing identity, changing
+Events, attributed understanding, and the text that renders them could occupy
+one construction without becoming one undifferentiated node type.
+
+\begin{center}
+\fbox{\begin{minipage}{0.90\linewidth}
+\textbf{The minimized core.}
+\MMCoreSummary
+\end{minipage}}
+\end{center}
+
+\section{Grammar and Progressive Construction}
+
+The core is minimized at the level of record forms, not vocabulary labels. It
+uses six forms---Concept, Thing, Event, Binding, Cut, and Realization---and
+introduces a new form only when no existing form plus typed fields can preserve
+a distinction that a validator must enforce. This is relative minimality under
+the declared contract, not a proof of globally minimal syntax or metaphysical
+primitives.
+
+The definitions and rules needed to use this account are stated in this paper.
+The separately typeset \emph{Minimized Grammar} collects them as a compact
+reference; it does not add requirements. Core obligations and selected-profile
+rules retain the same status in both presentations.
+
+\MMCoreSchema
+
+A reference distinguishes a logical identity from an exact record revision.
+In the selected immutable profile, an edit creates a successor revision, not a
+new Thing or Concept identity. Provenance records the author or generator,
+commit, construction time, and evidence references. Times name their clock:
+Event chronology, construction history, or document order. Derived views retain
+their source revisions and derivation lineage rather than acquiring independent
+authority.
+
+Each form answers a question that the others cannot answer without erasing a
+distinction or relocating its responsibility. A Concept says which reusable
+meaning is intended. A Thing says which continuing instance is addressed. An
+Event says what persists or occurs.
+A Binding says which Thing fills which time-scoped role. A Cut says how one
+declared unit divides under one question. A Realization says which Concept
+grounds an addressable world fragment. The fragment is a subgraph of existing
+records rather than a seventh world form.
+
+The removal test concerns these responsibilities, not their serialization.
+Removing Thing identity requires another way to join a person's appearances;
+removing Binding requires another way to distinguish that person's roles;
+removing Realization requires another way to distinguish a concept definition
+from its application. The same test applies to occurrence and allocation.
+Another schema may combine these forms while retaining equivalent typed
+information. Thus six is a compact, inspectable interface, not a lower bound
+on every possible encoding; complexity in field types and validators counts
+against the claim just as additional record forms would.
+
+Relations are carried in four ways. A Binding assigns a Thing a typed,
+time-scoped role in an Event. A Cut relates a parent to weighted child answers
+and a remainder under one question and unit. Typed relation fields connect
+Concepts, Events, records, or typed world-data fields under declared kinds. A
+Realization grounds a world fragment in a Concept for a declared purpose. Each carrier retains the target,
+authority, clock, inference, and validation contract of its relation kind.
+
+A relation among several Things is consequently a joint Event with one Binding
+per role, not a direct binary edge between the Things. Typed links such as
+\texttt{contains}, \texttt{about}, \texttt{updates}, and \texttt{supersedes}
+are sibling kinds, not synonyms. \texttt{contains} asserts scoped
+Event--Event containment; \texttt{about} is reference without participation or
+state change; \texttt{updates} names an affected process or typed world-data
+field changed by an Event; and \texttt{supersedes} preserves a predecessor while changing a
+typed lineage. A supersession must name its scope and clock, because replacing
+a character's earlier belief in story time is not the same authority operation
+as superseding an author note or a model commit in construction time.
+
+A Realization is an attributed, unweighted grounding link. A \emph{define}
+realization associates a Concept with an idealized grounding model or family. A
+\emph{describe} realization applies a recorded grounding version to a token
+fragment. Its context parent is an Event or surface node; it retains provenance,
+available evidence, and any explicit role alignment. The relation is many-to-many: one fragment may be linked to several
+Concepts, and one Concept may be linked to many fragments under different
+perspective paths and at different times. When a graded claim is made, an
+assessment Event under the relevant ancestry carries a local Cut whose mutually exclusive answers are
+\emph{matches}, \emph{does not match}, and remainder. Separate Concepts use
+separate fit Cuts; no independent Realization degree is introduced.
+Every Cut is parented by an Event. A judgment about a fragment, Concept, or
+another record therefore introduces an assessment Event linked \texttt{about}
+that target and contained beneath the process whose perspective it expresses;
+the target itself is not silently treated as a Cut parent.
+
+Cut answers are addressable components: a reference names the Cut revision and
+a stable local answer key, even at zero weight; the remainder has its own
+reserved key. An answer's
+target and its component address are distinct, since the same Event may answer
+several questions. Nested Cuts name the particular component whose conditional
+unit they divide. Conditioning addresses must resolve and cannot form cycles.
+This supplies exact targets for refinement, grounding, and notes without adding
+another world record form.
+
+The query contract is ancestry-complete within the caller's authorized view.
+Only declared authority-parent edges confer context: \texttt{context-parent}
+links and containment links explicitly assigned that role. They form an acyclic
+graph. Traversal stops at the nearest declared context root on each path:
+accepted-world, inner, understanding, document, or candidate. All such paths
+must resolve to the same governing root; conflicting roots require separate
+claims, not an arbitrary parent choice. Temporal ancestry is queried separately.
+
+Access is checked before following an edge or returning its target. A denied
+private reference reveals neither content nor private ancestry. Reference,
+evidence, \texttt{renders}, and Realization target links do not grant access;
+following \texttt{about} never changes perspective. A lookup returns the
+permitted typed parent paths. A Cut or component lookup returns its parent
+Event, question, unit, keyed siblings, conditioning address, remainder, and
+recomposition rule together, or withholds that entire view. It never exposes
+an isolated weight whose required context is inaccessible.
+
+The parsimony rule is operational: admit a new primitive only when a validator
+would otherwise be unable to distinguish two cases with different admissible
+targets, composition, authority, inference, or validation. A new name may be
+introduced when it helps a reader or validator, but shared serialization never
+implies shared semantics.
+
+\subsection{Optional construction profile}
+
+The six forms do not by themselves require one lifecycle convention, temporal
+partition, or domain vocabulary. This paper uses a stronger profile to show how
+they can construct a progressively resolvable world. Other profiles may choose
+different children and depths or omit human modeling entirely. What remains
+general is the Cut contract: a decomposition names its parent quantity and
+question, admits mutually exclusive answers under that question, retains a
+remainder, and states how the answers reconstruct the parent.
+
+The reading rule is simpler. A semantic number is a Cut weight: it means one
+answer's share relative to its siblings under the parent Event's question and
+unit, and the answers plus remainder sum to one. A non-summing process relation
+is unweighted. Literal dates, durations, counts, currency amounts, positions,
+and other externally grounded observations may be stored as typed Event data
+with their units and provenance, but they are not semantic ratings and do not
+create a third parent relation. A Realization is likewise unweighted; optional
+graded fit is represented by its own local Cut. If no divided unit and mutually
+exclusive answers can be named, no semantic number is assigned.
+
+Three Cut families---allocation, sequential, and direction---yield five named
+profiles: facet, contribution, cause, sequential, and direction. Their
+validator-visible distinctions are specified in Section~\ref{sec:normalized-cuts}.
+
+The construction interface exposes six operation families. They are a small
+authoring surface over the records, not six additional ontological primitives.
+
+\emph{Register} stages an addressable Concept, Thing, or Event; in the lifecycle
+profile a new Thing and its lifecycle enter the same candidate. \emph{Bind} assigns a
+Thing a time-scoped role in an Event. \emph{Open or compose} is one structural
+family with two retained modes: open refines a frozen authoritative parent,
+whereas compose proposes a new parent over existing Events. \emph{Cut} adds
+question-relative answers under one declared profile. \emph{Decide} rejects a
+candidate, commits it as new, or commits an immutable revision that records
+superseded targets and revalidates its dependency closure. \emph{Realize}
+defines or describes Concept grounding while retaining purpose, version,
+context parent, evidence, and uncertainty.
+
+Convenient construction names specialize those families without enlarging the
+record grammar.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{0.19\textwidth}p{0.28\textwidth}Y@{}}
+\toprule
+\textbf{Construct} & \textbf{Core or interface basis} & \textbf{Why the name remains} \\
+\midrule
+Facet, contribution, cause & Allocation Cut & Their answer eligibility, interpretation, and validation differ \\
+Presence, membership, part--whole & Event plus typed Bindings & Their roles and interval constraints support different queries and validators \\
+Update & Event plus \texttt{updates} link & It asserts an effect on a process or typed world datum rather than generic reference \\
+Supersession & Typed \texttt{supersedes} link & Its scope and clock determine which lineage changes authority \\
+Roll & Direction Cut plus Decide & The original forecast, seed, fixed mass, drawn mass, and alternatives must survive selection \\
+Roster, inherited presence, summaries & Read-only derivations & They follow from committed records and carry derivation lineage rather than new authority \\
+Understanding, render, read back & Understanding and document workflow & They operate on linked text surfaces outside the six world-record forms \\
+\bottomrule
+\end{tabularx}
+\caption{Named conveniences built on the minimized record grammar.}
+\label{tab:construction-specializations}
+\end{table}
+
+Five cross-record rules govern this profile.
+
+\begin{enumerate}
+  \item Nonnegative, mutually exclusive Cut-child weights and the explicit
+    remainder sum to one under the declared question and unit.
+  \item Qualified decompositional refinement satisfies its profile-specific
+    composition operator within tolerance, or the candidate is rejected or
+    committed as an explicit revision.
+  \item Containment and sequential children respect their applicable parent
+    temporal or spatial extent; direction candidates instead respect the
+    forecast horizon and are not treated as present parts.
+  \item Every active Binding interval lies inside its Event and the lifecycle
+    of each actively participating Thing; an \texttt{about} link does not
+    imply participation.
+  \item A Cut inherits the governing authority context of its parent
+    Event; a different perspective requires another attributed Event beneath
+    the corresponding typed root and another Cut.
+\end{enumerate}
+
+Every authored profile record carries provenance, and every derived view
+carries derivation lineage. A concrete construction may add stronger gates,
+including co-presence checks and a rationale requirement for selected changes.
+Those gates must be declared by that construction; they are not universal laws
+of every domain represented by the core.
+
+\subsection{Progressive world construction}
+
+The optional profile used here adds lifecycle anchoring and conservative
+refinement to the core. It illustrates one way to build a world; its conventions
+are not required of every Meaning Model.
+
+\subsubsection{Roots, identity, and relations}
+
+The profile distinguishes two roots. The Universe is a Thing that addresses the
+continuing identities in scope. History is its lifecycle Event and contains the
+accepted Events within the declared horizon. Time is carried by Event intervals
+and typed temporal data, not represented as another Thing. Merely assigning a
+date to a candidate does not place it in accepted History.
+
+Each Thing names an identity boundary, a continuity criterion, and exactly one
+lifecycle Event in this profile. The Engine may therefore remain the same Thing
+while its location, ownership, completion, parts, and social interpretation
+change. An active participant Binding must lie inside the participant's
+lifecycle. Later Events may still refer to a destroyed machine or a dead person
+through \texttt{about}; they do not bind that Thing as an acting participant.
+Creation and destruction delimit lifecycles. Split, merge, replacement, and
+succession Events link predecessor and successor identities, while the declared
+continuity criterion decides whether either is the same Thing.
+Resolved intervals are half-open, $[t_0,t_1)$. A moment Event has a tagged instant
+with support $\{t\}$, not a positive duration. Creation and destruction use
+declared boundary roles; ordinary participation cannot outlast a lifecycle.
+Unknown endpoints remain unknown: unresolved interval checks are
+\emph{untestable}, not passed. Duration shares require a finite observation
+interval. Imagined and counterfactual timelines declare their own frames;
+temporal containment and comparison require a common frame. A changed lifecycle
+claim is an immutable revision, not a second current lifecycle for the same Thing.
+
+Relations among Things are Events because a relation can have a beginning, an
+end, participants with different roles, and its own history. Membership is a
+joint Event with member and group Bindings. Physical part--whole uses part and
+whole Bindings under a different relation kind. A partnership uses two partner
+Bindings. This makes n-ary relations possible and avoids maintaining a second,
+timeless graph of Thing--Thing edges.
+
+Rosters and encapsulation are views over active relation Events rather than
+independently authored truth. At time $t$, the view selects physical parts,
+members, or occupants whose relation Event and role-Binding intervals both
+contain $t$, retaining those different roles. Opening the Engine exposes parts without replacing
+the Engine: joint part--whole Events expose the parts and Thing identities
+preserve reference. A share of credit or
+activity is a separate Cut under a declared question; it is never inferred from
+membership. Likewise, a dispute may compose several letters, meetings, and
+departures into one episode without becoming identical to the partnership in
+which it occurs.
+
+Space uses the same forms. A place is a Thing and presence is an Event binding a
+subject to it. When geometry matters, position and extent are typed Event data
+with a coordinate frame, unit, tolerance, and provenance. A sphere around a
+building records modeled size, not semantic resolution or uncertainty about its
+location. An explicitly location-propagating physical-part relation may derive
+a part's coarse presence from its container until detachment; social membership
+does not imply co-location.
+
+Individual Cuts can be drawn as trees, but the world is a graph. One Event may
+participate in several Cuts, Processes may overlap, and distinct inner or
+understanding roots may represent incompatible readings of the same Thing.
+Shared identifiers keep these views about one world without giving any node a
+global weight.
+
+Four frequently confused openings therefore have different tests.
+Table~\ref{tab:refinement-relations} makes those tests explicit. None can stand
+in for another merely because all four can be drawn as parent--child diagrams.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{0.24\textwidth}YY@{}}
+\toprule
+Relation & What the children mean & Required connection \\
+\midrule
+Concept specialization & More restricted kinds of the parent kind & Declared inherited constraints; no normalization \\
+Expressive concept decomposition & Components used to articulate one grounding & Named comparator and fine-to-coarse mapping; a Cut only for a divided unit \\
+Physical encapsulation & Parts of the same material Thing & Time-scoped part--whole Bindings, identity, and any declared extent constraints \\
+Temporal segmentation & Disjoint portions of one Event interval & Coverage, interval order, and duration-derived sequential shares \\
+\bottomrule
+\end{tabularx}
+\caption{Different meanings of opening, with different preservation contracts.}
+\label{tab:refinement-relations}
+\end{table}
+
+Progressive resolution needs a stopping rule as much as an opening rule. Make
+a record explicit when it must persist across later construction, constrain a
+later Event, differ across perspectives, or remain controllable and auditable.
+Otherwise the detail remains implicit at the declared purpose and resolution.
+Where a governing Cut exists, its unallocated share stays in that Cut's
+remainder; an unweighted process or relation acquires no fictional remainder.
+This rule does not guarantee that the chosen frontier is optimal; it prevents
+detail from expanding merely because it can.
+
+\subsubsection{Cuts, Event-processes, and world data}
+\label{sec:normalized-cuts}
+
+The central numerical distinction is not between important and unimportant
+records. It is between a divided quantity and an undivided relation. For Cut
+$K$,
+
+\begin{equation}
+  w_i\ge 0,\qquad w_{\bot}\ge 0,\qquad
+  \sum_i w_i+w_{\bot}=1.
+  \label{eq:local-simplex-theory}
+\end{equation}
+
+Each $w_i$ is meaningful only beside its siblings under the Cut's parent Event,
+question, and unit. The answers must be mutually exclusive as shares of that
+unit even when the records they reference coexist. The same Event can receive
+different weights under different questions; the grammar assigns it no global
+importance. If increasing one proposed answer need not reduce another and no
+competing unit can be named, the relation is not a Cut.
+
+Table~\ref{tab:life-relations} states the complete boundary. The first two rows
+are the two ways a parent may be opened. The third is data carried by an Event,
+not another parent relation.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{0.19\textwidth}p{0.29\textwidth}Yp{0.11\textwidth}@{}}
+\toprule
+Form & Question answered & Representation & Weighted? \\
+\midrule
+Cut & How does one declared unit divide? & Exclusive answers plus explicit remainder & Yes; sums to one \\
+Event-process & Which Events occur within, constitute, update, or refer to this longer Event? & Typed containment, update, and reference links & No \\
+World datum & What categorical fact or externally measured value held? & Typed Event payload with unit, frame, uncertainty, and provenance & Not a parent relation \\
+\bottomrule
+\end{tabularx}
+\caption{Two parent relations and the separate world-data payload.}
+\label{tab:life-relations}
+\end{table}
+
+The five named profiles fall into three families. An \emph{allocation} Cut
+divides a unit among answers in a frozen vocabulary or among referenced records.
+Facet answers use the frozen vocabulary; contribution answers name Things bound
+to the parent Event; cause answers reference existing wants, beliefs, actions,
+circumstances, or Events. A cause Cut remains an allocation of explanatory
+responsibility located beneath one perspective-bearing process;
+normalization does not establish intervention-level causality.
+Overlapping contributions require an explicit allocation convention or a joint
+answer; assigning each the whole shared contribution would double-count it.
+A \emph{sequential} Cut orders disjoint child Events and derives their shares
+from duration, leaving uncovered time in the remainder. A \emph{direction} Cut
+divides forecast allocation among mutually exclusive continuations at a stated
+horizon. Its children are possible successors rather than current parts, and
+its interpretation must be declared before selection or outcome. Proposal
+weights specify how a constructor samples; predictive weights assert
+probabilities over a defined outcome partition. Predictive calibration is then
+evaluated, not assumed from normalization, and an uncalibrated forecast can
+still be scored. At most one answer is realized; its accepted Event uses a
+\texttt{realizes-forecast} link to that answer's slot, including the remainder.
+Unrealized alternatives do not thereby become accepted Events.
+
+An Event's general direction may instead reference a constraint, transition
+law, or learned predictor. Such domain models are content attached to the
+grammar. How they are proposed, compared, and trained belongs to Life
+Simulation; their presence does not enlarge the six-form ontology.
+
+The slogan that children define their parent is consequently qualified. Cut
+children divide one stated unit; a direction Cut describes alternatives, not
+parts of a future that has already occurred. Shorter Events may
+constitute or alter a longer process without summing, and one Event can update
+several processes at once. Dates, money, distance, and measured physical change
+retain their own external units. An actor or reasoner may later pose a Cut over
+explanatory responsibility, but the grammar never manufactures a common magnitude merely
+because several domains changed together.
+
+A Thing's lifecycle Event can host several concurrent, overlapping
+Event-processes. A person's body, partnership, work, or place processes, for
+example, can change together without becoming fractions of one life-wide
+quantity. Ordinary links state containment, occurrence, update, or reference;
+they do not themselves explain the longer process. Explanation requires a
+causal Cut beneath the reasoner's typed ancestry or an anchored
+UnderstandingNode. When a construction
+calls one process slow and another fast, those words name response time at a
+declared temporal resolution, not importance or a numerical rank.
+
+\subsubsection{Conservation under refinement}
+
+An opening is conservative only with respect to a declared contract. Before
+generating detail, the constructor fixes a base snapshot, protected queries at
+specified times and resolution, admissible error, and a map from proposed fine
+records to coarse records or Cut components. A typed \emph{Close} operation
+reconstructs the protected answers from addressed fine records through that map;
+reading cached coarse answers does not count. Identity, categorical data, and
+protected links normally require exact agreement; measurements use same-unit
+tolerances. Acceptance requires each
+protected answer to agree with the base within its declared tolerance, as well
+as satisfying the structural constraints. Otherwise the proposal is rejected
+or submitted as a revision. Close is a validation operation, not a seventh
+record form, and cannot be chosen after seeing which projection makes a
+candidate pass. This is a finite preservation witness, not a theorem that every
+possible query or meaning remains unchanged.
+
+Suppose a finite, positive-duration parent Event $P$ has a sequential Cut into disjoint intervals
+$I_i$. Their shares are
+
+\begin{equation}
+ \lambda_i=\frac{\mu(I_i)}{\mu(I_P)},\qquad
+ \lambda_{\bot}=1-\sum_i\lambda_i,
+ \label{eq:duration-shares-theory}
+\end{equation}
+
+where $\lambda_{\bot}$ covers time not yet opened. An open lifecycle uses an
+explicitly bounded observation Event rather than an infinite or unresolved
+denominator. Compatibility requires the same question, divided unit, vocabulary,
+remainder meaning, and governing perspective. If the children fully cover the
+parent and every interval has a compatible facet Cut $f_i$, the parent Cut is
+
+\begin{equation}
+ f_P=\sum_i\lambda_i f_i.
+ \label{eq:mixture-law-theory}
+\end{equation}
+
+When $\lambda_\bot>0$, a complete parent vector exists only if the uncovered
+interval has an explicit compatible facet vector $f_\bot$, in which case its
+term $\lambda_\bot f_\bot$ is added. Otherwise the derived view reports the
+known partial contribution, coverage, and temporal remainder without inventing
+the missing vector. If a complete parent $p$ was already committed, partial
+detail must still leave a feasible completion. In exact arithmetic,
+\begin{equation}
+ r=p-\sum_i\lambda_i f_i,\qquad r_j\geq0\ \text{for every }j,
+ \qquad \sum_j r_j=\lambda_\bot.
+ \label{eq:residual-feasibility-theory}
+\end{equation}
+The construction fixes any numerical tolerance in advance. A child cannot
+consume more of a parent component than was committed, even while other time
+remains unopened. A feasible residual establishes only that completion is
+possible, not what actually happened during the gap. Full coverage reduces to
+the mixture equality. Failure requires rejection or an explicit parent revision
+with its affected dependents; normalization must not conceal it.
+
+For a numerical check, take two equal-duration intervals with compatible Cut
+vectors $(.30,.60,.10)$ and $(.10,.80,.10)$, where the third entry is each
+Cut's remainder. Their parent is
+\[
+ \tfrac12(.30,.60,.10)+\tfrac12(.10,.80,.10)=(.20,.70,.10).
+\]
+The calculation conserves sibling-relative shares; it does not turn the
+categories into absolute measurements.
+
+Only compatible Cut questions use this mixture. Relationships, presence,
+categorical lifecycle status, material stocks, and other topologies retain their
+own aggregation rules. For an allocation, Close sums fine shares mapped to each
+coarse answer; opening a remainder must account for that same remainder's mass.
+A conditional Cut distributes its enclosing component, so its full-unit shares
+are the enclosing weight times its local weights. For physical encapsulation,
+Close preserves protected identity, role, presence, and extent queries; for
+temporal segmentation it preserves interval coverage and declared ordering.
+These are different operators. A finer gear description can preserve the
+machine's identity and location without claiming to be an average gear.
+
+Life, period, episode, and phase illustrate the distinction without adding
+record forms. A lifecycle is an Event bound to one Thing. Periods are the
+disjoint children of one authoritative sequential Cut of a bounded lifecycle
+interval. An episode is a coherent Event arc linked \texttt{occurs-within} a
+lifecycle or period and may overlap other episodes or cross period boundaries
+within its lifecycle. Its phases, when opened, use a sequential Cut of that
+episode. A Book construction may use these forms
+without treating its particular periodization or person vocabulary as part of
+the grammar. The selection, comparison, and learning of temporal process laws
+belong to Life Simulation.
+
+\subsubsection{Anticipation, shocks, and adaptation across scales}
+\label{sec:multiscale-change}
+
+Longer processes supply the circumstances in which shorter Events matter.
+A shock is an Event that materially changes a specified process at the chosen
+resolution, under a declared criterion of change. It need not be harmful or
+unexpected: an invention or successful demonstration can reorganize a life as
+substantially as a loss. The same Event can affect a person, a partnership,
+and an institution differently. These are linked responses, not copies of one
+shock magnitude assigned to every participant.
+
+Anticipation is optional and perspective-specific. A prior belief or predictive
+direction Cut records what an actor expected at a stated cutoff and horizon;
+preparatory Events record what the actor did about it. Constructor proposal
+weights are not evidence of that expectation. An anticipated loss can still
+be severe, while a surprise can have little lasting effect. Missing prior
+records mean that anticipation is unknown, not zero. A society or ecosystem
+need not have one mind: forecasts belong to named actors or models, and any
+collective account declares its aggregation. Preparation can avert, reduce,
+or amplify the subsequent disturbance.
+
+Adaptation is represented by response Events and changes in the affected
+processes, with descriptions and anchored UnderstandingNodes explaining the
+proposed connection. It need not restore the old state or improve matters.
+Recovery, consolidation into a different way of acting, continuing instability
+or cascade, and terminal transition are possible shapes. Anticipated
+transition allows adjustment before the focal Event. Growth, learning, and
+aging can also accumulate through drift without a discrete shock. Beliefs,
+wants, skills, relationships, and resources may change at different rates;
+one person's recovery can coexist with an institution's closure.
+
+The recurrence is a pattern of questions, not an assertion of exact
+self-similarity. Over decades, economic or political change can alter an
+institution's possibilities; over years, people reorganize careers and
+relationships; within a day, an interruption changes a plan or conversation.
+Larger processes constrain local options, while accumulated local responses
+can alter the larger process. Spatial reach and response time are separate:
+a brief decision can have widespread, lasting effects. Update links and
+anchored explanations express these connections; containment or a
+duration-weighted mixture alone does not establish their cause. Only genuine
+allocations use Cuts, and only compatible questions recompose numerically.
+
+No new record or mandatory stage sequence is required. Jump diffusion may suit
+some continuously varying states with abrupt changes, but diffusion is not a
+synonym for adaptation, and not every process returns to a baseline. The
+Meaning Model records the before-state, any anticipation, the Event, and its
+responses; testing temporal laws or predictors against those records belongs
+to Life Simulation.
+
+\section{Concepts and Examples}
+
+Stable Concept identities, typed relations, versioned grounding resources, and
+local fit Cuts support both light vocabularies and deep canonical fragments.
+
+\subsection{Concept identity and grounding resources}
+
+A concept first needs a stable identifier. Names can change, collide, or be
+translated; the identifier lets a world continue to refer to the same proposed
+meaning. Typed relations then place that identifier in one or more conceptual
+views. A concept may specialize another concept in one hierarchy, oppose a
+second concept, and help express a third without those relations becoming the
+same generic parenthood.
+
+This relational representation can be intentionally light. A frozen emotion
+vocabulary, for example, may need only names, short constraints, typed
+relations, and anchors. Its position in a tree does not exhaust its physical
+meaning, but a construction should not be forced to author a miniature world
+for every term before it can begin.
+
+Four resources can represent and ground a concept with increasing explicitness.
+They can coexist, and a construction need not treat them as rival definitions
+or as a mandatory maturity ladder. The first organizes identity and relations;
+the others add progressively richer evidence or structure.
+
+\begin{enumerate}
+  \item \textbf{Relational schema.} The concept is constrained by its name,
+    typed parents, differentia, neighboring relations, and the question under
+    which it is used. This is the cheapest form and may be sufficient for use
+    inside a frozen local vocabulary, although taxonomy alone does not specify
+    how the concept is physically realized.
+  \item \textbf{Representative prototype.} One provenance-bearing fragment is
+    selected as a useful center of comparison without being declared the full
+    extension of the concept. Different contexts may require different
+    prototypes under the same stable Concept identifier.
+  \item \textbf{Exemplar grounding.} The concept points to provenance-bearing
+    positive, negative, typical, and boundary examples. Anchors make a graded
+    judgment comparable without pretending that one example is the definition.
+  \item \textbf{Canonical-model grounding.} One or more idealized
+    referent--event models written in the Meaning Model grammar state
+    characteristic roles, things, event-processes, phases, and cuts. This is
+    the deepest option when temporal or relational structure must be inspected
+    directly.
+\end{enumerate}
+
+An operational layer may add a recognizer that proposes a \emph{describe}
+Realization and any component or aggregate fit Cuts from a world fragment, or
+an instantiator that proposes a fragment from desired realization conditions.
+Both retain their version and provenance and use the ordinary realization or
+candidate-commit interface. Their omission from a construction is a profile
+choice, not a restriction of the theory. This links the construction of an
+example, the explanation of its concept membership, and the revision of that
+concept through one representational medium. Learning those operators is a
+further task, not a consequence of making their inputs explicit.
+
+A canonical grounding is a family rather than necessarily one prototype. It
+may retain context-specific models, counterexamples, boundary cases, and
+unresolved variation. Any numerical typicality claim is expressed by a local
+Cut rather than an independent scale.
+
+Define Realizations and typed links associate a concept with these resources.
+A describe Realization records the comparison actually used: exemplars
+consulted, or a canonical alignment with component and aggregate fit Cuts under
+the relevant assessment Events. The comparison is never implicit.
+
+Examples constrain a concept without uniquely fixing how it should extend to a
+new case. A prototype selects one representative center; a canonical family
+makes more relational and temporal commitments explicit; and a recognizer adds
+a learned decision rule. Each can still be incomplete or culturally local.
+Consequently, moving from examples to a canonical family and then to an
+operator is a possible learning path, not a proof that the resulting concept is
+the only correct one.
+
+If a definition process allocates attention or responsibility across a
+canonical model's components, a definition or assessment Event about the model
+parents that Cut beneath the process. Normalization applies only when its answers are mutually
+exclusive shares of one named unit. Overlapping senses or perspectives remain
+typed concept relations or separate Event-parented Cuts. The existence of
+canonical models does not by itself supply an operator by which their world
+fragments recompose.
+
+\subsection{Content-addressed grounding versions}
+
+A Concept identifier and a grounding version answer different identity
+questions. The identifier preserves the proposed concept across revisions. A
+grounding version identifies the exact definition bundle used for one
+Realization. A flat bundle may contain the identifier, description, relations,
+prototype or exemplar references, and constraints; a deep bundle may contain a
+canonical fragment and comparator specification. Either kind may be serialized
+in a declared canonical form and addressed by its full Sema content hash
+\cite{westerbergSema2026}. A revision produces another hash and an explicit
+\texttt{supersedes} link. The Concept identifier remains only when its declared
+continuity policy treats the revision as the same concept; a semantic split or
+merger normally introduces linked successor identifiers.
+
+Content identity is narrower than semantic identity. Equal digests under one
+canonicalization scheme establish that two parties resolved the same canonical
+representation;
+they do not establish that differently encoded models have different meanings,
+that the selected model is true, or that two perspectives accept its interpretation.
+Human-readable shortened handles are therefore references, not the
+authoritative identity. The full digest and canonicalization version remain in
+the record.
+
+Reproducible fit Cuts require the hashed or transitively addressed bundle to
+name everything that can change the comparison. For a flat grounding this
+includes its descriptions, relations, anchors, and constraints. For a canonical
+grounding it additionally includes the fragment, role schema, component and
+aggregate Cut questions with their answers and remainder, referenced grounding
+versions, and comparator or recognizer version. A \emph{describe} Realization
+then states exactly which bundle it used. Sema
+provides addressing and agreement on that bundle; the Meaning Model continues
+to carry context ancestry, evidence, alignment, and the claim made with it.
+
+\subsection{A model of concept history}
+
+The idealized fragment used to define a concept is not automatically an event
+in the history of a modeled society. When the development of the concept itself
+matters, the same grammar can instead model its historical carriers. A
+formulation, notation, published definition, or versioned canonical bundle is
+registered as a representational-token Thing linked to its Concept and
+grounding hash. Its lifecycle and joint Events can then record formulation,
+naming, publication, adoption, contestation, revision, or abandonment, with
+people, documents, and institutions bound in their respective roles. A split or
+merger of definition artifacts is recorded at this level; when the asserted
+meaning itself divides or combines, linked successor Concept identifiers make
+that semantic claim explicit. The Concept record remains a Concept; it is not
+silently converted into a Thing.
+
+This evidence-indexed subgraph can be called a \emph{concept world}.
+Realizations connect it to ordinary world episodes, including cases
+that exhibit a pattern before anyone names it. An insight Event may create a
+new formulation or grounding version without claiming that it created every
+possible meaning of the concept. A content-addressed registry preserves the
+definition versions; the Meaning Model preserves the historical Events and
+their disputed attribution. The first construction should open only the few
+concept histories that materially affect its action.
+
+That social history differs from the reasoning by which someone defines or
+interprets a concept. The latter is a Concept-scoped projection of the
+Understanding Graph beneath a named understanding-process root and its clock.
+It gathers nodes addressing the Concept identifier, exact grounding versions
+or \emph{define} Realizations, evidence, rejected alternatives, and reasons for
+retaining or superseding a grounding. An author's definitional history
+normally unfolds in construction time; incompatible reasoning histories may
+coexist without becoming accepted world state.
+
+Preserving that reasoning requires a rationale UnderstandingNode for each
+substantive initial freeze and committed revision, addressing the predecessor
+and successor, evidence, and material rejected alternatives. Without this
+lineage the Concept remains valid but its rationale is not preserved. Simple
+label registration and mechanical metadata changes need no ceremonial nodes.
+
+\subsection{Optional deep grounding: love and the Engine}
+
+Consider one canonical referent--event model under the polysemous word family \emph{love}:
+devotional love of a work. Its roles align an experiencer with Babbage and an
+object with the Engine. This is an optional deep reading of a counterfactual
+story world, not the universal definition of love and not a claim about a
+historical person's mind.
+
+Suppose a definition Event beneath one named understanding process carries a
+Cut that gives components $j$ weights $\alpha_j$ and remainder
+$\alpha_{\bot}$. For each component, a separate assessment Event beneath that
+process and about the target--component alignment carries a local match Cut with
+shares $m_j$, $n_j$, and $u_j$ for \emph{matches}, \emph{does not match}, and
+unresolved remainder. A recorded alignment $a$ may then derive an aggregate fit
+Cut on the overall assessment Event transparently:
+
+\begin{equation}
+  r_C=\sum_j\alpha_jm_j,\qquad
+  n_C=\sum_j\alpha_jn_j,\qquad
+  u_C=\alpha_{\bot}+\sum_j\alpha_ju_j,
+  \qquad r_C+n_C+u_C=1,
+  \label{eq:concept-match-theory}
+\end{equation}
+
+where $m_j+n_j+u_j=1$ in every component Cut. This is one possible comparator
+for one grounding strategy, not a universal law of concepts. Its numbers are
+all sibling-relative Cut shares; the Realization link itself remains unweighted.
+In the displayed arithmetic below, the four named component Cuts each set
+$u_j=0$; the aggregate $.100$ remainder comes entirely from the canonical
+model's unspecified component mass.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lrrrr}
+\toprule
+Canonical component & $\alpha_j$ & $m_j$ & matches & does not match \\
+\midrule
+Care & .35 & .90 & .315 & .035 \\
+Attachment & .25 & 1.00 & .250 & .000 \\
+Desire & .15 & .60 & .090 & .060 \\
+Sacrifice & .15 & .30 & .045 & .105 \\
+Unspecified remainder & .10 & --- & --- & --- \\
+\midrule
+Aggregate fit Cut & & & $.700$ & $.200$ \\
+Aggregate remainder & & & \multicolumn{2}{c}{$.100$} \\
+\bottomrule
+\end{tabular}
+\caption{One inspectable fit Cut against an optional canonical love model.}
+\label{tab:theory-love}
+\end{table}
+
+The useful result is not only the $.700/.200/.100$ aggregate Cut. It is the
+recorded claim of strong fit on care and attachment, weaker fit on sacrifice,
+and an alignment that treats a machine as the object role. Another perspective may reject the alignment, select
+a different love model, use exemplars instead, or decline to score the concept
+without changing the target world.
+
+Evaluative terms use the same plural grounding mechanism. A decision episode
+may realize the model of situated intelligence or kindness reached through one
+understanding process, and an assessment Event beneath that process may carry a fit Cut whose evidence and
+grounding version remain inspectable. Later outcomes are separate Events, so an organized failure need
+not be reclassified as an unintelligent action merely because it failed. A
+coarse statement about a whole person remains perspective-scoped testimony or a
+declared aggregation over episodes, never an intrinsic trait scalar. Constructing
+and revising these concept models uses the Meaning Model; learning them and
+testing their empirical validity and transfer belong to Life Simulation. The grounding
+may also declare thresholds or vetoes rather than assuming that all components
+compensate linearly.
+
+\subsection{Fit cuts and concurrent concepts}
+
+One Event can be linked to both quarrel and farewell. If graded judgments are
+useful, one assessment Event beneath the relevant perspective root for each Concept link carries
+its own local fit Cut rather than making the Concepts siblings: quarrel might
+have matches $.80$, does not match $.15$, and remainder $.05$, while
+farewell has its own three shares. The two
+match weights need not sum with each other because they belong to different
+Cuts; within each Cut the three siblings do sum to one.
+
+Fit and confidence ask different questions. A fragment may strongly exhibit a
+concept while the evidence that the fragment occurred is weak; a well-attested
+fragment may clearly fail to exhibit it. The fit Cut divides the declared
+comparison unit into matched, unmatched, and unresolved portions. If numerical
+confidence is needed, a separate epistemic assessment Event asks how support
+divides among the claim, its rejection, and unresolved alternatives, with its
+own anchors and evidence. It is not obtained as one minus non-fit, and the fit
+remainder is not a universal uncertainty score. A construction may instead
+leave confidence unquantified and mark the fit provisional or unscored.
+Confidence weights neither multiply nor replace fit weights; a well-supported
+mismatch remains different from a poorly supported match.
+
+An emotion facet Cut supplies composition, not an absolute intensity scale. If
+a construction needs a graded activation claim, it must create another
+assessment Event beneath the relevant inner or understanding process with a Cut over mutually exclusive answers
+such as materially active, inactive, and remainder, or leave intensity
+unquantified and describe the episode through its Events. Compatible fit or facet Cuts may be mixed across disjoint temporal
+children only under a stated question and aggregation. Whether an Event occurred
+in a decade is instead derived from the Event record; it is not the maximum of
+an independent degree.
+
+\subsection{One World, Many Cuts}
+
+The same accepted event can participate in several decompositions without
+being copied. Consider Earth as a Thing and its modeled history as the bound
+lifecycle Event over a geological horizon. Thing-side views may open Earth into
+regions, the biosphere into ecosystems and organisms, or a person into body
+systems. Event views may link overlapping geological, climatic, evolutionary,
+and cultural processes, while a sequential Cut may partition the same history
+into disjoint eras and transitions. One evening of reading can be reached
+through at least two routes:
+
+\begin{center}
+\small
+Earth history $\rightarrow$ evolution $\rightarrow$ human life
+$\rightarrow$ one evening $\rightarrow$ reading,\\
+Earth history $\rightarrow$ human culture $\rightarrow$ literature
+$\rightarrow$ book production and circulation $\rightarrow$ reader encounter.
+\end{center}
+
+The routes are not rival world copies. The reading Event binds the same reader,
+book, and place Things while each cut answers a different question. Retinal
+activity, emotional appraisal, cultural transmission, and narrative meaning
+justify different active frontiers. Shared identifiers preserve that the
+frontiers concern one accepted event.
+
+An avalanche shows why direction cannot be a synonym for intention. A
+snowpack, slope, terrain regions, and material layers are Things; the avalanche
+is an Event bound to them. Physical-part events may expose slabs, layers,
+cells, or particles. A sequential Cut may expose accumulation, instability,
+trigger, fracture, release, runout, and deposition only at a lens where those
+phases are ordered and disjoint. Loading, cohesion, friction, temperature,
+velocity, terrain interaction, and entrainment are linked processes or
+externally grounded physical data unless a separate question declares a unit
+over mutually exclusive answers. At low
+resolution an aggregate stability state and runout envelope may suffice. At a
+finer resolution, local processes bind exposed material Things. Its direction
+is physical: forces, constraints, and present state shape possible
+continuations. Intentional language may be a useful metaphor, but the event
+ancestry and direction type must not convert it into a claim about a mind.
+
+\subsection{Direction from Tendency to Want}
+
+For agent modeling, motivation can specialize direction without requiring an
+unrelated primitive:
+
+\begin{equation}
+ \text{physical tendency}\quad\longrightarrow\quad
+ \text{biological regulation}\quad\longrightarrow\quad
+ \text{represented want}.
+ \label{eq:direction-types}
+\end{equation}
+
+The arrow marks increasing representational commitments, not a claim that
+every process secretly has a mind. A physical tendency follows forces and
+constraints. Regulation detects or counteracts departure from a viability
+region. A represented want exists when an actor represents or values a
+possible state and that representation can alter action selection. Saying that
+an avalanche ``wants'' to descend may compress an explanation; it remains an
+instrumental description unless an internal representation is supported.
+
+In this grammar, a want can be represented as an inner Event contained beneath
+the relevant actor's lifecycle and inner-process root during a stretch of that
+lifecycle. A construction may link it to a desired
+condition of a registered Thing, Event, process, categorical state, or measured
+world datum. It may then open the want into formation, activation, pursuit,
+satisfaction, frustration, abandonment, or transformation. A plan is a
+proposed continuation, and a decision commits one continuation under the
+actor's represented beliefs, constraints, and competing wants. These are
+profile choices with precedents in BDI and goal-systems research
+\cite{raoGeorgeff1995,kruglanski2002}; the grammar preserves containment
+ancestry, interval, question, and evidence without imposing one universal person decomposition or
+one utility scalar.
+
+\section{World, Understanding, and Story}
+\label{sec:interop}
+
+A complete addressed construction has three linked surfaces. The world surface
+uses the six record forms. The understanding surface uses text-bearing
+UnderstandingNodes from the Understanding Graph
+\cite{westerbergUnderstanding2026}. The document surface uses DocumentNodes.
+They occupy one identifier space so that a question, reason, or sentence can
+address the exact world record it concerns, but they retain different
+semantics, clocks, and authority.
+
+\begin{center}
+\small\ttfamily
+\begin{tabular}{@{}l@{}}
+UnderstandingNode \{ id, type, text, created at, typed parents,\\
+\qquad typed links, provenance \}\\
+DocumentNode \{ id, role, text, discourse position, typed parents,\\
+\qquad typed links, optional narrator and viewpoint metadata, provenance \}
+\end{tabular}
+\end{center}
+
+These are surface records rather than seventh and eighth world forms. Every
+UnderstandingNode has a typed containment path to a named
+understanding-process root. Every DocumentNode has one to a named document
+root; \texttt{story\_passage} is one DocumentNode role rather than a separate
+record form. An UnderstandingNode externalizes a question, interpretation,
+reason, criticism, or revision and need not have an Event interval or simplex.
+A DocumentNode may record an act of telling in discourse order; document
+\emph{contains} and \emph{next} links do not inherit Event-containment
+semantics.
+
+Understanding links include \texttt{about}, \texttt{supports},
+\texttt{contradicts}, \texttt{refines}, \texttt{answers},
+\texttt{learned-from}, and \texttt{supersedes}. A DocumentNode links to Events
+through \texttt{renders} and to an UnderstandingNode through \texttt{shaped-by}.
+These links retain their surface-specific roles, not authority over their targets.
+
+World authority is likewise topological. Every accepted world Event has a typed
+containment path to History. A belief, appraisal, want, or estimate that is
+itself part of the accepted world sits in a named inner Event process beneath
+the relevant person's lifecycle. Its \texttt{about} links identify what is
+believed or estimated without promoting that target claim to accepted world
+state. A joint Event instead represents its participants through Bindings; it
+does not acquire one participant's perspective merely by binding that
+participant.
+
+An imagined, remembered, or counterfactual scene has a named model-context
+Event with a declared modality and source links. Accepting that Ada imagined a
+successful trial accepts the imagining act, not the trial. The content's
+depicted interval need not lie within the interval during which she imagined
+it: context parenthood is distinct from temporal occurrence. A remembered
+scene and an accepted historical account may address the same Things while
+disagreeing about what happened. Promoting content into accepted world state
+requires an explicit accepted assertion, not a traversal through its source.
+
+An Event may carry an optional textual description. That field describes the
+Event within its own record and ancestry; it is neither an UnderstandingNode
+nor a DocumentNode. If a description must participate in a reasoning history
+or in document order, a separate node is created under the applicable root and
+linked to the Event. Text about an Event is not thereby that Event.
+
+Optional narrator and viewpoint metadata refine a document role without
+replacing its root path. Conflicting accounts can coexist across these
+surfaces; agreement or common ground requires a declared derivation and is not
+silently promoted to truth.
+
+The density of the understanding surface is optional and explicit. A
+construction may preserve no UnderstandingNodes, only rationales for consequential commitments and
+revisions, or a finely segmented chronological reasoning trace. Absence means
+``not externalized at this resolution,'' not ``no thought occurred.'' A dense
+trace provides more supervision and auditability, but is not required for a
+valid world. A claimed rationale trace declares which commitments require
+nodes and which links connect their explanations. Conversely, an UnderstandingNode never gains world authority
+merely because it is detailed. When its physical carrier matters, a stored note
+or document is a representational-token Thing and its creation, reading,
+transport, and revision are ordinary Events; its textual content remains on the
+appropriate understanding or document surface.
+
+The Concept-scoped projection described above uses this same understanding
+surface. UnderstandingNodes carry reasons; Cuts carry numerical commitments.
+A non-obvious Cut may link to its rationale node, which addresses the exact
+Cut component or Event it explains.
+
+\subsection{Operative models and estimates}
+
+For an actor $a$, inner records active at $t$ and accepted records disclosed to
+the actor by $t$ form the actor projection $\mathcal M_a(t)$. Its inner records
+descend through $a$'s lifecycle and inner-process root; shared Thing identities
+preserve reference, while hypothetical targets remain within that context.
+The subset that organizes conduct at a decision is the
+actor's operative model $\mathcal M_a^{*}(t)$. Generation of speech or action
+from that model is restricted to content actually recorded as observed,
+communications received by the cutoff, and earlier records on the same
+admissible paths. Co-presence permits an observation; it does not reveal every
+field of an Event or another participant's private state. Observation and
+delivery records therefore identify the content disclosed. Permission-aware
+ancestry traversal cannot be used to bypass that boundary. A
+contradiction with accepted History is therefore representable as
+misperception rather than being silently repaired with author knowledge.
+
+An observer's account of the actor is different. It is an estimate Event beneath
+the observer's inner-process root, linked \texttt{about} the target record, and
+supported only by evidence accessible along that observer's paths. Self-report,
+another character's estimate, an author's construction-time interpretation,
+and the actor's operative state may all disagree. Compatible Cut estimates can
+be compared by total variation and categorical claims by equality; those
+divergences are derived diagnostics, not new semantic numbers. The profile also
+bounds higher-order nesting---what one character thinks another thinks---rather
+than granting unbounded omniscience. Life Simulation may later evaluate or
+learn such estimates; their ancestry and access semantics belong to the Meaning
+Model. A categorical or measured estimate retains the target's data type and
+units; an estimate of semantic composition uses a compatible Cut on the
+estimate Event. Missing records or unequal coverage indicate ignorance or
+noncoverage, not automatically disagreement or error.
+
+\subsection{Transactional construction, rendering, and read-back}
+\label{sec:construction-protocol}
+
+Progressive construction uses the same commit discipline for world records,
+UnderstandingNodes, and DocumentNodes. The accepted parent is frozen. A
+proposal is a whole candidate delta containing every new or superseding record
+required across the three surfaces. Validators inspect it against the frozen
+parent, including every new typed root path. Rejection leaves the active graph
+unchanged, although a construction log may retain the candidate and its
+explanation. Acceptance commits the candidate atomically. A later change is a new candidate
+with explicit \texttt{supersedes} links and revalidation of the affected
+dependency closure. This is a construction rule, not a claim that the generator
+is infallible.
+
+The commit envelope names the base snapshot and branch, candidate records and
+links, replacement map, exact revisions read, applicable validators and
+tolerances, and any refinement witness with its protected queries. This is
+transaction metadata, not another world form. Each branch has one active
+revision per logical identity. A stale base or changed read dependency rejects
+the candidate; rebasing requires renewed validation. Matching identifiers do
+not merge branches. Commit appends one immutable cross-surface snapshot and
+advances its head atomically.
+
+Revision preserves predecessor records and revalidates affected dependents.
+Operators, including opaque ones, must declare the records they read; source-bound
+views and passages also record derivation dependencies. Those declared links
+determine which dependents must be rechecked, regenerated, or marked stale.
+A generic \texttt{about} link alone does not define such a dependency. These
+are the required semantics; the current Rust host does not implement every
+cross-surface step.
+
+Consider a trial assessed as successful under a particular grounding bundle.
+Its Event, Realization, assessment Cut, supporting UnderstandingNode, and
+rendered DocumentNode address exact revisions. If finer phases expose a
+failure excluded by that success criterion, the opening must be rejected or
+explicitly revise the affected commitments, with declared dependents rechecked
+or marked stale. Earlier accounts remain addressable. This connects the
+outcome, its meaning, the rationale, and the text through one revision history;
+storing them together alone would not establish their agreement. The selected
+checks and semantic judgment still do that work.
+
+A direction Cut can make the generator's freedom inspectable. Its children are
+mutually exclusive candidate continuations and its remainder retains options
+not articulated. A draw that selects the remainder requires a new admissible
+proposal; it must not silently discard that mass and renormalize the named
+answers. The constructor may fix mass needed by the premise or an
+earlier commitment, draw among the remaining alternatives with a recorded seed,
+and then build the selected continuation as a complete candidate. A poor draw
+may be rejected under preregistered gates, but it is not silently rerolled until
+the author likes the answer. Rejected siblings and reasons remain addressable.
+Thus the model can materially decide the story while authorship remains bounded
+by declared constraints and visible intervention.
+
+A rendering route records the source commit and epistemic status; an ordered
+route through Events and its currently opened frontier; optional narrator and
+viewpoint metadata; the evidence accessible at that story-time cutoff; a
+disclosure policy; and the target DocumentNode with role
+\texttt{story\_passage}. It prevents a renderer from importing later facts,
+private state beneath another character's inner-process root, or an undelivered
+document. The route is a construction profile over existing references, not a
+seventh world relation.
+
+Read-back applies the inverse operation in a fresh context: infer the Things,
+Events, Cuts, Realizations, typed ancestry, and links implied by a story-passage
+DocumentNode, then compare that proposal with the source commit. A mismatch can
+expose an omitted record, an unsupported sentence, a wrong root path, or prose
+that implies a different composition. Its resolution is another explicit
+candidate: revise the DocumentNode, revise the model with justification, or
+retain a declared ambiguity. A read-back UnderstandingNode under the named
+review process preserves the disagreement and decision. This closes the loop
+from model to prose and back without treating prose as the sole authoritative
+copy.
+
+Event segmentation and situation models help explain why readers can follow
+such routes and detect discontinuities \cite{zacksEtAl2007event,zwaanRadvansky1998}.
+The representation nevertheless keeps a modeled interior, an author's reason,
+and a reader's later interpretation as related claims beneath different typed
+roots.
+
+\subsection{The unfunded successor, 1852--54}
+
+Chapter X of the completed \emph{Book of Conditions}, \emph{The Unfunded
+Successor}, supplies an actual construction example. At Ockham in August
+1852, Lovelace recognizes that both her claim authority and Neale's independent
+checking depend on single people. She asks for funded training and outside
+supervision of a second checker. Babbage brings a mechanical self-comparison
+design, then recommends waiting; Halden defers the expenditure. Lovelace dies
+with the request unanswered. In 1854 Halden authorizes delivery without the
+independent check, and Guardian returns the erroneous table. These are the
+finished Book's authored events and character interpretations, not evidence
+about the historical minds of Babbage or Lovelace.
+
+The construction's world descriptions identify the succession decision as
+E20, Lovelace's death as E21, the omitted check as E24, and the returned table
+as E25. Understanding note U05 explains why her death removes active pressure
+but neither inserts the wrong number nor forces Halden's decision. Chapter X
+renders the earlier succession episode; Chapter I opens with the later
+failure. Figure~\ref{fig:book-succession} maps these existing materials onto the
+three surfaces: character interpretations belong beneath their inner-process
+roots, U05 supplies the construction-time rationale, and the chapters supply
+DocumentNode text with role \texttt{story\_passage}. The notes and chapters were
+subsequently imported as native surface records
+(Section~\ref{sec:book-construction}). That retrospective receipt does not
+recover the original cross-surface authoring transactions.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  x=1cm,y=1cm,>=Latex,
+  world/.style={draw=blue!65!black,rounded corners,fill=blue!7,align=center,
+    font=\scriptsize,text width=2.4cm,minimum height=1.05cm},
+  inner/.style={draw=violet!65!black,rounded corners,fill=violet!7,align=center,
+    font=\scriptsize,text width=2.45cm,minimum height=1cm},
+  author/.style={draw=orange!75!black,rounded corners,fill=orange!8,align=center,
+    font=\scriptsize,text width=2.55cm,minimum height=1cm},
+  render/.style={draw=green!55!black,rounded corners,fill=green!8,align=center,
+    font=\scriptsize,text width=2.35cm,minimum height=1cm},
+  edge/.style={->,thin,draw=black!60},
+  label/.style={font=\tiny,fill=white,inner sep=1pt}
+]
+\node[world] (request) at (0,2.7) {E20: succession\\funding deferred\\August 1852};
+\node[world] (death) at (4,2.7) {E21: Lovelace dies\\November 1852};
+\node[world] (omit) at (8,2.7) {E24: check postponed\\April 1854};
+\node[world] (return) at (12,2.7) {E25: table returned\\May 1854};
+\node[inner] (ada) at (0,.5) {Lovelace: a function\\needs a successor};
+\node[inner] (babbage) at (4,.5) {Babbage: later\\mechanical comparison};
+\node[inner] (halden) at (8,.5) {Halden: deliver now,\\check afterward};
+\node[render] (chapterX) at (0,-1.6) {Document text:\\Chapter X\\succession episode};
+\node[author] (note) at (4,-1.6) {Understanding note U05:\\death does not\\force the omission};
+\node[render] (chapterI) at (12,-1.6) {Document text:\\Chapter I\\returned table};
+\draw[edge] (request) -- node[label,above]{later} (death);
+\draw[edge] (death) -- node[label,above]{later} (omit);
+\draw[edge] (omit) -- node[label,above]{later} (return);
+\draw[edge] (ada) -- node[label,pos=.28,right]{motivates request} (request);
+\draw[edge] (babbage.north) -- (4,1.8) --
+  node[label,above]{supports delay} (0,1.8) -- (request.south);
+\draw[edge] (halden) -- node[label,right]{supports choice} (omit);
+\draw[edge] (note) -- node[label,above]{informs} (chapterX);
+\draw[edge,dashed,draw=green!45!black] (chapterX.west) -- (-1.75,-1.6) --
+  node[label,rotate=90,above]{renders} (-1.75,2.7) -- (request.west);
+\draw[edge,dashed,draw=green!45!black] (chapterI) --
+  node[label,right]{renders} (return);
+\draw[edge,thick,draw=green!45!black] (chapterI.south) -- (12,-2.8) --
+  node[label,above]{discourse order: Chapter I is read before Chapter X}
+  (0,-2.8) -- (chapterX.south);
+\end{tikzpicture}
+\caption{Selected records from the completed Book, mapped to world,
+understanding, and document surfaces. The top arrows show story order, not
+causal necessity. U05 belongs to construction time; the bottom arrow shows
+the different order in which the reader encounters the events. Character
+interpretations and the author's explanation remain distinct. Edge labels
+are explanatory glosses, not literal Understanding Graph edge-type names.}
+\label{fig:book-succession}
+\end{figure}
+
+\section{Closure and Sufficiency}
+
+Closure is claimed only relative to a declared purpose and resolution. We
+first ask whether the same records can be refined recursively without erasing
+accepted commitments, then turn that capacity into a finite-resolution
+sufficiency test.
+
+\subsection{Recursive refinement at a declared resolution}
+
+Suppose a finite-resolution world contains the physical records above. Opening
+a thing adds things and events that preserve the parent's identity boundary.
+Opening an Event may admit qualified child answers under a declared Cut, expose
+concurrent Event-processes, add linked episodes and updating Events, or expose
+typed world data. Only a Cut invokes a one-unit composition contract; a sequential Cut
+additionally requires disjoint intervals and derived duration shares.
+Describing a target adds a realization record using one declared concept
+grounding. If that grounding is a canonical model, its role-bearing things and
+events reuse the same world grammar. In this restricted sense, physical
+refinement is recursively closed.
+
+The grammar places no intrinsic lower or upper bound on modeled resolution. A cell,
+person, institution, planet, or galaxy uses the same Thing--lifecycle pairing
+when its identity and persistence matter; organelles, group members, or stars
+can be exposed through time-scoped relations; and biochemical changes,
+decisions, discoveries, mergers, or explosions are Events at the resolution in
+which they matter. Containment and temporal refinement provide hierarchical
+views, while overlapping processes and cross-resolution update links keep the full
+representation a graph rather than one tree. Domain content remains specific:
+a cell may require biochemistry and a galaxy astrophysics, and neither acquires
+an inner-process ancestry merely by sharing the grammar. Increasing model
+capability may open unresolved remainder, propose and test better boundaries,
+processes, measured world data, and candidate domain laws, and check compatibility across resolutions.
+It need not merely add detail; a better abstraction may justify an explicit
+revision that supersedes many weak records with a smaller, more predictive
+account. This is a claim of representational extensibility,
+not that the present model knows every resolution or that every process follows
+jump diffusion.
+
+Psychological resolution follows the same rule. A person profile selects
+questions for a construction, not the expressive limits of the grammar.
+There is no prescribed maximum depth or universal personality tree. A coarse
+account of an authored character's resistance to delegation might be opened
+into concerns about accuracy and recognition, beliefs about a colleague's
+competence, and memories of broken promises. Further detail could distinguish
+private collaboration from public assessment, or trace how later experiences
+alter that difference. These remain interpretations in the relevant actor or
+observer context, not psychological facts established by adding detail.
+
+A more capable model could choose different questions, boundaries, and depths
+according to what a scene or inquiry needs to explain. Competing motives may
+form a Cut under a declared attention question; beliefs, memories, and
+relationship Events remain linked processes without being normalized together.
+An opening under the same question must preserve its declared coarse
+commitments. A different question creates another view, while a changed account
+requires explicit revision. Thus psychological refinement can elaborate,
+reorganize, or simplify a person's model rather than merely populate a fixed
+template. Meaning Model supplies this representational freedom and its
+preservation contracts; Life Simulation considers how to learn which
+refinements are useful.
+
+A connected Meaning Model of actual world history and geography can deepen as
+evidence arrives. Sources share supported identities while retaining separate
+claims, evidence, and disagreements. Regions and centuries can open into
+institutions and lives without equal detail everywhere. New evidence can
+revise earlier accounts, not merely add detail. Corrections preserve distinct
+event and revision times. Acceptance does not establish historical truth;
+fictional worlds retain separate contexts. Meaning Model supplies the
+representation and revision contract; Life Simulation develops corpus-wide
+construction, interpretation, and training.
+
+This is not a theorem that every true explanation is a weighted tree. Cuts may
+cross; events can be both causes and consequences under different questions;
+and domains can attach specialized measured data, laws, fields, or solvers.
+Those attachments are content referenced by events. Nor does the claim imply that
+cognitive testimony or prose must be encoded as cuts. The Understanding Graph
+and document surface remain interoperating representations with different
+jobs.
+
+\subsection{Finite-resolution sufficiency as a test}
+
+A representation is sufficient only relative to a query, tolerance, and cost.
+For a story-coherence query, the identity of the Engine, the intervals of key
+events, who held each belief, and how fine emotions recompose may be sufficient.
+For stress analysis of a gear, the same representation must point to geometric
+and physical state that this paper does not attempt to replace.
+
+The bounded constructive argument is deliberately modest. Any finitely
+specified simulator with computable or approximable transitions over a bounded
+horizon can be wrapped in one root Thing and its lifecycle/root Event: place the
+simulator configuration in event state, reference its transition semantics as
+direction, and expose its outputs through typed observations. If nothing more
+is known, leave the root opaque. Later useful identities and processes can be
+opened through Things, joint Events, and cuts while the root behavior remains a
+consistency check. Bare representational universality is therefore cheap. The
+substantial hypothesis is that useful stable identities and cuts exist and
+improve compression, prediction, explanation, control, or coherent generation
+enough to justify their cost.
+
+The sufficiency claim can fail in three ways. A required distinction may fit no
+record profile. A composition rule may destroy information needed at a coarser
+level. Or the cost of explicit articulation may exceed its value. Such failures
+should produce a remainder when a governing Cut exists, leave other detail
+implicit or add a domain attachment, or reject the grammar for that task--not
+a declaration that the world has been fully represented.
+
+Cross-cut identity is the main defense against false trees. Einstein can be
+important in a scientific cut and nearly absent in another person's daily-life
+cut without being duplicated. A relationship can participate in emotional,
+economic, and legal cuts. Local weights answer local questions; the shared
+thing and event identifiers preserve that these descriptions concern the same
+world.
+
+Five questions provide the evaluation contract:
+
+\begin{enumerate}
+  \item \textbf{Coverage:} Can the target be represented without changing the
+    concept, Thing, Event, Binding, Cut, and Realization grammar?
+  \item \textbf{Reference:} Do descriptions and roles resolve to the intended
+    continuing Things across time and opened detail, while explicit split,
+    merge, replacement, and succession events change identity when required?
+  \item \textbf{Grounding:} Do concept links and optional canonical models
+    recognize held-out instances, reject counterexamples, and remain calibrated
+    in ambiguous cases?
+  \item \textbf{Recomposition:} Do admitted children recover their parent's
+    declared Cut commitments within the frozen tolerance, and do Event-process
+    links, role bindings, identities, and typed world data satisfy their own
+    contracts without being treated as Cut weights?
+  \item \textbf{Value:} Does refinement improve prediction, explanation,
+    control, or coherent generation enough to justify construction,
+    validation, inference, and maintenance cost?
+\end{enumerate}
+
+\section{\emph{The Book of Conditions}: Completed Book, Partial Witness}
+\label{sec:book-construction}
+
+\emph{The Book of Conditions} is a completed twelve-chapter manuscript with
+an authored world, selected concept grounding, rooted UnderstandingNodes, and
+an ordered story route. It is a partial witness of the grammar's construction
+contracts, not a completed implementation of them. It was built anew from a
+released historical prefix and an explicit counterfactual divergence. No
+discarded earlier Book supplies evidence, accepted records, counts, or prose to
+the construction reported here. The result tests whether the grammar can hold
+one inspectable long story at a declared resolution; it does not demonstrate
+every permitted profile or establish comparative advantage.
+
+\subsection{A Book-specific profile}
+
+The construction began with the Universe Thing and History Event, then
+registered only the people, institutions, places, documents, machine parts, and
+collective processes needed at coarse resolution. Lifecycles, relation Events,
+presence, and typed historical data established the prefix. Character interiors
+are Events beneath the relevant person's lifecycle and inner-process root,
+never retrospective facts about historical minds. Private actor projections
+are limited by presence, communication, delivered evidence, and their typed
+ancestry so that a decision can be generated from what the character could know
+at its cutoff.
+
+For principals, the Book uses the compact profile in
+Table~\ref{tab:book-person-profile}. It is one replaceable construction choice,
+not a claim that every person or story requires these questions or children.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{0.11\textwidth}Y@{}}
+\toprule
+View & First-construction reading \\
+\midrule
+IS & Nine concurrent, unweighted life processes: body, kin, partnership, work,
+place, means, knowledge, standing, and meaning. They may overlap and do not sum. \\
+WHAT & Event-parented scene Cuts open concern, then the conditional
+approach/threat-avoidance unit, then AtomicWant leaves. A distinct chain links
+an avoidance want to a threat-belief Event, fear appraisal, and action. \\
+HOW & Event-parented scene Cuts divide problem-solving attention among framing,
+deciding, and remainder, with conditional concrete/abstract and
+impartial/personal views. Strategies remain linked records unless another unit
+justifies a Cut. \\
+FEELS & A scene appraisal Event parents the emotion Cut. It is compared with
+supported wants, beliefs, and Events rather than treated as a consequence of
+the concern weights alone. \\
+\bottomrule
+\end{tabularx}
+\caption{The replaceable IS/WHAT/HOW/FEELS profile selected for the Book.}
+\label{tab:book-person-profile}
+\end{table}
+
+The Book's scene and coarse period profiles are authored. A finer temporal
+opening must recompose its parent by duration and report coverage; the selected
+scenes do not yet supply that complete partition. Conditional profiles reuse records under named
+situations and participant sets. The selected concerns, strategies, emotions,
+temporal resolutions, and person leaves are first-construction vocabulary, not
+universal human structure. Every nested Cut remains on a scene Event beneath
+the applicable inner process, names its conditional unit, and retains a tested
+remainder.
+
+The Book's derived shock profile applies Section~\ref{sec:multiscale-change}:
+it names the affected processes, available prior expectations, response Events,
+and descriptive adaptation shape. Table~\ref{tab:book-cross-scale-change}
+locates the pattern in actual accepted records, from the historical setting
+to opened trial phases. Success itself is consequential: shared pleasure at
+E14 and subsequent inquiries at E16 reinforce the confidence behind E18's
+overexpansion. Adaptation is therefore not always prudent adjustment.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.19\textwidth}YY@{}}
+\toprule
+Resolution & Antecedent and perturbation & Recorded response \\
+\midrule
+Historical setting, 1847--48 & Staged finance supports manufacture; wider
+credit contraction delays a subscription call (E11). & Existing wages are
+paid, new work slows, and the undertaking does not enlarge its scope to
+attract money. A coarse historical process constrains workshop activity. \\
+Institution and lives, 1852--71 & Lovelace identifies the succession risk
+(E20); her death ends her active role (E21). The later returned table exposes
+the checking failure (E25). & Disclosure and correction (E26) precede office
+closure (E27). Babbage's interpretation changes over years (E28), ending in
+custody of the complete record, including failure (E29). \\
+Project episode, July--November 1846 & Individually conforming assemblies
+bind under a shared drive (E09). & Interface rework (E10) restores operation
+at a cost in time and money while preserving the contracted apparatus,
+rather than authorizing every proposed redesign. \\
+Trial and its phases, May 1851 & A frozen test packet (E13) precedes the
+clearing failure and stopped run (E14a). & The run is restarted; complete
+agreement supports the bounded claim (E14b), followed by shared pleasure
+(E14c). The prose opens the waiting and recognition further, card by card. \\
+\bottomrule
+\end{tabularx}
+\caption{Cross-scale anticipation, perturbation, and response in the authored
+Book. The rows are linked readings, not exclusive Cut children. The opened
+trial phases have no exact minute durations or within-scene numerical curve.}
+\label{tab:book-cross-scale-change}
+\end{table}
+
+These cases support representational coverage, not a universal cycle theory.
+In particular, U05 separates the anticipated succession failure from the
+transcription and delivery choices: Lovelace's death neither enters the wrong
+number nor compels omission of the check. The longer arc is explained through
+those intervening Events, not by treating one loss as sufficient cause.
+
+The construction used a frozen flat Concept registry: identifiers,
+one-line descriptions, obvious typed relations, and exemplar anchors only
+where a judgment required them. Thirty-four bundles received content-addressed
+grounding versions. Prototypes and canonical models were excluded from the
+flat registry; after the world was accepted, one small model of a valid
+computational claim was opened as an unscored integration example. The
+love--Engine model in
+Table~\ref{tab:theory-love} shows the intended arithmetic without prejudging
+the Book's choice. Three concept histories at most were permitted where
+invention or revision materially affected the story; all other histories
+remained unopened.
+
+The selected run used exact integer-tick normalization, a $.10$ elicitation
+grid with supported $.05$ refinement, no continuous extents, an estimate-depth
+cap of two, and full scene profiles only for the three principals. These are
+construction choices, not additional grammar obligations.
+
+\subsection{How the construction proceeded}
+
+The Book construction proceeded in six rounds.
+
+\begin{enumerate}
+  \item Preparation fixed the historical cutoff, premise, vocabularies, access
+    rules, and budget. Preparation prose remained external, not runtime authority.
+  \item The constructor registered roots, historical prefix, Things,
+    lifecycles, relationship and presence Events, and thirty-four Concept
+    bundles, retaining unresolved documentary detail.
+  \item Five isolated whole-history candidates were generated under a common
+    schema. All were rejected: negotiation lacked a credible route to priced,
+    accountable construction. None was admitted to History by a Direction roll.
+  \item A pragmatic successor was then written first as one paragraph and
+    expanded successively to two, three, four, and five paragraphs. Opening the
+    account exposed the missing commercial founder. Local defects prompted
+    repairs, not restarts unless the parent history failed.
+  \item Thirteen complete lives were placed at coarse resolution before three
+    principals were opened into concurrent processes, local Cuts, and linked
+    UnderstandingNodes. Events, relationships, ledgers, and one concept model
+    elaborated or explicitly revised the macro account.
+  \item Twelve route units were selected and rendered. Later literary passes
+    report updating Event and life descriptions before corresponding prose;
+    changes without new world facts remained rendering decisions.
+\end{enumerate}
+
+Saved checkpoints demonstrate coordinated model and prose revision, not every
+within-round editing order. This is model-assisted authorship, not the fully automated
+transaction protocol. The final world was not chosen by a
+preregistered Direction draw; missing execution logs cannot be supplied retrospectively.
+
+\subsection{Construction artifact, Rust host, and validation boundary}
+
+The public package in \texttt{examples/book-of-conditions/} retains the accepted
+macro accounts, lives, Cuts, descriptions, ledgers, rationales, route, and manuscript;
+earlier proposals remain development history. The engine is included in
+\texttt{rust-engine/}, with its MCP interface alongside it. A
+retrospective import records source digests, a persisted Rust compilation
+response, 117 person-process addresses, 107 authored Cuts plus one derived
+duration Cut, and linked document and understanding nodes in SQLite. Reloading
+recovers the model; native document rendering reproduces the manuscript.
+This is a new import receipt, not a source-locked transaction for the original
+construction or an independent read-back record.
+
+Sema minted and verified the thirty-four flat definition bundles so that each
+has a content-addressed grounding version \cite{westerbergSema2026}. The Rust
+host compiled forty structural authoring profiles: thirteen persons, nineteen
+other Things, three relationships, one Concept, and four change arcs. These
+loaders create openable scaffolds, not semantic scalars. Psychological numbers
+remain Cut weights; pounds, hours, dates, and counts remain world data.
+
+Table~\ref{tab:book-enforcement-boundary} states the implementation boundary.
+The development checkpoint-06 synthetic conformance suite passed all 31 positive and
+negative fixture expectations, seven report checks, and three targeted Rust
+tests; its original checkpoint is not included in this accepted-artifact release.
+These are mechanism checks, not evidence that the authored history,
+character interpretations, or prose are true or good.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{0.22\textwidth}YY@{}}
+\toprule
+Layer & Exercised in the construction & Not established \\
+\midrule
+Rust host & Profile compilation, immutable persistence, Cut normalization,
+component addresses, nearest-root ancestry, and source-bound document rendering &
+Complete mixture closure, cutoff-safe context assembly, independent read-back,
+or recovery of the original authoring transactions \\
+External validator & Cut sums and remainders, selected recomposition fixtures,
+lifecycles, ancestry, presence, access, person-profile shape, and route
+exclusions & Historical or psychological validity, cross-surface atomicity of
+the final pragmatic successor, or independent prose recovery \\
+Authored construction & Macro revision, Event and life descriptions, local Cut
+judgments, UnderstandingNodes, route selection, and prose & Automatic induction,
+forecast calibration, or an empirical advantage over unstructured writing \\
+\bottomrule
+\end{tabularx}
+\caption{What the first construction exercised and what remains outside the
+implementation claim.}
+\label{tab:book-enforcement-boundary}
+\end{table}
+
+A separate, small reference bundle makes selected contracts executable without
+claiming that the Rust host already enforces them. The synthetic apparatus
+trial in \texttt{examples/refinement-trial/} uses all six world forms and a
+ten-minute local clock; it is inspired by the Book's kind of scene, not a
+historical record or a retroactive validation of the Book. Its frozen parent
+records configuration A and twelve matching cases. An opening introduces
+phases of two, five, and three minutes, with the four-child outlook Cuts below.
+Close maps fatigue and the fine remainder to the coarse remainder.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{lrrrrr}
+\toprule
+Phase & Duration share & Hopeful & Cautious & Fatigue & Remainder \\
+\midrule
+Preparation & .20 & .80 & .10 & .06 & .04 \\
+Execution & .50 & .60 & .30 & .06 & .04 \\
+Comparison & .30 & .40 & .50 & .06 & .04 \\
+\bottomrule
+\end{tabular}
+\caption{Synthetic refinement: the declared projection and duration mixture
+recover the parent $(.58,.32,.10)$ for hopeful, cautious, and remainder.}
+\label{tab:reference-refinement}
+\end{table}
+
+The tests reject a changed coarse answer even when every child still sums to
+one, overlapping phases, incorrect duration shares, infeasible partial
+residuals, and stale candidates. An explicit configuration revision preserves
+its predecessor, changes the active head, and marks its dependent passage
+stale. A cutoff query exposes the configuration Ada observed, not concealed
+results on the observation's source Event. The accepted candidate includes a
+rationale UnderstandingNode and a passage DocumentNode. A fresh-context
+extraction recovers the stated configuration, case counts, phase durations,
+and observation time; it does not recover outlook weights absent from the
+passage. The saved extraction is a single model comparison, not an independent
+reader study or a general prose parser.
+
+The bundle runs with
+\texttt{node --test examples/refinement-trial/example.test.mjs} and documents
+its authored inputs, eleven test families, and extraction provenance. It is a
+bounded reference implementation, not a general graph validator. A stable
+public archival release identifier remains to be assigned.
+
+\subsection{Descriptive numerical portrait}
+
+The numerical portrait uses three categories. Cut weights are represented
+sibling-relative shares under one named question and remainder. Typed world
+data retain external units. Counts, density, total variation, means, and ranges
+are derived operational diagnostics rather than additional facts in the world.
+Table~\ref{tab:book-footprint} reports the accepted artifact at its declared
+resolution; duplicate display tables are excluded from the Cut inventory.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}Y r@{}}
+\toprule
+Construction quantity & Count \\
+\midrule
+Flat content-addressed Concept bundles & 34 \\
+Inventoried authored Cut instances & 107 \\
+Child and remainder weights in those Cuts & 472 \\
+Primary numbered Events plus explicitly opened child Events & $30+7$ \\
+Complete human lifecycles at the declared resolution & 13 (3 detailed, 10 coarse) \\
+Macro trajectories and named phases & 4 trajectories, 13 phases \\
+Rendered chapters and manuscript words & 12 chapters, 11,046 words \\
+Distinct Cuts per thousand rendered words & 9.69 \\
+\bottomrule
+\end{tabularx}
+\caption{Descriptive footprint of the accepted first construction. Density is
+a maintenance and representation statistic, not a quality score.}
+\label{tab:book-footprint}
+\end{table}
+
+The 107 Cuts divide into 12 scene-WHAT, 13 scene-outlook, 27 scene-HOW, 9
+scene-FEELS, 11 slow-outlook, 11 threat-character, 13 health, and 10 world
+decision or forecast Cuts, plus one canonical component allocation with zero
+remainder. Among the eight earlier families, mean remainder ranges from .060 to .081;
+the full observed range is .04 to .20. No global semantic mean is computed,
+because the questions and divided units differ.
+
+One shared Event demonstrates why perspective Cuts and world data must remain
+distinct. At the May 1851 trial, assured-fulfilment shares are .76 for Babbage,
+.70 for Lovelace, and .72 for Halden. In February 1852, the local expansion
+margin $w(\text{accept four})-w(\text{limit to two})$ is +.30, -.50, and +.20
+respectively. These are not votes: Halden alone holds contracting authority.
+The world-unit constraint is independent of those interpretations. Four jobs
+require $4\times40=160$ checker-hours against 80 protected hours, a twofold
+demand-to-capacity ratio and an 80-hour deficit.
+
+Nested opening remains local. Early Babbage's threatened-fulfilment share .64
+multiplied by autonomy-at-risk .34 gives .2176 of that period's full outlook
+unit because the second Cut explicitly opens the first; it is not a free fear
+score. The six disjoint periods cover 10,289 days exactly, so their sequential
+shares sum to one by duration while saying nothing about narrative importance.
+Across the eight listed adjacent slow-outlook transitions, compatible-Cut total
+variation ranges from .11 to .31; across four selected scene transitions it
+ranges from .38 to .60. This is a descriptive authored pattern, not a fitted
+shock law or population result. The complete family, ledger, apparatus, and
+duration tables remain in the released numerical supplement. None of these
+diagnostics establishes predictive validity, population psychology, causal
+identification, or superiority over an unstructured writing process.
+
+Figures~\ref{fig:book-slow-outlook} and~\ref{fig:book-scene-simplex} make the
+long and short views visible without inventing an absolute psychological
+scale. The first plots compatible period Cuts as categorical intervals. The
+second plots compatible scene Cuts inside their shared simplex. Neither is a
+fitted temporal function: the marks display authored commitments at the
+resolutions actually opened by the construction.
+For example, Babbage's assured share is .79 at expansion, .28 at the returned
+table, and .51 at custody. The last point accompanies a changed interpretation
+of the work, not a return to expansion confidence. These are sibling-relative
+authored appraisals, not forecast probabilities or a measured recovery curve.
+
+\input{includes/book-trajectory-figures}
+
+\subsection{Prospective comparative evaluation}
+
+The completed Book does not satisfy the still-prospective comparison.
+A future scored construction must preserve source-locked accepted commits,
+direction Cuts and seeds where selection is claimed, DocumentNodes linked to
+those commits, independent read-back proposals, and the final model under one
+preregistered protocol.
+Structural conformance then asks whether that construction completes without
+undeclared vocabulary changes, silent revision, unresolved references, or
+violations of its Cut, ancestry, and access contracts.
+
+All scored Cuts use a frozen elicitation procedure. The prompt states the
+parent Event with its complete typed ancestry, question, unit, admissible
+siblings, evidence cutoff, and remainder; the model compares the siblings in a
+fixed order, assigns the local shares once, and supplies an UnderstandingNode
+for non-obvious choices. Granularity,
+normalization, and retry rules are fixed before generation. Compatible
+scene-level Cuts are elicited; slower summaries are derived only through the
+declared temporal partition. A predictive direction Cut declares its outcome
+partition and probability interpretation before the outcome; its realized
+continuation may then receive a preregistered Brier score, with calibration
+evaluated across forecasts. Proposal weights describe the constructor's
+sampling rule instead and are not relabeled as forecasts after the outcome.
+
+The literary comparison is preregistered before passages are rendered. At
+equal information and output budgets, the structured condition is compared
+with a direct-prompt baseline and a prose-bible condition; a serialization-only
+ablation may be included to distinguish structure from additional information.
+Independent auditors count contradictions against the same released facts,
+while blind readers compare long-range coherence and literary quality.
+Read-back evaluates whether fresh inference from the prose recovers the
+committed distinctions, root paths, and Cut compositions within a tolerance
+fixed before the scored run. Total variation is used only for compatible Cut
+vectors; identity, ancestry, presence, chronology, and document access use
+categorical or interval checks. At least one dialogue or shared Event is
+rendered from two different character cutoffs so that the test can ask whether
+prose preserves both perspectives rather than averaging them. Book-specific appraisal and strategy
+checks ask whether an active threat belief has a compatible fear appraisal and
+whether a chosen strategy is supported by the operative wants, beliefs, and
+constraints; they test the frozen profile, not universal psychology.
+
+Cut density, remainders, direction calibration, rejection and revision rates,
+prose length, model calls, tokens, latency, human adjudication time, storage,
+and maintenance work are reported so that lower contradiction counts cannot be
+bought simply by saying less or spending an unreported budget. Exact sample
+sizes, tolerances, rating design, and calibration thresholds remain to be fixed
+in the preregistration rather than selected after results are seen. The pending
+freeze also includes the primary contrast, unit of analysis, operational
+violation definitions, auditor adjudication and agreement statistic, minimum
+output length, a read-back independence rule that withholds source Cuts, and
+the procedure used to calibrate tolerances. This paper deliberately supplies
+none of those values before that preregistration is written.
+
+No outcome is assumed, and negative findings are required rather than folded
+into a revised success criterion. If a prose bible performs as well, if readers
+prefer the baselines, if perspective separation or appraisal checks fail, if
+read-back cannot recover the records, or if explicit maintenance cost
+overwhelms the gain, the comparison has located a limit of the proposed
+representation. If the structured condition succeeds, it establishes an
+incremental advantage beyond the partial descriptive witness at one
+resolution; it does not establish a universal ontology or a theory of temporal
+dynamics.
+
+\section{Related Work}
+
+Prototype and family-resemblance accounts reject the assumption that every
+category is defined by one set of necessary and sufficient surface features
+\cite{roschMervis1975}. The Meaning Model likewise permits graded fit Cuts,
+exemplars, boundary cases, and plural models. Only its deepest grounding option
+requires an inspectable canonical world fragment.
+
+Structure-mapping theory treats comparison as an alignment between relational
+systems \cite{gentner1983structureMapping}. Realization borrows that discipline:
+role alignment is recorded before component fit is aggregated. The present
+proposal is narrower computationally; it does not claim a complete cognitive
+theory of analogy.
+
+Frame semantics and script accounts organize meaning around structured roles
+and characteristic situations or event sequences
+\cite{fillmore1976frame,schankAbelson1977scripts}. Canonical Meaning Models can
+make those roles and sequences refinable through the same thing-event grammar
+used for a token world. Conceptual spaces instead emphasize geometric regions
+and similarity \cite{gardenfors2000conceptualSpaces}; such a space can be
+attached as an external domain model, while Realization links and fit Cuts
+preserve the grounding, alignment, perspective path, and local alternatives
+used.
+
+Process ontology and event mereology motivate taking temporal entities and
+their parts seriously \cite{whitehead1978process,savellos2000events}.
+The continuant--occurrent and SNAP--SPAN tradition likewise distinguishes
+entities that remain identifiable through change from processes extended in
+time, and explicitly relates a continuant to the occurrent that is its life
+\cite{grenonSmith2004snapspan}. The Meaning Model's Thing--lifecycle pairing is
+in that lineage, while its local cuts and plural concept grounding address a
+different construction problem.
+Object-Process Analysis places objects and processes in one recursively scalable
+systems account \cite{dori1995opa}. Descriptions and Situations distinguishes a
+reusable description from a situation satisfying it
+\cite{gangemiMika2003dns}. The Meaning Model's distinctive choice is the local
+one-unit cut with explicit remainder, ancestry-derived perspective, plural concept
+grounding, and conservation under progressive refinement.
+
+Narrative systems already maintain worlds. Inform tracks rooms, objects,
+containers, and interaction scope \cite{nelson2001inform}; bAbI tests synthetic
+location and relation updates \cite{weston2015babi}; ProPara annotates entity
+existence and location changes \cite{dalvi2018propara}. EvolvingWorld couples
+persistent character and global state in literary role-play
+\cite{zong2026evolvingworld}. Narrative World Model extracts typed temporal memory
+from accepted prose and invalidates downstream records after edits; its reported
+evaluation concerns narrative question-answering, with generation evaluation
+left for future work \cite{saifullah2026narrativeworld}.
+
+Hierarchical and model-assisted authorship also have direct precedents. DOC
+expands hierarchical outlines and controls passages against them
+\cite{yang2023doc}. DOME interleaves detailed planning and writing with temporal
+knowledge-graph memory \cite{wang2024dome}. Generative Agents combines recorded
+experiences, reflections, and plans to produce behavior \cite{park2023agents}.
+The Meaning Model therefore does not claim to introduce planning, graph-backed
+storytelling, or reflective characters. Its candidate distinction is the
+preservation contract joining them: a coarse world remains consequential before
+its details exist; an opening must satisfy declared fine-to-coarse checks or
+trigger explicit revision. Local comparative person Cuts and versioned concept
+groundings participate in that same construction rather than forming unrelated
+annotations.
+
+The cross-scale pattern has important precedents. Holling's panarchy account
+links faster, smaller adaptive cycles with slower, larger ones: local
+disturbances may propagate upward, while accumulated structures and resources
+shape reorganization below. He also describes departures from the cycle
+\cite{holling2001complexity}. This is a close conceptual relative, not evidence
+that every represented process must complete the same stages.
+
+Dalio offers a historical practitioner comparison. He recounts revising his
+expectations after the market response to the 1971 gold-policy change, using
+earlier history to understand the surprise. His larger account combines debt,
+internal conflict, geopolitical change, natural disturbances, and human
+adaptation and invention \cite{bridgewaterDalioGrantham2022}. The relevant
+connection is historical pattern, expectation, surprise, and revision;
+neither his causal interpretation nor a fixed historical cycle is adopted as
+a law of the grammar.
+
+At everyday timescales, event-segmentation theory connects perceived boundaries
+with prediction error and considers simultaneous finer and coarser event
+models \cite{zacksEtAl2007event}. These accounts supply related hypotheses at
+different scales, not a single established mechanism from perception to
+history. The Meaning Model makes their processes, expectations, responses,
+and cross-scale explanations addressable for comparison. Change-point, jump--diffusion,
+mean-reverting, self-exciting, and hybrid models are downstream candidates for
+Life Simulation rather than alternative record grammars
+\cite{killick2012changepoints,merton1976jump,uhlenbeckOrnstein1930,
+hawkes1971,goebel2009hybrid}.
+
+Semantic Spacetime treats promises, agents, names, and scale as foundational to
+functional knowledge representation \cite{burgess2016semanticSpacetimeIII,
+burgess2017cognitiveReasoning,burgess2020narrativeII}. The present grammar is
+compatible with multi-scale semantic graphs but uses explicit model commits and
+question-local composition rather than assigning one global significance to a
+node.
+
+The contribution is architectural and methodological: coordinated refinement
+and revision of world commitments, concept interpretations, authoring reasons,
+and prose. A revised success criterion, for example, can require rechecking a
+trial's assessment, the rationale for expansion, and the passages expressing
+both. The relevant comparison unit is that complete operation: what may remain
+unconstructed, which commitments an opening protects, and how a revision affects
+the connected account. An antecedent for graphs, normalized allocations, or
+revision alone does not settle whether this method has already been specified;
+neither does their combination establish priority by itself. A comparison should
+ask which contracts a predecessor supplies and which additional coordination
+this proposal requires. The Book partially demonstrates feasibility, while
+comparative literary benefit, learning gains, and computational savings remain
+untested.
+
+\section{Limitations and Research Boundary}
+
+Normalization enforces accounting consistency, not truth. A cut can ask the
+wrong question, choose misleading children, or encode an LLM's bias with false
+precision. A concept hierarchy, exemplar set, or canonical model can privilege
+one culture or perspective. Role alignment can manufacture apparent similarity.
+The recorded ancestry, remainder, evidence, provenance, and grounding version
+make these judgments inspectable rather than eliminating their biases.
+
+The anchor vocabularies are not yet validated. Definitions can drift, pairwise
+ordering can be inconsistent, and sparse exemplars can conceal important
+boundary cases. Concept induction can overfit examples or mint names until
+comparison becomes meaningless.
+
+The mixture law applies only where compatible Cut questions warrant it.
+Occurrence, logical constraint, topology, and causal intervention remain Event
+or domain relations; an intensity claim requires its own explicit Cut or stays
+unquantified. The grammar does not replace
+physics, economics, biology, geometry, or any field with units and specialized
+laws.
+
+Book-specific person, emotion, motivation, and strategy vocabularies have not
+been validated as complete, culturally portable, or optimally independent.
+They are replaceable profile choices. Event and period boundaries are likewise
+model commitments rather than naturally labeled facts. The grammar makes these
+choices inspectable; it does not turn them into a psychology or a dynamical law.
+
+Root and surface separation preserve attributions but do not reveal hidden minds.
+Historical character interiors remain authored interpretations. Human
+explanations inherit hindsight, narrative compression, and over-attribution to
+character. A model trained on them may become better at predicting people or
+merely better at producing plausible stories about them.
+
+Finally, recursive refinement is not empirical utility. A strong language model
+may already maintain equivalent structure implicitly. The Book comparison must
+establish whether explicit records improve coherence and read-back enough to
+justify their construction and maintenance cost.
+
+\subsection{Bridge to Life Simulation}
+
+Life Simulation uses completed or ongoing worlds to study the generation,
+inference, and learning of process histories. Continuations may come from an
+LLM, an authored account, a simulator, or a fitted function; no compact
+dynamical law is required. Comparing continuous, discrete, or hybrid laws is
+one research task within that broader method. Its process-aware models are
+intended for games, scientific or social simulation, Ontology of the Alien,
+Fractal Intelligence, and alignment-facing curricula
+\cite{westerbergLifeSimulation2026}.
+
+This is not a one-way handoff. Life Simulation can propose a continuation or a
+predictor; Meaning Model construction rules still govern its representation,
+acceptance, and effects on dependent records and text. Meaning Model read-back
+checks what a passage says about its source world. Life Simulation's inverse
+task asks what hidden processes observations support, and whether inferred
+accounts predict later evidence or transfer beyond their construction setting.
+
+Together the two proposals support a feedback loop: construct a world, render
+observations, infer an account from the available evidence, compare its
+predictions with later evidence, and revise the account before constructing
+further. Correction may change an Event, a decomposition, or a Concept's
+grounding, rather than merely add detail. The Meaning Model makes those changes
+addressable and preserves their history; Life Simulation specifies learning
+objectives and independent tests. Agreement with a construction's own rendering
+alone does not validate its account of reality.
+
+Imagining the Corpus aligns native text and associated tracks; UnderstandingNodes
+retain attributed interpretations and revisions. Entangled Alignment supplies the
+recommended Reader-based training approach, intended to inform the trained
+model's later writing, dialogue, and action
+\cite{westerbergImagining2026,westerbergEntangled2026}. Life Simulation connects
+it to evolving Meaning Model worlds and additionally proposes learning from
+documented world and scene-construction choices. Those histories are additional
+supervision, distinct from applying Reader-based learning when writing. Whether
+training improves empathy or aligned conduct remains an empirical question.
+
+\section{Conclusion}
+
+The Meaning Model makes the developing account of a world the working object
+of authorship. A coarse life, institution, or physical process can constrain
+detail that has not yet been constructed. An opening preserves its declared
+commitments or prompts explicit revision. Concept models, Event descriptions,
+understanding histories, and narrative participate in the same operation,
+rather than becoming independently maintained accounts that must later be
+reconciled.
+
+The six record forms support this coordination without prescribing a universal
+decomposition. Local Cuts give numerical judgments a comparison context;
+unweighted processes and externally grounded measurements preserve other kinds
+of information. Concepts can remain lightly specified or acquire inspectable
+models in the same grammar as their instances. Exact grounding versions and
+separate authority paths retain which meaning and whose account a revision
+concerns. These are the representational changes proposed, not a claim that
+shared storage or normalization is itself new.
+
+The larger possibility is learning to work in this medium. A model could learn
+to construct a useful account, deepen it selectively, recognize a poor
+decomposition, and revise its concepts as well as its conclusions. In the
+combined program, those practices would support Life Simulation's aligned
+observation and process histories, reusable problem-solving, and continuing
+evaluative interpretation. This paper supplies the construction contracts;
+the companion specifies how such histories could train those capabilities.
+
+The completed Book exposes both the reach and the boundary of the architecture.
+It holds one progressively resolved world, its meanings, selected understanding
+history, and its story in a linked artifact, but the final pragmatic successor
+was not admitted through the complete atomic protocol and its prose has not
+undergone independent read-back. The prospective comparison must therefore
+still test misleading Cuts, inaccessible perspective paths, failed
+recomposition, maintenance cost, and distinctions the prose does not preserve.
+The longer-term test is whether learners can use such histories to construct,
+interpret, and improve world models across unfamiliar situations. The Book
+begins that program without establishing its predictive, transfer, or alignment
+claims.
+
+\appendix
+
+\section{Book-Specific Profile Vocabulary}
+
+These vocabularies are the non-normative profile used by the completed Book
+construction, not a universal psychology. The preparation documents own their
+freeze and use. A future scored comparison must freeze their identifiers and
+one-line descriptions before prose is generated, together with any obvious
+typed specialization and any exemplar anchor actually used by a judgment. The
+examples below are available anchors, not a requirement that every Concept use
+one. A replacement creates a new vocabulary version rather than silently
+changing an earlier Cut.
+
+\begin{table}[H]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{@{}p{0.16\textwidth}p{0.34\textwidth}Y@{}}
+\toprule
+Emotion facet & Operational gloss & Anchor example \\
+\midrule
+Joy & Appraisal of wanted gain, connection, or completion & A long-sought, safely accepted success \\
+Sadness & Appraisal of irrevocable or presently unrepaired loss & Receiving credible news of a loved person's death \\
+Fear & Appraisal of threatened loss or harm under uncertainty & Imminent danger with material stakes and incomplete control \\
+Anger & Mobilization against perceived obstruction or violation & A deliberate breach blocking an important commitment \\
+Disgust & Rejection of perceived contamination or profound aversion & Contact with a clearly spoiled substance \\
+Surprise & Response to a material violation of expectation & A strongly expected outcome is suddenly reversed \\
+Trust & Readiness to rely on another under vulnerability & Delegating a consequential task after reliable evidence \\
+Anticipation & Forward attention toward a materially possible outcome & Preparing for a scheduled event with unresolved result \\
+Neutral & No listed facet is materially active at the declared resolution & Routine action with no supported strong appraisal \\
+\bottomrule
+\end{tabularx}
+\caption{Provisional Plutchik-derived emotion facets plus neutral.}
+\label{tab:emotion-vocabulary}
+\end{table}
+
+\subsection{Atomic-want profile}
+\label{app:atomic-wants}
+An atomic want is a construction view over existing Event, Binding, Cut, and
+provenance records, not a new grammar primitive:
+
+\begin{center}
+\small\ttfamily
+\begin{tabular}{@{}l@{}}
+AtomicWant \{ id, parent motivational Event, actor (derived), interval,\\
+\qquad operation, target, desired condition,\\
+\qquad concern, pole, horizon, depth, leaf cut, local leaf weight,\\
+\qquad uncertainty, evidence, provenance \}
+\end{tabular}
+\end{center}
+
+The actor is derived from the parent Event's lifecycle ancestry rather than
+authored independently. The operation is preserve, create, transform, or end; preserve includes keeping
+an absent target absent. The target is a registered Thing or Event, including a
+Thing registered before its lifecycle begins. Its desired condition may name an
+Event or process state, a categorical fact, or an externally measured field.
+Satisfaction is derived categorically or by comparison in that field's real
+unit; a graded assessment uses a local Cut over \emph{satisfied},
+\emph{not satisfied}, and remainder. Confidence in that assessment is a
+separate evidential question, not its degree of satisfaction. The concern and
+pole fields name the leaf's parents in the first-run WHAT tree. Its local leaf
+weight is conditional on the opened pole; its full scene path share is the
+product of concern, pole, and local leaf shares. Views by operation, target,
+condition kind, horizon, and depth sum these path shares. Context is a separately
+elicited crossing Cut because one want may span several roles, and conflict is
+an unweighted typed relation between incompatible leaves unless another
+declared Cut asks how responsibility for that conflict is distributed.
+
+The top WHAT Cut divides one unit of scene motivational attention. An opened
+concern divides its own conditional attention among approach, threat-avoidance,
+and remainder; an opened pole divides its share among want leaves and remainder.
+All levels use the same motivational Event parent and explicit conditioning
+slot addresses, not answer labels as parents.
+At most eight leaves are live for a person in one scene. Remainders at every
+depth contribute their enclosing path weight to the unresolved scene share.
+An approach-only view conditions on the resolved approach mass: if concern
+shares are $c_i$ and their local approach shares are $a_i$, its entries are
+$c_i a_i/\sum_j c_j a_j$. Threat-avoidance uses the same calculation with its
+pole shares. These views report the conditioning mass; a zero denominator
+yields no resolved view, or a remainder-only view, never invented proportions.
+
+Satisfaction has two derived readings. World-relative satisfaction compares
+the desired condition with accepted Events or data beneath History. Believed
+satisfaction compares it with the condition represented in the actor's own
+inner-process projection; decisions and appraisals use the latter. Care is an optional
+leaf type whose target is another person's process or desired condition. It is motive evidence
+relevant to a kindness judgment, not the definition of kindness: controlling
+conduct may have a care motive, while kind conduct may arise from duty.
+
+\begin{table}[H]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{@{}p{0.18\textwidth}Y@{}}
+\toprule
+First-run concern & Approach and threat-avoidance readings \\
+\midrule
+Belonging & connection, membership, or recognized inclusion; rejection or exclusion \\
+Competence & effective action, mastery, or achievement; failure or incapacity \\
+Autonomy & self-direction and meaningful control; loss of control or coercion \\
+Understanding & intelligibility, information, and options; the unknown or unpredictability \\
+Well-being & bodily integrity, comfort, and viability; pain or suffering \\
+\bottomrule
+\end{tabularx}
+\caption{The five concerns shared across principals in the first run. Their
+remainder tests coverage; the table is not a universal psychology.}
+\label{tab:concern-vocabulary}
+\end{table}
+
+The associated HOW vocabulary is framing---concrete or abstract---and
+deciding---impartial or personal---with a remainder in every Cut. More specific
+strategy names are Realizations or separately justified Cuts. The first run
+does not create solver Things or a solver roster.
+
+The initial event-kind registry distinguishes at least lifecycle, presence,
+membership, physical-part, perception, belief, appraisal, want, decision,
+action, interaction, communication, travel, consequence, creation,
+destruction, split, merge, replacement, and succession. These are identifiers
+and role constraints, not an exhaustive ontology; new kinds require an explicit
+model revision.
+
+\subsection{Capacity and exchange}
+
+Capacity uses typed world data only with an external unit, such as available
+hours, money, or joules; depletion and recovery are updating Events. A Cut may
+allocate that unit among uses. A transfer binds source, recipient, and any
+custodian, with conservation or reciprocity asserted only under a shared
+accounting rule. Subjective ``energy'' may instead use an inner Event,
+UnderstandingNode, or attention Cut; it is not presumed conserved. Attention,
+resource-loss, and social-exchange accounts motivate testable measurements,
+not another numerical type
+\cite{kahneman1973attentionEffort,hobfoll1989conservation,
+emerson1976socialExchange}.
+
+\subsection{Freeze contract}
+
+Any future scored construction must freeze the concept identifiers and
+one-line descriptions, obvious typed specialization relations, any required
+exemplar anchors, event kinds, typed-root and ancestry conventions, Cut questions and units,
+elicitation granularity, remainder policy, composition tolerances, Realization
+and fit-Cut procedure, typed world-data schemas and units, and evidence
+visibility rules. A human-life instantiation must additionally freeze its
+life-process vocabulary, slow--fast declarations, periodization rule, treatment
+of overlapping episodes, process-boundary criterion, boundary-note requirement,
+AtomicWant operation and condition conventions, horizon and depth categories,
+the concern and pole vocabulary with its coverage rule, HOW-module questions,
+at least two conditional profile definitions per principal, the rule that
+scene profiles are elicited while compatible slower profiles are
+duration-derived with coverage reported, context-Cut question, conflict relation,
+any externally grounded capacity-stock unit and recovery convention, the unit
+of any effort-allocation Cut, the accounting rule for any
+exchange Event. Changing any of them creates a
+new run rather than silently revising the meaning of existing numbers.
+
+If the unscored post-world canonical-model protocol test is run, it separately
+freezes the model version, full content digest and canonicalization scheme,
+referenced grounding digests, and comparator version.
+
+\section{Minimal Interchange Shape}
+
+Interchange retains the record fields defined here, exact revisions,
+grounding digests and their declared canonicalization scheme, clocks, units, frames, evidence, and
+provenance. Each Cut exports its Event parent, question, unit, keyed siblings,
+conditioning address, remainder, and recomposition rule together. Authority,
+occurrence, and reference paths stay distinct; restricted exports withhold
+values whose required context cannot be disclosed. A refinement includes its
+base, protected queries, projection, tolerances, and Close result; a revision
+includes predecessors and active-head changes. Realizations retain alignment,
+fit-assessment references, and comparator identity. UnderstandingNodes and
+DocumentNodes retain text, topology, and source revisions. Prose may render
+these fields but cannot be their only authoritative copy.
+
+\bibliographystyle{unsrt}
+\bibliography{references}
+
+\end{document}

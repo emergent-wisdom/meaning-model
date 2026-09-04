@@ -1,0 +1,22 @@
+{
+  "handle": "StrategyEvidenceTriggeredRevision",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Preserve a current commitment until a named observation or failed test justifies an explicit revision rather than silent drift.\",\"id\":\"concept.strategy.evidence-triggered-revision\",\"label\":\"evidence-triggered revision\",\"sema_handle\":\"StrategyEvidenceTriggeredRevision\",\"specializes\":[]}",
+  "gloss": "evidence-triggered revision: Preserve a current commitment until a named observation or failed test justifies an explicit revision rather than silent drift.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:StrategyEvidenceTriggeredRevision#mh:SHA-256:a09580c72d1fcce9e7350154b5a03a41f24befc43b70091eaf5dfb8324c88366",
+  "sema_ref": "StrategyEvidenceTriggeredRevision#a095",
+  "sema_stub": "a095"
+}

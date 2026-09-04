@@ -1,0 +1,17 @@
+{
+  "provenance": {
+    "date": "2026-09-04",
+    "method": "Fresh-context assistant extraction from the passage alone",
+    "input": "Only fixture.mjs passage plus requested output keys; no world records, weights, or expected values",
+    "limitation": "Same assistant system, not an independent human reader or an empirical read-back study"
+  },
+  "extraction": {
+    "configuration": "A",
+    "cases": 12,
+    "matches": 12,
+    "phaseMinutes": [2, 5, 3],
+    "observationMinute": 3,
+    "observationContent": "Ada saw the apparatus's label while the result sheets were still covered.",
+    "outlookWeights": null
+  }
+}

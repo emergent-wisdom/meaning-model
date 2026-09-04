@@ -1,0 +1,22 @@
+{
+  "handle": "EmotionFear",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Belief-conditioned anticipation that a wanted region will be obstructed or lost.\",\"id\":\"concept.emotion.fear\",\"label\":\"fear\",\"sema_handle\":\"EmotionFear\",\"specializes\":[]}",
+  "gloss": "fear: Belief-conditioned anticipation that a wanted region will be obstructed or lost.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:EmotionFear#mh:SHA-256:fde64504b9e71339fc02d5c0a16eb1a8cd6ecf12c0b100139170b1cde8469450",
+  "sema_ref": "EmotionFear#fde6",
+  "sema_stub": "fde6"
+}

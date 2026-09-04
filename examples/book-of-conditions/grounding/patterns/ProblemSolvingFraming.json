@@ -1,0 +1,22 @@
+{
+  "handle": "ProblemSolvingFraming",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Directing problem-solving attention toward identifying and representing the problem to be solved.\",\"id\":\"concept.problem-solving.framing\",\"label\":\"framing\",\"sema_handle\":\"ProblemSolvingFraming\",\"specializes\":[]}",
+  "gloss": "framing: Directing problem-solving attention toward identifying and representing the problem to be solved.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:ProblemSolvingFraming#mh:SHA-256:84262e23dcc143339d7d4bd425aa035fa394186167516cc613abb2f66308e218",
+  "sema_ref": "ProblemSolvingFraming#8426",
+  "sema_stub": "8426"
+}

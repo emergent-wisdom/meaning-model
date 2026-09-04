@@ -1,0 +1,220 @@
+{
+  "schema": "book-of-conditions-progressive-macro-processes/v1",
+  "status": "accepted_first_construction_macro",
+  "candidate_root_id": "event.candidate.07r2.pragmatic-successor.root",
+  "source_account": "PROGRESSIVE-MACRO.md#five-paragraphs",
+  "declared_resolution": "whole counterfactual from August 1843 to the 1900 horizon; detailed causal action stops at 1871",
+  "rule": "Each process below is an overlapping view of the same candidate history. The processes do not sum. Their phase Events will be opened only far enough to explain each transition, and a failed explanation supersedes the relevant macro claim.",
+  "processes": [
+    {
+      "id": "trajectory.07r2.engine-project-lineage",
+      "parent_event_id": "event.candidate.07r2.pragmatic-successor.root",
+      "parent_claim": "The Analytical Engine project produces one bounded, independently tested mechanism but no completed general Engine.",
+      "why_it_changes": "The 1842 loss of patronage and the earlier contractor rupture make another open-ended build unacceptable; continued negotiation in 1843 creates a route to a finite configuration whose later success is not allowed to stand for the whole architecture.",
+      "phases": [
+        {
+          "id": "phase.07r2.project.negotiated-bounding.1843-1844",
+          "anticipation": "Babbage expects that freezing a configuration may misrepresent the general architecture; Lovelace expects that no material obligation will survive without a boundary.",
+          "perturbation": "A commercial and works inquiry finds the unbounded Engine unpriceable and untestable as one obligation.",
+          "adaptation": "A bounded present configuration is separated from a successor register for later improvements.",
+          "required_child_claims": [
+            "a dated post-divergence inquiry",
+            "a finite capability statement",
+            "a change-control boundary",
+            "an acceptance question defined before construction"
+          ]
+        },
+        {
+          "id": "phase.07r2.project.material-composition.1844-1851",
+          "anticipation": "The founders expect component delay and rework but preserve the possibility of a composed test.",
+          "perturbation": "At least one set of parts satisfies local drawings yet fails at an accepted interface.",
+          "adaptation": "The faulty route is recorded and reworked without silently expanding the claim.",
+          "required_child_claims": [
+            "independent material evidence",
+            "a rejected or deferred change",
+            "a corrected assembly",
+            "a complete prospective test packet"
+          ]
+        },
+        {
+          "id": "phase.07r2.project.bounded-proof.1851-window",
+          "anticipation": "The accepted protocol predicts either a bounded pass, an attributed failure, or an unresolved test; it does not predict general completion.",
+          "perturbation": "The independently witnessed bounded test passes and the exact result is published.",
+          "adaptation": "The artifact's status changes to verified for the declared claim while the rest of the architecture stays unrealized.",
+          "required_child_claims": [
+            "sealed or otherwise frozen inputs",
+            "an independent comparison",
+            "repeatability or an explicit reason it is not tested",
+            "a published claim no broader than the observations"
+          ]
+        },
+        {
+          "id": "phase.07r2.project.retrenchment-and-custody.1854-1900",
+          "anticipation": "After service failure, Babbage can still try to protect the architecture by separating it from the failed office.",
+          "perturbation": "The customer error and closure show that the mechanism's bounded correctness did not make the computational system reliable.",
+          "adaptation": "No general successor is asserted; plans, proof, caveat, error, and correction enter one custody chain.",
+          "required_child_claims": [
+            "a bounded error attribution",
+            "an explicit end to the artifact or build",
+            "a documented 1871 custody route",
+            "a coarse 1900 state with no inferred adoption"
+          ]
+        }
+      ],
+      "remainder": "Exact mechanism, dimensions, power, throughput, contractor, trial date, and surviving physical pieces remain open until the next technical pass."
+    },
+    {
+      "id": "trajectory.07r2.precision-manufacture",
+      "parent_event_id": "event.candidate.07r2.pragmatic-successor.root",
+      "parent_claim": "A distributed but bounded manufacturing route can complete the test mechanism, though it never becomes repeatable production capacity.",
+      "why_it_changes": "The venture founder does not manufacture; a separately accountable works must translate frozen drawings into parts, inspection evidence, rework, and a cost record.",
+      "phases": [
+        {
+          "id": "phase.07r2.manufacture.review-and-quote.1843-1844",
+          "anticipation": "The first inquiry expects large uncertainty and permits refusal.",
+          "perturbation": "Independent review exposes unsupported tolerances, interfaces, tooling, and schedule assumptions.",
+          "adaptation": "The build is reduced to a bounded commission and priced only after the configuration is stable enough to inspect.",
+          "required_child_claims": [
+            "one works or contractor with a dated access route",
+            "separate review and manufacture authority",
+            "cost and schedule ranges rather than false precision",
+            "a refusal or stop condition"
+          ]
+        },
+        {
+          "id": "phase.07r2.manufacture.build-rework-and-credit.1844-1851",
+          "anticipation": "Staged obligations can absorb ordinary rework but not unlimited redesign or loss of funding.",
+          "perturbation": "A composition failure and wider credit pressure consume time and cash.",
+          "adaptation": "Earned wages are honored, new stages slow, incompatible work is reworked, and successor improvements remain outside the current build.",
+          "required_child_claims": [
+            "named contracted labor or a bounded role group",
+            "an inspection failure with physical evidence",
+            "same-unit cash and time consequences",
+            "a financing response that does not invent new money"
+          ]
+        },
+        {
+          "id": "phase.07r2.manufacture.single-artifact-end.1851-1855",
+          "anticipation": "The test artifact may support a service but no replication is promised.",
+          "perturbation": "Office overload reveals that maintenance and verification capacity do not scale with inquiries.",
+          "adaptation": "The single artifact is maintained only through correction and is retired or dismantled when the office closes.",
+          "required_child_claims": [
+            "maintenance responsibility",
+            "artifact custody through the error",
+            "an explicit terminal Event"
+          ]
+        }
+      ],
+      "remainder": "The selected works, staff, exact tooling, supplier allocation, and physical configuration remain unresolved; Whitworth is only a bounded review alternative, not an assumed contractor or founder."
+    },
+    {
+      "id": "trajectory.07r2.calculation-office",
+      "parent_event_id": "event.candidate.07r2.pragmatic-successor.root",
+      "parent_claim": "A small human-machine calculation office is created after bounded proof, overcommits against known checking capacity, and closes after correction and liability consume its cash.",
+      "why_it_changes": "A machine result creates attention but recurring service requires a different system: inputs, operators, checkers, contracts, delivery, correction, and money. The founders mistake demand for this system's capacity.",
+      "phases": [
+        {
+          "id": "phase.07r2.office.feasibility-before-formation.1843-1851",
+          "anticipation": "Guardian Assurance is a historically grounded possible purchaser of a bounded actuarial feasibility result, not an assumed sponsor or future office owner.",
+          "perturbation": "A priced feasibility question shows that a customer can buy specification and comparison before buying recurring machine service.",
+          "adaptation": "No office exists yet; one customer option and one human comparison route are made explicit.",
+          "required_child_claims": [
+            "a dated approach to Griffith Davies after the divergence",
+            "Guardian's counterfactual decision authority",
+            "an available input bundle",
+            "a one-off scoped deliverable and payment obligation"
+          ]
+        },
+        {
+          "id": "phase.07r2.office.formation-and-capacity.1851-1852",
+          "anticipation": "The witnessed proof may generate inquiries, but the capacity review predicts only a small number of independently checked jobs.",
+          "perturbation": "Interest arrives faster than trained preparation and checking labor.",
+          "adaptation": "The office is formed with a ledger and staged customer obligations. Halden accepts four final deliveries in April-June 1854 against capacity for two. Customers close accounts at the end of 1853 and reconcile them through March 1854; final signed returns are released no earlier than 1 April, so early methods, specimens, and provisional checks cannot advance the final source comparisons into the preceding quarter. Babbage and Halden expect later capacity to bridge the known gap.",
+          "required_child_claims": [
+            "a creation Event and legal or contractual owner",
+            "named cash inflows and role-hours",
+            "a prospective capacity record available to all deciding principals",
+            "mutually exclusive expansion alternatives"
+          ]
+        },
+        {
+          "id": "phase.07r2.office.error-correction-and-closure.1853-1855",
+          "anticipation": "Final signed customer returns are released no earlier than 1 April 1854, after reconciliation during January-March. Guardian's arrives on 1 April; the other three releases remain at April resolution. Earlier specimen and provisional checks cannot certify these final sources. Four final checks require 160 hours against 80 promised in the April-June delivery quarter; the deferred successor leaves the shortfall unresolved.",
+          "perturbation": "A manual preparation error enters one delivery after the independent check is omitted; the mechanism follows the supplied input correctly.",
+          "adaptation": "The customer invokes correction, cancellation, and refund; the founder publishes the reconciled ledger and closes when cash cannot cover continued obligations.",
+          "required_child_claims": [
+            "the exact wrong input or transcription",
+            "the person or role that omitted the check and why",
+            "the customer's authority and response",
+            "same-unit receipts, wages, correction cost, refunds, unpaid balance, and terminal cash"
+          ]
+        }
+      ],
+      "remainder": "Exact prices, staffing, job counts, legal form, customer conversion, and failure amounts remain open until one ledger can close without invented precision."
+    },
+    {
+      "id": "trajectory.07r2.adoption-ecology",
+      "parent_event_id": "event.candidate.07r2.pragmatic-successor.root",
+      "parent_claim": "The result attracts notice but does not found a durable machine or office lineage; only a bounded documentary lineage is asserted at 1900.",
+      "why_it_changes": "The same published proof produces both inquiries and an overbroad reputation. The later visible service failure narrows belief faster than technical capability can spread.",
+      "phases": [
+        {
+          "id": "phase.07r2.adoption.no-claim-before-proof.1843-1851",
+          "anticipation": "Interest, customer willingness, and adoption remain unknown before evidence exists.",
+          "perturbation": "The bounded result becomes inspectable outside the founding group.",
+          "adaptation": "Responses are recorded as dated inquiries or refusals, not converted into adoption by narration.",
+          "required_child_claims": [
+            "a publication carrier",
+            "identified recipients or a counted response protocol",
+            "separation of inquiry, payment, contract, and use"
+          ]
+        },
+        {
+          "id": "phase.07r2.adoption.prestige-and-distrust.1851-1855",
+          "anticipation": "The founders expect some inquiries to become work but do not possess evidence for a broad market.",
+          "perturbation": "The returned erroneous table makes the institutional failure public to the involved offices.",
+          "adaptation": "Contracts are cancelled or not renewed; no replication or national expansion is inferred.",
+          "required_child_claims": [
+            "dated responses",
+            "one explicit cancellation route",
+            "no claims about nonrespondents"
+          ]
+        },
+        {
+          "id": "phase.07r2.adoption.documentary-afterlife.1855-1900",
+          "anticipation": "The founders may preserve the record even when they cannot preserve the institution.",
+          "perturbation": "Closure separates physical and organizational survival from documentary custody.",
+          "adaptation": "A named custodian receives the full packet; the 1900 horizon asserts existence of the packet only, not influence or continuity of development.",
+          "required_child_claims": [
+            "a custody Event inside the custodian's lifecycle",
+            "the exact document inventory",
+            "a coarse existence check at the horizon"
+          ]
+        }
+      ],
+      "remainder": "Unrecorded readers, indirect influence, later rediscovery, and competing calculating technologies remain unopened."
+    }
+  ],
+  "cross_process_dependencies": [
+    {
+      "from": "trajectory.07r2.engine-project-lineage",
+      "to": "trajectory.07r2.precision-manufacture",
+      "rule": "The project may claim a tested artifact only after a bounded manufacture and inspection route exists."
+    },
+    {
+      "from": "trajectory.07r2.calculation-office",
+      "to": "trajectory.07r2.engine-project-lineage",
+      "rule": "The office may sell only the demonstrated capability, with human preparation and verification stated separately."
+    },
+    {
+      "from": "trajectory.07r2.calculation-office",
+      "to": "trajectory.07r2.precision-manufacture",
+      "rule": "Every service promise consumes maintenance and repair capacity as well as computation."
+    },
+    {
+      "from": "trajectory.07r2.adoption-ecology",
+      "to": "trajectory.07r2.calculation-office",
+      "rule": "Inquiry, contract, delivery, renewal, and adoption remain different Events; none is inferred from the previous one."
+    }
+  ]
+}

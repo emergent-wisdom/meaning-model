@@ -1,0 +1,22 @@
+{
+  "handle": "StrategyConditionalNegotiation",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Continue engagement while making commitment contingent on explicit terms, authority, evidence, or performance gates.\",\"id\":\"concept.strategy.conditional-negotiation\",\"label\":\"conditional negotiation\",\"sema_handle\":\"StrategyConditionalNegotiation\",\"specializes\":[]}",
+  "gloss": "conditional negotiation: Continue engagement while making commitment contingent on explicit terms, authority, evidence, or performance gates.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:StrategyConditionalNegotiation#mh:SHA-256:931da56f03ad26df9512d8e705eab76b7fff46ad5171c48007794ec5ebed4f01",
+  "sema_ref": "StrategyConditionalNegotiation#931d",
+  "sema_stub": "931d"
+}

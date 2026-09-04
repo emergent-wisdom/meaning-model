@@ -1,0 +1,22 @@
+{
+  "handle": "EmotionSurprise",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Appraisal produced when a realized continuation carried low prior weight on the applicable perspective ancestry.\",\"id\":\"concept.emotion.surprise\",\"label\":\"surprise\",\"sema_handle\":\"EmotionSurprise\",\"specializes\":[]}",
+  "gloss": "surprise: Appraisal produced when a realized continuation carried low prior weight on the applicable perspective ancestry.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:EmotionSurprise#mh:SHA-256:874812340b1b58ff7965f89323c5118215037cfb6cf5d7b9655aa70e974b2ed9",
+  "sema_ref": "EmotionSurprise#8748",
+  "sema_stub": "8748"
+}

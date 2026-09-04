@@ -1,0 +1,22 @@
+{
+  "handle": "ProblemSolvingImpartial",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Deciding by applying the represented considerations without changing their force solely because of who is involved.\",\"id\":\"concept.problem-solving.impartial\",\"label\":\"impartial\",\"sema_handle\":\"ProblemSolvingImpartial\",\"specializes\":[\"concept.problem-solving.deciding\"]}",
+  "gloss": "impartial: Deciding by applying the represented considerations without changing their force solely because of who is involved.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:ProblemSolvingImpartial#mh:SHA-256:99d91a06c92b96365081a80d16a24634dc8a93f435935d1c6a653faeaa029c4f",
+  "sema_ref": "ProblemSolvingImpartial#99d9",
+  "sema_stub": "99d9"
+}

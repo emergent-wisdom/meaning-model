@@ -1,0 +1,646 @@
+{
+  "schema": "life-sim-rust-command/v1",
+  "request_id": "book-of-conditions-07r2-model-scaffolds",
+  "operation": "compile_profiles",
+  "profile_request": {
+    "schema": "life-sim-rust-profile-compilation/v1",
+    "model": {
+      "id": "book-of-conditions-07r2-scaffolds",
+      "time_unit": "year",
+      "reason": "Request the accepted macro design as editable, unweighted construction scaffolds, with all thirteen people at level processes. This request is not a compilation receipt.",
+      "provenance": [
+        "07r2 WORLD-MODEL.md, PERSON-MODELS.md, PERSON-INSTANCES.json, and LIFECYCLE-REGISTRY.md; accepted authored counterfactual world",
+        "All numeric intervals in this request are coarse half-open year envelopes: displayed inclusive start/end years a--b map to [a,b+1). Endpoint years do not assert birth, death, or event timestamps. Day-resolved source dates govern finer chronology; these envelopes cannot supply day-level duration shares or within-year ordering.",
+        "The native concept scaffold id valid_computational_claim corresponds to the authored Concept concept.07r2.valid-computational-claim in WORLD-MODEL.md; emitted native record identities must be recorded by the compilation receipt."
+      ]
+    },
+    "profiles": [
+      {
+        "kind": "person_scaffold",
+        "profile": {
+          "id": "charles-babbage",
+          "subject_id": "charles_babbage",
+          "person_boundary": "Charles Babbage as one historical person, with an explicit counterfactual history after 14 August 1843.",
+          "continuity_criterion": "One continuous human life from birth to death.",
+          "interval": { "start": 1791, "end": 1872 },
+          "life_description": "Babbage's whole life, opened into the standard concurrent person processes; the 1851 trial is a large positive shock whose joy and recognition contribute to his later expansion judgment.",
+          "level": "processes",
+          "provenance": [
+            "07r2 PERSON-INSTANCES.json and PERSON-MODELS.md"
+          ]
+        }
+      },
+      {
+        "kind": "person_scaffold",
+        "profile": {
+          "id": "ada-lovelace",
+          "subject_id": "ada_lovelace",
+          "person_boundary": "Ada Lovelace as one historical person, with an explicit counterfactual history after 14 August 1843.",
+          "continuity_criterion": "One continuous human life from birth to death.",
+          "interval": { "start": 1815, "end": 1853 },
+          "life_description": "Lovelace's whole life, opened into the standard concurrent person processes; she shares the trial's joy without enlarging its claim, distinguishes mechanical consequence from judgment about supplied premises and purposes, protects sole-signature authority, and later recognizes that a durable function needs succession.",
+          "level": "processes",
+          "provenance": [
+            "07r2 PERSON-INSTANCES.json and PERSON-MODELS.md"
+          ]
+        }
+      },
+      {
+        "kind": "person_scaffold",
+        "profile": {
+          "id": "edward-halden",
+          "subject_id": "edward_halden",
+          "person_boundary": "Edward Halden as one fictional person authored to remain compatible with the documentary prefix.",
+          "continuity_criterion": "One continuous human life from birth to death.",
+          "interval": { "start": 1803, "end": 1875 },
+          "life_description": "Halden's whole life, opened into the standard concurrent person processes; inventing the bounded question makes organization creative work, and the trial's joy and recognition later weaken his own capacity discipline.",
+          "level": "processes",
+          "provenance": [
+            "07r2 PERSON-INSTANCES.json and PERSON-MODELS.md"
+          ]
+        }
+      },
+      {
+        "kind": "person_scaffold",
+        "profile": {
+          "id": "william-king-noel",
+          "subject_id": "william_king_noel",
+          "person_boundary": "William King-Noel as one historical person, with bounded counterfactual household participation after 14 August 1843.",
+          "continuity_criterion": "One continuous human life from birth to death.",
+          "interval": { "start": 1805, "end": 1894 },
+          "life_description": "King-Noel's complete life spans landed and public responsibilities, marriage and family with Lovelace, bounded support for her work, and continued estate life after her death.",
+          "level": "processes",
+          "provenance": [
+            "07r2 PERSON-INSTANCES.json and LIFECYCLE-REGISTRY.md"
+          ]
+        }
+      },
+      {
+        "kind": "person_scaffold",
+        "profile": {
+          "id": "joseph-whitworth",
+          "subject_id": "joseph_whitworth",
+          "person_boundary": "Joseph Whitworth as one historical person, with one bounded counterfactual review after 14 August 1843.",
+          "continuity_criterion": "One continuous human life from birth to death.",
+          "interval": { "start": 1803, "end": 1888 },
+          "life_description": "Whitworth's complete life runs from mechanical training through an independent precision-engineering career, including one bounded review of the apparatus rather than participation in the venture.",
+          "level": "processes",
+          "provenance": [
+            "07r2 PERSON-INSTANCES.json and LIFECYCLE-REGISTRY.md"
+          ]
+        }
+      },
+      {
+        "kind": "person_scaffold",
+        "profile": {
+          "id": "joseph-clement",
+          "subject_id": "joseph_clement",
+          "person_boundary": "Joseph Clement as one historical person whose collaboration with Babbage ended before the divergence.",
+          "continuity_criterion": "One continuous human life from birth to death.",
+          "interval": { "start": 1779, "end": 1845 },
+          "life_description": "Clement's complete life develops from artisan training to leading precision manufacture; his ended partnership with Babbage remains a warning in the new undertaking until Clement's death.",
+          "level": "processes",
+          "provenance": [
+            "07r2 PERSON-INSTANCES.json and LIFECYCLE-REGISTRY.md"
+          ]
+        }
+      },
+      {
+        "kind": "person_scaffold",
+        "profile": {
+          "id": "griffith-davies",
+          "subject_id": "griffith_davies",
+          "person_boundary": "Griffith Davies as one historical person, with bounded counterfactual customer participation after 14 August 1843.",
+          "continuity_criterion": "One continuous human life from birth to death.",
+          "interval": { "start": 1788, "end": 1856 },
+          "life_description": "Davies's complete life rises through mathematical and actuarial work; in the counterfactual he restrains genuine curiosity by supplying an independent question and evidence, later invokes correction, and never joins the venture.",
+          "level": "processes",
+          "provenance": [
+            "07r2 PERSON-INSTANCES.json and LIFECYCLE-REGISTRY.md"
+          ]
+        }
+      },
+      {
+        "kind": "person_scaffold",
+        "profile": {
+          "id": "henry-prevost-babbage",
+          "subject_id": "henry_prevost_babbage",
+          "person_boundary": "Henry Prevost Babbage as one historical person, with bounded counterfactual custody after his father's death.",
+          "continuity_criterion": "One continuous human life from birth to death.",
+          "interval": { "start": 1824, "end": 1919 },
+          "life_description": "Henry's complete life follows a military career before inheriting his father's materials and the office packet, then continuing historical work on portions of the machinery.",
+          "level": "processes",
+          "provenance": [
+            "07r2 PERSON-INSTANCES.json and LIFECYCLE-REGISTRY.md"
+          ]
+        }
+      },
+      {
+        "kind": "person_scaffold",
+        "profile": {
+          "id": "george-farrow",
+          "subject_id": "george_farrow",
+          "person_boundary": "George Farrow as one fictional person authored to remain compatible with the documentary prefix.",
+          "continuity_criterion": "One continuous human life from birth to death.",
+          "interval": { "start": 1796, "end": 1861 },
+          "life_description": "Farrow's complete life moves from metalworking apprenticeship to ownership of a debt-backed precision works; he protects his foreman's honest finding despite delayed payment, manufactures and maintains the apparatus, then sells the works during illness.",
+          "level": "processes",
+          "provenance": [
+            "07r2 PERSON-INSTANCES.json and LIFECYCLE-REGISTRY.md"
+          ]
+        }
+      },
+      {
+        "kind": "person_scaffold",
+        "profile": {
+          "id": "margaret-halden",
+          "subject_id": "margaret_halden",
+          "person_boundary": "Margaret Halden as one fictional person authored to remain compatible with the documentary prefix.",
+          "continuity_criterion": "One continuous human life from birth to death.",
+          "interval": { "start": 1806, "end": 1882 },
+          "life_description": "Margaret's complete life combines family and household accounting, material participation in Halden's risk and recovery, later stationer's bookkeeping, and seven years beyond her husband's death.",
+          "level": "processes",
+          "provenance": [
+            "07r2 PERSON-INSTANCES.json and LIFECYCLE-REGISTRY.md"
+          ]
+        }
+      },
+      {
+        "kind": "person_scaffold",
+        "profile": {
+          "id": "thomas-neale",
+          "subject_id": "thomas_neale",
+          "person_boundary": "Thomas Neale as one fictional person authored to remain compatible with the documentary prefix.",
+          "continuity_criterion": "One continuous human life from birth to death.",
+          "interval": { "start": 1819, "end": 1869 },
+          "life_description": "Neale's complete life develops through mathematical clerical work, independent checking, an attempt to train Wills without overstating his independence, shared correction after the error, and return to assurance work after closure.",
+          "level": "processes",
+          "provenance": [
+            "07r2 PERSON-INSTANCES.json and LIFECYCLE-REGISTRY.md"
+          ]
+        }
+      },
+      {
+        "kind": "person_scaffold",
+        "profile": {
+          "id": "samuel-wills",
+          "subject_id": "samuel_wills",
+          "person_boundary": "Samuel Wills as one fictional person authored to remain compatible with the documentary prefix.",
+          "continuity_criterion": "One continuous human life from birth to death.",
+          "interval": { "start": 1828, "end": 1891 },
+          "life_description": "Wills's complete life runs from a printer's household through clerical preparation, the office transcription error, adaptation into paired checking, later railway accounts, and family life.",
+          "level": "processes",
+          "provenance": [
+            "07r2 PERSON-INSTANCES.json and LIFECYCLE-REGISTRY.md"
+          ]
+        }
+      },
+      {
+        "kind": "person_scaffold",
+        "profile": {
+          "id": "mary-somerville",
+          "subject_id": "mary_somerville",
+          "person_boundary": "Mary Somerville as one historical person whose scientific life remains independent of the counterfactual venture.",
+          "continuity_criterion": "One continuous human life from birth to death.",
+          "interval": { "start": 1780, "end": 1873 },
+          "life_description": "Somerville's complete life develops through self-education, mathematical and scientific authorship, international standing, mentorship and correspondence, and continued productive work in Italy.",
+          "level": "processes",
+          "provenance": [
+            "07r2 PERSON-INSTANCES.json and LIFECYCLE-REGISTRY.md"
+          ]
+        }
+      },
+
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "analytical-engine-project",
+          "thing_id": "analytical_engine_project",
+          "boundary": "Babbage's Analytical Engine project and its continuing architectural design during his life.",
+          "continuity_criterion": "The same named architecture and project lineage through explicit design revisions.",
+          "interval": { "start": 1834, "end": 1872 },
+          "lifecycle_description": "The Analytical Engine persists as a designed and partly constructed project; it is never declared complete in this world.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "bounded-card-apparatus",
+          "thing_id": "bounded_card_apparatus",
+          "boundary": "The six-register card-directed apparatus manufactured for the bounded trial.",
+          "continuity_criterion": "The frozen 1844 configuration through manufacture, correction, trial, service, and dismantling.",
+          "interval": { "start": 1844, "end": 1856 },
+          "lifecycle_description": "One bounded artifact is manufactured, tested, operated, and dismantled without becoming the Analytical Engine.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "engine-undertaking",
+          "thing_id": "engine_undertaking",
+          "boundary": "The contracted venture that owns the bounded apparatus obligations and cash but not Babbage's general architecture.",
+          "continuity_criterion": "The same staged contractual undertaking from compact through reconciled closure.",
+          "interval": { "start": 1844, "end": 1856 },
+          "lifecycle_description": "The venture forms around a finite compact, funds manufacture and trial, opens the office, and ends after closure accounts are reconciled.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "calculation-office",
+          "thing_id": "calculation_office",
+          "boundary": "The recurring calculation service created after the bounded trial.",
+          "continuity_criterion": "The same operating office, staff, accounts, customer obligations, and correction route until formal closure.",
+          "interval": { "start": 1851, "end": 1856 },
+          "lifecycle_description": "The office prepares inputs, operates the apparatus, checks, prints, delivers, corrects, refunds, and then closes.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "farrow-precision-works",
+          "thing_id": "farrow_precision_works",
+          "boundary": "George Farrow's fictional precision workshop under his proprietorship.",
+          "continuity_criterion": "The same workshop organization, workforce, tools, and contracts until Farrow sells it.",
+          "interval": { "start": 1831, "end": 1859 },
+          "lifecycle_description": "The works manufactures and maintains the bounded apparatus while continuing ordinary instrument contracts.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md and LIFECYCLE-REGISTRY.md"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "whitworth-works",
+          "thing_id": "whitworth_works",
+          "boundary": "Joseph Whitworth's Manchester works as the independent reviewer of gauges, interfaces, and tolerances.",
+          "continuity_criterion": "The historical works organization through its continuing industrial activity.",
+          "lifecycle_description": "The works performs one bounded independent review without joining, financing, or manufacturing the undertaking.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md and LIFECYCLE-REGISTRY.md"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "guardian-assurance",
+          "thing_id": "guardian_assurance",
+          "boundary": "Guardian Assurance as the customer institution that owns its actuarial question and acceptance authority.",
+          "continuity_criterion": "The historical company through changes not opened at story resolution.",
+          "lifecycle_description": "Guardian purchases a feasibility result and a later calculation job without becoming a founder or financier of the Engine.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "subscriber-trust",
+          "thing_id": "subscriber_trust",
+          "boundary": "The contractual trust that holds outside subscriptions and releases money by accepted stage.",
+          "continuity_criterion": "The same contractual group and custody arrangement from formation through reconciled dissolution.",
+          "interval": { "start": 1844, "end": 1856 },
+          "lifecycle_description": "The trust receives outside capital, releases it against stages, and ends when the venture accounts close.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "configuration-register",
+          "thing_id": "configuration_register",
+          "boundary": "The frozen production configuration register opened in 1844.",
+          "continuity_criterion": "The same identified register through later custody; revisions are explicit entries, not replacement of the document.",
+          "lifecycle_description": "The register fixes what the works is paid to manufacture and remains part of the evidential record.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "successor-register",
+          "thing_id": "successor_register",
+          "boundary": "The register that preserves improvements excluded from the current production configuration.",
+          "continuity_criterion": "The same identified register through later custody, with dated additions.",
+          "lifecycle_description": "Rejected or deferred improvements survive without silently changing the accepted artifact.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "sealed-test-packet",
+          "thing_id": "sealed_test_packet",
+          "boundary": "The prospective 1851 packet of twelve cases, declared conditions, independent answers, traces, and comparison evidence.",
+          "continuity_criterion": "The same sealed evidential packet through trial, publication, and later custody.",
+          "lifecycle_description": "The packet closes before the trial result and preserves the bounded evidence afterward.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "capacity-qualification",
+          "thing_id": "capacity_qualification",
+          "boundary": "Lovelace's signed 1852 qualification distinguishing a successful bounded computation from recurring service capacity.",
+          "continuity_criterion": "The same dated signed document through later citation and custody.",
+          "lifecycle_description": "The qualification records a known capacity boundary before Lovelace's death and before the office error.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "returned-table",
+          "thing_id": "returned_table",
+          "boundary": "The erroneous Guardian table returned in May 1854 with its original delivered identity preserved.",
+          "continuity_criterion": "The same returned output document, retained rather than overwritten by correction.",
+          "lifecycle_description": "The returned table exposes the source transposition and omitted independent check and remains in the failure record.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "corrected-table",
+          "thing_id": "corrected_table",
+          "boundary": "The separately identified corrected Guardian table produced after disclosure.",
+          "continuity_criterion": "The same corrected output document through delivery and later custody.",
+          "lifecycle_description": "The corrected table answers the customer while preserving rather than replacing the erroneous predecessor.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "closure-account",
+          "thing_id": "closure_account",
+          "boundary": "The reconciled account of receipts, costs, refund, correction, storage, and responsibility at office closure.",
+          "continuity_criterion": "The same completed account through Halden's later delivery and Babbage's custody decision.",
+          "lifecycle_description": "The account closes the venture without concealing the authorizations that produced its failure.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "complete-custody-packet",
+          "thing_id": "complete_custody_packet",
+          "boundary": "The 1871 custody collection containing plans, proof, warning, error, correction, and accounts together.",
+          "continuity_criterion": "The same inventoried collection through later custody; removal of an item would be an explicit custody event.",
+          "lifecycle_description": "Babbage assembles complete rather than curated custody, and the packet is observed still to exist in 1900.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "london",
+          "thing_id": "london",
+          "boundary": "London as the coarse place containing the principal working rooms, works, customer office, and calculation office.",
+          "continuity_criterion": "The same geographical city at the story's declared coarse resolution.",
+          "lifecycle_description": "London persists as a place throughout the modeled lives and counterfactual undertaking.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "ockham",
+          "thing_id": "ockham",
+          "boundary": "Ockham as Lovelace's coarse principal location during the August 1852 succession exchange.",
+          "continuity_criterion": "The same geographical place at story resolution.",
+          "lifecycle_description": "Ockham persists as a place and becomes consequential through Lovelace's presence and correspondence.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "manchester",
+          "thing_id": "manchester",
+          "boundary": "Manchester as the coarse place containing Whitworth's works.",
+          "continuity_criterion": "The same geographical city at the story's declared coarse resolution.",
+          "lifecycle_description": "Manchester persists as a place; drawings, gauges, and a report travel between it and London for the 1844 review.",
+          "provenance": [
+            "07r2 WORLD-MODEL.md"
+          ]
+        }
+      },
+
+      {
+        "kind": "relationship_scaffold",
+        "profile": {
+          "id": "babbage-lovelace",
+          "relationship_kind": "intellectual_partnership",
+          "left_referent_id": "referent.profile.charles-babbage.person.charles_babbage",
+          "right_referent_id": "referent.profile.ada-lovelace.person.ada_lovelace",
+          "description": "Babbage and Lovelace's active intellectual and working partnership, including shared delight when directed operations first persist in matter and their later differing readings of what that evidence licenses.",
+          "interval": { "start": 1833, "end": 1853 },
+          "provenance": [
+            "07r2 WORLD-MODEL.md and PERSON-MODELS.md"
+          ]
+        }
+      },
+      {
+        "kind": "relationship_scaffold",
+        "profile": {
+          "id": "babbage-halden",
+          "relationship_kind": "venture_partnership",
+          "left_referent_id": "referent.profile.charles-babbage.person.charles_babbage",
+          "right_referent_id": "referent.profile.edward-halden.person.edward_halden",
+          "description": "Babbage and Halden's feasibility and venture partnership from the invention of a bounded question through shared recognition, mutually reinforcing expansion confidence, and office closure.",
+          "interval": { "start": 1843, "end": 1856 },
+          "provenance": [
+            "07r2 WORLD-MODEL.md and PERSON-MODELS.md"
+          ]
+        }
+      },
+      {
+        "kind": "relationship_scaffold",
+        "profile": {
+          "id": "lovelace-halden",
+          "relationship_kind": "evidential_contractual_cooperation",
+          "left_referent_id": "referent.profile.ada-lovelace.person.ada_lovelace",
+          "right_referent_id": "referent.profile.edward-halden.person.edward_halden",
+          "description": "Lovelace and Halden's cooperation over explicit conditions, shared pleasure in the successful trial, evidence, capacity, and their later disagreement about the limits of customer demand.",
+          "interval": { "start": 1843, "end": 1853 },
+          "provenance": [
+            "07r2 WORLD-MODEL.md and PERSON-MODELS.md"
+          ]
+        }
+      },
+
+      {
+        "kind": "concept_scaffold",
+        "profile": {
+          "id": "valid_computational_claim",
+          "label": "valid computational claim",
+          "description": "A bounded computational claim whose question, configuration, inputs, trace, independent comparison, repetition, publication boundary, and correction route are declared and retained.",
+          "differentia": [
+            "validity belongs to the declared human-machine procedure, not merely to a mechanism's internal arithmetic",
+            "the public claim does not exceed what the retained prospective evidence establishes"
+          ],
+          "state_schema": {
+            "question_and_exclusions": "declared text and references",
+            "frozen_configuration": "identified register",
+            "traceable_inputs": "identified source and card records",
+            "independent_comparison": "identified evidence route",
+            "repeatability": "retained run records",
+            "bounded_publication": "identified public wording",
+            "correction_route": "identified correction and custody records"
+          },
+          "direction_families": [
+            "freeze, execute, compare, repeat, publish within evidence, correct if contradicted"
+          ],
+          "observation_methods": [
+            "inspect the declared test, configuration identity, input lineage, traces, independent comparison, repeated runs, published wording, and correction record"
+          ],
+          "provenance": [
+            "07r2 WORLD-MODEL.md, one-concept protocol test"
+          ]
+        }
+      },
+
+      {
+        "kind": "change_arc_scaffold",
+        "profile": {
+          "id": "finite-invention",
+          "change_kind": "invention",
+          "affected_referent_id": "referent.profile.analytical-engine-project.thing.analytical_engine_project",
+          "description": "The unbounded Engine proposal is opened into one finite apparatus by changing the decomposition from a machine part to one exact computational question that a physical object can answer.",
+          "interval": { "start": 1843, "end": 1852 },
+          "anticipation": {
+            "description": "Failed attempts to price a severed machine part lead Halden to organize the proposal by answerable claim; Babbage, Lovelace, and Halden jointly make a bounded build conceivable.",
+            "interval": { "start": 1843, "end": 1845 }
+          },
+          "focal_change": {
+            "description": "A configuration is frozen, funded, manufactured, corrected, and composed into a working apparatus; the first free motion after re-machining makes material recovery perceptible to several kinds of expertise.",
+            "interval": { "start": 1844, "end": 1851 }
+          },
+          "adaptation": {
+            "description": "A prospective test and narrow publication establish what the apparatus has and has not shown; differing interpretations coexist with shared joy before commercial attention begins to reinforce them.",
+            "interval": { "start": 1850, "end": 1852 }
+          },
+          "provenance": [
+            "07r2 WORLD-MODEL.md events E01-E15"
+          ]
+        }
+      },
+      {
+        "kind": "change_arc_scaffold",
+        "profile": {
+          "id": "material-composition-shock",
+          "change_kind": "manufacturing_recovery",
+          "affected_referent_id": "referent.profile.bounded-card-apparatus.thing.bounded_card_apparatus",
+          "description": "Individually conforming assemblies fail in composition and are corrected without changing the accepted artifact's identity.",
+          "interval": { "start": 1844, "end": 1851 },
+          "anticipation": {
+            "description": "The works manufactures and inspects separate assemblies under the frozen register.",
+            "interval": { "start": 1844, "end": 1847 }
+          },
+          "focal_change": {
+            "description": "Two assemblies meet their drawings yet bind under the shared drive in July 1846.",
+            "interval": { "start": 1846, "end": 1847 }
+          },
+          "adaptation": {
+            "description": "The interface is re-machined, the broader improvement is deferred, and manufacture converges on a functioning composition.",
+            "interval": { "start": 1846, "end": 1851 }
+          },
+          "provenance": [
+            "07r2 WORLD-MODEL.md events E08-E12"
+          ]
+        }
+      },
+      {
+        "kind": "change_arc_scaffold",
+        "profile": {
+          "id": "recognition-to-overreach",
+          "change_kind": "institutional_overreach",
+          "affected_referent_id": "referent.profile.calculation-office.thing.calculation_office",
+          "description": "A bounded success produces shared joy and recognition, then demand that the founders convert into obligations beyond known independent-checking capacity.",
+          "interval": { "start": 1851, "end": 1855 },
+          "anticipation": {
+            "description": "The successful trial first changes beliefs about feasibility and standing; four inquiries reinforce that update and create an anticipated recurring service, while the capacity ledger fixes a lower boundary.",
+            "interval": { "start": 1851, "end": 1853 }
+          },
+          "focal_change": {
+            "description": "Babbage urges expansion and Halden authorizes four final deliveries in April-June 1854 despite capacity for two independently checked jobs in that quarter. Customers close accounts at the end of 1853 and reconcile them through March 1854; final signed returns are released no earlier than 1 April. Early methods, specimens, and provisional checks cannot advance final comparisons into the preceding quarter. Each man mistakes confidence moved by the same success and response for independent confirmation.",
+            "interval": { "start": 1852, "end": 1853 }
+          },
+          "adaptation": {
+            "description": "Work is compressed around promises; Lovelace first qualifies the claim, then recognizes the one-carrier weakness in her own claim authority and in Neale's checking and asks for funded checking succession. A later common-source flaw in Babbage's self-comparison design distinguishes mechanical consequence from independent judgment, but the succession answer is still deferred. Guardian's final signed return replaces its provisional source on 1 April 1854; all four final signed returns are released in April, with other dates unresolved. Earlier checks cannot certify these final sources, leaving 160 final checker-hours demanded against 80 promised in the April-June delivery quarter.",
+            "interval": { "start": 1852, "end": 1855 }
+          },
+          "provenance": [
+            "07r2 WORLD-MODEL.md events E14-E22"
+          ]
+        }
+      },
+      {
+        "kind": "change_arc_scaffold",
+        "profile": {
+          "id": "error-to-complete-custody",
+          "change_kind": "failure_and_growth",
+          "affected_referent_id": "referent.profile.charles-babbage.person.charles_babbage",
+          "description": "The returned table first narrows Babbage's interpretation to correct mechanism and eventually changes what he regards as the complete work.",
+          "interval": { "start": 1852, "end": 1872 },
+          "anticipation": {
+            "description": "The signed capacity warning and omitted duplicate check make institutional failure foreseeable before the table returns.",
+            "interval": { "start": 1852, "end": 1855 }
+          },
+          "focal_change": {
+            "description": "The table is returned; the input error and authorization trail are disclosed; the office corrects, refunds, and closes.",
+            "interval": { "start": 1854, "end": 1856 }
+          },
+          "adaptation": {
+            "description": "Babbage slowly retains the human-system evidence beside the mechanical proof and finally transfers both in complete custody.",
+            "interval": { "start": 1855, "end": 1872 }
+          },
+          "provenance": [
+            "07r2 WORLD-MODEL.md events E17-E29 and PERSON-MODELS.md"
+          ]
+        }
+      }
+    ]
+  }
+}

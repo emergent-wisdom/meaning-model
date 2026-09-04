@@ -1,0 +1,22 @@
+{
+  "handle": "HistoricallyPrematureArchitecture",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"An architecture whose organizing idea becomes available before the manufacturing, financing, governance, labor, or social institutions needed to realize it reliably.\",\"id\":\"concept.theme.historically-premature-architecture\",\"label\":\"historically premature architecture\",\"sema_handle\":\"HistoricallyPrematureArchitecture\",\"specializes\":[]}",
+  "gloss": "historically premature architecture: An architecture whose organizing idea becomes available before the manufacturing, financing, governance, labor, or social institutions needed to realize it reliably.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:HistoricallyPrematureArchitecture#mh:SHA-256:8e61bb84480c04b07d1b380b47d6febc961146cc9f95e8ce63649f42d95fb533",
+  "sema_ref": "HistoricallyPrematureArchitecture#8e61",
+  "sema_stub": "8e61"
+}

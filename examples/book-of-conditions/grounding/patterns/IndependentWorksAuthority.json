@@ -1,0 +1,22 @@
+{
+  "handle": "IndependentWorksAuthority",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Delegated authority to reject, schedule, cost, manufacture, and test a production configuration without silent architectural override.\",\"id\":\"concept.governance.independent-works-authority\",\"label\":\"independent works authority\",\"sema_handle\":\"IndependentWorksAuthority\",\"specializes\":[]}",
+  "gloss": "independent works authority: Delegated authority to reject, schedule, cost, manufacture, and test a production configuration without silent architectural override.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:IndependentWorksAuthority#mh:SHA-256:c1c120f1f29902caa4139edd66347de67507b6a059991b890e96f618224ec0a6",
+  "sema_ref": "IndependentWorksAuthority#c1c1",
+  "sema_stub": "c1c1"
+}

@@ -1,0 +1,288 @@
+{
+  "schema": "book-of-conditions/person-template/v1",
+  "tool_profile_kind": "person_scaffold",
+  "tool_levels": {
+    "lifecycle": "load only the Person Thing and its complete lifecycle Event",
+    "processes": "also load the nine unweighted IS process Events; every one of the thirteen 07r2 person scaffold requests selects this level"
+  },
+  "interval_convention": {
+    "display": "Resolved YYYY-MM-DD/YYYY-MM-DD life intervals name inclusive civil dates, not timestamps. YYYY/YYYY intervals retain year precision.",
+    "day_adapter": "A resolved inclusive date interval is represented numerically as [start civil day, civil day after the displayed end). The adapter declares its epoch and day unit; the exclusive boundary is an accounting boundary, not an asserted time of birth or death.",
+    "year_adapter": "A year-precision interval YYYY/YYYY maps to the coarse numeric scaffold envelope [start year, end year + 1). It does not locate an event within either endpoint year, license participation outside finer known lifecycle dates, or supply day-level duration weights.",
+    "authority": "Finer dated source records govern day-level chronology; coarse compiler envelopes are structural compatibility projections. Unknown bounds remain tagged unknown rather than replaced with invented dates."
+  },
+  "status": "run-specific, non-normative, editable",
+  "sources": [
+    "../../paper/meaning-model-grammar.tex#Book-specific-person-profile",
+    "PERSON-TEMPLATE.md"
+  ],
+  "purpose": "Open any person's lifecycle Event with the same first-run profile. The template supplies comparable questions and record locations; it does not assert a universal decomposition of human psychology.",
+  "attachment": {
+    "requires": "one Person Thing bound as subject of one complete lifecycle Event",
+    "parent": "{life_event_id}",
+    "structural_rule": "Every instantiated process and scene-assessment Event occurs within the person's lifecycle. Perspective is derived from that ancestry; no holder or perspective field is copied onto every child."
+  },
+  "person_profile": {
+    "id_pattern": "profile.person.{person_slug}",
+    "life_event": {
+      "id": "{life_event_id}",
+      "interval": "complete birth-to-death interval, or open end only for a living person",
+      "description": "one coarse account of the whole life before periods or episodes are opened",
+      "periods": {
+        "record": "Sequential Cut",
+        "question": "Which disjoint periods compose this lifecycle?",
+        "unit": "duration",
+        "children": "four to eight disjoint period Events when the life is opened",
+        "weights": "derived from child duration",
+        "remainder": "uncovered duration",
+        "recomposition": "period durations plus temporal remainder equal the lifecycle duration"
+      }
+    },
+    "is": {
+      "relationship": "nine concurrent Event-process views; they may overlap and do not sum",
+      "children": [
+        {
+          "key": "body",
+          "event_id_pattern": "event.process.person.{person_slug}.body",
+          "description": "development, embodiment, physical capacity, disability, aging, mortality, and supported physical measurements",
+          "optional_openings": {
+            "health": {
+              "event_id_pattern": "event.process.person.{person_slug}.body.health",
+              "description": "baseline capacity, illness or injury, treatment, recovery or consolidation, age-related change, and terminal transition",
+              "rule": "Open only when health changes feasible action or another story-bearing process.",
+              "condition_cut": {
+                "question": "How is one unit of the person's current bodily health condition divided?",
+                "children": [
+                  "healthy_functioning",
+                  "illness_burden"
+                ],
+                "remainder": "uncertain or unrepresented health condition",
+                "sum": 1.0,
+                "interpretation": "The two principal children are opposite shares of one declared health condition. A 0.50/0.50 split is intermediate; 1.00/0.00 is the run's healthy reference and 0.00/1.00 its maximally ill reference. The remainder is retained when evidence does not justify a complete placement."
+              }
+            }
+          }
+        },
+        {
+          "key": "kin",
+          "event_id_pattern": "event.process.person.{person_slug}.kin",
+          "description": "kinship, household, dependency, support, rupture, and restoration"
+        },
+        {
+          "key": "partnership",
+          "event_id_pattern": "event.process.person.{person_slug}.partnership",
+          "description": "the person's participation in separately identified joint relationship Events and their own readings of them"
+        },
+        {
+          "key": "work",
+          "event_id_pattern": "event.process.person.{person_slug}.work",
+          "description": "roles, projects, duties, institution memberships, work time, and work-derived income"
+        },
+        {
+          "key": "place",
+          "event_id_pattern": "event.process.person.{person_slug}.place",
+          "description": "residence, presence, workplace access, travel, and spatial constraints"
+        },
+        {
+          "key": "means",
+          "event_id_pattern": "event.process.person.{person_slug}.means",
+          "description": "money, assets, debt, credit, tools, discretionary time, capacity, and runway in declared real units"
+        },
+        {
+          "key": "knowledge",
+          "event_id_pattern": "event.process.person.{person_slug}.knowledge",
+          "description": "perception, belief, document access, learning, correction, and demonstrated capability"
+        },
+        {
+          "key": "standing",
+          "event_id_pattern": "event.process.person.{person_slug}.standing",
+          "description": "offices, memberships, publication, audiences, attributed recognition, and beliefs about recognition"
+        },
+        {
+          "key": "meaning",
+          "event_id_pattern": "event.process.person.{person_slug}.meaning",
+          "description": "constitutive wants, commitments, self-understanding, and sources of coherence"
+        }
+      ],
+      "number_rule": "No semantic number is stored on these nine process addresses. A number appears only on a separately declared Cut whose question supplies a comparison unit, such as attention across processes. Dates, money, counts, durations, locations, and physical measurements may appear as typed world data."
+    },
+    "core_want_outlook": {
+      "core_wants": [
+        "belonging",
+        "competence",
+        "autonomy",
+        "understanding",
+        "well-being"
+      ],
+      "per_opened_want_cut": {
+        "question_pattern": "For this live AtomicWant, how is one unit of represented fulfillment outlook divided?",
+        "children": [
+          "assured_fulfillment",
+          "threatened_fulfillment"
+        ],
+        "remainder": "unresolved fulfillment outlook",
+        "sum": 1.0
+      },
+      "period_outlook_cut": {
+        "optional": true,
+        "parent_event_pattern": "event.inner.person.{person_slug}.{period_slug}.outlook",
+        "question": "How is one unit of this period's represented fulfillment outlook divided?",
+        "children": [
+          "assured_fulfillment",
+          "threatened_fulfillment"
+        ],
+        "remainder": "unresolved fulfillment outlook",
+        "sum": 1.0
+      },
+      "threat_character_cut": {
+        "parent_event_pattern": "event.inner.person.{person_slug}.{period_or_scene_slug}.threat_character",
+        "question": "Conditional on one unit of represented threat-directed attention, how is it divided among the core wants containing the endpoints believed at risk?",
+        "children": [
+          "threatened_belonging",
+          "threatened_competence",
+          "threatened_autonomy",
+          "threatened_understanding",
+          "threatened_well_being"
+        ],
+        "remainder": "unresolved or unsupported threatened concern",
+        "sum": 1.0
+      },
+      "refinement_rule": "The period outlook is a coarse committed parent. When opened across active wants or disjoint shorter intervals, the weighted child mixture must recover it, with unsupported mass retained as remainder. The threat-character Cut may be derived from opened want and outlook Cuts or elicited coarsely, but it must reconcile when those children are opened.",
+      "time_rule": "A selected scene may deviate from the period outlook. Recovery leaves the next period baseline substantially unchanged; consolidation changes it, with the intervening Events and an Understanding note explaining the transition.",
+      "interpretation": "All values are sibling-relative shares under their named Cut questions. None is an absolute scale of fear, assurance, confidence, or personality."
+    },
+    "what": {
+      "opens_only_at": "a selected scene or decision episode",
+      "parent_event_pattern": "event.inner.person.{person_slug}.{scene_slug}.what",
+      "concern_cut": {
+        "question": "How is one unit of this scene's motivational attention divided?",
+        "children": [
+          "belonging",
+          "competence",
+          "autonomy",
+          "understanding",
+          "well-being"
+        ],
+        "remainder": "unsupported or unclassified concern",
+        "sum": 1.0
+      },
+      "atomic_want_cut": {
+        "question_pattern": "Within {concern}, which desired registered endpoints organize attention?",
+        "maximum_live_leaves": 8,
+        "leaf_fields": [
+          "operation: preserve/create/transform/end",
+          "registered target Thing or Event",
+          "target field or Event condition",
+          "desired endpoint",
+          "horizon",
+          "constitutive or instrumental depth"
+        ],
+        "remainder": "unarticulated or unsupported want",
+        "sum": 1.0
+      },
+      "outlook_rule": "For each opened AtomicWant where fulfillment expectation matters, apply person_profile.core_want_outlook.per_opened_want_cut. Approach and avoidance, when represented, are strategies or action directions rather than fear poles."
+    },
+    "appraisal_chain": {
+      "records": [
+        "concern and AtomicWant Event",
+        "separate fulfillment-outlook or threat-belief Event",
+        "separate fast emotional appraisal Event",
+        "separate decision or action Event"
+      ],
+      "rule": "Concern, want, fulfillment outlook, threat belief, emotion, and action are never collapsed into one label. Threatened fulfillment is an outlook about a want. Fear is one possible appraisal of that outlook, not a concern or pole; the same threat may instead produce anger, sadness, or another emotion. If no active want is believed threatened, represented fear is zero. Any nonzero fear must link to a threatened AtomicWant or remain explicitly unresolved."
+    },
+    "how": {
+      "opens_only_at": "a selected problem-solving or decision episode",
+      "parent_event_pattern": "event.inner.person.{person_slug}.{scene_slug}.how",
+      "module_cut": {
+        "question": "How is one unit of problem-solving attention divided in this scene?",
+        "children": [
+          "framing",
+          "deciding"
+        ],
+        "remainder": "unresolved mode",
+        "sum": 1.0
+      },
+      "framing_cut": {
+        "question": "Within framing, how is attention divided?",
+        "children": [
+          "concrete",
+          "abstract"
+        ],
+        "remainder": "unresolved framing",
+        "sum": 1.0
+      },
+      "deciding_cut": {
+        "question": "Within deciding, how is attention divided?",
+        "children": [
+          "impartial",
+          "personal"
+        ],
+        "remainder": "unresolved deciding",
+        "sum": 1.0
+      },
+      "strategy_rule": "Specific strategies are linked Realizations or Events unless a separate bounded Cut question is deliberately asked."
+    },
+    "feels": {
+      "opens_only_at": "a selected scene with a consequential appraisal",
+      "parent_event_pattern": "event.inner.person.{person_slug}.{scene_slug}.feels",
+      "emotion_cut": {
+        "question": "How is one unit of represented emotional attention divided at this moment?",
+        "children": [
+          "joy",
+          "sadness",
+          "fear",
+          "anger",
+          "disgust",
+          "surprise",
+          "trust",
+          "anticipation",
+          "neutral"
+        ],
+        "remainder": "unresolved appraisal",
+        "sum": 1.0
+      },
+      "rule": "The Cut records composition, not absolute emotional intensity."
+    },
+    "context": {
+      "opens_only_at": "a scene where the organization of action across contexts matters",
+      "cut_question": "Through which mutually exclusive context allocation is action organized at this resolution?",
+      "candidate_children": [
+        "self",
+        "separately named dyad",
+        "collective role",
+        "non-social target"
+      ],
+      "remainder": "mixed or unsupported context",
+      "sum": 1.0
+    },
+    "direction": {
+      "opens_only_at": "a consequential choice or forecast boundary",
+      "question": "What could occur next at this evidence cutoff and horizon?",
+      "children": "mutually exclusive continuations",
+      "remainder": "outside or unknown continuation",
+      "sum": 1.0,
+      "rule": "Sibling-relative forecast allocation unless separately calibrated as probability."
+    },
+    "relationships_and_trust": {
+      "world_record": "one joint relationship Event with participant Bindings",
+      "person_record": "one directional reliance or belief Event-process under each person's lifecycle",
+      "evidence": "delegation, checking, fulfillment, breach, repair, withdrawal, communication, and action Events",
+      "rule": "No absolute trust score. A FEELS trust share is local emotion composition; a Direction Cut over fulfillment and breach is a separate forecast."
+    },
+    "time_and_refinement": {
+      "scene_profiles": "elicited only for selected scenes",
+      "episode_profiles": "duration-weighted mixtures over disjoint phases only",
+      "period_and_life_profiles": "derived over authoritative disjoint temporal children with coverage and remainder reported",
+      "response_shapes": [
+        "drift",
+        "recovery",
+        "consolidation",
+        "instability or cascade",
+        "anticipated transition",
+        "terminal transition"
+      ],
+      "revision_rule": "If opened children cannot reasonably explain the coarse parent, revise the parent and propagate the change."
+    }
+  }
+}

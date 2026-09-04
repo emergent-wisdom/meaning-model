@@ -1,0 +1,22 @@
+{
+  "handle": "ProcessShock",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"A perturbing Event relative to one or more named longer Event-processes, linked to those affected processes. Change is recorded only as a comparison derived from compatible Cuts or as same-unit world data under an externally meaningful measurement protocol; the Event has no generic magnitude.\",\"id\":\"concept.process.shock\",\"label\":\"shock\",\"sema_handle\":\"ProcessShock\",\"specializes\":[]}",
+  "gloss": "shock: A perturbing Event relative to one or more named longer Event-processes, linked to those affected processes. Change is recorded only as a comparison derived from compatible Cuts or as same-unit world data under an externally meaningful measurement protocol; the Event has no generic magnitude.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:ProcessShock#mh:SHA-256:a096de5e94043d898cb14c02fbe30fdd2ac0fabb2319026b4d707c994eaecb17",
+  "sema_ref": "ProcessShock#a096",
+  "sema_stub": "a096"
+}

@@ -1,0 +1,22 @@
+{
+  "handle": "ProblemSolvingPersonal",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Deciding with explicit attention to the identities, relationships, and particular consequences for those involved.\",\"id\":\"concept.problem-solving.personal\",\"label\":\"personal\",\"sema_handle\":\"ProblemSolvingPersonal\",\"specializes\":[\"concept.problem-solving.deciding\"]}",
+  "gloss": "personal: Deciding with explicit attention to the identities, relationships, and particular consequences for those involved.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:ProblemSolvingPersonal#mh:SHA-256:b4470957724dd7262bfdc985a66ab00186ca41c6c88672238a5c49382630618d",
+  "sema_ref": "ProblemSolvingPersonal#b447",
+  "sema_stub": "b447"
+}

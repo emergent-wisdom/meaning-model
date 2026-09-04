@@ -1,0 +1,22 @@
+{
+  "handle": "EmotionAnticipation",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Prospective emotional orientation toward one or more weighted continuations.\",\"id\":\"concept.emotion.anticipation\",\"label\":\"anticipation\",\"sema_handle\":\"EmotionAnticipation\",\"specializes\":[]}",
+  "gloss": "anticipation: Prospective emotional orientation toward one or more weighted continuations.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:EmotionAnticipation#mh:SHA-256:312f474b73f2f526fa7b22cebc24669cd287d797cf8f00a2b1b31e13705ebce6",
+  "sema_ref": "EmotionAnticipation#312f",
+  "sema_stub": "312f"
+}

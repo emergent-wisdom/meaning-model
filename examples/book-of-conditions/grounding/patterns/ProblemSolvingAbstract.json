@@ -1,0 +1,22 @@
+{
+  "handle": "ProblemSolvingAbstract",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Framing through general relations, principles, representations, or cases beyond the immediate instance.\",\"id\":\"concept.problem-solving.abstract\",\"label\":\"abstract\",\"sema_handle\":\"ProblemSolvingAbstract\",\"specializes\":[\"concept.problem-solving.framing\"]}",
+  "gloss": "abstract: Framing through general relations, principles, representations, or cases beyond the immediate instance.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:ProblemSolvingAbstract#mh:SHA-256:560bacb7b3f928bfc90086a135cd4fe5e5c0431aedb596c64fcec7e1f8d08e26",
+  "sema_ref": "ProblemSolvingAbstract#560b",
+  "sema_stub": "560b"
+}

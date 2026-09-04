@@ -1,0 +1,22 @@
+{
+  "handle": "EvaluativeKindness",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"An evaluation, scoped by its parent ancestry, of conduct given the actor's available knowledge, consequences for affected people, reversibility, and respect for those people's represented wants and agency; an attributed care motive is evidence but never its definition. Its `describe` Realization is unweighted; any graded fit uses a separate match/nonmatch/remainder Cut.\",\"id\":\"concept.evaluation.kindness\",\"label\":\"kindness\",\"sema_handle\":\"EvaluativeKindness\",\"specializes\":[]}",
+  "gloss": "kindness: An evaluation, scoped by its parent ancestry, of conduct given the actor's available knowledge, consequences for affected people, reversibility, and respect for those people's represented wants and agency; an attributed care motive is evidence but never its definition. Its `describe` Realization is unweighted; any graded fit uses a separate match/nonmatch/remainder Cut.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:EvaluativeKindness#mh:SHA-256:629c49dea0d8f1eb7cd1ca168773b10a55e621255d676da91f174a989b0256ac",
+  "sema_ref": "EvaluativeKindness#629c",
+  "sema_stub": "629c"
+}

@@ -1,0 +1,22 @@
+{
+  "handle": "ConcernWellBeing",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"First-run concern for bodily integrity, comfort, and viability, with pain or suffering as its threat reading.\",\"id\":\"concept.concern.well-being\",\"label\":\"well-being\",\"sema_handle\":\"ConcernWellBeing\",\"specializes\":[]}",
+  "gloss": "well-being: First-run concern for bodily integrity, comfort, and viability, with pain or suffering as its threat reading.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:ConcernWellBeing#mh:SHA-256:a4866fa28877626586f89fe4b138e43a37e193e372aeccea1004b1d361c0ca8c",
+  "sema_ref": "ConcernWellBeing#a486",
+  "sema_stub": "a486"
+}

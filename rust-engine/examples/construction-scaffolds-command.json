@@ -1,0 +1,139 @@
+{
+  "schema": "life-sim-rust-command/v1",
+  "request_id": "construction-scaffolds-example",
+  "operation": "compile_profiles",
+  "profile_request": {
+    "schema": "life-sim-rust-profile-compilation/v1",
+    "model": {
+      "id": "book-construction-scaffolds",
+      "time_unit": "year",
+      "reason": "Load coarse Things, people, a relationship, a concept, and an invention arc before opening detail.",
+      "provenance": [
+        "authored construction-scaffold example"
+      ]
+    },
+    "profiles": [
+      {
+        "kind": "person_scaffold",
+        "profile": {
+          "id": "babbage",
+          "subject_id": "charles_babbage",
+          "person_boundary": "the historical person Charles Babbage",
+          "continuity_criterion": "one continuous human life",
+          "interval": {
+            "start": 1791,
+            "end": 1871
+          },
+          "life_description": "Babbage's complete life, initially unopened beyond the standard process addresses.",
+          "level": "processes",
+          "provenance": [
+            "authored construction-scaffold example"
+          ]
+        }
+      },
+      {
+        "kind": "person_scaffold",
+        "profile": {
+          "id": "lovelace",
+          "subject_id": "ada_lovelace",
+          "person_boundary": "the historical person Ada Lovelace",
+          "continuity_criterion": "one continuous human life",
+          "interval": {
+            "start": 1815,
+            "end": 1852
+          },
+          "life_description": "Lovelace's complete life, initially unopened beyond the standard process addresses.",
+          "level": "processes",
+          "provenance": [
+            "authored construction-scaffold example"
+          ]
+        }
+      },
+      {
+        "kind": "thing_scaffold",
+        "profile": {
+          "id": "engine",
+          "thing_id": "analytical_engine",
+          "boundary": "the Analytical Engine project and its continuing designed artifact",
+          "continuity_criterion": "the same project and artifact lineage through explicit revisions and assembly",
+          "interval": {
+            "start": 1834,
+            "end": 1871
+          },
+          "lifecycle_description": "The Analytical Engine exists as a designed and partly constructed project.",
+          "provenance": [
+            "authored construction-scaffold example"
+          ]
+        }
+      },
+      {
+        "kind": "relationship_scaffold",
+        "profile": {
+          "id": "babbage-lovelace",
+          "relationship_kind": "working_partnership",
+          "left_referent_id": "referent.profile.babbage.person.charles_babbage",
+          "right_referent_id": "referent.profile.lovelace.person.ada_lovelace",
+          "description": "Babbage and Lovelace's intellectual and working partnership.",
+          "interval": {
+            "start": 1833,
+            "end": 1852
+          },
+          "provenance": [
+            "authored construction-scaffold example"
+          ]
+        }
+      },
+      {
+        "kind": "concept_scaffold",
+        "profile": {
+          "id": "concept.valid_computational_claim",
+          "label": "valid computational claim",
+          "description": "A bounded claim supported by frozen conditions, retained evidence, independent comparison, and a correction route.",
+          "observation_methods": [
+            "inspect the declared test, trace, comparison, repetition, publication boundary, and correction record"
+          ],
+          "provenance": [
+            "authored construction-scaffold example"
+          ]
+        }
+      },
+      {
+        "kind": "change_arc_scaffold",
+        "profile": {
+          "id": "bounded-engine",
+          "change_kind": "invention",
+          "affected_referent_id": "referent.profile.engine.thing.analytical_engine",
+          "description": "A bounded card-directed apparatus is separated from the unbounded general Engine and made testable.",
+          "interval": {
+            "start": 1843,
+            "end": 1855
+          },
+          "anticipation": {
+            "description": "Design work and negotiation make a bounded undertaking conceivable.",
+            "interval": {
+              "start": 1843,
+              "end": 1844
+            }
+          },
+          "focal_change": {
+            "description": "A configuration is frozen, manufactured, and tested.",
+            "interval": {
+              "start": 1844,
+              "end": 1851
+            }
+          },
+          "adaptation": {
+            "description": "The principals and the office reorganize around the result and its limits.",
+            "interval": {
+              "start": 1851,
+              "end": 1855
+            }
+          },
+          "provenance": [
+            "authored construction-scaffold example"
+          ]
+        }
+      }
+    ]
+  }
+}

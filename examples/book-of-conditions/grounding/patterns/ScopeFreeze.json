@@ -1,0 +1,22 @@
+{
+  "handle": "ScopeFreeze",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"A commitment that fixes the supported production configuration while routing later improvements into explicit change control or a successor design.\",\"id\":\"concept.governance.scope-freeze\",\"label\":\"scope freeze\",\"sema_handle\":\"ScopeFreeze\",\"specializes\":[]}",
+  "gloss": "scope freeze: A commitment that fixes the supported production configuration while routing later improvements into explicit change control or a successor design.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:ScopeFreeze#mh:SHA-256:19f439b3e795456aae71ef961422f9c6839e5e0d5c83eb377743458e82834de8",
+  "sema_ref": "ScopeFreeze#19f4",
+  "sema_stub": "19f4"
+}

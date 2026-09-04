@@ -1,0 +1,34 @@
+{
+  "schema": "book-of-conditions-sema-verification/v1",
+  "status": "passed",
+  "database": "tmp/book-of-conditions/sema-concepts.db",
+  "adapter_schema": "book-of-conditions-sema-adapter/v1",
+  "pattern_count": 34,
+  "definition_count": 34,
+  "all_pattern_cards_validated_before_apply": true,
+  "all_handles_resolved": true,
+  "all_full_ids_verified": true,
+  "all_strict_pattern_handshakes_verified": true,
+  "database_roots": {
+    "semantic_set_root": {
+      "scheme": "sema-semantic-set-v1",
+      "hash": "0dfc3df494ba5bb0f068e3ccec3c0f0ddff10a1bff12f9e34679b077bb3e444e",
+      "full_sema_id": "sema:vocab#mh:SHA-256:0dfc3df494ba5bb0f068e3ccec3c0f0ddff10a1bff12f9e34679b077bb3e444e",
+      "strict_handshake_verified": true
+    },
+    "handle_binding_root": {
+      "scheme": "sema-catalog-v1",
+      "hash": "102615ce9e6c578239d78a45c1ddec16952a9ad3c15cf0c129ad333c98c77156",
+      "full_sema_id": "sema:catalog#mh:SHA-256:102615ce9e6c578239d78a45c1ddec16952a9ad3c15cf0c129ad333c98c77156",
+      "strict_handshake_verified": true
+    },
+    "pattern_count": 34,
+    "definition_count": 34
+  },
+  "source_verification": {
+    "concept_source_sha256": "b4d13ae2078dd44cac5b4ba1ed0295d28f66a73fd8f183391d5ca1d1fcdaa223",
+    "adapter_source_sha256": "78a5674cb4c30ce1969f465e04d007b650d783c17b4007bf47b6b0acedf57457",
+    "bundle_manifest": "checkpoints/03-registry-and-prefix/sema/bundle-manifest.json",
+    "verification_report": "checkpoints/03-registry-and-prefix/sema/verification.json"
+  }
+}

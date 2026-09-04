@@ -1,0 +1,22 @@
+{
+  "handle": "EmotionSadness",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Appraisal of loss, absence, or obstruction without itself implying an active threat response.\",\"id\":\"concept.emotion.sadness\",\"label\":\"sadness\",\"sema_handle\":\"EmotionSadness\",\"specializes\":[]}",
+  "gloss": "sadness: Appraisal of loss, absence, or obstruction without itself implying an active threat response.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:EmotionSadness#mh:SHA-256:014c35ae2fcabdfad164d5c762c79f46831c83cef2b863d2345dce28d078607a",
+  "sema_ref": "EmotionSadness#014c",
+  "sema_stub": "014c"
+}

@@ -1,0 +1,146 @@
+{
+  "schema": "book-of-conditions/person-template-instances/v1",
+  "template": "PERSON-TEMPLATE.json#person_profile",
+  "status": "accepted first-construction instances",
+  "rule": "Each entry declares the same run-specific person template on one complete lifecycle Event. The listed prefix plus the nine template keys declares 117 process IDs across thirteen people. MODEL-SCAFFOLDS-COMPILE.json requests level processes for all thirteen; these source declarations are not a compilation receipt. Full means selected scenes may open WHAT, HOW, FEELS, context, direction, wants, inner beliefs, and named optional process openings. Coarse means the same nine IS processes are requested without opening deeper modules.",
+  "life_interval_convention": {
+    "display": "Day-resolved intervals include both displayed civil dates; year-only intervals declare no month, day, or timestamp.",
+    "numeric_adapter": "See PERSON-TEMPLATE.json#interval_convention. Day-resolved intervals end at the next civil-day boundary; year-only intervals use [start year, end year + 1) as an explicitly coarse envelope.",
+    "compiler_boundary": "The Rust scaffold request uses coarse year envelopes even for the two day-resolved displayed lives. It must not override their finer date boundaries or imply that a character lived through the rest of the terminal year."
+  },
+  "instances": [
+    {
+      "person_id": "thing.person.charles-babbage",
+      "person_slug": "charles-babbage",
+      "life_event_id": "event.life.person.charles-babbage",
+      "life_interval": "1791-12-26/1871-10-18",
+      "history_mode": "historical through 1843-08-14; explicit counterfactual afterward",
+      "profile_depth": "full",
+      "process_event_prefix": "event.process.person.charles-babbage.",
+      "processes": ["body", "kin", "partnership", "work", "place", "means", "knowledge", "standing", "meaning"],
+      "opened_processes": ["body.health"]
+    },
+    {
+      "person_id": "thing.person.ada-lovelace",
+      "person_slug": "ada-lovelace",
+      "life_event_id": "event.life.person.ada-lovelace",
+      "life_interval": "1815-12-10/1852-11-27",
+      "history_mode": "historical through 1843-08-14; explicit counterfactual afterward",
+      "profile_depth": "full",
+      "process_event_prefix": "event.process.person.ada-lovelace.",
+      "processes": ["body", "kin", "partnership", "work", "place", "means", "knowledge", "standing", "meaning"],
+      "opened_processes": ["body.health"]
+    },
+    {
+      "person_id": "thing.person.edward-halden",
+      "person_slug": "edward-halden",
+      "life_event_id": "event.life.person.edward-halden",
+      "life_interval": "1803/1874",
+      "history_mode": "authored fictional life compatible with the documentary prefix",
+      "profile_depth": "full",
+      "process_event_prefix": "event.process.person.edward-halden.",
+      "processes": ["body", "kin", "partnership", "work", "place", "means", "knowledge", "standing", "meaning"],
+      "opened_processes": ["body.health"]
+    },
+    {
+      "person_id": "thing.person.william-king-noel",
+      "person_slug": "william-king-noel",
+      "life_event_id": "event.life.person.william-king-noel",
+      "life_interval": "1805/1893",
+      "history_mode": "historical with bounded counterfactual household participation",
+      "profile_depth": "coarse",
+      "process_event_prefix": "event.process.person.william-king-noel.",
+      "processes": ["body", "kin", "partnership", "work", "place", "means", "knowledge", "standing", "meaning"]
+    },
+    {
+      "person_id": "thing.person.joseph-whitworth",
+      "person_slug": "joseph-whitworth",
+      "life_event_id": "event.life.person.joseph-whitworth",
+      "life_interval": "1803/1887",
+      "history_mode": "historical with one bounded counterfactual review",
+      "profile_depth": "coarse",
+      "process_event_prefix": "event.process.person.joseph-whitworth.",
+      "processes": ["body", "kin", "partnership", "work", "place", "means", "knowledge", "standing", "meaning"]
+    },
+    {
+      "person_id": "thing.person.joseph-clement",
+      "person_slug": "joseph-clement",
+      "life_event_id": "event.life.person.joseph-clement",
+      "life_interval": "1779/1844",
+      "history_mode": "historical",
+      "profile_depth": "coarse",
+      "process_event_prefix": "event.process.person.joseph-clement.",
+      "processes": ["body", "kin", "partnership", "work", "place", "means", "knowledge", "standing", "meaning"]
+    },
+    {
+      "person_id": "thing.person.griffith-davies",
+      "person_slug": "griffith-davies",
+      "life_event_id": "event.life.person.griffith-davies",
+      "life_interval": "1788/1855",
+      "history_mode": "historical with bounded counterfactual customer participation",
+      "profile_depth": "coarse",
+      "process_event_prefix": "event.process.person.griffith-davies.",
+      "processes": ["body", "kin", "partnership", "work", "place", "means", "knowledge", "standing", "meaning"]
+    },
+    {
+      "person_id": "thing.person.henry-prevost-babbage",
+      "person_slug": "henry-prevost-babbage",
+      "life_event_id": "event.life.person.henry-prevost-babbage",
+      "life_interval": "1824/1918",
+      "history_mode": "historical with bounded counterfactual custody",
+      "profile_depth": "coarse",
+      "process_event_prefix": "event.process.person.henry-prevost-babbage.",
+      "processes": ["body", "kin", "partnership", "work", "place", "means", "knowledge", "standing", "meaning"]
+    },
+    {
+      "person_id": "thing.person.george-farrow",
+      "person_slug": "george-farrow",
+      "life_event_id": "event.life.person.george-farrow",
+      "life_interval": "1796/1860",
+      "history_mode": "authored fictional life",
+      "profile_depth": "coarse",
+      "process_event_prefix": "event.process.person.george-farrow.",
+      "processes": ["body", "kin", "partnership", "work", "place", "means", "knowledge", "standing", "meaning"]
+    },
+    {
+      "person_id": "thing.person.margaret-halden",
+      "person_slug": "margaret-halden",
+      "life_event_id": "event.life.person.margaret-halden",
+      "life_interval": "1806/1881",
+      "history_mode": "authored fictional life",
+      "profile_depth": "coarse",
+      "process_event_prefix": "event.process.person.margaret-halden.",
+      "processes": ["body", "kin", "partnership", "work", "place", "means", "knowledge", "standing", "meaning"]
+    },
+    {
+      "person_id": "thing.person.thomas-neale",
+      "person_slug": "thomas-neale",
+      "life_event_id": "event.life.person.thomas-neale",
+      "life_interval": "1819/1868",
+      "history_mode": "authored fictional life",
+      "profile_depth": "coarse",
+      "process_event_prefix": "event.process.person.thomas-neale.",
+      "processes": ["body", "kin", "partnership", "work", "place", "means", "knowledge", "standing", "meaning"]
+    },
+    {
+      "person_id": "thing.person.samuel-wills",
+      "person_slug": "samuel-wills",
+      "life_event_id": "event.life.person.samuel-wills",
+      "life_interval": "1828/1890",
+      "history_mode": "authored fictional life",
+      "profile_depth": "coarse",
+      "process_event_prefix": "event.process.person.samuel-wills.",
+      "processes": ["body", "kin", "partnership", "work", "place", "means", "knowledge", "standing", "meaning"]
+    },
+    {
+      "person_id": "thing.person.mary-somerville",
+      "person_slug": "mary-somerville",
+      "life_event_id": "event.life.person.mary-somerville",
+      "life_interval": "1780/1872",
+      "history_mode": "historical",
+      "profile_depth": "coarse",
+      "process_event_prefix": "event.process.person.mary-somerville.",
+      "processes": ["body", "kin", "partnership", "work", "place", "means", "knowledge", "standing", "meaning"]
+    }
+  ]
+}

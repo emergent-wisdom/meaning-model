@@ -1,0 +1,5 @@
+{
+  "schema": "life-sim-rust-command/v1",
+  "request_id": "describe-example",
+  "operation": "describe"
+}

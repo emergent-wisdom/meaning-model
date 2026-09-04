@@ -1,0 +1,22 @@
+{
+  "handle": "StrategyStagedCommitment",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Commit a bounded reversible stage before exposing the whole project or relationship to an uncertain continuation.\",\"id\":\"concept.strategy.staged-commitment\",\"label\":\"staged commitment\",\"sema_handle\":\"StrategyStagedCommitment\",\"specializes\":[]}",
+  "gloss": "staged commitment: Commit a bounded reversible stage before exposing the whole project or relationship to an uncertain continuation.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:StrategyStagedCommitment#mh:SHA-256:b79cab41102072e193543a97d75707817cf355eee6d78a4ed04817b69561694f",
+  "sema_ref": "StrategyStagedCommitment#b79c",
+  "sema_stub": "b79c"
+}

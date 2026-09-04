@@ -1,0 +1,22 @@
+{
+  "handle": "ProblemSolvingConcrete",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Framing through particular materials, observations, cases, or immediately executable constraints.\",\"id\":\"concept.problem-solving.concrete\",\"label\":\"concrete\",\"sema_handle\":\"ProblemSolvingConcrete\",\"specializes\":[\"concept.problem-solving.framing\"]}",
+  "gloss": "concrete: Framing through particular materials, observations, cases, or immediately executable constraints.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:ProblemSolvingConcrete#mh:SHA-256:ff43ee409cae41eb02c9b8af07af68452a61714a7682894da32499d46d435b09",
+  "sema_ref": "ProblemSolvingConcrete#ff43",
+  "sema_stub": "ff43"
+}

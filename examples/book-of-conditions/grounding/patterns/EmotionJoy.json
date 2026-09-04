@@ -1,0 +1,22 @@
+{
+  "handle": "EmotionJoy",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Positive appraisal of an obtained or approaching wanted state.\",\"id\":\"concept.emotion.joy\",\"label\":\"joy\",\"sema_handle\":\"EmotionJoy\",\"specializes\":[]}",
+  "gloss": "joy: Positive appraisal of an obtained or approaching wanted state.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:EmotionJoy#mh:SHA-256:6489a543e922d02368a2201eaeffc53ffd94b0422e40638d3e059eb2e7ec4173",
+  "sema_ref": "EmotionJoy#6489",
+  "sema_stub": "6489"
+}

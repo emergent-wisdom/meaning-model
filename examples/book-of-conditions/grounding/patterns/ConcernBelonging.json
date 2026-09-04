@@ -1,0 +1,22 @@
+{
+  "handle": "ConcernBelonging",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"First-run concern for connection, membership, or recognized inclusion, with rejection or exclusion as its threat reading.\",\"id\":\"concept.concern.belonging\",\"label\":\"belonging\",\"sema_handle\":\"ConcernBelonging\",\"specializes\":[]}",
+  "gloss": "belonging: First-run concern for connection, membership, or recognized inclusion, with rejection or exclusion as its threat reading.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:ConcernBelonging#mh:SHA-256:028b1f36bd86f27308b2c971ed3e9b9de2d9cd656a5d37d4cb830d3bcd85d470",
+  "sema_ref": "ConcernBelonging#028b",
+  "sema_stub": "028b"
+}

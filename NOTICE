@@ -1,0 +1,17 @@
+Licensing and third-party material
+
+Original software code, build scripts, automated tests, and software
+configuration are covered by the MIT License in LICENSE. This includes
+repository-authored LaTeX style code, but not the prose of the manuscripts.
+
+Original papers, prose documentation, figures, authored model records, and
+the Book where included are covered by CC BY 4.0 as stated in LICENSE-CONTENT.
+Copies of companion papers by the same author retain that content license.
+A package containing both software and authored content carries both
+licenses, each applying to its respective material.
+
+Third-party dependencies and material remain subject to their own licenses,
+copyright notices, and attribution requirements. Citations identify sources;
+they do not relicense the cited works. Bundled or installed dependencies,
+including those identified by Cargo.lock and package-lock.json, are not
+relicensed by these repository-level notices.

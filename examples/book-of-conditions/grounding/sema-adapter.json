@@ -1,0 +1,36 @@
+{
+  "schema": "book-of-conditions-sema-adapter/v1",
+  "status": "executed_and_verified_checkpoint_03",
+  "purpose": "Project each frozen Meaning Model concept-definition bundle into a deterministic Sema Pattern Card without treating Sema as a Meaning Model primitive.",
+  "input": {
+    "required_fields": ["id", "label", "description", "specializes", "anchors", "sema_handle"],
+    "canonicalization": "UTF-8 JSON with recursively sorted object keys and no insignificant whitespace. Order-bearing arrays are preserved. Set-like specializes identifiers are sorted lexicographically; anchors are sorted by target_record_id, role, and expected_judgment, with each anchor's provenance identifiers sorted lexicographically. Anchors contain no holder or perspective field; any perspective-dependent use derives context from the Realization parent ancestry. Harmless registry reordering therefore does not mint a new grounding version.",
+    "precondition": "The human author has approved the complete structured concepts.json registry for checkpoint 03, and the exact checkpoint-03 manifest version is recorded. External preparation documents and their hashes are not adapter inputs or runtime authority."
+  },
+  "pattern_card": {
+    "handle": "input.sema_handle",
+    "mechanism": "The literal prefix 'Meaning Model concept bundle v1: ' followed by the canonical input bundle JSON. This field carries the complete hashed identity payload, including relations and anchors.",
+    "gloss": "The literal input.label, then the two characters ': ', then input.description.",
+    "invariants": [
+      "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+      "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+    ],
+    "_meta": {
+      "path": ["Mind", "Memory"],
+      "ring": 2,
+      "tier": 2
+    }
+  },
+  "isolation": {
+    "working_database": "tmp/book-of-conditions/sema-concepts.db",
+    "rule": "Use a fresh isolated database. Do not write to Sema's shared taxonomy database or canonical vocabulary exports.",
+    "released_pattern_cards": "construction/book-of-conditions/checkpoints/03-registry-and-prefix/sema/patterns/"
+  },
+  "verification": [
+    "Validate every emitted Pattern Card against the installed Sema schema.",
+    "Mint and resolve every card from the isolated database.",
+    "Require a full sema:<Handle>#mh:SHA-256:<64 lowercase hex> identity.",
+    "Run strict lookup and handshake checks and record the database semantic-set and handle-binding roots.",
+    "Verify that every Realization grounding_version matches the index entry for its exact concept bundle."
+  ]
+}

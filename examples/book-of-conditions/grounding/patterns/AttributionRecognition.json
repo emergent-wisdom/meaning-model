@@ -1,0 +1,22 @@
+{
+  "handle": "AttributionRecognition",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"An attribution of credit, status, or acknowledgment to a contributor, scoped by the attributing Event's parent ancestry or by a registered institution, which may diverge from contribution evidence.\",\"id\":\"concept.attribution.recognition\",\"label\":\"recognition\",\"sema_handle\":\"AttributionRecognition\",\"specializes\":[]}",
+  "gloss": "recognition: An attribution of credit, status, or acknowledgment to a contributor, scoped by the attributing Event's parent ancestry or by a registered institution, which may diverge from contribution evidence.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:AttributionRecognition#mh:SHA-256:a6f1fb6dc4f5fe5be958690ee78b8ae02df1812a2f1830bcb0d97ad49565ab13",
+  "sema_ref": "AttributionRecognition#a6f1",
+  "sema_stub": "a6f1"
+}

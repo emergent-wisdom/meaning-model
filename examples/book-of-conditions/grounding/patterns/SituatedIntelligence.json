@@ -1,0 +1,22 @@
+{
+  "handle": "SituatedIntelligence",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"An evaluation, scoped by its parent ancestry, of whether an episode organizes available information and a fitting strategy under its actual constraints, distinguished from luck and retrospective outcome. Its `describe` Realization is unweighted; any graded fit uses a separate match/nonmatch/remainder Cut.\",\"id\":\"concept.evaluation.situated-intelligence\",\"label\":\"situated intelligence\",\"sema_handle\":\"SituatedIntelligence\",\"specializes\":[]}",
+  "gloss": "situated intelligence: An evaluation, scoped by its parent ancestry, of whether an episode organizes available information and a fitting strategy under its actual constraints, distinguished from luck and retrospective outcome. Its `describe` Realization is unweighted; any graded fit uses a separate match/nonmatch/remainder Cut.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:SituatedIntelligence#mh:SHA-256:05b2c8dec4c216970d6d62463ae79c7f493f40db8bbd8061ec6a35c5bdfc4be3",
+  "sema_ref": "SituatedIntelligence#05b2",
+  "sema_stub": "05b2"
+}

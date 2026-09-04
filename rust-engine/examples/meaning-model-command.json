@@ -1,0 +1,253 @@
+{
+  "schema": "life-sim-rust-command/v1",
+  "request_id": "meaning-model-example",
+  "operation": "validate_model",
+  "model": {
+    "schema": "life-sim-rust-model/v1",
+    "id": "meaning-model-static-example",
+    "time_unit": "day",
+    "revision": {
+      "number": 0,
+      "reason": "Demonstrate the optional static Meaning Model layer",
+      "provenance": ["rust-engine example"]
+    },
+    "processes": [
+      {
+        "id": "relationship.strength",
+        "value_type": {
+          "kind": "scalar",
+          "bounds": {"minimum": 0.0, "maximum": 1.0}
+        },
+        "initial_value": {"kind": "scalar", "value": 0.6},
+        "provenance": ["authored example"],
+        "support": ["event.relationship"],
+        "update_mode": "static"
+      },
+      {
+        "id": "relationship.care",
+        "value_type": {
+          "kind": "scalar",
+          "bounds": {"minimum": 0.0, "maximum": 1.0}
+        },
+        "initial_value": {"kind": "scalar", "value": 0.7},
+        "provenance": ["authored example"],
+        "support": ["event.care-phase"],
+        "update_mode": "static"
+      },
+      {
+        "id": "relationship.trust",
+        "value_type": {
+          "kind": "scalar",
+          "bounds": {"minimum": 0.0, "maximum": 1.0}
+        },
+        "initial_value": {"kind": "scalar", "value": 0.5},
+        "provenance": ["authored example"],
+        "support": ["event.trust-phase"],
+        "update_mode": "static"
+      }
+    ],
+    "meaning_model": {
+      "schema": "life-sim-rust-meaning-model/v1",
+      "concepts": [
+        {
+          "id": "concept.relationship",
+          "label": "relationship",
+          "differentia": ["an ongoing relation between participants"],
+          "boundary": "the authored relationship interval",
+          "state_schema": {"strength": "bounded scalar"},
+          "direction_families": ["persistence", "change"],
+          "observation_methods": ["participant report"],
+          "provenance": ["authored example"]
+        },
+        {
+          "id": "concept.care",
+          "label": "care",
+          "differentia": ["attention to another participant's welfare"],
+          "provenance": ["authored example"]
+        },
+        {
+          "id": "concept.trust",
+          "label": "trust",
+          "differentia": ["expected reliability under vulnerability"],
+          "provenance": ["authored example"]
+        }
+      ],
+      "abstract_relations": [
+        {
+          "id": "relation.relationship-constrains-care",
+          "source_concept_id": "concept.relationship",
+          "target_concept_id": "concept.care",
+          "kind": "constrains",
+          "provenance": ["authored example"]
+        },
+        {
+          "id": "relation.relationship-constrains-trust",
+          "source_concept_id": "concept.relationship",
+          "target_concept_id": "concept.trust",
+          "kind": "constrains",
+          "provenance": ["authored example"]
+        }
+      ],
+      "abstract_cuts": [
+        {
+          "id": "abstract-cut.relationship-components",
+          "parent_concept_id": "concept.relationship",
+          "child_concept_ids": ["concept.care", "concept.trust"],
+          "lens": "relational components",
+          "query": "Which components make the relationship legible?",
+          "provenance": ["authored example"]
+        }
+      ],
+      "referents": [
+        {
+          "id": "referent.relationship",
+          "boundary": "the bounded relationship group in this authored model",
+          "continuity_criterion": "the same two participants and relationship commitment",
+          "interval": {"start": 0.0, "end": 30.0},
+          "lifecycle_event_id": "event.relationship",
+          "uncertainty": {"kind": "exact"},
+          "provenance": ["authored example"],
+          "authority": {"source": "example fixture", "weight": 1.0}
+        },
+        {
+          "id": "referent.alice",
+          "boundary": "Alice as one modeled person",
+          "continuity_criterion": "continuity of the modeled person across the interval",
+          "interval": {"start": 0.0, "end": 30.0},
+          "provenance": ["authored example"]
+        },
+        {
+          "id": "referent.bob",
+          "boundary": "Bob as one modeled person",
+          "continuity_criterion": "continuity of the modeled person across the interval",
+          "interval": {"start": 0.0, "end": 30.0},
+          "provenance": ["authored example"]
+        }
+      ],
+      "encapsulation_cuts": [
+        {
+          "id": "encapsulation-cut.relationship-members",
+          "parent_referent_id": "referent.relationship",
+          "children": [
+            {
+              "relation": "member",
+              "referent_id": "referent.bob",
+              "interval": {"start": 0.0, "end": 30.0},
+              "provenance": ["authored example"]
+            },
+            {
+              "relation": "member",
+              "referent_id": "referent.alice",
+              "interval": {"start": 0.0, "end": 30.0},
+              "provenance": ["authored example"]
+            }
+          ],
+          "lens": "relationship membership",
+          "query": "Which continuing people participate in this relationship?",
+          "resolution": "named people",
+          "residual": "wider social context remains unresolved",
+          "provenance": ["authored example"]
+        }
+      ],
+      "events": [
+        {
+          "id": "event.relationship",
+          "boundary": "the authored relationship interval",
+          "interval": {"start": 0.0, "end": 30.0},
+          "process_ids": ["relationship.strength"],
+          "provenance": ["authored example"]
+        },
+        {
+          "id": "event.care-phase",
+          "boundary": "the care phase within the authored interval",
+          "interval": {"start": 0.0, "end": 15.0},
+          "process_ids": ["relationship.care"],
+          "provenance": ["authored example"]
+        },
+        {
+          "id": "event.trust-phase",
+          "boundary": "the trust phase within the authored interval",
+          "interval": {"start": 15.0, "end": 30.0},
+          "process_ids": ["relationship.trust"],
+          "provenance": ["authored example"]
+        }
+      ],
+      "event_referent_bindings": [
+        {
+          "id": "binding.relationship-alice",
+          "target": {"kind": "event", "event_id": "event.relationship"},
+          "role": "person_a",
+          "referent_id": "referent.alice",
+          "binding_type": "participant",
+          "interval": {"start": 0.0, "end": 30.0},
+          "uncertainty": {"kind": "exact"},
+          "provenance": ["authored example"]
+        },
+        {
+          "id": "binding.relationship-bob",
+          "target": {"kind": "event", "event_id": "event.relationship"},
+          "role": "person_b",
+          "referent_id": "referent.bob",
+          "binding_type": "participant",
+          "interval": {"start": 0.0, "end": 30.0},
+          "uncertainty": {"kind": "exact"},
+          "provenance": ["authored example"]
+        },
+        {
+          "id": "binding.relationship-strength",
+          "target": {"kind": "process", "process_id": "relationship.strength"},
+          "role": "state",
+          "referent_id": "referent.relationship",
+          "binding_type": "coordinate",
+          "interval": {"start": 0.0, "end": 30.0},
+          "provenance": ["authored example"]
+        }
+      ],
+      "physical_cuts": [
+        {
+          "id": "physical-cut.relationship-phases",
+          "parent_event_id": "event.relationship",
+          "child_event_ids": ["event.care-phase", "event.trust-phase"],
+          "kind": "sequential",
+          "lens": "illustrative authored order",
+          "query": "Which relationship phase is represented first?",
+          "provenance": ["authored example"]
+        }
+      ],
+      "realizations": [
+        {
+          "id": "realization.define-relationship",
+          "concept_id": "concept.relationship",
+          "purpose": "define",
+          "abstract_cut_id": "abstract-cut.relationship-components",
+          "physical_cut_id": "physical-cut.relationship-phases",
+          "roles": {
+            "care": "event.care-phase",
+            "trust": "event.trust-phase"
+          },
+          "referent_roles": {
+            "person_a": "referent.alice",
+            "person_b": "referent.bob"
+          },
+          "parameters": {"status": "illustrative, not learned"},
+          "degree": 1.0,
+          "uncertainty": {"kind": "exact"},
+          "provenance": ["authored example"],
+          "viewpoint": "model author",
+          "authority": {"source": "example fixture", "weight": 1.0}
+        },
+        {
+          "id": "realization.describe-care",
+          "concept_id": "concept.care",
+          "purpose": "describe",
+          "roles": {"instance": "event.care-phase"},
+          "referent_roles": {"subject": "referent.alice"},
+          "degree": 0.8,
+          "uncertainty": {"kind": "interval", "lower": 0.7, "upper": 0.9},
+          "provenance": ["authored example"],
+          "viewpoint": "model author"
+        }
+      ]
+    }
+  }
+}

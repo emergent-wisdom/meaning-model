@@ -1,0 +1,22 @@
+{
+  "handle": "EmotionAnger",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Appraisal of obstruction or violation that mobilizes contest, correction, or defense.\",\"id\":\"concept.emotion.anger\",\"label\":\"anger\",\"sema_handle\":\"EmotionAnger\",\"specializes\":[]}",
+  "gloss": "anger: Appraisal of obstruction or violation that mobilizes contest, correction, or defense.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:EmotionAnger#mh:SHA-256:ea0ee02c8e5550a455bf550264dd8573b515a0b2689cbbf9879ba9c72b53823e",
+  "sema_ref": "EmotionAnger#ea0e",
+  "sema_stub": "ea0e"
+}

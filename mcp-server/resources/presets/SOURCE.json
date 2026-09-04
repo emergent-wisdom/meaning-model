@@ -1,0 +1,32 @@
+{
+  "schema": "life-simulation-precompiled-presets/v1",
+  "description": "Immutable Rust ModelDefinition resources extracted from the former JavaScript North Harbor registry builder. The JavaScript simulator is intentionally not part of this release repository.",
+  "source_digests": {
+    "experiments/large-simulation/model.mjs": "aa8b4408846b60215bc46aa4c1aeaa674dc0975e64cfb25185651de1035edb72",
+    "machine/core.mjs": "7b60c7514e361391a77fc07034ae57405d98f415a3ee5e76db2fc87884c199ad",
+    "mcp-server/src/service.mjs": "595712d63ac511eb8b280e24d5cc2a1d0fa297aa40f337ce88a3b476ab278ab5"
+  },
+  "presets": [
+    {
+      "preset_id": "north-harbor/12",
+      "file": "north-harbor-12.json",
+      "sha256": "ec7b824518a9a6942b8b01e98fdb418912b93e316e30d15d053d6069e8b2e25f",
+      "actor_count": 12,
+      "group_count": 3,
+      "process_count": 266,
+      "dependency_count": 937,
+      "law_count": 1203
+    },
+    {
+      "preset_id": "north-harbor/48",
+      "file": "north-harbor-48.json",
+      "sha256": "b6601a31fae4890543e9a84064a6d70bab70403273279b02eb71fe0dce9f63a5",
+      "actor_count": 48,
+      "group_count": 6,
+      "process_count": 1016,
+      "dependency_count": 3763,
+      "law_count": 4779
+    }
+  ],
+  "equivalence_boundary": "The file digest and structural-count tests establish byte identity with the extracted ModelDefinition resources; MCP integration tests additionally require Rust to validate and roll both presets. This does not retain or publish the former JavaScript simulation implementation."
+}

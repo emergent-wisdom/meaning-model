@@ -1,0 +1,45 @@
+{
+  "schema": "book-retrospective-rust-import",
+  "recorded_at": "2026-09-04T22:50:31.059Z",
+  "sourceDigest": "9af06abfd509f4e1de515beb86be61e16784b46b0a3d617cfae5b041f2009cf3",
+  "modelHash": "3fe051d228522bfc8924227296d322598c07f53f821bc156b6b7e7b1dbfb5e88",
+  "graphHash": "2625b5952253726f404b49ad5c7c038c5341936e50122412a02d491596c3fabf",
+  "inventory": {
+    "authored_cuts": 107,
+    "authored_weights": 472,
+    "derived_duration_cuts": 1,
+    "is_processes": 117
+  },
+  "accounting": {
+    "construction_pounds": 3000,
+    "office_pounds": 1620,
+    "final_packets": 4,
+    "checker_hours_per_packet": 40,
+    "protected_checker_hours": 80,
+    "required_checker_hours": 160
+  },
+  "model_roundtrip_equal": true,
+  "manuscript_roundtrip_equal": true,
+  "document_chapters": 12,
+  "understanding_notes": 17,
+  "database": "construction.sqlite",
+  "boundaries": [
+    "Fresh reconstruction of the accepted artifact, not a recovery of earlier edit order.",
+    "Slow psychological parents remain authored; selected scenes are not a complete temporal partition.",
+    "Root validation is structural; no automated character evidence-cutoff assembly or independent read-back is claimed.",
+    "Legacy Realization degree=1 is applicability only; semantic grading belongs in Cuts.",
+    "No stochastic selection, model-versus-prose advantage, or historical price validation is claimed."
+  ],
+  "outputs": {
+    "source-manifest.json": "dea355eb18c9c8a4686b28e44164f4171d02525c2c872304a4cb75f27482af8f",
+    "compile-request.json": "e6a04a8e9badad9ad5b5179b4b85e79387941a73365e7ded181bc3c80cb336c0",
+    "compile-response.json": "1ca0027ebb7651a131324b16050c3a72bee5c0de2486d11fc5d05fd399254566",
+    "model.json": "4660705817fc5311b1058e60806986eef44cefe50e5d28d977cab9b61a197587",
+    "validation.json": "40cc42d60c752ab6bd7c4c16b796430e2e01fbd2faeca274cd593dcb5a593209",
+    "registration.json": "40cc42d60c752ab6bd7c4c16b796430e2e01fbd2faeca274cd593dcb5a593209",
+    "narrative-graph.json": "fd14b8ceea20a6900c267820dd3cc8fe41cde1ab243c0108be55c8967e76e43e",
+    "narrative-registration.json": "3872b0166c5ad7fc20b8452bb3e7b9d3de55d3381787e1d4088a4d7877090849",
+    "narrative-retrieval.json": "de837c3fba077c5657493465b7a411ed2a75d6bade150497ef7b3632087aa936",
+    "document-render.json": "c9df34c6bdcfb390992ceff835ce980b65ede774f19dde377eced06e56d6b639"
+  }
+}

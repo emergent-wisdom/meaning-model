@@ -1,0 +1,22 @@
+{
+  "handle": "ProblemSolvingDeciding",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Directing problem-solving attention toward selecting or committing among represented alternatives.\",\"id\":\"concept.problem-solving.deciding\",\"label\":\"deciding\",\"sema_handle\":\"ProblemSolvingDeciding\",\"specializes\":[]}",
+  "gloss": "deciding: Directing problem-solving attention toward selecting or committing among represented alternatives.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:ProblemSolvingDeciding#mh:SHA-256:9342fe5fe4c2eae5815eec10b09cad2731f89a17d97eb1f94afbb41f9edbdc2f",
+  "sema_ref": "ProblemSolvingDeciding#9342",
+  "sema_stub": "9342"
+}

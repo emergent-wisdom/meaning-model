@@ -1,0 +1,59 @@
+% Canonical compact interface shared with the Life Simulation snapshot.
+% Keep this file theory-only: no implementation or experiment claims.
+\newcommand{\MMCoreSummary}{%
+Six forms carry the world model: Concept, Thing, Event, Binding, Cut, and
+Realization. Bindings give Things roles in Events, while typed links connect
+records without turning every connection into the same relation. A Cut answers
+one question by dividing one stated unit among exclusive alternatives and a
+remainder; those shares total one. A Realization links a Concept to an
+addressable fragment without a weight, and any graded fit is expressed by a
+separate Cut on an assessment Event. The six forms keep identity, occurrence,
+participation, decomposition, and grounding apart without claiming to exhaust
+metaphysics. A construction profile may add lifecycle, admissibility, and
+recomposition rules while retaining the same forms. Understanding Nodes and
+Document Nodes share their address space with world records but keep distinct
+authority and validation, and perspective follows declared authority ancestry rather than a
+duplicated attribution field.%
+}
+
+\newcommand{\MMCoreSchema}{%
+\begin{center}
+\footnotesize\ttfamily
+\begin{tabular}{@{}l@{}}
+Concept \{ id, names, typed relations, constraints,\\
+\qquad grounding records, provenance \}\\
+Thing \{ id, kind, identity boundary, continuity criterion,\\
+\qquad typed links, provenance \}\\
+Event \{ id, kind, interval, typed world data, optional description,\\
+\qquad direction, typed links, provenance \}\\
+Binding \{ id, event, role, thing, interval, provenance \}\\
+Cut \{ id, parent Event, question, profile, divided unit,\\
+\qquad keyed weighted answers, keyed remainder, optional conditioning address,\\
+\qquad constraints, provenance \}\\
+Realization \{ id, purpose, context parent, target, concept,\\
+\qquad grounding version, optional alignment, evidence, provenance \}
+\end{tabular}
+\end{center}
+\noindent\footnotesize Answer and remainder addresses pair the Cut revision
+with a local key; they are not additional record forms.\normalsize%
+}
+
+\newcommand{\MMProfileSummary}{%
+In the selected profile, each Thing has one lifecycle Event spanning its
+modeled existence. Active joint Events and their Bindings determine
+encapsulation, so no second containment truth is stored. Every Cut declares the
+unit it partitions, gives weights to exclusive answers and a remainder, and
+totals one; sequential weights come from covered duration. Understanding and
+Document Nodes can point into the same graph as the six world forms without
+acquiring world authority. An Event description is optional text on the Event,
+not a Document Node.%
+}
+
+\newcommand{\MMProfileSchema}{%
+\MMCoreSchema
+\begin{center}
+\footnotesize\ttfamily
+Profile Cut conventions \{ allocation, sequential, direction;\\
+\qquad sequential shares derived from duration \}
+\end{center}%
+}

@@ -1,0 +1,810 @@
+{
+  "purpose": "Clean source and artifact export; not a published release or Git history.",
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 695,
+      "sha256": "f2b511e42208a4615dd86ec74d1a60b2253499ba091eecdea1c63ee5601f3b4b"
+    },
+    {
+      "path": "CITATION.cff",
+      "bytes": 838,
+      "sha256": "65a2d0c23125bc3e1ef3f8ca54d653c3edf408903cbbb8329b059653c7b46c21"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 1074,
+      "sha256": "b5693a296a2d708a2ac17ac0128ecebb4cf21294c330500fe3166340f1251104"
+    },
+    {
+      "path": "LICENSE-CONTENT",
+      "bytes": 936,
+      "sha256": "799648d6f33bb2f34bcd2ada3dd4e9fd7ad58f9599d367d452225e2d1bbff559"
+    },
+    {
+      "path": "Makefile",
+      "bytes": 2665,
+      "sha256": "a3f6a09a4fc089dac14b27c78ea1f541d6ae614d538ff0990b83c19d71a9b3f1"
+    },
+    {
+      "path": "NOTICE",
+      "bytes": 949,
+      "sha256": "050290a1e33169295d9c74d1784f91e15286de45853d2720e230c5a091697e3a"
+    },
+    {
+      "path": "README.md",
+      "bytes": 6245,
+      "sha256": "f6a019d0caf437bffe465b3a2cbef97a072a54c88138d7eec4796a99a2d900db"
+    },
+    {
+      "path": "docs/IMPLEMENTATION.md",
+      "bytes": 5963,
+      "sha256": "f420b93fc45172686c68ba32612e39052c9c4189081571b96ff5625c7ac98ded"
+    },
+    {
+      "path": "docs/MODELING_PROTOCOL.md",
+      "bytes": 13428,
+      "sha256": "2cc146485ca2bec57b37910969cac347783bcd689591e52c53d2deb526506ef4"
+    },
+    {
+      "path": "docs/NARRATIVE_UNDERSTANDING_GRAPH.md",
+      "bytes": 12082,
+      "sha256": "e5a941c898390c132af94b9301d08d5cad5d3a3dd1db27899aea85946c78b034"
+    },
+    {
+      "path": "docs/RELEASE.md",
+      "bytes": 4338,
+      "sha256": "060488bfe2ec20d15404b0e8b55746965bd946234e6cc908b5c5ac8f964df578"
+    },
+    {
+      "path": "docs/companions/life-simulation/SOURCE.json",
+      "bytes": 1093,
+      "sha256": "c079e4a8819cb7f1da875b5a1fd3b7134523a1e87aa611c911310e911a224d16"
+    },
+    {
+      "path": "docs/companions/life-simulation/emergentwisdom-longform.sty",
+      "bytes": 1601,
+      "sha256": "c742a802c2feaff9a04eb8842e3904ccac41f5a19671dd498ba5986b4ea600f9"
+    },
+    {
+      "path": "docs/companions/life-simulation/life-simulation.tex",
+      "bytes": 158750,
+      "sha256": "319344dcb1f656698c149d3ccd4ac55e2d28f2a9d04ea6232874c2527ae961bb"
+    },
+    {
+      "path": "docs/companions/life-simulation/references.bib",
+      "bytes": 98007,
+      "sha256": "e5183edd35889658354f7bf380ac35f7772f68fcf4c68465dd87317ebba683e8"
+    },
+    {
+      "path": "docs/examples/EVEREST-MEANING-MODEL.md",
+      "bytes": 1404,
+      "sha256": "27cfdc61395362e27db44080f5d9cd2ba12856097577937bb4503976c24cf1cd"
+    },
+    {
+      "path": "docs/examples/FEARLESS-CARE.md",
+      "bytes": 1722,
+      "sha256": "d68889d0fd734435cdce4f30598891ce3306e1e422f1320ae59e978a1c267336"
+    },
+    {
+      "path": "examples/book-of-conditions/BOOK-DRAFT.md",
+      "bytes": 68686,
+      "sha256": "ed684d006df30d42d56a063d89645b77951ed171d0b0d97a2a6f299735a70e7a"
+    },
+    {
+      "path": "examples/book-of-conditions/FOUNDER-ROLE.md",
+      "bytes": 4526,
+      "sha256": "3a9f5b0af9e4a149ecf14ff669d2e06eb5d4886ff7f3e8612a867fb7a527a82d"
+    },
+    {
+      "path": "examples/book-of-conditions/HEALTH-PROCESSES.md",
+      "bytes": 3870,
+      "sha256": "5844436af638f20b50e287ee246fa5a168a287204b034da76c637bceb27ce069"
+    },
+    {
+      "path": "examples/book-of-conditions/LIFECYCLE-REGISTRY.md",
+      "bytes": 19803,
+      "sha256": "61ddadf93eca7a9d6f41f8d4c3164850fac17d47f18c3fe27c2cb42775fb9d23"
+    },
+    {
+      "path": "examples/book-of-conditions/MACRO-PROCESSES.json",
+      "bytes": 14915,
+      "sha256": "2b81a5fc9973aea0e34720fe71088a0d3a21e8e2dcf7250a960d11a719f05098"
+    },
+    {
+      "path": "examples/book-of-conditions/MODEL-SCAFFOLDS-COMPILE.json",
+      "bytes": 34353,
+      "sha256": "10f65ae7cfd7c05a016158b9893533c8af08f096382bd51b809f2c5abf707c64"
+    },
+    {
+      "path": "examples/book-of-conditions/NUMERICAL-STATISTICS.md",
+      "bytes": 13838,
+      "sha256": "19fd6ee234027b5eda45cc59374d76f5a59aecfca8a693cd070f7b644dcfbbed"
+    },
+    {
+      "path": "examples/book-of-conditions/PERSON-INSTANCES.json",
+      "bytes": 7767,
+      "sha256": "70d2e5b3fcd1108ca10278f02deb398861eb615871d81f3a925b4e54b8570b12"
+    },
+    {
+      "path": "examples/book-of-conditions/PERSON-MODELS.md",
+      "bytes": 38382,
+      "sha256": "2f1890a846657216a323f5066ecc60b3e0cc2f50d417d669ff6c3833a9ca8111"
+    },
+    {
+      "path": "examples/book-of-conditions/PERSON-TEMPLATE.json",
+      "bytes": 14633,
+      "sha256": "196d60a4e0e95122cdfdea661795468de9ca04baef45df63b6e09c0edb4c898f"
+    },
+    {
+      "path": "examples/book-of-conditions/PERSON-TEMPLATE.md",
+      "bytes": 9804,
+      "sha256": "69a41259df7c87090fad168ddbf169266ace50f512cc081f3f14b8a578e5b116"
+    },
+    {
+      "path": "examples/book-of-conditions/PROGRESSIVE-MACRO.md",
+      "bytes": 20173,
+      "sha256": "7f5a25ea64c156a3563eef7e76462151fff837b4fceeb17ad424a577dc1e4065"
+    },
+    {
+      "path": "examples/book-of-conditions/README.md",
+      "bytes": 7031,
+      "sha256": "7415e4e53c49ae9dd0e4f612955d71021a2d5cb0a1b07cea68d913b108118952"
+    },
+    {
+      "path": "examples/book-of-conditions/SCENE-PROFILE-CUTS.md",
+      "bytes": 8910,
+      "sha256": "0438c05b56262b1248cbdd45730cc22d219cc39f3a1d4812e088b1246f01bf44"
+    },
+    {
+      "path": "examples/book-of-conditions/STORY-ROUTE.md",
+      "bytes": 13227,
+      "sha256": "971f14ed221629f663e8c158a65fe9827bc191673a763f8b9a574cb4c4b27dd6"
+    },
+    {
+      "path": "examples/book-of-conditions/UNDERSTANDING-NOTES.md",
+      "bytes": 16147,
+      "sha256": "f7e6176daec71cf99df4b125aa861326964431d6d1a6c8cd7585dcd07d0cd511"
+    },
+    {
+      "path": "examples/book-of-conditions/WORLD-DATA.md",
+      "bytes": 5022,
+      "sha256": "64a403edb9c352a7c23366f7c0546501b3b0357edf87cfeaf47d79c3b6b01439"
+    },
+    {
+      "path": "examples/book-of-conditions/WORLD-MODEL.md",
+      "bytes": 42317,
+      "sha256": "328cc29c7043260b01ddcb8b71844e697d66a10928f9c537b4a7a1e5d7d06475"
+    },
+    {
+      "path": "examples/book-of-conditions/build-story-body.mjs",
+      "bytes": 2604,
+      "sha256": "3cce71a1ba66f8a061532662371240ad2a50638840c98f53d17f9d07aa507ddd"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/bundle-manifest.json",
+      "bytes": 13209,
+      "sha256": "5570de2ce81378e10dff3b0dad8cd593cae11f56f939b6f40f0f2cf45a9231e7"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/concepts.json",
+      "bytes": 20952,
+      "sha256": "b4d13ae2078dd44cac5b4ba1ed0295d28f66a73fd8f183391d5ca1d1fcdaa223"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/AttributionContribution.json",
+      "bytes": 1111,
+      "sha256": "84456538d4fd4fffc552b0fe57391844089bfbed449efa4fb46c939ce67da58a"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/AttributionRecognition.json",
+      "bytes": 1268,
+      "sha256": "0ae0bcec10b2c0b205600befc6d565a823f49d78c98667067d859986b9d4d22e"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/ConcernAutonomy.json",
+      "bytes": 1065,
+      "sha256": "bf363569e7f90039571e64e8583661846587ca8c31cba6f1b5d8ee023c20dd83"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/ConcernBelonging.json",
+      "bytes": 1082,
+      "sha256": "4fbb6d58a3067cf15d616f423e8d67f9ac0a4a2b80856cf93e8d821ae6274a13"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/ConcernCompetence.json",
+      "bytes": 1075,
+      "sha256": "9a54296a218834e3374690cf2af3ddc6b848122b484cda4cfa5090738ce605a1"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/ConcernUnderstanding.json",
+      "bytes": 1120,
+      "sha256": "b654d4764eaf7fea30a1a78d221b15af085b375b2ec5a7929b07aedb2386b24a"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/ConcernWellBeing.json",
+      "bytes": 1061,
+      "sha256": "798376a55f5d2b1255414d6fbdc20f441a57d65a48871eb01e7a36b997f85e23"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/EmotionAnger.json",
+      "bytes": 982,
+      "sha256": "d810ab6f9d717964e754c9b9d00fbc7deba8a1d8e847154575a70e760eedba40"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/EmotionAnticipation.json",
+      "bytes": 1013,
+      "sha256": "2f1a485ead385849eb6e015df617445ab68e5d2b45ce7e9a556d46c4aa80c162"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/EmotionDisgust.json",
+      "bytes": 998,
+      "sha256": "4278f4d11c7ded9f03e46c5bd2eba9288ee6ada1db19e950b4b9952f6143eb70"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/EmotionFear.json",
+      "bytes": 965,
+      "sha256": "90e2637326a84f2e27d1694dc1a4bccd0b1a12355ec5dd2f0624d183ec427901"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/EmotionJoy.json",
+      "bytes": 922,
+      "sha256": "16a37dddb12c0ff2cca358321e748e2822c566559ad8604c82cea0028cbe18f7"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/EmotionNeutral.json",
+      "bytes": 1030,
+      "sha256": "89069e832471688bdb8bc5efe5c2ef51419532f00b4a1f08010055b8156596d2"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/EmotionSadness.json",
+      "bytes": 1012,
+      "sha256": "dbfde4312d1a44862301dc1b6c67ec94d5f6b5b5a24edd0d7263d58f9cf21c0b"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/EmotionSurprise.json",
+      "bytes": 1057,
+      "sha256": "4b15b88f69de5108e3b9c47fa217d19ac1526a311800044c313ef93aa194835a"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/EmotionTrust.json",
+      "bytes": 1022,
+      "sha256": "3541de5f9daceed771dba7354b86e6bb713a91381986208242be5a1ba3e7d394"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/EvaluativeKindness.json",
+      "bytes": 1592,
+      "sha256": "32caf46a37cc45faa45523f78150b26fad3353f780cfd295fedb0a758beb3f46"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/HistoricallyPrematureArchitecture.json",
+      "bytes": 1314,
+      "sha256": "aba43abc5627045f869a3587449d5b876db4c895b71a401897f0f4f8337010ce"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/IndependentWorksAuthority.json",
+      "bytes": 1201,
+      "sha256": "3b5a2e17be9756d7b07adf67bb1de9fa06885e6c2a07615860bae3debc25e8db"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/ProblemSolvingAbstract.json",
+      "bytes": 1110,
+      "sha256": "fbcc71d90d6173f67deac006504565d10c39680a631ee8f59c2b885c4918871d"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/ProblemSolvingConcrete.json",
+      "bytes": 1098,
+      "sha256": "34634f6840b0318f6dd1e3620c576b0ed7c30ef9799aa39023d50ae9c855787e"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/ProblemSolvingDeciding.json",
+      "bytes": 1065,
+      "sha256": "fb58dfd22c365c16d5a8dbad0f9f88ecaa250c1a72e3907b88efc7ecd5095c32"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/ProblemSolvingFraming.json",
+      "bytes": 1056,
+      "sha256": "586810f1e58d23af6321cfa856f5ce6bc337d3b2a3b6643bdc8a7925fa4eb6dd"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/ProblemSolvingImpartial.json",
+      "bytes": 1142,
+      "sha256": "926d1598c488ac5ad1eb0660c07734b5e1f72db822615261dbb3603d16dcfe10"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/ProblemSolvingPersonal.json",
+      "bytes": 1133,
+      "sha256": "823e11bbe1187ef3924ae36c83c28ae1052f93e621bb3f6bb7edfead9d47f654"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/ProcessAdaptation.json",
+      "bytes": 1249,
+      "sha256": "2f993674014bc780f68778a59e714e2385c8c135952154f837eb2635fd1b1cc3"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/ProcessShock.json",
+      "bytes": 1398,
+      "sha256": "5d73b75e41b3eee7ccda4dc0bdff2d8efab5c5eb7147bfa8dc9f1749ac46cce7"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/ScopeFreeze.json",
+      "bytes": 1126,
+      "sha256": "c60d1d25dfb207f44d92677414886197f673be24f9ef0680e7bd3b61c8d35418"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/SituatedIntelligence.json",
+      "bytes": 1507,
+      "sha256": "109d8e4d04b99795193cac533c9aa2067c55f63d2e41b8404f689614a37e7375"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/StrategyConditionalNegotiation.json",
+      "bytes": 1171,
+      "sha256": "a0c882595728ca980e5606d2a41bc5657230766b03c58c1a601bcc9460ec51a5"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/StrategyEvidenceTriggeredRevision.json",
+      "bytes": 1217,
+      "sha256": "5c43b5b4ed3f25075e446cc983b0281b8390bac2b25ba9e07c491a0812900f42"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/StrategyStagedCommitment.json",
+      "bytes": 1123,
+      "sha256": "0261831fe2e1243fba4f0c483068c4ac8b4ad7f8940a9cad566125c48135a52d"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/UniformScrewThreadSystem.json",
+      "bytes": 1285,
+      "sha256": "93350abb0e05129b5b183a15a075744b19239b8e6f4d567ca9bf5cd8c8dfab12"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/patterns/VerifiedCalculation.json",
+      "bytes": 1239,
+      "sha256": "1ca8451e8ad724eb46dfaca0d1f4ce929b870cae330c3825dcafe6509dcf52a8"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/sema-adapter.json",
+      "bytes": 2705,
+      "sha256": "78a5674cb4c30ce1969f465e04d007b650d783c17b4007bf47b6b0acedf57457"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/sema-index.json",
+      "bytes": 18114,
+      "sha256": "73eaeb04d8d09cec7639f8e9483c9922eed7377f5a8972b275d758313d482129"
+    },
+    {
+      "path": "examples/book-of-conditions/grounding/verification.json",
+      "bytes": 1505,
+      "sha256": "56a13ed2003435df98b58bb2f06126b907fb7783d2bb748324caab6301d777f1"
+    },
+    {
+      "path": "examples/book-of-conditions/import-rust.mjs",
+      "bytes": 27456,
+      "sha256": "0ed6edd48cc56415852fc9ef32e705cb6d276642f39686986a8fb78a8ed1fb6f"
+    },
+    {
+      "path": "examples/book-of-conditions/import-rust.test.mjs",
+      "bytes": 4280,
+      "sha256": "ced4e5862f267e7d36058fe28f1dc74b7a516694f6a476a29092f47f828b2f40"
+    },
+    {
+      "path": "examples/book-of-conditions/rust-construction/model.json",
+      "bytes": 1055931,
+      "sha256": "4660705817fc5311b1058e60806986eef44cefe50e5d28d977cab9b61a197587"
+    },
+    {
+      "path": "examples/book-of-conditions/rust-construction/narrative-graph.json",
+      "bytes": 488378,
+      "sha256": "fd14b8ceea20a6900c267820dd3cc8fe41cde1ab243c0108be55c8967e76e43e"
+    },
+    {
+      "path": "examples/book-of-conditions/rust-construction/receipt.json",
+      "bytes": 2368,
+      "sha256": "cb85b4224f03165f576e284ec21b20009285b74cb52e4cc626124efd3cfc7ff0"
+    },
+    {
+      "path": "examples/book-of-conditions/rust-construction/source-manifest.json",
+      "bytes": 1568,
+      "sha256": "dea355eb18c9c8a4686b28e44164f4171d02525c2c872304a4cb75f27482af8f"
+    },
+    {
+      "path": "examples/book-of-conditions/rust-narrative.mjs",
+      "bytes": 11776,
+      "sha256": "7a8153dc5b97ef72e5a839922fe34f2a00401e2e59cc6dfaf15710d753ca5a45"
+    },
+    {
+      "path": "examples/book-of-conditions/rust-narrative.test.mjs",
+      "bytes": 7932,
+      "sha256": "6430f4ba935140ebdaecaeb36f3b443f68803ca4cba0301cabb44083f0d64b85"
+    },
+    {
+      "path": "examples/book-of-conditions/story.tex",
+      "bytes": 2749,
+      "sha256": "d066db6df3c7d72c74cc61cc9bedf301d8aa3e0acfc216fec38689d6a42f4e13"
+    },
+    {
+      "path": "examples/refinement-trial/README.md",
+      "bytes": 4866,
+      "sha256": "96a0b01163196a4ef9284aa1fc8b5aecdc545d2da48e8740028d2a2f24409e7d"
+    },
+    {
+      "path": "examples/refinement-trial/example.test.mjs",
+      "bytes": 6675,
+      "sha256": "1afb4848dae296a4de889bbff8d7843529b393570379f9261ab0cbb0e88b7b6b"
+    },
+    {
+      "path": "examples/refinement-trial/fixture.mjs",
+      "bytes": 5892,
+      "sha256": "d4f1df0f6e63f05ae5025bb81f39a64baf921d12335186ca48d1c44651228f15"
+    },
+    {
+      "path": "examples/refinement-trial/readback.json",
+      "bytes": 623,
+      "sha256": "95c87f644cecebf42b81b17ee363a490e95c8b2f3cdf54688e8d963fc8c93298"
+    },
+    {
+      "path": "examples/refinement-trial/reference.mjs",
+      "bytes": 7488,
+      "sha256": "d46472941fac3cbe44caf2e17fc6202e491c39995f9d3d815068eb93b801ca49"
+    },
+    {
+      "path": "mcp-server/NPM-README.md",
+      "bytes": 2054,
+      "sha256": "189b7bb80db1ec47470deadfef751a402b566ac1a81aa94e111e73e1f718aba0"
+    },
+    {
+      "path": "mcp-server/README.md",
+      "bytes": 30694,
+      "sha256": "b7143b924b788ed31302be6d01fad994ecd1f4d6ab448c1fd54737752f62cc1b"
+    },
+    {
+      "path": "mcp-server/bin/meaning-model-mcp.mjs",
+      "bytes": 1758,
+      "sha256": "ef13f9593ff5568113c090ad3e733ba9d0dfd1f855003d6553b1e0b5485af232"
+    },
+    {
+      "path": "mcp-server/package-lock.json",
+      "bytes": 6489,
+      "sha256": "2d236a0907028a29c980a20bf01f36f9f63bee1fe34dd07cd811f978830bb7a0"
+    },
+    {
+      "path": "mcp-server/package.json",
+      "bytes": 838,
+      "sha256": "d61f8e8867345fc377b0c3049aa0ffc2aac6951e91ab69ba3cf81ab9967f1fa9"
+    },
+    {
+      "path": "mcp-server/resources/presets/SOURCE.json",
+      "bytes": 1536,
+      "sha256": "e604fad5672f4f6ce2283defd2aa3add4b51b435e8d33097e7b656edde2ec4ad"
+    },
+    {
+      "path": "mcp-server/resources/presets/north-harbor-12.json",
+      "bytes": 1247364,
+      "sha256": "ec7b824518a9a6942b8b01e98fdb418912b93e316e30d15d053d6069e8b2e25f"
+    },
+    {
+      "path": "mcp-server/resources/presets/north-harbor-48.json",
+      "bytes": 4930617,
+      "sha256": "b6601a31fae4890543e9a84064a6d70bab70403273279b02eb71fe0dce9f63a5"
+    },
+    {
+      "path": "mcp-server/scripts/pack-release.mjs",
+      "bytes": 4820,
+      "sha256": "b7dcd9f8e8b3ce8cb2b08e8274ba0f1fafad2f091cde303f8692441476d6fa22"
+    },
+    {
+      "path": "mcp-server/scripts/require-staged-package.mjs",
+      "bytes": 208,
+      "sha256": "17e1daae963f799e1e2f9f499ad677759da9f706241fb34f2a302d86bfb20e21"
+    },
+    {
+      "path": "mcp-server/src/candidate-router.mjs",
+      "bytes": 8710,
+      "sha256": "71a6fe71423ee24db24f4950fec0afa4416bac2a0f39a8c41b5731550c7b3a90"
+    },
+    {
+      "path": "mcp-server/src/estimation-exchange.mjs",
+      "bytes": 29851,
+      "sha256": "5569c6b23045664438cbbb0d0c8cadfcaa92e892e07239a70eb6d71c140c8e84"
+    },
+    {
+      "path": "mcp-server/src/modeling-guidance.mjs",
+      "bytes": 10959,
+      "sha256": "5c5e0f382fb0a70d384e848cf52aac3be9ef81f07d781e50c96c8440334c227c"
+    },
+    {
+      "path": "mcp-server/src/north-harbor-presets.mjs",
+      "bytes": 3754,
+      "sha256": "40fb12635d75e5ecc61e6af67f9bba5ed63286940cccfaab4eebf8d7f00bfc88"
+    },
+    {
+      "path": "mcp-server/src/rust-engine-process.mjs",
+      "bytes": 17344,
+      "sha256": "ecd24288e6589e3e235dc7c045f4bc0d9d8d70c50eb66e72411afc985a3c6f67"
+    },
+    {
+      "path": "mcp-server/src/server.ts",
+      "bytes": 34580,
+      "sha256": "a93348e52b51fcbeaa9ccdf94309c8bac2ce77acfca9c0278f9da32adcf8bd4b"
+    },
+    {
+      "path": "mcp-server/src/service.mjs",
+      "bytes": 104858,
+      "sha256": "f709b83ffa2e828d23a0e032d75c7bac288755f1bab582c0bb4927489ddf9e1c"
+    },
+    {
+      "path": "mcp-server/src/story-revision-diagnostic.mjs",
+      "bytes": 10686,
+      "sha256": "b6cb22783dd367d9400bd9571af9bf8bdeac7a39813abac0519362f5784eaaa7"
+    },
+    {
+      "path": "mcp-server/src/writer-negotiator.mjs",
+      "bytes": 11131,
+      "sha256": "a7706cbbcb71feeb4e2ad45210a01339ee18c1bdff3286edc0cd00137d44bcbe"
+    },
+    {
+      "path": "mcp-server/test/candidate-router.test.mjs",
+      "bytes": 4080,
+      "sha256": "1838261568478f0c3bf2199cb13670ca5d9a2b2bc4022ff02a4af324b9f4a07a"
+    },
+    {
+      "path": "mcp-server/test/estimation-exchange.test.mjs",
+      "bytes": 18760,
+      "sha256": "17d37d3ba4d8148b25f501e9a8878e5ba2a73412863a175f125d52f890fb5c48"
+    },
+    {
+      "path": "mcp-server/test/fixtures/process-fixture.mjs",
+      "bytes": 1957,
+      "sha256": "9e3a4fe2413f6980455a088b43f1e640feddfd46f5964bc3916fbfca9ca26de7"
+    },
+    {
+      "path": "mcp-server/test/modeling-guidance.test.mjs",
+      "bytes": 4739,
+      "sha256": "24b2d5a531dc1d062e42dbb63d57787251c8c9b26d5f7b6a131d57131ed36047"
+    },
+    {
+      "path": "mcp-server/test/north-harbor-presets.test.mjs",
+      "bytes": 3606,
+      "sha256": "81580188e1862fcf380370df3c28224028e5e63a6fc0b9c6bd2fec9fc53d497d"
+    },
+    {
+      "path": "mcp-server/test/package.test.mjs",
+      "bytes": 2637,
+      "sha256": "dfd762dd680ca46a648ad792dd0d9402144b29a4b38f2ad28e19dbcb008e9572"
+    },
+    {
+      "path": "mcp-server/test/protocol.test.mjs",
+      "bytes": 34558,
+      "sha256": "32978be8c76ae357fc502f3d8af1b511c3b05309a7f8ec174b4758e67d0e4c89"
+    },
+    {
+      "path": "mcp-server/test/rust-engine-process.test.mjs",
+      "bytes": 7544,
+      "sha256": "e8bd65fa871fdc0cbef43c5c20d37f95547db3bac42df0779a7ac4e26de6bf04"
+    },
+    {
+      "path": "mcp-server/test/service.test.mjs",
+      "bytes": 73341,
+      "sha256": "e904b0387d2c3f3cab2342efcb710ecd40df703cb0d1ea78fc7bea22c0d61c29"
+    },
+    {
+      "path": "mcp-server/test/story-revision-diagnostic.test.mjs",
+      "bytes": 5756,
+      "sha256": "badbbd126bac8b6da01af9ffc1297492e51e65ae9c36a0f28575b25a18507ea2"
+    },
+    {
+      "path": "mcp-server/test/writer-negotiator.test.mjs",
+      "bytes": 7333,
+      "sha256": "4862b7df0eec4c3889347190b170adbf42ec11d8b3f6aaa6c77c0a25aa890c37"
+    },
+    {
+      "path": "output/pdf/meaning-model-grammar.pdf",
+      "bytes": 318338,
+      "sha256": "5e8c21be7e5550b1cfd07ef10960de190bb27817e24cfcf5c73d47b13f51a62e"
+    },
+    {
+      "path": "output/pdf/meaning-model.pdf",
+      "bytes": 376038,
+      "sha256": "19a0c6e9f64e5bbdcba61e783a96debb4bfba7ae118c47fdde90788176d9e829"
+    },
+    {
+      "path": "output/pdf/the-book-of-conditions.pdf",
+      "bytes": 449862,
+      "sha256": "f5d7e966db4f0800b138fbfbc0969059630ed7efdf75289ab2e2ff7b6c9c8a11"
+    },
+    {
+      "path": "paper/MEANING-MODEL-STRUCTURE.md",
+      "bytes": 26368,
+      "sha256": "9c5255f6d43e008cefad58c3c520d75f9f65a9ddfe93d19fd6d5c2ab25f92001"
+    },
+    {
+      "path": "paper/emergentwisdom-preprint.sty",
+      "bytes": 5999,
+      "sha256": "8128f7757dda1cff087417c304e88ff3fd7e68aed581cc529969cd8ad5a20220"
+    },
+    {
+      "path": "paper/includes/book-trajectory-figures.tex",
+      "bytes": 5603,
+      "sha256": "4e15dca244281c5bf5d250e4a20f2c1a3de7ec9f09ff7f027fa3e8b10fb3caa1"
+    },
+    {
+      "path": "paper/includes/interface-blocks.tex",
+      "bytes": 2885,
+      "sha256": "e63aaf80204f28ce0741eb8b69dc9fe3c6a7b1eb4d4e0d2f096a669f714686c3"
+    },
+    {
+      "path": "paper/meaning-model-grammar.tex",
+      "bytes": 45747,
+      "sha256": "8e6c086566126ef6e348bc13436f2b81ef7b0db7d376b334d98b8b7bdf3451df"
+    },
+    {
+      "path": "paper/meaning-model-structure.test.mjs",
+      "bytes": 37554,
+      "sha256": "8a23b5de26e9476e09280dbe0fa72d85b2121d831640a7031c6f30ba87259ede"
+    },
+    {
+      "path": "paper/meaning-model.tex",
+      "bytes": 133421,
+      "sha256": "23e373ae19e27402ccecca512905aa1361cfcf683f319b0117a1f44669ceef55"
+    },
+    {
+      "path": "paper/references.bib",
+      "bytes": 99894,
+      "sha256": "1e551d3a7151e76001eb004b92d33146d7e06a682633328a1865bad3b63fafc4"
+    },
+    {
+      "path": "profiles/PERSON_MODELING.md",
+      "bytes": 3914,
+      "sha256": "583d7b5ee86febc6d3633f409dfb186c75c86f004f7e8b05bdf0bae7fe49de2a"
+    },
+    {
+      "path": "profiles/STORY_MODELING.md",
+      "bytes": 4021,
+      "sha256": "6796a6db3e78c40ff209c4e34de98db66e02788770358a75382db5e93c1d2f1c"
+    },
+    {
+      "path": "release-files.json",
+      "bytes": 3033,
+      "sha256": "d37b15a77011be1d50ef2b25d847e326e3422dcd0c5bc57d44f82e29c21fe80e"
+    },
+    {
+      "path": "rust-engine/Cargo.lock",
+      "bytes": 7273,
+      "sha256": "edbf741c54b5c9d8499615320d508b61acbab47837449c065cf154772a609c4f"
+    },
+    {
+      "path": "rust-engine/Cargo.toml",
+      "bytes": 563,
+      "sha256": "254da071eb535fb6a3e2b33907265bddb283b25480120ce0782f916addd38494"
+    },
+    {
+      "path": "rust-engine/MEANING_MODEL_CONFORMANCE.md",
+      "bytes": 19385,
+      "sha256": "7e865e9614731ec539c65425ad3dc210f2d4295918ddcfabe36ce5e6dbe0f832"
+    },
+    {
+      "path": "rust-engine/README.md",
+      "bytes": 44306,
+      "sha256": "e9e69f82720a8ae89be5a584f08267a337a2448cd9c96f257ffaf5c29477ab5f"
+    },
+    {
+      "path": "rust-engine/examples/benchmark.rs",
+      "bytes": 3714,
+      "sha256": "d89bef1f8ee630df11bbd527afeaa5a05fdbd655a25eead4d8c0a12cb379388e"
+    },
+    {
+      "path": "rust-engine/examples/construction-scaffolds-command.json",
+      "bytes": 4828,
+      "sha256": "2a248c3d4276bdf1f5de8a8b5071f2af966afc78f955623f7878c49aff5da23c"
+    },
+    {
+      "path": "rust-engine/examples/describe-command.json",
+      "bytes": 106,
+      "sha256": "805ed2afdec766f06b0099595562c50a7776740ef58a1298f3a9ea46cd9c935e"
+    },
+    {
+      "path": "rust-engine/examples/meaning-model-command.json",
+      "bytes": 9108,
+      "sha256": "a2d907d4c9bd5345f4d6deb5d5f2f15e6a04d4099443b23a8221f7c2f34e4ce0"
+    },
+    {
+      "path": "rust-engine/examples/optional_profiles.rs",
+      "bytes": 1455,
+      "sha256": "68d43bd58dbac0f5a994670b35cb193832dd010360cefd7bc86a45e3bfb11162"
+    },
+    {
+      "path": "rust-engine/src/change_arc_profile.rs",
+      "bytes": 16443,
+      "sha256": "5bf3bab409e378cc2ba230d8b40a18b0ea430a1eae74f14cd57b281c9a02443b"
+    },
+    {
+      "path": "rust-engine/src/concept_scaffold_profile.rs",
+      "bytes": 9829,
+      "sha256": "64ed27588dc9d8b1159d226d861c7344fecf0a6af6ae3649477b783e2827038d"
+    },
+    {
+      "path": "rust-engine/src/lib.rs",
+      "bytes": 49233,
+      "sha256": "0cf6327b675ff09e965bfdbb48a1d393d1269a53ec8f35a40643e3024042e389"
+    },
+    {
+      "path": "rust-engine/src/main.rs",
+      "bytes": 6301,
+      "sha256": "55f92369b75369020daa6ebd566f9b424b003de76af096996b087b13ea26d00d"
+    },
+    {
+      "path": "rust-engine/src/meaning.rs",
+      "bytes": 105963,
+      "sha256": "bce0881876200dce81a49299c1a227d1bb512cce62bb9c8441935d6f15bd2bd8"
+    },
+    {
+      "path": "rust-engine/src/model.rs",
+      "bytes": 677429,
+      "sha256": "1f7bf1af35e85a557319e4e3d4b3d545ecfcb04f7cbad54d637201dded0b29e1"
+    },
+    {
+      "path": "rust-engine/src/narrative.rs",
+      "bytes": 54034,
+      "sha256": "b7118be5bd9f78e8502cf7aba701e160fb15c0fbb8788a65d1550ed87bc52db0"
+    },
+    {
+      "path": "rust-engine/src/profiles.rs",
+      "bytes": 127657,
+      "sha256": "f31243717862b42b4ee12f0c5cda5c8b1e0a1ae6b17a5f838350e2ebfec7b251"
+    },
+    {
+      "path": "rust-engine/src/relationship_profile.rs",
+      "bytes": 8015,
+      "sha256": "f584d67a7f9e754e6f3d952c85193787c85e97e658b5366970be95521e9f5458"
+    },
+    {
+      "path": "rust-engine/src/thing_scaffold_profile.rs",
+      "bytes": 10379,
+      "sha256": "cfef4a0c3b91e5383462e5b4bdfcc2491f5c1c4cc69fe5624d6495aa499ce7fd"
+    },
+    {
+      "path": "rust-engine/tests/meaning_model_example.rs",
+      "bytes": 4085,
+      "sha256": "e6b87691dcf361e3740d97be3d21afb0c5c6e9e34cb765ed2c155e7d52ab9315"
+    },
+    {
+      "path": "rust-engine/tests/narrative_graph.rs",
+      "bytes": 94315,
+      "sha256": "ed2df741666bf958b1b18569ef4e2616505001f509bac0b7d2eb12c8bf6b1607"
+    },
+    {
+      "path": "rust-engine/tests/normalized_cuts.rs",
+      "bytes": 14162,
+      "sha256": "fae811cc76e98dad67aa2601f71025de54c2aba8df56dacbc61f444f6779b93c"
+    },
+    {
+      "path": "rust-engine/tests/optional_profiles.rs",
+      "bytes": 37772,
+      "sha256": "ab941f9eef27537e848dde036fb9cf3cc997f43eef9dc49d0ac6eade1eb42a79"
+    },
+    {
+      "path": "rust-engine/tests/relationship_scaffold.rs",
+      "bytes": 4303,
+      "sha256": "a502dda278f6843bf22b4f77d8ea0b5ad51dd16c0bb1100d89bbb3a5ef7b47cf"
+    },
+    {
+      "path": "rust-engine/tests/session_ndjson.rs",
+      "bytes": 32446,
+      "sha256": "6576242745e44a5fbd5c519a5d8e6b782a2370642ad85c6e9642c0140aebfbb1"
+    },
+    {
+      "path": "scripts/export-release.mjs",
+      "bytes": 3020,
+      "sha256": "70021c07ab4ee1ecdd59bf3f666e5ead51b1bad9f51c6676971dd90ec82cb862"
+    },
+    {
+      "path": "scripts/export-release.test.mjs",
+      "bytes": 2089,
+      "sha256": "bcb0cb33a1f8a043616afb7c6cdbe9d0a8f3ee0e578f6a70fa2202f1570d4f6f"
+    },
+    {
+      "path": "scripts/verify-resources.mjs",
+      "bytes": 2111,
+      "sha256": "b44e78e5c23cfc03df134dcfc55a9a8e3fad24207d14f16f4a1391796f107305"
+    }
+  ]
+}

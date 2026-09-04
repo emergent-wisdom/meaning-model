@@ -1,0 +1,22 @@
+{
+  "handle": "ConcernUnderstanding",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"First-run concern for intelligibility, information, and usable options, with uncertainty or the unknown as its threat reading.\",\"id\":\"concept.concern.understanding\",\"label\":\"understanding\",\"sema_handle\":\"ConcernUnderstanding\",\"specializes\":[]}",
+  "gloss": "understanding: First-run concern for intelligibility, information, and usable options, with uncertainty or the unknown as its threat reading.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:ConcernUnderstanding#mh:SHA-256:c6b8c8f92b5bde56420274d3c4d8061bd262a21e5d6ba2b770cf53cc502fa7c3",
+  "sema_ref": "ConcernUnderstanding#c6b8",
+  "sema_stub": "c6b8"
+}

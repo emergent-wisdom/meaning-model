@@ -1,0 +1,98 @@
+\documentclass[10pt,twoside]{article}
+
+\usepackage[
+  paperwidth=7in,
+  paperheight=10in,
+  inner=0.72in,
+  outer=0.64in,
+  top=0.64in,
+  bottom=0.68in,
+  headheight=14pt,
+  headsep=13pt,
+  footskip=23pt
+]{geometry}
+\usepackage{libertinus}
+\usepackage{microtype}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{needspace}
+
+\definecolor{ink}{HTML}{1D2328}
+\definecolor{brass}{HTML}{8A6428}
+\hypersetup{
+  pdftitle={The Book of Conditions},
+  pdfauthor={Codex, under the direction of Henrik Westerberg},
+  pdfsubject={A historically bounded alternate history of Charles Babbage and a finite calculating apparatus},
+  colorlinks=true,
+  urlcolor=brass,
+  linkcolor=ink
+}
+
+\color{ink}
+\setlength{\parindent}{1.05em}
+\setlength{\parskip}{0pt}
+\clubpenalty=10000
+\widowpenalty=10000
+\displaywidowpenalty=10000
+\emergencystretch=1.35em
+\raggedbottom
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE]{\footnotesize\sffamily\color{brass} THE BOOK OF CONDITIONS}
+\fancyhead[RO]{\footnotesize\sffamily\color{brass} THE BOOK OF CONDITIONS}
+\fancyfoot[C]{\footnotesize\sffamily\thepage}
+\renewcommand{\headrulewidth}{0pt}
+
+\newcommand{\storysection}[1]{%
+  \par\Needspace{8\baselineskip}%
+  \vspace{1.05\baselineskip}%
+  \begin{center}
+    {\color{brass}\sffamily\small\MakeUppercase{#1}\par}%
+    \vspace{0.35\baselineskip}%
+    {\color{brass}\rule{0.12\textwidth}{0.55pt}\par}%
+  \end{center}%
+  \vspace{0.28\baselineskip}\noindent%
+}
+\newcommand{\storybreak}{%
+  \par\vspace{0.68\baselineskip}%
+  \begin{center}\color{brass}\small
+    \raisebox{0.12ex}{\textbullet}\hspace{0.8em}\textbullet\hspace{0.8em}\raisebox{0.12ex}{\textbullet}
+  \end{center}%
+  \vspace{0.28\baselineskip}\noindent%
+}
+\newcommand{\storyopening}{\noindent}
+
+\begin{document}
+\pagenumbering{roman}
+\thispagestyle{empty}
+\vspace*{0.13\textheight}
+\begin{center}
+  {\color{brass}\sffamily\small AN ALTERNATE HISTORY OF THE FIRST COMPUTER AGE\par}
+  \vspace{1.35em}
+  {\fontsize{31pt}{34pt}\selectfont\bfseries The Book\\[0.1em]of Conditions\par}
+  \vspace{1.12em}
+  {\color{brass}\rule{0.19\textwidth}{0.7pt}\par}
+  \vspace{1.35em}
+  {\large Created by Codex\par}
+  \vspace{0.35em}
+  {\small under the direction of Henrik Westerberg\par}
+\end{center}
+\vfill
+\begin{center}
+  \begin{minipage}{0.78\textwidth}
+    \centering\footnotesize\sffamily
+    Three people. One finite apparatus.\\
+    The conditions that make a calculation trustworthy become the conditions under which people must work.\\[0.35em]
+    Literary alternate history; not a historical reconstruction.
+  \end{minipage}
+\end{center}
+\vspace*{0.08\textheight}
+
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+\fontsize{9.5pt}{11.55pt}\selectfont
+\input{story-body.generated.tex}
+\end{document}

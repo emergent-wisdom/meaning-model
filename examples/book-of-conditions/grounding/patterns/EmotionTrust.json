@@ -1,0 +1,22 @@
+{
+  "handle": "EmotionTrust",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"Presently felt willingness to rely on a person, institution, or mechanism while vulnerable to its action.\",\"id\":\"concept.emotion.trust\",\"label\":\"trust\",\"sema_handle\":\"EmotionTrust\",\"specializes\":[]}",
+  "gloss": "trust: Presently felt willingness to rely on a person, institution, or mechanism while vulnerable to its action.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:EmotionTrust#mh:SHA-256:847ec3c3c84741f961c7fd0243715c76f6fa214bba6ee890efb9731204c59b59",
+  "sema_ref": "EmotionTrust#847e",
+  "sema_stub": "847e"
+}

@@ -1,0 +1,22 @@
+{
+  "handle": "VerifiedCalculation",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"A service that delivers bounded calculations with declared inputs, independent comparison, correction records, acceptance criteria, and responsibility for error classes.\",\"id\":\"concept.service.verified-calculation\",\"label\":\"verified calculation service\",\"sema_handle\":\"VerifiedCalculation\",\"specializes\":[]}",
+  "gloss": "verified calculation service: A service that delivers bounded calculations with declared inputs, independent comparison, correction records, acceptance criteria, and responsibility for error classes.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:VerifiedCalculation#mh:SHA-256:cb2df490c553d00693dbfa53219a55490a3a8f93e20a45e9348720d876075a18",
+  "sema_ref": "VerifiedCalculation#cb2d",
+  "sema_stub": "cb2d"
+}

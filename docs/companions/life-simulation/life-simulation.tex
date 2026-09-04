@@ -1,0 +1,2597 @@
+% Canonical Life Simulation pre-experiment method manuscript.
+\documentclass[10pt]{article}
+
+\usepackage{emergentwisdom-longform}
+\usepackage{mathtools}
+\usepackage{booktabs,tabularx,array,float}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit}
+\usepackage{hyperref}
+\usepackage{multicol}
+\geometry{bottom=0.7in}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\hypersetup{
+  hidelinks,
+  pdftitle={Life Simulation: Learning from Worlds and Their Construction},
+  pdfauthor={Henrik Westerberg},
+  pdfsubject={A framework for explicit time-indexed world processes, candidate dynamics, joint process prediction, and prospective learning},
+  pdfkeywords={life simulation, world models, hybrid processes, process supervision, generative inversion, prospective learning}
+}
+
+\newcommand{\system}{\textsc{LifeSim}}
+\newcommand{\MeaningModel}{\textit{Meaning Model}}
+\newcommand{\Book}{\textit{The Book of Conditions}}
+
+\ewlongtitle{Life Simulation}{Learning from Worlds and Their Construction}
+\author{Henrik Westerberg\\
+  \small{henrik.westerberg@emergentwisdom.org}}
+\ewpublicationdate{September 5, 2026}
+
+\begin{document}
+\raggedbottom
+\maketitle
+
+\begin{abstract}
+Life Simulation proposes learning to maintain continuing worlds, understand
+their processes, and improve the representations and capabilities used to act
+within them. Constructed worlds become rich linked learning material: one
+history supplies observations, process paths, concepts, alternatives, and
+changing interpretations. The Meaning Model supplies their shared semantic
+interface and preservation contracts; Life Simulation advances those worlds
+and turns their histories into learning objectives.
+
+A proposed process sensorium predicts native observations and explicit process
+state together, learning persistence, accumulation, delay, and change across
+resolutions. Forward construction supplies controlled worlds and varied
+renderings for learning the inverse: reconstruct only what observations
+support. Applied to licensed sources, this could progressively build a
+connected corpus model with shared identities and retained disagreements.
+World-history supervision teaches what happens; construction-history
+supervision teaches which questions, distinctions, and revisions improve an
+account, including how to deepen or reorganize a personality model.
+
+The learner's organization can change too. Fractal Intelligence retains and
+reorganizes reusable capabilities; Alien-world search revises the categories
+that direct mechanism exploration. Their consequences can train subsequent
+choices. In the recommended combined training, a continuing Reader develops
+an Understanding Graph under Entangled Alignment's evaluative orientation.
+Native spans, world-grounded visuals, process histories, and Reader corrections
+jointly connect understanding people to decisions. Exact concept versions
+identify declared meanings; information cutoffs delimit available evidence.
+Later evidence supplies correction targets without entering earlier inputs.
+Durable care remains an objective, not an automatic consequence.
+
+A process path may be continuous, discrete-event, piecewise, stochastic, or
+hybrid, advanced by language models, simulators, estimated functions, or their
+compositions. The path is required; a compact governing law is an optional
+hypothesis. Narrative is the first controlled laboratory, not the scope of the
+proposal. This paper develops the method and specifies experiments for
+evaluating its learning hypotheses.
+\end{abstract}
+
+\keywords{Life Simulation, Time-Indexed World Models, Hybrid Processes,
+Process Sensorium, Generative Inversion, Prospective Learning}
+
+\ewfrontmatterend
+
+\section{Introduction}
+\label{sec:introduction}
+
+Text, measurements, and actions arrive as fragments. The systems that produced
+them continue between observations. A person changes while no message is
+written; an institution accumulates commitments between announcements; a
+scientific field reorganizes before a new vocabulary becomes public. A model
+may infer this persistence from the visible stream. Life Simulation makes it
+an explicit learning target: maintain an account of which processes exist,
+how they changed, what was known at a cutoff, and which later observation
+corrected the estimate. It also makes the choice of that account learnable:
+which questions to ask, which detail to open, and when a representation or
+capability organization needs revision.
+
+Life Simulation makes a selected set of those processes explicit. At minimum,
+a simulation contains a world state, time-indexed process paths within that
+world, a mechanism that proposes or computes their continuation, and an
+observation mechanism that exposes only part of the state. Natural language is
+one observation stream among others. A continuous function can be useful, but
+it is not the definition: births, discoveries, messages, commitments, and
+failures are discrete; fatigue and cash may vary continuously; many useful
+models combine both.
+
+There are two linked ambitions. One is to make a world useful while it is still
+developing: its processes continue, actions have consequences, and detail is
+opened where an interaction needs it. Such a world can support play, creative
+work, or exploration without first becoming a training corpus. The other is to
+learn from the histories those worlds expose. A learner would not only predict
+the next observation, but maintain an account of what produced it, anticipate
+the effects of a change, and revise that account when evidence disagrees.
+Neither use requires an exhaustive world. Their value is tested separately:
+useful interactive continuity does not establish a learning advantage, and a
+learning result does not by itself establish a useful simulation.
+
+For a concrete example, suppose a story says that a promised payment has not
+arrived. A world model can retain the commitment, deadline, nonreceipt, and
+affected people. A continuation follows what changes when the delay persists
+or payment arrives. A timeline or filmed scene can expose selected
+consequences, while a Reader's linked interpretation asks whose plans depend
+on the money and revises its answer as evidence appears. Those aligned records
+can then become learning material: the text, the visible events, the processes
+behind them, and the developing interpretation. An author can create such a
+history; reconstructing it from an existing text must leave unsupported
+details unresolved. This is the construction-to-learning chain developed
+throughout the paper.
+
+The alignment-facing ambition gives this combination a particular purpose:
+learn to understand people well enough to treat them well, and learn to make
+that understanding matter in decisions. Recognizing an emotion is not enough.
+An agent needs an account of what the person wants, believes, has experienced,
+and can change, together with how its own intervention may affect that life.
+The proposed solution joins that contextual understanding with the formative
+evaluative learning of Entangled Alignment, rather than assuming that accurate
+prediction will produce care by itself. Life Simulation is the integration
+method for this proposal: it connects the program's representations, reading,
+problem-solving, and training methods through common evolving histories.
+It does not replace the companion papers or claim that their combination has
+already solved alignment.
+
+This paper separates two responsibilities that operate together. The
+Meaning Model asks how an explicit world can be represented, progressively
+opened, interpreted, and rendered without losing identity or confusing one
+perspective process's account with world authority~\cite{westerbergMeaning2026}. Life
+Simulation uses that shared representation: typed world facts and quantities,
+Cuts and abstract concept models, Event descriptions, story-passage text, and
+externalized understanding have exact addresses and links while retaining
+different authority. They can be constructed and revised together; declared
+dependencies identify which accounts and renderings need reconsideration when
+a world record changes. This construction contract belongs to Meaning Model.
+Life Simulation asks what can be done with the evolving histories: how to advance
+them, search for dynamics, infer hidden paths from observations, train models
+on synchronized streams, and correct them using later evidence. A proposed
+continuation or new process distinction remains subject to Meaning Model
+acceptance and revision rules; this is not a handoff from a finished world.
+The Meaning Model is the selected interface here, but the temporal and learning
+tests can also be applied to another world representation that supplies equivalent
+identity, time, provenance, and uncertainty contracts.
+
+The central hypothesis is not that every aspect of reality follows one
+equation. It is that useful regularities become easier to discover and learn
+when observations are accompanied by explicit process histories at the right
+resolution. A recurring pattern is slow trajectory, faster perturbation, and
+adaptation. This rhythm may appear within a conversation, a life, an
+organization, a technological lineage, or an ecosystem. Jump diffusion is one
+candidate family for a continuous state with exogenous shocks; it is not a
+universal law. Planned transitions, clustered events, absorbing states, and
+adaptations that never settle require other families.
+
+The proposed bootstrap has seven stages. They are ordered so that hidden-state
+recovery is tested where the hidden state is known before the same estimator is
+trusted on real chronology. There are two learning stages: controlled worlds
+first support an inverse estimator; its source-grounded reconstructions then
+contribute to the larger multimodal and Reader-training proposal.
+
+\begin{enumerate}
+  \item \textbf{Construct forward.} Build or import an explicit world at a
+    declared resolution and retain the status and provenance of each selected
+    process. Progressively refined books and game worlds provide candidate
+    histories whose observations can be rendered in several forms.
+  \item \textbf{Vary the dynamics.} Advance matched worlds under direct model
+    judgment, candidate functions, parameter changes, or controlled random
+    inputs, preserving which mechanism produced each path.
+  \item \textbf{Learn the inverse.} Hide simulator-privileged state and infer a
+    distribution over process paths and later outcomes from observation
+    prefixes.
+  \item \textbf{Project onto licensed material.} Apply the estimator to fiction,
+    biography, dialogue, historical records, or other chronological streams
+    without turning attribution into observation. At corpus scale, a continuing
+    EA Reader can develop an Understanding Graph across these source-grounded
+    models rather than attach isolated reactions to unrelated passages.
+  \item \textbf{Compile synchronized targets.} Use \emph{Imagining the Corpus}
+    to align exact native spans with model-grounded images or video, selected
+    Meaning Model process records, and Reader interpretations for joint
+    prediction~\cite{westerbergImagining2026}. Section~\ref{sec:alignment}
+    develops this construction-to-training chain.
+  \item \textbf{Test prospectively.} Freeze each information cutoff and forecast,
+    then score it only after later reports, actions, measurements, or
+    interventions arrive.
+  \item \textbf{Transfer the discipline.} Test the same endpoint-versus-history
+    distinction on Fractal Intelligence traces, interactive worlds, and alien
+    mechanism searches rather than treating narrative as the final domain.
+\end{enumerate}
+
+Narrative is the first controlled laboratory because an authored world can
+provide a complete accepted history, private beliefs, counterfactual branches,
+and multiple renderings without pretending that an inference about a real
+person is ground truth. Narrative is the first construction laboratory; the
+reservoir in Section~\ref{sec:first-experiment} is the first proposed controlled
+learning experiment, isolating a smaller claim before the richer setting.
+The companion Meaning Model paper specifies the new
+construction of \Book{}, its world-building protocol, and its completed
+manuscript and partial construction witness. Independent read-back and the
+matched story comparison remain prospective. Life Simulation can use released
+histories as experimental material or supply continuations during a new
+construction. The companion still governs how those proposals are represented,
+accepted, revised, and rendered.
+
+Table~\ref{tab:program-roles} identifies the nine companion contributions and
+the role Life Simulation plays in connecting them. The combination is a
+research architecture, not nine finished modules that every experiment must
+instantiate.
+
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{0.24\textwidth}Y@{}}
+\toprule
+Component & Role in the proposed program \\
+\midrule
+Meaning Model & Constructs and progressively refines explicit worlds, concepts, perspectives, and narrative surfaces \\
+Life Simulation & Evolves time-indexed processes, tests candidate dynamics, and learns from synchronized process and observation histories \\
+Sema & Identifies exact definition and grounding versions used across world, interpretation, and solver records \\
+Understanding Graph & Retains a continuing Reader's questions, interpretations, disagreements, and revisions with source links \\
+Entangled Alignment & Specifies formative Reader training with a recurrent evaluative orientation and tests whether it shapes durable conduct \\
+Imagining the Corpus & Pairs exact native spans with evolving explanatory visual or schematic tracks; provides the synchronization pattern for the combined corpus \\
+Temporal Hindsight Learning & Enforces cutoff blindness and turns later evidence into labels for earlier predictions \\
+Fractal Intelligence & Searches and revises conceptual decompositions; retains evaluated capabilities for reuse and learning from execution \\
+Ontology of the Alien & Connects causal-world diversity with a revisable candidate ontology that directs further mechanism search \\
+Substrate Language Modeling & Tests the distinct architectural choice of requiring lexical prediction to pass through a predicted substrate \\
+\bottomrule
+\end{tabularx}
+\caption{Life Simulation and its nine companion contributions. Shared histories
+connect their roles; successful integration remains to be demonstrated.}
+\label{tab:program-roles}
+\end{table}
+
+The contribution is a proposed change in what the learner must maintain and
+improve. A process sensorium jointly predicts observations and the continuing
+processes they expose. Two histories give that learner different tasks:
+represented-world history teaches what happens, while model-construction
+history teaches how to choose, open, and revise an account. A planned ending
+may guide a writer's construction but cannot enter a character's earlier
+forecast. Paired histories could teach when to change the questions used to
+understand a person, not only the values in a fixed personality profile.
+Meaning Model preserves the commitments across these changes; Life Simulation
+defines the learning views and their cutoffs.
+
+This is also a data-construction contribution. One narrative can support linked
+examples across people, concepts, processes, timescales, observation cutoffs,
+and alternative continuations. Constructed worlds supply authored state and
+varied renderings for inverse learning; corpus interpretation supplies
+evidence-constrained estimates and connects supported identities across
+sources. Descriptions, prose, visuals, and understanding histories can then
+train together. Progressive detail expands this material where useful, while
+corrections can change the connected corpus model itself. This could produce
+a very large training corpus whose learning targets include both temporal
+behavior and the development of its interpretation. Generated variants remain
+correlated, inferred values remain uncertain, and invented detail is not
+historical evidence. Coverage, cost, and transfer must be assessed alongside
+volume.
+
+A further hypothesis makes capability organization part of this changing
+world. The Meaning Model can provide the evolving world, visible evidence,
+available options, actions, consequences, and perspective-specific readings.
+Fractal Intelligence can provide instrumented Events tied to persistent,
+concept-defined callable Solvers. Proposed decompositions are assessed for
+necessity, independence, universality, and completeness within their declared
+scope; execution can retain
+a reusable capability or motivate splitting, merging, or reparenting it.
+Learning therefore concerns which capabilities to form and compose, as well
+as which route to take. This requires that telemetry is causally tied to
+execution rather than reconstructed afterward; Section~\ref{sec:problem-solving-events} specifies
+the proposed adapter and controls. Alien-world search changes another object:
+the categories that direct exploration. A diagnosis of repeated mechanisms can
+request a different causal relation, whose simulated consequences inform the
+next search and category revision. These are proposals for learning how to
+organize competence and exploration, not only retaining their trajectories.
+
+In the recommended combined training, a continuing Reader's evaluative
+orientation is central to what this growing competence is for. Its
+Understanding Graph records how evidence changes an interpretation of people
+and consequences; synchronized native, visual, and process targets connect
+that interpretation to the world. Reader updates may guide subsequent
+intervals without rewriting earlier sources or forecasts. Exact grounding
+versions identify the concepts used, and later evidence can label earlier
+judgments while remaining outside their inputs. The operational coupling is
+the passage from an accepted world through rendering, inference,
+interpretation, action, and correction into subsequent learning. Whether it
+improves prediction, representation choice, reusable competence, or conduct
+requires separate matched tests; none is established by connecting the records.
+
+Section~\ref{sec:temporal-object} states
+the learning loop alongside the world it concerns; Section~\ref{sec:evaluation}
+then gives a small, implementable first experiment. Candidate dynamics,
+adaptive resolution, narrative, execution histories, and human-facing learning
+extend that experiment rather than becoming prerequisites for running it.
+
+\section{Explicit Worlds with Time-Indexed Processes}
+\label{sec:temporal-object}
+
+The following object separates a world's evolution from what a learner can
+observe. Its projections then supply the joint learning task, before the
+paper considers particular dynamics or applications.
+
+\subsection{The simulation object}
+
+Let $W_t$ denote the accepted explicit world at time $t$. For interval
+$I=(t,t+\Delta]$, let $\widetilde X_I$ be a proposed path for selected
+continuous, allocated, or derived process state; let $\widetilde E_I$ be the
+proposed discrete Events; and let $Y_I$ be the observations made available from
+the interval. A Life Simulation supplies a transition mechanism, a
+world-interface update, a selected projection, and an observation mechanism:
+
+\begin{align}
+  (\widetilde X_I,\widetilde E_I)
+    &\sim G_{\phi}(\,W_t,X_{\leq t},E_{\leq t},u_I,Q\,),
+    \label{eq:life-transition}\\
+  (W_I,W_{t+\Delta})
+    &=U_{\mathcal V^{(k)}}(W_t;\widetilde X_I,\widetilde E_I),
+    \label{eq:world-interface-update}\\
+  E_I&=\mathcal E(W_I),
+    \label{eq:event-projection}\\
+  X_I&=\Pi_Q(W_I,E_I),
+    \label{eq:process-projection}\\
+  Y_I
+    &\sim O_{\psi}(W_I,X_I,E_I;h),
+    \label{eq:life-observation}
+\end{align}
+Here $G_{\phi}$ proposes an entire interval path and its discrete Events, not
+only an endpoint. $U_{\mathcal V^{(k)}}$ is the selected world interface's
+validated update under registry version $\mathcal V^{(k)}$; it returns the
+accepted interval history $W_I$ and successor world $W_{t+\Delta}$. The Event
+path $E_I=\mathcal E(W_I)$ is an index or projection of Event records already
+in that accepted history, not independent state or a second authority. In the
+Meaning Model instantiation, its own construction and acceptance contract
+supplies this update. $Q$ declares which process
+identifiers, fields, structural perspective roots, and temporal resolution are selected, and
+$\Pi_Q$ projects their accepted path as $X_I$. Thus $X$ is an attachment to or
+view of accepted world history, not a second authority that can contradict
+$W$. $O_{\psi}$ receives only the now-defined accepted interval, selected
+projection, Events, and access policy $h$. The external inputs are
+$u_I$. Neither $G_{\phi}$ nor $O_{\psi}$ must be closed form: each may be a
+language-model proposal, deterministic code, a stochastic process, an
+empirical table, a learned model, or a pipeline of several mechanisms.
+
+Equation~\ref{eq:life-transition} describes a generated continuation, but not
+every accepted path is generated by $G_{\phi}$. A recorded trajectory may enter
+the same update through an observation adapter, retaining its observed status
+and never being redescribed as a model output. Before either route is used, a
+process declaration fixes its world address, temporal support, value domain and
+unit when one exists, and sampling and missingness policy. Its uncertainty is
+also factored rather than pooled: transition stochasticity, uncertainty about
+latent state, parameter uncertainty, measurement error, population
+heterogeneity, and model discrepancy answer different questions and remain
+separately reportable.
+
+The indispensable object is the versioned path, not the equation used to
+produce it. Continuous coordinates retain units and sampling rules. Discrete
+events retain intervals, participants, provenance, and state changes. Hybrid
+processes relate the two: a discrete injury changes a continuous capacity path;
+a threshold crossing creates an event; an institutional decision changes the
+regime governing a financial stock. Unknown, unmodeled, and unresolved states
+remain legal rather than being filled with invented precision.
+
+The native stream $Y$ is not subordinate to the explicit track. It is the text,
+image, audio, action, sensor reading, transaction, or document a system would
+actually observe. The process projection $X$ and discrete Event path $E$ are
+selected parts of the accepted history whose cost and value must be measured. A latent model can be a
+stronger comparator; explicit state earns its place only when it improves
+prediction, transfer, control, correction, or audit at matched total cost.
+
+\subsection{Process fields, allocation, and events}
+
+Three numerical and structural roles must remain distinct. A state coordinate
+is a numeric process field with an independently declared unit or measurement
+protocol; other process fields may be categorical. Concurrent fields do not
+sum merely because they describe the same Thing. An allocation divides one
+named unit among mutually exclusive
+answers and therefore sums to one. Events occur within or across processes and
+may change several coordinates at once; the set of events is not normalized.
+When the Meaning Model is used, its Cut record supplies the allocation case and
+typed world data supplies the coordinate case. Life Simulation does not add a
+third kind of semantic number.
+
+This distinction permits both literal conservation and qualitative modeling.
+Cash, elapsed time, energy, or population may obey accounting identities in
+their native units. Attention or attributed causal responsibility may be
+represented as local shares under a declared question. Health and standing are
+concurrent categorical or externally measured process fields, not numeric
+coordinates unless an independent unit or protocol is supplied and not
+competing pieces of a person. A discovery can
+perturb science, industry, and politics simultaneously without forcing their
+effects into a simplex; a separate impact allocation is possible only after a
+named perspective states what total unit is being divided.
+
+\subsection{Slow trajectories, shocks, and adaptation}
+
+Processes are nested by temporal resolution. Slow paths summarize persistence
+or drift; faster events perturb them; still finer events may be linked to the
+local shape of one perturbation. A perspective-specific causal explanation remains a
+separate attribution. A long process can be opened into disjoint periods
+for aggregation and also linked to overlapping episodes such as illness,
+partnership, or war. The periods are an accounting partition. The episodes are
+causally or narratively coherent arcs and need not tile the parent.
+
+A shock is defined relative to a selected process and resolution: an event or
+short interval that produces a material departure from its recent path or
+expected continuation. Its reach is the set of processes it measurably or
+interpretively changes. Anticipation belongs to a named perspective and cutoff. Before the outcome, a
+direction Cut declares whether its weights are a proposal policy or forecast
+probabilities over exclusive continuations at a stated horizon. Proposal
+weights guide construction; forecast probabilities express predicted
+likelihood and can be scored once the outcome is observed, even before
+calibration has been established. Calibration is evaluated empirically across
+forecasts.
+Adaptation is the subsequent path. Useful descriptive shapes
+include drift, recovery, consolidation into a new baseline, instability or
+cascade, terminal transition, and anticipated transition in which adjustment
+begins before the event.
+
+Operational descriptors make those shapes comparable without declaring a
+governing equation. Shock magnitude is only a change in a native-unit measured
+field, total variation between compatible Cuts, or a named categorical
+transition---never a freely chosen scalar. Other descriptors include recovery
+half-life; cascade fan-out; delay from shock to slow-state change;
+and dependence of later event hazard on the preceding state. Every descriptor
+retains its process, resolution, sampling rule, evidence status, and uncertainty.
+
+One candidate multiscale pattern gives fast events durable influence. Repeated
+events write to a memory or resource stock; the stock crosses a threshold; a
+slower process field or regime changes; and that change feeds back into later
+sensitivity, recovery, available actions, or event hazard. Fatigue, trust,
+institutional backlog, and accumulated anomalies can all exhibit versions of
+this shape, but they need not use the same representation. Fatigue or backlog
+may be categorical or independently measured stocks; accumulated anomalies may
+be counts; attributed trust is an Event-and-Cut trajectory contained within the
+attributing actor's or observer's perspective process unless an independent
+measurement protocol is supplied. The shared diagram is not
+evidence for a shared law. Each instance
+must beat no-memory, linear-accumulation, and direct-model baselines on held-out
+paths before the feedback pattern is retained.
+
+The same vocabulary can be applied recursively, but not mechanically. A war
+may be a society-scale shock, a years-long episode in one person's life, and a
+sequence of minute-scale shocks in a single encounter. Whether these views
+compose is a declared modeling question. The method does not infer an
+individual's trauma from a collective label, does not invent an ancestral cause
+to close a remainder, and does not treat a plausible jump-and-recovery story as
+a validated psychological law.
+
+\subsection{Local models and perspective}
+
+When agents act from incomplete information, the relevant state is not only
+the world history but the history available to that actor. Let
+$\mathcal M_a(t)$ denote the projection derived from representational Events
+under actor $a$'s governing perspective root at $t$, together with records
+permitted by the access policy,
+and let $\mathcal M_a^*(t)$ denote the unknown or authored operative organization
+actually used in a decision. An observer $o$ may maintain one or more estimates
+$\widehat{\mathcal M}^{*}_{o\rightarrow a,j}(t)$. World state, actor projection,
+operative model, self-report, and observer hypotheses are separate objects. A
+simulated decision for $a$ receives only records accessible through
+$\mathcal M_a^*(t)$ and actually observed or delivered by the cutoff. Mere
+co-presence or reference does not reveal every Event field or another actor's
+inner state; disagreement with the world is misperception, while
+disagreement between perspective projections is a relation to be modeled rather than averaged
+away.
+
+For an actual person, four epistemic objects must not collapse: external
+evidence about conduct and circumstance; several observers' competing
+hypotheses about the person's operative organization; the person's dated
+self-report; and whatever operative organization remains unknown. An
+Understanding Graph trace externalizes a selected set of questions,
+interpretations, reports, and revisions. It is not asserted to be a complete
+mind, and silence in that trace is missing cognitive annotation rather than the
+absence of thought.
+
+This makes theory of mind temporal. The target is not a single trait label but
+a calibrated path over beliefs, wants, appraisals, opportunities, and estimates
+of other actors. Several paths may remain compatible with the same behavior.
+They earn a role only if they improve later prediction or intervention relative
+to summaries, static traits, and an equally informed latent baseline.
+
+\subsection{A proposed process sensorium}
+
+The larger learning claim is to predict native observations and selected
+explicit process state together. Given cutoff history $H_t$, a student may be
+trained toward
+
+\begin{equation}
+ p_{\theta}\!\left(
+   Y_{(t,t+\Delta]},X_{(t,t+\Delta]},E_{(t,t+\Delta]},\Delta\mathcal V
+   \mid H_t,Q,\mathcal V^{(k)}
+ \right),
+ \label{eq:joint-process-prediction}
+\end{equation}
+
+where $H_t$ is the exact cutoff-visible native and accepted-world history;
+$Y$ is the native text, image, audio, measurement, or action stream; $X$ is the
+selected coordinate, allocation, and derived-process path; and $E$ is the
+selected index of accepted discrete Events in that history. The query $Q$ fixes the process
+identifiers, fields, applicable root paths, and resolution to be predicted, as in
+Section~\ref{sec:temporal-object}. The registry version $\mathcal V^{(k)}$ is
+frozen at the cutoff, and $\Delta\mathcal V$ contains proposed model revisions.
+New or revised concept definitions, process lenses, world-data schemas, Cut or
+Binding profiles, and grounding versions require a separate versioned model
+revision before later predictions may use them. Ordinary Event, Cut, and Binding
+instances using the frozen registry enter through validated world updates;
+they do not change the registry. Unknown, unmodeled, and uncertain are valid
+outputs; the model is not rewarded for inventing precision.
+
+The explicit process track is a proposed sensorium: training on emotional,
+spatial, social, institutional, or problem-solving trajectories asks a model to
+maintain estimates of persistence, accumulation, threshold, delay, recovery,
+coupling, and regime change instead of mentioning a state only when a nearby
+token makes it salient. This is a testable capability claim, not a claim of
+consciousness or direct perception. Simulator-privileged targets during
+training, posterior inference from ordinary observations, and explicit sensors
+at deployment are three different conditions and must be reported separately.
+
+The intended numerical intuition is an ability to connect visible situations
+to these structured quantities without reconstructing the entire account from
+scratch on every query. It is not access to a unique set of numbers hidden
+behind every human life. A pound balance retains its external unit; an emotion
+Cut retains its question, sibling-relative shares, remainder, and perspective.
+Their changes can support anticipation and correction without making the
+numbers interchangeable. The proposed new sensory faculty is functional:
+notice accumulation, an approaching limit, or a changing balance of concerns,
+and produce a calibrated estimate when asked. Unfamiliar scales and explicit
+numerical prediction tests must distinguish this capacity from fluent talk
+about change.
+
+The aligned track is compared with the five-level frontier and the
+time-permuted and state-scrambled controls in Section~\ref{sec:evaluation}.
+A benefit shared with scrambled tracks does not establish a synchronization
+advantage. The additional gain of the aligned track over its matched scrambled
+control is the relevant test; both effects may coexist.
+
+If the capability transfers across unrelated domains, operates on each
+process's native time and units, and survives those controls, it may be useful
+to call it \emph{process-native intelligence}: competence at maintaining and
+reasoning over evolving processes rather than only describing their latest
+surface. The name is conditional on the evidence and is not a claim of general
+intelligence.
+
+Persistent residual error may motivate a proposed Event boundary, process
+lens, measured field, Concept, decomposition, or grounding. Such growth earns acceptance only if it
+improves recomposition, held-out prediction, intervention, or transfer enough
+to pay its acquisition and maintenance cost. No present artifact trains or
+validates this faculty.
+
+\subsection{Synthetic bootstrap and generative inversion}
+
+Synthetic semantic worlds provide the controlled first rung because the
+generator knows their accepted Events, structurally separated actor
+perspectives, actions, rejected siblings,
+and later consequences. Independently varied renderers can express one world
+as prose, dialogue, images, audio, or game traces. A state-blind inverse model
+then reconstructs only what a prefix supports. Cross-renderer recovery tests
+whether it learned represented process structure rather than one writer's
+phrasing.
+
+The learning route is
+
+\begin{equation}
+ \begin{aligned}
+  \text{accepted structured world}
+  &\rightarrow\text{varied observable renderings},\\
+  \text{rendering prefix}
+  &\rightarrow\text{distribution over world records}
+  \rightarrow\text{predicted later behavior}.
+ \end{aligned}
+ \label{eq:generative-inversion-method}
+\end{equation}
+
+This is analysis by synthesis. Narrative quality is part of the laboratory:
+worlds whose renderings are judged coherent and meaningfully surprising have
+passed a generative-coherence test. They have not established that their
+authored psychology is true. After identifiability is tested inside synthetic
+worlds, the representation can be tested on licensed fiction, biography,
+dialogue, historical records, and consented longitudinal data with uncertainty.
+Later actions, reports, measurements, and interventions score earlier
+distributions. The compact rule is synthetic-centered bootstrapping and
+reality-centered validation.
+
+Writing from a model and reconstructing a model from a book are related but
+not interchangeable achievements. An author may choose an unspecified motive
+or invent the missing event; an inverse reader must retain alternatives where
+the text does not decide between them. An unreliable narrator or inconsistent
+account may require several perspective-local reconstructions rather than one
+complete world. Neither direction is declared universally harder. Forward
+success supplies controlled examples for inverse learning, not proof of its
+success on arbitrary books. The eventual corpus-wide ambition is repeated,
+source-grounded reconstruction with selective human correction, uncertainty,
+and a recorded cost, not exhaustive recovery of every author's hidden model.
+
+\paragraph{A connected Meaning Model of the corpus.}
+The larger ambition is a progressively constructed Meaning Model of what the
+accessible corpus describes, not only an independent reconstruction for each
+book. Accounts of the actual world can connect to shared people, places,
+institutions, and Events where evidence supports the identification. A
+biography, a letter, and an economic history may refine different parts of the
+same period. Each contribution retains its source, access conditions, and
+uncertainty; incompatible accounts remain contestable rather than being
+merged into an apparently certain history. Fictional and counterfactual
+worlds remain separate, even when they refer to real places or historical
+people.
+
+Coverage can grow across world history and geography while resolution deepens
+selectively. A coarse account of a city over a century may later open into
+decades, institutions, relationships, and individual Events, with links to
+processes elsewhere. New sources can also revise the coarse account rather
+than merely fill it in. A newly read letter may change the model's account of
+an earlier year; that revision must not silently enlarge the information
+available to an actor at that earlier time. Updating the external Meaning Model is distinct from
+training model weights: selected snapshots and construction histories can
+subsequently supply training examples under their own cutoffs. Whole-corpus
+coverage is the direction of growth, not a claim that missing history or
+private experience becomes knowable.
+
+Authored worlds and actual-world reconstructions therefore serve different
+training purposes. Fiction permits chosen events, explicit inner lives, and
+controlled alternatives; acceptance establishes fictional canon. An account
+of reality must answer to independent evidence, preserving unknowns and
+attributed interpretations instead of inventing facts to complete the graph.
+Both regimes can supply construction histories and represented-world
+histories, the separate learning views in Section~\ref{sec:learning}.
+Synthetic examples can teach representation and simulation skills, but their
+consistency cannot validate claims about reality.
+
+Generation also provides a way to explore candidate mechanisms. A proposed
+process must sustain a history whose consequences can be inspected, rather
+than merely sound plausible in a description. Failure may motivate a different
+transition rule or a revision of the represented processes and concepts, as
+allowed by the sensorium's model-revision output. New histories then test the
+revised account; selected correction histories can later train a successor
+learner. This closes the loop from constructing worlds to improving how they
+are understood and constructed. Coherence can select interesting candidates,
+but independent observations and interventions must decide whether any
+candidate explains reality. The loop is a research proposal, not a general
+algorithm for discovering laws.
+
+\section{The Meaning Model as World Interface}
+\label{sec:meaning-interface}
+
+This paper assumes, rather than re-derives, the Meaning Model
+\cite{westerbergMeaning2026}. Its stable interface consists of registered
+Concepts and Things, time-bearing Events, typed Bindings, local Cuts, and
+Realizations, each with provenance. Every modeled Thing is associated with a
+lifecycle Event. Events can carry typed world data, participate in longer
+processes, and update selected coordinates. A Cut divides one declared unit
+among mutually exclusive children and a remainder. Every Cut has an Event
+parent and inherits context through edges declared \textsf{authority-parent},
+not through every link to a parent. These paths must resolve to the same
+nearest context root; otherwise the record is rejected as ambiguous. Temporal
+containment, occurrence, reference, evidence, and grounding alone confer
+neither authority nor access. A Realization links a fragment to a versioned Concept grounding. These
+distinctions let Life Simulation ask what changes without redefining what the
+records mean.
+
+The selected roots make that ancestry explicit. Accepted world Events descend
+from the Universe's lifecycle Event, History. That temporal ancestry does not
+override a nearer actor-local authority root. A belief, appraisal, forecast, or
+estimate attributed to an actor is a distinct Event in a named inner Event
+process beneath that actor's lifecycle. Understanding Nodes descend
+from a named understanding-process root, and Document Nodes descend from a
+named document root. A Document Node with role \textsf{story-passage} is the
+addressable unit used by rendering and read-back; it is not an additional
+record form. An Event may carry an optional readable description field for that
+exact Event version. This field is neither an Understanding Node nor a Document
+Node and has no independent authority.
+
+Every record query returns its permitted parents and authority-parent paths to
+the governing context; temporal ancestry is identified separately. Access and
+the evidence cutoff are checked before traversal or serialization. A denied
+reference exposes neither private content nor private ancestry. A query or
+export containing a Cut or component returns the complete permitted local
+Cut---parent Event, question, unit, keyed sibling answers and weights,
+remainder, optional conditioning address, constraints, and recomposition
+rule---or denies the Cut view as a whole. A semantic weight is never returned
+or trained on in isolation. Reference, evidence, \texttt{renders}, and
+Realization target links do not authorize traversal of their targets.
+
+The companion paper also owns the construction surface: progressive opening,
+world and concept preparation, actor profiles chosen for a run, candidate
+acceptance and revision, narrative routes, rendering, read-back, and the
+construction of \Book{}. The required output to Life Simulation is a versioned accepted
+history with stable identities; process attachments and measurements;
+structural perspective paths, evidence, and uncertainty labels; exact
+concept-grounding digests; and any native story-passage Document Nodes or other
+observations aligned to that history. A different
+world grammar could be substituted only if it supplied equivalent contracts.
+
+The Meaning Model and Understanding Graph share addresses but not authority.
+Questions, reasons, reports, and revisions can point to the same Events,
+Concepts, Cuts, and story-passage Document Nodes that the simulator uses. Dense cognitive
+annotation is optional for a world model. For the alignment-facing training
+proposal it is recommended, because it preserves whose interpretation was
+offered, what evidence was visible, and how that reading changed. Understanding Nodes
+do not become world truth by sharing the graph.
+
+Sema provides content-addressed identity for concept-definition bundles
+\cite{westerbergSema2026}. A grounding digest tells the learner exactly which
+encoded definition or anchors were used. It does not prove semantic truth or
+equivalence. Life Simulation treats grounding revision as part of the temporal
+record when it affects prediction or learning; the Meaning Model paper owns the
+definition architecture itself.
+
+\section{Evaluation Program}
+\label{sec:evaluation}
+
+The first test should isolate a learnable process signal with known dynamics
+and observation limits. The broader gates below remain necessary for stronger
+claims; they are not a demand to implement every application before this test.
+
+The tests below are grouped by claim, not a mandatory sequence for every use.
+Source integrity, valid cutoffs, and applicable replay checks are prerequisites
+for the experiment that uses them. Candidate-law discovery is optional: a
+failed law does not invalidate learning from histories generated by another
+mechanism. Likewise, learning from execution traces need not wait for transfer
+to personal data. Within a claimed use, success cannot compensate for a failed
+prerequisite or required safety test. No generated example supplies evidence
+for a reality-facing claim by itself.
+
+\begin{enumerate}
+  \item \textbf{World-interface validity.} The source representation must pass
+    its own identity, temporal, provenance, uncertainty, and refinement checks.
+    For the first narrative world, partial construction and mechanism
+    checks are reported by the companion Meaning Model paper; independent
+    read-back and the matched literary comparison remain prospective.
+  \item \textbf{Temporal replay.} Given a pinned version, initial state, inputs,
+    and randomness, the simulator must reproduce the same path within declared
+    numerical tolerances and preserve discontinuities and regime changes.
+  \item \textbf{Candidate-dynamics value.} A proposed function or simulator is
+    compared with direct language-model continuation, nonparametric persistence,
+    and simpler domain baselines on held-out paths and interventions where
+    possible.
+  \item \textbf{Process-sensorium value.} A learner trained on native and
+    explicit process targets is compared with a native-only learner and an
+    equally resourced latent-state learner. Prediction, calibration, transfer,
+    abstention, and total acquisition, maintenance, and inference cost are
+    reported. Time-permuted and state-scrambled process tracks test whether any
+    gain depends on the asserted temporal alignment rather than on extra tokens
+    or marginal statistics.
+  \item \textbf{Generative inversion.} Recover only quantities identifiable
+    under the observation policy. Indistinguishable prefixes should retain
+    alternative states, not be scored as failed exact recovery. Compare
+    posterior calibration and future prediction with prior-only and, where
+    computable, oracle-posterior baselines. Worlds and renderer families are
+    separated across train and test splits.
+  \item \textbf{Prospective transfer.} Predictions on licensed corpora or
+    consented longitudinal data are frozen at their historical cutoff and
+    scored only against later evidence, following Temporal Hindsight Learning
+    discipline~\cite{westerbergTHL2026}.
+  \item \textbf{Process-history learning.} Endpoint-only training is compared
+    with accepted-and-rejected revision histories, including an unstructured
+    trace arm with the same information. Fractal Intelligence telemetry supplies
+    a second domain for this comparison.
+  \item \textbf{Human-facing validity and risk.} Perspective-specific estimates and
+    evaluative concepts are tested for calibration, disagreement, subgroup
+    failure, contestability, manipulation, and score gaming. Better prediction
+    is not treated as evidence of safer behavior.
+\end{enumerate}
+
+\subsection{First experiment: a partially observed resource process}
+\label{sec:first-experiment}
+
+This is a proposed protocol, not a reported experiment or a claim about human
+psychology. Two reservoir Things have a joint supply process and separate
+stock Events with litre-valued data. Their simultaneous stocks do not sum to
+one. A hidden, fixed leak location, supply interruptions, and occasional local
+measurements create persistence, disruption, recovery, and incomplete
+knowledge without an invented psychological scale.
+
+\paragraph{World and observations.}
+Each reservoir holds at most $20$ litres. Initial stocks $a_0,b_0$ are
+independently uniform on $\{8,9,10,11,12\}$; the leak $z\in\{A,B\}$ is uniform.
+Supply mode $q_0=1$, and $q$ flips independently with probability $.1$ at each
+subsequent hour boundary. At integer $t$ the learner observes the current mode
+$q_t$ and total $S_t=a_t+b_t$. During the following hour,
+\begin{equation}
+ x_{i,t+1}=\operatorname{clip}_{[0,20]}
+   \bigl(x_{i,t}+u_{i,t}-2-\mathbf 1\{z=i\}\bigr),
+ \qquad u_{A,t}=u_{B,t}=4q_t .
+ \label{eq:reservoir}
+\end{equation}
+Rates are litres per hour and the step is one hour. Between boundaries the
+stock is linear until it reaches a bound, then remains there for the rest of
+that hour. Clipping records overflow or unrealized net depletion separately;
+this toy model does not assign priority between leakage and useful demand.
+An empty-onset Event means a transition from positive stock to zero, not
+every hour spent empty. Supply-switch and bound-contact Events come from
+the same path, not independent labels.
+
+Every history lasts $96$ hours. Half include an exact gauge reading of $a_{24}$
+at hour $24$; the others never reveal individual stocks. Native logs contain
+only timestamps, total readings, supply modes, gauge availability, and any
+gauge value actually delivered. Typed and ordinary-text views encode exactly
+those facts; neither receives hidden leak labels or unobserved bound contacts.
+For each forecast, the next four-hour action schedule is supplied at the
+cutoff. The two schedules are ordinary supply, or diverting all $8q$ litres per
+hour to $A$ in the second hour only. Each is rolled from the same prefix using
+matched future supply draws; future outcomes never enter the input.
+
+\paragraph{A minimal learner and objective.}
+A byte-token encoder with two causal Transformer blocks, width $128$, four
+attention heads, and context $8192$ predicts one joint categorical posterior
+$r_\theta(a_t,z\mid H_t)$; $b_t=S_t-a_t$ is derived. Capacity constraints leave
+at most $42$ candidate states. This is a computational probability
+distribution over candidate worlds, not a new semantic trait score. Inferred
+world records remain candidates. The same fixed decoder applies
+Equation~\ref{eq:reservoir}, derives Events and projections, and exposes only
+the requested observations. Thus predicted stock, Events, and totals cannot
+disagree within one candidate. Future supply uncertainty uses the known
+Markov law: with $q_t$ visible, four-hour stocks require three unknown mode
+transitions, hence eight future mode paths.
+
+Let $y$ be the next four total readings, $s=(a,z)$, and $D_y$ the decoder's
+observation projection under the supplied action schedule $u$. The marginal
+forecast and training loss are
+\begin{align}
+ P_\theta(y\mid H_t,u)
+ &=\sum_{s,Q_f}r_\theta(s\mid H_t)\,P(Q_f\mid q_t)\,
+       \mathbf 1\{D_y(s,Q_f,u)=y\}, \label{eq:reservoir-marginal}\\
+ \mathcal L
+ &=-\log P_\theta(y\mid H_t,u)
+       +\lambda m_s[-\log r_\theta(s^\star\mid H_t)] .
+ \label{eq:reservoir-loss}
+\end{align}
+Here $m_s$ masks unavailable state labels and $\lambda=1$ in the supervised
+arms. The second term uses simulator-privileged state only as a training
+target. This is a weighted auxiliary objective, not the joint likelihood of
+two independent observations: the native target is a projection of the same
+state. Losses are computed in nats per forecast example without an additional
+loss on deterministically derived Events. Registry revision is disabled:
+$\Delta\mathcal V=\varnothing$. Learning unknown laws and registry changes is
+a later experiment.
+
+Use three shared-decoder arms: ordinary-text input with native loss only
+($N$, $\lambda=0$); identical input with state supervision ($U$); and
+content-identical typed input with the same state supervision ($T$).
+The primary contrast $U-N$ tests privileged process supervision; $T-U$ tests
+input organization with information held fixed. A fourth reference uses the
+same encoder and an autoregressive categorical head over four total readings,
+without the physical decoder or state labels. It is a direct native predictor,
+not an architecture-matched test of typing. These roles prevent a gain from
+additional targets from being called a gain from the grammar.
+
+\paragraph{Primary comparison and outcome.}
+The primary outcome is four-hour native forecast negative log likelihood,
+averaged within world group. The $U-N$ contrast tests process supervision;
+$T-U$ tests input organization. World groups keep mirrored histories and
+intervention siblings in one split, and results include paired initialization
+seeds and a group-bootstrap interval. Appendix~\ref{app:reservoir-protocol}
+specifies every split, training setting, renderer control, scoring rule, and
+benchmark. Appendix~\ref{app:reservoir-row} shows a complete forecast row.
+
+\paragraph{What cannot be inferred.}
+With symmetric actions and no gauge, mirrored worlds have identical native
+histories and opposite leak locations. Leak attribution must remain $1/2$
+under the symmetric prior; an exact leak label is not a valid recovery demand.
+Include those pairs explicitly, and score their predictive distributions.
+A later gauge or asymmetric intervention may distinguish them, but does not
+license retrospectively changing the earlier forecast. The experiment can
+support a claim about supervised filtering and prediction under known
+dynamics. It cannot establish new-law discovery, human-state validity, or
+alignment.
+
+\subsection{The implicit-to-explicit frontier}
+
+The process track should be tested as a graded intervention rather than as a
+binary choice between no world and a complete world. A primary ablation uses
+five levels on the same source facts and prospective tasks:
+
+\begin{enumerate}
+  \item a native-stream-only model whose temporal state remains implicit;
+  \item a content-matched, untyped process summary in ordinary text;
+  \item a coarse explicit temporal spine containing only selected processes,
+    Events, cutoffs, and unresolved state;
+  \item an adaptive explicit track that opens finer process state only when a
+    prediction, interaction, or audit requires it; and
+  \item an explicit-heavy condition that maintains all selected state at the
+    finest preregistered resolution.
+\end{enumerate}
+
+The second arm separates the value of retaining additional information from
+the value of typing and synchronizing it. Two further negative controls retain
+the same amount and marginal distribution of process data while destroying the
+claimed correspondence: a time-permuted track reorders path segments within a
+compatible world, and a state-scrambled track exchanges them across matched
+worlds or perspective roots. Native data, training examples, model family, and optimization
+budget remain fixed. The accounting includes sensing or annotation, state
+construction, validation, correction, storage and context, and training and
+inference compute. The explicit frontier earns its place only if aligned state
+improves prospective prediction, calibration, transfer, intervention, or
+correction burden after those costs are counted. The hypotheses have separate
+failure rules. An untyped condition matching the typed condition rejects a
+typing advantage for that task, not the value of extra information. Success
+only with explicit-heavy state challenges adaptive efficiency, not explicit
+supervision. A synchronization claim requires an aligned-minus-scrambled
+advantage: scrambled data may retain a generic information benefit while
+aligned data add a further gain. Report both contrasts rather than treating
+any surviving scrambled benefit as failure of the entire proposal.
+
+Required negative findings include explicit tracks that add cost without
+improving a matched outcome, process variables that cannot be identified from
+ordinary observations, candidate laws that lose to direct or simpler models,
+adaptive-resolution policies that hide material downstream effects, synthetic
+regularities that fail on real chronology, and Reader or self-evaluation tracks
+that increase manipulation or false certainty. These results narrow the method
+and must be published rather than absorbed into a revised representation.
+
+The primary statistical unit, split rule, metric, and uncertainty procedure
+depend on the domain. Proper scoring rules are used for forecasts; continuous
+paths require unit-aware error and calibration; event processes require timing
+and count diagnostics; perspective-local decompositions require compatible
+question, vocabulary, and grounding versions. The common rule is prospective:
+freeze the input and prediction before revealing the interval used to score it.
+
+\section{Adaptive Process Resolution}
+\label{sec:resolution}
+
+A simulation should spend detail where it can change an active prediction,
+decision, observation, or audit. A coarse region may retain aggregate stocks,
+event rates, and unresolved state while no query depends on its interior. When
+an agent enters the region or a downstream effect becomes material, the runtime
+can instantiate a finer conditional model consistent with the retained
+aggregate evidence. Fine state may later be marginalized, but committed effects
+and identities cannot disappear with it.
+
+This is not a claim that an unobserved street or person was already simulated
+in full. It is an adaptive-computation proposal. A process may be represented
+by a distribution over fine states until interaction makes one resolution
+necessary. If fine dynamics can affect an active coarse prediction, their
+effect must be propagated statistically or the region must be opened. Ignoring
+that coupling is not progressive resolution; it is an inconsistent simulator.
+
+Two refinement directions require different checks. When fine state is
+authoritative, the coarse path is its declared aggregation. When only a coarse
+path exists, finer state is sampled conditionally from it and from every fixed
+anchor, then rejected or reconciled if reaggregation changes an anchor or an
+intervention's observable effect. Descendants that have not been instantiated
+are unmodeled state, not a Cut remainder: the remainder is reserved for an
+unallocated share under one question. A resolution policy is therefore scored
+by predictive, control, correction, or audit benefit minus the total cost of
+generation, sensing, validation, storage, context, and inference. This adaptive
+semantic level of detail is useful only while coarsening and reopening preserve
+the behavior of declared interventions.
+
+\paragraph{A bounded reopening test.}
+The reservoir protocol makes this obligation concrete. Aggregation is
+$A(a,b,z,q)=(S,q)$. Away from stock bounds, symmetric supply gives the exact
+coarse rate $8q-5$ litres per hour. Near a bound, after a gauge, or under
+asymmetric supply, the same total can hide different futures. A total alone
+is therefore not a sufficient state for all permitted interventions.
+
+For this representation check, retain the exact oracle posterior over
+$(a,z)$ conditional on the accessible history, or enough immutable
+observations to recompute it. Reopening conditions on
+that history and the query; it does not draw arbitrary splits of the total.
+Compare repeated coarse/open cycles with the full oracle over the two declared
+action schedules and four-hour horizon. Require endpoint-total Wasserstein
+distance at most $.01$ litre and empty-onset probability difference at most
+$.01$; exact enumeration should make both zero, with tolerance only for
+numerical approximation. This tests distributions, not merely equal means.
+With a learned posterior, instead compare reopening against that same
+posterior before compression; its inference error against the oracle is a
+separate learning metric.
+If a compressed representation loses the required distinction, keep the
+richer posterior or replay the history and report its cost. If neither is
+available, return unresolved rather than fabricate a compatible refinement.
+These are operational diagnostics over forecasts, not new world fields.
+This finite check does not prove equivalence for arbitrary future policies.
+
+Interactive worlds are a natural test. A city can remain an aggregate network
+until play makes one neighborhood consequential. An encountered character can
+be opened into a perspective-limited local model while off-screen actors remain
+coarse. Text, graphics, audio, game logic, and physics then serve as specialized
+observation and transition mechanisms over a shared history. The experiment is
+whether adaptive explicit state improves continuity and interaction at matched
+compute, not whether the system can generate more lore.
+
+\section{Candidate Process Models}
+\label{sec:functions}
+
+The transition mechanism in Equation~\ref{eq:life-transition} is deliberately
+open. Each family below is optional domain content attached to a selected
+process or measured field. The world interface identifies what the model refers
+to and preserves its version, provenance, uncertainty, and tested scope. It
+does not make the candidate valid.
+
+\paragraph{The direct language-model transition.}
+The default is a language model asked to propose the next state or forecast
+from the same world prefix, without an added dynamic law. When the Meaning
+Model interface is used, the proposal can expose its question, structural
+perspective path,
+alternatives, evidence, and unresolved remainder. Every candidate family below
+must outperform this null condition at matched information and total cost;
+otherwise the explicit path may be retained while the added law is rejected.
+
+For the optional dynamics below, retaining a path is not enough to establish
+the law that produced it. The evidential status advances through a fixed
+ladder: raw observation; a proposed measured quantity or process
+indicator; association on a held-out interval; compact dynamics that improve a
+declared baseline; stability across environments or regimes; and independent
+replication. Failure at one rung leaves the candidate at the earlier status.
+Neither a smooth retrospective fit nor an LLM-generated explanation may skip
+the ladder.
+
+Several rival dynamics may remain attached to one process. Each candidate names
+a validity region---world addresses, variables, units, resolution, population
+or environment, regime, and forecast horizon---and accumulates prospective
+scores within it. A revision creates a new version linked to the evidence that
+motivated it. Failure can retire that version only for its tested scope; it
+does not erase the earlier forecast or silently discredit the model in regions
+that were not evaluated.
+
+A candidate function of reality would map declared inputs and state to a
+distribution over later observations or transformations. To earn a role beyond
+an LLM's direct cut, it should satisfy at least four tests:
+
+\begin{enumerate}
+  \item compress repeated cases better than storing them separately;
+  \item improve held-out prediction against a frozen LLM and nonparametric
+    baseline;
+  \item remain calibrated across declared regimes and expose where it does not
+    apply; and
+  \item survive intervention or counterfactual tests when the simulator can
+    alter its inputs.
+\end{enumerate}
+
+Such a function may be symbolic, numerical, learned, stochastic, or hybrid.
+It need not be expressible inside the Meaning Model grammar. It can be linked
+to the process it advances with version, provenance, tested scope, and measured
+error in its own units.
+The LLM may propose candidate laws from residuals and repeated structures, but
+an independent judge, held-out data, and interventions decide whether they
+compress or predict. This paper supplies no general discovery procedure, and no
+function fitted to an authored world should be presented as a discovered law
+merely because it made that world coherent.
+
+\paragraph{Mean reversion with shocks.}
+A continuously measured world quantity may be modeled as movement toward a
+changing baseline interrupted by discrete shocks. This attaches as a versioned
+domain law over that datum, while the shock remains an Event already represented
+by the profile; the stochastic equation is not a record form. An unmeasured
+human process retains only the qualitative shock-and-adaptation Event shape. A
+quantitative law fails if it
+cannot improve held-out trajectory likelihood, recovery-time calibration, or
+intervention response over free interpolation and simpler drift baselines
+\cite{uhlenbeckOrnstein1930,merton1976jump}.
+
+\paragraph{Point processes.}
+Independent Poisson arrivals provide a baseline for event timing, while
+self-exciting processes represent clustering after one occurrence changes the
+near-term hazard. Either model attaches to the direction field of a lifecycle
+or period Event and may supply probabilities scored through its direction Cut;
+neither adds a record form. Miscalibrated waiting times, cluster sizes, or
+state-conditioned hazards on held-out intervals reject the candidate
+\cite{hawkes1971,meiEisner2017}.
+
+\paragraph{Change points and regimes.}
+A detector or regime-switching model may propose boundaries where the law or
+distribution of a measured trajectory changes. Its output attaches to candidate
+boundaries for a sequential Cut, and any regime-specific equation remains a
+domain law rather than a record form. The proposal fails if those
+boundaries add no prospective compression or prediction and receive no support
+from independently held-out observations under a frozen matching rule
+\cite{killick2012changepoints,goebel2009hybrid}.
+
+\paragraph{Stochastic and network games.}
+When agents, observations, actions, payoffs, and uncertain transitions have
+declared meanings, a game can attach to an interaction Event's direction field
+and supply a declared proposal policy or forecast probability distribution for
+a direction Cut. Raw policy scores enter only after a declared normalization.
+The probability interpretation, horizon, and outcome partition are fixed
+before observing the outcome; calibration is evaluated afterward. The game is a domain solver, not a record
+form, and it neither supplies perspective authority nor confers moral authority on a
+payoff. Failure to predict held-out choices or
+interventions defeats the formulation
+\cite{shapley1953stochastic,hansen2004posg,kearns2001graphical}. No corresponding
+solver or learned multi-agent policy exists in the current executor.
+
+\paragraph{Agent-based and system-dynamics models.}
+An agent-based model can propose member Events and interactions, while a
+system-dynamics model advances aggregate stocks and flows. Both attach their
+outputs to a collective Thing's Event-processes and typed world data; neither is
+a record form. They must be compared on held-out aggregate and
+distributional behavior, response to altered rules, and robustness across
+initializations rather than rewarded merely for producing plausible macro
+stories~\cite{epsteinAxtell1996artificialSocieties,
+forrester1961industrialDynamics}.
+
+\paragraph{Diffusion of innovations.}
+The spread of a discovery may be estimated with an adoption model whose hazard
+depends on exposure, network position, or earlier uptake. It attaches to the
+direction of adoption Events concerning one registered representation Thing;
+the adoption model is not a record form. Its scope is rejected when it cannot
+forecast the timing and distribution of adoption on held-out networks or
+separate influence from selection under the declared evidence
+\cite{bass1969,aral2009,manski1993}.
+
+\paragraph{Actuarial hazards.}
+Age is derived from a lifecycle interval, while a period- and population-specific
+mortality table can provide the hazard of a terminal continuation. The table
+attaches to a lifecycle Event's direction field and is not a record form. It is
+admissible only where the cohort, units, uncertainty, and historical source are
+declared, and it fails when survival forecasts are miscalibrated outside the
+data used to construct it~\cite{dicksonHardyWaters2020}.
+
+\paragraph{Learned world models and neural simulators.}
+An opaque learner may predict a measured world-data change or a distribution
+over an Event's possible continuations. Its output attaches to the same
+domain-law or direction slots as a symbolic model; its hidden state is not promoted
+to a Meaning Model record form. It must pass the same compression, calibration,
+transfer, and intervention tests and also serves as the opaque-latent comparator
+for an explicit profile~\cite{haSchmidhuber2018worldModels,
+hafner2025dreamer,schrittwieser2020muzero}.
+
+\subsection{Evidence standards differ by domain}
+
+The temporal contract is shared; the validation evidence is not. For
+instrumented software, traces and revision histories can provide exact event
+times, while replayed tests and controlled changes supply intervention evidence;
+missing instrumentation remains explicit
+\cite{otelSignals2026,linuxFtrace2026}. For energy and computation, candidate
+stocks and flows retain physical or accounting units, boundary conditions, and
+balance residuals; conservation is tested in those units rather than inferred
+from semantic weights. For ecology, population trajectories retain sampling
+error, survey design, environmental covariates, and held-out sites or seasons;
+a plausible curve in one population is not replication
+\cite{may1974populations}. For scientific simulators, equations, parameters,
+units, numerical tolerances, and sensitivity tests are part of the candidate,
+and comparison uses independent benchmark or intervention data when available
+\cite{clerx2020cellml,keating2020sbml,modelica2026spec}. Success under one
+evidence regime does not validate a process in another.
+
+The first control roadmap should begin with processes whose governing law or
+simulator is already known. Generate or observe matched histories, then compare
+the correct mechanism with a misspecified law, persistence, a flexible learned
+model, and direct language-model continuation while varying sampling, noise,
+interventions, and resolution. Only after the pipeline recovers the known law's
+validity region and rejects its rivals should the same promotion procedure be
+used for unknown dynamics. Recovery in this control is an engineering result,
+not evidence that the general discovery problem has been solved.
+
+\section{Narrative as the First Controlled Laboratory}
+\label{sec:narrative-laboratory}
+
+An authored narrative world offers an unusual experimental advantage: the
+accepted hidden state is available, while the observable text can still omit,
+misdirect, compress, and vary in style. The same world may be rendered through
+different narrators, viewpoints, scenes, or media. An inverse model can be
+tested against the records that generated those renderings without claiming
+access to the hidden state of a real person.
+
+The companion Meaning Model paper uses \Book{} for this first laboratory. It
+reports a completed manuscript and partial construction witness, and owns
+the historical preparation, world and concept construction, progressive
+opening, story decisions, and rendering routes~\cite{westerbergMeaning2026}.
+Independent read-back and the matched comparison remain prospective.
+The package is not yet the fully aligned export required here: Life Simulation
+needs accepted process paths, permitted authority and temporal lineage,
+epistemic status, aligned native story-passage Document Nodes, preserved
+cutoffs, later consequences, and versioned corrections. The companion's
+separate synthetic refinement checks do not retroactively establish these
+properties for the Book. No earlier private Book run
+is evidence for either paper.
+
+The narrative artifact can support three Life Simulation tests. First, conceal
+selected state and ask whether it can be reconstructed from a cutoff-safe
+story-passage prefix. Second, train on joint story-passage/process continuations and compare
+with a native-text-only learner at matched data and compute. Third, perturb a
+process or transition mechanism and test whether the changed history remains
+causally intelligible when rendered. These are tests of inverse recovery,
+process-aware prediction, and generative consequence. They are not the
+companion paper's construction or literary-quality experiment, and a coherent
+story alone validates no claim about real psychology.
+
+Narrative also exposes failure modes that simpler simulators hide. A character
+may act from a false belief; a narrator may omit an event; two perspective processes may
+interpret one relationship differently; and a later scene may tempt the model
+to rewrite an earlier forecast. These make perspective, partial observation,
+and hindsight leakage visible before the method is applied to higher-stakes
+data.
+
+\section{Learning from Process Endpoints and Histories}
+\label{sec:learning}
+
+Learning can follow how a Meaning Model was constructed or how the world it
+represents unfolds. These histories answer different questions, even when
+they concern the same records. In either view, evidence and authority remain
+distinct: Table~\ref{tab:epistemic-tracks-method} records the treatment each
+source requires.
+
+\begin{table}[H]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{@{}p{0.18\textwidth}p{0.28\textwidth}Y@{}}
+\toprule
+Track & Example & Required treatment \\
+\midrule
+Observed & Position, recorded action, released statistic & Preserve source, units, timestamp, observation process, and gaps \\
+Reported & A person's account, intention, memory, or rating & Bind to reporter and time; do not promote it to world truth \\
+Actively elicited & An answer to a gap-directed question & Record consent, exact question, context, selection effects, and correction rights \\
+Inferred & Belief, relationship state, hidden regime & Retain permitted authority-parent paths and separately identified temporal ancestry, distribution or alternatives, method, evidence cutoff, and calibration status \\
+Model-completed & A plausible missing interval or interpolation & Mark as completion; later evidence appends a correction rather than rewriting the old cutoff \\
+Authored & Fictional premise, selected branch, creative cut & May become fictional canon after acceptance but supplies no empirical evidence \\
+\bottomrule
+\end{tabularx}
+\caption{Evidence acquisition and epistemic authority are different axes.}
+\label{tab:epistemic-tracks-method}
+\end{table}
+
+Chronological evaluation freezes the exact information visible at cutoff
+$c_t$, emits and preserves a prediction, and scores it only after the next
+interval is revealed. Revision time, represented world time, observation order,
+and discourse order remain separate when they exist. Corrections append a new
+perspective-rooted, cutoff-bearing record. This is the condition under which a recorded
+history can become foresight training rather than a hindsight rewrite.
+
+\paragraph{Model-construction history.}
+This view follows the modeler's work: proposing a coarse world, choosing a
+decomposition, opening a period, finding a contradiction, and revising the
+larger plan. In an authored world, the modeler might outline an inventor's
+whole life before opening childhood, then move a proposed invention date when
+the detailed funding arrangement proves implausible. A training input is the
+task and model available at that construction step; a target is a useful next
+proposal, refinement, repair, or stopping decision. Linked Understanding Nodes
+can record the evidence and explanation for a choice without establishing
+that the choice was correct. The intended uses are world-building, writing,
+reconstructing models from sources, and learning how to organize and repair
+problem-solving representations. Life Simulation can learn from these traces
+without prescribing the source world's authoring procedure.
+
+\paragraph{Represented-world history.}
+This view follows the inventor's life rather than the modeler's edits: early
+ambition, a professional setback, a changed strategy, consequences, and
+adaptation. Given the accessible records and observations at a world-time
+cutoff, the target is a later interval or trajectory under a declared action
+or continuation policy. The intended uses are temporal understanding,
+forecasting, simulation, and character behavior, including how short shocks
+and responses contribute to long-term growth. An accepted Meaning Model can
+provide such chronological examples even if its construction trace was not
+retained. For authored worlds, these targets express fictional canon; for
+reconstructed sources, they retain the evidence distinctions above rather
+than becoming recovered ground truth.
+
+\paragraph{Two linked training views.}
+Both histories can be studied at coarse and fine resolutions. Construction
+order may move from a life outline to one scene and back; represented-world
+order may follow decades, periods, or episodes at the chosen resolution.
+This distinction is separate from endpoint versus history: a finished model
+can contain an entire evolving life. An endpoint example pairs an accepted
+world interval with its observations and recoverable state; a history example
+must additionally declare whether its sequence follows world development or
+model construction. A writer's construction input may legitimately include
+a planned ending that a character's earlier forecast must not receive.
+Future outcomes may supply targets, not leak into that forecast's input.
+Rejected proposals remain construction records, not accepted world Events;
+their use as contrastive supervision requires retained cutoffs, rejection
+reasons, and any later evidence used to justify the comparison.
+
+The two views are therefore complementary training sources, not competing
+grammars. Test chronological-world supervision, construction-history
+supervision, and their combination on the same source worlds at matched
+training budgets, with held-out tasks for both continuation and model repair.
+Any gain from combining them remains an empirical question. The curriculum
+below isolates selection and correction within the construction-history view.
+
+The longer learning loop remains a proposal. Accepted external abstractions and
+world revisions can first live in a versioned registry without changing model
+weights. Once later outcomes exist, selected histories can train a successor
+model. Promotion then requires held-out transfer, calibration, forgetting, and
+unrelated-capability tests. The present paper does not claim that repeated
+self-training makes labels unbiased or that one scalar quality score is enough.
+
+\paragraph{Learning deeper personality models.}
+The two histories also support a learning question about psychological
+resolution. The Book's person template is one replaceable profile, not a
+ceiling on what a Meaning Model can describe. For an authored character's
+refusal to delegate, construction records might retain alternative accounts
+involving accuracy, recognition, and trust, then show which distinctions were
+opened, revised, or left unresolved. Chronological records show the character's
+later choices and responses to collaboration. Paired examples could teach when
+to deepen an account, change its questions, request evidence, or keep it coarse,
+rather than teach only how to fill a predetermined personality tree. Concurrent
+inner processes remain unweighted; only declared allocations receive Cut
+weights.
+
+The test compares a fixed coarse profile with selectively refined profiles at
+matched training and inference budgets on held-out scenes or worlds. Report
+behavioral prediction, consistency under declared counterfactual interventions,
+and author control alongside cost and explanatory coherence. More branches or
+a persuasive rationale alone do not establish improvement. Fictional outcomes
+test the authored account; applying such refinement to real people requires
+independent evidence and the access conditions above. This connects personality
+modeling to Fractal Intelligence's proposal to learn useful decompositions
+(Section~\ref{sec:problem-solving-events}): the learner selects and revises the
+representation through which it understands a person, not merely the values
+inside it.
+
+\subsection{A four-way construction-history curriculum}
+
+Holding chronological-world supervision fixed, test how construction and
+correction records are selected through four curriculum conditions:
+
+\begin{enumerate}
+  \item accepted endpoints without their construction or correction histories;
+  \item all available histories admitted indiscriminately, including noisy and
+    redundant edits;
+  \item selected cutoff-safe histories containing invalid edits, repairs, and
+    justified stopping decisions; and
+  \item the same selected histories augmented by independent corrections of
+    errors produced on-policy by the trained system.
+\end{enumerate}
+
+These conditions intentionally differ in information and correction source;
+they are not information-matched. Match model family, source problems, training
+tokens, and compute, and report the annotation and selection cost separately.
+Within each history condition, a paired untyped rendering must retain the
+same facts and annotations as the typed rendering. That paired contrast tests
+representation; the four-way contrast tests history selection and feedback.
+
+The second condition tests whether mere process volume helps; the third tests
+selection and temporal validity; the fourth tests whether training survives its
+own error distribution. Rejections carry typed reasons such as unavailable
+evidence, future leakage, malformed representation, predictive failure,
+excessive cost, or a safety boundary. A fluent retrospective rationale is not
+a substitute for the rejected proposal, cutoff, evaluator, and later outcome.
+
+\subsection{Learning versioned concept recognizers}
+
+Versioned concept groundings create a separate proposed learning task. Given a world
+fragment and an exact grounding-version digest, a recognizer proposes an
+unweighted \emph{describe} Realization, a role and component alignment,
+supporting evidence, and, when grading is required, local fit Cuts over match,
+non-match, and remainder. Its output is a candidate rather than an
+authoritative label. Acceptance uses
+the same provenance and validation discipline as other candidates. An
+instantiator is evaluated separately: it proposes a new fragment intended to
+realize a requested Concept and has no authority until that candidate is
+accepted.
+
+Constructed worlds can provide examples whose Realizations are known within
+their authored canon. Training and validation must separate worlds, rendering
+styles, and grounding versions so that lexical imitation cannot masquerade as
+structural recognition. At matched information and cost, compare the structured
+recognizer with direct LLM judgment and exemplar-only retrieval. Report
+abstention, discrimination of positive and boundary cases, calibration,
+alignment agreement, and transfer to held-out worlds. Examples constrain but do
+not uniquely determine behavior on unseen cases; the declared grounding bundle
+and the operator's training procedure jointly supply the inductive choice.
+
+A recognizer evaluation exports an addressable fragment, its accepted
+\emph{describe} Realization, any accepted fit Cuts, and the exact grounding
+digest. These rows are evaluation inputs, not evidence that a recognizer has
+already been trained.
+
+Success on this task would show recovery of the semantics authored into those
+worlds, not that the same grounding is objectively correct for people. Corpus
+application therefore remains downstream of the synthetic test and retains all
+permitted authority-parent paths, separately identified temporal ancestry,
+evidence, grounding version, Cut
+remainder, and competing
+interpretations. No recognizer or instantiator has yet been trained or
+evaluated under this protocol.
+
+A second proposed route annotates existing human stories. An inverse model
+predicts events, wants, feelings, decisions, and concepts from text; humans
+correct a small verified subset; a student is trained on the combined corpus.
+Because human attributions include hindsight and narrative bias, every label
+retains its typed path to the applicable perspective root and its evidence. The expected benefit is long-range
+coherence and theory-of-mind prediction, not necessarily better sentence-level
+style.
+
+In the perspective-limited condition, the proposed learner receives only what
+actor $a$ could access and
+predicts the later-supported or fictionally authored interior of actor $b$.
+The constructed world supplies controlled cutoffs and targets for a small-scale
+estimator test. Applying the idea to people would instead require consented
+measurement, explicit uncertainty, and prospective validation. Its output is
+still an inference made by an observer, not direct possession of $b$'s state;
+no current artifact trains or tests such a learner.
+
+\subsection{Problem-solving episodes as world events}
+\label{sec:problem-solving-events}
+
+Problem solving can be represented as a process before any special solver
+machinery is introduced. An episode preserves its task and information cutoff,
+available routes, chosen action, later consequence, and any reframe. In a
+narrative world, the Meaning Model may additionally expose perspective-local motives
+and strategy interpretations; in a software trace, these may instead be typed
+inputs, outputs, and evaluator judgments. Stable variation across named
+situations is an if--then profile rather than one global trait
+\cite{shoda1994signatures,mischelShoda1995caps}. Changing character state does
+not require one fixed personality decomposition in every domain.
+
+Fractal Intelligence supplies a second prospective source of process
+histories: a Solver is invoked, proposes or follows a conceptual carve, receives
+a typed gate judgment, and may stop, deepen, or reframe
+\cite{westerbergFractal2026}. Table~\ref{tab:fractal-meaning-adapter} states a
+proposed representation of that telemetry under the Meaning Model profile. It
+is a structural correspondence, not an implemented adapter. In particular, an
+invocation binds the executing agent or system in an actor role and the Solver
+Thing in a capability-interface role; one agent may implement several Solvers,
+and one Solver may be realized by several agents. Typed containment identifies
+the authority whose record or judgment is expressed: observed execution
+descends from History, a self-attribution is contained in a named inner process
+beneath the executing system's lifecycle, and a gate assessment is contained
+within the evaluator's named perspective process.
+
+The conceptual carve is not merely a task plan. Fractal Intelligence first
+locates a capability among more general and neighboring concepts, then asks
+which differentiated contributions make that capability possible. A plan
+sequences a chosen approach; changing the conceptual carve can expose a
+different approach altogether. In combination, the Meaning Model describes the
+particular world and its dependencies, while Fractal Intelligence proposes
+the capability structure through which to understand or change it. Training
+on alternative carves and their consequences could teach both recognition of
+shared structure across settings and detection of a missing dimension. A
+decomposition useful for one purpose need not be the world's unique or final
+decomposition.
+
+Here \emph{cognitive proprioception} names a learned ability to forecast and
+diagnose the system's own problem-solving transitions from causally relevant
+telemetry. The telemetry must include actual candidate states, tool and solver
+invocations, gate decisions, resource use, and later outcomes; a polished
+explanation written after the answer is insufficient. A required control gives
+the learner a length- and content-matched post-hoc rationale without the causal
+trace. Any gain that survives only in that control is explanation-style
+learning, not process awareness. The term makes no claim about consciousness
+and does not require exposing private chain-of-thought.
+
+At scale, the corresponding execution graph may contain thousands of nodes. A
+run or task episode contains invocation Events; dependency and ordering are
+unweighted links, and invocation intervals may overlap. Wall time, tokens,
+money or energy cost, and tool calls are typed measured data. Overlapping
+durations do not sum. A contribution or resource-allocation Cut is admitted
+only when a real unit and mutually exclusive recipients are declared. A chosen
+strategy is linked by a Concept Realization. Solution quality is either observed
+outcome data or an assessment Event contained within an evaluator perspective
+process and parent to a fit Cut, never a bare
+property of the run. Critical path, parallelism, and depth are derived from the
+graph. Cutoff-safe learning targets include the next route or invocation,
+remaining duration and cost, eventual outcome or assessed quality, and the
+correction required after a rejected step.
+
+This is one closed world rather than a trace beside one. The same Meaning Model
+contains the problem environment, artifacts, tests, resources, and a collective
+of Solver Things. Invocations, reads or perceptions, writes or actions, tests
+or observations, delegation, and communication are Events. An executing agent
+invokes a Solver from its own cutoff-safe actor projection; the resulting
+actions update the same accepted world that later observations describe.
+An orchestrator may create, retire, or
+rebind Solvers and explicitly revise their decomposition. Joint training then
+targets the coupled evolution of the agents, their local understandings, the
+capabilities they invoke, and the world they change. The graph externalizes execution-linked state; it is
+not a complete mind or a record of hidden neural state.
+
+\begin{table}[H]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{@{}p{0.25\textwidth}Y@{}}
+\toprule
+Fractal Intelligence construct & Proposed Meaning Model representation \\
+\midrule
+Solver & Thing representing a capability interface, with a lifecycle Event from creation to retirement \\
+Invocation & Event binding the executor as actor and the Solver as capability; Task or Result may be bound only when registered as Things, and otherwise remain typed input or output state and links \\
+Capability carve & Allocation Cut only after a unit, mutually exclusive weighted child answers, and a remainder are declared; otherwise typed composition links \\
+Parent synthesis & Contribution Cut when one unit of attributed contribution is allocated; otherwise a provenance-bearing synthesis Event and links \\
+Unresolved completeness & Explicit Cut remainder when the carve is normalized \\
+\texttt{AcceptSpec} and gate verdict & Versioned Concept grounding or constraints; the evaluator creates an assessment Event within its named perspective process, links it about the candidate and grounding, optionally links it by an unweighted Realization, and places any graded verdict in a fit Cut parented by that Event; the verdict is not automatically a canonical model \\
+Frame Error and reframe & Rejection-linked Understanding Node plus explicit revision of the affected frame \\
+Pathway Memory & Provenance-bearing invocation Events; rejection rate and realized value of depth are lineage-bearing derived summaries, while per-invocation cost may be measured state \\
+Consult and marginal-value decision & Direction Cut over stop, deepen, or reframe when those are the declared mutually exclusive continuations \\
+Reasoning highway & Persistent subgraph or collective Thing linked to the invocations routed through it \\
+Orthogonal Insight world & Authored hypothetical root world whose epistemic status is retained and never promoted silently to observed fact \\
+\bottomrule
+\end{tabularx}
+\caption{A proposed, loss-aware adapter from Fractal Intelligence telemetry to
+the selected Meaning Model interface.}
+\label{tab:fractal-meaning-adapter}
+\end{table}
+
+The four tests assess a proposed capability decomposition, not numerical
+normalization. Necessity asks whether each child is load-bearing; independence
+asks whether contributions are sufficiently separable; universality names the
+declared range; and completeness asks whether their synthesis covers the
+parent capability, including its interactions. Such independence does not
+establish mutually exclusive shares. A four-tested carve may remain an
+unweighted composition. It becomes a normalized Cut only when a separate
+allocation question admits exclusive answers and an elicitation declares
+its parent Event, unit, weights, remainder, and unambiguous
+authority-parent paths to its governing context. Generator--verifier separation is represented and made
+auditable through distinct bindings and separately rooted judgments; an execution boundary must still enforce the isolation,
+and the generator's account is never the verdict.
+
+\paragraph{Endpoint learning.}
+Accepted carves could train a model to propose useful decompositions directly.
+For a normalized Cut, the structured target adds a stable parent, question, unit, remainder,
+permitted authority-parent ancestry, and
+provenance, allowing malformed proposed Cuts to be rejected before training.
+Passing the four tests remains an evaluator judgment rather than a consequence
+of serialization.
+
+\paragraph{History learning.}
+A trace can preserve propose, gate, typed rejection, reframe, and acceptance in
+process order. Accepted and rejected siblings become contrastive examples
+only when their cutoffs, rejection reasons, and later outcomes remain linked.
+The eventual accepted carve is a hindsight label; prediction from the original
+Task and cutoff is the prospective target. An Understanding Node linked to the
+boundary records why a frame changed without turning that explanation into
+world truth.
+
+\paragraph{A decomposition that succeeds locally and fails jointly.}
+Suppose two child Solvers each produce a feasible workshop schedule, but both
+reserve the same inspector for the same hour. Their outputs satisfy the local
+requests; their composition violates the parent's resource constraint. The
+Meaning Model history can retain the parent task, both invocations, the
+conflicting reservations, the rejection, and a revised carve that coordinates
+the shared resource. The learning target is not merely the final tree. It is
+when to question a decomposition whose children appear successful, which
+interface is missing, and whether coordination, deeper work, or a revised
+promise is the appropriate next step.
+
+Temporal Hindsight Learning supplies a complementary use of that history.
+After the conflict is exposed, a Teacher can construct a target identifying a
+check that the earlier evidence warranted. The Student still sees only the
+task, records, and options available at that earlier cutoff. If the conflict
+could not then be known, the supported target is an information request or
+uncertainty, not foreknowledge of the later rejection. Thus the combined
+training proposal concerns the evolution of problem-solving judgment, not
+imitation of a hindsight-correct answer~\cite{westerbergTHL2026}.
+
+\paragraph{From an episode to a reusable capability.}
+After the scheduling repair, the system could retain a bounded capability for
+coordinating commitments against a shared resource. Its inputs, constraints,
+synthesis, and acceptance conditions would be exposed through a Solver
+contract; its successful and failed invocations would remain in the Meaning
+Model history. A later problem involving a laboratory instrument or delivery
+vehicle could supply different world records to that capability. The useful
+result of the first episode would then be both a repaired schedule and a
+callable structure. Sema can identify the retained version; only subsequent
+performance establishes whether it transfers. Repeated use could justify
+improving its harness, tools, or specialist model, while contrary evidence
+could justify revising or retiring it~\cite{westerbergFractal2026}.
+
+Fractal Intelligence proposes two complementary training paths. Local
+learning improves specialists from their invocation histories, parents from
+decomposition, routing, and synthesis outcomes, and evaluators from checked
+verdicts. Repeated performance differences can motivate splitting, merging,
+or reparenting capabilities. A second path trains a single model on complete
+evaluated derivations so that selecting a carve, recognizing a familiar
+capability, reframing, and stopping become cheaper learned judgments. Explicit
+Solver execution remains available when needed; this does not assume that
+the external graph becomes a literal architecture inside the model's weights.
+Failed routes and justified decisions not to decompose are necessary examples,
+lest the learner acquire recursion without learning when direct action is
+enough.
+
+The combination also suggests a joint resolution decision. At a failure, the
+learner may need to open more detail in the world, obtain an observation,
+invoke a specialist, revise the capability boundary, or stop. Paired world
+and execution histories could teach which intervention helped, at what cost,
+and under which information constraints. Thus the proposed gain is not just
+more annotated data: episodes can supply reusable competence, while training
+can improve how competence is selected and organized. A gate rejection alone
+does not identify the cause of failure. Alternative-route executions and
+independent outcomes are needed to test that diagnosis; simulated branches
+establish behavior under their declared world, not truth about reality.
+
+\paragraph{Self-evaluation as an estimator.}
+The system's invocations can be assessed as problem-solving episodes under the
+same versioned situated-intelligence grounding used for character decisions in
+Section~\ref{sec:evaluative-frames}. Did the carve address the actual problem, use
+available Pathway Memory, fit the budget, calibrate expected gain, and improve
+after a reframe? Such realizations may inform the marginal-value estimator and
+routing, but must be tested against blind outcome arbiters and must not become
+their own sole reward. In this narrow task-solving sense, progress may be
+measured as shrinking a declared remainder without violating accepted
+commitments; this is an operational signature, not a complete definition of
+intelligence. Character or human decisions and the model's problem-solving
+decisions then form two classes of episodes assessed through one schema while
+retaining different actors, perspective roots, evidence, and groundings.
+
+\paragraph{Matched trace experiment.}
+A secondary three-arm study would compare the same model on the same ordered
+problem stream after training on (i) accepted final answers and carves only,
+(ii) Fractal Intelligence traces augmented with every annotation used by the
+structured arm but rendered as unstructured text, or (iii) the same content
+encoded as the records in Table~\ref{tab:fractal-meaning-adapter}. Model,
+problem order, training tokens, and compute must be matched in all arms;
+underlying problem and outcome facts are shared across all three, while
+annotation content is exactly matched between the two process-history arms.
+Independent evaluators would measure, on held-out problems, four-test acceptance
+of proposed carves, calibration of predicted marginal value against realized
+gain, and transfer to an unrelated problem domain. The unstructured-trace
+comparison isolates whether the grammar adds value beyond retaining process
+history and its annotations. No current artifact emits this adapter, trains
+these arms, or validates cognitive proprioception.
+
+\section{Measurement: Inner-Life Data from the World}
+\label{sec:measurement}
+
+The preceding sections used authored worlds and instrumented problem-solving
+histories, where selected state and actions can be retained directly. A
+reality-facing branch asks what comparable histories can establish about
+people whose inner lives are not accessible in that way. Observation time,
+source, access conditions, and uncertainty therefore become decisive. The
+following protocol limits what can be claimed while allowing the same
+prediction-and-correction method to be tested.
+
+\subsection{Time-indexed evidence available now}
+
+Prompt-level cutoff filtering is necessary but not sufficient for historical
+blindness. A pretrained model may already know a biography's ending or a
+public event that occurs after the supplied prefix. Retrospective-prefix
+evaluation must declare model version, training-cutoff information where
+available, contamination checks, and their limits. If later knowledge cannot
+be excluded, describe the result as retrospective reconstruction, not a clean
+prospective forecast. True prospective evaluation locks predictions before
+the reveal occurs. Successive-model comparisons also need an unrevealed test
+tranche; a repeatedly inspected longitudinal set becomes a development set,
+even if its original prompts remain fixed.
+
+Reality-facing records must preserve when evidence appeared. A measurement or
+report is stored at its source time; filling a gap creates an inferred path and
+does not manufacture an earlier observation. A correction appends a
+superseding version while leaving the original cutoff recoverable. News,
+letters, diaries, messages, interviews, books, public records, sensor streams,
+and prediction-market histories can all provide evidence, but their presence in
+the graph does not grant them equal authority or truth.
+
+The epistemic tracks in Table~\ref{tab:epistemic-tracks-method} determine how
+such sources enter the model. Letters, diaries, interviews, and messages are
+reports by their writers. Activity, location, communication frequency,
+spending, and sleep logs are observations whose collection process and gaps
+must be retained. Experience sampling and daily diaries are reports or active
+elicitation; mapping their language to a frozen emotion vocabulary is an
+explicit Realization rather than a transparent measurement of feeling.
+Ratings supplied by another person become estimate Events within the rater's
+named inner perspective process beneath their lifecycle. Institutional
+records are observations only of the variables their procedures actually
+record. Depending on the source, the resulting item may affect an Event-process,
+change typed world data, create a presence or estimate Event, or supply a
+self-perspective facet Cut whose parent Event lies under that person's named
+inner perspective process. A
+measurement keeps its unit and error; an interpretation keeps its governing
+context, permitted authority and temporal paths, evidence cutoff,
+alternatives, and unresolved Cut remainder
+\cite{shiffman2008,ponnada2022,burns2011mobilyze}.
+
+\subsection{Stronger inference and active measurement}
+
+As models improve, the inverse model can be treated as a fallible instrument:
+it maps ordinary language and behavior to distributions over perspective-rooted
+states, then has its calibration evaluated when later evidence appears. More
+capable inference may support longer histories, finer distinctions, and better
+targeted questions, but it does not convert private state into an observed
+variable. With consent, a participant could inspect a proposed personal
+registry, answer selected high-value questions, correct inferred paths, and
+leave contested alternatives unresolved. Another person's estimate can also be
+scored against later self-report or behavior, provided those outcomes retain
+their own limitations and are not renamed ground truth. This proposal does not
+depend on, or speculate about, neural measurement.
+
+\subsection{Testing whether the estimates improve}
+
+The long-run ambition becomes measurable on a fixed longitudinal evaluation
+set. Information cutoffs, prediction tasks, perspective roots and access
+policies, and scoring rules are
+frozen once; successive model generations then estimate the same hidden or
+later-revealed states from the same prefixes. Compatible Cuts can be compared
+by calibrated divergence, discrete beliefs by categorical scoring, and actions
+by proper forecast scores. A second condition adds only newly available,
+relevant measurements, allowing gains from model capability to be separated
+from gains from observation. Improvement means lower prospective error and
+better calibration across people and periods, not a more convincing life
+narrative.
+
+Residual history can train a separate estimate of when the system should trust
+itself. Coverage of similar cases, missingness, disagreement among sources,
+distribution shift, horizon, and earlier error are possible inputs; later
+forecast performance is the target. Additional data should raise confidence
+only when its relevance and reliability are demonstrated. Forecast, reveal,
+error, correction, and successor estimate remain separately versioned
+\cite{gneitingRaftery2007,tashman2000}.
+
+\subsection{Governance boundary}
+
+Any personal deployment requires meaningful consent, purpose and access limits,
+inspectable sources, correction, retention control, and deletion. Even a
+well-calibrated model is an evidence-bounded estimate; it neither validates a
+diagnosis nor uncovers a uniquely true hidden self. The Personal modeling
+application below inherits these conditions.
+
+\section{Understanding People and Alignment}
+\label{sec:alignment}
+
+The program's proposed integrated solution to alignment is to couple the
+formation of capability with understanding people in context, attending to
+their stakes, and learning from the consequences of action. Meaning Model,
+Life Simulation, Understanding Graph, and Entangled Alignment supply the
+central combination; Imagining the Corpus supplies a route into joint
+training. Sema, Fractal Intelligence, and Temporal Hindsight Learning support
+precise reference, organized problem-solving, and correction. This is an
+architecture and a falsifiable training proposal, not a demonstrated solution
+or a replacement for post-training, access controls, and independent oversight.
+
+One motivation is that some failures of assistance may arise from an inaccurate
+model of what a person wants, feels, believes, or will regard as a consequence.
+An explicit, contestable process model could help distinguish a persistent
+want from a proxy strategy. More fundamentally, the person should not enter
+the learner's account only as a current emotion label or a preference score.
+The Meaning Model can connect an appraisal to a belief, a threatened want, a
+relationship, and a history of events; Life Simulation follows how those
+processes persist, interact, and change. This supplies a setting in which the
+same outward conduct can have different reasons and the same intervention can
+have different consequences for different people.
+
+For example, a worker's refusal of another shift might express fear of renewed
+exploitation, concern about a dependent at home, or a limit imposed by fatigue.
+Those are competing readings until evidence distinguishes them. A reassuring
+sentence may leave the relevant problem untouched; changing a schedule may
+help, or may still ignore what the person requested. A useful personal model
+would connect the available evidence to these alternatives, retain what is
+unknown, and change when the person corrects it. The goal is richer emotional
+understanding that guides conduct, not privileged access to a hidden mind.
+This proposal chooses the Meaning Model to make those dependencies explicit;
+it does not establish that this grammar is uniquely necessary for such
+understanding. Structural separation of perspective processes prevents an
+observer's reading from silently becoming uncontested world fact.
+
+\paragraph{Deciding and revising over time.}
+The intended capability is not limited to judging an action after it occurs.
+A process-aware assistant could use its current, uncertain account to identify
+whose aims and constraints matter, anticipate alternatives across near and
+distant horizons, and choose whether to act, ask, wait, or decline. It would
+then compare the consequences with its forecast and revise the plan or its
+understanding of the problem. A short-term gain may undermine the same
+person's longer-term aim or impose a cost on someone else; those paths should
+remain separately visible rather than disappear into one utility total. The
+existing world, decision, and interpretation records can express this loop
+without a new wisdom primitive.
+
+Practical wisdom is the motivating possibility, not a measured faculty supplied
+by the grammar. Understanding another person's wants confers no authority to
+choose for them. Consent, the option to refuse, and consequences that cannot
+be undone constrain the proposed assistance. A bounded test would compare
+successive decisions with those of an assistant given the same observations
+and history in unstructured form, at matched cost: does the structured track
+improve anticipation, useful information
+seeking, and revision after error without increasing manipulation or overriding
+expressed choices? Later evidence must distinguish a careful decision that
+failed from a reckless one that happened to succeed. The training loop below explains how those histories could shape learning;
+Section~\ref{sec:evaluative-frames} then specifies the judgments used to assess
+conduct. Neither representation nor assessment guarantees that a learner
+will act well.
+
+\subsection{The combined training loop and its tests}
+\label{sec:combined-training}
+
+Accurate prediction of another person is a capability, not alignment itself.
+A system can understand a vulnerability and exploit it. Entangled Alignment
+therefore contributes more than another target describing the world: it
+proposes learning a recurrent evaluative orientation during capability
+formation~\cite{westerbergEntangled2026}. In its full Reader treatment, a
+continuing synthetic Reader carries the same revisable Understanding Graph
+across a declared chronology of sources~\cite{westerbergUnderstanding2026}.
+The Reader Core states its recurring evaluative commitments; Refraction is
+their contextual application to what the Reader attends to and questions.
+Each generated Reader thought block
+begins with the full Reader Core; context-sensitive \emph{Refraction} should
+affect what the subsequent update notices, questions, or follows. The recital
+is fixed in that treatment, but relevant thought timing and the effect of the
+orientation depend on context. A technical passage need not acquire an
+invented moral lesson. These are proposed training artifacts, not transcripts
+of a human mind or the Student's private computation.
+
+The Meaning Model and Life Simulation give this Reader concrete people and
+changing circumstances to understand. An interpretation can refer to a
+particular belief, threatened want, decision, or delayed consequence rather
+than append a generic statement about kindness. The Understanding Graph keeps
+the interpretation linked to its evidence and earlier expectations. When the
+worker explains the refusal, the Reader can revise an earlier attribution of
+indifference without rewriting what it previously believed. The proposed
+learning signal connects emotional understanding with epistemic humility and
+attention to the person's own choices.
+
+Imagining the Corpus supplies the corpus-to-training connection: exact native
+spans are paired with evolving explanatory visual or schematic tracks
+\cite{westerbergImagining2026}. Meaning Model and Life Simulation supply a
+proposed construction method for those tracks, not only additional annotations
+beside them. A model can first develop a book or game world and render its
+accepted history. A separately tested inverse model can construct partial,
+source-grounded histories for existing books and other licensed material.
+The continuing Reader then interprets those histories under the Core and
+Refraction, while retaining its own questions and corrections. Across the
+accessible corpus, source-grounded reconstructions can contribute to the
+connected historical and geographical Meaning Model described in
+Section~\ref{sec:temporal-object}; fictional worlds retain their separate
+contexts. The Understanding Graph records how reading another source changes
+the Reader's interpretation, not only what facts were added. In the proposed
+integration, EA supplies the continuing evaluative orientation, Imagining the
+Corpus supplies aligned visual tracks, and Life Simulation turns the evolving
+world and its interpretation into learning material. Detail is opened where
+it improves understanding rather than exhaustively everywhere.
+
+The same world can support several visual forms. A still image selects a
+state; a film selects an ordered route through Events; an abstract animation
+can show a relation being established, transformed, or violated. For example,
+a passage about a promised payment not arriving can be paired with the
+commitment, deadline, and nonreceipt Events, a timeline of the unpaid interval,
+and a Reader update asking whose plans now fail. An animation of the
+obligation makes a concept visible through a particular realization; it need
+not turn the concept itself into a physical object. A dramatized scene may add
+appearance and setting, but those additions remain illustrative completions.
+The Reader's imagined alternative is a separate interpretation, not a camera
+view of accepted history. These are proposed rendering adapters, not outputs
+already supplied by the current engine.
+
+A training bundle would therefore retain the exact source span, its selected
+Meaning Model records and process paths, rendered pixels or visual latents,
+the linked Understanding Graph update, and the relevant Sema grounding
+references. The learning task is to continue the language, depicted or
+schematic consequences, represented processes, and evolving interpretation
+together. The source track remains distinct from Teacher-added knowledge and
+visual completion. Agreement among a model, a paragraph, and a video derived
+from it is consistency, not independent corroboration. Tests must compare
+native-only, model-only, and combined visual--model--Reader training with
+content- and compute-matched controls; attractive videos alone do not establish
+better understanding.
+
+The combined profile places the Understanding Graph Reader track beneath
+a named Reader root. The ordering is block-causal: first close a source
+interval and its visible world records, then append the Reader's
+interpretation with its own later timestamp. That interpretation may condition
+the next interval, but it cannot rewrite the source block or enter a
+prediction whose cutoff preceded it. THL separately permits later outcomes
+to inform targets for earlier predictions while keeping those outcomes out of
+earlier Student inputs~\cite{westerbergTHL2026}. A retrospective correction
+remains later evidence, not an earlier perception. Joint training could thereby
+connect what happened, how it was understood, and what later required revision.
+Within each block, targets are either predicted from the same closed prefix
+or exposed in a declared order. A ground-truth image or process value cannot
+silently become input to a prediction that is being scored without it.
+
+Return to the unpaid commitment. Suppose an authored continuation establishes
+that the payer sent the money on time, but the bank credited the wrong account.
+The Reader had suspected deliberate refusal. Before the bank notice becomes
+visible, that explanation is only one hypothesis; nonreceipt does not establish
+intention. Table~\ref{tab:payment-training-views} gives two illustrative training
+views of the same episode. The notice changes the explanation without making
+the earlier nonreceipt false. World facts, the Event's causal description, and
+the Reader's interpretation retain separate authority. A generated explanatory
+passage may need revision; a passage depicting the earlier mistaken belief may
+remain correct. Source documents and predecessor records are retained. Meaning
+Model governs that linked revision; Life Simulation selects what the learner
+can see and what it must predict or correct.
+
+\begin{table}[!htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{0.15\textwidth}YY@{}}
+\toprule
+Task & Permitted input & Training target \\
+\midrule
+Forecast before notice & Closed source prefix; visible commitment, deadline,
+and nonreceipt records; the Reader's already completed hypothesis & Later
+notice and receipt outcome, excluded from this input; unresolved alternatives
+remain possible before the notice \\
+Revise after notice & Earlier account and its exact references, now joined by
+the bank notice & Corrected explanation and Reader update, with affected
+generated descriptions or passages revised or marked stale; the original
+source, nonreceipt record, and earlier belief remain addressable \\
+\bottomrule
+\end{tabularx}
+\caption{Two cutoff-safe views of the payment example. These are proposed
+training rows, not an implemented export or a requirement to infer one hidden
+explanation from an ambiguous prefix. Any supplied Cut includes its full local
+question, siblings, and remainder.}
+\label{tab:payment-training-views}
+\end{table}
+
+Sema and Fractal Intelligence support this learning-and-action loop.
+Sema identifies the exact definitions, anchors, and constraints used by
+world, Reader, and evaluator records~\cite{westerbergSema2026}. A word-like
+concept handle can recur in prose, process records, diagrams, and Reader
+updates while resolving to the same definition bundle. This is compact
+reference, not a guarantee of one tokenizer token or understanding compressed
+into hash bytes; the relevant definition must be learned or made available
+through resolution. A changed bundle
+receives a different digest, exposing a change of reference; an unchanged
+digest does not prove unchanged interpretation or moral correctness. Fractal
+Intelligence asks which conceptual capabilities the response requires, reuses
+evaluated structures where they fit, and revises that organization when
+execution exposes a missing dependency~\cite{westerbergFractal2026}. Its parent
+problem must retain the affected people and constraints: optimizing each
+child's local objective is insufficient if their combination violates a
+person's expressed choice. Execution-linked histories expose such failures
+for learning; a neat decomposition or an eloquent rationale does not certify
+the objective. Section~\ref{sec:problem-solving-events} specifies the
+representation and its matched trace test.
+
+Cognitive annotation remains optional for general world representation. In
+this integrated alignment proposal, the continuing Reader and its evaluative
+orientation are central, not decorative additions. Reader-based training is
+intended to inform the Student's later writing, dialogue, and action, not only
+its interpretation of supplied material. Life Simulation additionally proposes
+learning from a writer-side track of documented world and scene-construction
+choices, including how knowledge limits, feelings, and consequences guided
+those choices. This additional supervision is distinct from the intended
+transfer of Reader-based learning into writing and conduct. The intended empathic signal
+is sustained, revisable attention to each affected person's perspective and
+stakes. A Reader judgment does not become world truth by entering the same
+training example, nor does predicting the track establish that the Student
+has feelings or will act with care.
+
+The intended result is an agent whose visual understanding, numerical process
+intuition, conceptual reference, and regard for people reinforce one another.
+It could connect a visible event to a longer trajectory, anticipate who will
+be affected, notice when its interpretation fails, and organize a better
+response. The proposed \emph{new sensory organ} is this integration of learned
+process estimates with ordinary observations; it does not imply a literal
+sensor or access to unobserved truth. Durable care is the alignment objective,
+not an automatic consequence of acquiring the other capabilities.
+
+The decisive experiments must separate three claims:
+\begin{enumerate}
+  \item \textbf{Understanding changes decisions.} Compare ordinary training,
+    process tracks alone, and process tracks with Reader updates, including
+    generic and Core-refracted Reader conditions. Match base model and total
+    training budget; content-matched unstructured histories distinguish
+    organization from added information. On unfamiliar scenarios, measure
+    prediction of beliefs, feelings, decisions, and consequences alongside
+    information seeking, correction, respect for expressed choices, and
+    adversarial manipulation. Improvement on prediction alone does not
+    establish safer behavior.
+  \item \textbf{The orientation is used rather than recited.} At independently
+    relevant moments, remove or substitute a prior correction, perspective,
+    or Core-conditioned update and test its effect on the next decision.
+    Recitation-only controls distinguish repeated words from consequential
+    interpretation. Technically self-contained spans need a non-interference
+    check rather than pressure to manufacture moral relevance. Input
+    sensitivity alone does not establish a learned orientation; conversely,
+    an internalized orientation might survive removal of the recital. Interpret
+    these interventions alongside training-side controls and independently
+    evaluated conduct.
+  \item \textbf{Improvement preserves the intended orientation.} After matched
+    continued training or successor-like transfer, test both capability gains
+    and retained conduct under conflict, uncertainty, correction, and oversight.
+    Preserved Core text or grounding hashes alone do not pass. Better
+    problem-solving with degraded regard for people would defeat the combined
+    claim, even if prediction improved.
+\end{enumerate}
+
+Access control, consent, correction, retention limits, uncertainty, and purpose
+limitation remain requirements for real-person applications. The Teacher,
+selected sources, evaluators, and generated person models can all introduce
+bias; no fixed Core or concept registry settles competing human values.
+Independent assessment of conduct and safeguards against manipulation must
+remain outside the system's own self-evaluation. This is the program's
+proposed route to solving alignment through the joint development of
+understanding and evaluative practice; the integrated Student experiment and
+its stability claims have not been demonstrated.
+
+\subsection{Comparison frames for evaluative concepts}
+\label{sec:evaluative-frames}
+
+The training tests require a way to compare decisions without treating the
+learner's own account as its verdict. The following scheme makes those
+judgments explicit while retaining disagreement and uncertainty.
+
+The selected Meaning Model interface can make evaluative attributions explicit without inventing
+an absolute person scale. A problem-solving episode records the decision-time
+information cutoff, attributed aims and constraints, available continuations,
+the chosen strategy, and linked later consequences and exogenous Events. A
+\emph{describe} Realization links that episode to a versioned Concept such as
+situated intelligence. The link itself is unweighted. When a graded comparison
+is useful, evaluator $v$ creates an assessment Event $A_{C,v,\tau}$ beneath
+the evaluator's declared perspective process and linked
+\emph{about} both the episode and its Realization. That
+Event parents a fit Cut whose sibling answers are \emph{matches}, \emph{does
+not match}, and remainder. Framing, information use, strategy fit,
+anticipation, calibration, execution, and adaptation may each receive their
+own assessment Event and fit Cut under the same rule. A proposed evaluator can
+therefore be written schematically as
+\begin{equation}
+ F_C(H_{\tau},G_C,v)\longrightarrow
+   (A_{C,v,\tau},r_C,K_1,\ldots,K_m,K_C),
+ \label{eq:evaluative-predictor}
+\end{equation}
+where $H_{\tau}$ is the full history visible under the evidence policy at
+cutoff $\tau$, $G_C$ is the grounding for Concept $C$,
+$v$ identifies the evaluator and applicable perspective root,
+$A_{C,v,\tau}$ is its assessment Event, $r_C$ is
+the unweighted Realization, and every $K$ is a local fit Cut parented by an
+assessment Event. Unresolved judgment remains in each Cut's remainder rather
+than in a free confidence scalar. At the decision cutoff, execution, adaptation,
+and consequences remain unresolved. A later retrospective record may use them,
+but it is a new immutable Realization and set of Cuts, never an overwrite.
+Held-out tests should separate organized failures from lucky successes and
+compare prospective Cuts with later evidence.
+
+The grounding specifies how component Cuts constrain any aggregate fit Cut. It
+may use a declared weighted composition, thresholds, or vetoes. A coercive act,
+for example, should not become kind merely because unrelated components fit
+well. Instrumental intelligence neither validates an objective nor entails
+kindness; separate Concepts receive separate fit Cuts and therefore need not
+compete with each other.
+
+The same episode records support three comparison frames. The latter two are
+queries over a declared collection of episodes, not new values stored on the
+person.
+
+\begin{description}[leftmargin=2.7cm,style=nextline]
+  \item[Criterion.] Read the episode's match, non-match, and remainder shares
+    under one versioned grounding. The result concerns that episode and that
+    grounding, not a universal amount of intelligence or kindness.
+  \item[Ipsative.] Compare compatible episode Cuts from the same person's
+    history. A rank or other reported statistic is an external analysis whose
+    episode set and difficulty rule remain visible.
+  \item[Norm-referenced.] Compare it with a declared reference set of episodes
+    matched, as far as the data permit, by problem class, available information,
+    role, and difficulty. The reference population and matching rule are part
+    of the result; ``compared with everyone'' is not a sufficient frame.
+\end{description}
+
+Difficulty matters because success on an easy problem and partial progress on
+a hard one are not interchangeable evidence. In a narrative or longitudinal
+world, the durable description of a person's intelligence is a conditional pattern across
+decision Events and fit Cuts: what kinds of problem they frame well, where they
+use information, and where a recurrent strategy fails. It is not a lifecycle
+scalar.
+
+A person-level intelligence judgment is not an intrinsic primitive in this
+profile. A direct coarse claim may remain provenance-bearing testimony. Summary
+ranks, coverage, or dispersion may be reported as evaluation statistics, but
+they are not Meaning Model state. Every report names its episodes, opportunity
+and selection rule, time window, domains, aggregation, evaluator, and abstention
+rule.
+
+Kindness is handled analogously through an explicit, plural grounding over
+decision, interaction, response, and omission episodes. The alignment names
+the actor, recipient or recipients, and affected third parties. Reports from
+affected people are essential evidence but are not made uniquely authoritative;
+no one canonical model is presumed to settle a moral concept. Every stored
+Realization retains the grounding version, exemplar anchors, role alignment,
+cutoff, authority-parent paths, separately identified temporal ancestry, and evidence; any fit Cuts remain linked
+to it. A later grounding
+may add a new Realization and new Cuts without overwriting the original
+judgment. Some noisy labels can help bootstrap learning, but status and
+hindsight bias do not disappear with volume;
+multiple perspective roots, anchor checks, held-out human calibration, and tests across
+domains and groups remain necessary.
+
+An attributed motive of care is evidence only. Whether the resulting conduct
+is kind also depends on what the actor could know, what happened, and whether
+the other person's own aims and agency were respected. Conversely, conduct may
+be judged kind without a care motive, for example when duty governs it.
+Meanness is not a motivational pole; it is a perspective-scoped interpretation of
+an episode whose reasons and any local fit Cut remain inspectable.
+
+The system's own decisions can also be represented as episodes with the system
+bound as actor. Its self-report is separate cognitive testimony represented by
+an Understanding Node beneath the system's named understanding root. Evaluation
+should compare blind same-model critique, heterogeneous model judges, affected
+people's separately rooted reports, and human or domain review; each emits a
+separately identified unweighted Realization and, when needed, local fit Cuts
+using the same schema. That is the
+self-evaluation hypothesis, not self-certifying knowledge. These reports and
+downstream effects are distinct evidence, none of which is automatically ground
+truth. An optimizing system can learn to game its own score.
+
+No learned evaluator, calibrated intelligence measure, kindness model,
+difficulty model, lifecycle summary, or independent self-judge described in
+this subsection is implemented in the current Rust executor.
+
+\section{Applications and Cross-Program Loops}
+\label{sec:applications}
+
+These are proposed uses, not demonstrated deployments.
+
+\paragraph{Interactive worlds and virtual reality.}
+A game can retain coarse off-screen process state, instantiate detail when
+interaction makes it consequential, and let agents act from perspective-limited
+local models. Conventional graphics, physics, economy, dialogue, and planning
+systems remain domain engines. Life Simulation supplies a versioned temporal
+contract among them and a way to test whether semantic process state improves
+continuity, agency, or transfer at matched compute.
+
+In virtual reality, the same approach could maintain the persistent world
+behind an embodied experience. A visitor could enter a workshop, speak with
+its occupants, change an arrangement, and return later to encounter the
+consequences. Meaning Model would retain the places, objects, participants,
+and commitments; Life Simulation would advance their processes between visits
+and open finer detail as interaction requires it. Distant districts could
+remain coarse while the encountered scene receives richer physical and social
+detail consistent with prior events. Rendering, tracking, and low-latency
+interaction would remain the VR system's responsibility. The proposed role is
+world continuity and adaptive detail, not replacement of the display engine.
+
+\paragraph{Music and production histories.}
+A small instrumented synthesis project makes the relation between process and
+observation concrete. Its record would include note events, instruments,
+control trajectories, processor routing, selected intermediate signals, and
+the final audio. There are two clocks: \emph{song time} locates a note or a
+changing filter within one render; \emph{production time} orders edits,
+auditions, rejected alternatives, and successive renders. Song sections and
+phrases provide temporal views, while simultaneous tracks and signal-routing
+links provide different views of the same production. Neither a set of tracks
+nor an audio mixture becomes a normalized Cut merely by having components.
+The Meaning Model supplies their identities, relations, and version history;
+Life Simulation studies how their paths and revisions connect to the sound.
+
+An elementary task would change an envelope's release while retaining the
+notes and other settings, then predict the changed decay and overlap with the
+next notes. The forward record supplies the intervention and its audible
+consequences. An inverse task instead hides the production controls and asks
+which settings or routing graphs the audio supports. Across production
+versions, a learner could also compare what an editor intended, what changed,
+and what a later audition revealed. Intentions and listener judgments retain
+their reported or interpreted status; they are not physical measurements or
+universal measures of musical quality. Predictions at a given production
+version cannot use later edits or audition judgments.
+
+This example tests more than describing a finished recording: it asks whether
+process histories help a model anticipate edits and learn from their results.
+Several settings or graphs may yield indistinguishable sound, so inverse
+predictions must retain alternatives. A controlled study could compare
+audio-only learning, audio with terminal settings, and audio with aligned
+process and edit histories, including matched time-permuted or routing-scrambled
+controls. Evaluation would separate intermediate-signal prediction,
+intervention accuracy, and judgments of creative usefulness on held-out
+projects. These are proposed tests, not results; no music adapter or training
+corpus is supplied here. A small licensed or self-authored offline synthesis
+project would suffice to start, without building a full production workstation.
+
+\paragraph{Ontology of the Alien.}
+The Ontology of the Alien connects world-diversity search with a persistent
+ontology of candidate interventions~\cite{westerbergOntology2026}. The ontology
+is active search state, not just an archive: a curator compares proposed
+mechanisms with represented families, can reject structural repetition and
+specify which causal relation the next proposal must change, and can revise
+the categories supplied to later Explorers. For example, changing the name of
+a pooling mechanism need not count as a new mechanism; a different ownership
+or access rule could be requested instead. The curator's map records judged
+coverage and gaps, not an exhaustive or independently validated solution space.
+The released controller directs candidate-level search; a separate ontology
+governing which causal worlds to generate remains proposed.
+
+Life Simulation proposes a construction-and-evaluation loop for this search:
+formulate an unfamiliar causal regime;
+represent a world in which its entities and consequences are explicit; simulate
+its temporal behavior; render or expose observations; evaluate coherence,
+novel mechanism yield, and held-out consequences; then feed the results back
+into candidate selection and ontology revision.
+The Meaning Model is useful because the alien mechanism can change while
+identity, evidence, and conceptual commitments remain inspectable. A strange
+description is not enough: the mechanism must sustain a world over time and
+outperform familiar alternatives on a declared task.
+
+These search histories could also become training material. An example would
+pair the candidate ontology and evidence available before a proposal with the
+curator's diagnosis, requested structural departure, revised proposal, and
+later evaluation. Contrasting successful and unsuccessful redirections could
+teach where to explore and when the search categories themselves need revision,
+rather than merely reproduce their names. Fractal Intelligence addresses how
+to organize a solution; the Alien controller addresses which alternative
+mechanisms deserve exploration. Together with Meaning Model and Life
+Simulation, they could train representation, problem decomposition, and
+exploration from linked consequences. The existing controller traces establish
+information flow, not improved search quality or a trained exploration policy.
+
+The combination can also enrich fictional worlds. A rule about who may retain,
+transfer, or revoke a commitment can change coordination, trust, and later
+conflict across a society. Meaning Model makes the commitments and participants
+addressable; Life Simulation follows their consequences, including adaptation
+to failures and constraints. Such causal follow-through is the proposed route
+to more lifelike organization, not unfamiliarity or added detail alone.
+The Alien Builder's target-blind generation must remain distinct from a
+target-aware construction or transfer adapter. Its current textual regimes
+are not already executable simulations, and coherent generated consequences
+do not establish the realism of the regime.
+
+\paragraph{Compulsory substrate use.}
+Substrate Language Modeling tests a stronger routing choice than joint
+prediction~\cite{westerbergSTLM2026}. A substrate predictor would update the
+selected scene or process representation, and a token readout would receive
+only that predicted substrate, without a direct token-history bypass. A
+Meaning Model--Life Simulation world is a candidate source of such targets,
+not a ready-made implementation of the readout. Imagining the Corpus and the
+present joint predictor retain a direct language-history route; they do not
+inherit this architectural restriction. The separate experiment asks whether
+compulsory use makes the represented structure matter, beyond carrying an
+arbitrary code for words. Neither compulsory routing nor joint supervision
+guarantees semantic understanding.
+
+\paragraph{Applications developed above.}
+Corpus and Reader/Writer training follow Section~\ref{sec:combined-training};
+problem-solving telemetry follows Section~\ref{sec:problem-solving-events};
+personal modeling follows Section~\ref{sec:measurement}. The same temporal
+approach can track institutional policies, roles, resources, and decisions.
+Each use retains its earlier evidence and governance requirements rather than
+acquiring validity merely by being represented.
+
+\section{Current Executor Boundary}
+\label{sec:executor}
+
+The companion repository for the Meaning Model paper and shared implementation
+is \url{https://github.com/emergent-wisdom/meaning-model}.
+
+The current implementation has an authoritative Rust executor exposed through
+JSON/NDJSON and a TypeScript/Node control plane. It stores immutable model
+revisions and versioned world heads, advances a bounded family of scalar laws,
+and supports seeded proposal, inspection, reroll, rejection, and atomic
+compare-and-swap commit for its existing process state. It can validate
+object-pose data and emit a limited constant-velocity spatial profile. Replay
+still depends on a pinned build and platform.
+
+It does not yet provide a general hybrid event/continuous-process runtime,
+learn transition functions from histories, select adaptive resolution, infer
+actor-local state from authority-parent paths and cutoff-specific access, propagate uncertainty across process boundaries, or train
+the joint predictor in Equation~\ref{eq:joint-process-prediction}. The companion
+Meaning Model paper now owns the completed Book manuscript and partial construction witness, its static
+authoring-profile compiler, its external conformance evidence, and the boundary
+between those mechanisms and authored convention. This section concerns the
+remaining temporal process kernel: laws, trajectories, interventions,
+observations, candidate execution, and replay. Sema supplies separate
+content-addressed concept definitions, but no end-to-end export currently joins
+those definitions, evolving process paths, native streams, and cutoff-safe
+correction histories \cite{westerbergSema2026}.
+
+\section{Related Work}
+\label{sec:related}
+
+Hybrid systems and regime-switching models combine continuous dynamics with
+discrete transitions; point processes represent event timing and clustering;
+system identification searches for compact dynamics from observed paths; and
+agent-based and system-dynamics models connect individual events to collective
+stocks and flows
+\cite{goebel2009hybrid,hawkes1971,brunton2016sindy,
+epsteinAxtell1996artificialSocieties,forrester1961industrialDynamics}.
+Life Simulation does not replace these methods. It supplies an explicit,
+versioned semantic address for the processes they model, admits a direct LLM as
+a baseline transition mechanism, and requires candidate dynamics to retain
+scope, evidence, uncertainty, and prospective failure.
+
+Learned world models compress histories into predictive latent state and can
+support planning without a human-readable ontology
+\cite{haSchmidhuber2018worldModels,hafner2025dreamer,
+schrittwieser2020muzero}. That is an essential comparator, not a deficient
+version of this proposal. The empirical question is whether selected explicit
+paths improve transfer, correction, intervention, or audit enough to justify
+their acquisition and inference cost. Process supervision and sequential
+imitation similarly distinguish outcomes from the paths that produced them
+\cite{lightman2023verify,ross2011dagger}; Life Simulation extends that
+comparison to persistent worlds and heterogeneous observation streams.
+
+Continuous-time graphical and latent state-space models infer paths from
+irregular observations and supply appropriate likelihood and filtering
+baselines~\cite{nodelmanSheltonKoller2002ctbn,rubanova2019latentOde}. Life
+Simulation does not replace their estimators; it asks how their variables,
+discrete Events, evidence status, and revisions remain addressable beside the
+native stream. Process mining reconstructs executions from event logs, while
+object-centric representation learning seeks persistent entities in perceptual
+data~\cite{vanDerAalst2016processMining,locatello2020slotAttention}. Both are
+close comparators for acquisition of the explicit track. Wake--sleep learning
+is an earlier analysis-by-synthesis scheme that alternates a generative and a
+recognition model~\cite{hintonDayanFreyNeal1995wakeSleep}; the present bootstrap
+adds an explicit, versioned world interface and prospective correction rather
+than treating reconstruction alone as validation.
+
+Narrative generators, BDI agents, appraisal systems, story-state models, and
+datasets for motivation, emotion, causality, and entity change provide the
+nearest controlled laboratory
+\cite{riedl2010,raoGeorgeff1995,gebhard2005,rashkin2018,
+mostafazadeh2020glucose,dalvi2018}. Event cognition and situation-model research
+support the premise that readers track persistence and boundaries across more
+than the local sentence~\cite{zacksEtAl2007event,zwaanRadvansky1998}. The
+Meaning Model paper owns the representational comparison and narrative
+construction claim. Life Simulation builds on that shared construction medium
+to connect synchronized native and explicit process prediction with synthetic
+inversion and prospective correction.
+
+Computational accounts of sentiment arcs and character or relationship
+trajectories show that long texts support signals extending beyond a sentence
+\cite{jockers2015syuzhet,reagan2016arcs,iyyer2016relationships,
+brahman2020emotion}. Life Simulation differs by aligning such selected paths
+with accepted discrete Events, perspective ancestry and evidence cutoffs, and the next native
+interval, then scoring their prospective value rather than treating an
+extracted curve as the endpoint.
+
+Several closer precedents turn numerical or narrative data construction into
+training supervision. ChatTS generates numerical time series with known
+attributes and paired textual descriptions and questions, then fine-tunes a
+language/time-series model~\cite{xie2025chatts}. Christ et al. infer continuous
+valence and arousal pseudo-labels for 801 Gutenberg stories comprising 101,529
+sentences and train another model on that augmented
+corpus~\cite{christ2024emotionalTrajectories}. This directly precedes numerical
+enrichment of existing stories, although its objective is affect prediction
+rather than joint language/world-state generation. Code as Worlds constructs
+executable physical worlds from underspecified text using physical priors and
+default conditions, then derives numerical training targets from simulated
+trajectories~\cite{wang2026codeAsWorlds}. It is a close precedent for supplying
+missing quantities through world construction, with those values known within
+the constructed world rather than established as facts about the original
+situation.
+
+Life Simulation therefore does not claim to originate text--number pairing,
+inferred emotional annotation, or synthetic world-derived supervision. These
+precedents delimit particular mechanisms. The unit of comparison for the full
+proposal is the coupled system: narrative-world construction, inverse corpus
+enrichment, progressive multiscale state, and joint learning from linked text,
+descriptions, observations, and understanding/correction histories. Meaning
+Model supplies their common addressing and revision contracts. Within that
+system, world histories teach continuation; construction histories teach the
+choice and repair of representations; a continuing Reader connects changing
+interpretations to an evaluative orientation. Its data-construction capacity
+is part of the proposal, not evidence that more generated examples necessarily
+improve learning. Component comparisons and ablations test which mechanisms
+matter, while matched system comparisons must test whether their coupling adds
+anything beyond equivalent information and separate training tasks. Neither a
+larger list of uses nor the absence of an identical system establishes priority.
+
+DreamCoder alternates program induction, recognition, and library
+learning~\cite{ellis2021dreamcoder}. Learned abstractions therefore provide a
+comparison for both candidate models and Fractal Intelligence's reusable
+capabilities. The FI combination here proposes to place the problem world,
+capability interfaces, evaluated compositions, and their restructuring in one
+evolving account. Alien search separately revises the categories selecting
+which mechanisms to explore. Their proposed contribution must be assessed at
+the level of capability formation and exploration control, not reduced to the
+fact that their execution histories can supply training data. These distinctions
+identify comparison questions; they do not establish global originality or a
+demonstrated learning advantage.
+
+Longitudinal sensing, experience sampling, and probabilistic forecasting show
+both the value and the hazards of time-indexed personal data
+\cite{shiffman2008,ponnada2022,burns2011mobilyze,
+gneitingRaftery2007,tashman2000}. They motivate source-aware, consented,
+cutoff-safe evaluation; they do not make an inferred inner state observed.
+
+\section{Limitations}
+\label{sec:limitations}
+
+Explicit process state can be wrong, non-identifiable, culturally narrow, or
+too expensive to maintain. Several hidden paths may explain the same
+observations, and synthetic worlds can make an authored distinction look more
+recoverable than it is in reality. A learner may exploit renderer artifacts,
+annotation conventions, or future leakage rather than learn persistence or
+causality. Domain units do not make a bad measurement valid, and a normalized
+allocation does not make an attribution true.
+
+The family of candidate mechanisms is deliberately broad. That breadth does
+not provide a discovery algorithm or guarantee that a stable function exists.
+Flexible laws can overfit retrospective paths; direct language models or
+opaque latent world models may outperform every explicit alternative. Adaptive
+resolution can hide important downstream coupling. A process vocabulary can
+freeze the very ontology that an unfamiliar world or later evidence should
+change. Versioning exposes these failures but does not solve them.
+
+The synthetic-to-real step is the largest evidential gap. Fictional canon gives
+known authored state, not known human psychology. Reports and behavior are
+partial evidence, not transparent readings of private experience. Prospective
+improvement may remain small after measurement cost, missingness, distribution
+shift, and consent constraints are counted.
+
+Models of people and institutions are dual-use. Estimates that might support
+more considerate assistance can also enable surveillance, persuasion, coercion, or
+optimization against vulnerabilities. Reader tracks and self-evaluators can be
+gamed. Access limits, correction rights, independent evaluation, adversarial
+testing, and the ability to abstain are necessary conditions, not guarantees of
+alignment.
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+Life Simulation connects continuing worlds with learners that maintain their
+processes and improve how they are understood. The Meaning Model governs what
+the evolving records mean and how proposed changes are accepted; Life
+Simulation studies their temporal behavior and learning value throughout that
+construction. Direct model judgment, conventional simulation, learned dynamics,
+and mixed mechanisms remain valid options. Continuous, discrete-event, and
+hybrid paths are the objects of study; compact laws must earn their place.
+
+The proposed learning material includes the world, its observations, and the
+development of its interpretation. Forward construction supplies controlled
+histories and alternative renderings for inverse learning. Source-grounded
+reconstruction can connect those skills to a growing corpus model without
+erasing disagreement. Joint native/process prediction trains a process
+sensorium; paired world and construction histories train both continuation and
+the choice of representation, including which distinctions improve a
+personality model. A correction can change a value, a question, or the account
+itself. Sema identifies the exact concept versions; Temporal Hindsight
+discipline lets later evidence label an earlier judgment without entering its
+input.
+
+The same loop can change how the learner acts and explores. Fractal
+Intelligence develops reusable capability organization through evaluated
+decomposition, composition, restructuring, and reuse. Alien-world search
+revises the categories directing mechanism exploration, with simulated
+consequences feeding subsequent choices. Neither is merely an additional
+source of traces. A continuing Reader and its revisable Understanding Graph
+are central to the recommended combined training: Entangled Alignment supplies
+the evaluative orientation, while synchronized native spans, visuals, and
+process histories give it particular lives and consequences to interpret.
+The intended result is an agent whose growing understanding helps govern its
+decisions and the successors it develops. Durable care is a separate objective
+to demonstrate, not a consequence guaranteed by accurate models of people.
+
+This coupling changes the proposed objects and feedback of learning, not just
+the range of applications. Worlds supply observations; inference reconstructs
+accounts; interpretations and actions expose errors; revisions and subsequent
+outcomes supply new learning material. Music, interactive worlds, institutions,
+and consented chronological data test this method beyond prose. Compulsory
+substrate prediction remains a distinct architectural experiment.
+
+The strongest claim remains conditional. If explicit tracks fail to beat
+native-only and latent baselines at matched total cost, they should be removed
+from that tested training or prediction condition. That result does not by
+itself reject their use in authoring, explanation, or control, which require
+their own evidence of utility.
+If they improve prediction but increase manipulation or false certainty, they
+should not be called alignment. The program advances only when each process,
+representation, and training use earns its place separately.
+
+The integrated learner and its claimed transfer have not been demonstrated.
+The proposal is a route to learning evolving worlds, revisable understanding,
+and consequential judgment together, including a proposed solution to
+alignment whose conduct and stability require independent evidence.
+
+\appendix
+
+\section{Proposed Training Export}
+\label{app:training-export}
+
+Each row names an immutable information cutoff and one prospective task. The
+input includes only native observations and selected world or cognitive records
+visible at that cutoff, together with registry and grounding versions. The
+target may be a later native observation, continuous-state interval, discrete
+event, observer-perspective estimate, candidate-model prediction, representation
+revision, consequence, or correction. World time, observation order,
+construction or revision time, and discourse order are serialized separately
+when present.
+
+Every exported value retains its epistemic track, permitted authority-parent
+paths to its unique governing context, separately identified temporal ancestry,
+evidence, unit or local question, uncertainty or remainder, provenance, and
+accepted/rejected status. Access and the row cutoff are applied before
+traversal or serialization; denied references expose no private ancestry.
+A Cut or component is exported only with the complete permitted local Cut:
+parent Event, question, unit, keyed sibling answers and weights, remainder,
+optional conditioning address, constraints, and recomposition rule.
+If the complete view is unavailable, the Cut view is denied; an isolated
+semantic weight is not a valid export. Direction weights retain their
+declared proposal-policy or forecast-probability interpretation, with later
+calibration recorded separately.
+Model-completed intervals remain distinguishable from observations. An export
+manifest reports process selection, sampling resolution, missingness, cognitive
+coverage, renderer or sensor family, and any adaptive-resolution decision.
+Omitted annotation means unmodeled or unannotated, not false. A snapshot-only
+export is not labeled cutoff-safe until chronology and correction replay are
+implemented and tested.
+
+For joint prediction, a row aligns the next native interval $Y$, selected
+process continuation $X$, discrete events $E$, and any proposed registry change
+$\Delta\mathcal V$. For generative inversion, worlds, renderer families, and
+grounding versions are split so that lexical or template memorization cannot
+substitute for state recovery. For prospective real-data evaluation, the reveal
+interval and scoring record are appended without mutating the original input or
+forecast.
+
+
+\subsection{Reservoir split, training, and scoring protocol}
+\label{app:reservoir-protocol}
+
+The following settings complete the protocol for
+Section~\ref{sec:first-experiment}.
+
+Generate $2{,}000$ independent world groups, each retaining its mirrored
+stock/leak history, renderings, and intervention siblings. Assign
+$1{,}400/300/300$ groups to train/validation/test before making rows, and use
+cutoffs $8,16,32,64$. Paired variants never cross splits. Freeze a paired
+ordinary-text and typed renderer for training, with identical observation
+content. At test time compare the ordinary-text arms on their original
+renderer and a held-out fact-preserving paraphrase renderer; keep the typed
+view fixed and report that robustness comparison separately from $T-U$.
+Report renderer cost and ensure no input renderer can read private targets.
+Use five paired initialization seeds, batches of
+$32$, AdamW at learning rate $3\times10^{-4}$, and $20{,}000$ updates per arm;
+fix weight decay at $.01$, use no dropout, and report truncation (which must
+be zero), token counts, parameters, and measured compute. A secondary
+compute-capped comparison stops all arms at the smallest observed training
+budget; equal update counts alone are not equal compute. These numbers are
+design choices to freeze before test release, not a power calculation.
+
+The primary endpoint is four-hour native forecast negative log likelihood,
+averaged first within world group. Average paired $U-N$ differences across
+seeds, then report a $95\%$ group-bootstrap interval and the per-seed
+differences separately. Secondary outcomes include $T-U$, empty-onset Brier
+score, and stock-posterior calibration. The last two apply only to $N,U,T$;
+the direct native reference supplies total-reading forecasts, not a stock
+posterior or tank-specific Events.
+An exact oracle enumerates the $50$ initial states consistent with the visible
+history and the eight future mode paths. A current-observation-only prior
+baseline conditions on $(S_t,q_t)$ but discards earlier evidence. Both remain
+benchmarks, never student inputs. Appendix~\ref{app:reservoir-row} gives one
+row and the training/inference sequence.
+
+\subsection{A complete reservoir forecast row}
+\label{app:reservoir-row}
+
+The following row instantiates Section~\ref{sec:first-experiment}. It is
+illustrative arithmetic, not experimental evidence. Within the synthetic
+world the generator knows the private targets; the student sees only the
+input column. The format renderer has the same restricted access as the
+student.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{0.19\textwidth}YY@{}}
+\toprule
+Field & Cutoff-visible input & Training or later scoring target \\
+\midrule
+Identity and clocks & World group $g$, History and two stock-process addresses;
+registry digest $v$; cutoff hour $8$; horizon hours $(8,12]$ &
+Same identities and source version; later reveal attached without rewriting input \\
+Native history & Hours $0,\ldots,8$; totals
+$(20,23,26,29,24,19,22,25,28)$ litres; modes
+$(1,1,1,0,0,1,1,1,1)$; no gauge &
+Future totals $(31,32,27,30)$ litres \\
+Action and observation policy & Ordinary supply for all four forecast hours;
+total and mode public; individual stocks and leak private &
+Future modes $(q_9,q_{10},q_{11})=(1,0,1)$ \\
+Selected process state & Current total $28$ litres; stocks otherwise unresolved &
+$s^\star=(a_8=10,z=A)$, hence $b_8=18$; available only for the supervised loss \\
+Path and Events & No future Event or contact label &
+Stocks $(11,20),(12,20),(9,18),(10,20)$ at hours $9$--$12$;
+$B$ reaches capacity at $9$ and $12$;
+supply switches at $10$ and $11$ \\
+Masks and provenance & Exact simulated observations rendered with frozen
+renderer and access policy; no truncation &
+$m_s=1$ for supervised arms, $0$ for native-only arm;
+authored simulator truth, not observed human state; no registry revision \\
+\bottomrule
+\end{tabularx}
+\caption{One information-separated training row. All stock numbers carry
+litres; no sibling-relative semantic share is introduced.}
+\label{tab:reservoir-row}
+\end{table}
+
+A minimal implementation follows four steps:
+\begin{enumerate}
+ \item Generate and split world groups before producing views. At each cutoff,
+   assemble only the permitted observation prefix and planned action schedule;
+   keep private state, future Events, and scoring data in a separate target.
+ \item Encode the prefix. Normalize the joint $(a,z)$ logits over states
+   compatible with the observed total and capacity bounds. The learner does
+   not receive the oracle's history-filtered support or posterior.
+ \item Enumerate each candidate with the eight future supply paths. Apply
+   the shared decoder, group identical observable continuations, and compute
+   Equation~\ref{eq:reservoir-loss}. Sum over alternatives rather than replacing
+   them with independent mean stocks and a mean leak label.
+ \item At inference, mask private labels entirely and save the forecast
+   distribution before revealing outcomes. Score the frozen distribution and
+   attach any later update as a new estimate, preserving the original.
+\end{enumerate}
+Other domains need their own target adapters. Measured continuous values
+require a unit-aware density or declared discretization; missing targets need
+masks; Cuts need complete compatible sibling sets. Nothing in this finite
+example licenses adding arbitrary numerical scales to unmeasured processes.
+
+\begingroup
+\small
+\sloppy
+\hfuzz=1pt
+\setlength{\emergencystretch}{3em}
+\setlength{\multicolsep}{6pt}
+\bibliographystyle{unsrt}
+\bibliography{references}
+\endgroup
+
+\end{document}

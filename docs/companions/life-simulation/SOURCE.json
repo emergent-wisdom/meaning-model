@@ -1,0 +1,22 @@
+{
+  "schema": "meaning-model-companion-source/v1",
+  "repository": "life-simulation",
+  "source_state": "content_addressed_release_snapshot",
+  "release_provenance_status": "content_verified",
+  "artifact": "life-simulation.tex",
+  "source_path": "paper/life-simulation.tex",
+  "sha256": "319344dcb1f656698c149d3ccd4ac55e2d28f2a9d04ea6232874c2527ae961bb",
+  "dependencies": [
+    {
+      "artifact": "references.bib",
+      "source_path": "paper/references.bib",
+      "sha256": "e5183edd35889658354f7bf380ac35f7772f68fcf4c68465dd87317ebba683e8"
+    },
+    {
+      "artifact": "emergentwisdom-longform.sty",
+      "source_path": "paper/emergentwisdom-longform.sty",
+      "sha256": "c742a802c2feaff9a04eb8842e3904ccac41f5a19671dd498ba5986b4ea600f9"
+    }
+  ],
+  "boundary": "Byte-identical release snapshot of the Life Simulation manuscript and its local compilation dependencies, identified by the file digests above. Life Simulation remains the canonical source; this companion preserves the MCP two-paper reading contract. No development commit is asserted as the source of these bytes."
+}

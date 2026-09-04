@@ -1,0 +1,22 @@
+{
+  "handle": "ProcessAdaptation",
+  "mechanism": "Meaning Model concept bundle v1: {\"anchors\":[],\"description\":\"A process trajectory around change, including pre-event adjustment to an anticipated transition, post-event recovery or consolidation, continuing drift, instability or cascade, and terminal transition.\",\"id\":\"concept.process.adaptation\",\"label\":\"adaptation\",\"sema_handle\":\"ProcessAdaptation\",\"specializes\":[]}",
+  "gloss": "adaptation: A process trajectory around change, including pre-event adjustment to an anticipated transition, post-event recovery or consolidation, continuing drift, instability or cascade, and terminal transition.",
+  "invariants": [
+    "The resolved Pattern Card commits to one exact Meaning Model concept-definition bundle.",
+    "Matching Sema identities prove identity of the encoded bundle, not truth, equivalence, recognition quality, or enforcement."
+  ],
+  "_meta": {
+    "path": [
+      "Mind",
+      "Memory"
+    ],
+    "ring": 2,
+    "tier": 2
+  },
+  "sema_layer": "Mind",
+  "sema_category": "Memory",
+  "sema_id": "sema:ProcessAdaptation#mh:SHA-256:d25bc738fa42a952772dcf7ef953889b28af9ac6f9b738a01c6e793289555bea",
+  "sema_ref": "ProcessAdaptation#d25b",
+  "sema_stub": "d25b"
+}

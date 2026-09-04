@@ -1,0 +1,25 @@
+[package]
+name = "life-sim-engine"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "A sparse, deterministic numerical kernel for Life Simulation"
+
+[lib]
+name = "life_sim_engine"
+path = "src/lib.rs"
+
+[[bin]]
+name = "life-sim-engine"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["float_roundtrip"] }
+sha2 = "0.10"
+rusqlite = { version = "0.40.2", default-features = false, features = ["bundled"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
