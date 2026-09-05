@@ -2,6 +2,25 @@
   "name": "@emergent-wisdom/meaning-model-mcp",
   "version": "0.1.0",
   "description": "Meaning Model MCP server with a Rust engine and versioned modeling resources",
+  "author": "Henrik Westerberg",
+  "homepage": "https://github.com/emergent-wisdom/meaning-model#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emergent-wisdom/meaning-model.git",
+    "directory": "mcp-server"
+  },
+  "bugs": {
+    "url": "https://github.com/emergent-wisdom/meaning-model/issues"
+  },
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "meaning-model",
+    "modeling",
+    "simulation",
+    "rust"
+  ],
   "license": "(MIT AND CC-BY-4.0)",
   "type": "module",
   "bin": {

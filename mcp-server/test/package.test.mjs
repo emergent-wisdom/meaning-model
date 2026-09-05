@@ -15,10 +15,24 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
   const { packageDirectory } = await stageNpmPackage(root, temporary);
   const metadata = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'));
   assert.equal(metadata.name, '@emergent-wisdom/meaning-model-mcp');
+  assert.equal(metadata.version, '0.1.0');
+  assert.equal(metadata.author, 'Henrik Westerberg');
+  assert.equal(metadata.homepage, 'https://github.com/emergent-wisdom/meaning-model#readme');
+  assert.deepEqual(metadata.repository, {
+    type: 'git',
+    url: 'git+https://github.com/emergent-wisdom/meaning-model.git',
+    directory: 'mcp-server',
+  });
+  assert.equal(metadata.bugs.url, 'https://github.com/emergent-wisdom/meaning-model/issues');
+  for (const keyword of ['mcp', 'mcp-server', 'model-context-protocol', 'meaning-model', 'modeling', 'simulation', 'rust']) {
+    assert.ok(metadata.keywords.includes(keyword), keyword);
+  }
   assert.equal(metadata.private, undefined);
   assert.equal(metadata.publishConfig.access, 'public');
   assert.equal(metadata.license, '(MIT AND CC-BY-4.0)');
-  assert.equal(metadata.scripts.postinstall, undefined);
+  for (const lifecycle of ['preinstall', 'install', 'postinstall', 'prepare']) {
+    assert.equal(metadata.scripts[lifecycle], undefined, lifecycle);
+  }
   assert.equal(metadata.scripts.prepack, undefined);
   assert.equal(metadata.devDependencies, undefined);
   const launcher = join(packageDirectory, metadata.bin['meaning-model-mcp']);

@@ -7,11 +7,11 @@ It contains no prebuilt engine or build cache.
 
 ## Install and build
 
-Install a published version, or substitute the local release `.tgz` path while
-preparing a release:
+Install the reviewed release `.tgz` from its local path. This works before
+publication; installation by registry name requires a published version:
 
 ```sh
-npm install @emergent-wisdom/meaning-model-mcp
+npm install /absolute/path/to/emergent-wisdom-meaning-model-mcp-0.1.0.tgz
 npx meaning-model-mcp --build-engine
 ```
 
@@ -46,6 +46,43 @@ The [complete server guide](mcp-server/README.md) describes modeling, the
 paper-reading gate, tools, quotas, persistence limits, and the boundary between
 implemented mechanisms and research proposals. This remains experimental
 software; a released package does not establish the papers' learning claims.
+
+## Prepare and publish a release
+
+After the repository checks pass, create the complete tarball from the repository
+root:
+
+```sh
+npm --prefix mcp-server run pack:release
+```
+
+Use the exact `tarball` path reported by that command. Direct packing or
+publication of the `mcp-server` source directory is blocked because it omits
+the Rust engine and required reading resources. Install that tarball and test
+the explicit engine build and MCP connection before approving it for release.
+
+Record the reviewed tarball's checksum and inspect the publication preview:
+
+```sh
+release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.1.0.tgz"
+shasum -a 256 "$release_tarball"
+npm publish "$release_tarball" --dry-run --access public --ignore-scripts --registry=https://registry.npmjs.org/
+```
+
+Publication remains a separate release-owner decision. After approval of that
+exact tarball, authenticate with an npm account that can publish to
+`@emergent-wisdom` (`npm login` if needed), verify its identity, then publish:
+
+```sh
+npm whoami --registry=https://registry.npmjs.org/
+npm publish "$release_tarball" --access public --ignore-scripts --registry=https://registry.npmjs.org/
+npm view @emergent-wisdom/meaning-model-mcp@0.1.0 version dist.integrity --registry=https://registry.npmjs.org/
+```
+
+A dry run does not establish registry authentication or scope access. Any change
+to the package requires a new tarball and review. See the
+[npm publication documentation](https://docs.npmjs.com/cli/v11/commands/npm-publish/)
+for tarball publication and registry behavior.
 
 ## Licensing
 

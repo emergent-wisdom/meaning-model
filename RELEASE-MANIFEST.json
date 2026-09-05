@@ -448,8 +448,8 @@
     },
     {
       "path": "mcp-server/NPM-README.md",
-      "bytes": 2054,
-      "sha256": "189b7bb80db1ec47470deadfef751a402b566ac1a81aa94e111e73e1f718aba0"
+      "bytes": 3700,
+      "sha256": "d35610c6a251cb20cd08894640f8a477f79900079495e412c721d1b351d110af"
     },
     {
       "path": "mcp-server/README.md",
@@ -468,8 +468,8 @@
     },
     {
       "path": "mcp-server/package.json",
-      "bytes": 838,
-      "sha256": "d61f8e8867345fc377b0c3049aa0ffc2aac6951e91ab69ba3cf81ab9967f1fa9"
+      "bytes": 1319,
+      "sha256": "5e8498831ad16b6611b5f7cbfe26f0c47445acfff6619a2f162ab4602bfeea2b"
     },
     {
       "path": "mcp-server/resources/presets/SOURCE.json",
@@ -568,13 +568,13 @@
     },
     {
       "path": "mcp-server/test/package.test.mjs",
-      "bytes": 2637,
-      "sha256": "dfd762dd680ca46a648ad792dd0d9402144b29a4b38f2ad28e19dbcb008e9572"
+      "bytes": 3373,
+      "sha256": "ebf7da78d6854ab3f9a0af863b7dabfd83ff5d104f2ab2b598907f5baa767f29"
     },
     {
       "path": "mcp-server/test/protocol.test.mjs",
-      "bytes": 34558,
-      "sha256": "32978be8c76ae357fc502f3d8af1b511c3b05309a7f8ec174b4758e67d0e4c89"
+      "bytes": 34667,
+      "sha256": "040425548b4ba07d3d678da047b742cbd70c6fdf6cc1772c8858eb062bafbb57"
     },
     {
       "path": "mcp-server/test/rust-engine-process.test.mjs",

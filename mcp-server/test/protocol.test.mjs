@@ -198,10 +198,11 @@ test('official MCP client discovers and calls the local stdio server', async () 
       uri: 'life-sim://theory/life-simulation',
     });
     assert.match(lifePaper.contents[0].text, /Learning from Worlds and Their Construction/);
-    assert.match(
+    assert.equal(
       lifePaper.contents[0].text,
-      /No process-sensorium,\s+transfer, or alignment result is reported here/,
+      await readFile(new URL('../../docs/companions/life-simulation/life-simulation.tex', import.meta.url), 'utf8'),
     );
+    assert.match(lifePaper.contents[0]._meta.sha256, /^[a-f0-9]{64}$/);
     const narrativeProtocol = await client.readResource({
       uri: 'life-sim://protocol/narrative-understanding-graph',
     });
