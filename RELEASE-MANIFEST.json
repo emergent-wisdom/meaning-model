@@ -3,8 +3,8 @@
   "files": [
     {
       "path": ".gitignore",
-      "bytes": 695,
-      "sha256": "f2b511e42208a4615dd86ec74d1a60b2253499ba091eecdea1c63ee5601f3b4b"
+      "bytes": 709,
+      "sha256": "6905c686e113f484ea7e35380f8fc79dfb9a26f75286c4aacd12e28f323206e1"
     },
     {
       "path": "CITATION.cff",
@@ -33,8 +33,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 6245,
-      "sha256": "f6a019d0caf437bffe465b3a2cbef97a072a54c88138d7eec4796a99a2d900db"
+      "bytes": 6554,
+      "sha256": "2c8a26419098e353d72e28cd148b02af0143dd53dfb7c7818654ff325eb1fb44"
     },
     {
       "path": "docs/IMPLEMENTATION.md",
@@ -448,8 +448,8 @@
     },
     {
       "path": "mcp-server/NPM-README.md",
-      "bytes": 3700,
-      "sha256": "d35610c6a251cb20cd08894640f8a477f79900079495e412c721d1b351d110af"
+      "bytes": 5511,
+      "sha256": "48dcbba9b8e5553979f68d32de5e4f60c432a6d55cbd0008694e5c8a02627050"
     },
     {
       "path": "mcp-server/README.md",
@@ -464,12 +464,12 @@
     {
       "path": "mcp-server/package-lock.json",
       "bytes": 6489,
-      "sha256": "2d236a0907028a29c980a20bf01f36f9f63bee1fe34dd07cd811f978830bb7a0"
+      "sha256": "4cce04806e593c122ed4bbed59b1f3d50e9ae962af5377365d1df95a03856ade"
     },
     {
       "path": "mcp-server/package.json",
-      "bytes": 1319,
-      "sha256": "5e8498831ad16b6611b5f7cbfe26f0c47445acfff6619a2f162ab4602bfeea2b"
+      "bytes": 1375,
+      "sha256": "f5c123a28c606bc76769e70d750489b33344ec8f9759e0438d74cb2f909e7936"
     },
     {
       "path": "mcp-server/resources/presets/SOURCE.json",
@@ -488,8 +488,8 @@
     },
     {
       "path": "mcp-server/scripts/pack-release.mjs",
-      "bytes": 4820,
-      "sha256": "b7dcd9f8e8b3ce8cb2b08e8274ba0f1fafad2f091cde303f8692441476d6fa22"
+      "bytes": 4835,
+      "sha256": "3d7ddb146853cee79cb627763cb437fb530c07c1f721f6832367fd4eafbd892e"
     },
     {
       "path": "mcp-server/scripts/require-staged-package.mjs",
@@ -524,7 +524,7 @@
     {
       "path": "mcp-server/src/server.ts",
       "bytes": 34580,
-      "sha256": "a93348e52b51fcbeaa9ccdf94309c8bac2ce77acfca9c0278f9da32adcf8bd4b"
+      "sha256": "4216908beac0dfa82c44fd215d92806992c33e9c3485320301dab30b93e79458"
     },
     {
       "path": "mcp-server/src/service.mjs",
@@ -568,8 +568,8 @@
     },
     {
       "path": "mcp-server/test/package.test.mjs",
-      "bytes": 3373,
-      "sha256": "ebf7da78d6854ab3f9a0af863b7dabfd83ff5d104f2ab2b598907f5baa767f29"
+      "bytes": 4471,
+      "sha256": "e48d2681a95005e17278ea4c6e3acc2d0da8b86429ebcf50de3ba7946d584f9f"
     },
     {
       "path": "mcp-server/test/protocol.test.mjs",
@@ -663,8 +663,8 @@
     },
     {
       "path": "release-files.json",
-      "bytes": 3033,
-      "sha256": "d37b15a77011be1d50ef2b25d847e326e3422dcd0c5bc57d44f82e29c21fe80e"
+      "bytes": 3052,
+      "sha256": "dfa8d4310f8a0ee89fdfa2702cc1b3ca6d875037ad7bf2f067c2069e358f8c8c"
     },
     {
       "path": "rust-engine/Cargo.lock",
@@ -805,6 +805,11 @@
       "path": "scripts/verify-resources.mjs",
       "bytes": 2111,
       "sha256": "b44e78e5c23cfc03df134dcfc55a9a8e3fad24207d14f16f4a1391796f107305"
+    },
+    {
+      "path": "server.json",
+      "bytes": 1359,
+      "sha256": "b9a9e1685e601dfa2cbea4995018d72e43b16ae7275417340df4429ef3d10593"
     }
   ]
 }

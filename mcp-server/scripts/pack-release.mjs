@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
 const runtimeFiles = [
-  'LICENSE', 'LICENSE-CONTENT', 'NOTICE',
+  'LICENSE', 'LICENSE-CONTENT', 'NOTICE', 'server.json',
   'mcp-server/bin', 'mcp-server/resources',
   'rust-engine/Cargo.toml', 'rust-engine/Cargo.lock', 'rust-engine/src',
   'rust-engine/README.md', 'rust-engine/MEANING_MODEL_CONFORMANCE.md',

@@ -59,8 +59,12 @@ and [modeling protocol](docs/MODELING_PROTOCOL.md). Existing `life-sim` command,
 schema, resource, and binary identifiers are retained for compatibility with
 saved artifacts. They do not identify a second engine.
 
-The public package is `@emergent-wisdom/meaning-model-mcp`. To prepare its
-self-contained npm tarball locally, run `make npm-package`. The package includes
+The public package is
+[`@emergent-wisdom/meaning-model-mcp`](https://www.npmjs.com/package/@emergent-wisdom/meaning-model-mcp).
+Its official MCP Registry identity is `io.github.emergent-wisdom/meaning-model`,
+described by [`server.json`](server.json). Registry-based clients must supply
+the path to an explicitly built engine; the installation guide explains this
+setup. To prepare a self-contained npm tarball locally, run `make npm-package`. The package includes
 Rust source rather than platform binaries and uses an explicit
 `meaning-model-mcp --build-engine` setup step. See the
 [package installation guide](mcp-server/NPM-README.md). Creating a tarball does

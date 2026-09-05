@@ -9,6 +9,7 @@
 /paper/*.out
 /paper/*.pdf
 .DS_Store
+.mcpregistry*
 /rust-engine/target/
 /mcp-server/node_modules/
 *.sqlite-shm

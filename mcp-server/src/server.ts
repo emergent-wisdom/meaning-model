@@ -26,7 +26,7 @@ import {
 
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.1.0',
+  version: '0.1.1',
 });
 const service = new LifeSimulationService();
 const requestIdSchema = z.string().min(1).max(256);

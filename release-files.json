@@ -8,6 +8,7 @@
     "LICENSE-CONTENT",
     "NOTICE",
     "release-files.json",
+    "server.json",
     "scripts/export-release.mjs",
     "scripts/export-release.test.mjs",
     "scripts/verify-resources.mjs",

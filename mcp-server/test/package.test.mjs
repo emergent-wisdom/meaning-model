@@ -15,7 +15,22 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
   const { packageDirectory } = await stageNpmPackage(root, temporary);
   const metadata = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'));
   assert.equal(metadata.name, '@emergent-wisdom/meaning-model-mcp');
-  assert.equal(metadata.version, '0.1.0');
+  assert.equal(metadata.version, '0.1.1');
+  assert.equal(metadata.mcpName, 'io.github.emergent-wisdom/meaning-model');
+  const registry = JSON.parse(await readFile(join(packageDirectory, 'server.json'), 'utf8'));
+  assert.equal(registry.name, metadata.mcpName);
+  assert.equal(registry.version, metadata.version);
+  assert.equal(registry.packages[0].identifier, metadata.name);
+  assert.equal(registry.packages[0].version, metadata.version);
+  assert.equal(registry.packages[0].transport.type, 'stdio');
+  assert.equal(registry.packages[0].runtimeHint, 'npx');
+  assert.deepEqual(registry.packages[0].runtimeArguments, [{ type: 'positional', value: '--yes' }]);
+  assert.equal(registry.packages[0].packageArguments, undefined);
+  assert.deepEqual(registry.packages[0].environmentVariables.map(({ name, isRequired, isSecret, format }) =>
+    ({ name, isRequired, isSecret, format })),
+  [{ name: 'LIFE_SIM_ENGINE_BIN', isRequired: true, isSecret: false, format: 'filepath' }]);
+  const serverSource = await readFile(join(root, 'mcp-server', 'src', 'server.ts'), 'utf8');
+  assert.ok(serverSource.includes(`version: '${metadata.version}'`));
   assert.equal(metadata.author, 'Henrik Westerberg');
   assert.equal(metadata.homepage, 'https://github.com/emergent-wisdom/meaning-model#readme');
   assert.deepEqual(metadata.repository, {
