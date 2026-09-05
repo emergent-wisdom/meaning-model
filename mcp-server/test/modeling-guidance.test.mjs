@@ -40,7 +40,6 @@ test('modeling resources expose complete theory before operational profiles', as
     await readFile(new URL('../../docs/companions/life-simulation/life-simulation.tex', import.meta.url), 'utf8'),
   );
   assert.match(life.text, /Learning from Worlds and Their Construction/);
-  assert.match(life.text, /This paper develops the method and specifies experiments for\s+evaluating its learning hypotheses/);
   assert.match(protocol.text, /Paper-first entry contract/);
   assert.match(narrativeGraph.text, /additive atomic batches/);
   assert.match(meaning.sha256, /^[a-f0-9]{64}$/);

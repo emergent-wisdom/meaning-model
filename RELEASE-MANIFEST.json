@@ -3,8 +3,8 @@
   "files": [
     {
       "path": ".gitignore",
-      "bytes": 709,
-      "sha256": "6905c686e113f484ea7e35380f8fc79dfb9a26f75286c4aacd12e28f323206e1"
+      "bytes": 783,
+      "sha256": "46e007ecd46f205979b5d8adfa959e1c349463771afeb1557eb49b154fe486ae"
     },
     {
       "path": "CITATION.cff",
@@ -23,8 +23,8 @@
     },
     {
       "path": "Makefile",
-      "bytes": 2665,
-      "sha256": "a3f6a09a4fc089dac14b27c78ea1f541d6ae614d538ff0990b83c19d71a9b3f1"
+      "bytes": 2599,
+      "sha256": "95c9f3f48f045a0181209b217458fa07e400686592b46e03c9b7be446ac808c1"
     },
     {
       "path": "NOTICE",
@@ -33,8 +33,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 6554,
-      "sha256": "2c8a26419098e353d72e28cd148b02af0143dd53dfb7c7818654ff325eb1fb44"
+      "bytes": 6152,
+      "sha256": "23a50aff4062a57c8f3062bc65f36db151a5938b469646316323996f903a1e88"
     },
     {
       "path": "docs/IMPLEMENTATION.md",
@@ -53,8 +53,8 @@
     },
     {
       "path": "docs/RELEASE.md",
-      "bytes": 4338,
-      "sha256": "060488bfe2ec20d15404b0e8b55746965bd946234e6cc908b5c5ac8f964df578"
+      "bytes": 3140,
+      "sha256": "0387708b5bf950be89ea0348a638657792429b405f8b80c701e78f9196a917fa"
     },
     {
       "path": "docs/companions/life-simulation/SOURCE.json",
@@ -558,8 +558,8 @@
     },
     {
       "path": "mcp-server/test/modeling-guidance.test.mjs",
-      "bytes": 4739,
-      "sha256": "24b2d5a531dc1d062e42dbb63d57787251c8c9b26d5f7b6a131d57131ed36047"
+      "bytes": 4611,
+      "sha256": "7354a63ae00c48f27df03d52286d0da17b7762880949df6b0c905347adf50f0c"
     },
     {
       "path": "mcp-server/test/north-harbor-presets.test.mjs",
@@ -612,11 +612,6 @@
       "sha256": "f5d7e966db4f0800b138fbfbc0969059630ed7efdf75289ab2e2ff7b6c9c8a11"
     },
     {
-      "path": "paper/MEANING-MODEL-STRUCTURE.md",
-      "bytes": 26368,
-      "sha256": "9c5255f6d43e008cefad58c3c520d75f9f65a9ddfe93d19fd6d5c2ab25f92001"
-    },
-    {
       "path": "paper/emergentwisdom-preprint.sty",
       "bytes": 5999,
       "sha256": "8128f7757dda1cff087417c304e88ff3fd7e68aed581cc529969cd8ad5a20220"
@@ -635,11 +630,6 @@
       "path": "paper/meaning-model-grammar.tex",
       "bytes": 45747,
       "sha256": "8e6c086566126ef6e348bc13436f2b81ef7b0db7d376b334d98b8b7bdf3451df"
-    },
-    {
-      "path": "paper/meaning-model-structure.test.mjs",
-      "bytes": 37554,
-      "sha256": "8a23b5de26e9476e09280dbe0fa72d85b2121d831640a7031c6f30ba87259ede"
     },
     {
       "path": "paper/meaning-model.tex",
@@ -663,8 +653,8 @@
     },
     {
       "path": "release-files.json",
-      "bytes": 3052,
-      "sha256": "dfa8d4310f8a0ee89fdfa2702cc1b3ca6d875037ad7bf2f067c2069e358f8c8c"
+      "bytes": 2966,
+      "sha256": "5b0a6723978738ad6b47ef9af1aa1855e005203ff9eb42b8ec1c2bf92d9c071d"
     },
     {
       "path": "rust-engine/Cargo.lock",

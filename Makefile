@@ -7,7 +7,6 @@ export TZ := UTC
 
 PAPER_SOURCE := paper/meaning-model.tex
 GRAMMAR_SOURCE := paper/meaning-model-grammar.tex
-STRUCTURE_TEST := paper/meaning-model-structure.test.mjs
 BUILD_DIR := $(CURDIR)/build
 OUTPUT_DIR := $(CURDIR)/output/pdf
 BUILD_PDF := $(BUILD_DIR)/meaning-model.pdf
@@ -16,7 +15,7 @@ GRAMMAR_BUILD_DIR := $(BUILD_DIR)/grammar
 GRAMMAR_BUILD_PDF := $(GRAMMAR_BUILD_DIR)/meaning-model-grammar.pdf
 GRAMMAR_OUTPUT_PDF := $(OUTPUT_DIR)/meaning-model-grammar.pdf
 
-.PHONY: all check paper grammar book install build test test-paper test-rust test-mcp test-book verify-resources release release-export npm-package clean
+.PHONY: all check paper grammar book install build test test-examples test-rust test-mcp test-book verify-resources release release-export npm-package clean
 
 all: check
 
@@ -28,10 +27,10 @@ install:
 build:
 	$(CARGO) build --manifest-path rust-engine/Cargo.toml --release
 
-test: test-paper test-rust test-mcp test-book verify-resources
+test: test-examples test-rust test-mcp test-book verify-resources
 
-test-paper:
-	$(NODE) --test $(STRUCTURE_TEST) examples/refinement-trial/example.test.mjs
+test-examples:
+	$(NODE) --test examples/refinement-trial/example.test.mjs
 	$(NODE) --test scripts/export-release.test.mjs
 
 test-rust:

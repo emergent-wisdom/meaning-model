@@ -92,7 +92,7 @@ truth, psychological validity, or an advantage over ordinary writing.
 
 | Path | Contents |
 | --- | --- |
-| `paper/` | Paper and appendix sources, shared style, figures, bibliography, structure checks |
+| `paper/` | Paper and appendix sources, shared style, figures, bibliography |
 | `rust-engine/` | Shared Rust implementation, optional numerical simulation capabilities, tests and examples |
 | `mcp-server/` | MCP interface to that engine |
 | `profiles/` | Reusable authoring conventions, not mandatory human categories |
@@ -124,21 +124,15 @@ To check the code, examples, resources, and documents together:
 make check
 ```
 
-## Release preparation
+## Release packaging
 
 `make release` checks and builds the package, then exports an allowlisted clean
 directory beneath `build/`. The export includes the three PDFs and their
 sources, but not `.git`, build caches, private planning, review transcripts,
-or earlier constructions. It is the tree intended for a later clean initial
-commit; do not publish this development checkout's history by accident.
+or earlier constructions.
 
-See [release notes](docs/RELEASE.md) for the remaining publication choices and
-the distinction between an exported artifact and a published release. Nothing
-in these commands pushes to GitHub or publishes a package.
-
-The public repositories will each start with one initial commit from their
-curated export. Create the remote repositories empty; the development history
-is not part of those releases.
+See the [release guide](docs/RELEASE.md) for packaging and provenance details.
+Exporting files does not push to GitHub or publish a package.
 
 ## License and citation
 

@@ -22,8 +22,6 @@
     "profiles",
     "paper/meaning-model.tex",
     "paper/meaning-model-grammar.tex",
-    "paper/meaning-model-structure.test.mjs",
-    "paper/MEANING-MODEL-STRUCTURE.md",
     "paper/emergentwisdom-preprint.sty",
     "paper/references.bib",
     "paper/includes",
