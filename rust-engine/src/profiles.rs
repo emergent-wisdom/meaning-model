@@ -152,6 +152,7 @@ fn empty_meaning_model() -> MeaningModelDefinition {
         semantic_coverage: None,
         normalized_cuts: vec![],
         context_roots: vec![],
+        temporal_cut_recompositions: vec![],
     }
 }
 
@@ -431,6 +432,7 @@ fn merge_meaning_model(
     target.realizations.append(&mut source.realizations);
     target.normalized_cuts.append(&mut source.normalized_cuts);
     target.context_roots.append(&mut source.context_roots);
+    target.temporal_cut_recompositions.append(&mut source.temporal_cut_recompositions);
     Ok(())
 }
 

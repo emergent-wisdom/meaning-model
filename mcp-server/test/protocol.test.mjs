@@ -137,6 +137,8 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_world_create',
       'life_world_inspect',
       'life_world_refine_genesis',
+      'life_world_revise',
+      'life_world_revision_inspect',
       'life_writer_contract_create',
       'life_writer_plan_evaluate',
     ]);
@@ -260,6 +262,9 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'event_referent_bindings',
       'physical_cuts',
       'realizations',
+      'normalized_cuts',
+      'context_roots',
+      'temporal_cut_recompositions',
     ]);
     const estimationSubmitTool = tools.find(
       ({ name }) => name === 'life_estimation_response_submit',
@@ -316,7 +321,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
     assert.equal(status.structuredContent.meaningModelLayer.optional, true);
     assert.match(
       status.structuredContent.meaningModelLayer.mcpSurface,
-      /genesis-only authored refinement/,
+      /authored refinement and revision/,
     );
     assert.match(
       status.structuredContent.meaningModelLayer.executableBehavior,
@@ -333,6 +338,9 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'event_referent_bindings',
       'physical_cuts',
       'realizations',
+      'normalized_cuts',
+      'context_roots',
+      'temporal_cut_recompositions',
     ]);
     assert.equal(
       status.structuredContent.meaningModelLayer.schema,
@@ -357,6 +365,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'realizations',
       'normalized_cuts',
       'context_roots',
+      'temporal_cut_recompositions',
     ]);
     assert.equal(status.structuredContent.controlPlaneUsage.retainedAndPendingReceiptBytes, 0);
     assert.equal(status.structuredContent.estimationExchange.providerNeutral, true);

@@ -38,6 +38,7 @@ test-rust:
 
 test-mcp: build
 	cd mcp-server && npm test
+	$(NODE) examples/progressive-authoring/run.mjs
 
 test-book: build
 	$(NODE) --test --test-concurrency=1 examples/book-of-conditions/import-rust.test.mjs examples/book-of-conditions/rust-narrative.test.mjs

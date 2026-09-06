@@ -128,23 +128,33 @@ The model tools expose immutable typed profiles:
 - `life_world_refine_genesis` applies an already registered direct-next
   revision to one untouched genesis world, but only when the revision preserves
   every existing model record and makes at most monotonic authored additions.
+- `life_world_revise` applies a registered direct-next model at an exact accepted
+  world hash, including after history has begun. `refine` preserves prior commitments;
+  `revise` permits explicit compatible changes. Both retain an immutable receipt,
+  require a reason and provenance, and require current values for new processes.
+- `life_world_revision_inspect` reads that receipt by hash, with explicit state
+  projection. Empty requested observables return no state values.
 
 ## Optional Meaning Model layer
 
 A model may opt in with a nested
 `meaning_model: { schema: "life-sim-rust-meaning-model/v1", ... }` block. Models
 without that block keep their existing representation and behavior. The block
-stores ten collections within the bounded nested layer: `concepts`,
+stores thirteen collections within the bounded nested layer: `concepts`,
 `abstract_relations`, `abstract_cuts`, `referents`, `encapsulation_cuts`,
 `events`, `event_relations`, `event_referent_bindings`, `physical_cuts`, and
-`realizations`. Referents give bounded entities stable authored identities,
+`realizations`, `normalized_cuts`, `context_roots`, and
+`temporal_cut_recompositions`. The last three provide sibling-relative weights
+with explicit remainder, typed perspective roots, and opt-in duration-weighted
+recomposition contracts. Complete partitions must reproduce their parent Cut;
+partial partitions must leave a feasible nonnegative residual. Referents give bounded entities stable authored identities,
 encapsulation cuts record their optional parent/child organization, and event-referent bindings
 record optional typed participation by targeting either a semantic event or an
 executable state-bearing process. None of those collections is a prerequisite
 for ordinary event/process modeling. Physical cuts distinguish parallel from
 sequential decomposition, and realization records retain the `define` versus
 `describe` purpose, role bindings, parameters, degree, uncertainty,
-provenance, viewpoint, and optional authority. Events refer to the existing
+  provenance, viewpoint, and optional authority. Events refer to the existing
 process ids; their records add explicit boundaries, optional intervals,
 observation-process membership, participants, substrate, and region. Processes
 and laws remain the one physical execution substrate.
@@ -175,6 +185,18 @@ edge, law, initial claim, and Meaning Model record remains exact. The target
 must already be registered and directly linked to the current revision. This
 is not automatic discovery, adaptive cut opening, or migration after history
 has begun.
+
+For explicit post-history authoring, use `life_world_revise` instead. The model
+identity, time unit, and existing process shapes/units must remain compatible.
+Refinement preserves existing state and records, allowing new detail and a
+compatible partial temporal partition to be completed. Revision may change
+existing values or descriptions explicitly; neither mode resets the world to
+the new model's genesis. Old candidates cannot commit against the revised head,
+and existing narrative graphs remain bound to their old snapshots. Portable
+project/checkpoint exports and accepted-history training exports spanning a
+world revision currently return `unsupported_history`; SQLite persistence and
+continued world construction are supported. See the
+[progressive authoring example](../examples/progressive-authoring/README.md).
 
 ## Provider-neutral estimation exchange
 

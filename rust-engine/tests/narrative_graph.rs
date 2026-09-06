@@ -1,6 +1,6 @@
 use life_sim_engine::{
-    compile_model, compile_narrative_graph, Claim, MachineSession, ProcessValue,
-    StoredNarrativeGraph,
+    compile_model, compile_narrative_graph, Claim, ClaimUncertainty, MachineSession,
+    NarrativeGraphDefinition, ProcessValue, StoredNarrativeGraph,
 };
 use rusqlite::Connection;
 use serde::Serialize;
@@ -334,6 +334,89 @@ fn append_story_nodes(
             }
         }),
     )
+}
+
+#[test]
+fn narrative_node_uncertainty_rejects_invalid_values() {
+    let definition: NarrativeGraphDefinition = serde_json::from_value(root_story_graph(
+        &"a".repeat(64),
+        "uncertainty-validation",
+        vec![],
+        vec![],
+    ))
+    .unwrap();
+    let mut invalid = vec![
+        (
+            ClaimUncertainty::StandardDeviation { value: -0.1 },
+            "narrative node root uncertainty is negative",
+        ),
+        (
+            ClaimUncertainty::Interval {
+                lower: 1.0,
+                upper: 0.0,
+            },
+            "narrative node root uncertainty interval is reversed",
+        ),
+    ];
+    for value in [f64::NAN, f64::NEG_INFINITY, f64::INFINITY] {
+        invalid.extend([
+            (
+                ClaimUncertainty::StandardDeviation { value },
+                "narrative node root uncertainty must be finite",
+            ),
+            (
+                ClaimUncertainty::Interval {
+                    lower: value,
+                    upper: 1.0,
+                },
+                "narrative node root uncertainty lower must be finite",
+            ),
+            (
+                ClaimUncertainty::Interval {
+                    lower: 0.0,
+                    upper: value,
+                },
+                "narrative node root uncertainty upper must be finite",
+            ),
+        ]);
+    }
+    for (uncertainty, expected_error) in invalid {
+        let mut graph = definition.clone();
+        graph.nodes[0].uncertainty = uncertainty;
+        let error = compile_narrative_graph(graph).unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+    }
+}
+
+#[test]
+fn narrative_node_uncertainty_preserves_valid_values() {
+    let definition: NarrativeGraphDefinition = serde_json::from_value(root_story_graph(
+        &"a".repeat(64),
+        "uncertainty-validation",
+        vec![],
+        vec![],
+    ))
+    .unwrap();
+    for uncertainty in [
+        ClaimUncertainty::Unknown,
+        ClaimUncertainty::Exact,
+        ClaimUncertainty::StandardDeviation { value: 0.0 },
+        ClaimUncertainty::StandardDeviation { value: 0.1 },
+        ClaimUncertainty::Interval {
+            lower: -1.0,
+            upper: 1.0,
+        },
+        ClaimUncertainty::Interval {
+            lower: 0.0,
+            upper: 0.0,
+        },
+    ] {
+        let mut graph = definition.clone();
+        graph.nodes[0].uncertainty = uncertainty.clone();
+        let compiled = compile_narrative_graph(graph).unwrap();
+        assert_eq!(compiled.nodes["root"].uncertainty, uncertainty);
+        assert_eq!(compiled.definition.nodes[0].uncertainty, uncertainty);
+    }
 }
 
 #[test]

@@ -15,7 +15,7 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
   const { packageDirectory } = await stageNpmPackage(root, temporary);
   const metadata = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'));
   assert.equal(metadata.name, '@emergent-wisdom/meaning-model-mcp');
-  assert.equal(metadata.version, '0.1.1');
+  assert.equal(metadata.version, '0.2.0');
   assert.equal(metadata.mcpName, 'io.github.emergent-wisdom/meaning-model');
   const registry = JSON.parse(await readFile(join(packageDirectory, 'server.json'), 'utf8'));
   assert.equal(registry.name, metadata.mcpName);
@@ -50,11 +50,15 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
   }
   assert.equal(metadata.scripts.prepack, undefined);
   assert.equal(metadata.devDependencies, undefined);
+  assert.equal(await readFile(join(packageDirectory, 'CHANGELOG.md'), 'utf8'),
+    await readFile(join(root, 'CHANGELOG.md'), 'utf8'));
   const launcher = join(packageDirectory, metadata.bin['meaning-model-mcp']);
-  assert.ok((await stat(launcher)).mode & 0o111);
+  if (process.platform !== 'win32') assert.ok((await stat(launcher)).mode & 0o111);
   const help = spawnSync(process.execPath, [launcher, '--help'], { encoding: 'utf8' });
   assert.equal(help.status, 0, help.stderr);
   assert.match(help.stdout, /--build-engine/);
+  assert.match(help.stdout, /--install-engine/);
+  assert.match(metadata.scripts['install:engine'], /--install-engine/);
   const sources = await readdir(join(packageDirectory, 'mcp-server', 'src'));
   assert.ok(sources.includes('server.mjs'));
   assert.ok(!sources.some((name) => name.endsWith('.ts')));

@@ -110,7 +110,16 @@ export const meaningModelCollections = Object.freeze([
   'event_referent_bindings',
   'physical_cuts',
   'realizations',
+  'normalized_cuts',
+  'context_roots',
+  'temporal_cut_recompositions',
 ]);
+
+function meaningRecordId(collection, record) {
+  if (collection === 'context_roots') return record.event_id;
+  if (collection === 'temporal_cut_recompositions') return record.parent_cut_id;
+  return record.id;
+}
 
 function compactCandidate(record, candidateId) {
   const { candidate, status } = record;
@@ -515,6 +524,10 @@ function compactModelMutationSummary(summary) {
                   meaningSummary.event_referent_binding_count ?? null,
                 physical_cut_count: meaningSummary.physical_cut_count ?? null,
                 realization_count: meaningSummary.realization_count ?? null,
+                normalized_cut_count: meaningSummary.normalized_cut_count ?? null,
+                context_root_count: meaningSummary.context_root_count ?? null,
+                temporal_cut_recomposition_count:
+                  meaningSummary.temporal_cut_recomposition_count ?? null,
               }
             : null,
         }),
@@ -955,12 +968,12 @@ export class LifeSimulationService {
         optional: true,
         authority: 'immutable Rust-stored model definition',
         mcpSurface:
-          'bounded read-only query plus explicit genesis-only authored refinement over the Rust-owned world',
+          'bounded read-only query plus explicit authored refinement and revision of Rust-owned worlds, including after accepted history',
         queryableCollections: [...meaningModelCollections],
         schema: description.schemas?.meaning_model ?? null,
         rustContract: description.meaning_model ?? null,
         executableBehavior:
-          'MCP does not execute Meaning Model records; processes and laws remain the physical execution substrate. It can ask Rust to replace an untouched genesis world with an already registered, direct-next, monotonic authored revision. It does not infer links, apply cuts, discover structure, adaptively open detail, or migrate accepted history.',
+          'MCP does not execute Meaning Model records; Rust validates declared temporal Cut recomposition and applies explicit direct-next world revisions. Refinement preserves commitments; Revise records compatible changes. Neither invents detail or judges its plausibility. Existing history is retained; portable checkpoint/training exports spanning revisions remain unsupported.',
       },
       profileCompilation: {
         optional: true,
@@ -1185,11 +1198,12 @@ export class LifeSimulationService {
         if (!isRecord(definition)) {
           throw new Error(`Stored Meaning Model ${collection} entry is not an object.`);
         }
+        const id = meaningRecordId(collection, definition);
         ensureBoundedNonemptyString(
-          definition.id,
+          id,
           `stored model.meaning_model.${collection} id`,
         );
-        if (requestedIds.size > 0 && !requestedIds.has(definition.id)) continue;
+        if (requestedIds.size > 0 && !requestedIds.has(id)) continue;
         matches.push({ collection, definition });
       }
     }
@@ -1201,7 +1215,7 @@ export class LifeSimulationService {
       const itemBytes = Buffer.byteLength(JSON.stringify(item));
       if (itemBytes > MAX_MEANING_QUERY_DEFINITION_BYTES && items.length === 0) {
         throw new Error(
-          `Meaning Model definition ${match.definition.id} uses ${itemBytes} bytes; ` +
+          `Meaning Model definition ${meaningRecordId(match.collection, match.definition)} uses ${itemBytes} bytes; ` +
           `query definition-byte limit is ${MAX_MEANING_QUERY_DEFINITION_BYTES}.`,
         );
       }
@@ -1750,6 +1764,89 @@ export class LifeSimulationService {
         };
       },
     );
+  }
+
+  async reviseWorld({
+    worldId,
+    requestId,
+    expectedWorldHash,
+    targetModelHash,
+    mode,
+    stateValues = {},
+    reason,
+    provenance,
+    requestedObservables = [],
+    accessScopes = [],
+  }) {
+    const world = this.getWorld(worldId);
+    ensureHash(expectedWorldHash, 'expectedWorldHash');
+    ensureHash(targetModelHash, 'targetModelHash');
+    if (!['refine', 'revise'].includes(mode)) throw new Error('mode must be refine or revise.');
+    if (!isRecord(stateValues)) throw new Error('stateValues must be an object.');
+    if (Object.keys(stateValues).length > MAX_MODEL_PROCESSES) {
+      throw new Error('stateValues exceeds the process limit.');
+    }
+    ensureBoundedNonemptyString(reason, 'reason');
+    ensureBoundedStringArray(provenance, 'provenance', 64);
+    if (provenance.length === 0) throw new Error('provenance must not be empty.');
+    ensureBoundedStringArray(requestedObservables, 'requestedObservables', MAX_VIEW_FIELDS);
+    ensureBoundedStringArray(accessScopes, 'accessScopes', MAX_VIEW_ACCESS_SCOPES);
+    const revision = {
+      expected_world_hash: expectedWorldHash,
+      mode,
+      state_values: structuredClone(stateValues),
+      reason,
+      provenance: [...provenance],
+    };
+    validateAggregateJsonBytes(revision, 'worldRevision', MAX_MODEL_BYTES);
+    const view = {
+      requested_observables: [...new Set(requestedObservables)].sort(),
+      access_scopes: [...new Set(accessScopes)].sort(),
+      include_path: false,
+    };
+    return this.#withIdempotentReceipt(
+      world.receipts,
+      'revise-world',
+      requestId,
+      { worldId, targetModelHash, revision, view },
+      async () => {
+        const targetModel = await this.backend.call('get_model', { model_hash: targetModelHash });
+        const processIds = processIdsFromModelResult(targetModel);
+        const result = await this.backend.call('revise_world', {
+          world_id: worldId,
+          model_hash: targetModelHash,
+          world_revision: revision,
+          view,
+        });
+        // Only adopt the model handle after Rust has accepted the exact-head revision.
+        // Existing candidates and narrative graphs remain pinned to their old sources.
+        world.modelHash = targetModelHash;
+        world.processIds = processIds;
+        world.presetId = null;
+        return {
+          ...structuredClone(result),
+          schema: SERVICE_SCHEMA,
+          operation: 'revise-world',
+          worldId,
+          modelHash: targetModelHash,
+          canonical: true,
+        };
+      },
+    );
+  }
+
+  async inspectWorldRevision({ revisionHash, requestedObservables = [], accessScopes = [] }) {
+    ensureHash(revisionHash, 'revisionHash');
+    ensureBoundedStringArray(requestedObservables, 'requestedObservables', MAX_VIEW_FIELDS);
+    ensureBoundedStringArray(accessScopes, 'accessScopes', MAX_VIEW_ACCESS_SCOPES);
+    return this.backend.call('get_world_revision', {
+      world_revision_hash: revisionHash,
+      view: {
+        requested_observables: [...new Set(requestedObservables)].sort(),
+        access_scopes: [...new Set(accessScopes)].sort(),
+        include_path: false,
+      },
+    });
   }
 
   getWorld(worldId) {

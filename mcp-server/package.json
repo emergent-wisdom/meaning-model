@@ -1,6 +1,6 @@
 {
   "name": "@emergent-wisdom/meaning-model-mcp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "mcpName": "io.github.emergent-wisdom/meaning-model",
   "description": "Meaning Model MCP server with a Rust engine and versioned modeling resources",
   "author": "Henrik Westerberg",
@@ -36,6 +36,7 @@
   "scripts": {
     "start": "node bin/meaning-model-mcp.mjs",
     "build:engine": "node bin/meaning-model-mcp.mjs --build-engine",
+    "install:engine": "node bin/meaning-model-mcp.mjs --install-engine",
     "test": "node --test test/*.test.mjs",
     "pack:release": "node scripts/pack-release.mjs",
     "prepack": "node scripts/require-staged-package.mjs"

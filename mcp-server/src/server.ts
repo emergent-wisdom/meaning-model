@@ -26,7 +26,7 @@ import {
 
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.1.1',
+  version: '0.2.0',
 });
 const service = new LifeSimulationService();
 const requestIdSchema = z.string().min(1).max(256);
@@ -350,6 +350,41 @@ server.registerTool(
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   async (input) => toolResult(await service.inspectWorld(input)),
+);
+
+server.registerTool(
+  'life_world_revise',
+  {
+    description: 'Adopt a registered direct-next model revision at the current world time, including after accepted history. Requires the exact expected world hash. refine preserves existing records and state; revise explicitly permits compatible authored changes. Supply current values for every new process. Prior history and narrative sources remain frozen; old candidates cannot be accepted against the new head. This is an authored revision, not a simulated event or inferred migration.',
+    inputSchema: z.object({
+      worldId: handleSchema,
+      requestId: requestIdSchema,
+      expectedWorldHash: z.string().length(64),
+      targetModelHash: z.string().length(64),
+      mode: z.enum(['refine', 'revise']),
+      stateValues: z.record(z.string(), z.unknown()).default({}),
+      reason: z.string().min(1).max(1_024),
+      provenance: z.array(z.string().min(1).max(1_024)).min(1).max(64),
+      requestedObservables: z.array(processIdSchema).max(1_000).default([]),
+      accessScopes: z.array(processIdSchema).max(64).default([]),
+    }),
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
+  async (input) => toolResult(await service.reviseWorld(input)),
+);
+
+server.registerTool(
+  'life_world_revision_inspect',
+  {
+    description: 'Read a persisted authored world-revision receipt by its immutable hash. Frozen state is projected through requestedObservables and accessScopes; an empty request returns no state. This remains a trusted authoring session, not an authentication boundary.',
+    inputSchema: z.object({
+      revisionHash: z.string().length(64),
+      requestedObservables: z.array(processIdSchema).max(1_000).default([]),
+      accessScopes: z.array(processIdSchema).max(64).default([]),
+    }),
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  async (input) => toolResult(await service.inspectWorldRevision(input)),
 );
 
 server.registerTool(

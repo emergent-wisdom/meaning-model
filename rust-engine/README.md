@@ -10,6 +10,13 @@ The `life-sim-engine` package and binary names, `life_sim_engine` library name,
 and existing serialized identifiers remain unchanged for compatibility. Life
 Simulation consumes this same implementation from the Meaning Model repository.
 
+This checkout prepares `0.2.0`; its package and platform assets are not yet
+published. The MCP launcher adds explicit `--install-engine` setup to download
+and verify a matching release executable once available. Use `--build-engine`
+with Cargo and native build tools for the included source in the meantime.
+Normal package installation and startup perform neither step. See the
+[package setup guide](../mcp-server/NPM-README.md).
+
 The machine now provides:
 
 - a recursively decomposable typed process graph covering scalar, vector,
@@ -24,8 +31,13 @@ The machine now provides:
 - hash-linked complete-model revisions, so adding a dimension or law is an
   explicit schema change rather than an in-place numeric mutation;
 - genesis-only authored refinement, which can replace an untouched world with
-  its direct next revision while preserving every existing model record,
-  initial state value, and claim exactly;
+  its direct next revision while retaining old state, claims, and records,
+  with a bounded exception for extending partial temporal Cut contracts;
+- explicit refinement or revision after accepted time has advanced, using a
+  direct-next model, expected-world-hash compare-and-swap, and immutable receipts
+  that retain both frozen heads and the earlier accepted history;
+- optional temporal normalized-Cut contracts with declared answer projections,
+  duration-derived shares, complete mixture checks, and partial residual feasibility;
 - synchronous whole-world candidates from one frozen parent, named keyed random
   draws, whole-candidate rerolls, and atomic accepted-head replacement;
 - backward-compatible timed interventions with an explicit opt-in
@@ -112,7 +124,8 @@ physical-model representation. The layer is validated, hashed, revised, retrieve
 persisted with the complete model definition; the existing process graph and
 laws remain the physical execution substrate.
 
-`event_relations`, `normalized_cuts`, and `context_roots` are defaulted and omitted from canonical serialization when
+`event_relations`, `normalized_cuts`, `temporal_cut_recompositions`, and
+`context_roots` are defaulted and omitted from canonical serialization when
 empty. Existing models—including models with a Meaning Model—therefore retain
 their exact normalized definition and hash when they do not supply these
 later-added collections; an explicitly empty collection normalizes identically
@@ -135,6 +148,19 @@ physical/abstract Cut schemas or migrate legacy Realization degrees.
 An unweighted `define` Realization (`degree: 1`) may omit the legacy
 `abstract_cut_id` when one of its role-bound Events parents a normalized Cut;
 otherwise the legacy abstract-cut requirement remains in force.
+
+`temporal_cut_recompositions` optionally declares a `parent_cut_id`, `children`
+with `cut_id` and `projection`, `coverage` (`complete` or `partial`), and
+provenance. Identity projection requires identical answer support; an explicit
+answer map must map every child answer to a parent answer, including child
+remainder to parent remainder. The question, unit, conditioning, and any declared
+governing context must agree. Finite positive Event intervals supply shares by
+duration. Children must be disjoint and contained; complete coverage must tile
+the parent exactly and recover its answer weights within `1e-9`. Partial coverage
+must leave a nonnegative residual whose mass is the uncovered duration share.
+The validator neither renormalizes weights nor invents an unobserved residual
+composition. Conditioning and temporal projection dependencies cannot cycle.
+Descriptive containment and overlapping episodes impose no numerical mixture.
 
 `context_roots` contains `{event_id, kind, provenance}` declarations on existing
 Events, with kinds `accepted_world`, `inner`, `understanding`, `document`, and
@@ -168,24 +194,52 @@ identity link.
 This is static semantic hosting, not entity resolution, cut execution, or
 learning. Identity claims, role bindings, cut membership, and sequential order
 are declarations. They do not create referents, change membership, schedule
-laws, expand or aggregate state, check recomposition, estimate abstract state,
+laws, automatically expand or aggregate state, enforce arbitrary recomposition
+laws, estimate abstract state,
 or discover concepts and functions. See
 [MEANING_MODEL_CONFORMANCE.md](MEANING_MODEL_CONFORMANCE.md) for the precise
 implemented and unimplemented boundary.
 
-The `refine_genesis_world` session operation is a narrow model-lifecycle
-exception to an otherwise fixed world/model binding. Its target must be an
+The `refine_genesis_world` session operation remains available for untouched
+worlds. Its target must be an
 already registered direct-next revision; the current head must still be the
 exact version-0, time-0 genesis with no lineage; and every old process,
-decomposition edge, dependency, law, initial claim, and record in all twelve
+decomposition edge, dependency, law, initial claim, and existing record in the
 Meaning Model collections must remain structurally identical. Additions are
-allowed. Semantic coverage may be enabled or strengthened, but not removed or
+allowed, including the bounded temporal-contract extension described below.
+Semantic coverage may be enabled or strengthened, but not removed or
 weakened; existing unresolved declarations are additions-only. Rust rebuilds
 the target genesis under the same world id, verifies all
 old state and claims, and replaces the head only after the requested view,
 storage bound, and response have succeeded. The response reports preserved and
 added record counts. This does not infer new structure, execute a cut, open
 detail adaptively, or migrate a world after accepted time has begun.
+
+A partial temporal Cut contract may also gain children or become complete,
+provided its parent, provenance, and all existing child projections are retained
+and the resulting contract passes validation. Complete contracts cannot be
+weakened to partial coverage. This bounded extension also applies to `refine`
+mode below.
+
+For an existing history, use `revise_world` with `world_id`, target `model_hash`,
+and `world_revision: {expected_world_hash, mode, state_values, reason, provenance}`.
+The target must already be registered as the direct next model revision.
+`refine` preserves existing records and current state while permitting validated
+additions; `revise` permits explicit authored changes and replacement state values.
+New processes require values supplied for the current world time; target initial
+values and claims are not injected. Existing process shape, units, frame, and
+scale cannot change in either mode. The operation keeps world identity and time,
+increments its version, and records an immutable receipt linking the frozen
+source and target heads into the accepted lineage. Stale expected hashes reject
+without changing the head. `get_world_revision` retrieves the receipt; response
+state and claims respect the requested view. A pending candidate from the older
+head cannot be committed onto the revised head.
+
+In-session narrative authoring and rendering remain available after a world
+revision. Portable narrative training exports and project checkpoint registration
+whose source history crosses that boundary reject with `unsupported_history`.
+The session database retains the complete accepted history and receipts; portable
+replay across multiple model revisions is not yet implemented.
 
 A complete `validate_model` request is available in
 [examples/meaning-model-command.json](examples/meaning-model-command.json):
@@ -336,7 +390,7 @@ in one process and the machine causes no filesystem side effects. With
 SQLite v2 state file. Foreign keys are enabled, the journal is WAL, synchronous
 durability is FULL, and Unix database and sidecar permissions are restricted to
 `0600`. One successful command writes only its dirty model, world, candidate,
-source-snapshot, narrative-revision, and project-checkpoint rows. A generation compare-and-swap
+world-revision, source-snapshot, narrative-revision, and project-checkpoint rows. A generation compare-and-swap
 rejects stale session writers before their rows are applied. Schema bootstrap,
 generation advance, and row changes commit atomically; failed persistence is
 not acknowledged and the in-memory session reloads authoritative durable state.
@@ -345,8 +399,9 @@ An ambiguous failed commit is reported as `persistence_uncertain`.
 Narrative history stores one deduplicated source snapshot plus append-only
 revision deltas, rather than another full graph for every edit. Raw insertion
 order and global commit order are retained as provenance independently of
-semantic traversal order and simulated world time. Any immutable revision can
-be listed, queried, rendered, exported, or used as the parent of a new branch.
+semantic traversal order and simulated world time. Any immutable narrative revision
+can be listed, queried, rendered, or used as the parent of a new branch. Portable
+exports retain the world-revision boundary restriction described above.
 Startup checks SQLite integrity and relational shadow columns, content and
 record hashes, canonical deltas, source anchors, complete lineages, storage
 bounds, and deterministic candidate replay. Cold narrative lookup replays one
@@ -610,6 +665,9 @@ The authoritative stateful operations are:
 | `get_model` | `model_hash` | canonical model and summary |
 | `create_world` | `model_hash`, `world_id`, optional `view` | accepted genesis metadata and projected values |
 | `get_world` | `world_id`, optional `view` | current accepted metadata and projected values |
+| `refine_genesis_world` | `world_id`, direct-next `model_hash`, optional `view` | validated additions to an untouched genesis world |
+| `revise_world` | `world_id`, direct-next `model_hash`, `world_revision`, optional `view` | current-time refinement or revision with an immutable receipt and projected head |
+| `get_world_revision` | `world_revision_hash`, optional `view` | immutable receipt with projected source and target heads |
 | `roll_world` | `world_id`, typed `query` | pending candidate projected to the query observables |
 | `inspect_candidate` | `candidate_hash`, optional explicit `view` | requested candidate projection and status; default exposes no values |
 | `summarize_trajectory` | `candidate_hash`, `trajectory_summary` | hashed piecewise-linear scalar statistics for a bounded interval of the already-retained path; no state change |
@@ -787,8 +845,10 @@ digest-bound Rust model resources.
   same pinned engine build and platform.
 - The typed machine executes scalar expressions only. Non-scalar values are
   validated and retained losslessly but do not yet have numerical operators.
-- Complete model revisions can add dimensions and laws. Migrating an existing
-  accepted world to a new model revision is not yet implemented.
+- Complete model revisions can add dimensions and laws. `revise_world` supports
+  explicit direct-next transitions at the current time; arbitrary process
+  reshaping, automatic migration, and portable replay across model revisions
+  remain unsupported.
 - The legacy stateless form still resends and recompiles a registry. Stateful
   model/world/lineage operations require one NDJSON authority process; an
   optional state file recovers that authority after a restart.

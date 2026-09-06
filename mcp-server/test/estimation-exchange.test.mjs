@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { LifeSimulationService } from '../src/service.mjs';
+import { LifeSimulationService, meaningModelCollections } from '../src/service.mjs';
+import { validateEstimationResponseInput } from '../src/estimation-exchange.mjs';
 
 const baseHash = 'a'.repeat(64);
 const proposedHash = 'b'.repeat(64);
@@ -490,6 +491,49 @@ test('response validation rejects partial coverage, mistyped values, and undecla
     })),
     /proposedModel requires proposalReason/,
   );
+});
+
+test('semantic changes use context and temporal identities without collapsing multiple records', () => {
+  for (const [collection, key, record, replacement] of [
+    ['context_roots', 'event_id', { kind: 'inner', provenance: ['test'] }, { kind: 'understanding' }],
+    ['temporal_cut_recompositions', 'parent_cut_id', {
+      coverage: 'partial', children: [{ cut_id: 'child', projection: { kind: 'identity' } }],
+      provenance: ['test'],
+    }, { coverage: 'complete' }],
+  ]) {
+    const baseModel = model();
+    baseModel.meaning_model = {
+      schema: 'life-sim-rust-meaning-model/v1',
+      [collection]: ['first', 'second'].map((id) => ({ ...record, [key]: id })),
+    };
+    const proposedModel = structuredClone(baseModel);
+    proposedModel.revision = model(1).revision;
+    const updated = { ...proposedModel.meaning_model[collection][0], ...replacement };
+    proposedModel.meaning_model[collection][0] = updated;
+    const validate = (semanticChanges) => validateEstimationResponseInput({
+      dispositions: [{ coordinateId: 'trust-now', status: 'unknown', reason: 'No estimate' }],
+      provisionalClaims: [], semanticChanges, proposedModel, proposalReason: 'Update semantic detail',
+    }, {
+      request: {
+        coordinates: [{ id: 'trust-now', processId: 'person.trust' }],
+        modelHash: baseHash, modelRevision: 0,
+      },
+      baseModel, worldProjection: { claims: {} }, meaningCollections: meaningModelCollections,
+    });
+    assert.throws(() => validate([]), {
+      message: `Meaning Model change ${collection}/first was not declared.`,
+    });
+    const change = { collection, action: 'replace', id: 'first', definition: updated, reason: 'Explicit replacement' };
+    assert.doesNotThrow(() => validate([change]));
+    assert.throws(() => validate([{ ...change, definition: { ...updated, [key]: 'second' } }]),
+      /definition must exactly equal the proposed model record/);
+
+    proposedModel.meaning_model[collection].shift();
+    assert.throws(() => validate([]), {
+      message: `Meaning Model change ${collection}/first was not declared.`,
+    });
+    assert.doesNotThrow(() => validate([{ collection, action: 'remove', id: 'first', reason: 'Explicit removal' }]));
+  }
 });
 
 test('observed outputs require observed processes and stale proposals cannot be approved', async () => {

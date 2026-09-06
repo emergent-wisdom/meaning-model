@@ -193,6 +193,16 @@ narrative graphs with their exact source snapshots; the MCP paper-access gate
 and other control-plane handles are not currently durable across server
 restart.
 
+To open compatible detail after accepted history, register a direct-next model
+and use `life_world_revise` in `refine` mode against the exact current world hash.
+Supply current values for newly introduced processes. If existing commitments
+must change, use `revise` instead and state why; the engine retains both heads
+in an immutable receipt. Explicit temporal Cut contracts check duration-weighted
+recomposition, including whether partial detail can still complete its parent.
+These arithmetic checks do not judge narrative plausibility. Histories spanning
+world revisions persist in SQLite, but portable project/checkpoint and
+accepted-history training exports across those boundaries are not yet supported.
+
 ## Fear, concern, and operative motivation
 
 Modeling a state is not the same as adopting it. A character's fear, the Reader

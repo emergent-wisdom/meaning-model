@@ -1,7 +1,9 @@
 {
   "files": [
     ".gitignore",
+    ".github/workflows",
     "README.md",
+    "CHANGELOG.md",
     "Makefile",
     "CITATION.cff",
     "LICENSE",
@@ -29,6 +31,7 @@
     "output/pdf/meaning-model-grammar.pdf",
     "output/pdf/the-book-of-conditions.pdf",
     "examples/refinement-trial",
+    "examples/progressive-authoring",
     "rust-engine/Cargo.toml",
     "rust-engine/Cargo.lock",
     "rust-engine/README.md",

@@ -2,19 +2,19 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.emergent-wisdom/meaning-model",
   "title": "Meaning Model",
-  "description": "Progressively construct worlds, concepts, and stories. Requires an explicitly built Rust engine.",
+  "description": "Progressively construct worlds, concepts, and stories. Install the Rust engine explicitly before use.",
   "repository": {
     "url": "https://github.com/emergent-wisdom/meaning-model",
     "source": "github"
   },
-  "version": "0.1.1",
+  "version": "0.2.0",
   "websiteUrl": "https://github.com/emergent-wisdom/meaning-model/blob/main/mcp-server/NPM-README.md#install-and-build",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@emergent-wisdom/meaning-model-mcp",
-      "version": "0.1.1",
+      "version": "0.2.0",
       "runtimeHint": "npx",
       "runtimeArguments": [
         {
@@ -28,7 +28,7 @@
       "environmentVariables": [
         {
           "name": "LIFE_SIM_ENGINE_BIN",
-          "description": "Absolute path to the compatible life-sim-engine executable. First install this npm version and run meaning-model-mcp --build-engine with Cargo and native build tools; see the installation guide.",
+          "description": "Absolute path to the matching life-sim-engine executable. Install this npm version and run meaning-model-mcp --install-engine for a supported release, or --build-engine with Cargo; see the installation guide.",
           "isRequired": true,
           "isSecret": false,
           "format": "filepath"

@@ -51,6 +51,42 @@ test('typed command validation errors stay correlated and do not kill Rust', asy
   assert.equal(backend.status().ready, true);
 });
 
+test('payloads cannot override command envelope fields and rejection leaves the backend usable', async (t) => {
+  const backend = fixture();
+  t.after(() => backend.close());
+  await backend.initialize();
+  const originalWrite = backend.child.stdin.write.bind(backend.child.stdin);
+  const observedWrites = [];
+  backend.child.stdin.write = (chunk, encoding, callback) => {
+    observedWrites.push(JSON.parse(chunk));
+    return originalWrite(chunk, encoding, callback);
+  };
+
+  for (const [field, value] of [
+    ['schema', 'unexpected-schema'],
+    ['request_id', 'caller-controlled'],
+    ['operation', 'create_world'],
+    ['request_id', undefined],
+  ]) {
+    const writesBefore = observedWrites.length;
+    await assert.rejects(
+      backend.call('roll', { [field]: value }),
+      { message: `Rust command payload must not contain reserved field "${field}".` },
+    );
+    assert.equal(observedWrites.length, writesBefore);
+    assert.equal(backend.status().ready, true);
+    assert.equal(backend.status().limits.pendingCommandBytes, 0);
+
+    const result = await backend.call('roll', { value: 'after-rejection' });
+    assert.deepEqual(result, { operation: 'roll', echoed: 'after-rejection' });
+    assert.equal(observedWrites.length, writesBefore + 1);
+    const command = observedWrites.at(-1);
+    assert.equal(command.schema, 'life-sim-rust-command/v1');
+    assert.match(command.request_id, /^mcp_/);
+    assert.equal(command.operation, 'roll');
+  }
+});
+
 test('Rust errors preserve code, operation, request id, and uncertain-persistence guidance', async (t) => {
   const backend = fixture({ env: { LIFE_SIM_PROCESS_FIXTURE_MODE: 'persistence_uncertain' } });
   t.after(() => backend.close());

@@ -13,6 +13,8 @@ const operations = [
   'create_world',
   'get_world',
   'refine_genesis_world',
+  'revise_world',
+  'get_world_revision',
   'query_graph',
   'query_view',
   'roll_world',

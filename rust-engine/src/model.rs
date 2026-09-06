@@ -26,6 +26,7 @@ pub use narrative::*;
 pub const MODEL_SCHEMA: &str = "life-sim-rust-model/v1";
 pub const MODEL_QUERY_SCHEMA: &str = "life-sim-rust-model-query/v1";
 pub const WORLD_HEAD_SCHEMA: &str = "life-sim-rust-world-head/v1";
+pub const WORLD_REVISION_SCHEMA: &str = "life-sim-rust-world-revision/v1";
 pub const MODEL_CANDIDATE_SCHEMA: &str = "life-sim-rust-model-candidate/v1";
 pub const MODEL_PATH_SCHEMA: &str = "life-sim-rust-model-path/v1";
 pub const MODEL_VIEW_SCHEMA: &str = "life-sim-rust-view/v1";
@@ -63,6 +64,8 @@ const MAX_MODEL_DEFINITION_BYTES: usize = 8 * 1024 * 1024;
 const MAX_SESSION_MODELS: usize = 64;
 const MAX_SESSION_WORLDS: usize = 64;
 const MAX_SESSION_CANDIDATES: usize = 2_048;
+const MAX_SESSION_WORLD_REVISIONS: usize = 2_048;
+const MAX_SESSION_WORLD_REVISION_BYTES: usize = 64 * 1024 * 1024;
 const MAX_SESSION_NARRATIVE_GRAPHS: usize = 512;
 const MAX_SESSION_MODEL_BYTES: usize = 64 * 1024 * 1024;
 const MAX_SESSION_WORLD_BYTES: usize = 64 * 1024 * 1024;
@@ -2234,6 +2237,138 @@ pub struct WorldHead {
     #[serde(default)]
     pub lineage_head: Option<String>,
     pub world_hash: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum WorldRevisionMode {
+    Refine,
+    Revise,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct WorldRevisionSpec {
+    pub expected_world_hash: String,
+    pub mode: WorldRevisionMode,
+    #[serde(default)]
+    pub state_values: BTreeMap<String, ProcessValue>,
+    pub reason: String,
+    pub provenance: Vec<String>,
+}
+
+/// An immutable operational transition between model revisions at one world
+/// time. The frozen heads retain both sides without rewriting accepted history.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct WorldRevision {
+    pub schema: String,
+    pub world_revision_hash: String,
+    pub mode: WorldRevisionMode,
+    pub state_values: BTreeMap<String, ProcessValue>,
+    pub reason: String,
+    pub provenance: Vec<String>,
+    pub source_head: WorldHead,
+    pub target_head: WorldHead,
+}
+
+fn build_world_revision(
+    source: &CompiledModel,
+    target: &CompiledModel,
+    current: &WorldHead,
+    spec: WorldRevisionSpec,
+) -> EngineResult<WorldRevision> {
+    validate_world(source, current)?;
+    if spec.expected_world_hash != current.world_hash {
+        return Err(error(
+            "world revision expected_world_hash does not match its source head",
+        ));
+    }
+    if target.id != source.id
+        || target.revision.number
+            != source.revision.number.checked_add(1)
+                .ok_or_else(|| error("model revision overflow"))?
+        || target.revision.previous_model_hash.as_deref() != Some(source.model_hash.as_str())
+    {
+        return Err(error(
+            "world revision requires the direct next revision of the current model",
+        ));
+    }
+    if source.time_unit != target.time_unit {
+        return Err(error("world revision must preserve the model time unit"));
+    }
+    if spec.reason.trim().is_empty()
+        || spec.reason.len() > MAX_NARRATIVE_STRING_BYTES
+        || spec.provenance.is_empty()
+        || spec.provenance.len() > MAX_OBSERVATION_PROVENANCE
+        || spec.provenance.iter().any(|value| {
+            value.trim().is_empty() || value.len() > MAX_NARRATIVE_STRING_BYTES
+        })
+    {
+        return Err(error(
+            "world revision requires nonempty bounded reason and provenance",
+        ));
+    }
+    if spec.mode == WorldRevisionMode::Refine {
+        validate_monotonic_genesis_refinement(source, target)?;
+    }
+    for (id, old) in &source.processes {
+        let new = target.processes.get(id)
+            .ok_or_else(|| error(format!("world revision cannot remove process {id}")))?;
+        if old.value_type != new.value_type
+            || old.axes != new.axes
+            || old.unit != new.unit
+            || old.reference_frame != new.reference_frame
+            || old.scale != new.scale
+        {
+            return Err(error(format!("world revision cannot reshape or change units, frame, or scale of process {id}")));
+        }
+    }
+    let mut state = current.state.clone();
+    for (id, value) in &spec.state_values {
+        let process = target.processes.get(id).ok_or_else(|| {
+            error(format!("world revision state_values names unknown process {id}"))
+        })?;
+        if spec.mode == WorldRevisionMode::Refine && source.processes.contains_key(id) {
+            return Err(error(format!("refine state_values may name only new processes; existing process {id} must be preserved")));
+        }
+        validate_process_value(&process.value_type, value, id)?;
+        state.insert(id.clone(), value.clone());
+    }
+    for id in target.processes.keys() {
+        if !state.contains_key(id) {
+            return Err(error(format!("world revision requires an explicit at-current-time state_values entry for new process {id}")));
+        }
+    }
+    let world_revision_hash = hash_serializable(&serde_json::json!({
+        "schema": WORLD_REVISION_SCHEMA,
+        "source_world_hash": current.world_hash,
+        "target_model_hash": target.model_hash,
+        "mode": spec.mode,
+        "state_values": spec.state_values,
+        "reason": spec.reason,
+        "provenance": spec.provenance,
+    }))?;
+    let target_head = build_world_head(
+        target,
+        current.world_id.clone(),
+        current.version.checked_add(1)
+            .ok_or_else(|| error("world version overflow"))?,
+        current.time,
+        state,
+        current.claims.clone(),
+        Some(world_revision_hash.clone()),
+    )?;
+    Ok(WorldRevision {
+        schema: WORLD_REVISION_SCHEMA.to_owned(),
+        world_revision_hash,
+        mode: spec.mode,
+        state_values: spec.state_values,
+        reason: spec.reason,
+        provenance: spec.provenance,
+        source_head: current.clone(),
+        target_head,
+    })
 }
 
 #[derive(Debug, Serialize)]
@@ -4615,6 +4750,42 @@ fn world_view(
     }))
 }
 
+fn world_revision_view(
+    source: &CompiledModel,
+    target: &CompiledModel,
+    revision: &WorldRevision,
+    mut view: ViewSpec,
+) -> EngineResult<serde_json::Value> {
+    let visible = normalize_view(target, &mut view)?;
+    let source_visible: Vec<String> = visible.iter()
+        .filter(|id| {
+            source.processes.get(*id).is_some_and(|process| {
+                process_value_is_visible(process, &view.access_scopes)
+            })
+        })
+        .cloned()
+        .collect();
+    let source_head = world_view(
+        source,
+        &revision.source_head,
+        ViewSpec {
+            requested_observables: source_visible,
+            access_scopes: view.access_scopes.clone(),
+            ..ViewSpec::default()
+        },
+    )?;
+    Ok(serde_json::json!({
+        "schema": revision.schema,
+        "world_revision_hash": revision.world_revision_hash,
+        "mode": revision.mode,
+        "state_values": projected_state(&revision.state_values, &visible),
+        "reason": revision.reason,
+        "provenance": revision.provenance,
+        "source_head": source_head,
+        "target_head": world_view(target, &revision.target_head, view)?,
+    }))
+}
+
 fn candidate_record_view(
     model: &CompiledModel,
     record: &CandidateRecord,
@@ -5925,6 +6096,10 @@ struct MachineCommand {
     #[serde(default)]
     world_id: Option<String>,
     #[serde(default)]
+    world_revision: Option<WorldRevisionSpec>,
+    #[serde(default)]
+    world_revision_hash: Option<String>,
+    #[serde(default)]
     candidate_hash: Option<String>,
     #[serde(default)]
     query: Option<ModelTransitionSpec>,
@@ -5996,6 +6171,8 @@ struct PersistedSession {
     persistence_generation: u64,
     models: Vec<ModelDefinition>,
     worlds: Vec<WorldHead>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    world_revisions: Vec<WorldRevision>,
     candidates: Vec<StoredCandidate>,
     narrative_source_snapshots: Vec<StoredNarrativeSourceSnapshot>,
     narrative_revisions: Vec<StoredNarrativeRevision>,
@@ -6021,6 +6198,7 @@ struct PersistenceFailure {
 struct SessionDirty {
     models: BTreeSet<String>,
     worlds: BTreeSet<String>,
+    world_revisions: BTreeSet<String>,
     candidates: BTreeSet<String>,
     narrative_source_snapshots: BTreeSet<String>,
     narrative_revisions: BTreeSet<String>,
@@ -6035,6 +6213,7 @@ impl SessionDirty {
     fn is_empty(&self) -> bool {
         self.models.is_empty()
             && self.worlds.is_empty()
+            && self.world_revisions.is_empty()
             && self.candidates.is_empty()
             && self.narrative_source_snapshots.is_empty()
             && self.narrative_revisions.is_empty()
@@ -6050,6 +6229,7 @@ impl SessionDirty {
 pub struct MachineSession {
     models: BTreeMap<String, CompiledModel>,
     worlds: BTreeMap<String, WorldHead>,
+    world_revisions: BTreeMap<String, WorldRevision>,
     candidates: BTreeMap<String, StoredCandidate>,
     narrative_source_snapshots: BTreeMap<String, NarrativeSourceSnapshot>,
     narrative_revisions: BTreeMap<String, StoredNarrativeRevision>,
@@ -6476,6 +6656,7 @@ impl MachineSession {
     fn validate_storage_limits(&self) -> EngineResult<()> {
         if self.models.len() > MAX_SESSION_MODELS
             || self.worlds.len() > MAX_SESSION_WORLDS
+            || self.world_revisions.len() > MAX_SESSION_WORLD_REVISIONS
             || self.candidates.len() > MAX_SESSION_CANDIDATES
             || self.narrative_revisions.len() > MAX_SESSION_NARRATIVE_GRAPHS
             || self.project_checkpoints.len() > MAX_PROJECT_CHECKPOINTS
@@ -6484,6 +6665,7 @@ impl MachineSession {
         }
         let model_bytes = serialized_sum(self.models.values().map(|model| &model.definition))?;
         let world_bytes = serialized_sum(self.worlds.values())?;
+        let world_revision_bytes = serialized_sum(self.world_revisions.values())?;
         let candidate_bytes = serialized_sum(self.candidates.values())?
             .checked_add(self.candidates.len().saturating_mul(16))
             .ok_or_else(|| error("candidate storage estimate overflow"))?;
@@ -6491,6 +6673,7 @@ impl MachineSession {
         let project_bytes = self.project_storage_bytes()?;
         if model_bytes > MAX_SESSION_MODEL_BYTES
             || world_bytes > MAX_SESSION_WORLD_BYTES
+            || world_revision_bytes > MAX_SESSION_WORLD_REVISION_BYTES
             || candidate_bytes > MAX_SESSION_CANDIDATE_BYTES
             || narrative_bytes > MAX_SESSION_NARRATIVE_BYTES
             || project_bytes > MAX_PROJECT_STORAGE_BYTES
@@ -6766,6 +6949,50 @@ impl MachineSession {
                 })
             })
             .or_else(|| self.project_world_snapshots.get(world_hash).cloned())
+            .or_else(|| {
+                self.world_revisions.values().find_map(|revision| {
+                    [&revision.source_head, &revision.target_head]
+                        .into_iter()
+                        .find(|world| world.world_hash == world_hash)
+                        .cloned()
+                })
+            })
+    }
+
+    fn world_has_revision_history(&self, world: &WorldHead) -> bool {
+        let mut cursor = world;
+        let mut seen = BTreeSet::new();
+        while let Some(hash) = cursor.lineage_head.as_deref() {
+            if self.world_revisions.contains_key(hash) {
+                return true;
+            }
+            if !seen.insert(hash) {
+                break;
+            }
+            let Some(candidate) = self.candidates.get(hash) else {
+                break;
+            };
+            cursor = &candidate.parent;
+        }
+        false
+    }
+
+    fn ensure_portable_source_history(
+        &self,
+        snapshot: &NarrativeSourceSnapshot,
+    ) -> Result<(), MachineError> {
+        let world = if snapshot.source_kind == "candidate" {
+            self.candidates.get(&snapshot.source_hash)
+                .map(|stored| stored.parent.clone())
+        } else if snapshot.source_kind == "world" {
+            self.find_world_by_hash(&snapshot.source_hash)
+        } else {
+            None
+        };
+        if world.as_ref().is_some_and(|world| self.world_has_revision_history(world)) {
+            return Err(machine_error("unsupported_history", "portable narrative/checkpoint export across world revisions is not supported; the complete accepted history remains preserved in the session database"));
+        }
+        Ok(())
     }
 
     fn project_storage_bytes(&self) -> EngineResult<usize> {
@@ -7009,6 +7236,10 @@ impl MachineSession {
             })
             .transpose()?;
 
+        if world.as_ref().is_some_and(|world| self.world_has_revision_history(world)) {
+            return Err(machine_error("unsupported_history", "portable checkpoint snapshots across world revisions are not supported; the complete accepted history remains preserved in the session database"));
+        }
+
         if definition.narrative_graph_snapshot.is_some()
             && definition.narrative_graph_snapshot_json.is_some()
         {
@@ -7068,6 +7299,9 @@ impl MachineSession {
             None
         };
         let narrative_graph_hash = graph.as_ref().map(|graph| graph.graph_hash.clone());
+        if let Some(graph) = &graph {
+            self.ensure_portable_source_history(&graph.snapshot)?;
+        }
         if let (Some(expected), Some(actual)) =
             (requested_graph_hash.as_ref(), narrative_graph_hash.as_ref())
         {
@@ -7395,6 +7629,19 @@ impl MachineSession {
         Ok(())
     }
 
+    fn ensure_world_revision_insert(&self, revision: &WorldRevision) -> EngineResult<()> {
+        if self.world_revisions.len() >= MAX_SESSION_WORLD_REVISIONS {
+            return Err(error("session world revision count limit exceeded"));
+        }
+        let bytes = serialized_sum(self.world_revisions.values())?
+            .checked_add(serialized_size(revision)?)
+            .ok_or_else(|| error("session world revision byte estimate overflow"))?;
+        if bytes > MAX_SESSION_WORLD_REVISION_BYTES {
+            return Err(error("session world revision byte limit exceeded"));
+        }
+        Ok(())
+    }
+
     fn ensure_candidate_insert(&self, candidate: &StoredCandidate) -> EngineResult<()> {
         self.ensure_candidate_changes(&BTreeMap::new(), Some(candidate))
     }
@@ -7549,6 +7796,30 @@ impl MachineSession {
                 .is_some()
             {
                 return Err(error("state file contains a duplicate world id"));
+            }
+        }
+        if persisted.world_revisions.len() > MAX_SESSION_WORLD_REVISIONS
+            || serialized_sum(persisted.world_revisions.iter())? > MAX_SESSION_WORLD_REVISION_BYTES
+        {
+            return Err(error("state file exceeds world revision storage limits"));
+        }
+        for revision in persisted.world_revisions {
+            let source = session.models.get(&revision.source_head.model_hash)
+                .ok_or_else(|| error("world revision source model is unavailable"))?;
+            let target = session.models.get(&revision.target_head.model_hash)
+                .ok_or_else(|| error("world revision target model is unavailable"))?;
+            let rebuilt = build_world_revision(source, target, &revision.source_head, WorldRevisionSpec {
+                expected_world_hash: revision.source_head.world_hash.clone(),
+                mode: revision.mode,
+                state_values: revision.state_values.clone(),
+                reason: revision.reason.clone(),
+                provenance: revision.provenance.clone(),
+            })?;
+            if rebuilt != revision {
+                return Err(error("state file world revision does not reconstruct its frozen transition"));
+            }
+            if session.world_revisions.insert(revision.world_revision_hash.clone(), revision).is_some() {
+                return Err(error("state file contains duplicate world revision hash"));
             }
         }
         session.validate_storage_limits()?;
@@ -7974,6 +8245,7 @@ impl MachineSession {
                     .get(world_id)
                     .filter(|world| &world.world_hash == world_hash)
                     .cloned()
+                    .or_else(|| self.find_world_by_hash(world_hash))
                     .or_else(|| {
                         self.candidates
                             .values()
@@ -7997,6 +8269,9 @@ impl MachineSession {
                         .map(|candidate| candidate.record.candidate.marks.to_vec())
                         .unwrap_or_default();
                     snapshot.source_kind == "world"
+                        && world.model_hash == snapshot.model_hash
+                        && world.model_revision == snapshot.model_revision
+                        && &world.world_id == world_id
                         && snapshot.world_id.as_deref() == Some(world_id)
                         && &snapshot.source_hash == world_hash
                         && snapshot.world_version == Some(world.version)
@@ -8077,14 +8352,13 @@ impl MachineSession {
 
     fn validate_restored_lineage(&self) -> EngineResult<()> {
         let mut accepted = BTreeSet::new();
+        let mut accepted_revisions = BTreeSet::new();
         for world in self.worlds.values() {
-            let model = self
-                .models
-                .get(&world.model_hash)
-                .ok_or_else(|| error("state file world model is unavailable"))?;
             let mut cursor = world.clone();
             loop {
                 if cursor.version == 0 {
+                    let model = self.models.get(&cursor.model_hash)
+                        .ok_or_else(|| error("state file world model is unavailable"))?;
                     if cursor.lineage_head.is_some()
                         || cursor != model.genesis_world(cursor.world_id.clone())?
                     {
@@ -8097,6 +8371,13 @@ impl MachineSession {
                 let hash = cursor.lineage_head.clone().ok_or_else(|| {
                     error("state file accepted world lacks a lineage-head candidate")
                 })?;
+                if let Some(revision) = self.world_revisions.get(&hash) {
+                    if !accepted_revisions.insert(hash.clone()) || revision.target_head != cursor {
+                        return Err(error("state file accepted lineage has an incoherent or repeated world revision"));
+                    }
+                    cursor = revision.source_head.clone();
+                    continue;
+                }
                 if !accepted.insert(hash.clone()) {
                     return Err(error("state file accepted lineage repeats a candidate"));
                 }
@@ -8120,6 +8401,9 @@ impl MachineSession {
                 }
                 cursor = stored.parent.clone();
             }
+        }
+        if accepted_revisions.len() != self.world_revisions.len() {
+            return Err(error("state file world revisions do not match accepted world ancestry"));
         }
         for (hash, stored) in &self.candidates {
             let is_accepted = accepted.contains(hash);
@@ -8173,6 +8457,7 @@ impl MachineSession {
                 .map(|model| model.definition.clone())
                 .collect(),
             worlds: self.worlds.values().cloned().collect(),
+            world_revisions: self.world_revisions.values().cloned().collect(),
             candidates: self.candidates.values().cloned().collect(),
             narrative_source_snapshots: self
                 .narrative_source_snapshots
@@ -8480,7 +8765,7 @@ impl MachineSession {
                 {
                     return Err(machine_error(
                         "conflict",
-                        "refine_genesis_world requires an untouched genesis head (version 0, time 0, no lineage); post-history migration is not implemented",
+                        "refine_genesis_world requires an untouched genesis head (version 0, time 0, no lineage); use revise_world for an explicit revision after accepted history",
                     ));
                 }
 
@@ -8543,13 +8828,53 @@ impl MachineSession {
                     "limitations": [
                         "authored target revision must already be registered",
                         "automatic cut or concept discovery is not implemented",
-                        "post-history model migration is not implemented"
+                        "use revise_world for an explicit revision after accepted history"
                     ]
                 });
                 let encoded = encode(response)?;
                 self.worlds.insert(world_id.clone(), refined);
                 self.mark_world_dirty(world_id);
                 Ok(encoded)
+            }
+            "revise_world" => {
+                let world_id = required(command.world_id, "revise_world requires world_id")?;
+                let target_model_hash = required(command.model_hash, "revise_world requires target model_hash")?;
+                let spec = required(command.world_revision, "revise_world requires world_revision")?;
+                let current = self.worlds.get(&world_id).ok_or_else(|| machine_error("not_found", format!("unknown world {world_id}")))?;
+                if spec.expected_world_hash != current.world_hash {
+                    return Err(machine_error("conflict", format!("world {world_id} changed: expected {}, found {}", spec.expected_world_hash, current.world_hash)));
+                }
+                let source = self.models.get(&current.model_hash).ok_or_else(|| machine_error("not_found", "world source model is unavailable"))?;
+                let target = self.models.get(&target_model_hash).ok_or_else(|| machine_error("not_found", format!("unknown target model {target_model_hash}")))?;
+                let revision = build_world_revision(source, target, current, spec)?;
+                self.ensure_world_replacement(&world_id, &revision.target_head)?;
+                self.ensure_world_revision_insert(&revision)?;
+                let view = command.view.unwrap_or_default();
+                let response = encode(serde_json::json!({
+                    "operation": "revise_world",
+                    "world_revision_hash": revision.world_revision_hash,
+                    "world_revision": world_revision_view(source, target, &revision, view.clone())?,
+                    "world_head": world_view(target, &revision.target_head, view)?,
+                    "limitations": [
+                        "new process values must be explicitly supplied at the current world time; target model initial values and claims are not injected",
+                        "portable narrative and checkpoint export across world revisions is unsupported; complete accepted history remains in the session database"
+                    ]
+                }))?;
+                self.worlds.insert(world_id.clone(), revision.target_head.clone());
+                self.mark_world_dirty(world_id);
+                let hash = revision.world_revision_hash.clone();
+                self.world_revisions.insert(hash.clone(), revision);
+                if self.state_file.is_some() {
+                    self.dirty.world_revisions.insert(hash);
+                }
+                Ok(response)
+            }
+            "get_world_revision" => {
+                let hash = required(command.world_revision_hash, "get_world_revision requires world_revision_hash")?;
+                let revision = self.world_revisions.get(&hash).ok_or_else(|| machine_error("not_found", format!("unknown world revision {hash}")))?;
+                let source = self.models.get(&revision.source_head.model_hash).ok_or_else(|| machine_error("not_found", "revision source model is unavailable"))?;
+                let target = self.models.get(&revision.target_head.model_hash).ok_or_else(|| machine_error("not_found", "revision target model is unavailable"))?;
+                encode(serde_json::json!({"world_revision": world_revision_view(source, target, revision, command.view.unwrap_or_default())?}))
             }
             "roll_world" => {
                 let world_id = required(command.world_id, "roll_world requires world_id")?;
@@ -9887,6 +10212,7 @@ impl MachineSession {
         let stored = self.materialize_narrative_graph(&graph_hash).map_err(|_| {
             machine_error("not_found", format!("unknown narrative graph {graph_hash}"))
         })?;
+        self.ensure_portable_source_history(&stored.snapshot)?;
         let graph = compile_narrative_graph(stored.definition.clone())?;
         validate_narrative_access_scopes(&mut spec.access_scopes)?;
         validate_expected_graph_hash(&spec.expected_graph_hash, &graph.graph_hash)?;
@@ -10429,11 +10755,10 @@ struct GenesisRefinementAudit {
     added_records: BTreeMap<String, usize>,
 }
 
-/// Validates the deliberately narrow refinement contract used to replace an
-/// untouched genesis world. General model revisions may change authored
-/// definitions; genesis refinement may only retain them byte-for-structure and
-/// add new records. Automatic discovery and migration after accepted history
-/// are separate, unimplemented operations.
+/// Shared definition-preservation audit for genesis and post-history
+/// refinement. Existing records remain exact, apart from extending partial
+/// temporal recompositions with preserved child projections. World state
+/// transition rules are enforced separately by each operation.
 fn validate_monotonic_genesis_refinement(
     previous: &CompiledModel,
     revised: &CompiledModel,
@@ -10626,6 +10951,25 @@ fn validate_monotonic_genesis_refinement(
             preserve_collection!("meaning.realizations", &old.realizations, &new.realizations);
             preserve_collection!("meaning.normalized_cuts", &old.normalized_cuts, &new.normalized_cuts);
             preserve_collection!("meaning.context_roots", &old.context_roots, &new.context_roots, event_id);
+            // A partial declaration can expose additional already-validated
+            // children and become complete without changing any committed Cut
+            // vector or existing projection. Complete contracts stay exact.
+            for previous_contract in &old.temporal_cut_recompositions {
+                let next_contract = new.temporal_cut_recompositions.iter()
+                    .find(|contract| contract.parent_cut_id == previous_contract.parent_cut_id)
+                    .ok_or_else(|| error("genesis refinement removed existing meaning.temporal_cut_recompositions record; additions only"))?;
+                if previous_contract == next_contract {
+                    continue;
+                }
+                if previous_contract.coverage != TemporalCutCoverage::Partial
+                    || previous_contract.provenance != next_contract.provenance
+                    || previous_contract.children.iter().any(|child| !next_contract.children.contains(child))
+                {
+                    return Err(error("genesis refinement changed existing meaning.temporal_cut_recompositions record; only preserved-child partial extensions are allowed"));
+                }
+            }
+            preserved_records.insert("meaning.temporal_cut_recompositions".to_owned(), old.temporal_cut_recompositions.len());
+            added_records.insert("meaning.temporal_cut_recompositions".to_owned(), new.temporal_cut_recompositions.len().saturating_sub(old.temporal_cut_recompositions.len()));
             if !old.context_roots.is_empty() {
                 let old_events: BTreeSet<&str> = old.events.iter().map(|event| event.id.as_str()).collect();
                 let old_roots: BTreeSet<&str> = old.context_roots.iter().map(|root| root.event_id.as_str()).collect();
@@ -10661,6 +11005,7 @@ fn validate_monotonic_genesis_refinement(
             added_meaning_collection!("meaning.realizations", &new.realizations);
             added_meaning_collection!("meaning.normalized_cuts", &new.normalized_cuts);
             added_meaning_collection!("meaning.context_roots", &new.context_roots);
+            added_meaning_collection!("meaning.temporal_cut_recompositions", &new.temporal_cut_recompositions);
             preserved_records.insert("meaning.semantic_coverage.unresolved_events".to_owned(), 0);
             added_records.insert(
                 "meaning.semantic_coverage.unresolved_events".to_owned(),
@@ -10683,6 +11028,7 @@ fn validate_monotonic_genesis_refinement(
                 "meaning.realizations",
                 "meaning.normalized_cuts",
                 "meaning.context_roots",
+                "meaning.temporal_cut_recompositions",
                 "meaning.semantic_coverage.unresolved_events",
             ] {
                 preserved_records.insert(label.to_owned(), 0);
@@ -10724,6 +11070,10 @@ CREATE TABLE IF NOT EXISTS candidates (
     model_hash TEXT NOT NULL,
     candidate_json BLOB NOT NULL,
     FOREIGN KEY(model_hash) REFERENCES models(model_hash)
+);
+CREATE TABLE IF NOT EXISTS world_revisions (
+    world_revision_hash TEXT PRIMARY KEY,
+    revision_json BLOB NOT NULL
 );
 CREATE TABLE IF NOT EXISTS narrative_source_snapshots (
     snapshot_hash TEXT PRIMARY KEY,
@@ -10916,6 +11266,11 @@ fn preflight_sqlite_limits(connection: &Connection) -> EngineResult<()> {
         "SELECT count(*), coalesce(sum(length(candidate_json)), 0) FROM candidates",
         "candidates",
     )?;
+    let (world_revision_count, world_revision_bytes) = if sqlite_table_exists(connection, "world_revisions")? {
+        sqlite_count_and_bytes(connection,
+            "SELECT count(*), coalesce(sum(length(revision_json)), 0) FROM world_revisions",
+            "world revisions")?
+    } else { (0, 0) };
     let (snapshot_count, snapshot_bytes) = sqlite_count_and_bytes(
         connection,
         "SELECT count(*), coalesce(sum(length(snapshot_json)), 0) FROM narrative_source_snapshots",
@@ -10978,6 +11333,8 @@ fn preflight_sqlite_limits(connection: &Connection) -> EngineResult<()> {
         || world_bytes > MAX_SESSION_WORLD_BYTES
         || candidate_count > MAX_SESSION_CANDIDATES
         || candidate_bytes > MAX_SESSION_CANDIDATE_BYTES
+        || world_revision_count > MAX_SESSION_WORLD_REVISIONS
+        || world_revision_bytes > MAX_SESSION_WORLD_REVISION_BYTES
         || snapshot_count > MAX_SESSION_NARRATIVE_GRAPHS
         || revision_count > MAX_SESSION_NARRATIVE_GRAPHS
         || narrative_bytes > MAX_SESSION_NARRATIVE_BYTES
@@ -11296,6 +11653,13 @@ fn persist_sqlite_changes(path: &Path, after: &MachineSession) -> Result<u64, Pe
                 .ok_or_else(|| error("dirty world key is unavailable"))?;
             persist_world_row(&transaction, world)?;
         }
+        for hash in &after.dirty.world_revisions {
+            let revision = after.world_revisions.get(hash).ok_or_else(|| error("dirty world revision key is unavailable"))?;
+            transaction.execute(
+                "INSERT INTO world_revisions(world_revision_hash, revision_json) VALUES (?1, ?2)",
+                params![hash, encode_sqlite_json(revision)?],
+            ).map_err(|cause| sqlite_error("failed to persist world revision", cause))?;
+        }
         for hash in &after.dirty.candidates {
             let candidate = after
                 .candidates
@@ -11565,6 +11929,20 @@ fn load_sqlite_session(path: &Path) -> EngineResult<PersistedSession> {
                 ));
             }
             candidates.push(candidate);
+        }
+    }
+    let mut world_revisions = Vec::new();
+    if sqlite_table_exists(&connection, "world_revisions")? {
+        let mut statement = connection.prepare("SELECT world_revision_hash, revision_json FROM world_revisions ORDER BY world_revision_hash")
+            .map_err(|cause| sqlite_error("failed to prepare world revision restore", cause))?;
+        let mut rows = statement.query([]).map_err(|cause| sqlite_error("failed to query world revisions", cause))?;
+        while let Some(row) = rows.next().map_err(|cause| sqlite_error("failed to read world revision", cause))? {
+            let hash: String = row.get(0).map_err(|cause| sqlite_error("invalid world revision hash", cause))?;
+            let revision: WorldRevision = decode_sqlite_json(row.get(1).map_err(|cause| sqlite_error("invalid world revision JSON", cause))?, "world revision")?;
+            if hash != revision.world_revision_hash {
+                return Err(error("SQLite world revision key does not match its content"));
+            }
+            world_revisions.push(revision);
         }
     }
     let mut narrative_source_snapshots = Vec::new();
@@ -11845,6 +12223,7 @@ fn load_sqlite_session(path: &Path) -> EngineResult<PersistedSession> {
         persistence_generation,
         models,
         worlds,
+        world_revisions,
         candidates,
         narrative_source_snapshots,
         narrative_revisions,
@@ -11863,6 +12242,7 @@ fn is_mutating_operation(operation: &str) -> bool {
             | "revise_model"
             | "create_world"
             | "refine_genesis_world"
+            | "revise_world"
             | "roll_world"
             | "reroll_candidate"
             | "reject_candidate"
@@ -11885,6 +12265,8 @@ pub fn is_machine_operation(operation: &str) -> bool {
             | "create_world"
             | "get_world"
             | "refine_genesis_world"
+            | "revise_world"
+            | "get_world_revision"
             | "query_graph"
             | "query_view"
             | "register_narrative_graph"
@@ -11944,7 +12326,7 @@ pub fn machine_description() -> serde_json::Value {
         "operations": [
             "describe", "compile_registry", "roll",
             "compile_profiles", "validate_model", "register_model", "revise_model", "get_model",
-            "create_world", "get_world", "refine_genesis_world", "roll_world", "inspect_candidate",
+            "create_world", "get_world", "refine_genesis_world", "revise_world", "get_world_revision", "roll_world", "inspect_candidate",
             "summarize_trajectory", "reroll_candidate", "reject_candidate", "commit_candidate",
             "query_graph", "query_view", "register_narrative_graph", "revise_narrative_graph",
             "apply_narrative_batch", "list_narrative_revisions", "query_narrative_graph",
@@ -11975,13 +12357,20 @@ pub fn machine_description() -> serde_json::Value {
                 "concepts", "abstract_relations", "abstract_cuts",
                 "referents", "encapsulation_cuts", "events",
                 "event_relations", "event_referent_bindings", "physical_cuts", "realizations",
-                "normalized_cuts", "context_roots"
+                "normalized_cuts", "context_roots", "temporal_cut_recompositions"
             ],
             "normalized_cuts": {
                 "remainder_key": NORMALIZED_CUT_REMAINDER_KEY,
                 "sum_tolerance": NORMALIZED_CUT_SUM_TOLERANCE,
                 "conditioning": "cut_id and stable answer_key within the same immutable model and governing context",
-                "scope": "static normalized allocations; no automatic recomposition, semantic exclusivity proof, or forecast calibration"
+                "scope": "static normalized allocations with optional declared temporal recomposition; no semantic exclusivity proof or forecast calibration"
+            },
+            "temporal_cut_recompositions": {
+                "coverage": ["complete", "partial"],
+                "projection": ["identity", "answer_map"],
+                "weights": "duration shares derived from disjoint bounded child Event intervals",
+                "validation": "same question, unit, conditioning and declared context; complete mixtures reproduce parent; partial mixtures leave feasible nonnegative residual",
+                "scope": "explicit structural contract, not automatic semantic decomposition or a rule for overlapping episodes"
             },
             "context_roots": {
                 "kinds": ["accepted_world", "inner", "understanding", "document", "candidate"],
@@ -12022,7 +12411,7 @@ pub fn machine_description() -> serde_json::Value {
         },
         "lineage_operations": [
             "roll_world", "inspect_candidate", "reroll_candidate",
-            "reject_candidate", "commit_candidate"
+            "reject_candidate", "commit_candidate", "revise_world", "get_world_revision"
         ],
         "execution": {
             "scalar_expressions": true,
@@ -12163,6 +12552,18 @@ pub fn machine_description() -> serde_json::Value {
     );
     description["execution_limits"]["max_session_narrative_graphs"] =
         serde_json::json!(MAX_SESSION_NARRATIVE_GRAPHS);
+    description["schemas"]["world_revision"] = serde_json::json!(WORLD_REVISION_SCHEMA);
+    description["execution_limits"]["max_session_world_revisions"] = serde_json::json!(MAX_SESSION_WORLD_REVISIONS);
+    description["execution_limits"]["max_session_world_revision_bytes"] = serde_json::json!(MAX_SESSION_WORLD_REVISION_BYTES);
+    description["execution"]["world_revision"] = serde_json::json!({
+        "implemented": true,
+        "operation": "revise_world",
+        "modes": ["refine", "revise"],
+        "boundary": "explicit direct-next registered model transition at unchanged world time with exact expected-world-hash compare-and-swap",
+        "state": "source values and claims persist; new processes require explicit current-time values; revise may explicitly replace existing state values",
+        "history": "immutable source and target heads are hash-linked into accepted lineage and validated on database restore",
+        "portable_export": "narrative training and portable checkpoint export crossing world revisions is rejected with unsupported_history; complete accepted history remains in the session database"
+    });
     description["execution_limits"]["max_session_narrative_bytes"] =
         serde_json::json!(MAX_SESSION_NARRATIVE_BYTES);
     description["execution_limits"]["max_project_checkpoints"] =
@@ -15664,7 +16065,8 @@ mod tests {
                 "physical_cuts",
                 "realizations",
                 "normalized_cuts",
-                "context_roots"
+                "context_roots",
+                "temporal_cut_recompositions"
             ])
         );
         assert_eq!(
@@ -16103,7 +16505,7 @@ mod tests {
         assert!(failure.message.contains("untouched genesis head"));
         assert!(failure
             .message
-            .contains("post-history migration is not implemented"));
+            .contains("use revise_world"));
         assert_eq!(session.worlds["advanced-world"].version, 1);
     }
 

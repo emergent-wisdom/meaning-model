@@ -49,6 +49,8 @@ record:
   authority;
 - normalized question/unit allocations with stable answer keys, explicit
   remainder, optional component conditioning, and provenance;
+- optional temporal Cut contracts that check declared answer projections and
+  duration mixtures against a committed parent, including partial residual feasibility;
 - optional typed context roots over Events, with nearest-root ancestry derived
   only from acyclic Contains relations; and
 - an optional `report` or `strict` semantic-coverage policy over declared
@@ -57,7 +59,8 @@ record:
 The nested definition uses `life-sim-rust-meaning-model/v1` and contains
 `concepts`, `abstract_relations`, `abstract_cuts`, `referents`,
 `encapsulation_cuts`, `events`, `event_relations`, `event_referent_bindings`,
-`physical_cuts`, `realizations`, `normalized_cuts`, and `context_roots`. All twelve collections default to empty, but
+`physical_cuts`, `realizations`, `normalized_cuts`, `temporal_cut_recompositions`,
+and `context_roots`. All thirteen collections default to empty, but
 a present layer must contain at least one concept, referent, or event; use
 omission, not an empty object, to opt out. Referent-only and event-only partial
 profiles are valid, and neither every event nor every referent is required to
@@ -71,7 +74,8 @@ definition and hash. The later-added `event_relations`, `normalized_cuts`, and `
 omitted from canonical serialization when empty, so models with an existing
 Meaning Model that do not supply these collections retain their exact normalized
 definition and model hash. Supplying an explicit empty collection normalizes to
-the same representation as omitting it.
+the same representation as omitting it. `temporal_cut_recompositions` follows
+the same default-empty, omit-empty rule, preserving existing hashes.
 
 The nested semantic data is part of the complete model definition. It is
 therefore covered by the ordinary model validation, canonical model identity,
@@ -119,9 +123,36 @@ Weights must be finite, nonnegative, and sum to one within `1e-9`; no automatic
 renormalization conceals a mismatch. Conditioning names an existing Cut and
 answer key, including zero-weight answers or the remainder, and cannot cycle.
 The immutable model hash plus Cut id and answer key locates that component.
-Cuts and answers are sorted by key for canonical hashing. This validates local
-accounting, not semantic exclusivity, elicitation quality, duration-derived
-mixtures, or Close recomposition.
+Cuts and answers are sorted by key for canonical hashing. By itself this validates
+local accounting, not semantic exclusivity, elicitation quality, or recomposition.
+
+`temporal_cut_recompositions` adds an explicit bounded static contract. Each
+record names a unique `parent_cut_id`, 1–2,048 `children` with `cut_id` and
+`projection`, required `coverage` (`complete` or `partial`), and provenance.
+The child and parent Cuts must have identical question, unit, and conditioning;
+when context roots are declared, they must share their governing root. A
+`{"kind":"identity"}` projection additionally requires identical answer
+support. A `{"kind":"answer_map","answers":{"child_key":"parent_key"}}`
+projection must map every child key, including zero-weight keys, to an existing
+parent answer. Several fine answers may map to one coarse answer, and child
+`remainder` must map to parent `remainder`. These are authored semantic
+declarations: matching strings and support do not establish empirical validity
+or exclusivity. Models without context roots cannot verify governing perspective.
+
+The Cuts' parent Events supply finite, positive-duration intervals. Child
+intervals must lie inside the parent's interval and have no positive-duration
+overlap; adjacent endpoints may coincide. Complete coverage must exactly tile
+the parent without gaps. Shares are derived as child duration divided by parent
+duration. For each parent answer, the sum of projected child shares must equal
+the committed parent weight within `1e-9`. Partial coverage permits gaps, but
+the committed vector minus the known contribution must remain componentwise
+nonnegative within `1e-9` and its total must equal the uncovered duration share
+within `1e-9`. No residual vector is invented or stored and no weights are
+renormalized. Explicit compatible Cuts over uncovered intervals can complete
+the partition. Conditioning and temporal contract edges together must be
+acyclic. Contracts sort by parent Cut id, children by Cut id, and answer maps
+by key for canonical hashing. Ordinary Contains relations, physical Cuts, and
+overlapping descriptive episodes assert no such numeric contract.
 
 Context-root declarations name existing Events and one of `accepted_world`,
 `inner`, `understanding`, `document`, or `candidate`. If any roots are declared,
@@ -185,7 +216,8 @@ registered direct-next model revision. It is accepted only when the current
 head remains at version 0 and time 0 with no lineage and equals the current
 model's reconstructed genesis. The successor must preserve the model id, time
 unit, and every existing process, decomposition edge, dependency, law, initial
-claim, and record in all twelve Meaning Model collections exactly. It may add new
+claim, and record in all thirteen Meaning Model collections exactly, subject to
+the partial temporal-contract extension below. It may add new
 records. An existing semantic-coverage policy cannot be removed, strict mode
 cannot be weakened, and existing unresolved declarations are additions-only;
 report mode may be strengthened to strict after the complete revised model
@@ -193,8 +225,12 @@ passes validation. Rust reconstructs the successor genesis under the same world 
 then independently verifies that every old state value and claim remains
 unchanged.
 
-Normalized Cuts and context-root declarations are included in that preservation
-audit. Once context roots are enabled, introducing a new nearest root on an
+Normalized Cuts, temporal Cut contracts, and context-root declarations are included in that preservation
+audit. A partial temporal contract may add children or become complete while
+retaining its parent, provenance, and every existing child projection. The
+result must pass temporal validation; complete contracts remain unchanged.
+This exception also applies to `revise_world` in `refine` mode. Once context
+roots are enabled, introducing a new nearest root on an
 existing Event also requires an explicit revision outside genesis-only
 additions, because it would change the authority of existing descendants.
 
@@ -276,7 +312,8 @@ selects a path, fires a transition, or commits a world.
 | Automatic event instantiation from a concept | Not implemented |
 | Executable canonical-model selection or concept-driven instantiation | Not implemented |
 | Automatic expansion, aggregation, or residual construction | Not implemented |
-| Parent/child recomposition or commutation checks | Not implemented |
+| Bounded temporal normalized-Cut recomposition | Implemented for declared answer projections and disjoint duration mixtures; complete cover and partial residual feasibility checked against committed parent |
+| General parent/child recomposition or commutation laws | Not implemented; the temporal contract does not supply an arbitrary law solver |
 | Observer-specific abstract-state estimation | Not implemented by the semantic layer |
 | Learning or discovery of concepts, functions, cuts, or realizations | Not implemented |
 | Empirical calibration or truth validation of semantic records | Not implemented |

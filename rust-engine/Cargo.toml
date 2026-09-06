@@ -1,9 +1,9 @@
 [package]
 name = "life-sim-engine"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
-description = "A sparse, deterministic numerical kernel for Life Simulation"
+description = "Meaning Model construction, revision, persistence, and optional numerical simulation"
 
 [lib]
 name = "life_sim_engine"

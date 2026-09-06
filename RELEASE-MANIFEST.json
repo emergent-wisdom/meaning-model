@@ -2,9 +2,24 @@
   "purpose": "Clean source and artifact export; not a published release or Git history.",
   "files": [
     {
+      "path": ".github/workflows/engine-release.yml",
+      "bytes": 4494,
+      "sha256": "a1f52e21e41fd16f83c549c38f1247aabd16bcce320e5ca9160a807e6a023ee2"
+    },
+    {
+      "path": ".github/workflows/verify-engine-release.yml",
+      "bytes": 1933,
+      "sha256": "f39a766131d2381238135cca6390315d8105596c404845eb2d09f304ff29074e"
+    },
+    {
       "path": ".gitignore",
       "bytes": 783,
       "sha256": "46e007ecd46f205979b5d8adfa959e1c349463771afeb1557eb49b154fe486ae"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "bytes": 3264,
+      "sha256": "544c2e3bdacdba7c12c4d97c18c062f2e2f4aee1336e5837f27e9408aefe23d5"
     },
     {
       "path": "CITATION.cff",
@@ -23,8 +38,8 @@
     },
     {
       "path": "Makefile",
-      "bytes": 2599,
-      "sha256": "95c9f3f48f045a0181209b217458fa07e400686592b46e03c9b7be446ac808c1"
+      "bytes": 2647,
+      "sha256": "4f14e122c4f679a290e9a4379f51729a1d8dcab3065a5811347702eaaa01d2c4"
     },
     {
       "path": "NOTICE",
@@ -33,18 +48,18 @@
     },
     {
       "path": "README.md",
-      "bytes": 6152,
-      "sha256": "23a50aff4062a57c8f3062bc65f36db151a5938b469646316323996f903a1e88"
+      "bytes": 7342,
+      "sha256": "7009aa091649137bc74dc44f407b2338b8864589bd8509ca2a78661191ba45e9"
     },
     {
       "path": "docs/IMPLEMENTATION.md",
-      "bytes": 5963,
-      "sha256": "f420b93fc45172686c68ba32612e39052c9c4189081571b96ff5625c7ac98ded"
+      "bytes": 8306,
+      "sha256": "feb75a96a0f505360c986e7fb61afad347901622df996ebaedc51b43d4135bbf"
     },
     {
       "path": "docs/MODELING_PROTOCOL.md",
-      "bytes": 13428,
-      "sha256": "2cc146485ca2bec57b37910969cac347783bcd689591e52c53d2deb526506ef4"
+      "bytes": 14140,
+      "sha256": "6105c28fef24172535aedacc90fb6ddc1556b4b2ff66748df330acd256fb557d"
     },
     {
       "path": "docs/NARRATIVE_UNDERSTANDING_GRAPH.md",
@@ -53,8 +68,8 @@
     },
     {
       "path": "docs/RELEASE.md",
-      "bytes": 3140,
-      "sha256": "0387708b5bf950be89ea0348a638657792429b405f8b80c701e78f9196a917fa"
+      "bytes": 3998,
+      "sha256": "c368665086ef854c04b160c86bc39b5e5f444851e77258ff06723ae7b2b541b0"
     },
     {
       "path": "docs/companions/life-simulation/SOURCE.json",
@@ -422,6 +437,16 @@
       "sha256": "d066db6df3c7d72c74cc61cc9bedf301d8aa3e0acfc216fec38689d6a42f4e13"
     },
     {
+      "path": "examples/progressive-authoring/README.md",
+      "bytes": 1943,
+      "sha256": "fcdd964ad88960cb0779631818aa7eafe5955246799e22cd30fa3fb6fc6e71f4"
+    },
+    {
+      "path": "examples/progressive-authoring/run.mjs",
+      "bytes": 6898,
+      "sha256": "d79cd5801d777f837fe1ddce0e11234821d81efc2dda4f564cbf8b8b09cdfd53"
+    },
+    {
       "path": "examples/refinement-trial/README.md",
       "bytes": 4866,
       "sha256": "96a0b01163196a4ef9284aa1fc8b5aecdc545d2da48e8740028d2a2f24409e7d"
@@ -448,28 +473,28 @@
     },
     {
       "path": "mcp-server/NPM-README.md",
-      "bytes": 5511,
-      "sha256": "48dcbba9b8e5553979f68d32de5e4f60c432a6d55cbd0008694e5c8a02627050"
+      "bytes": 9606,
+      "sha256": "cc4596250fb463352869fa288937e48d9c037253c9a6a52968ca4eda8e4819f8"
     },
     {
       "path": "mcp-server/README.md",
-      "bytes": 30694,
-      "sha256": "b7143b924b788ed31302be6d01fad994ecd1f4d6ab448c1fd54737752f62cc1b"
+      "bytes": 32345,
+      "sha256": "85ca57becca0f1cdfbf4b93eff78da8c7bf13ae6f198efbd49520f9dd7b86c45"
     },
     {
       "path": "mcp-server/bin/meaning-model-mcp.mjs",
-      "bytes": 1758,
-      "sha256": "ef13f9593ff5568113c090ad3e733ba9d0dfd1f855003d6553b1e0b5485af232"
+      "bytes": 2738,
+      "sha256": "cd6541c2d8f6039759422d51c2fa9efe787974d7e3ea0b48ab79a82c4238aecc"
     },
     {
       "path": "mcp-server/package-lock.json",
       "bytes": 6489,
-      "sha256": "4cce04806e593c122ed4bbed59b1f3d50e9ae962af5377365d1df95a03856ade"
+      "sha256": "815dbf79babd82cedc2e00eadd81a88528d3d9b63b2c5636bb68b7183480ec31"
     },
     {
       "path": "mcp-server/package.json",
-      "bytes": 1375,
-      "sha256": "f5c123a28c606bc76769e70d750489b33344ec8f9759e0438d74cb2f909e7936"
+      "bytes": 1448,
+      "sha256": "640f0202d285b0d5db118de2989688e1dc3511ce4cce7751749f41ec98188844"
     },
     {
       "path": "mcp-server/resources/presets/SOURCE.json",
@@ -488,8 +513,13 @@
     },
     {
       "path": "mcp-server/scripts/pack-release.mjs",
-      "bytes": 4835,
-      "sha256": "3d7ddb146853cee79cb627763cb437fb530c07c1f721f6832367fd4eafbd892e"
+      "bytes": 4935,
+      "sha256": "aee99397bb481bff03f670a1c37a0586e06d22fe7b649779a846351a1418a119"
+    },
+    {
+      "path": "mcp-server/scripts/package-engine-release.mjs",
+      "bytes": 5924,
+      "sha256": "9ca1e6fea59dd4dbcc8261cd843ce11919e1f1a82a166f6d56bb240aff20d2ec"
     },
     {
       "path": "mcp-server/scripts/require-staged-package.mjs",
@@ -503,8 +533,13 @@
     },
     {
       "path": "mcp-server/src/estimation-exchange.mjs",
-      "bytes": 29851,
-      "sha256": "5569c6b23045664438cbbb0d0c8cadfcaa92e892e07239a70eb6d71c140c8e84"
+      "bytes": 30152,
+      "sha256": "307a66aa5ecc4a2785b40d65ed3a7f09ed9fd60fed11ffb4542e7d0459c69d70"
+    },
+    {
+      "path": "mcp-server/src/install-engine.mjs",
+      "bytes": 7768,
+      "sha256": "b1021f64a6a34e8fcc0842d9f099a746e2450f53d5c486aa45c3ddf832061ecc"
     },
     {
       "path": "mcp-server/src/modeling-guidance.mjs",
@@ -518,18 +553,18 @@
     },
     {
       "path": "mcp-server/src/rust-engine-process.mjs",
-      "bytes": 17344,
-      "sha256": "ecd24288e6589e3e235dc7c045f4bc0d9d8d70c50eb66e72411afc985a3c6f67"
+      "bytes": 17936,
+      "sha256": "d4383c2ca6df25c05fceffaff0b648dba741d412847522cebf4b2101899642f5"
     },
     {
       "path": "mcp-server/src/server.ts",
-      "bytes": 34580,
-      "sha256": "4216908beac0dfa82c44fd215d92806992c33e9c3485320301dab30b93e79458"
+      "bytes": 36611,
+      "sha256": "6d84781230e927253ccbbb6ab7666aaf3e2c1a26e74c3f896b4230677b475e46"
     },
     {
       "path": "mcp-server/src/service.mjs",
-      "bytes": 104858,
-      "sha256": "f709b83ffa2e828d23a0e032d75c7bac288755f1bab582c0bb4927489ddf9e1c"
+      "bytes": 108735,
+      "sha256": "7c98c78e271d9345f9812753f8e440a8b8d06d35df39502e76c1577fab4d3cf2"
     },
     {
       "path": "mcp-server/src/story-revision-diagnostic.mjs",
@@ -547,14 +582,24 @@
       "sha256": "1838261568478f0c3bf2199cb13670ca5d9a2b2bc4022ff02a4af324b9f4a07a"
     },
     {
+      "path": "mcp-server/test/engine-release.test.mjs",
+      "bytes": 2564,
+      "sha256": "cf1ca0c1deb8f6c40dafb7bfea8bed76683ab2a7ff5ead7676ed1360fe2aad56"
+    },
+    {
       "path": "mcp-server/test/estimation-exchange.test.mjs",
-      "bytes": 18760,
-      "sha256": "17d37d3ba4d8148b25f501e9a8878e5ba2a73412863a175f125d52f890fb5c48"
+      "bytes": 21090,
+      "sha256": "2f6e6b21413d145eb19365b9ee3eb77377796c5abba0c7e71e92c628ff459777"
     },
     {
       "path": "mcp-server/test/fixtures/process-fixture.mjs",
-      "bytes": 1957,
-      "sha256": "9e3a4fe2413f6980455a088b43f1e640feddfd46f5964bc3916fbfca9ca26de7"
+      "bytes": 1999,
+      "sha256": "0c3949b6b898fb47bcd5f73340717eaf2dd906b3e30c6d5ecad6ac4e59ab140e"
+    },
+    {
+      "path": "mcp-server/test/install-engine.test.mjs",
+      "bytes": 10278,
+      "sha256": "a1403d21be9ca9c20f5eb8a9c5bd5e91b0910430e4083d8f6f1f266a6fc05267"
     },
     {
       "path": "mcp-server/test/modeling-guidance.test.mjs",
@@ -568,28 +613,33 @@
     },
     {
       "path": "mcp-server/test/package.test.mjs",
-      "bytes": 4471,
-      "sha256": "e48d2681a95005e17278ea4c6e3acc2d0da8b86429ebcf50de3ba7946d584f9f"
+      "bytes": 4762,
+      "sha256": "081ed78784ef30d5f26f8e91ee7a3b1fe5a2e90b7a93b77cab55d05805472341"
     },
     {
       "path": "mcp-server/test/protocol.test.mjs",
-      "bytes": 34667,
-      "sha256": "040425548b4ba07d3d678da047b742cbd70c6fdf6cc1772c8858eb062bafbb57"
+      "bytes": 34938,
+      "sha256": "a91ca318de7b6c587c2efa30608cead25f88f50ee81cb7d68b4c2c698f045b43"
     },
     {
       "path": "mcp-server/test/rust-engine-process.test.mjs",
-      "bytes": 7544,
-      "sha256": "e8bd65fa871fdc0cbef43c5c20d37f95547db3bac42df0779a7ac4e26de6bf04"
+      "bytes": 9013,
+      "sha256": "4684b7623aa4bf3416d1a163bd9327b619eedd62c392fcae07f0da64e6dd624e"
     },
     {
       "path": "mcp-server/test/service.test.mjs",
-      "bytes": 73341,
-      "sha256": "e904b0387d2c3f3cab2342efcb710ecd40df703cb0d1ea78fc7bea22c0d61c29"
+      "bytes": 73681,
+      "sha256": "6adce93e7529e58e5fddb50f5a99437a0d40a177b4a4f4a2df1f63b37e7bb25e"
     },
     {
       "path": "mcp-server/test/story-revision-diagnostic.test.mjs",
       "bytes": 5756,
       "sha256": "badbbd126bac8b6da01af9ffc1297492e51e65ae9c36a0f28575b25a18507ea2"
+    },
+    {
+      "path": "mcp-server/test/world-revision.test.mjs",
+      "bytes": 4807,
+      "sha256": "c060a17e1fd9d7a6b49529de28b903583899a38505999b901d98a2aadbf59ffd"
     },
     {
       "path": "mcp-server/test/writer-negotiator.test.mjs",
@@ -653,28 +703,28 @@
     },
     {
       "path": "release-files.json",
-      "bytes": 2966,
-      "sha256": "5b0a6723978738ad6b47ef9af1aa1855e005203ff9eb42b8ec1c2bf92d9c071d"
+      "bytes": 3049,
+      "sha256": "523622747912a2ac28f2e8b2a07ea134a4eff6be1bc0de03076469d186421f11"
     },
     {
       "path": "rust-engine/Cargo.lock",
       "bytes": 7273,
-      "sha256": "edbf741c54b5c9d8499615320d508b61acbab47837449c065cf154772a609c4f"
+      "sha256": "2f4a7a40aecaca5662a0268d7e9e6e62ed89df8ce45b4d3651a0ed4931471d74"
     },
     {
       "path": "rust-engine/Cargo.toml",
-      "bytes": 563,
-      "sha256": "254da071eb535fb6a3e2b33907265bddb283b25480120ce0782f916addd38494"
+      "bytes": 587,
+      "sha256": "8d129354a0b16738e023e051319b8a655415e35825a9e1433cf21af90be7e9b9"
     },
     {
       "path": "rust-engine/MEANING_MODEL_CONFORMANCE.md",
-      "bytes": 19385,
-      "sha256": "7e865e9614731ec539c65425ad3dc210f2d4295918ddcfabe36ce5e6dbe0f832"
+      "bytes": 22304,
+      "sha256": "69c273e2545c81d889baf100e0f576cc7a9c4b5700b6772f87043fa97168457a"
     },
     {
       "path": "rust-engine/README.md",
-      "bytes": 44306,
-      "sha256": "e9e69f82720a8ae89be5a584f08267a337a2448cd9c96f257ffaf5c29477ab5f"
+      "bytes": 48548,
+      "sha256": "9e006ddf565a49adb99b01604b1f97cd3a5f885f87f1915483364faa1e69085b"
     },
     {
       "path": "rust-engine/examples/benchmark.rs",
@@ -703,13 +753,13 @@
     },
     {
       "path": "rust-engine/src/change_arc_profile.rs",
-      "bytes": 16443,
-      "sha256": "5bf3bab409e378cc2ba230d8b40a18b0ea430a1eae74f14cd57b281c9a02443b"
+      "bytes": 16488,
+      "sha256": "01d238bc700ce6c91d982852d312a567f5039bdc1e10a827de3e6f8699008c46"
     },
     {
       "path": "rust-engine/src/concept_scaffold_profile.rs",
-      "bytes": 9829,
-      "sha256": "64ed27588dc9d8b1159d226d861c7344fecf0a6af6ae3649477b783e2827038d"
+      "bytes": 9882,
+      "sha256": "91853d9d67b50c2dcd372c6e5c7bd6adf440a4cd8402d10e3f3809613d5506eb"
     },
     {
       "path": "rust-engine/src/lib.rs",
@@ -723,33 +773,33 @@
     },
     {
       "path": "rust-engine/src/meaning.rs",
-      "bytes": 105963,
-      "sha256": "bce0881876200dce81a49299c1a227d1bb512cce62bb9c8441935d6f15bd2bd8"
+      "bytes": 117646,
+      "sha256": "d1eb4c373c2473e0eb0a447caac31612dd189d12f8194c8b688fb7682d34f14b"
     },
     {
       "path": "rust-engine/src/model.rs",
-      "bytes": 677429,
-      "sha256": "1f7bf1af35e85a557319e4e3d4b3d545ecfcb04f7cbad54d637201dded0b29e1"
+      "bytes": 698548,
+      "sha256": "0c80f738def400eeffc78caf9e10028dca59a9124b54ca67cf35d229a079f572"
     },
     {
       "path": "rust-engine/src/narrative.rs",
-      "bytes": 54034,
-      "sha256": "b7118be5bd9f78e8502cf7aba701e160fb15c0fbb8788a65d1550ed87bc52db0"
+      "bytes": 54193,
+      "sha256": "a0a90b8cab26dcfb6a016c46d96aeb2587147e869b9f981af12e1b18eac49f10"
     },
     {
       "path": "rust-engine/src/profiles.rs",
-      "bytes": 127657,
-      "sha256": "f31243717862b42b4ee12f0c5cda5c8b1e0a1ae6b17a5f838350e2ebfec7b251"
+      "bytes": 127790,
+      "sha256": "a5368d84ecda9d921ff1b8db05d3b693f4463129081b70d8f0e34a3a62f0d29d"
     },
     {
       "path": "rust-engine/src/relationship_profile.rs",
-      "bytes": 8015,
-      "sha256": "f584d67a7f9e754e6f3d952c85193787c85e97e658b5366970be95521e9f5458"
+      "bytes": 8068,
+      "sha256": "fca1ff8267383b0bee8ec1e0563db65719f53fa8f6675af79edc07ddb30d58ee"
     },
     {
       "path": "rust-engine/src/thing_scaffold_profile.rs",
-      "bytes": 10379,
-      "sha256": "cfef4a0c3b91e5383462e5b4bdfcc2491f5c1c4cc69fe5624d6495aa499ce7fd"
+      "bytes": 10432,
+      "sha256": "da167bef1a8dc6de5c89feea1c15051b95994d8e8fcdeb729248fdd659be8458"
     },
     {
       "path": "rust-engine/tests/meaning_model_example.rs",
@@ -758,13 +808,13 @@
     },
     {
       "path": "rust-engine/tests/narrative_graph.rs",
-      "bytes": 94315,
-      "sha256": "ed2df741666bf958b1b18569ef4e2616505001f509bac0b7d2eb12c8bf6b1607"
+      "bytes": 97006,
+      "sha256": "387dfb6663e51d0fbff66376e249d2255820cbe0204c90b6c81cb663867ff05f"
     },
     {
       "path": "rust-engine/tests/normalized_cuts.rs",
-      "bytes": 14162,
-      "sha256": "fae811cc76e98dad67aa2601f71025de54c2aba8df56dacbc61f444f6779b93c"
+      "bytes": 26477,
+      "sha256": "72a943a206d86589b8220707fb888616db810446dbd2e86117ad718e3dd90080"
     },
     {
       "path": "rust-engine/tests/optional_profiles.rs",
@@ -780,6 +830,11 @@
       "path": "rust-engine/tests/session_ndjson.rs",
       "bytes": 32446,
       "sha256": "6576242745e44a5fbd5c519a5d8e6b782a2370642ad85c6e9642c0140aebfbb1"
+    },
+    {
+      "path": "rust-engine/tests/world_revision.rs",
+      "bytes": 22186,
+      "sha256": "cb24fb83806f08dbb1d34d4ad46c5eeeb425c5833541267c1e87d5ebf8fd50f2"
     },
     {
       "path": "scripts/export-release.mjs",
@@ -798,8 +853,8 @@
     },
     {
       "path": "server.json",
-      "bytes": 1359,
-      "sha256": "b9a9e1685e601dfa2cbea4995018d72e43b16ae7275417340df4429ef3d10593"
+      "bytes": 1378,
+      "sha256": "09fa4e0e7ecb2d4870079ce4d6c8745cf68b003af46ce98e6525888deccc3658"
     }
   ]
 }

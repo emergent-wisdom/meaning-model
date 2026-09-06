@@ -14,10 +14,10 @@ authored information is not native conformance to every rule in the paper.
 
 | Area | Implemented | Remaining limit |
 | --- | --- | --- |
-| Persistence and candidates | Immutable model revisions, hash-linked worlds, seeded numerical candidates, rejection, and atomic compare-and-swap acceptance | No single transaction spanning all world, understanding, and document changes |
+| Persistence and candidates | Immutable model revisions, hash-linked worlds, seeded numerical candidates, rejection, atomic compare-and-swap acceptance, and explicit world refinement/revision after accepted history | No single transaction spanning all world, understanding, and document changes; portable training and project checkpoint exports cannot cross world revision boundaries |
 | Authoring templates | Person, Thing, Relationship, Concept, and Change Arc scaffolds compile into ordinary model records | Templates are replaceable construction conventions, not universal categories or automatic world generation |
 | Semantic records | Concepts, referents, Events with optional descriptions, bindings, typed relations, and grounding records are validated and persisted | Legacy fields and collections do not exactly match all six minimized forms |
-| Normalized Cuts | Named question and unit, finite nonnegative sibling weights, explicit remainder, stable answer keys, acyclic conditioning, and sum-to-one checks | Complete temporal mixture closure and general progressive recomposition are not enforced |
+| Normalized Cuts | Local accounting plus optional declared answer projections, disjoint duration mixtures, exact complete coverage, and partial residual feasibility against a committed parent | No arbitrary recomposition laws, automatic opening, semantic exclusivity proof, or empirical validity check |
 | Perspective ancestry | Typed context roots, acyclic Contains paths, known interval containment, nearest-root agreement, and root-consistent conditioning | This is not authentication, evidence disclosure, or future-information filtering |
 | Linked text | Immutable narrative graph revisions, typed model anchors, document rendering, and retained authored Understanding nodes | Original authoring transactions cannot be reconstructed from a later import |
 | Numerical simulation | Existing scalar-process evolution and declared candidate mechanisms | No learned dynamics, automatic selection of laws, or demonstrated transfer to real populations |
@@ -26,6 +26,26 @@ See [the engine guide](../rust-engine/README.md) for the exact API and
 [the conformance document](../rust-engine/MEANING_MODEL_CONFORMANCE.md) for
 tested behavior. The preserved package and wire names begin with `life-sim`;
 they are compatibility identifiers, not a second source of authority.
+
+The optional `temporal_cut_recompositions` collection declares each parent Cut,
+its child Cuts, and their answer projections. Event intervals determine duration
+shares; matching question, unit, conditioning, and declared context are required.
+Complete mixtures must recover the parent within `1e-9`; partial mixtures must
+leave a nonnegative residual of the uncovered duration share. No weights are
+renormalized. Omitting the contracts preserves existing behavior and hashes.
+
+`revise_world` applies an already registered direct-next model revision at the
+current world time. It checks the expected world hash, records immutable source
+and target heads, and preserves the accepted history. `refine` mode retains
+existing records and state while allowing validated additions, including extending
+partial temporal contracts without changing their earlier child projections.
+`revise` mode permits explicit authored changes. New processes require explicit values for
+the current time, and existing process shape, units, frame, and scale remain
+fixed. Target genesis values and claims are not injected into the current world.
+
+The explicit `--install-engine` command requires matching verified platform release assets;
+`--build-engine` remains available for the included source. Package installation
+and ordinary server startup perform neither action automatically.
 
 ## How the Book uses it
 
@@ -53,8 +73,8 @@ another construction to use the same categories.
   profile's unique lifecycle, lifecycle-bounded participation, roster derivation,
   and inherited presence are not generally enforced.
 - Older structural Cut collections coexist with `normalized_cuts`. The latter
-  enforce local sums and conditioning, not the entire profile's recomposition
-  contract or Direction-Cut execution.
+  support bounded temporal contracts, but do not enforce the entire profile's
+  general recomposition contract or Direction-Cut execution.
 - Legacy Realizations retain degree and attribution fields. The Book's
   unweighted links and separate fit Cuts are a construction convention; the
   legacy representation has not been removed.
@@ -63,6 +83,10 @@ another construction to use the same categories.
   context assembly remain incomplete.
 - World, model, and narrative revisions follow separate mutation paths. Their
   individual atomicity is not cross-surface atomicity.
+- Narrative authoring and rendering continue within a session after world
+  revision. Portable training export and project checkpoint registration involving
+  history across that boundary reject with `unsupported_history`; the complete
+  history and immutable revision receipts remain in the session database.
 - Concept alignment, want satisfaction, forecast calibration, and natural-language
   read-back are not general engine-provided recognizers.
 
@@ -77,6 +101,13 @@ answers, a declared projection and duration mixture, residual feasibility,
 rejection, revision, selected stale dependencies, and restricted perspective
 access. No fixture result should be reported as native Rust conformance.
 Its single saved prose extraction is not an independent reader study.
+
+The native Rust `normalized_cuts` tests separately exercise the declared temporal
+contracts, including the same synthetic duration mixture, incompatible detail,
+partial residual feasibility, canonical hashes, and durable readback. Native
+world-revision tests exercise current-time migration, stale-head rejection,
+preserved history, and restart reconstruction. These cover the bounded mechanisms
+above, not arbitrary semantic truth or the full grammar.
 
 The Book is a completed manuscript and partial descriptive construction witness.
 The preregistered matched comparison and independent read-back study remain

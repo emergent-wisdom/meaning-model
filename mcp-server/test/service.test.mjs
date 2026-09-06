@@ -649,6 +649,9 @@ test('Meaning Model query pages exact-id projections from the optional Rust-owne
     event_referent_bindings: 1,
     physical_cuts: 1,
     realizations: 1,
+    normalized_cuts: 0,
+    context_roots: 0,
+    temporal_cut_recompositions: 0,
   });
   assert.equal(firstPage.meaningModel.totalRecordCount, 15);
   assert.deepEqual(firstPage.query.collections, [
@@ -662,6 +665,9 @@ test('Meaning Model query pages exact-id projections from the optional Rust-owne
     'event_referent_bindings',
     'physical_cuts',
     'realizations',
+    'normalized_cuts',
+    'context_roots',
+    'temporal_cut_recompositions',
   ]);
   assert.equal(firstPage.matchedCount, 15);
   assert.equal(firstPage.returnedCount, 3);
@@ -793,6 +799,9 @@ test('Meaning Model query is explicitly disabled for legacy models', async () =>
     event_referent_bindings: 0,
     physical_cuts: 0,
     realizations: 0,
+    normalized_cuts: 0,
+    context_roots: 0,
+    temporal_cut_recompositions: 0,
   });
   assert.equal(result.matchedCount, 0);
   assert.deepEqual(result.items, []);
@@ -1178,6 +1187,9 @@ test('generic typed models are validated, registered, inspected, revised, and ro
     event_referent_binding_count: 0,
     physical_cut_count: 0,
     realization_count: 1,
+    normalized_cut_count: 0,
+    context_root_count: 0,
+    temporal_cut_recomposition_count: 0,
   });
   const sameModelWithReorderedTopLevelKeys = Object.fromEntries(
     Object.entries(initialModel).reverse(),

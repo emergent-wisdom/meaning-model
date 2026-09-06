@@ -1,0 +1,115 @@
+name: Build engine release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing version tag to build, for example v0.2.0'
+        required: true
+        type: string
+      create_draft:
+        description: 'Create a draft GitHub release after all platform checks pass'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: engine-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  RUST_TOOLCHAIN: '1.98.0'
+
+jobs:
+  build:
+    name: Build and smoke ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: aarch64-apple-darwin
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+          - runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - runner: windows-2022
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    env:
+      ENGINE_TARGET: ${{ matrix.target }}
+      MACOSX_DEPLOYMENT_TARGET: '14.0'
+      RUSTFLAGS: ${{ matrix.target == 'x86_64-pc-windows-msvc' && '-C target-feature=+crt-static' || '' }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: '22.18.0'
+          package-manager-cache: false
+      - name: Validate tag, package version and native target
+        run: |
+          node mcp-server/scripts/package-engine-release.mjs --check
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target "$ENGINE_TARGET"
+      - name: Build locked native engine
+        run: cargo +"$RUST_TOOLCHAIN" build --locked --release --bin life-sim-engine --manifest-path rust-engine/Cargo.toml --target-dir rust-engine/target --target "$ENGINE_TARGET"
+      - name: Install locked MCP dependencies without lifecycle scripts
+        run: npm ci --prefix mcp-server --ignore-scripts
+      - name: Check offline installer and npm packaging
+        run: node --test mcp-server/test/install-engine.test.mjs mcp-server/test/engine-release.test.mjs mcp-server/test/package.test.mjs
+      - name: Smoke Rust and MCP, then checksum the native executable
+        run: node mcp-server/scripts/package-engine-release.mjs --package
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: engine-${{ matrix.target }}
+          path: build/engine-release/*
+          if-no-files-found: error
+          retention-days: 14
+
+  draft-release:
+    name: Prepare reviewed-platform draft release
+    needs: build
+    if: github.event_name == 'push' || inputs.create_draft
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: '22.18.0'
+          package-manager-cache: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: engine-*
+          path: build/engine-release
+          merge-multiple: true
+      - name: Verify all platform checksums and asset names
+        run: node mcp-server/scripts/package-engine-release.mjs --verify
+      - name: Create draft with binaries and checksum files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          gh release create "$RELEASE_TAG" --verify-tag --draft
+          --title "Meaning Model $RELEASE_TAG"
+          --notes "Version-matched native engines. All four native Rust and MCP smoke checks passed in the release workflow. Review the workflow and checksums before publishing this draft, then publish the matching npm package."
+          build/engine-release/*

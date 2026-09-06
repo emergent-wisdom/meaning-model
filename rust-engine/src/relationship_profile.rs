@@ -205,6 +205,7 @@ impl OptionalModelProfile for RelationshipScaffoldProfile {
                 semantic_coverage: None,
                 normalized_cuts: vec![],
                 context_roots: vec![],
+                temporal_cut_recompositions: vec![],
             }),
             ..ProfileFragment::default()
         })

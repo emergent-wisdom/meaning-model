@@ -307,6 +307,7 @@ fn empty_meaning_model() -> MeaningModelDefinition {
         semantic_coverage: None,
         normalized_cuts: vec![],
         context_roots: vec![],
+        temporal_cut_recompositions: vec![],
     }
 }
 

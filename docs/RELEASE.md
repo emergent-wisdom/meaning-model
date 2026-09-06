@@ -47,7 +47,16 @@ export require a new export.
 
 `make npm-package` creates the separately installable MCP tarball, including
 the Rust sources and the resources it reads. It does not publish to npm. See
-`mcp-server/NPM-README.md` for installation and the explicit engine-build step.
+`mcp-server/NPM-README.md` for installation and the explicit engine-build or
+prebuilt-install step. Prebuilt installation requires the matching GitHub
+binaries to be published first.
+
+`.github/workflows/engine-release.yml` builds version-matched native engines for
+Apple Silicon and Intel macOS, Linux x64 and Windows x64. It runs installation
+and Rust/MCP smoke checks on each host and can prepare a **draft** GitHub release
+only after all four jobs pass. Review those results before publishing the binary
+release, then publish the matching npm package and Registry metadata. Local
+packaging never publishes any of these channels.
 
 Companion snapshots are bound to exact file digests. The recorded source
 identity describes the bundled bytes, independently of later changes in the
@@ -60,6 +69,11 @@ papers, documentation, authored model data, and the Book. See `LICENSE`,
 `LICENSE-CONTENT`, and `NOTICE`; third-party material retains its own terms.
 
 ## Publication channels
+
+Keep user-visible changes in `CHANGELOG.md` under Unreleased while preparing
+them. At publication, give that entry the package version and actual UTC
+publication date. Record upgrade requirements and remaining limitations; do
+not infer a publication date from a Git commit or include private discussions.
 
 The source repository is https://github.com/emergent-wisdom/meaning-model.
 GitHub source snapshots, archival uploads, npm packages, and MCP Registry

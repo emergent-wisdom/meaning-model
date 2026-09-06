@@ -347,8 +347,8 @@ pub struct NormalizedCutCondition {
 }
 
 /// Static, question-relative allocation. Validation checks its accounting and
-/// references; it does not establish answer exclusivity, calibration, temporal
-/// mixture recomposition, or empirical validity of the authored question.
+/// references; temporal mixtures require an explicit separate contract. Neither
+/// check establishes answer exclusivity, calibration, or empirical validity.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct NormalizedCutDefinition {
@@ -359,6 +359,41 @@ pub struct NormalizedCutDefinition {
     pub answers: Vec<NormalizedCutAnswer>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub conditioning: Option<NormalizedCutCondition>,
+    pub provenance: Vec<String>,
+}
+
+/// An explicitly declared projection from a child Cut's answers to its parent.
+/// Mapping all child answers, including zero-weight answers, preserves support.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum TemporalCutProjection {
+    Identity,
+    AnswerMap { answers: BTreeMap<String, String> },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct TemporalCutRecompositionChild {
+    pub cut_id: String,
+    pub projection: TemporalCutProjection,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TemporalCutCoverage {
+    Complete,
+    Partial,
+}
+
+/// Bounded static duration mixture over disjoint child Event intervals. The
+/// parent Cut supplies the committed vector; partial coverage only establishes
+/// residual feasibility and never invents an unobserved composition.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct TemporalCutRecompositionDefinition {
+    pub parent_cut_id: String,
+    pub children: Vec<TemporalCutRecompositionChild>,
+    pub coverage: TemporalCutCoverage,
     pub provenance: Vec<String>,
 }
 
@@ -418,6 +453,8 @@ pub struct MeaningModelDefinition {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub normalized_cuts: Vec<NormalizedCutDefinition>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub temporal_cut_recompositions: Vec<TemporalCutRecompositionDefinition>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub context_roots: Vec<MeaningContextRootDefinition>,
 }
 
@@ -462,6 +499,8 @@ pub struct MeaningModelSummary {
     pub realization_ids: Vec<String>,
     pub normalized_cut_count: usize,
     pub normalized_cut_ids: Vec<String>,
+    pub temporal_cut_recomposition_count: usize,
+    pub temporal_cut_recomposition_parent_cut_ids: Vec<String>,
     pub context_root_count: usize,
     pub context_root_event_ids: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -620,6 +659,9 @@ impl MeaningModelDefinition {
                 .collect(),
             normalized_cut_count: self.normalized_cuts.len(),
             normalized_cut_ids: self.normalized_cuts.iter().map(|item| item.id.clone()).collect(),
+            temporal_cut_recomposition_count: self.temporal_cut_recompositions.len(),
+            temporal_cut_recomposition_parent_cut_ids: self.temporal_cut_recompositions.iter()
+                .map(|item| item.parent_cut_id.clone()).collect(),
             context_root_count: self.context_roots.len(),
             context_root_event_ids: self.context_roots.iter().map(|item| item.event_id.clone()).collect(),
             semantic_coverage,
@@ -647,6 +689,10 @@ pub(super) fn normalize_meaning_model(meaning_model: &mut MeaningModelDefinition
     meaning_model.physical_cuts.sort_by(|a, b| a.id.cmp(&b.id));
     meaning_model.realizations.sort_by(|a, b| a.id.cmp(&b.id));
     meaning_model.normalized_cuts.sort_by(|a, b| a.id.cmp(&b.id));
+    meaning_model.temporal_cut_recompositions.sort_by(|a, b| a.parent_cut_id.cmp(&b.parent_cut_id));
+    for contract in &mut meaning_model.temporal_cut_recompositions {
+        contract.children.sort_by(|a, b| a.cut_id.cmp(&b.cut_id));
+    }
     meaning_model.context_roots.sort_by(|a, b| a.event_id.cmp(&b.event_id));
     for cut in &mut meaning_model.normalized_cuts {
         cut.answers.sort_by(|a, b| a.key.cmp(&b.key));
@@ -951,6 +997,167 @@ fn validate_normalized_cuts<'a>(
     validate_dag(&nodes, &edges, "normalized cut conditioning graph")
 }
 
+fn validate_temporal_cut_recompositions<'a>(
+    meaning_model: &'a MeaningModelDefinition,
+    events: &BTreeMap<&'a str, &'a MeaningEventDefinition>,
+    event_contexts: &BTreeMap<&'a str, &'a str>,
+) -> EngineResult<()> {
+    if meaning_model.temporal_cut_recompositions.is_empty() {
+        return Ok(());
+    }
+    // Local Cut accounting and Event references were validated first.
+    let cuts: BTreeMap<&str, &NormalizedCutDefinition> = meaning_model.normalized_cuts
+        .iter().map(|cut| (cut.id.as_str(), cut)).collect();
+    let nodes = cuts.keys().copied().collect();
+    let mut edges: Vec<(&str, &str)> = cuts.values().filter_map(|cut| {
+        cut.conditioning.as_ref().map(|condition| (condition.cut_id.as_str(), cut.id.as_str()))
+    }).collect();
+    let mut parents = BTreeSet::new();
+    for contract in &meaning_model.temporal_cut_recompositions {
+        let label = format!("temporal Cut recomposition {}", contract.parent_cut_id);
+        validate_identifier(&contract.parent_cut_id, &format!("{label} parent cut id"))?;
+        if !cuts.contains_key(contract.parent_cut_id.as_str()) {
+            return Err(error(format!("{label} names unknown parent cut")));
+        }
+        if !parents.insert(contract.parent_cut_id.as_str()) {
+            return Err(error(format!("duplicate {label}")));
+        }
+        validate_provenance(&contract.provenance, &label)?;
+        if contract.children.is_empty() || contract.children.len() > MAX_MEANING_CUT_CHILDREN {
+            return Err(error(format!("{label} requires 1..={MAX_MEANING_CUT_CHILDREN} children")));
+        }
+        let mut children = BTreeSet::new();
+        for child in &contract.children {
+            validate_identifier(&child.cut_id, &format!("{label} child cut id"))?;
+            if !cuts.contains_key(child.cut_id.as_str()) {
+                return Err(error(format!("{label} names unknown child cut {}", child.cut_id)));
+            }
+            if !children.insert(child.cut_id.as_str()) {
+                return Err(error(format!("{label} has duplicate child cut {}", child.cut_id)));
+            }
+            edges.push((contract.parent_cut_id.as_str(), child.cut_id.as_str()));
+        }
+    }
+    validate_dag(&nodes, &edges, "normalized cut conditioning and temporal recomposition graph")?;
+
+    let positive_duration = |interval: &EventInterval, label: &str| -> EngineResult<f64> {
+        let duration = interval.end - interval.start;
+        finite(duration, &format!("{label} duration"))?;
+        if duration <= 0.0 {
+            return Err(error(format!("{label} requires positive duration")));
+        }
+        Ok(duration)
+    };
+    for contract in &meaning_model.temporal_cut_recompositions {
+        let label = format!("temporal Cut recomposition {}", contract.parent_cut_id);
+        let parent = cuts[contract.parent_cut_id.as_str()];
+        let parent_interval = events[parent.parent_event_id.as_str()].interval.as_ref()
+            .ok_or_else(|| error(format!("{label} requires a bounded parent Event interval")))?;
+        let parent_duration = positive_duration(parent_interval, &label)?;
+        let parent_keys: BTreeSet<&str> = parent.answers.iter().map(|answer| answer.key.as_str()).collect();
+        let mut contribution: BTreeMap<&str, f64> = parent_keys.iter().map(|key| (*key, 0.0)).collect();
+        let mut periods = Vec::new();
+        for child in &contract.children {
+            let child_cut = cuts[child.cut_id.as_str()];
+            let child_label = format!("{label} child {}", child.cut_id);
+            if child_cut.question != parent.question || child_cut.unit != parent.unit {
+                return Err(error(format!("{child_label} requires the same question and unit as the parent")));
+            }
+            if child_cut.conditioning != parent.conditioning {
+                return Err(error(format!("{child_label} requires the same conditioning as the parent")));
+            }
+            if !event_contexts.is_empty()
+                && event_contexts[child_cut.parent_event_id.as_str()] != event_contexts[parent.parent_event_id.as_str()]
+            {
+                return Err(error(format!("{child_label} crosses context roots")));
+            }
+            let child_interval = events[child_cut.parent_event_id.as_str()].interval.as_ref()
+                .ok_or_else(|| error(format!("{child_label} requires a bounded child Event interval")))?;
+            positive_duration(child_interval, &child_label)?;
+            if !interval_contains(parent_interval, child_interval) {
+                return Err(error(format!("{child_label} interval exceeds parent Event interval")));
+            }
+            let child_keys: BTreeSet<&str> = child_cut.answers.iter().map(|answer| answer.key.as_str()).collect();
+            match &child.projection {
+                TemporalCutProjection::Identity => {
+                    if child_keys != parent_keys {
+                        return Err(error(format!("{child_label} identity projection requires identical answer support")));
+                    }
+                }
+                TemporalCutProjection::AnswerMap { answers } => {
+                    if answers.len() != child_keys.len() || !child_keys.iter().all(|key| answers.contains_key(*key)) {
+                        return Err(error(format!("{child_label} answer projection must map every child answer exactly once")));
+                    }
+                    for (source, target) in answers {
+                        if !parent_keys.contains(target.as_str()) {
+                            return Err(error(format!("{child_label} answer {source} projects to unknown parent answer {target}")));
+                        }
+                    }
+                    if answers[NORMALIZED_CUT_REMAINDER_KEY] != NORMALIZED_CUT_REMAINDER_KEY {
+                        return Err(error(format!("{child_label} must project remainder to parent remainder")));
+                    }
+                }
+            }
+            periods.push((child_interval, child_cut, &child.projection));
+        }
+        periods.sort_by(|left, right| left.0.start.total_cmp(&right.0.start)
+            .then_with(|| left.0.end.total_cmp(&right.0.end)));
+        let mut previous_end = parent_interval.start;
+        let mut uncovered_duration = 0.0;
+        for (interval, child, projection) in periods {
+            if interval.start < previous_end {
+                return Err(error(format!("{label} child {} overlaps another child interval", child.id)));
+            }
+            if contract.coverage == TemporalCutCoverage::Complete && interval.start != previous_end {
+                return Err(error(format!("{label} complete coverage requires an exact interval partition; gap before {}", child.id)));
+            }
+            uncovered_duration += interval.start - previous_end;
+            previous_end = interval.end;
+            let share = (interval.end - interval.start) / parent_duration;
+            finite(share, &format!("{label} child {} duration share", child.id))?;
+            for answer in &child.answers {
+                let target = match projection {
+                    TemporalCutProjection::Identity => answer.key.as_str(),
+                    TemporalCutProjection::AnswerMap { answers } => answers[&answer.key].as_str(),
+                };
+                let total = contribution.get_mut(target).expect("validated answer projection");
+                *total += share * answer.weight;
+                finite(*total, &format!("{label} projected answer {target} contribution"))?;
+            }
+        }
+        if contract.coverage == TemporalCutCoverage::Complete && previous_end != parent_interval.end {
+            return Err(error(format!("{label} complete coverage requires an exact interval partition; trailing gap")));
+        }
+        uncovered_duration += parent_interval.end - previous_end;
+        finite(uncovered_duration, &format!("{label} uncovered duration"))?;
+        let remaining_share = uncovered_duration / parent_duration;
+        finite(remaining_share, &format!("{label} remaining duration share"))?;
+        let mut residual_mass = 0.0;
+        for answer in &parent.answers {
+            let residual = answer.weight - contribution[answer.key.as_str()];
+            finite(residual, &format!("{label} answer {} residual", answer.key))?;
+            if remaining_share == 0.0 && residual.abs() > NORMALIZED_CUT_SUM_TOLERANCE {
+                return Err(error(format!(
+                    "{label} projected duration mixture does not match committed parent answer {} within {NORMALIZED_CUT_SUM_TOLERANCE}; residual {residual}", answer.key
+                )));
+            }
+            if residual < -NORMALIZED_CUT_SUM_TOLERANCE {
+                return Err(error(format!(
+                    "{label} has infeasible residual for parent answer {}; known child contribution exceeds committed weight by {}", answer.key, -residual
+                )));
+            }
+            residual_mass += residual;
+        }
+        finite(residual_mass, &format!("{label} residual mass"))?;
+        if (residual_mass - remaining_share).abs() > NORMALIZED_CUT_SUM_TOLERANCE {
+            return Err(error(format!(
+                "{label} residual mass {residual_mass} must equal remaining duration share {remaining_share} within {NORMALIZED_CUT_SUM_TOLERANCE}"
+            )));
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn validate_meaning_model(
     meaning_model: &MeaningModelDefinition,
     processes: &BTreeMap<String, ProcessDefinition>,
@@ -981,6 +1188,7 @@ pub(super) fn validate_meaning_model(
         meaning_model.physical_cuts.len(),
         meaning_model.realizations.len(),
         meaning_model.normalized_cuts.len(),
+        meaning_model.temporal_cut_recompositions.len(),
         meaning_model.context_roots.len(),
         meaning_model
             .semantic_coverage
@@ -1229,6 +1437,7 @@ pub(super) fn validate_meaning_model(
 
     let event_contexts = validate_event_contexts(meaning_model, &events)?;
     validate_normalized_cuts(meaning_model, &event_ids, &event_contexts)?;
+    validate_temporal_cut_recompositions(meaning_model, &events, &event_contexts)?;
 
     let mut relation_ids = BTreeSet::new();
     let mut abstract_edges = Vec::new();
@@ -2099,6 +2308,7 @@ pub(super) fn test_meaning_model_fixture() -> MeaningModelDefinition {
         ],
         semantic_coverage: None,
         normalized_cuts: vec![],
+        temporal_cut_recompositions: vec![],
         context_roots: vec![],
     }
 }
@@ -2319,6 +2529,7 @@ mod tests {
             realizations: vec![],
             semantic_coverage: None,
             normalized_cuts: vec![],
+            temporal_cut_recompositions: vec![],
             context_roots: vec![],
         };
         validate_meaning_model(&referent_only, &test_processes()).unwrap();

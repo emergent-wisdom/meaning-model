@@ -1,6 +1,6 @@
 use super::{
-    Claim, ClaimAuthority, ClaimUncertainty, EventInterval, EvidenceType, OccurrenceMark,
-    ProcessValue, MAX_MODEL_IDENTIFIER_BYTES,
+    validate_uncertainty, Claim, ClaimAuthority, ClaimUncertainty, EventInterval, EvidenceType,
+    OccurrenceMark, ProcessValue, MAX_MODEL_IDENTIFIER_BYTES,
 };
 use crate::{error, hash_serializable, EngineResult};
 use serde::{Deserialize, Serialize};
@@ -591,6 +591,10 @@ pub fn compile_narrative_graph(
                 node.id
             )));
         }
+        validate_uncertainty(
+            &node.uncertainty,
+            &format!("narrative node {} uncertainty", node.id),
+        )?;
         if let Some(authority) = &node.authority {
             nonempty_bounded(
                 &authority.source,

@@ -351,8 +351,15 @@ function meaningRecords(model, collection) {
   return Array.isArray(records) ? records : [];
 }
 
+function meaningRecordId(collection, record) {
+  if (collection === 'context_roots') return record.event_id;
+  if (collection === 'temporal_cut_recompositions') return record.parent_cut_id;
+  return record.id;
+}
+
 function recordById(model, collection) {
-  return new Map(meaningRecords(model, collection).map((record) => [record.id, record]));
+  return new Map(meaningRecords(model, collection)
+    .map((record) => [meaningRecordId(collection, record), record]));
 }
 
 function validateSemanticChanges(changes, { baseModel, proposedModel, meaningCollections }) {
@@ -393,7 +400,10 @@ function validateSemanticChanges(changes, { baseModel, proposedModel, meaningCol
       }
     } else {
       ensureRecord(change.definition, `${label}.definition`);
-      if (change.definition.id !== change.id || canonicalJson(change.definition) !== canonicalJson(after)) {
+      if (
+        meaningRecordId(change.collection, change.definition) !== change.id ||
+        canonicalJson(change.definition) !== canonicalJson(after)
+      ) {
         throw new Error(`${label}.definition must exactly equal the proposed model record.`);
       }
     }

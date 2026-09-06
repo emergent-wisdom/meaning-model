@@ -17,6 +17,7 @@ const MUTATING_OPERATIONS = new Set([
   'revise_model',
   'create_world',
   'refine_genesis_world',
+  'revise_world',
   'roll_world',
   'reroll_candidate',
   'reject_candidate',
@@ -34,6 +35,8 @@ const REQUIRED_OPERATIONS = Object.freeze([
   'create_world',
   'get_world',
   'refine_genesis_world',
+  'revise_world',
+  'get_world_revision',
   'query_graph',
   'query_view',
   'roll_world',
@@ -80,7 +83,8 @@ export function resolveEngineBinary(environment = process.env, cwd = process.cwd
 function engineUnavailableMessage(binaryPath) {
   return (
     `Life Simulation Rust machine is unavailable at ${binaryPath}. ` +
-    'Run meaning-model-mcp --build-engine (requires Cargo and native build tools), ' +
+    'Run meaning-model-mcp --install-engine for a supported prebuilt release, ' +
+    'or --build-engine (requires Cargo and native build tools), ' +
     'or set LIFE_SIM_ENGINE_BIN to a compatible executable. ' +
     'The MCP server will not fall back to JavaScript simulation.'
   );
@@ -212,7 +216,10 @@ export class RustEngineProcess {
       !Array.isArray(description?.operations) ||
       REQUIRED_OPERATIONS.some((operation) => !description.operations.includes(operation))
     ) {
-      const cause = new Error('Rust process describe response does not expose the required machine operations.');
+      const cause = new Error(
+        'Rust process describe response does not expose the required machine operations. ' +
+        'Install or build the engine matching this MCP package, and check LIFE_SIM_ENGINE_BIN for an older executable.',
+      );
       this.#fail(cause);
       throw cause;
     }
@@ -238,12 +245,20 @@ export class RustEngineProcess {
         `Life Simulation Rust process has reached its ${this.maxPendingCalls}-call queue limit.`,
       ));
     }
+    const commandPayload = structuredClone(payload);
+    for (const field of ['schema', 'request_id', 'operation']) {
+      if (commandPayload != null && Object.hasOwn(commandPayload, field)) {
+        return Promise.reject(new Error(
+          `Rust command payload must not contain reserved field "${field}".`,
+        ));
+      }
+    }
     const requestId = `mcp_${randomUUID()}`;
     const command = {
       schema: COMMAND_SCHEMA,
       request_id: requestId,
       operation,
-      ...structuredClone(payload),
+      ...commandPayload,
     };
     let encoded;
     try {

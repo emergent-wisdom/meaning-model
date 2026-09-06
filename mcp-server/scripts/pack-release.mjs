@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
 const runtimeFiles = [
-  'LICENSE', 'LICENSE-CONTENT', 'NOTICE', 'server.json',
+  'LICENSE', 'LICENSE-CONTENT', 'NOTICE', 'server.json', 'CHANGELOG.md',
   'mcp-server/bin', 'mcp-server/resources',
   'rust-engine/Cargo.toml', 'rust-engine/Cargo.lock', 'rust-engine/src',
   'rust-engine/README.md', 'rust-engine/MEANING_MODEL_CONFORMANCE.md',
@@ -63,6 +63,7 @@ export async function stageNpmPackage(root = repositoryRoot, outputParent = join
   metadata.bin = { 'meaning-model-mcp': 'mcp-server/bin/meaning-model-mcp.mjs' };
   metadata.scripts = {
     start: 'node mcp-server/bin/meaning-model-mcp.mjs',
+    'install:engine': 'node mcp-server/bin/meaning-model-mcp.mjs --install-engine',
     'build:engine': 'node mcp-server/bin/meaning-model-mcp.mjs --build-engine',
     'verify:resources': 'node scripts/verify-resources.mjs',
   };
