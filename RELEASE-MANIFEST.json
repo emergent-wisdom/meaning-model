@@ -23,8 +23,8 @@
     },
     {
       "path": "CITATION.cff",
-      "bytes": 838,
-      "sha256": "65a2d0c23125bc3e1ef3f8ca54d653c3edf408903cbbb8329b059653c7b46c21"
+      "bytes": 871,
+      "sha256": "62d553c8396dd05c77da6ead6862b0fc7c9154ed4e7381ffa3e9de1314dba241"
     },
     {
       "path": "LICENSE",
@@ -48,8 +48,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 7342,
-      "sha256": "7009aa091649137bc74dc44f407b2338b8864589bd8509ca2a78661191ba45e9"
+      "bytes": 7596,
+      "sha256": "397e79719e056ba10384163e73c0cd1bb4397d34fa1fff32e5f703362069a2dd"
     },
     {
       "path": "docs/IMPLEMENTATION.md",
@@ -648,13 +648,13 @@
     },
     {
       "path": "output/pdf/meaning-model-grammar.pdf",
-      "bytes": 318338,
-      "sha256": "5e8c21be7e5550b1cfd07ef10960de190bb27817e24cfcf5c73d47b13f51a62e"
+      "bytes": 322539,
+      "sha256": "627cc2c6e2e850a94aa67e6073e451377853e4c00195e3c8d3c900c6adfe5845"
     },
     {
       "path": "output/pdf/meaning-model.pdf",
-      "bytes": 376038,
-      "sha256": "19a0c6e9f64e5bbdcba61e783a96debb4bfba7ae118c47fdde90788176d9e829"
+      "bytes": 395818,
+      "sha256": "54e9b5c8da3cdf3175bf868d8a79d3779077b0098b61d80cfeff871de6142a25"
     },
     {
       "path": "output/pdf/the-book-of-conditions.pdf",
@@ -668,8 +668,8 @@
     },
     {
       "path": "paper/includes/book-trajectory-figures.tex",
-      "bytes": 5603,
-      "sha256": "4e15dca244281c5bf5d250e4a20f2c1a3de7ec9f09ff7f027fa3e8b10fb3caa1"
+      "bytes": 5646,
+      "sha256": "d78faef2fe6a138b11c904d08d191737915b75ba6ccb4bea14b872cc93177d38"
     },
     {
       "path": "paper/includes/interface-blocks.tex",
@@ -678,18 +678,18 @@
     },
     {
       "path": "paper/meaning-model-grammar.tex",
-      "bytes": 45747,
-      "sha256": "8e6c086566126ef6e348bc13436f2b81ef7b0db7d376b334d98b8b7bdf3451df"
+      "bytes": 49990,
+      "sha256": "ed2ceff66fe936cddb45795d554e378c4e61ca53cb10854bc5bbc123c2f2747b"
     },
     {
       "path": "paper/meaning-model.tex",
-      "bytes": 133421,
-      "sha256": "23e373ae19e27402ccecca512905aa1361cfcf683f319b0117a1f44669ceef55"
+      "bytes": 156459,
+      "sha256": "0b5a2fb42908d8fa78c8345de02db07ba37586834a735a526c9d83688656b367"
     },
     {
       "path": "paper/references.bib",
-      "bytes": 99894,
-      "sha256": "1e551d3a7151e76001eb004b92d33146d7e06a682633328a1865bad3b63fafc4"
+      "bytes": 100391,
+      "sha256": "75bc5a339b0cad6235371e3f45a7d16b584311a97766a76ea9fa54b2e329d05b"
     },
     {
       "path": "profiles/PERSON_MODELING.md",

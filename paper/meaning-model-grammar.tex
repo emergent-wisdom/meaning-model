@@ -35,14 +35,15 @@
 \title{The Meaning Model:\\Minimized Grammar}
 \author{Henrik Westerberg\\Emergent Wisdom\\
   \texttt{henrik.westerberg@emergentwisdom.org}}
-\ewpublicationdate{\today}
+\ewreviseddates{September 4, 2026}{September 9, 2026}
 \begin{document}
 \maketitle
 
 \begin{abstract}
 This appendix is a compact restatement of the definitions and rules explained
-in \emph{The Meaning Model: Constructing Worlds and Stories at Progressive
-Resolution}. It adds no requirements: the paper is self-contained, and this
+in \href{https://doi.org/10.5281/zenodo.22313515}{\emph{The Meaning Model:
+Constructing Worlds and Stories at Progressive Resolution}}. It adds no
+requirements: the paper is self-contained, and this
 reference groups the same account into record forms, obligations, selected-profile
 axioms, perspective queries, surface records, and operations. Book-specific
 choices remain non-normative, and profile rules bind only constructions that
@@ -70,6 +71,10 @@ in both presentations; this reference is not a separate source of theory.
   \item[Model.] A Meaning Model at declared resolution $\rho$ is a finite
     tuple $\mathcal M_\rho=(\Cset,\Xset,\Eset,\Bset,\Kset,\Rset,\Lset)$ of
     Concepts, Things, Events, Bindings, Cuts, Realizations, and typed links.
+  \item[Modeler.] The person or AI system constructing, interpreting, or
+    revising an account. \emph{Constructor} names its role when proposing changes;
+    \emph{generator} is the component producing candidates; \emph{author} is the
+    human responsible for the world or story. These terms add no record forms.
   \item[Shared address space.] A complete construction is the typed graph
     $\mathcal G_\rho=(\mathcal M_\rho,\mathcal U,\mathcal D,
     \mathcal L_{\times})$, where $\mathcal U$ contains Understanding Nodes,
@@ -85,8 +90,8 @@ in both presentations; this reference is not a separate source of theory.
     \texttt{supersedes} link (A11); the logical identity of a Thing or Concept
     does not thereby change. A Concept identifier is
     stable across grounding versions. A profile may identify a grounding
-    version $g$ by the content hash of its declared bundle serialized in
-    canonical order, as the Book does with Sema; a Realization's $g$ names the
+    version $g$ by the content hash of its bundle under a declared deterministic serialization
+    scheme, as the Book does with Sema; a Realization's $g$ names the
     exact bundle it used. Content addressing is an identity convention, not a
     seventh record form or a universal requirement of the core grammar.
   \item[Provenance.] Every record carries
@@ -119,8 +124,15 @@ in both presentations; this reference is not a separate source of theory.
     $N$ names; $\mathrm{Rel}\subseteq \mathrm{Kind}\times\Cset$ typed
     relations (specialization, opposition, expression, and other declared
     kinds); $\mathrm{Constr}$ constraints; $G$ grounding records, each of
-    depth relational, representative prototype, exemplar, or canonical model,
-    each versioned.
+    kind relational, representative prototype, exemplar, or process-based
+    concept model, each versioned. A \emph{canonical concept model} is one
+    selected as a reference for comparison, not a separate grounding kind.
+    A \emph{concept model} structures proposed meaning through roles,
+    relationships, and constraints in the grammar; the process-based form
+    adds event-processes and phases. Learned meanings may remain implicit;
+    an explicitly referenced Concept needs a stable identifier, not necessarily
+    a detailed concept model. Explicit groundings support shared, stable,
+    revisable comparisons and the development of new concepts.
   \item[Thing] $x=(\mathrm{id},\mathrm{kind},\partial x,\kappa_x,\Lset_x,p)$.
     $\partial x$ identity boundary; $\kappa_x$ continuity criterion.
   \item[Event] $e=(\mathrm{id},\mathrm{kind},I_e,S_e,d_e,D_e,\Lset_e,p)$.
@@ -128,7 +140,10 @@ in both presentations; this reference is not a separate source of theory.
     conditions or typed world data. A numeric datum is admissible only when it
     has an independently interpretable unit or measurement protocol, such as a
     date, duration, count, currency amount, distance, or physical measurement;
-    measurement uncertainty may accompany it. The optional text $d_e$ is a
+    uncertainty may accompany it. Such values may be measured, inferred from
+    available information, or authored for a fictional world. Their provenance
+    distinguishes these sources and retains material assumptions; context and
+    acceptance rules still apply. The optional text $d_e$ is a
     readable description of this exact Event record and version;
     it is not a Document Node and does not change the structured record.
     A candidate description acquires accepted-world authority only if its
@@ -255,8 +270,9 @@ commit another construction to this lifecycle, time, or transaction policy.
     These links carry no weights, need not
     be exclusive, and assert no numerical recomposition. A numerical allocation
     over the same Events requires a separate Cut naming its question and unit.
-    Events may also carry categorical facts and externally interpretable
-    measurements. Such data record what happened; they do not assign semantic
+    Events may also carry categorical conditions and quantities with independently
+    interpretable units, including values inferred or authored during construction.
+    Such data represent world conditions; they do not assign semantic
     degree, importance, or psychological intensity.
   \item[A6 Profile---Named Cut families.]
     \begin{description}[leftmargin=1.2em]
@@ -357,7 +373,7 @@ commit another construction to this lifecycle, time, or transaction policy.
     The fit degree is $w_{\mathrm{match}}$, meaningful only beside its
     siblings. Different Concepts are evaluated by separate assessment Events
     and Cuts and need not compete.
-    A canonical fragment may itself be opened structurally; component-level
+    A process-based concept model may itself be opened structurally; component-level
     match judgments use one assessment Event and local Cut per component. No
     independent Realization degree exists. Fit and confidence answer different
     questions. When needed, a separate assessment Cut allocates evidential
@@ -372,6 +388,9 @@ commit another construction to this lifecycle, time, or transaction policy.
     This is transaction metadata, not a seventh world record. A branch has
     one active revision per logical identity. A stale base or changed read
     dependency rejects the candidate; rebasing requires renewed validation.
+    In the proposed workflow, the author or a designated checker decides whether
+    to accept a validated candidate. This policy does not establish authenticated
+    review or a mandatory review gate in the current host.
     Reject leaves the active graph unchanged, although a construction log
     may retain the rejected candidate and explanation. Commit appends one
     immutable cross-surface snapshot and advances its head atomically.
@@ -431,7 +450,7 @@ commit another construction to this lifecycle, time, or transaction policy.
     with actor $a$ is an Event $e_{\mathrm{est}}$ of kind \textsf{estimate},
     under $o$'s perspective root, with an \texttt{about} link to $\theta$ and evidence
     $\subseteq\operatorname{Acc}(o,t)$. An estimate of categorical or
-    externally measured world data may use the corresponding typed Event
+    unit-bearing world data may use the corresponding typed Event
     payload, with measurement error where applicable. An estimate of a
     semantic composition is instead a Cut $K_{\mathrm{est}}$ on
     $e_{\mathrm{est}}$, compatible with the target Cut's question, unit,
@@ -502,7 +521,13 @@ DocumentNode \{ id, role, text, discourse position, optional narrator and viewpo
     Absence means that reasoning was not externalized there, not that no
     reasoning occurred. A claimed rationale trace must state which commitments
     require nodes and which links make the trace checkable. Node density never
-    changes world authority.
+    changes world authority. For characters and modelers independently, inner
+    activity may use Event-processes, Understanding Nodes, both, or neither.
+    A node-only account need not construct a detailed inner-process model;
+    a process account need not include a dense node trace. A derived view may
+    collect existing nodes with their clocks and source references. An inferred
+    process trajectory is a further attributed account with evidence, not a
+    fact obtained merely by collecting nodes.
   \item[S8] A rendering route is a profile, not a world record. It specifies a
     source commit and epistemic status, an ordered Event route and open frontier,
     narrator and viewpoint, evidence cutoff, disclosure rule, and target
@@ -598,6 +623,12 @@ Instantiator $\iota_c$ & operator & maps a desired concept state and available s
 \end{tabularx}
 \end{center}
 
+A location-support Cut assesses exclusive place alternatives at a declared
+time and evidence cutoff, not physical occupancy. A cause Cut may attribute
+intellectual descent to historical Events linked to Concept groundings. Both
+retain perspective, evidence, and remainder; shared influences obey A4, and
+the attribution needs a rationale, not merely hash lineage.
+
 \section{Book-specific person profile (non-normative)}
 
 A person is a Thing whose life is its lifecycle Event. The Book profile opens
@@ -606,6 +637,23 @@ change using only ordinary records. Its principals share one concern vocabulary
 so their Cuts can be compared, and the remainder tests that vocabulary's
 coverage. Another construction may use different questions, different answers,
 or no person profile. Only the Cut contract is general.
+
+The categories are a first draft for iterative human and AI construction, not
+an inventory to fill indefinitely. The intended practice revises them against
+character coherence, distinctiveness, numerical dependence, and recovery from
+text. A scored run freezes its vocabulary; category revisions start a new
+version and scored run, retaining earlier records and grounding versions.
+Revised content-addressed groundings receive new hashes. This search reuses
+the grammar and can admit distinctions beyond current human vocabulary.
+Finer records still reconstruct protected coarse queries under the declared
+mapping and tolerances, or revise them explicitly. Remainder is unallocated
+share under one Cut question, not a measure of all missing understanding.
+
+P2 below records the deeper preparation scheme. Accepted scene records contain
+concern-level WHAT Cuts and qualitative wants, not numerical pole or want-leaf
+openings. The released person template instead places want-leaf Cuts directly
+under concerns and keeps outlook Cuts separate; neither deeper numerical tree
+was exercised in those scene records.
 
 \begin{description}
   \item[P1 State (IS).] The Book tracks body, kin, partnership,
@@ -617,7 +665,7 @@ or no person profile. Only the Cut contract is general.
     physical measurements may be Event data; no life domain receives a free-
     standing psychological score. World Events and actor-believed Events use
     different ancestry paths.
-  \item[P2 Concerns and wants (WHAT).] At scene $s$, a motivational Event
+  \item[P2 Concerns and wants (WHAT).] In the preparation profile, at scene $s$, a motivational Event
     $e_{s}^{\mathrm{what}}$ contained by the actor's lifecycle parents every Cut in the WHAT tree. Its top
     Cut divides one unit of scene motivational attention among the five
     first-run concerns and remainder. For each opened concern $i$, another Cut
@@ -707,6 +755,9 @@ or no person profile. Only the Cut contract is general.
     concerns. Each may be opened through approach and threat-avoidance poles.
   \item[Problem-solving modes.] framing (concrete, abstract) and deciding
     (impartial, personal), with a remainder at every opened Cut.
+    Impartial deciding applies considerations without changing their force solely
+    because of who is involved; personal deciding attends to identities,
+    relationships, and particular consequences, not merely self-interest.
   \item[Event kinds (initial registry).] lifecycle, presence, membership,
     physical-part, perception, belief, appraisal, want, estimate, decision,
     action, interaction, communication, travel, consequence, creation,
@@ -729,7 +780,11 @@ or no person profile. Only the Cut contract is general.
     registered before its lifecycle starts. Concern comes from
     $V_{\mathrm{concern}}$, and pole is approach or threat-avoidance. The
     endpoint is categorical or uses a real world-data unit, never a free-standing
-    psychological score. Satisfaction follows by categorical or same-unit
+    psychological score. In the preparation profile, horizon records the
+    endpoint's dated interval, clock, precision, uncertain bounds, and relation
+    to the actor's lifecycle. Depth is constitutive (valued in itself),
+    instrumental (serving another registered want), both, or unresolved at the
+    actor's cutoff. Satisfaction follows by categorical or same-unit
     comparison; uncertain evidence about that comparison is a separate
     assessment, not an overwritten world state. No more than eight leaves are
     opened in one scene. The referenced Cut
@@ -737,12 +792,15 @@ or no person profile. Only the Cut contract is general.
     shares gives the scene path share. Context uses a crossing Cut and conflict
     uses an unweighted link. A care leaf may target another person's process,
     but kindness remains a separate episode-level evaluation under A10.
-  \item[Completed Book selections.] The construction used exact integer-tick
-    Cut normalization, a recorded $.10$ elicitation grid with supported $.05$
-    refinement, flat content-addressed concept bundles, no continuous extents,
-    an estimate-depth cap of two, and full scene profiles only for its three
-    principals. One concept was opened experimentally; none of these choices is
-    a core grammar obligation.
+  \item[Completed Book selections.] Preparation specified a $.10$ elicitation
+    grid with supported $.05$ refinement. Accepted source shares include $.76$
+    and $.72$; the retained record does not document a grid amendment or
+    establish compliance. The retrospective import preserves those weights and
+    checks their sums; no conversion to the earlier grid is claimed. Other
+    selections were flat content-addressed concept bundles, no continuous
+    extents, an estimate-depth cap of two, and full scene profiles only for its
+    three principals. One concept was opened experimentally; none of these
+    choices is a core grammar obligation.
 \end{description}
 
 \end{document}

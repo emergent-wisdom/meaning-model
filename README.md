@@ -14,6 +14,10 @@ unreleased work.
 
 ## Read first
 
+The paper and grammar appendix were revised on September 9, 2026.
+The [Zenodo series](https://doi.org/10.5281/zenodo.22313515) provides the
+archived versions.
+
 - [Meaning Model paper](output/pdf/meaning-model.pdf) - the argument, grammar,
   construction method, examples, and numerical portrait.
 - [Grammar appendix](output/pdf/meaning-model-grammar.pdf) - a focused reference
@@ -158,4 +162,6 @@ Original code is [MIT licensed](LICENSE). Original papers, documentation,
 authored model data, and the Book are [CC BY 4.0](LICENSE-CONTENT).
 [NOTICE](NOTICE) preserves the boundary for third-party material.
 [CITATION.cff](CITATION.cff) identifies the author and preferred paper citation;
-the repository URL is recorded there, and a DOI will be added when assigned.
+it includes the repository URL and the Meaning Model's Zenodo concept DOI.
+The DOI identifies the paper's version series; the release manifest identifies
+the exact files.

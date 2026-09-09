@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "For the method, cite the Meaning Model paper. For the software or example, also identify the released revision or artifact digest."
 type: software
 repository-code: "https://github.com/emergent-wisdom/meaning-model"
-version: 0.1.0
+version: 0.2.0
 license:
   - MIT
   - CC-BY-4.0
@@ -19,3 +19,4 @@ preferred-citation:
     - family-names: Westerberg
       given-names: Henrik
   year: 2026
+  doi: "10.5281/zenodo.22313515"
