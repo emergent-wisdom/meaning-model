@@ -653,8 +653,8 @@
     },
     {
       "path": "output/pdf/meaning-model.pdf",
-      "bytes": 401442,
-      "sha256": "4fc7f01bff2296033068d8b31106f2c6cde946011f81c7816d14206c06034294"
+      "bytes": 401695,
+      "sha256": "58f530bfe92bcb873284f97db85d84057ab5a20ed10e3dcf635dad7e30ac7834"
     },
     {
       "path": "output/pdf/the-book-of-conditions.pdf",
@@ -688,8 +688,8 @@
     },
     {
       "path": "paper/meaning-model.tex",
-      "bytes": 158975,
-      "sha256": "746e71c8a2d762de977f7fc30818ee6bc4eeaa18ec3cd5ff26a51cf52909d066"
+      "bytes": 159432,
+      "sha256": "94cec309be8d665942643420be7654eca01bd91118c39bcd4d11464ee4255fa6"
     },
     {
       "path": "paper/references.bib",
