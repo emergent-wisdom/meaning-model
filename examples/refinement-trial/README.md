@@ -87,6 +87,8 @@ arithmetic, not human judgment uncertainty.
 
 The runnable assertions demonstrate these bounded mechanics only. They do not
 validate a psychological vocabulary, prove historical realism, establish
-literary advantage, or close the Rust implementation gaps. A public archival
-release URL and immutable release digest remain to be assigned before
-publication; this directory is the repository-local artifact location.
+literary advantage, or close the Rust implementation gaps. The
+[Meaning Model concept DOI](https://doi.org/10.5281/zenodo.22313515) identifies
+the whole archival version series. The source package's `RELEASE-MANIFEST.json`
+records exact file hashes; use the chosen archived version and its manifest
+to identify the artifact being reproduced.

@@ -106,7 +106,7 @@ description is opened, revised, compared with another world, or rendered into
 language. Ordinary prose can silently change what a term refers to. A flat
 graph can store relations without stating how coarse and fine descriptions
 agree. An unqualified numerical rating can preserve neither who attributed it
-nor the sibling alternatives that give it meaning.
+nor the comparison or measurement protocol that gives it meaning.
 
 The Meaning Model proposes one grammar for those responsibilities. Reusable
 Concepts describe continuing Things and Events. A Cut divides one stated unit
@@ -426,8 +426,9 @@ The reading rule is simpler. A semantic number is a Cut weight: it means one
 answer's share relative to its siblings under the parent Event's question and
 unit, and the answers plus remainder sum to one. A non-summing process relation
 is unweighted. Literal dates, durations, counts, currency amounts, positions,
-and other quantities with independently interpretable units are typed Event data with units and
-provenance. They add neither a weighted Cut relation nor an unweighted process
+and other quantities with independently interpretable units or declared
+measurement protocols are typed Event data with units or protocol references
+and provenance. They add neither a weighted Cut relation nor an unweighted process
 parent relation. A Realization is likewise unweighted; optional
 graded fit is represented by its own local Cut. If no divided unit and mutually
 exclusive answers can be named, no semantic number is assigned.
@@ -631,7 +632,7 @@ Form & Question answered & Representation & Weighted? \\
 \midrule
 Cut & How does one declared unit divide? & Exclusive answers plus explicit remainder & Yes; sums to one \\
 Event-process & Which Events occur within, constitute, update, or refer to this longer Event? & Typed containment, update, and reference links & No \\
-World datum & What categorical condition or unit-bearing value is represented? & Typed Event payload with unit, frame, uncertainty, and provenance & Not a parent relation \\
+World datum & What condition, unit-bearing value, or protocol result is represented? & Typed Event payload with unit or protocol, frame, uncertainty, and provenance & Not a parent relation \\
 \bottomrule
 \end{tabularx}
 \caption{Two parent relations and the separate world-data payload.}
@@ -647,6 +648,14 @@ provenance, and applicable uncertainty, distinguishing measurement, inference,
 and authorship. The usual perspective and acceptance rules determine whose
 account contains the value; later evidence can prompt an explicit revision.
 These values do not have to sum to one. That rule belongs to Cuts.
+
+A defined scale need not have a physical unit. Protocol-valued data retain the
+instrument version, question, anchors, time, and provenance. For example, a
+report of seven on a stated fatigue scale records a response under that
+protocol, not an intrinsic amount of fatigue or a share of attention. Inferred
+and authored scale values retain their respective status. Comparisons and
+aggregation require justification under the scale; a zero-to-one encoding
+alone does not make a Cut.
 
 The five named profiles fall into three families. An \emph{allocation} Cut
 divides a unit among answers in a frozen vocabulary or among referenced records.
@@ -1020,8 +1029,8 @@ normally unfolds in construction time; incompatible reasoning histories may
 coexist without becoming accepted world state.
 
 Preserving that reasoning requires a rationale UnderstandingNode for each
-substantive initial freeze and committed revision, addressing the predecessor
-and successor, evidence, and material rejected alternatives. Without this
+substantive initial freeze and committed revision, addressing the new grounding,
+its predecessor if any, evidence, and material rejected alternatives. Without this
 lineage the Concept remains valid but its rationale is not preserved. Simple
 label registration and mechanical metadata changes need no ceremonial nodes.
 
@@ -1394,8 +1403,9 @@ divergences are derived diagnostics, not new semantic numbers. The profile also
 bounds higher-order nesting---what one character thinks another thinks---rather
 than granting unbounded omniscience. Life Simulation may later evaluate or
 learn such estimates; their ancestry and access semantics belong to the Meaning
-Model. A categorical or measured estimate retains the target's data type and
-units; an estimate of semantic composition uses a compatible Cut on the
+Model. A categorical, unit-bearing, or protocol-valued estimate retains the
+target's data type and applicable unit or measurement protocol, with uncertainty
+where relevant; an estimate of semantic composition uses a compatible Cut on the
 estimate Event. Missing records or unequal coverage indicate ignorance or
 noncoverage, not automatically disagreement or error.
 
@@ -1452,17 +1462,18 @@ by declared constraints and visible intervention.
 
 A rendering route records the source commit and epistemic status; an ordered
 route through Events and its currently opened frontier; optional narrator and
-viewpoint metadata; the evidence accessible at that story-time cutoff; a
+viewpoint metadata; the evidence accessible at its declared cutoff; a
 disclosure policy; and the target DocumentNode with role
-\texttt{story\_passage}. It specifies which evidence the renderer may use,
-excluding later facts,
-private state beneath another character's inner-process root, or an undelivered
-document. Enforcement and read-back must check that the generated prose
-respects those exclusions. The route is a construction profile over existing
+\texttt{story\_passage}. It specifies which evidence the renderer may use
+under the chosen viewpoint and disclosure policy. In character-limited
+narration, this excludes later facts, private state unavailable to that
+character, and undelivered documents. Other narrative viewpoints obey their
+declared access and disclosure rules. Enforcement and read-back must check that
+the generated prose respects those limits. The route is a construction profile over existing
 references, not a seventh world relation.
 
 Read-back applies the inverse operation in a fresh context: infer the Things,
-Events, Cuts, Realizations, typed ancestry, and links implied by a story-passage
+Events, Bindings, Cuts, Realizations, typed ancestry, and links implied by a story-passage
 DocumentNode, then compare that proposal with the source commit. A mismatch can
 expose an omitted record, an unsupported sentence, a wrong root path, or prose
 that implies a different composition. Its resolution is another explicit
@@ -1504,7 +1515,7 @@ subsequently imported as native surface records
 (Section~\ref{sec:book-construction}). That retrospective receipt does not
 recover the original cross-surface authoring transactions.
 
-\begin{figure}[H]
+\begin{figure}[!htbp]
 \centering
 \begin{tikzpicture}[
   x=1cm,y=1cm,>=Latex,
@@ -2115,6 +2126,12 @@ Numerical dependence is a separate test. A preregistered intervention varies
 compatible Cut weights, rechecks affected parents, and holds independent
 commitments and rendering budgets fixed. It tests whether prose changes as
 predicted, without requiring a reader to recover every latent weight.
+Apply the intervention before
+generating affected Event descriptions and other derived context, then
+regenerate dependent passages under the same policy. Numerical influence may
+pass through those descriptions. Removing raw numbers only after that influence
+has entered the context tests continued access to numbers, not their upstream
+contribution~\cite{westerbergLifeSimulation2026}.
 
 Cut density, remainders, direction calibration, rejection and revision rates,
 prose length, model calls, tokens, latency, human adjudication time, storage,
@@ -2275,7 +2292,8 @@ can overfit examples or proliferate names until comparison becomes meaningless.
 The mixture law applies only where compatible Cut questions warrant it.
 Occurrence, logical constraint, topology, and causal intervention remain Event
 or domain relations. Cut shares express a declared comparison, not freestanding
-intensity. Quantities with independently interpretable units remain world data,
+intensity. Quantities with independently interpretable units or declared
+measurement protocols remain world data,
 whether measured, inferred, or fictionally authored. The grammar does not replace
 physics, economics, biology, geometry, or any field with units and specialized laws.
 
@@ -2452,7 +2470,7 @@ as better evidence and more capable models become available.
 These vocabularies describe the non-normative preparation profile for the Book;
 the completed construction exercised only part of it. They are not a universal
 psychology. The preparation documents own their
-freeze and use. A future scored comparison must freeze their identifiers and
+freeze and use. A future fixed-vocabulary comparison of this profile must freeze their identifiers and
 one-line descriptions before prose is generated, together with any obvious
 typed specialization and any exemplar anchor actually used by a judgment. The
 examples below are available anchors, not a requirement that every Concept use
@@ -2589,12 +2607,13 @@ emerson1976socialExchange}.
 
 \subsection{Freeze contract}
 
-Vocabularies are frozen within a scored run and revised between runs. Freezing
+Vocabularies are frozen within a scored run and revised between runs in the
+fixed-vocabulary Book comparison. Freezing
 keeps a comparison interpretable; it is not a commitment to retain the same
 person categories across the research program. Ordinary world updates and
 permitted refinements still occur within a run under its declared rules.
 
-Any future scored construction must freeze:
+Any future scored construction under this comparison profile must freeze:
 \begin{itemize}
   \item Concept identifiers and one-line descriptions, typed specialization
     relations, required exemplar anchors, and Event kinds;
@@ -2617,10 +2636,18 @@ A human-life instantiation additionally freezes:
   \item external capacity-stock units and recovery conventions, effort-allocation
     units, and exchange accounting rules.
 \end{itemize}
-Changing these choices creates a new run, not a silent reinterpretation of
-existing numbers. Vocabulary development deliberately uses this transition:
+Changing these choices creates a new run in this comparison, not a silent
+reinterpretation of existing numbers. Vocabulary development deliberately uses this transition:
 compare constructions, revise the categories, and evaluate the next version.
 Earlier runs retain their exact vocabulary and grounding versions.
+
+An experiment in category discovery instead freezes the permitted revision
+operations, validation rules, evaluation criteria, and budgets, not the
+eventual vocabulary. New definitions receive new versions; earlier records and
+prediction inputs retain their original meanings and cutoffs. The experiment
+evaluates the revision policy on held-out constructions without silently
+changing a fixed-profile comparison. Life Simulation develops these discovery
+conditions \cite{westerbergLifeSimulation2026}.
 
 If the unscored post-world concept-model protocol test is run, it separately
 freezes the model version, full content digest and canonicalization scheme,

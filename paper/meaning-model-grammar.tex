@@ -138,9 +138,12 @@ in both presentations; this reference is not a separate source of theory.
   \item[Event] $e=(\mathrm{id},\mathrm{kind},I_e,S_e,d_e,D_e,\Lset_e,p)$.
     State $S_e$ is a finite map from fields to categorical
     conditions or typed world data. A numeric datum is admissible only when it
-    has an independently interpretable unit or measurement protocol, such as a
-    date, duration, count, currency amount, distance, or physical measurement;
-    uncertainty may accompany it. Such values may be measured, inferred from
+    has an independently interpretable unit or declared measurement protocol,
+    such as a date, duration, count, currency amount, distance, physical
+    measurement, or a response on a specified instrument. A protocol result
+    retains the instrument version, question, anchors, time, and provenance;
+    comparisons and aggregation require justification under that scale.
+    Uncertainty may accompany it. Such values may be measured, inferred from
     available information, or authored for a fictional world. Their provenance
     distinguishes these sources and retains material assumptions; context and
     acceptance rules still apply. The optional text $d_e$ is a
@@ -148,7 +151,9 @@ in both presentations; this reference is not a separate source of theory.
     it is not a Document Node and does not change the structured record.
     A candidate description acquires accepted-world authority only if its
     candidate is committed.
-    Interpretive judgments such as
+    An instrument result records what the protocol yielded, not an intrinsic
+    psychological property; interpreting it as such requires a separate attributed
+    assessment. Interpretive judgments such as
     trust, intelligence, importance, and concept fit are Events and Cuts, not
     numerically anchored entries in $S_e$. Direction $D_e$ is a typed
     continuation specification (law, constraint set, predictor, or a reference
@@ -271,9 +276,10 @@ commit another construction to this lifecycle, time, or transaction policy.
     be exclusive, and assert no numerical recomposition. A numerical allocation
     over the same Events requires a separate Cut naming its question and unit.
     Events may also carry categorical conditions and quantities with independently
-    interpretable units, including values inferred or authored during construction.
-    Such data represent world conditions; they do not assign semantic
-    degree, importance, or psychological intensity.
+    interpretable units or declared measurement protocols, including values
+    inferred or authored during construction. Such data represent world
+    conditions or protocol results; they do not by themselves assign intrinsic
+    semantic degree, importance, or psychological intensity.
   \item[A6 Profile---Named Cut families.]
     \begin{description}[leftmargin=1.2em]
       \item[allocation] Children reference existing records or items of a
@@ -449,9 +455,10 @@ commit another construction to this lifecycle, time, or transaction policy.
   \item[Q4 Estimate.] Observer $o$'s estimate of a record $\theta$ associated
     with actor $a$ is an Event $e_{\mathrm{est}}$ of kind \textsf{estimate},
     under $o$'s perspective root, with an \texttt{about} link to $\theta$ and evidence
-    $\subseteq\operatorname{Acc}(o,t)$. An estimate of categorical or
-    unit-bearing world data may use the corresponding typed Event
-    payload, with measurement error where applicable. An estimate of a
+    $\subseteq\operatorname{Acc}(o,t)$. An estimate of categorical,
+    unit-bearing, or protocol-valued world data may use the corresponding typed
+    Event payload, retaining the applicable unit or measurement protocol and
+    uncertainty. An estimate of a
     semantic composition is instead a Cut $K_{\mathrm{est}}$ on
     $e_{\mathrm{est}}$, compatible with the target Cut's question, unit,
     vocabulary, and remainder; no interpretive vector is stored as Event
@@ -614,7 +621,7 @@ Concept-understanding history & derived view & the Understanding Node subgraph s
 Divergence & derived diagnostic & Q5 \\
 Want satisfaction & derived view & compare a want's desired Event condition or typed world datum with committed state; any graded judgment is a local Cut \\
 Capacity and exchange & permitted pattern & an externally measured stock is typed Event data; allocation is a Cut over one declared unit; transfer is a joint Event. Direct reciprocity or conservation requires a shared external unit and accounting rule; subjective energy is not presumed conserved \\
-Shock profile & mixed view & unweighted links identify changed processes; typed data record objective changes where available; an optional Cut allocates attributed impact; anticipation comes from a prior direction Cut \\
+Shock profile & mixed view & unweighted links identify changed processes; typed data record objective changes where available; an optional Cut allocates attributed impact; available anticipation comes from a prior belief or predictive direction Cut \\
 Life-change allocation & permitted pattern & allocation Cut over one explicitly named attribution unit among affected processes; heterogeneous objective changes remain separately typed and are not standardized into one scalar \\
 Problem-solving profile & derived profile & duration-weighted mixture of scene-level module Cuts over framing, deciding, and their opened modes; decision Events retain strategy families used as unweighted Realizations, while recruitment counts are a theory-only cross-check \\
 Recognizer $\Gamma_c$ & operator & maps an addressable fragment to an unweighted \textsf{describe} Realization, role alignment, evidence, and optional local match Cuts \\
@@ -641,8 +648,12 @@ or no person profile. Only the Cut contract is general.
 The categories are a first draft for iterative human and AI construction, not
 an inventory to fill indefinitely. The intended practice revises them against
 character coherence, distinctiveness, numerical dependence, and recovery from
-text. A scored run freezes its vocabulary; category revisions start a new
-version and scored run, retaining earlier records and grounding versions.
+text. In a fixed-vocabulary Book comparison, a scored run freezes its
+vocabulary; category revisions start a new version and scored run, retaining
+earlier records and grounding versions. A category-discovery experiment instead
+freezes permitted revision operations, validation rules, evaluation criteria,
+and budgets, not the eventual vocabulary. Its versioned edits preserve earlier
+records and prediction cutoffs.
 Revised content-addressed groundings receive new hashes. This search reuses
 the grammar and can admit distinctions beyond current human vocabulary.
 Finer records still reconstruct protected coarse queries under the declared

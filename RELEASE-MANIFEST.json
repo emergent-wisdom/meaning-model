@@ -448,8 +448,8 @@
     },
     {
       "path": "examples/refinement-trial/README.md",
-      "bytes": 4866,
-      "sha256": "96a0b01163196a4ef9284aa1fc8b5aecdc545d2da48e8740028d2a2f24409e7d"
+      "bytes": 4990,
+      "sha256": "ccc50739a238af5463a6130162575d27c2f54d08a8a92c69b61544e6d2bf53d8"
     },
     {
       "path": "examples/refinement-trial/example.test.mjs",
@@ -648,13 +648,13 @@
     },
     {
       "path": "output/pdf/meaning-model-grammar.pdf",
-      "bytes": 322539,
-      "sha256": "627cc2c6e2e850a94aa67e6073e451377853e4c00195e3c8d3c900c6adfe5845"
+      "bytes": 323180,
+      "sha256": "3a73ba25689d9fa98d638b7138fc1af0aec314c85b58812a3283b0f3b806265d"
     },
     {
       "path": "output/pdf/meaning-model.pdf",
-      "bytes": 395818,
-      "sha256": "54e9b5c8da3cdf3175bf868d8a79d3779077b0098b61d80cfeff871de6142a25"
+      "bytes": 397333,
+      "sha256": "07d64a88473de03b4731e1f54c297eaf4b345f0258bd7df12bd77cfb47eb7af2"
     },
     {
       "path": "output/pdf/the-book-of-conditions.pdf",
@@ -678,13 +678,13 @@
     },
     {
       "path": "paper/meaning-model-grammar.tex",
-      "bytes": 49990,
-      "sha256": "ed2ceff66fe936cddb45795d554e378c4e61ca53cb10854bc5bbc123c2f2747b"
+      "bytes": 50813,
+      "sha256": "abd762e5bf50b4e06fd6c8c5834d6defcbfc6e63c02aab2e1a2cd4865ea0197a"
     },
     {
       "path": "paper/meaning-model.tex",
-      "bytes": 156459,
-      "sha256": "0b5a2fb42908d8fa78c8345de02db07ba37586834a735a526c9d83688656b367"
+      "bytes": 158320,
+      "sha256": "8fe2d968dc3fe48a8397b1008e99d1f22652a4b951428928a27c45e1bdfe3ff8"
     },
     {
       "path": "paper/references.bib",
