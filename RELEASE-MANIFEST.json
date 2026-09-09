@@ -653,8 +653,8 @@
     },
     {
       "path": "output/pdf/meaning-model.pdf",
-      "bytes": 397333,
-      "sha256": "07d64a88473de03b4731e1f54c297eaf4b345f0258bd7df12bd77cfb47eb7af2"
+      "bytes": 401442,
+      "sha256": "4fc7f01bff2296033068d8b31106f2c6cde946011f81c7816d14206c06034294"
     },
     {
       "path": "output/pdf/the-book-of-conditions.pdf",
@@ -672,6 +672,11 @@
       "sha256": "d78faef2fe6a138b11c904d08d191737915b75ba6ccb4bea14b872cc93177d38"
     },
     {
+      "path": "paper/includes/conceptual-decomposition.tex",
+      "bytes": 2907,
+      "sha256": "80b94f806336a9822c3b8f9641868814aae09196501e892b0510d5cd830fabd0"
+    },
+    {
       "path": "paper/includes/interface-blocks.tex",
       "bytes": 2885,
       "sha256": "e63aaf80204f28ce0741eb8b69dc9fe3c6a7b1eb4d4e0d2f096a669f714686c3"
@@ -683,8 +688,8 @@
     },
     {
       "path": "paper/meaning-model.tex",
-      "bytes": 158320,
-      "sha256": "8fe2d968dc3fe48a8397b1008e99d1f22652a4b951428928a27c45e1bdfe3ff8"
+      "bytes": 158975,
+      "sha256": "746e71c8a2d762de977f7fc30818ee6bc4eeaa18ec3cd5ff26a51cf52909d066"
     },
     {
       "path": "paper/references.bib",

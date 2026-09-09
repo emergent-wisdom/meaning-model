@@ -1,0 +1,65 @@
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}[
+  x=1cm,y=1cm,>=Latex,
+  category/.style={draw=black!40,rounded corners=2pt,fill=black!3,
+    align=center,font=\small,text width=2.2cm,minimum height=.76cm,
+    inner sep=3pt},
+  opened/.style={category,draw=blue!65!black,fill=blue!7,line width=.8pt},
+  unopened/.style={category},
+  remainder/.style={category,draw=black!40,dashed,fill=white,
+    font=\small\itshape,minimum height=.48cm},
+  branch/.style={draw=black!45,line width=.45pt},
+  selected/.style={->,draw=blue!65!black,line width=1pt}
+]
+\node[opened,text width=2.5cm] (root) at (0,0)
+  {Conceptual\\time process};
+
+\node[unopened] (a) at (3,1.35) {Category A\\{\scriptsize unopened}};
+\node[opened] (b) at (3,0) {Category B\\{\scriptsize selected and opened}};
+\node[unopened] (c) at (3,-1.35) {Category C\\{\scriptsize unopened}};
+\node[remainder] (r0) at (3,-2.7) {Remainder};
+
+\node[unopened] (b1) at (6,1.35) {B1\\{\scriptsize unopened}};
+\node[opened] (b2) at (6,0) {B2\\{\scriptsize selected and opened}};
+\node[remainder] (r1) at (6,-1.35) {Remainder};
+
+\node[unopened] (b2a) at (9,1.35) {B2a\\{\scriptsize unopened}};
+\node[opened] (b2b) at (9,0) {B2b\\{\scriptsize selected and opened}};
+\node[remainder] (r2) at (9,-1.35) {Remainder};
+
+\node[unopened] (fine) at (12,1.35) {Finer category\\{\scriptsize unopened}};
+\node[opened] (next) at (12,0) {Selected finer\\category\\{\scriptsize open again}};
+\node[remainder] (r3) at (12,-1.35) {Remainder};
+
+\draw[branch] (root.east) -- (1.55,0) |- (a.west);
+\draw[branch] (1.55,0) |- (c.west);
+\draw[branch] (1.55,0) |- (r0.west);
+\draw[selected] (root.east) -- (b.west);
+
+\draw[branch] (b.east) -- (4.5,0) |- (b1.west);
+\draw[branch] (4.5,0) |- (r1.west);
+\draw[selected] (b.east) -- (b2.west);
+
+\draw[branch] (b2.east) -- (7.5,0) |- (b2a.west);
+\draw[branch] (7.5,0) |- (r2.west);
+\draw[selected] (b2.east) -- (b2b.west);
+
+\draw[branch] (b2b.east) -- (10.5,0) |- (fine.west);
+\draw[branch] (10.5,0) |- (r3.west);
+\draw[selected] (b2b.east) -- (next.west);
+\draw[selected,dashed] (next.east) -- (13.8,0);
+\node[anchor=west,font=\small] at (13.85,0) {$\cdots$};
+
+\node[anchor=west,align=left,font=\scriptsize,text width=7.5cm]
+  at (5,-2.7) {Unopened categories retain their coarse accounts.\\
+    Remainder: unallocated share where the opening uses a declared Cut.};
+\end{tikzpicture}
+\caption{Recursive conceptual decomposition of a process. Finer categories and
+their relationships explain the selected parent; further openings deepen that
+explanation. Selecting B, then B2, then B2b exposes finer categories while their
+siblings remain at their existing resolution. The levels show conceptual depth, not successive periods;
+the final arrow indicates that opening can continue. Blue marks the selected
+branch. This is a selected view, not a requirement to construct a complete tree.}
+\label{fig:conceptual-decomposition}
+\end{figure}
