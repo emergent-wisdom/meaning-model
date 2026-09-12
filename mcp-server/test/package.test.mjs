@@ -15,7 +15,7 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
   const { packageDirectory } = await stageNpmPackage(root, temporary);
   const metadata = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'));
   assert.equal(metadata.name, '@emergent-wisdom/meaning-model-mcp');
-  assert.equal(metadata.version, '0.2.0');
+  assert.equal(metadata.version, '0.2.1');
   assert.equal(metadata.mcpName, 'io.github.emergent-wisdom/meaning-model');
   const registry = JSON.parse(await readFile(join(packageDirectory, 'server.json'), 'utf8'));
   assert.equal(registry.name, metadata.mcpName);
@@ -66,6 +66,9 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
   assert.equal(parsed.status, 0, parsed.stderr);
   for (const path of ['rust-engine/Cargo.toml', 'rust-engine/Cargo.lock', 'rust-engine/src/main.rs', 'LICENSE', 'LICENSE-CONTENT', 'NOTICE']) {
     assert.ok((await stat(join(packageDirectory, path))).isFile(), path);
+  }
+  for (const path of ['rust-engine/examples/category_revision.rs', 'docs/examples/APPLICATION-CATEGORIES.md']) {
+    assert.equal(await readFile(join(packageDirectory, path), 'utf8'), await readFile(join(root, path), 'utf8'));
   }
   for (const path of ['rust-engine/target', 'node_modules', '.git']) {
     await assert.rejects(stat(join(packageDirectory, path)), { code: 'ENOENT' });

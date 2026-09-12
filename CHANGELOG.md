@@ -8,6 +8,23 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 No changes recorded.
 
+## 0.2.1 — 2026-09-12
+
+- Make application-selected processes, categories, depth, and optional layers
+  explicit in the MCP modeling context, starter prompt, and user guides.
+- Distinguish structural starters from experimental Story/Decision models;
+  preserve existing template defaults, wire formats, and engine behaviour.
+- Add a runnable category-revision example and a bundled guide to developing
+  application-specific vocabularies.
+- Clarify the paper's general-purpose scope, continuity of understanding, and
+  linked world, understanding, and artifact surfaces while retaining its
+  storytelling examples and preservation contracts.
+
+Install or build the matching 0.2.1 engine when upgrading the MCP package.
+Compared with 0.2.0, this release changes guidance and examples, not the engine's
+modeling behavior or stored-data format; no data migration is required. Users
+upgrading from 0.1.x should also read the 0.2.0 compatibility and limits below.
+
 ## 0.2.0 — 2026-09-06
 
 ### Added

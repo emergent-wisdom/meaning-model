@@ -56,6 +56,9 @@ Choose one purpose before modeling:
 - **counterfactual analysis:** the branch never silently becomes accepted
   history.
 
+These labels set the task's evidence and authority rules, not its industry or
+category vocabulary. An application's own goal determines what it models.
+
 Do not mix creative invention with claims about reality without a typed,
 versioned boundary.
 
@@ -72,6 +75,14 @@ or generated process and no semantic, actor, causal-analysis, or writer layer.
 Meaning Model records, Decision profiles, graph projections, reader models,
 and writer contracts are added only when they serve the declared purpose.
 Adding a view or analysis layer must not silently add canonical world state.
+
+Choose the application's own processes, categories, and depth. A browser's
+task history, a learner's changing understanding, and a relationship account
+need not share one person template. Supplied profiles are examples of how to
+use the language; use, adapt, or omit them. Structural starters and experimental
+Story/Decision models serve different purposes: inspect the latter's authored
+numerical meanings and behavioural laws before choosing them. Reading a profile
+does not require compiling it or adopting its vocabulary.
 
 ### 3. Identify continuing referents
 
@@ -110,7 +121,19 @@ emotions, relationships, bodily state, and perceived options. These are
 revisable hypotheses unless fictional canon or direct report gives them a
 different authority.
 
-For actors, distinguish three linked views:
+Use the model to compare explanations, explore possible developments, and
+identify what evidence or question would improve the account. Category design
+is part of that work: propose new distinctions, combine or replace unhelpful
+ones, and compare the resulting accounts against the application's task and
+available observations. For narrative construction, test whether the changed
+representation produces coherent, distinctive behaviour and whether relevant
+numerical changes affect generated developments. Record the reason for a
+revision and retain earlier definitions; a finer model is not automatically
+a better one. See [application-specific categories](examples/APPLICATION-CATEGORIES.md)
+for a small executable revision example.
+
+When representing an actor's perspectives, distinguish these views wherever
+they are recorded; do not invent missing views merely to complete a template:
 
 1. **External event model:** what appears to happen to and through the actor.
 2. **Candidate actor-local models:** alternative hypotheses about what the

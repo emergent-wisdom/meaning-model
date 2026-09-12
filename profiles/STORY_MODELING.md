@@ -3,6 +3,12 @@
 Use this profile after reading the current *Meaning Model* and *Life
 Simulation* papers and the common modeling protocol.
 
+This is a modeling workflow, not a required vocabulary. Choose and revise the
+processes and categories that the story needs. The separately compiled `story`
+profile is one experimental numerical convention, including a built-in progress
+law; reading this guide does not require using that compiler. Structural
+starters or directly authored models are alternatives within the same engine.
+
 ## Purpose
 
 Construct or reconstruct a story as one accepted world history before prose is

@@ -2,19 +2,19 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.emergent-wisdom/meaning-model",
   "title": "Meaning Model",
-  "description": "Progressively construct worlds, concepts, and stories. Install the Rust engine explicitly before use.",
+  "description": "General-purpose, revisable process models with application-defined categories. Rust engine required.",
   "repository": {
     "url": "https://github.com/emergent-wisdom/meaning-model",
     "source": "github"
   },
-  "version": "0.2.0",
-  "websiteUrl": "https://github.com/emergent-wisdom/meaning-model/blob/main/mcp-server/NPM-README.md#install-and-build",
+  "version": "0.2.1",
+  "websiteUrl": "https://github.com/emergent-wisdom/meaning-model/blob/main/mcp-server/NPM-README.md#install",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@emergent-wisdom/meaning-model-mcp",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "runtimeHint": "npx",
       "runtimeArguments": [
         {

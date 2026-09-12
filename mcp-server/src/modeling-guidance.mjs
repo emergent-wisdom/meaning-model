@@ -22,6 +22,12 @@ export const modelingTheoryUris = Object.freeze([
   'life-sim://theory/life-simulation',
 ]);
 
+export const modelingFreedom =
+  'Model only what the application needs. The modeler chooses processes, categories, relationships, and depth: begin with one process, adapt a supplied template, or author a model directly. A complete person model, the Book vocabulary, and optional semantic, narrative, or decision layers are not required for every task. Use the account to compare explanations, explore developments, and guide inquiry; develop and revise its categories as part of that work, preserving earlier versions and the applicable validation and authority rules.';
+
+export const starterSelection =
+  'Structural starters load identities and Events without default semantic scores. person_scaffold offers lifecycle alone or the Book-style processes level; omitting the level retains processes. Story and Decision compilers add particular authored numerical meanings and behavioural laws, so inspect and choose those assumptions explicitly. Reading a profile guide does not require compiling its template or adopting its vocabulary.';
+
 const resourceDefinitions = Object.freeze([
   {
     id: 'meaning-model-paper',
@@ -101,6 +107,15 @@ const resourceDefinitions = Object.freeze([
       'Rust-backed fictional comparison separating threat knowledge, fear, concern, attachment, and action consequences.',
     mimeType: 'text/markdown',
     file: new URL('../../docs/examples/FEARLESS-CARE.md', import.meta.url),
+    category: 'example',
+  },
+  {
+    id: 'application-categories-example',
+    uri: 'life-sim://example/application-categories',
+    title: 'Application-Specific Categories and Revision',
+    description: 'Choose optional starters, use a model for inquiry, and revise application categories with an executable Rust example.',
+    mimeType: 'text/markdown',
+    file: new URL('../../docs/examples/APPLICATION-CATEGORIES.md', import.meta.url),
     category: 'example',
   },
 ]);
@@ -217,11 +232,14 @@ export async function buildModelingContext({
       ? [{ uri: selectedProfile, required: true, reason: 'Purpose-specific modeling and output contract.' }]
       : []),
     { uri: selectedExample, required: true, reason: 'Inspect one worked representation before expanding the model.' },
+    { uri: 'life-sim://example/application-categories', required: false, reason: 'Use when choosing a starter or developing and revising application-specific categories.' },
   ];
   return {
     schema: 'life-sim-modeling-context/v2',
     purpose,
     sessionMode,
+    modelingFreedom,
+    starterSelection,
     paperFirst: true,
     requiresFullTheoryRead,
     theoryDigests,
@@ -236,11 +254,14 @@ export async function buildModelingContext({
     orderedResources,
     minimumChecklist: [
       'declare purpose, interval, scope, resolution, and authority',
+      'choose application-specific processes and categories; inspect any starter assumptions and omit unnecessary layers',
       'identify continuing referents and accepted event history',
       'separate observations, reports, estimates, completions, forecasts, and creative premises',
+      'connect earlier and later states through supporting events, reports, or declared laws; distinguish world changes from revised estimates and leave unexplained transitions open',
       'represent sampled trajectories before inventing transition laws',
       'preserve competing interpretations, uncertainty, provenance, viewpoint, and residuals',
       'test causal use, irrelevant-input stability, and coarse-fine conservation',
+      'compare alternative decompositions and revise categories when a different account better serves the task',
       'revise explicitly and project only the requested view',
     ],
     valueAndFunctionSupport: {
@@ -276,6 +297,10 @@ export async function buildModelingPrompt({ purpose, sessionMode }) {
     .join('\n');
   return [
     `Begin a ${purpose} Meaning Model modeling session in ${sessionMode} mode.`,
+    '',
+    context.modelingFreedom,
+    '',
+    context.starterSelection,
     '',
     'Do not treat the short protocol as a substitute for the theory. Call life_modeling_context, then read the complete current papers and its other required resources in order:',
     ordered,

@@ -12,6 +12,7 @@ const runtimeFiles = [
   'rust-engine/README.md', 'rust-engine/MEANING_MODEL_CONFORMANCE.md',
   'rust-engine/examples/meaning-model-command.json',
   'rust-engine/examples/construction-scaffolds-command.json',
+  'rust-engine/examples/category_revision.rs',
   'paper/meaning-model.tex', 'paper/meaning-model-grammar.tex',
   'paper/emergentwisdom-preprint.sty', 'paper/references.bib', 'paper/includes',
   'docs/companions/life-simulation', 'docs/MODELING_PROTOCOL.md', 'docs/IMPLEMENTATION.md',

@@ -31,15 +31,16 @@
 \title{The Meaning Model:\\Constructing Worlds and Stories at Progressive Resolution}
 \author{Henrik Westerberg\\Emergent Wisdom\\
   \texttt{henrik.westerberg@emergentwisdom.org}}
-\ewreviseddates{September 5, 2026}{September 9, 2026}
+\ewreviseddates{September 5, 2026}{September 12, 2026}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-The Meaning Model proposes a shared medium for constructing a world, its
-meanings, interpretations, and story together. The long-term aim is to model
-reality computationally through interrelated processes, from physical and social
+The Meaning Model proposes a shared medium for jointly constructing a world, its
+meanings and interpretations, and related artifacts such as stories or reports.
+The long-term aim is to model reality computationally through interrelated
+processes, from physical and social
 histories to attributed inner life, at a declared finite resolution. A world can
 be constructed coherently at a coarse resolution for a declared purpose, then
 recursively opened into finer detail. Each opening must preserve declared
@@ -121,10 +122,12 @@ revising this account. \emph{Constructor} names its role when proposing changes.
 The \emph{generator} is the component producing candidates; \emph{author} names
 the human responsible for the world or story. These terms name roles, not record forms.
 
-The representation is intended for narrative worlds, simulation and knowledge
-systems, corpus annotation, and perspective-separated accounts of people.
-Each use needs stable reference, attributed claims, and compatible resolutions;
-the grammar alone does not guarantee their practical benefit.
+The representation is intended as a general-purpose modeling medium. Narrative
+worlds, simulation and knowledge systems, corpus annotation, and
+perspective-separated accounts of people are applications of the same grammar.
+Storytelling supplies the first worked application here, not a boundary on the
+method. Each use needs stable reference, attributed claims, and compatible
+resolutions; the grammar alone does not guarantee their practical benefit.
 
 The long-term theoretical aim is a representation that could model reality
 computationally through interrelated processes, including people's inner lives,
@@ -141,11 +144,13 @@ part of reality or possibility that a purpose makes relevant, not computation
 of all reality at maximum detail. Minimality concerns the responsibilities a
 validator must preserve, not the world's ultimate furniture.
 
-The immediate value is a working model that helps an author decide what happens,
-not just catalogue a finished story. A whole life or institution can be sketched
-first, then opened where its decisions and consequences matter; incompatible
-detail prompts revision of the larger account. This external semantic workspace
-supports human or AI construction, exercised by the Book at a bounded resolution.
+The immediate value is a working model that helps a modeler investigate what
+happens and why, and decide what to construct next. In storytelling, it guides
+decisions before prose rather than merely cataloguing a finished story. A whole
+life or institution can be sketched first, then opened where its decisions and
+consequences matter; incompatible detail prompts revision of the larger account.
+This external semantic workspace supports human or AI construction, exercised
+by the Book at a bounded resolution.
 
 The intended agentic use is to give an intelligent system a small, recursively
 reusable toolbox for building an explicit world model. It can discover where
@@ -230,8 +235,13 @@ cannot silently change between players. Whether this saves computation at
 comparable fidelity remains untested by the Book.
 
 These uses admit two complementary deployment modes. An intelligent system
-can read and update the records as an explicit semantic workspace. The same
-distinctions and construction histories can also become prediction and
+can read and update the records as an explicit semantic workspace. By returning
+to earlier numerical accounts and the questions or explanations linked to them,
+it could develop continuity of understanding across interactions: what changed,
+what might explain it, and whether the change belongs to the world or to its
+own estimate.
+
+The same distinctions and construction histories can also become prediction and
 reconstruction targets: a candidate training language for learning to choose
 useful distinctions and revise an account, not only assign values within a
 fixed vocabulary. Operating such models could become partly internal to the
@@ -1283,13 +1293,14 @@ alternatives. Suspense attributed
 to a reader is a separate process that unfolds as information is revealed.
 It need not rise and fall with the conflict in story time.
 
-\section{World, Understanding, and Story}
+\section{World, Understanding, and Artifacts}
 \label{sec:interop}
 
 The addressed construction supports three linked surfaces. The world surface
 uses the six record forms. The understanding surface uses text-bearing
 UnderstandingNodes from the Understanding Graph
-\cite{westerbergUnderstanding2026}. The document surface uses DocumentNodes.
+\cite{westerbergUnderstanding2026}. The document surface holds text and code
+artifacts as DocumentNodes.
 They occupy one identifier space so that a question, reason, or sentence can
 address the exact world record it concerns, but they retain different
 semantics, clocks, and authority.
@@ -1308,17 +1319,27 @@ These are surface records rather than seventh and eighth world forms. Every
 UnderstandingNode has a typed containment path to a named
 understanding-process root. Every DocumentNode has one to a named document
 root; \texttt{story\_passage} is one DocumentNode role rather than a separate
-record form. An UnderstandingNode externalizes a question, interpretation,
-reason, criticism, or revision and need not have an Event interval or simplex.
-A DocumentNode may record an act of telling in discourse order; document
-\emph{contains} and \emph{next} links do not inherit Event-containment
-semantics.
+record form. An UnderstandingNode externalizes a question, hypothesis,
+prediction, interpretation, reason, criticism, or revision and need not have
+an Event interval or simplex. Kinds can be specialized to the application
+without changing these parent-path obligations. A DocumentNode may hold a
+report paragraph or code unit, as well as record an act of telling in discourse
+order; document \emph{contains} and \emph{next} links do not inherit
+Event-containment semantics.
 
 Understanding links include \texttt{about}, \texttt{supports},
 \texttt{contradicts}, \texttt{refines}, \texttt{answers},
 \texttt{learned-from}, and \texttt{supersedes}. A DocumentNode links to Events
 through \texttt{renders} and to an UnderstandingNode through \texttt{shaped-by}.
 These links retain their surface-specific roles, not authority over their targets.
+
+For example, a software investigation could link a measured response-time
+history to a bottleneck hypothesis, the code unit changed to test it, and an
+evaluation of the next measurement. The modeler can open a slow interval into
+requests and their phases, or refine a bottleneck concept model to distinguish
+causes requiring different tests. The result can change the explanation, the
+code, or both.
+This uses the same linked surfaces as the story examples below.
 
 World authority is likewise topological. Every accepted world Event has a typed
 containment path to History. A belief, appraisal, want, or estimate that is

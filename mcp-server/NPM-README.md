@@ -7,6 +7,21 @@ It contains no prebuilt engine or build cache.
 
 See the [changelog](CHANGELOG.md) for release changes and upgrade notes.
 
+## Model what your application needs
+
+Choose your own processes, categories, relationships, and depth. Begin with
+one process, use a supplied starter, or author a model directly. A complete
+person model, the Book's vocabulary, and the optional semantic, narrative,
+and decision layers are not prerequisites for every application.
+
+The AI modeler can use this external model to connect evidence, compare
+explanations, explore possibilities, and guide further inquiry. It also chooses
+when to replace or refine its categories. The engine checks supported structure
+and preserves explicit revisions; it does not choose a universal psychology.
+Some templates load structure, while Story and Decision compile particular
+experimental behavioural assumptions. Choose them deliberately. See the
+[application guide and revision example](docs/examples/APPLICATION-CATEGORIES.md).
+
 ## Install
 
 Install the package and matching engine together. Prebuilt installation needs
@@ -16,7 +31,7 @@ can use the explicit source build below.
 In a directory where you want to keep the installation, run:
 
 ```sh
-npm install @emergent-wisdom/meaning-model-mcp@0.2.0
+npm install @emergent-wisdom/meaning-model-mcp@0.2.1
 npx meaning-model-mcp --install-engine
 ```
 
@@ -99,7 +114,7 @@ in a manual configuration:
   "mcpServers": {
     "meaning-model": {
       "command": "npx",
-      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.2.0"],
+      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.2.1"],
       "env": {
         "LIFE_SIM_ENGINE_BIN": "/absolute/path/to/life-sim-engine"
       }
@@ -128,7 +143,7 @@ starts the real Rust engine, then checks an MCP connection and engine status.
 Only passing jobs upload the version-named executable and its `.sha256` file.
 
 Once the reviewed source, workflow and matching tag are pushed, select **Build
-engine release** in the repository's Actions tab. Run it with `tag: v0.2.0` and
+engine release** in the repository's Actions tab. Run it with `tag: v0.2.1` and
 leave `create_draft` false for a build and smoke run that only uploads workflow
 artifacts. Set it true to create a draft release after all four platforms pass.
 Pushing a new `v*` tag also runs the workflow and prepares a draft release.
@@ -172,7 +187,7 @@ for release.
 Record the reviewed tarball's checksum and inspect the publication preview:
 
 ```sh
-release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.2.0.tgz"
+release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.2.1.tgz"
 shasum -a 256 "$release_tarball"
 npm publish "$release_tarball" --dry-run --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
@@ -184,7 +199,7 @@ exact tarball, authenticate with an npm account that can publish to
 ```sh
 npm whoami --registry=https://registry.npmjs.org/
 npm publish "$release_tarball" --access public --ignore-scripts --registry=https://registry.npmjs.org/
-npm view @emergent-wisdom/meaning-model-mcp@0.2.0 version dist.integrity --registry=https://registry.npmjs.org/
+npm view @emergent-wisdom/meaning-model-mcp@0.2.1 version dist.integrity --registry=https://registry.npmjs.org/
 ```
 
 A dry run does not establish registry authentication or scope access. Any change

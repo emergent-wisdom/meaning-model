@@ -26,7 +26,7 @@ import {
 
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.2.0',
+  version: '0.2.1',
 });
 const service = new LifeSimulationService();
 const requestIdSchema = z.string().min(1).max(256);
@@ -124,7 +124,7 @@ server.registerTool(
 server.registerTool(
   'life_profile_compile',
   {
-    description: 'After both complete theory resources have been read in this live MCP process, compile optional Story, Person, Decision, concept_scaffold, change_arc_scaffold, person_scaffold, thing_scaffold, or relationship_scaffold profiles in Rust into one ordinary complete revision-0 ModelDefinition. Structural loaders add no semantic numbers by default: person process addresses, Thing lifecycles, relationships, and change-arc phases are unweighted; numbers require real units or a separately named Cut. This operation is read-only and never registers or persists the returned model; call life_model_register explicitly if it should become available to worlds.',
+    description: 'Optional shortcut after both complete theory resources have been read in this live MCP process: compile Story, Person, Decision, concept_scaffold, change_arc_scaffold, person_scaffold, thing_scaffold, or relationship_scaffold profiles in Rust into an ordinary revision-0 ModelDefinition. The modeler may instead author a model directly with application-specific categories. Structural starters are unweighted by default; person_scaffold offers lifecycle alone or Book-style processes (the existing default). Story and Decision add experimental numerical meanings and behavioural laws, not universal rules; inspect these assumptions before choosing them. This read-only operation never registers or persists the result. Adapt it before life_model_register, or use an explicit successor revision for later category changes.',
     inputSchema: z.object({
       profileRequest: z.record(z.string(), z.unknown()),
     }),

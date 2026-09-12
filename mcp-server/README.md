@@ -21,6 +21,13 @@ JavaScript simulator is neither a runtime dependency nor part of this release.
 
 ## Optional expressiveness
 
+Choose the processes, categories, relationships, and resolution that serve your
+application. The supplied profiles are starting programs, not required world or
+person categories. An AI modeler may develop a different vocabulary, use only a
+single process, and leave unnecessary layers absent. The external model is for
+use as well as retention: the modeler can compare explanations, propose
+developments, and choose further questions using the process accounts it builds.
+
 The invariant is that the smallest useful machine remains a set of typed
 process values changing through time under declared laws. Everything else is
 an optional articulation of that same machine. A caller may use no Meaning
@@ -44,6 +51,30 @@ layers does not create a second world, simulation engine, or source of canon:
 
 This permits progressive addition of detail without requiring every domain to
 pay for every representational layer.
+
+### Choose a starter deliberately
+
+- **Structural starters** load identities, Events, and optional detail without
+  inventing semantic scores. The person starter's explicit `lifecycle` level
+  creates only a person and life Event; `processes` adds the Book's nine
+  concurrent life processes. Omitting the level retains that existing
+  `processes` default. These processes can overlap and are not a single Cut.
+- **Experimental behaviour models** add substantive assumptions. The `story`
+  profile includes authored tension/coherence/progress values and a progress
+  law, even at its minimal tier. The `decision` profile uses authored motives
+  and deliberative/habitual/impulsive weights; options are independent unless
+  another law makes them exclusive. They are examples to inspect and test,
+  not neutral defaults or validated theories of people.
+- **Direct modeling** uses the same ordinary model forms without compiling a
+  profile. You may also adapt a compiled model before registration, or submit
+  a complete explicit successor after registration. Template parameter fields
+  do not limit the vocabulary of models authored this way.
+
+Choose and document the template's meanings and laws before using its numbers.
+Revise the vocabulary when a different account explains or predicts better;
+preserve earlier versions rather than silently relabeling their values. The
+[application guide](../docs/examples/APPLICATION-CATEGORIES.md) demonstrates
+that workflow and distinguishes model revision from applying it to a live world.
 
 ## Tools
 

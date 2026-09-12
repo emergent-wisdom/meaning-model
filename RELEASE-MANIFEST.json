@@ -18,13 +18,13 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 3264,
-      "sha256": "544c2e3bdacdba7c12c4d97c18c062f2e2f4aee1336e5837f27e9408aefe23d5"
+      "bytes": 4224,
+      "sha256": "87fe92151edab14768f9b472d6a2635394c362b078c1987469884881f1c8cfda"
     },
     {
       "path": "CITATION.cff",
-      "bytes": 871,
-      "sha256": "62d553c8396dd05c77da6ead6862b0fc7c9154ed4e7381ffa3e9de1314dba241"
+      "bytes": 897,
+      "sha256": "493e979cc88cc5d66ec022bbeb45ef6aee84b35147dd3ec691ec87b1a522cb8f"
     },
     {
       "path": "LICENSE",
@@ -48,8 +48,8 @@
     },
     {
       "path": "README.md",
-      "bytes": 7596,
-      "sha256": "397e79719e056ba10384163e73c0cd1bb4397d34fa1fff32e5f703362069a2dd"
+      "bytes": 8662,
+      "sha256": "9f09fdc85bb3fa5ec4fa5aebb96cf42e3cf557ffae9faadcc8d16fbb64163e7a"
     },
     {
       "path": "docs/IMPLEMENTATION.md",
@@ -58,8 +58,8 @@
     },
     {
       "path": "docs/MODELING_PROTOCOL.md",
-      "bytes": 14140,
-      "sha256": "6105c28fef24172535aedacc90fb6ddc1556b4b2ff66748df330acd256fb557d"
+      "bytes": 15668,
+      "sha256": "b2c7db5386adc3ec5ea3d3a0c83b336faa2bbf372be2407a5402888a11e7fbf5"
     },
     {
       "path": "docs/NARRATIVE_UNDERSTANDING_GRAPH.md",
@@ -90,6 +90,11 @@
       "path": "docs/companions/life-simulation/references.bib",
       "bytes": 98007,
       "sha256": "e5183edd35889658354f7bf380ac35f7772f68fcf4c68465dd87317ebba683e8"
+    },
+    {
+      "path": "docs/examples/APPLICATION-CATEGORIES.md",
+      "bytes": 5960,
+      "sha256": "204e8d3605f51b38b2ecbb97c8ff3e07718cc2192693f550990a964b2847a580"
     },
     {
       "path": "docs/examples/EVEREST-MEANING-MODEL.md",
@@ -473,13 +478,13 @@
     },
     {
       "path": "mcp-server/NPM-README.md",
-      "bytes": 9606,
-      "sha256": "cc4596250fb463352869fa288937e48d9c037253c9a6a52968ca4eda8e4819f8"
+      "bytes": 10477,
+      "sha256": "121e3d16efe8ecf34a670d4e916175d422e96a754dbcca0fd1f0548631c426c8"
     },
     {
       "path": "mcp-server/README.md",
-      "bytes": 32345,
-      "sha256": "85ca57becca0f1cdfbf4b93eff78da8c7bf13ae6f198efbd49520f9dd7b86c45"
+      "bytes": 34353,
+      "sha256": "4bd370189fa53863ed924950b4d45989ca017f213c28797ea1ebacd75dccd613"
     },
     {
       "path": "mcp-server/bin/meaning-model-mcp.mjs",
@@ -489,12 +494,12 @@
     {
       "path": "mcp-server/package-lock.json",
       "bytes": 6489,
-      "sha256": "815dbf79babd82cedc2e00eadd81a88528d3d9b63b2c5636bb68b7183480ec31"
+      "sha256": "2bae2530510e6d24810e0c012e9d37f55363eed3221c49a5834397ef0f14c6e2"
     },
     {
       "path": "mcp-server/package.json",
       "bytes": 1448,
-      "sha256": "640f0202d285b0d5db118de2989688e1dc3511ce4cce7751749f41ec98188844"
+      "sha256": "2ed91265f619dbbe6c64d03e38c863321c2932ca229572042ff90523ac8ea65e"
     },
     {
       "path": "mcp-server/resources/presets/SOURCE.json",
@@ -513,8 +518,8 @@
     },
     {
       "path": "mcp-server/scripts/pack-release.mjs",
-      "bytes": 4935,
-      "sha256": "aee99397bb481bff03f670a1c37a0586e06d22fe7b649779a846351a1418a119"
+      "bytes": 4982,
+      "sha256": "3e2f8c9dc9e3b83e689157e0af22de92f9c67d0e9f25b470229fd5a73cba8cc0"
     },
     {
       "path": "mcp-server/scripts/package-engine-release.mjs",
@@ -543,8 +548,8 @@
     },
     {
       "path": "mcp-server/src/modeling-guidance.mjs",
-      "bytes": 10959,
-      "sha256": "5c5e0f382fb0a70d384e848cf52aac3be9ef81f07d781e50c96c8440334c227c"
+      "bytes": 13156,
+      "sha256": "c6998c9dc102305a74d01d76d02416501313f8bc6ce4839af561419c274661bf"
     },
     {
       "path": "mcp-server/src/north-harbor-presets.mjs",
@@ -558,8 +563,8 @@
     },
     {
       "path": "mcp-server/src/server.ts",
-      "bytes": 36611,
-      "sha256": "6d84781230e927253ccbbb6ab7666aaf3e2c1a26e74c3f896b4230677b475e46"
+      "bytes": 36781,
+      "sha256": "b46f40c4d5c07c16ce3b1942d228c8403373eb3421fe47614a0e46558880969d"
     },
     {
       "path": "mcp-server/src/service.mjs",
@@ -603,8 +608,8 @@
     },
     {
       "path": "mcp-server/test/modeling-guidance.test.mjs",
-      "bytes": 4611,
-      "sha256": "7354a63ae00c48f27df03d52286d0da17b7762880949df6b0c905347adf50f0c"
+      "bytes": 5880,
+      "sha256": "b9ddaa36ae34daf935f05c8f25f582635ad5fe232f09115c825392e17df9422f"
     },
     {
       "path": "mcp-server/test/north-harbor-presets.test.mjs",
@@ -613,8 +618,8 @@
     },
     {
       "path": "mcp-server/test/package.test.mjs",
-      "bytes": 4762,
-      "sha256": "081ed78784ef30d5f26f8e91ee7a3b1fe5a2e90b7a93b77cab55d05805472341"
+      "bytes": 4993,
+      "sha256": "2d9546a6ca2c08aee1a75be08e030179274f7abc5f68aa3f829cf5ae4e38eadf"
     },
     {
       "path": "mcp-server/test/protocol.test.mjs",
@@ -648,13 +653,13 @@
     },
     {
       "path": "output/pdf/meaning-model-grammar.pdf",
-      "bytes": 323180,
-      "sha256": "3a73ba25689d9fa98d638b7138fc1af0aec314c85b58812a3283b0f3b806265d"
+      "bytes": 323130,
+      "sha256": "bec9f5c4ec10cac14f2b236690ed457763a5e65b85c3574587be332098e0a707"
     },
     {
       "path": "output/pdf/meaning-model.pdf",
-      "bytes": 401695,
-      "sha256": "58f530bfe92bcb873284f97db85d84057ab5a20ed10e3dcf635dad7e30ac7834"
+      "bytes": 402574,
+      "sha256": "cbcdfcaaba4d1994c4d4be81831b1e9cd0bf710cbb170a668b1ca0defdfc6262"
     },
     {
       "path": "output/pdf/the-book-of-conditions.pdf",
@@ -683,13 +688,13 @@
     },
     {
       "path": "paper/meaning-model-grammar.tex",
-      "bytes": 50813,
-      "sha256": "abd762e5bf50b4e06fd6c8c5834d6defcbfc6e63c02aab2e1a2cd4865ea0197a"
+      "bytes": 50818,
+      "sha256": "00db4bbf21573ec47e2e227d7d6d0fa6426f22f9e79767c2b8139e9755264151"
     },
     {
       "path": "paper/meaning-model.tex",
-      "bytes": 159432,
-      "sha256": "94cec309be8d665942643420be7654eca01bd91118c39bcd4d11464ee4255fa6"
+      "bytes": 160669,
+      "sha256": "afc128a554db33bcac5b9d794427dcd6a6cc593c425b2774c9d963901d851539"
     },
     {
       "path": "paper/references.bib",
@@ -698,28 +703,28 @@
     },
     {
       "path": "profiles/PERSON_MODELING.md",
-      "bytes": 3914,
-      "sha256": "583d7b5ee86febc6d3633f409dfb186c75c86f004f7e8b05bdf0bae7fe49de2a"
+      "bytes": 4304,
+      "sha256": "60819ac60e3cddb8c0062259847bfe8b03ed6bb9ff81979ee46940314467138f"
     },
     {
       "path": "profiles/STORY_MODELING.md",
-      "bytes": 4021,
-      "sha256": "6796a6db3e78c40ff209c4e34de98db66e02788770358a75382db5e93c1d2f1c"
+      "bytes": 4410,
+      "sha256": "ffba2b1ce6ff3edfe791e1534cc4dfd9745bd5de23b848cf99ac1571d17e0761"
     },
     {
       "path": "release-files.json",
-      "bytes": 3049,
-      "sha256": "523622747912a2ac28f2e8b2a07ea134a4eff6be1bc0de03076469d186421f11"
+      "bytes": 3096,
+      "sha256": "3124cda76fd9782320f0af39c95978e65c5007bcf018b0b3c6617747c8e893e9"
     },
     {
       "path": "rust-engine/Cargo.lock",
       "bytes": 7273,
-      "sha256": "2f4a7a40aecaca5662a0268d7e9e6e62ed89df8ce45b4d3651a0ed4931471d74"
+      "sha256": "99e3bd1ac612eaa6c5ca1cf2884ce52a1a86638321b4c5a2efe5a822ef0d68bd"
     },
     {
       "path": "rust-engine/Cargo.toml",
       "bytes": 587,
-      "sha256": "8d129354a0b16738e023e051319b8a655415e35825a9e1433cf21af90be7e9b9"
+      "sha256": "042c32796505cdba6a283e2b6475698a090c5de2076c836e786f9149181679b2"
     },
     {
       "path": "rust-engine/MEANING_MODEL_CONFORMANCE.md",
@@ -735,6 +740,11 @@
       "path": "rust-engine/examples/benchmark.rs",
       "bytes": 3714,
       "sha256": "d89bef1f8ee630df11bbd527afeaa5a05fdbd655a25eead4d8c0a12cb379388e"
+    },
+    {
+      "path": "rust-engine/examples/category_revision.rs",
+      "bytes": 7261,
+      "sha256": "4314be1f7a79050c3f4432be96055a461c85b5e603e5e7396ab7f9676712265f"
     },
     {
       "path": "rust-engine/examples/construction-scaffolds-command.json",
@@ -807,6 +817,11 @@
       "sha256": "da167bef1a8dc6de5c89feea1c15051b95994d8e8fcdeb729248fdd659be8458"
     },
     {
+      "path": "rust-engine/tests/category_revision.rs",
+      "bytes": 3739,
+      "sha256": "efaebf89c9c7cd4ba04987ee5cb0a9c9c0075b1716160781c858ac1b8c548549"
+    },
+    {
       "path": "rust-engine/tests/meaning_model_example.rs",
       "bytes": 4085,
       "sha256": "e6b87691dcf361e3740d97be3d21afb0c5c6e9e34cb765ed2c155e7d52ab9315"
@@ -858,8 +873,8 @@
     },
     {
       "path": "server.json",
-      "bytes": 1378,
-      "sha256": "09fa4e0e7ecb2d4870079ce4d6c8745cf68b003af46ce98e6525888deccc3658"
+      "bytes": 1367,
+      "sha256": "f9f8cb9f3a01fbf18fc81066abca44252e2323b7ade0220552f8a6b85ea45570"
     }
   ]
 }

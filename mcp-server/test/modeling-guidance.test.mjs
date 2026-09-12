@@ -6,8 +6,11 @@ import {
   buildModelingContext,
   buildModelingPrompt,
   listModelingResources,
+  modelingFreedom,
+  modelingPurposes,
   modelingTheoryUris,
   readModelingResource,
+  starterSelection,
 } from '../src/modeling-guidance.mjs';
 
 test('modeling resources expose complete theory before operational profiles', async () => {
@@ -116,4 +119,24 @@ test('starter prompt directs the agent to theory before protocol execution', asy
     prompt.indexOf('life-sim://theory/meaning-model') <
       prompt.indexOf('life-sim://protocol/modeling'),
   );
+});
+
+test('every modeling purpose receives the application-choice guidance without bypassing theory access', async () => {
+  for (const purpose of modelingPurposes) {
+    const context = await buildModelingContext({ purpose, sessionMode: 'first_use' });
+    assert.equal(context.modelingFreedom, modelingFreedom);
+    assert.equal(context.starterSelection, starterSelection);
+    assert.equal(context.theoryAccessGate.satisfied, false);
+    assert.ok(context.orderedResources.some(({ uri, required }) =>
+      uri === 'life-sim://example/application-categories' && required === false));
+    const prompt = await buildModelingPrompt({ purpose, sessionMode: 'first_use' });
+    assert.ok(prompt.includes(modelingFreedom));
+    assert.ok(prompt.includes(starterSelection));
+  }
+});
+
+test('application-category example is available as a complete MCP resource', async () => {
+  const resource = await readModelingResource('life-sim://example/application-categories');
+  assert.equal(resource.text, await readFile(new URL('../../docs/examples/APPLICATION-CATEGORIES.md', import.meta.url), 'utf8'));
+  assert.ok(resource.text.includes('cargo run --manifest-path rust-engine/Cargo.toml --example category_revision'));
 });

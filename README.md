@@ -12,9 +12,28 @@ construction with a complete twelve-chapter manuscript.
 See the [changelog](CHANGELOG.md) for release changes, upgrade notes, and
 unreleased work.
 
+## Choose the model your application needs
+
+Model only what serves your purpose. Choose the processes, categories,
+relationships, and level of detail; use a supplied template, adapt its output,
+or author a model directly. A single process is a valid starting point. A
+browser, learning tool, or relationship application need not build the same
+account of a person, or a complete person model at all.
+
+The intended use is an external model an AI can work with: connect observations
+across time, compare explanations, explore possible developments, and decide
+what to investigate next. The modeler supplies those interpretations; the tool
+preserves their structure and revisions and executes supported, declared laws.
+Categories and decompositions are part of what the modeler develops and tests,
+not a fixed inventory to fill in. Shared record and validation rules remain in
+force as the application vocabulary changes.
+
+See [application-specific categories](docs/examples/APPLICATION-CATEGORIES.md)
+for template choices and a runnable vocabulary-revision example.
+
 ## Read first
 
-The paper and grammar appendix were revised on September 9, 2026.
+The paper and grammar appendix were revised on September 12, 2026.
 The [Zenodo series](https://doi.org/10.5281/zenodo.22313515) provides the
 archived versions.
 

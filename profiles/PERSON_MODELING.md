@@ -4,6 +4,12 @@ Use this profile only after reading the current *Meaning Model* and *Life
 Simulation* papers and the common modeling protocol. For a real person, obtain
 consent for the material, purpose, storage, and intended audience.
 
+Use this reflective workflow when it fits the task; other applications may
+model only selected aspects of a person. The fields below are suggestions for
+developing an account, not an exhaustive psychological vocabulary. The modeler
+and participant can develop different categories and revise them as they learn.
+Using the general model tools does not require compiling the Person profile.
+
 ## Purpose
 
 Help a person inspect one bounded period of life as a transparent chronological
