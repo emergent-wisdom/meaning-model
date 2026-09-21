@@ -580,6 +580,11 @@ the task; the calling LLM performs the judgment.
    the existing Rust narrative batch operation. The batch creates one atomic
    graph successor. The world is unchanged and previous graph revisions remain
    addressable.
+   When an external estimator is configured, or when you can answer the questions
+   yourself, run `life_narrative_alignment_audit` on the committed scene and store
+   its flagged findings as an `assessment` record. Phrase canon and context records
+   as events and facts, not as transient knowledge states, so that contradiction
+   checks stay meaningful; use withheld entries for knowledge that must not leak.
 6. At a completed chapter, significant turning point, completed part or work,
    or consequential revision, automatically use `life_story_purpose_review`
    on the relevant unit. Assess the need for changes from the text and its

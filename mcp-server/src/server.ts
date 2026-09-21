@@ -3,6 +3,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
 
 import { parseEnabledAddons } from './addon-config.mjs';
+import { createEstimator, parseEstimatorConfig } from './estimator-config.mjs';
+import { registerEstimatorTools } from './estimator-tools.mjs';
 import { narrativeEditSchema, editNarrativeGraph } from './narrative-editing.mjs';
 import {
   LifeSimulationService,
@@ -27,6 +29,7 @@ import {
 } from './modeling-guidance.mjs';
 
 const enabledAddons = parseEnabledAddons(process.env.MEANING_MODEL_ADDONS);
+const estimator = createEstimator(parseEstimatorConfig(process.env));
 const server = new McpServer({
   name: 'meaning-model',
   version: '0.2.1',
@@ -816,6 +819,8 @@ server.registerTool(
   },
   async (input) => toolResult(await service.diagnoseStoryRevision(input)),
 );
+
+registerEstimatorTools(server, service, estimator, { toolResult });
 
 if (enabledAddons.includes('storytelling')) {
   const { registerStorytellingAddon } = await import('./storytelling-addon.mjs');

@@ -163,8 +163,9 @@ Training export is a deterministic, read-only projection. It selects explicitly 
 | `life_narrative_query` | `query_narrative_graph` | Read a full, skeleton, or neighborhood projection. |
 | `life_narrative_render` | `render_narrative_graph` | Derive ordered story text from canonical nodes. |
 | `life_narrative_training_export` | `export_narrative_training` | Derive aligned text/state training records. |
+| `life_narrative_alignment_audit` | `render_narrative_graph`, then `query_narrative_graph` | Read-only: generate narrated/contradicted/leaked questions from the graph's records for a rendered unit, per passage and whole; optionally scored by the configured external estimator. |
 
-The four mutations require request IDs and are idempotent. The other three tools are read-only and idempotent.
+The four mutations require request IDs and are idempotent. The other four tools are read-only and idempotent; the alignment audit contacts an external service only when `MEANING_MODEL_ESTIMATOR` is set.
 
 ## Access boundary
 

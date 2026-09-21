@@ -320,6 +320,8 @@ The state-machine tools are:
 - `life_narrative_query`
 - `life_narrative_render`
 - `life_narrative_training_export`
+- `life_narrative_alignment_audit`
+- `life_estimate_cut_shares`
 - `life_candidate_roll`
 - `life_candidate_reroll`
 - `life_candidate_reject`
@@ -506,6 +508,33 @@ This is an evidence-organizing diagnostic, not an automatic critic. It neither
 inspects canon by itself nor establishes that supplied findings are true. It
 does not score literary quality, rewrite prose, revise a model, reroll a
 trajectory, or mutate accepted history.
+
+## Optional external estimator
+
+Two read-only tools turn an external classifier into a modeling aid. They are always
+registered; without configuration they return their generated questions as a task for
+the calling LLM and send nothing anywhere. Set `MEANING_MODEL_ESTIMATOR=typesafe` with
+`TYPESAFE_API_KEY` (optionally `TYPESAFE_MODEL`, default `jev-latest`) to have TypeSafe's
+Jev score the questions instead. With the estimator on, the text supplied to these two
+tools leaves the machine; no other tool changes behaviour.
+
+`life_estimate_cut_shares` takes one comparison question, its answer keys with meanings,
+and several described situations. Each situation returns a normalized Cut proposal: the
+estimator's choice distribution over the answers plus an automatic `remainder`, with
+provenance naming the estimator and its confidence. Proposals are AI inference, not
+canon: a large remainder usually means a missing answer category, and accepted Cuts are
+placed in an explicit model revision or used as trajectory baselines.
+
+`life_narrative_alignment_audit` renders a prose unit from an exact graph revision and
+audits it against the graph's records, per passage and as a whole. Questions are
+generated mechanically from each record (narrated? contradicted?) and from declared
+withheld nodes (leaked to the viewpoint or reader?), plus one advisory holistic
+question. Passage-level flags at or above 0.5 are the actionable signal; whole-unit
+scores arbitrate proposals and reported speech, which score high at passage scope.
+Records phrased as transient knowledge states belong in leak checks, not contradiction
+checks. The audit is advisory, mutates nothing, and does not verify meaning or
+literary quality; store its findings as an Understanding Node and resolve them by
+revising prose, revising a record with justification, or recording an ambiguity.
 
 ## Opt-in storytelling add-on
 

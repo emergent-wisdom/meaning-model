@@ -16,6 +16,10 @@ Optional addons are disabled by default. Set MEANING_MODEL_ADDONS to a
 comma-separated list to enable bundled addons. Available: storytelling.
 Example: MEANING_MODEL_ADDONS=storytelling meaning-model-mcp
 
+An external estimator is off by default. Set MEANING_MODEL_ESTIMATOR=typesafe and
+TYPESAFE_API_KEY to let TypeSafe's Jev score the two estimator tools; only the text
+given to those tools is sent to that service.
+
 Install the engine once before first use. --install-engine explicitly downloads
 this package version's engine from the official GitHub release and verifies its
 SHA-256 digest. Available targets: macOS arm64/x64, Linux x64 (glibc 2.35+), and

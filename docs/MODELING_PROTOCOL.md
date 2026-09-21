@@ -155,6 +155,9 @@ world, supplied by a trusted domain model, or has earned credibility through
 held-out prediction, intervention, compression, calibration, and stability.
 The MCP estimation exchange supports both data-only provisional claims and a
 separate, explicit proposal for a successor model containing new laws.
+`life_estimate_cut_shares` can propose normalized Cut weights from situation text
+through an optional external estimator; such proposals are AI inference, carry
+estimator provenance, and enter the model only through an explicit revision.
 
 ### 8. Preserve alternatives and residuals
 
