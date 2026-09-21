@@ -6,17 +6,21 @@ The Narrative Understanding Graph is an optional Rust-native layer for keeping s
 
 Rust is the single authority for narrative graphs. The MCP service validates transport limits and keeps idempotency receipts, but it does not maintain a second authoritative story store. A graph lives in the Rust `MachineSession`; it is durable across restarts when the engine is configured with its optional single-writer state file, and otherwise lives only for the Rust process lifetime.
 
-The layer supports complete revisions and additive atomic batches:
+The layer supports complete revisions, additive atomic batches, and local edit
+operations:
 
 - Registration accepts one complete revision-zero `life-sim-rust-narrative-graph/v1` definition.
 - Revision accepts one complete immutable successor whose `previous_graph_hash` names the earlier revision and whose revision number increments by one.
 - Additive batching accepts one or many new roots, nodes, and edges. Rust constructs the complete immutable successor automatically; it never mutates the earlier graph.
+- `life_narrative_edit` applies an explicit operation list to a complete graph
+  read and submits one immutable successor through the existing Rust revision
+  operation. It does not create another store or require the storytelling add-on.
 - Rust normalizes, hashes, and validates the entire node/edge set, structural ordering, access metadata, anchors, and exact source before inserting it. Earlier revisions remain addressable.
 - The session mutation, including state-file persistence when configured, uses the same atomic checkpoint/rollback boundary as other Rust mutations.
 
-The complete graph remains the initial authoring unit because text, story order, reflection, semantic links, and model state arrive as one coherent context. Later work may use a smaller additive transaction. A batch may contain exactly one node, but on a nonempty graph every newly added node component must connect in that same batch to an existing narrative node or a validated stable anchor. The first graph may instead begin with one declared root. This preserves the useful one-call topology behavior without forcing callers to resend the whole graph, prevents disconnected islands, and ensures readers never observe a half-written transaction. The engine does not itself claim or measure a training-quality improvement.
+The complete graph remains the initial authoring unit because text, story order, reflection, semantic links, and model state arrive as one coherent context. Later work may use a smaller additive transaction or local edit list. A batch may contain exactly one node, but on a nonempty graph every newly added node component must connect in that same batch to an existing narrative node or a validated stable anchor. The first graph may instead begin with one declared root. This preserves the useful one-call topology behavior without forcing callers to resend the whole graph, prevents disconnected islands, and ensures readers never observe a half-written transaction. The engine does not itself claim or measure a training-quality improvement.
 
-Complete registration and revision enforce the corresponding global invariant: every node component must reach a declared root or a validated external anchor. Full revision remains the route for replacement, deletion, reordering, or changing the source binding.
+Complete registration and revision enforce the corresponding global invariant: every node component must reach a declared root or a validated external anchor. Full revision remains available for arbitrary replacement, deletion, or changing the source binding; the local edit tool constructs that same kind of successor for its supported operations.
 
 ## Graph contents
 
@@ -32,6 +36,13 @@ Complete registration and revision enforce the corresponding global invariant: e
 `node_type` and `epistemic_status` are intentionally open vocabularies. Nodes also carry evidence type, uncertainty, holder/subject/estimator, time and evidence-cutoff metadata, provenance, authority, access scopes, and independent `render` and `training` inclusion policies. Both policies default to `exclude`. A node with nonempty text must have provenance and authority.
 
 Story passages are canonical artifact units: the authoritative prose is the `text` stored in those Rust-owned nodes. An `externalized_reflection` is deliberately authored testimony about the work, not hidden model chain-of-thought. Rust requires it to have a holder and at least one access scope, and rejects any attempt to mark it for story rendering. It may be training-eligible only when explicitly marked and requested through an allowed scope.
+
+Choose units that can usefully change independently: a passage, an event
+description, or an explanatory note can have its own identity and links within
+a larger container. A paragraph can be a useful passage, but there is no
+required subdivision count or word quota. Keep enough context to understand
+each unit's relationships. Rendered files remain projections of this source
+text, not a second place to maintain it.
 
 Edges use the families `structural`, `grounding`, `semantic`, `provenance`, and `revision`, plus a specific open-vocabulary relation and required provenance. `contains` and `next` are the structural relations: they must connect narrative nodes, structural cycles are rejected, and `contains` siblings require unique order values. The generic relation `relates` is rejected.
 
@@ -85,6 +96,56 @@ Rendering never creates a second story authority. It starts from the requested r
 
 The result contains the contributing node sequence, per-unit content hashes, text joined with a blank line, a projection hash, the graph and source-snapshot hashes, and an explicit `world_authority: "unchanged"` marker. Editing a rendered document outside the graph does not revise the canonical story.
 
+## Local graph editing
+
+`life_narrative_edit` is available with or without the storytelling add-on.
+Supply `requestId`, the exact `graphHash`, `accessScopes`, a nonempty `reason`,
+and an ordered `operations` list. Each operation sees the results of earlier
+operations in that list. The tool preserves the source binding, its exact frozen
+snapshot, and untouched records, then submits the final graph as one atomic Rust revision. A failed
+operation or Rust validation rejects the whole transaction; previous revisions
+remain addressable.
+
+| Operation | Fields and behavior |
+| --- | --- |
+| `split` | `nodeId`, `parts: [{id, text, title?}]`. Split a text leaf into at least two fresh children. Their text joined with `"\n\n"` must exactly equal the original. |
+| `merge` | `nodeIds`, `mergedNodeId`, optional `title`. Combine at least two consecutive compatible leaf siblings into one fresh text node. |
+| `move` | `nodeId`, `parentNodeId`, `index`. Move a node and its subtree to the requested child position, counted after removal from its old position, while preserving their identities. |
+| `reorder` | `parentNodeId`, `nodeIds`. Supply every immediate child exactly once in the desired order. |
+| `replace_text` | `nodeId`, `expectedText`, `text`. Replace text only when the existing text exactly matches `expectedText`. |
+
+Every operation includes its name as `kind`. Splitting keeps the original node
+as a nonrendered container and preserves its semantic and model links. The
+children inherit its metadata and receive `split_from` lineage links. An
+outgoing `next` edge moves to the last new child so rendering can continue.
+Merging requires matching roles, scopes, authority, timing, evidence, and
+render/training policies, and joins the selected texts with a blank line.
+Its placement metadata must also match. The combined text is restricted by
+the source nodes, their placements and their parent, so a private ordering is not
+exposed through a public merged node; incompatible audiences are rejected.
+It retains the original IDs, texts, and nonstructural links as history nodes
+excluded from rendering and training, with `merged_from` lineage. The merged
+passage remains a leaf that can be split or merged again. Merge and reorder reject incident `next`
+links and a parent with outgoing `next` links. Move rejects shared-parent or
+crossing-`next` arrangements, and parents with outgoing `next` links, whose
+intended placement is ambiguous. Use an explicit full revision for unsupported
+topology changes.
+
+The tool requires a complete graph read: visible node, edge, and root counts
+must match the whole graph. It refuses to construct a successor from a partial
+scope projection, which would drop hidden records. Supply the scopes needed
+for the entire selected graph; access remains the projection boundary described
+below. The receipt includes `changedNodeIds`, `changedEdgeIds`,
+`affectedNodeIds`, and `affectedReviewNodeIds`, with review-refresh guidance.
+
+These operations preserve structure and provenance, but do not reinterpret
+semantic links or establish that changed text still supports them. Inspect
+the affected meaning and evidence after an edit. A review of earlier text or
+order remains a historical assessment; refresh affected reviews against the
+new rendered result. Neither an edit receipt nor retained review links certify
+the revised content. Raw registration, complete revision, and additive batch
+tools remain available.
+
 ## Training export
 
 Training export is a deterministic, read-only projection. It selects explicitly named training-eligible nodes, or all visible nodes marked `training: "include"`, then emits records containing exact text and text hash, graph/source identity, narrative order, epistemic metadata, visible incident links, and optionally directly linked visible process values from the frozen snapshot. The response labels three single-snapshot uses: joint alignment, inverse reading, and rendering. It explicitly marks causal chronology as unestablished.
@@ -98,11 +159,12 @@ Training export is a deterministic, read-only projection. It selects explicitly 
 | `life_narrative_register` | `register_narrative_graph` | Atomically register a complete revision-zero graph. |
 | `life_narrative_revise` | `revise_narrative_graph` | Atomically register a complete immutable successor. |
 | `life_narrative_batch` | `apply_narrative_batch` | Add one or many connected roots, nodes, and edges as one immutable successor. |
+| `life_narrative_edit` | `query_narrative_graph`, then `revise_narrative_graph` | Apply split, merge, move, reorder, or guarded text replacement as one immutable successor. |
 | `life_narrative_query` | `query_narrative_graph` | Read a full, skeleton, or neighborhood projection. |
 | `life_narrative_render` | `render_narrative_graph` | Derive ordered story text from canonical nodes. |
 | `life_narrative_training_export` | `export_narrative_training` | Derive aligned text/state training records. |
 
-The three mutations require request IDs and are idempotent. The other three tools are read-only and idempotent.
+The four mutations require request IDs and are idempotent. The other three tools are read-only and idempotent.
 
 ## Access boundary
 
@@ -110,7 +172,12 @@ Access scopes are projection labels, not authentication or confidentiality. The 
 
 ## Current limitations
 
-- Additive batches cannot replace or remove existing nodes, edges, or roots. There is no delete, archive, diff, merge, dedicated validate, list, or implicit-latest operation. Full immutable revision supports replacement and reordering; callers retain exact graph hashes and multiple successor branches are possible.
+- Additive batches cannot replace or remove existing nodes, edges, or roots.
+  Local editing supports the bounded operations above, including node merge;
+  there is no dedicated delete, archive, diff, branch-merge, validate, or
+  implicit-latest MCP tool. Rust's `list_narrative_revisions` operation can
+  enumerate revisions and branches, but is not exposed as an MCP tool.
+  Callers retain exact graph hashes and multiple successor branches are possible.
 - Revision validation preserves the graph ID and revision sequence but does not currently require a successor to keep the same source binding.
 - Candidate sources may be pending, rejected, or superseded. Accepted-history enforcement is opt-in on training export and is not applied to registration, query, or rendering.
 - Narrative links do not affect simulation dynamics, and existing writer-planning/story-diagnostic tools are not automatically synchronized with these graphs.

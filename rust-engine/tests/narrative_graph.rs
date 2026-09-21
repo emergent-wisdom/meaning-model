@@ -237,6 +237,100 @@ fn state_path(label: &str) -> PathBuf {
     ))
 }
 
+#[test]
+fn local_narrative_edit_keeps_frozen_source_after_world_or_candidate_changes() {
+    for candidate_source in [false, true] {
+        let mut session = MachineSession::default();
+        let model_hash = register_test_model(&mut session, "graph-native-story");
+        let world = execute(
+            &mut session,
+            json!({
+                "schema": "life-sim-rust-command/v1", "operation": "create_world",
+                "model_hash": model_hash, "world_id": "story-world"
+            }),
+        );
+        let rolled = execute(
+            &mut session,
+            json!({
+                "schema": "life-sim-rust-command/v1", "operation": "roll_world", "world_id": "story-world",
+                "query": {"schema": "life-sim-rust-model-query/v1", "delta_time": 1.0,
+                    "step_size": 1.0, "seed": "source-preserving-edit", "path": {"mode": "endpoint"}}
+            }),
+        );
+        let mut definition = graph(
+            world["world_hash"].as_str().unwrap(),
+            0,
+            None,
+            "The first passage.",
+        );
+        if candidate_source {
+            definition["source"] = json!({"kind": "candidate", "candidate_hash": rolled["candidate"]["candidate_hash"]});
+        }
+        let original = execute(
+            &mut session,
+            json!({
+                "schema": "life-sim-rust-command/v1", "operation": "register_narrative_graph",
+                "narrative_graph": definition
+            }),
+        );
+        execute(
+            &mut session,
+            json!({
+                "schema": "life-sim-rust-command/v1", "operation": "commit_candidate",
+                "candidate_hash": rolled["candidate"]["candidate_hash"]
+            }),
+        );
+        definition["revision"]["number"] = json!(1);
+        definition["revision"]["previous_graph_hash"] = original["summary"]["graph_hash"].clone();
+        definition["nodes"][1]["text"] = json!("A locally revised passage.");
+        let command = json!({
+            "schema": "life-sim-rust-command/v1", "operation": "revise_narrative_graph",
+            "preserve_narrative_source_snapshot": true, "narrative_graph": definition
+        });
+        let edited = execute(&mut session, command.clone());
+        assert_eq!(edited["snapshot_hash"], original["snapshot_hash"]);
+        let retried = execute(&mut session, command);
+        assert_eq!(
+            retried["summary"]["graph_hash"],
+            edited["summary"]["graph_hash"]
+        );
+        assert_eq!(retried["snapshot_hash"], original["snapshot_hash"]);
+        let rendered = execute(
+            &mut session,
+            json!({
+                "schema": "life-sim-rust-command/v1", "operation": "render_narrative_graph",
+                "narrative_graph_hash": edited["summary"]["graph_hash"], "narrative_render": {}
+            }),
+        );
+        assert_eq!(rendered["text"], "A locally revised passage.");
+        let baseline = execute(
+            &mut session,
+            json!({
+                "schema": "life-sim-rust-command/v1", "operation": "render_narrative_graph",
+                "narrative_graph_hash": original["summary"]["graph_hash"], "narrative_render": {}
+            }),
+        );
+        assert_eq!(baseline["text"], "The first passage.");
+        definition["source"] = json!({"kind": "model", "model_hash": model_hash});
+        let rejected = session.parse_and_execute(
+            &json!({
+                "schema": "life-sim-rust-command/v1", "operation": "revise_narrative_graph",
+                "preserve_narrative_source_snapshot": true, "narrative_graph": definition
+            })
+            .to_string(),
+        );
+        assert!(
+            !rejected.ok,
+            "local artifact editing must not rebind model/world facts"
+        );
+        assert!(rejected
+            .error
+            .unwrap()
+            .message
+            .contains("cannot change its source binding"));
+    }
+}
+
 fn register_test_model(session: &mut MachineSession, id: &str) -> String {
     let mut definition = model();
     definition["id"] = json!(id);

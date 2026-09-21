@@ -6112,6 +6112,8 @@ struct MachineCommand {
     #[serde(default)]
     narrative_graph: Option<NarrativeGraphDefinition>,
     #[serde(default)]
+    preserve_narrative_source_snapshot: bool,
+    #[serde(default)]
     narrative_batch: Option<NarrativeGraphBatch>,
     #[serde(default)]
     narrative_graph_hash: Option<String>,
@@ -9176,12 +9178,50 @@ impl MachineSession {
                         "revise_narrative_graph requires a nonzero revision",
                     ));
                 }
+                let preserved_snapshot = if command.preserve_narrative_source_snapshot {
+                    if operation != "revise_narrative_graph" {
+                        return Err(machine_error(
+                            "invalid_request",
+                            "Source preservation requires a narrative revision.",
+                        ));
+                    }
+                    let previous_hash = compiled
+                        .definition
+                        .revision
+                        .previous_graph_hash
+                        .as_deref()
+                        .ok_or_else(|| {
+                            machine_error(
+                                "invalid_request",
+                                "Source preservation requires a predecessor graph.",
+                            )
+                        })?;
+                    let previous = self.materialize_narrative_graph(previous_hash)?;
+                    if previous.definition.source != compiled.definition.source {
+                        return Err(machine_error(
+                            "conflict",
+                            "A source-preserving narrative edit cannot change its source binding.",
+                        ));
+                    }
+                    Some(previous.snapshot)
+                } else {
+                    None
+                };
                 if self.narrative_revisions.contains_key(&compiled.graph_hash) {
                     let existing = self.materialize_narrative_graph(&compiled.graph_hash)?;
                     if existing.definition != compiled.definition {
                         return Err(machine_error(
                             "conflict",
                             "narrative graph hash is already bound to different content",
+                        ));
+                    }
+                    if preserved_snapshot
+                        .as_ref()
+                        .is_some_and(|snapshot| snapshot != &existing.snapshot)
+                    {
+                        return Err(machine_error(
+                            "conflict",
+                            "Existing narrative revision has a different frozen source snapshot.",
                         ));
                     }
                     return encode(serde_json::json!({
@@ -9192,7 +9232,10 @@ impl MachineSession {
                     }));
                 }
                 self.validate_narrative_revision_link(&compiled)?;
-                let snapshot = self.capture_narrative_source(&compiled.definition.source)?;
+                let snapshot = match preserved_snapshot {
+                    Some(snapshot) => snapshot,
+                    None => self.capture_narrative_source(&compiled.definition.source)?,
+                };
                 self.validate_narrative_snapshot_binding(&compiled, &snapshot)?;
                 self.validate_narrative_anchors(&compiled, &snapshot)?;
                 let snapshot_hash = hash_serializable(&snapshot)?;

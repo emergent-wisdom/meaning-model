@@ -2004,8 +2004,9 @@ export class LifeSimulationService {
     );
   }
 
-  async reviseNarrativeGraph({ requestId, previousGraphHash, narrativeGraph }) {
+  async reviseNarrativeGraph({ requestId, previousGraphHash, narrativeGraph, preserveSourceSnapshot = false }) {
     ensureHash(previousGraphHash, 'previousGraphHash');
+    if (typeof preserveSourceSnapshot !== 'boolean') throw new Error('preserveSourceSnapshot must be a boolean.');
     validateNarrativeGraphInput(narrativeGraph);
     if (narrativeGraph.revision.number === 0) {
       throw new Error('Narrative revision requires a nonzero revision number.');
@@ -2019,10 +2020,11 @@ export class LifeSimulationService {
       this.narrativeReceipts,
       'revise-narrative-graph',
       requestId,
-      { previousGraphHash, narrativeGraph },
+      { previousGraphHash, narrativeGraph, ...(preserveSourceSnapshot ? { preserveSourceSnapshot } : {}) },
       async () => {
         const result = await this.backend.call('revise_narrative_graph', {
           narrative_graph: narrativeGraph,
+          ...(preserveSourceSnapshot ? { preserve_narrative_source_snapshot: true } : {}),
         });
         return {
           schema: SERVICE_SCHEMA,

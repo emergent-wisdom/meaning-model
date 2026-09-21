@@ -2,6 +2,8 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
 
+import { parseEnabledAddons } from './addon-config.mjs';
+import { narrativeEditSchema, editNarrativeGraph } from './narrative-editing.mjs';
 import {
   LifeSimulationService,
   meaningModelCollections,
@@ -24,6 +26,7 @@ import {
   readModelingResource,
 } from './modeling-guidance.mjs';
 
+const enabledAddons = parseEnabledAddons(process.env.MEANING_MODEL_ADDONS);
 const server = new McpServer({
   name: 'meaning-model',
   version: '0.2.1',
@@ -472,6 +475,16 @@ server.registerTool(
 );
 
 server.registerTool(
+  'life_narrative_edit',
+  {
+    description: 'Atomically split, merge, move, reorder or edit existing narrative/understanding graph passages. Available for any modeled domain, without the storytelling add-on. Supply the exact predecessor graphHash, scopes covering its complete graph, a reason and ordered operations; the service preserves untouched records and constructs one immutable Rust-validated successor. Splits preserve exact rendered text. Existing testimony and model anchors are not automatically reinterpreted; inspect affected review IDs and re-review changed text or order. Read life-sim://protocol/narrative-understanding-graph for operation contracts and conservative topology limits.',
+    inputSchema: narrativeEditSchema,
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  async (input) => toolResult(await editNarrativeGraph(service, input)),
+);
+
+server.registerTool(
   'life_narrative_query',
   {
     description: 'Read an optional Rust-owned graph-native story/understanding artifact as a full graph, compact skeleton, or bounded neighborhood. Content and incident edges are removed when access scopes do not permit the node or edge; scopes are projection labels rather than authentication.',
@@ -803,6 +816,11 @@ server.registerTool(
   },
   async (input) => toolResult(await service.diagnoseStoryRevision(input)),
 );
+
+if (enabledAddons.includes('storytelling')) {
+  const { registerStorytellingAddon } = await import('./storytelling-addon.mjs');
+  await registerStorytellingAddon(server, service);
+}
 
 await service.initialize();
 const transport = new StdioServerTransport();

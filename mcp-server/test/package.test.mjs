@@ -7,6 +7,22 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 
 import { stageNpmPackage } from '../scripts/pack-release.mjs';
+import { exportRelease } from '../../scripts/export-release.mjs';
+
+test('a clean source export retains every input needed to stage the npm package', async (t) => {
+  const temporary = await mkdtemp(join(tmpdir(), 'meaning-model-export-package-test-'));
+  t.after(() => rm(temporary, { recursive: true, force: true }));
+  const root = fileURLToPath(new URL('../../', import.meta.url));
+  const exported = await exportRelease(root, join(temporary, 'source'));
+  const { packageDirectory } = await stageNpmPackage(exported.destination, join(temporary, 'npm'));
+  for (const name of ['rust-engine/MEANING_MODEL_CONFORMANCE.md']) {
+    assert.equal(await readFile(join(packageDirectory, name), 'utf8'), await readFile(join(root, name), 'utf8'));
+  }
+  for (const name of ['.local-work', 'build', '.git']) {
+    await assert.rejects(stat(join(exported.destination, name)), { code: 'ENOENT' });
+    await assert.rejects(stat(join(packageDirectory, name)), { code: 'ENOENT' });
+  }
+});
 
 test('npm stage contains an executable JavaScript server, Rust sources, and every reading resource', async (t) => {
   const temporary = await mkdtemp(join(tmpdir(), 'meaning-model-package-test-'));
@@ -58,16 +74,28 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
   assert.equal(help.status, 0, help.stderr);
   assert.match(help.stdout, /--build-engine/);
   assert.match(help.stdout, /--install-engine/);
+  assert.match(help.stdout, /MEANING_MODEL_ADDONS=storytelling/);
   assert.match(metadata.scripts['install:engine'], /--install-engine/);
   const sources = await readdir(join(packageDirectory, 'mcp-server', 'src'));
   assert.ok(sources.includes('server.mjs'));
+  for (const source of ['narrative-editing.mjs', 'addon-config.mjs', 'storytelling-intake.mjs', 'storytelling-addon.mjs', 'storytelling-life-trends.mjs', 'storytelling-trajectories.mjs', 'storytelling-authoring.mjs', 'storytelling-author-model.mjs', 'storytelling-depth.mjs', 'storytelling-deepening.mjs']) {
+    assert.ok(sources.includes(source), `missing bundled runtime source ${source}`);
+    assert.equal(
+      await readFile(join(packageDirectory, 'mcp-server', 'src', source), 'utf8'),
+      await readFile(join(root, 'mcp-server', 'src', source), 'utf8'),
+    );
+  }
   assert.ok(!sources.some((name) => name.endsWith('.ts')));
   const parsed = spawnSync(process.execPath, ['--check', join(packageDirectory, 'mcp-server', 'src', 'server.mjs')], { encoding: 'utf8' });
   assert.equal(parsed.status, 0, parsed.stderr);
   for (const path of ['rust-engine/Cargo.toml', 'rust-engine/Cargo.lock', 'rust-engine/src/main.rs', 'LICENSE', 'LICENSE-CONTENT', 'NOTICE']) {
     assert.ok((await stat(join(packageDirectory, path))).isFile(), path);
   }
-  for (const path of ['rust-engine/examples/category_revision.rs', 'docs/examples/APPLICATION-CATEGORIES.md']) {
+  for (const path of [
+    'rust-engine/examples/category_revision.rs',
+    'docs/examples/APPLICATION-CATEGORIES.md',
+    'profiles/STORYTELLING_ADDON.md',
+  ]) {
     assert.equal(await readFile(join(packageDirectory, path), 'utf8'), await readFile(join(root, path), 'utf8'));
   }
   for (const path of ['rust-engine/target', 'node_modules', '.git']) {

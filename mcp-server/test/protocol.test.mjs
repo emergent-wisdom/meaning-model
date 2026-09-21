@@ -124,6 +124,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_model_validate',
       'life_modeling_context',
       'life_narrative_batch',
+      'life_narrative_edit',
       'life_narrative_query',
       'life_narrative_register',
       'life_narrative_render',
@@ -694,6 +695,25 @@ test('official MCP client discovers and calls the local stdio server', async () 
       narrativeTraining.structuredContent.records[0].record.linked_values[process.id],
       refined.structuredContent.projection.state[process.id],
     );
+    const editedNarrative = await client.callTool({
+      name: 'life_narrative_edit',
+      arguments: {
+        requestId: 'protocol-narrative-reorder', graphHash: appendedGraphHash,
+        accessScopes: ['world'], reason: 'Reorder existing passages through the generic editing tool.',
+        operations: [{ kind: 'reorder', parentNodeId: 'document', nodeIds: ['passage-2', 'passage'] }],
+      },
+    });
+    assert.equal(editedNarrative.isError, undefined, JSON.stringify(editedNarrative));
+    const editedRender = await client.callTool({
+      name: 'life_narrative_render', arguments: { graphHash: editedNarrative.structuredContent.graphHash },
+    });
+    assert.equal(editedRender.isError, undefined, JSON.stringify(editedRender));
+    assert.equal(editedRender.structuredContent.text,
+      'A second node arrived in one atomic, connected batch.\n\nThe harbor held one exact state beneath the sentence.');
+    const originalRender = await client.callTool({
+      name: 'life_narrative_render', arguments: { graphHash: appendedGraphHash },
+    });
+    assert.equal(originalRender.structuredContent.text, renderedNarrative.structuredContent.text);
   } finally {
     await client.close();
   }

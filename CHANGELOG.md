@@ -6,7 +6,137 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
-No changes recorded.
+- Add the shared `life_narrative_edit` tool for atomic passage splitting,
+  merging, moving, reordering and local text changes through immutable Rust
+  graph revisions. Preserve unrelated records, predecessor versions, the
+  frozen source snapshot and explicit model grounding; reject incomplete scoped views and ambiguous
+  topology. Report affected review evidence for reassessment.
+- Allow the storytelling add-on to commit a reviewed scene as a container
+  with independently editable passage nodes. Passage boundaries and IDs bind
+  to the exact reviewed draft, and creation remains one atomic graph write.
+  Choose units by what can change independently, without a paragraph quota.
+
+- Add the read-only `life_story_deepen` tool and prompt to the storytelling
+  add-on, bringing it to twelve tools and four prompts. Bind an existing
+  work's exact graph, model and rendered baseline, with depth and purpose
+  review tasks, for a later revision round. Default local scope preserves
+  premise, cast and ending; structural scope permits justified larger changes
+  within the agreed brief. Preserve baseline and revision evidence in the
+  graph, re-review affected work, and check final narrative placement when
+  replacing append-only scene commits. There is no reroll or length quota.
+- Require the calling LLM to assess actual-prose author and principal-character
+  voices after drafts and substantive revisions, with character speech and
+  behavior grounded in modeled processes. Save individual evidenced findings,
+  uncertainty and repair-or-keep conclusions as Understanding Nodes. Model
+  depth review now inspects these explanatory connections; literary success
+  remains advisory.
+
+- Add typed `author_model` records to the storytelling add-on's existing
+  `life_story_author_record` tool. Model a real author from supported evidence
+  or an explicitly fictional author persona; distinguish the modeled author
+  from the recorder, narrator, viewpoint, and cast. Connect outlook and habits
+  to writing consequences, useful contexts, and restraint, with optional
+  dimensions defined for meaningful comparisons. Automatically build or reuse
+  the model for new generation within the human's delegated scope, including
+  life stage at composition, writing history, and reasons for this work now.
+  Store these in existing evidence and dispositions; keep unknown real-author
+  context unknown and invented choices explicit. Allow mixed, evolving motives
+  and exploratory work without imposing a thesis. Scene
+  preparation and purpose review can bind the exact author profile; scenes
+  record its application and `shaped_by` provenance. Profiles and revisions
+  stay author-only, and style judgments remain advisory. No new tool or
+  shared-model semantics are introduced.
+
+- Distinguish initial story settings from the human author's ongoing
+  involvement. When unknown, ask whether they want to supply all, some, or
+  receive proposed settings, and whether work should be autonomous, checked
+  at selected milestones, or collaborative throughout, with custom
+  checkpoints allowed. Reuse explicit preferences and delegation, accept
+  partial briefs, and record choices in scoped graph records. Automatic
+  modeling and reviews stay within the agreed scope; standalone reviews and
+  edits do not trigger a full intake.
+
+- Add `life_story_model_depth_review` and `life_story_model_depth_record` to
+  the optional storytelling add-on. Review the actual bound model and stored
+  story evidence before prose and after consequential revisions, then save
+  coverage explanations and findings as linked Understanding Nodes. Require
+  a fresh assessment during scene preparation and block commitment on
+  unresolved findings; save those findings and drafts while their smallest
+  useful repairs are developed.
+  Bind evidence to the frozen source and relevant graph records, allowing
+  unrelated author notes or drafts without invalidating the assessment.
+  The LLM chooses relevant explanatory subjects; no fixed taxonomy, depth
+  quota, or story-quality score is imposed.
+
+- Review whether principal-character flaws affect choices and consequences,
+  and prefer local repairs. Request independent readings at substantial
+  milestones when available; otherwise label self-review. Randomness alone
+  does not establish characterization or review quality.
+
+- Keep authoring in the existing graph: add `life_story_author_record` for
+  drafts, candidates, decisions and scoped Understanding Nodes under a named
+  author-process root and authoring clock. Numerical exploration/revision
+  persist their records; revisions read their predecessor from the graph.
+  Scene review requires the exact stored draft, and commit writes its review
+  as a linked Understanding Node. Files and PDFs are graph exports.
+
+- Add a bundled storytelling workflow, enabled explicitly with
+  `MEANING_MODEL_ADDONS=storytelling`, for preparing graph-bound scenes,
+  reviewing exact drafts with authored findings and excerpts, and committing
+  prose with a linked Understanding Node review in one Rust narrative batch.
+- Require principal-character life trends in that scene workflow. Add
+  `life_story_life_trends` to validate and store author-supplied overall lives
+  as ordered phases, trend summaries, and explanations of change or
+  continuity. Scene preparation requires the dossier and explicit character
+  connections; life-trend and cast-coverage review findings can block
+  commitment. An open future is valid, and the dossier remains author context
+  rather than automatic character knowledge or reader disclosure.
+  Direct the calling LLM to construct or reuse these life models automatically
+  before drafting, without requiring the user to request or fill them in.
+- Add `life_story_trajectory_explore` and `life_story_trajectory_revise` to the
+  optional add-on. Explore actual bounded numerical points for events or whole
+  lives on explicitly defined axes, including emotional dimensions. Separate
+  the amount of randomness from the candidate budget, support seeded replay,
+  and preserve declared fixed values and disjoint allocation totals. Candidates
+  are unaccepted creative hypotheses, not physical simulations or calibrated
+  psychology. Local revisions preserve unlisted values and bind the parent
+  candidate hash and reasons; category or time changes require a new proposal.
+  Direct the LLM to evaluate coherence and storytelling potential and prefer
+  useful local repairs over discarding an entire promising character. Optional
+  life-dossier `trajectoryProposal` evidence retains the numerical candidate.
+- Direct the storytelling LLM to store concise candidate assessments and
+  revision reasons as genuine Understanding Nodes, using a named author root,
+  `externalized_reflection`, explicit holders and author scopes, and specific
+  `about`, `refines`, or `supports` links. These are deliberately authored
+  explanations, not hidden model reasoning or automatically verified judgments.
+- Add an optional `life_story_purpose_review` tool and prompt for the calling
+  LLM to assess a chapter or section's purpose and fulfillment in context.
+  Review distinguishes authored from inferred goals and allows atmosphere,
+  ambiguity, and delayed payoff. It is advisory, writes no graph data, and
+  cannot block saving.
+  Direct the calling LLM to review automatically at completed chapters,
+  significant turning points, completed parts or works, and consequential
+  revisions. Scene commit receipts include a conditional review reminder.
+  Review considers expectations, causality, aftermath, life trajectories, and
+  authored disclosure when supported by context, with keep-as-is as a valid
+  outcome and no rewrite quota.
+- Add an optional `life_story_structure_explore` tool and prompt that prepare
+  random-word inspiration tasks for the calling LLM. A bounded bank of common
+  English words supplies seeds independently of the story brief; callers can
+  also supply a word. The preparation call writes no model data and
+  keeps candidate structures separate from accepted story facts.
+  Add a `name` target and direct the LLM to use random-word inspiration for new
+  principal-character, place, and organization names that fit the story's
+  culture, language, tone, and existing names. Preserve established canon names
+  unless a change is requested. The existing 160-word bank is unchanged.
+- Connect storytelling guidance to the core's optional `change_arc_scaffold`
+  for anticipation, focal change, and adaptation. Keep character experience
+  separate from author processes for intended reader response, without
+  requiring a fixed plot pattern or claiming to measure reader reactions.
+- Add the `life-sim://addon/storytelling` resource and
+  `life_story_scene_start` prompt for the scene workflow. Default tools,
+  shared record schemas, executable laws, and general-purpose modeling remain
+  unchanged; existing low-level tools remain available.
 
 ## 0.2.1 — 2026-09-12
 

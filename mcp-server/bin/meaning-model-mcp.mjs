@@ -12,6 +12,10 @@ Usage:
   meaning-model-mcp --install-engine  Download and verify the matching release engine
   meaning-model-mcp --build-engine  Build the bundled Rust engine with Cargo
 
+Optional addons are disabled by default. Set MEANING_MODEL_ADDONS to a
+comma-separated list to enable bundled addons. Available: storytelling.
+Example: MEANING_MODEL_ADDONS=storytelling meaning-model-mcp
+
 Install the engine once before first use. --install-engine explicitly downloads
 this package version's engine from the official GitHub release and verifies its
 SHA-256 digest. Available targets: macOS arm64/x64, Linux x64 (glibc 2.35+), and

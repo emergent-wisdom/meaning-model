@@ -31,6 +31,94 @@ force as the application vocabulary changes.
 See [application-specific categories](docs/examples/APPLICATION-CATEGORIES.md)
 for template choices and a runnable vocabulary-revision example.
 
+### Optional storytelling add-on
+
+The narrative graph is the authoritative authoring record. Create the model
+and graph before developing story material; store candidates, seed draws and
+alternatives, drafts, assessments, selections, local revisions, and disclosure
+plans through the tool. Files and PDFs are exports of graph content, not a
+parallel manuscript or model. Use `life_story_author_record` for authoring
+material and concise Understanding Nodes. Numerical exploration and revision
+persist their results directly; neither accepts them as world facts.
+
+Scenes can contain ordered, independently editable passage nodes. The shared
+`life_narrative_edit` tool splits, merges, moves, reorders, or revises text in
+one immutable graph revision. Splitting preserves the exact rendered prose;
+editing reports affected reviews for reassessment. This tool is also available
+without the storytelling add-on, for other graph-backed documents.
+
+Set `MEANING_MODEL_ADDONS=storytelling` when starting the MCP server to expose
+life-trend modeling, numerical trajectory exploration and local revision,
+model-depth review, scene preparation, draft review, prose commitment, and advisory chapter or
+section purpose review. The scene workflow requires overall
+life trends for the principal cast: coarse life phases, changes and
+continuities across them, and connections between those trends and each
+scene. The calling LLM develops or reuses them automatically before drafting;
+the user need not supply a dossier or request this step. A snapshot of the
+current crisis is insufficient. The LLM supplies the model and review
+judgments; the tool validates the dossier's
+structure and binds scene reviews to it.
+
+The LLM also builds or reuses an author model within the agreed delegation:
+supported real-author evidence or an explicitly fictional persona, connected
+to writing choices, useful contexts, and restraint. It stores the profile
+through `life_story_author_record`, binds the selected version in scene and
+purpose-review packets, and links committed prose through `shaped_by`.
+The author remains distinct from the narrator and characters; the profile
+does not require uniform prose or establish literary quality.
+
+After drafting and substantive revision, the LLM assesses the author's voice
+and each relevant principal character using actual prose and the processes
+behind their speech and behavior. It saves intended versus observed effects,
+evidence, uncertainty and repair-or-keep conclusions as Understanding Nodes.
+The read-only `life_story_deepen` tool and prompt prepare a later revision of
+the same work against an exact baseline. Local revision preserves premise,
+cast and ending by default; structural revision is available within the agreed
+brief. More detail or length is not automatically an improvement.
+
+Before prose and after consequential model or story-context revisions, the
+LLM automatically reviews whether the model explains the important choices
+and outcomes. `life_story_model_depth_review` reads the bound model and
+selected graph evidence; `life_story_model_depth_record` saves its findings
+as an Understanding Node. The LLM examines relevant lives and flaws, concepts,
+physical or institutional constraints, causes, and disclosure processes,
+opening detail only where needed. Scene preparation requires a current
+assessment; unresolved findings block commitment. Gaps remain saveable; this is no fixed taxonomy,
+depth quota, or literary-quality score.
+
+For new trajectories, the LLM samples numerical points for events and whole
+lives, including emotional states on dimensions with explicit meanings, comparisons, units,
+and bounds. `randomness` controls variation around a baseline, while a separate
+candidate count controls the exploration budget. It assesses the candidates
+for coherence and storytelling potential, then keeps, locally revises, or
+rejects them. A weak transition need not cost the whole character: local
+revisions preserve other values, fixed facts supplied to the sampler, and
+allocation totals. Concise assessments and revision reasons belong in
+Understanding Nodes linked to the relevant evidence. These candidates remain
+creative hypotheses until accepted; they are not calibrated psychology or
+physical simulations.
+
+Optional structure exploration uses an ordinary seed
+word to inspire alternative events, characters, relationships, or storylines
+within the graph authoring workflow. Its suggestions remain unaccepted until the author
+chooses and models them. For new principal-character, place, and organization
+names, the LLM automatically uses a random word's sound, rhythm, or associations
+to develop names that fit the story's style and existing names.
+
+The LLM automatically performs advisory purpose reviews at completed chapters,
+significant turning points, completed parts or works, and consequential
+revisions. It considers the text's purpose, expectations, causal changes,
+aftermath, life trajectories, and authored disclosure, while allowing ambiguity,
+atmosphere, and delayed payoff. Keeping the text unchanged is a valid outcome;
+the review cannot block saving. Anticipation, focal change, and adaptation can
+use the core's optional change-arc structure without imposing a fixed plot
+pattern. The bundled add-on uses the existing
+narrative graph and preserves earlier revisions. It leaves the shared model,
+laws, and default tools unchanged: company valuation
+processes, physical processes, and other applications keep choosing their own
+vocabulary and depth. See the [storytelling add-on guide](profiles/STORYTELLING_ADDON.md)
+for the workflow and configuration.
+
 ## Read first
 
 The paper and grammar appendix were revised on September 12, 2026.

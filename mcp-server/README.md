@@ -316,6 +316,7 @@ The state-machine tools are:
 - `life_narrative_register`
 - `life_narrative_revise`
 - `life_narrative_batch`
+- `life_narrative_edit`
 - `life_narrative_query`
 - `life_narrative_render`
 - `life_narrative_training_export`
@@ -374,7 +375,7 @@ queries. Scope filtering removes inaccessible processes and any law or edge
 that would expose them. As with `life_view_query`, supplied scopes are caller
 context rather than authentication, and “full” means full within that context.
 
-The six `life_narrative_*` tools expose an optional graph-native artifact
+The seven `life_narrative_*` tools expose an optional graph-native artifact
 owned and persisted by the same Rust session. Register and revise accept a
 complete graph. `life_narrative_batch` accepts one or many additive roots,
 nodes, and edges and lets Rust construct the complete immutable successor. On
@@ -384,6 +385,25 @@ when it includes such an edge; the first declared root is the only standalone
 bootstrap. Rust validates references, structural order, acyclicity, scopes,
 revision lineage, object anchors, nested RFC 6901 paths, and connectivity
 before storing anything atomically.
+
+`life_narrative_edit` is a shared editing surface available without the
+storytelling add-on. Supply `requestId`, an exact `graphHash`, `accessScopes`,
+`reason`, and an ordered `operations` list to split or merge text leaves, move
+a subtree, reorder all children of a parent, or replace text with an exact
+`expectedText` guard. It reads the complete graph and submits one atomic
+successor through the existing Rust revision operation, preserving untouched
+records and the source binding. An incomplete scoped view is refused. Splits
+preserve the exact joined text and original links; merges retain source nodes
+as history. Choose useful independently changeable units, without a required
+subdivision count or word quota.
+
+Edits do not automatically reinterpret semantic links or update earlier
+reviews. Inspect changed meaning and evidence, render the new result, and
+refresh affected reviews after content or order changes. The receipt identifies
+changed records and affected reviews. Complete revision and additive batch
+tools remain available. See the
+[local graph editing contract](../docs/NARRATIVE_UNDERSTANDING_GRAPH.md#local-graph-editing)
+for operation fields and topology restrictions.
 
 Read operations remain granular. `life_narrative_query` returns a full graph,
 skeleton, or bounded neighborhood. `life_narrative_render` projects ordered
@@ -486,6 +506,274 @@ This is an evidence-organizing diagnostic, not an automatic critic. It neither
 inspects canon by itself nor establishes that supplied findings are true. It
 does not score literary quality, rewrite prose, revise a model, reroll a
 trajectory, or mutate accepted history.
+
+## Opt-in storytelling add-on
+
+The narrative graph is the authoritative authoring record. Create the model
+and graph before developing story material; store candidates, seed draws and
+alternatives, drafts, assessments, selections, local revisions, and disclosure
+plans through the tool. Files and PDFs are exports of graph content, not a
+parallel manuscript or model. Use `life_story_author_record` for authoring
+material and concise Understanding Nodes. Numerical exploration and revision
+persist their results directly; neither accepts them as world facts.
+
+Start the server with `MEANING_MODEL_ADDONS=storytelling` to enable twelve
+bundled tools, the `life-sim://addon/storytelling` resource, and the
+`life_story_scene_start`, `life_story_structure_explore`,
+`life_story_purpose_review`, and `life_story_deepen` prompts:
+
+- `life_story_author_record` saves candidates, drafts, context, and scoped
+  Understanding Nodes for assessments, selection, revision and disclosure,
+  with typed links and an authoring clock separate from story time.
+- `life_story_structure_explore` prepares a task for the calling LLM to use an
+  ordinary word's meanings and relationships to suggest alternative events,
+  characters, relationships, or storylines, or its sounds and associations to
+  develop fitting names. The LLM records its seed task and alternatives with `life_story_author_record`; suggestions remain unaccepted.
+- `life_story_trajectory_explore` samples bounded numerical candidate points
+  for events or whole lives on caller-defined axes. It preserves explicit
+  fixed values and allocation totals. Randomness and candidate count are
+  separate controls; candidates remain unaccepted creative hypotheses.
+- `life_story_trajectory_revise` changes selected candidate values with reasons
+  and a parent hash. It preserves unlisted and fixed values and checks bounds
+  and allocation totals, allowing local repair of a promising character or event.
+- `life_story_life_trends` validates and stores the principal cast's overall
+  life trends in the narrative graph. Each character needs at least three
+  ordered coarse life phases, two chosen dimensions carried across every
+  phase, explanations for adjacent developments, and an open or planned future.
+  The calling LLM must construct or reuse this model automatically before
+  drafting, without asking the user to fill in the dossier.
+- `life_story_model_depth_review` prepares the actual bound model, stored story
+  focus, life dossier, and selected context for the LLM to judge whether they
+  explain the story's consequential choices and outcomes.
+- `life_story_model_depth_record` validates that task and its cited graph/model
+  evidence, then saves the LLM's coverage explanation and findings as a scoped
+  Understanding Node. Save gaps as well as sufficient assessments.
+- `life_story_scene_prepare` creates an immutable scene packet bound to a
+  narrative graph revision, a required life-trend dossier, a current
+  model-depth assessment, explicitly selected
+  context nodes, and authored character and reader knowledge timings. Present
+  or affected principal characters need explicit connections to the dossier's
+  trends.
+- `life_story_scene_review` checks an exact draft against that packet using
+  caller-provided findings and exact supporting excerpts for each check. It
+  requires `draftNodeId` matching a stored draft exactly; save the draft first
+  and re-prepare using the returned graph revision. Optional `passages` supplies
+  ordered `{id, text}` leaves whose text joined with `"\n\n"` must exactly match
+  that draft. The segmentation is bound to the review hash.
+- `life_story_scene_commit` reruns the same checks and uses Rust's narrative
+  batch operation to atomically append canonical story text and nonrendered
+  Understanding Node reviews. It preserves previous graph revisions and leaves the world
+  unchanged. With `passages`, it creates a nonrendered scene container and
+  individually linked, renderable children; omitting them preserves the
+  original single-leaf scene form. Its `nextStep` receipt reminds the LLM to perform a purpose review
+  if a meaningful unit or turning point has finished; the LLM decides whether
+  that condition applies.
+- `life_story_purpose_review` prepares the exact rendered chapter or section
+  for the calling LLM to answer: what is its purpose, and is that purpose
+  fulfilled in context? Its instructions distinguish inferred goals, allow
+  multiple purposes and delayed payoff, and caution against mechanical
+  judgments. The LLM records its advisory assessment with `life_story_author_record`;
+  the preparation tool itself is read-only and the judgment cannot block saving. The calling LLM performs it automatically at completed
+  chapters, significant turning points, completed parts or works, and
+  consequential revisions.
+- `life_story_deepen` prepares a later revision of an existing work against
+  an exact graph, model and rendered-text baseline, with depth and purpose
+  review tasks. The tool is read-only; the LLM records its before/after voice
+  findings and revision plan as Understanding Nodes and uses existing tools
+  to make and review justified changes. Default local scope preserves premise,
+  cast and ending; structural scope allows larger changes within the brief.
+
+After a draft and substantive revision, the LLM reviews the author's voice
+and each relevant principal character separately. Character speech and
+behavior need explanations in their actual modeled processes, including
+meaningful changes by situation. Save each finding's prose citations, relevant
+process IDs or model paths, intended versus observed effects, uncertainty and
+smallest repair or keep decision through `life_story_author_record`,
+`kind: "assessment"`. These are actual `externalized_reflection` Understanding
+Nodes linked to the exact prose and selected author model, with reviewed
+hashes in `data`; an external review alone does not complete the step. Literary
+effectiveness is advisory, with no trait quota or universal voice scale.
+
+Structure exploration takes `brief`, optional `targetKind` (default `event`;
+also `character`, `relationship`, `storyline`, or `name`), `context`, `constraints`,
+and `seedWord`. Omit `seedWord` for a uniform draw from a fixed bank of common
+English words, independent of the brief, or supply one to reuse an inspiration.
+The bank is deliberately bounded; it is not a statistical top-5,000 list. The
+tool returns a task with `generator: "calling_llm"` and `candidates: null`.
+The same-named prompt uses a JSON string for `constraints`, while the tool
+accepts an array. The LLM answers in the brief's language, explores two or three
+possible structures, and may reject the seed when none fits. Novelty is not a
+quality score, and quieter structures are valid.
+
+For new principal-character, place, or organization names, the LLM automatically
+calls with `targetKind: "name"` and omits `seedWord`. Supply culture, language,
+genre, tone, and existing names in `context` and `constraints`; use the random
+word's sound, rhythm, or associations to develop distinct names that fit. Do
+not force the seed into the spelling or make names explain the plot. Preserve
+established names unless the user requests a change, and label any invented
+etymology as fictional. The bank remains 160 reviewed common English words;
+the STLM vocabulary has not replaced it.
+
+Numerical exploration defines each axis by its `meaning`, `comparisonQuestion`,
+`unit`, `minimum`, and `maximum`, alongside expected baseline points and
+explicitly fixed axis values. Event candidates have at least two ordered points;
+whole-life candidates have at least three. Optional disjoint allocation groups
+specify a `question`, `axisIds`, and `total`; the sampler preserves that total.
+`randomness` (0–1, default 0.5) mixes the baseline with bounded random proposals.
+`candidateCount` (default 3, maximum 8) separately limits exploration, and a seed
+permits replay. Emotional states use meaningful numerical dimensions as well.
+These samples are not physical simulations or calibrated psychology.
+
+The calling LLM assesses coherence and storytelling potential. Prefer a local
+repair of a promising candidate to discarding the whole person: revise selected
+values or causal explanations, retain the original evidence and revision
+history, and record reasons. Category or point-time changes need an explicit
+new proposal or numerical-model revision. The sampler checks only declared
+fixed values and constraints; it does not infer all canon from prose context.
+
+Review principal-character flaws for their effect on decisions and consequences,
+not merely a label in a biography. Randomness cannot establish this. At major
+milestones, seek an independent reading when available and record its findings;
+otherwise identify the assessment as self-review.
+
+Keep concise candidate assessments and revision reasons as genuine
+Understanding Nodes in the existing narrative graph. Use a named
+author-understanding root and `externalized_reflection` nodes with explicit
+holders, author scopes, provenance, authority, and rendering excluded. Connect
+them to candidate evidence or model entities with specific `about`, `refines`,
+and `supports` links as appropriate. These are deliberate authored explanations,
+not hidden model reasoning or world facts. `life_story_author_record` stores them under the named root and an authoring
+clock. Numerical revisions automatically store their reasons as linked
+Understanding Nodes; the LLM records its evaluations and selections separately.
+
+Life-trend storage takes `graphHash`, `requestId`, `nodeId`, `accessScopes`, and
+`dossier`. The dossier's schema is `meaning-model-story-life-trends/v1`; it
+identifies `storyRootId`, `storyInterval`, and the principal `characters` by
+stable model anchors. Each character's phases span `lifeBeginning` through
+`storyEntry` in a declared `lifeTimeUnit`. Model the overall life before the
+narrated interval, rather than dividing a short crisis into phases. The tool
+stores content constructed by the calling LLM; it does not invoke a separate
+remote LLM. For new fiction, author and label the needed details. For existing
+canon, reuse established facts and identify inferences or unknown origins.
+Ask only about gaps that require the user's choice. A character's optional
+`trajectoryProposal: {definition, candidate}` with `trajectoryRecordNodeId` retains numerical evidence; phase
+and trend summaries explain those values instead of replacing them.
+
+Before prose and after consequential model, trajectory, causal, or disclosure
+revisions, automatically call `life_story_model_depth_review`. Its preparation
+fields are `graphHash`, `storyRootId`, `lifeTrendsNodeId`, `focusNodeId`,
+`contextNodeIds`, and `accessScopes`. Store the focus's outline, goals, choices,
+and outcomes in the graph first. The model hash comes from the graph's frozen
+source snapshot. Review actual evidence, choosing relevant subjects rather
+than filling a fixed taxonomy or meeting a depth quota.
+
+Save the assessment with `life_story_model_depth_record`: supply
+`preparation`, `expectedTaskHash`, `requestId`, `nodeId`, `reviewer`, a
+`coverage` explanation, and `findings`. Each finding supplies `subject`,
+`status` (`sufficient`, `needs_opening`, or `unclear`), `explanation`,
+`evidence`, and `smallestRepair` (nullable for sufficient findings). Evidence
+uses `{kind: "node", nodeId}` or `{kind: "model", path}` with a JSON Pointer
+into the bound model; the assessment must cite actual model evidence, not
+only narrative summaries. Follow the task's explicit read-more route if a
+large definition is not included inline. Inspect relevant lives and flaws, concepts, physical or
+institutional constraints, causes, and author disclosure processes. If an
+explanation is inadequate, make the smallest useful refinement and reassess.
+The tool validates bindings and references, not the LLM's semantic judgment.
+
+The model read is administrative and is not filtered by narrative scopes.
+Its initial values describe the static model, not current world or candidate
+values. Identify missing runtime evidence instead of silently reading a newer
+world. Review freshness binds the source and selected story evidence;
+unrelated appended drafts or author notes do not invalidate the assessment.
+All findings are saveable. Missing or stale records fail scene preparation;
+unresolved gaps produce a packet with a blocker that prevents commitment
+until repaired and reassessed. They do not block saving drafts or general
+authoring, and do not grade prose.
+
+Depth-review model anchors name the exact reviewed model hash. After a model
+revision, `life_narrative_revise` must rebind the story while retaining old
+review nodes as historical records and removing their predecessor-model
+anchor edges from the successor graph. The prior immutable graph retains
+the exact evidence; never retarget an old finding to revised values. Record
+a new depth review and its new anchors before committing affected scenes.
+
+Scene preparation requires `lifeTrendsNodeId`, `modelDepthReviewNodeId`, and
+`scene.characterConnections`, whose entries supply `characterId`, `trendIds`,
+and `connection`. The dossier must cover the scene's story root and world
+time. Life-trend and cast-coverage checks require review findings and can block
+commitment. Dossier content is author context: it grants no character knowledge
+or reader disclosure, and is excluded from rendered prose and training
+projection. Select granular source facts separately when they are disclosed.
+
+Purpose review takes `graphHash`, `rootId`, optional `unit` (default `chapter`;
+also `section`, `part`, or `whole_work`), `authorGoal`, `context`, and
+`accessScopes`. It returns a text-bound task with `taskHash` and
+`assessment: null`; the calling LLM supplies its answer with textual evidence.
+The same-named prompt uses a JSON string for `accessScopes`. No external LLM is
+called by the server. Record the returned task and your assessment with
+`life_story_author_record`, linked to the reviewed passages.
+Use `context` to supply relevant life trajectories, prior expectations,
+consequences, and authored disclosure processes; the renderer does not collect
+all of this evidence. Review causal continuity and aftermath where relevant,
+including how intended reader anticipation or surprise differs from character
+knowledge. Qualify missing context as unclear. Keeping the text unchanged is
+valid, and there is no rewrite quota, required acceptance of suggestions, or
+timer that grades each paragraph.
+
+Deepening takes `graphHash`, `storyRootId`, `rootId`, `lifeTrendsNodeId`,
+`focusNodeId`, `contextNodeIds`, and `accessScopes`, plus optional
+`authorModelNodeId`, `unit` (default `whole_work`), `revisionScope` (`local` or
+`structural`, default `local`), and `brief`. The same-named prompt encodes arrays
+as JSON strings. The task preserves exact baseline identities and hashes,
+rendered prose and node IDs, selected author model, and model-depth and purpose
+review preparations. Save the diagnosis and plan before revising, then save
+the after-analysis within the combined task's returned `accessScopes`, even
+when a nested task permits broader scopes. Evidence limits and justified keep decisions are valid;
+there is no reroll, rewrite or length quota.
+
+Scene commit appends new material. Use shared `life_narrative_edit` operations
+for targeted text replacement or structural changes to existing passages,
+then inspect retained semantic links and refresh reviews whose text, order,
+or other evidence changed. The optional scene `passages` form makes its leaves
+independently addressable from commitment. Complete `life_narrative_revise`
+remains available for unsupported topology or source changes; manually
+constructed successors require a full graph read with verified node, edge,
+and root counts, never a scope-filtered projection. An append-based replacement
+can still use fresh scene IDs and the preparation/draft/review/commit workflow
+while explicitly retiring and rewiring the superseded prose. Render and review
+the exact final topology for missing, duplicate, or reordered passages. Preserve
+the immutable baseline and do not export an intermediate gap. Neither
+preparation nor editing verifies literary improvement. See the [add-on guide](../profiles/STORYTELLING_ADDON.md#deepen-an-existing-work).
+
+The core `change_arc_scaffold` already offers optional anticipation, focal
+change, and adaptation Events. Use these to model character experience when
+helpful, and separately model author processes for intended reader response.
+Shock can be welcome, unwelcome, or expected but consequential; adaptation can
+begin beforehand, overlap, remain partial, or fail. No fixed three-beat pattern
+is required, and an intended reader response is not a measured outcome.
+
+The writer or reviewer interprets the draft and chooses sufficient context.
+The tool checks the life-trend structure and supplied review record; it does
+not automatically infer everything the prose implies, prove the life model's
+substance, or prove that every relevant fact was selected.
+The add-on introduces no required psychology, numerical story scores, or
+dependency on the experimental `story` compiler.
+
+With the variable unset, the default MCP surface is unchanged. The existing
+low-level narrative, writer, and revision-diagnostic tools remain available
+with or without the add-on. Shared record schemas and executable laws are
+unchanged, so company valuation processes, physical processes, and other
+domains retain their application-defined models.
+
+Read the [storytelling add-on guide](../profiles/STORYTELLING_ADDON.md) for
+the workflow and client configuration. To enable it from a source checkout:
+
+```sh
+MEANING_MODEL_ADDONS=storytelling npm start
+```
+
+Restart the MCP server after changing its environment. The add-on is bundled
+with the server and uses the existing Rust narrative store.
 
 ## Install the npm package
 
