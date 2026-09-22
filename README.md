@@ -150,7 +150,8 @@ for the workflow and configuration.
 
 ## Read first
 
-The paper and grammar appendix were revised on September 12, 2026.
+The paper was revised on September 22, 2026, and the grammar appendix on
+September 12, 2026.
 The [Zenodo series](https://doi.org/10.5281/zenodo.22313515) provides the
 archived versions.
 

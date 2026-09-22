@@ -31,7 +31,7 @@
 \title{The Meaning Model:\\Constructing Worlds and Stories at Progressive Resolution}
 \author{Henrik Westerberg\\Emergent Wisdom\\
   \texttt{henrik.westerberg@emergentwisdom.org}}
-\ewreviseddates{September 5, 2026}{September 12, 2026}
+\ewreviseddates{September 5, 2026}{September 22, 2026}
 
 \begin{document}
 \maketitle
@@ -2196,6 +2196,118 @@ representation. If the structured condition succeeds, it establishes an
 incremental advantage beyond the partial descriptive witness at one
 resolution; it does not establish a universal ontology or a theory of temporal
 dynamics.
+
+\section{General Modeling and Automatic Story Construction}
+\label{sec:modeling-workflows}
+
+The MCP interface exposes two workflows over the same model and graph:
+general-purpose modeling and an optional storytelling add-on. A general model
+may connect technological development, adoption, institutions, public
+interpretations, and markets, or describe an entirely different physical or
+organizational system. A price series is one possible process, not the boundary
+of a market model. The modeler chooses the processes, descriptions, units,
+evidence, temporal resolution, and useful depth. Sharing the representation
+does not by itself reconcile separately constructed accounts or establish their
+causal relations.
+
+\subsection{The language model, estimator, and storage loop}
+
+The division of work separates open-ended construction from bounded evaluation.
+The language model develops process descriptions and candidate explanations,
+writes Document Nodes, and records concise assessments and
+revision reasons in Understanding Nodes. It also designs the numerical
+questions and revises inadequate categories. An optional estimator supplies
+structured judgments for those questions. Deterministic tool code validates,
+types, and stores the results with their coordinates and provenance, avoiding a
+second language-model pass that manually transcribes each value and graph edge.
+
+The current optional provider is TypeSafe's Jev, whose
+\href{https://docs.typesafe.ai/introduction}{documented primitives} are Choice,
+Score, and Noul. Choice evaluates declared alternatives; Score evaluates an
+ordered rubric; Noul assesses a bounded truth question. Independent questions
+over a shared evidence state can be submitted together. An answer needed to
+formulate a later question requires another step. Jev does not supply the
+open-ended process descriptions, a universal ontology, or an independently
+verified account of reality. Its use is independent of enabling storytelling.
+
+The general workflow is:
+\begin{enumerate}
+  \item Establish the question, system boundary, time basis, evidence, and
+  delegation already agreed with the user. Review the enclosing system and
+  longer-term developments before selecting sector-level and focal processes;
+  examine feedback from those processes into the broader account. Select a
+  minimally adequate account rather than attempting exhaustive construction.
+  \item Supply a compact scaffold of referents, processes, events, sources, and
+  descriptions. The tool expands the initial model and graph. Supplied numerical
+  measurements retain their units; missing states remain unresolved unless an
+  explicit estimation question is answered.
+  \item Obtain typed process-value proposals for the selected process coordinates.
+  Validate their types, bounds, question identities, evidence cutoffs, and access
+  scopes. Preserve the exact questions, answers, and model revision for review.
+  \item Review and apply the exact construction proposal, or record a later
+  estimate and its attributed review in the graph. Understanding Nodes explain
+  what was retained, questioned, or revised. A retry must not silently regenerate
+  a different set of values.
+  \item Use the account, inspect missing evidence and competing explanations,
+  and deepen or revise the processes where this improves the inquiry. Preserve
+  earlier versions and reassess affected interpretations and documents.
+\end{enumerate}
+
+The compact builder requires an attributed context review before external
+estimation or construction. Broader context and longer-term developments are
+each represented, left explicitly unknown, or excluded with a reason. A
+represented aspect must reference processes and sources; a represented
+longer-term aspect must also reference dated events and cover an interval
+containing and extending beyond the focal window. The builder stores these
+assessments as Understanding Nodes. Reference and interval checks do not prove
+causal relevance or historical completeness, and a long event is not a sampled
+numerical trend. Numerical histories require values at explicit coordinates
+with their evidence cutoffs. The workflow recommends reassessment during
+deepening; this construction gate does not constrain every lower-level tool.
+
+The compact construction tool and typed estimation exchange are distinct
+operations. Initial estimates can be explicitly adopted as estimated initial
+claims. Subsequent provider estimates and reviews can be recorded durably in
+the graph without advancing accepted runtime history. A review approval does
+not turn an inferred state into an observation; runtime observations retain the
+ordinary candidate and acceptance path. Multi-operation construction reports
+partial completion rather than claiming transactionality across separate model,
+graph, and world writes.
+
+A probability distribution over answer categories is not automatically an
+attention allocation, a physical share, or a causal law. Rubric-derived scalar
+values require declared numeric anchors and units; their source distribution
+and uncertainty remain inspectable. Public statements support attributed
+accounts of a person's expressed views, not privileged access to private
+reasoning. Source selection and question design remain substantive modeling
+choices even when numerical evaluation is automated.
+
+\subsection{Automatic storytelling over the same core}
+
+The storytelling add-on adds author and character models, overall life trends,
+numerical trajectory exploration, scene preparation, and prose review. Intake
+separates which initial parameters the user supplies from how involved they
+wish to remain during writing. A fully delegated language-model author may
+perform the construction and writing loop within that brief. The language
+model still writes the prose and evaluates author and character voice against
+specific text and modeled processes, recording those assessments in
+Understanding Nodes.
+
+Scenes can contain ordered, independently editable passages. Shared graph
+editing supports splitting, merging, moving, reordering, and local text
+revision while retaining predecessor versions. A separate deepening pass can
+revise an existing work and its supporting model. These mechanisms organize
+construction and review; they do not establish distinctive voice, literary
+quality, or semantic alignment merely by accepting a structurally valid record.
+General-purpose modeling does not require author personas, dramatic goals, or
+any other literary vocabulary.
+
+The architecture is intended to reduce repetitive language-model work through
+batched judgments and automatic ingestion. An end-to-end efficiency claim must
+include evidence preparation, question design, provider calls, validation,
+review, and repair, compared on equivalent tasks. Structural tests or a single
+live provider run do not establish lower total cost, faster completion,
+calibrated judgments, predictive accuracy, or superior fiction.
 
 \section{Related Work}
 
