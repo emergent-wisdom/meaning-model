@@ -498,7 +498,7 @@ server.registerTool(
 server.registerTool(
   'life_narrative_batch',
   {
-    description: 'Atomically add one or many roots, nodes, and edges to an immutable Rust narrative/understanding graph. Rust creates a complete successor revision. On a nonempty graph every new-node component must connect in this same batch to an existing narrative node or validated stable anchor; a one-node batch is therefore valid when it includes that connection. Read life-sim://protocol/narrative-understanding-graph before first use.',
+    description: 'Atomically add one or many roots, nodes, and edges to an immutable Rust narrative/understanding graph. Rust creates a complete successor revision. On a nonempty graph every new-node component must connect in this same batch to an existing narrative node or validated stable anchor; a one-node batch is therefore valid when it includes that connection. The payload is {schema: life-sim-rust-narrative-batch/v1, previous_graph_hash, reason, provenance, add_roots, add_nodes, add_edges}; a complete, test-verified example is in life-sim://example/minimal-model-and-graph. Read life-sim://protocol/narrative-understanding-graph before first use.',
     inputSchema: z.object({
       requestId: requestIdSchema,
       previousGraphHash: z.string().length(64),

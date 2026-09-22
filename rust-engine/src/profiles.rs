@@ -2197,6 +2197,7 @@ impl OptionalModelProfile for PersonScaffoldProfile {
                     uncertainty: ClaimUncertainty::Unknown,
                     provenance: provenance.clone(),
                     authority: None,
+                    forecast_answer: None,
                 });
                 meaning.event_referent_bindings.push(EventReferentBinding {
                     id: format!("binding.{base}.is.{key}.subject"),
@@ -2280,6 +2281,7 @@ impl OptionalModelProfile for PersonScaffoldProfile {
                 uncertainty: ClaimUncertainty::Unknown,
                 provenance: provenance.clone(),
                 authority: None,
+                forecast_answer: None,
             });
             meaning.event_referent_bindings.push(EventReferentBinding {
                 id: format!("binding.{base}.is.body.health.subject"),

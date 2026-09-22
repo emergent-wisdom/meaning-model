@@ -16356,6 +16356,7 @@ mod tests {
                     uncertainty: ClaimUncertainty::Unknown,
                     provenance: vec!["genesis refinement fixture".to_owned()],
                     authority: None,
+                    forecast_answer: None,
                 });
             }
         }

@@ -278,9 +278,15 @@ export async function editNarrativeGraph(service, raw) {
   for (const current of [before, graph]) for (const edge of current.edges) {
     const from = sourceId(edge);
     const to = targetId(edge);
-    if (reviewTargets.has(from) && ['reviewed_by', 'reviewed_against'].includes(edge.relation) && to) { reviewIds.add(to); if (affected.has(from)) directReviewIds.add(to); }
+    const isDocumentRoot = (nodeId) => current.nodes.some((item) => item.id === nodeId && item.role === 'document_root');
+    if (reviewTargets.has(from) && ['reviewed_by', 'reviewed_against'].includes(edge.relation) && to) { reviewIds.add(to); if (affected.has(from) && !isDocumentRoot(from)) directReviewIds.add(to); }
+    // A review linked about a whole document root (every authoring record is) needs only the lighter
+    // ancestor check when that root changes, for example when its title is edited.
     if (reviewTargets.has(to) && edge.relation === 'about'
-      && current.nodes.some((item) => item.id === from && item.role === 'externalized_reflection')) { reviewIds.add(from); if (affected.has(to)) directReviewIds.add(from); }
+      && current.nodes.some((item) => item.id === from && item.role === 'externalized_reflection')) {
+      reviewIds.add(from);
+      if (affected.has(to) && !isDocumentRoot(to)) directReviewIds.add(from);
+    }
   }
   graph.revision = { number: before.revision.number + 1, previous_graph_hash: input.graphHash,
     reason: input.reason, provenance: [marker] };

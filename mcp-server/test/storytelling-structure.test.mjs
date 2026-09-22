@@ -69,6 +69,13 @@ test('supplied seeds make the task reproducible and all creative material is has
   }
 });
 
+test('a name draw returns its own instructions without repeating the author-model guide', async () => {
+  const task = await addonWithoutServiceAccess().prepareStructureExplore({ brief, targetKind: 'name', seedWord: 'candle' });
+  assert.ok(!task.generatorInstructions.includes('meaning-model-story-author-model/v1'), 'the author-model schema belongs to prose work');
+  assert.match(task.generatorInstructions, /life-sim:\/\/addon\/storytelling/);
+  assert.ok(JSON.stringify(task).length < 10_000, `name task is ${JSON.stringify(task).length} characters`);
+});
+
 test('exploration guidance supports semantic variation without imposing novelty or a mechanical arc', async () => {
   const task = await addonWithoutServiceAccess().prepareStructureExplore({ brief, seedWord: 'bridge' });
   for (const instruction of [

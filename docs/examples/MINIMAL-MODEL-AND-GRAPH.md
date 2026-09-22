@@ -136,6 +136,85 @@ records of the bound model by kind and id.
 }
 ```
 
+## 4. `life_narrative_batch` request
+
+Add connected nodes and edges to an existing graph without resending it. Replace `GRAPH_HASH`
+(twice: the tool argument and the batch's own `previous_graph_hash`) with the `graphHash`
+returned by registration. Every new node must connect to an existing node or a validated anchor
+in the same batch. This one adds a dated fact, the form a character can later be shown knowing.
+
+```json
+{
+  "requestId": "minimal-example-batch",
+  "previousGraphHash": "GRAPH_HASH",
+  "narrativeBatch": {
+    "schema": "life-sim-rust-narrative-batch/v1",
+    "previous_graph_hash": "GRAPH_HASH",
+    "reason": "Add a dated fact a character may be shown knowing.",
+    "provenance": [
+      "minimal-example"
+    ],
+    "add_roots": [],
+    "add_nodes": [
+      {
+        "id": "canon.debt",
+        "node_type": "authored_fact",
+        "role": "metadata",
+        "text": "The bakery owes 1,650,000 NOK on a loan taken in 2019.",
+        "evidence_cutoff": 0,
+        "epistemic_status": "fictional_canon",
+        "evidence_type": "fictional_canon",
+        "render": "exclude",
+        "training": "exclude",
+        "authority": {
+          "source": "example-author",
+          "weight": 1
+        },
+        "provenance": [
+          "minimal-example"
+        ]
+      }
+    ],
+    "add_edges": [
+      {
+        "id": "story.contains.canon.debt",
+        "source": {
+          "kind": "node",
+          "node_id": "story"
+        },
+        "target": {
+          "kind": "node",
+          "node_id": "canon.debt"
+        },
+        "family": "structural",
+        "relation": "contains",
+        "order": 101,
+        "provenance": [
+          "minimal-example"
+        ]
+      },
+      {
+        "id": "grounding.canon.debt.process",
+        "source": {
+          "kind": "node",
+          "node_id": "canon.debt"
+        },
+        "target": {
+          "kind": "anchor",
+          "anchor_kind": "process",
+          "anchor_id": "bakery.debt_nok"
+        },
+        "family": "grounding",
+        "relation": "grounded_in",
+        "provenance": [
+          "minimal-example"
+        ]
+      }
+    ]
+  }
+}
+```
+
 ## Where to go next
 
 Read a graph back for revision with `life_narrative_query` in `full` mode with

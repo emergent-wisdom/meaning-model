@@ -194,6 +194,9 @@ Event relations are read-only authored causal claims between declared events.
 They use `causes`, `enables`, `prevents`, `constrains`, or an explicitly
 described `other` kind and retain uncertainty, provenance, and optional
 authority. They neither prove causal chronology nor create executable laws.
+A `realizes_forecast` relation links a direction Cut's parent event to the
+continuation that was built; its `forecast_answer` names the Cut and the
+realized answer key, remainder included, and each Cut has at most one.
 The collection is omitted by Rust when empty, preserving pre-extension model
 hashes when no event relations are supplied.
 

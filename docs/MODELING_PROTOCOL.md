@@ -334,7 +334,8 @@ The required paper-grounded flow is:
 8. Roll, inspect, compare, and reject or accept complete candidates. To decide a
    continuation from a direction Cut, draw with `life_direction_draw` and a seed
    fixed beforehand; recorded draws make any later draw over the same Cut a
-   visible reroll.
+   visible reroll. Link the continuation you build from the Cut's parent Event
+   with a `realizes_forecast` event relation naming the Cut and the answer.
 9. Optionally use `life_candidate_route` to compare pending alternatives from
    one frozen parent, interval, and dynamics through explicit scalar
    actor/world-state preferences. Its recommendation is advisory and never

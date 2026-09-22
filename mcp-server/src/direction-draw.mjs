@@ -92,6 +92,6 @@ export async function drawDirection(service, raw) {
     graphHash: recorded?.graphHash ?? input.record?.graphHash ?? null, previousGraphHash: input.record?.graphHash ?? null,
     graphMutation: Boolean(recorded), worldMutation: false,
     nextStep: draw.realizedIsRemainder
-      ? 'The remainder was drawn: model a new admissible continuation under its meaning. Do not renormalize the named answers or draw again to avoid it; a further draw is recorded as a reroll.'
-      : `Build ${realized} as the realized continuation and link its accepted Event to this draw. A further draw over this Cut is recorded as a reroll.` };
+      ? `The remainder was drawn: model a new admissible continuation under its meaning and link its Event from ${cut.parent_event_id} with a realizes_forecast relation naming this Cut and the remainder. Do not renormalize the named answers or draw again to avoid it; a further draw is recorded as a reroll.`
+      : `Build ${realized} as the realized continuation and link its Event from ${cut.parent_event_id} with a realizes_forecast relation naming this Cut and ${realized}. A further draw over this Cut is recorded as a reroll.` };
 }

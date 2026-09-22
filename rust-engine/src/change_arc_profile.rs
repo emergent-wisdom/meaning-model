@@ -257,6 +257,7 @@ impl OptionalModelProfile for ChangeArcScaffoldProfile {
                 uncertainty: ClaimUncertainty::Unknown,
                 provenance: provenance.clone(),
                 authority: None,
+                forecast_answer: None,
             });
         }
 

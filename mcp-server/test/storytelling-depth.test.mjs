@@ -212,6 +212,21 @@ test('depth freshness permits unrelated graph appends and rejects changed select
   assert.throws(() => readModelDepthReview(missing, f.scene, { dossier: f.dossier }), /unknown or inaccessible/);
 });
 
+test('a title edit keeps a depth review fresh, and a stale review names the changed evidence', async () => {
+  const f = fixture();
+  const { view } = await save(f);
+  const retitled = structuredClone(view);
+  const root = retitled.nodes.find((node) => node.role === 'document_root');
+  root.text = `${root.text ?? ''} (retitled)`;
+  assert.equal(readModelDepthReview(retitled, f.scene, { dossier: f.dossier }).readyForScene, true, 'the story title is not depth evidence');
+  const changed = structuredClone(view);
+  changed.nodes.find((node) => node.id === 'capacity').text = 'The inlet now admits one unit per minute.';
+  assert.throws(() => readModelDepthReview(changed, f.scene, { dossier: f.dossier }), /changed nodes: capacity/);
+  const relinked = structuredClone(view);
+  relinked.edges.find((edge) => edge.id === 'outline.capacity').relation = 'contradicts';
+  assert.throws(() => readModelDepthReview(relinked, f.scene, { dossier: f.dossier }), /changed edges: outline\.capacity/);
+});
+
 test('depth checks reject missing or inaccessible focus, pending sources, and expanded scene context', async () => {
   const f = fixture();
   await assert.rejects(prepareModelDepthReview(f.service, { ...f.preparation, focusNodeId: 'missing' }), /unknown or inaccessible/);
@@ -263,4 +278,19 @@ test('depth review preserves the complete 100-context scene limit and every link
   }
   const sceneInput = { ...f.scene, scene: { context: contextIds.map((nodeId) => ({ nodeId })) } };
   assert.equal(readModelDepthReview(view, sceneInput, { dossier: f.dossier }).readyForScene, true);
+});
+
+test('depth evidence accepts readable kind:id refs and resolves them against the bound model', async () => {
+  const f = fixture();
+  const task = await prepareModelDepthReview(f.service, f.preparation);
+  const processId = f.model.processes[0].id;
+  const input = assessment(f.preparation, task);
+  input.findings[0].evidence = [{ kind: 'node', nodeId: 'capacity' }, { kind: 'model', ref: `process:${processId}`, path: '/initial_value' }];
+  const result = await recordModelDepthReview(f.service, input);
+  const node = f.versions.get(result.graphHash).nodes.find((item) => item.id === 'depth.review');
+  const stored = JSON.parse(node.text).data.findings[0].evidence.find((item) => item.kind === 'model');
+  assert.deepEqual(stored, { kind: 'model', ref: `process:${processId}`, path: '/processes/0/initial_value' });
+  const bad = assessment(f.preparation, task, { requestId: 'depth.bad', nodeId: 'depth.bad' });
+  bad.findings[0].evidence = [{ kind: 'model', ref: 'process:no-such-process' }];
+  await assert.rejects(recordModelDepthReview(f.service, bad), /does not name a process/);
 });

@@ -306,7 +306,8 @@ export class StorytellingAddon {
         bankId: automatic ? 'common-words/v1' : null,
         bankSize: automatic ? storySeedWords.length : null,
       },
-      generatorInstructions: (input.targetKind === 'name' ? nameExploreInstructions : structureExploreInstructions) + '\n\n' + graphAuthoringInstructions + '\n\n' + authorModelInstructions,
+      // The author-model guide governs prose, not a seed draw; point to it instead of repeating 9,500 characters.
+      generatorInstructions: (input.targetKind === 'name' ? nameExploreInstructions : structureExploreInstructions) + '\n\n' + graphAuthoringInstructions + '\n\nThe author-model rules (life-sim://addon/storytelling, "Model the author and its effect on prose") apply when drafting and reviewing prose, not to this exploration.',
       responseGuidance: input.targetKind === 'name'
         ? 'Briefly unpack the seed, then offer two or three names with the sound or meaning connection and their fit to the story. Flag confusion with existing names or a forced derivation; another draw is valid. Do not rename existing characters.'
         : 'Briefly unpack the word, then offer two or three distinct possibilities with the semantic connection, concrete structure, and a possible weakness of each. Leave the choice open; no ranking or formal template is required.',

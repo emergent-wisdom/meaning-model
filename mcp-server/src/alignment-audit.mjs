@@ -7,6 +7,8 @@ import { runEstimatorRequest } from './estimator-receipts.mjs';
 const id = z.string().trim().min(1).max(1_024);
 const hash = z.string().length(64);
 export const FLAG_THRESHOLD = 0.5;
+// Whole-unit scores within this margin below the threshold do not clear a passage flag on their own.
+export const ARBITER_MARGIN = 0.1;
 export const MAX_AUDIT_RECORDS = 60;
 export const MAX_AUDIT_STATE_CHARS = 100_000;
 
@@ -101,7 +103,7 @@ async function executeAlignmentAudit(service, input, estimator, checkpoint = nul
     const size = JSON.stringify({ records: recordsText, passage_under_review: chunk.text }).length + JSON.stringify(questions).length;
     if (size > MAX_AUDIT_STATE_CHARS) throw new Error(`Audit state for ${chunk.id} is ${size} characters; the limit is ${MAX_AUDIT_STATE_CHARS}. Select fewer records or audit a smaller unit.`);
   }
-  const base = { schema: 'meaning-model-narrative-alignment-audit/v1', graphHash: input.graphHash, sourceSnapshotHash: rendered.source_snapshot_hash, projectionHash: rendered.projection_hash, rootId: input.rootId, accessScopes: input.accessScopes, units: units.map(({ id: unitId, textHash, words: count }) => ({ id: unitId, textHash, words: count })), records: records.map(({ id: recordId, textHash, evidenceCutoff }) => ({ id: recordId, textHash, evidenceCutoff })), withheld: input.withheld, questionCount: Object.keys(questions).length, chunk: input.chunk, knowledgeStateNodeIds: input.knowledgeStateNodeIds, threshold: FLAG_THRESHOLD, guidance: 'Passage-level contradiction and leak scores are the actionable signal; whole-unit scores arbitrate proposals, hypotheticals and reported speech, which score high at passage scope. Records phrased as transient knowledge states belong in withheld leak checks, not contradiction checks. Nothing here verifies meaning or literary quality.', semanticVerification: false, advisoryOnly: true, worldMutation: false, graphMutation: false };
+  const base = { schema: 'meaning-model-narrative-alignment-audit/v1', graphHash: input.graphHash, sourceSnapshotHash: rendered.source_snapshot_hash, projectionHash: rendered.projection_hash, rootId: input.rootId, accessScopes: input.accessScopes, units: units.map(({ id: unitId, textHash, words: count }) => ({ id: unitId, textHash, words: count })), records: records.map(({ id: recordId, textHash, evidenceCutoff }) => ({ id: recordId, textHash, evidenceCutoff })), withheld: input.withheld, questionCount: Object.keys(questions).length, chunk: input.chunk, knowledgeStateNodeIds: input.knowledgeStateNodeIds, threshold: FLAG_THRESHOLD, guidance: 'Passage-level contradiction and leak scores are the actionable signal; whole-unit scores arbitrate proposals, hypotheticals and reported speech, which score high at passage scope. Each passage contradiction flag carries the whole-unit score for the same record and an arbitration: upheld (at or above the threshold), cleared (more than 0.1 below it) or close; treat close as unresolved and check the passage against the record directly. Records phrased as transient knowledge states belong in withheld leak checks, not contradiction checks. Nothing here verifies meaning or literary quality.', semanticVerification: false, advisoryOnly: true, worldMutation: false, graphMutation: false };
   if (!estimator) {
     return { ...base, evaluator: 'calling_llm', questions, chunks: chunks.map((chunk) => ({ id: chunk.id, text: chunk.text })), recordsText, results: null, instructions: 'No external estimator is configured (MEANING_MODEL_ESTIMATOR unset). Answer each question for each chunk yourself with a 0 to 1 truth value, then record flagged contradictions, leaks and omissions as an Understanding Node with exact citations.' };
   }
@@ -118,6 +120,13 @@ async function executeAlignmentAudit(service, input, estimator, checkpoint = nul
     else { results.passages.push({ id: chunk.id, scores, flags }); results.flags.contradictions.push(...flags.contradictions); results.flags.leaks.push(...flags.leaks); }
   }
   if (input.chunk === 'whole' && results.whole) { results.flags.contradictions = results.whole.flags.contradictions; results.flags.leaks = results.whole.flags.leaks; }
+  // Report the whole-unit arbiter beside each passage flag, with its margin, rather than a bare threshold.
+  if (input.chunk !== 'whole' && results.whole) for (const flag of results.flags.contradictions) {
+    const whole = results.whole.scores[`contradicts_${flag.recordId}`];
+    if (typeof whole !== 'number') continue;
+    flag.wholeScore = whole;
+    flag.arbitration = whole >= FLAG_THRESHOLD ? 'upheld' : whole < FLAG_THRESHOLD - ARBITER_MARGIN ? 'cleared' : 'close';
+  }
   const evaluator = `${estimator.backend}:${model}`;
   let recorded = null;
   if (input.record) recorded = await recordAuditFindings(service, view, input, { ...base, evaluator, results });

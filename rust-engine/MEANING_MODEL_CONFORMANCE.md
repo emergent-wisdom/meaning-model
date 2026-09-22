@@ -46,7 +46,9 @@ record:
   execution substrate;
 - typed `contains`, `causes`, `enables`, `prevents`, `constrains`, or explicitly described
   `other` event-to-event relations with uncertainty, provenance, and optional
-  authority;
+  authority, plus `realizes_forecast` relations whose `forecast_answer` names a
+  normalized Cut on the source event and the answer key (remainder included) the
+  target continuation realized, at most one per Cut;
 - normalized question/unit allocations with stable answer keys, explicit
   remainder, optional component conditioning, and provenance;
 - optional temporal Cut contracts that check declared answer projections and

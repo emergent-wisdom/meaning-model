@@ -307,3 +307,16 @@ test('merging under a private parent keeps its previously private ordering out o
   await assert.rejects(f.service.renderNarrativeGraph({ graphHash: result.graphHash, rootIds: ['merged'], accessScopes: [] }),
     /unknown or inaccessible/);
 });
+
+test('editing only the document root lists whole-document reviews as ancestor reviews', async (t) => {
+  const f = await fixture(t, (definition) => {
+    definition.nodes.find((node) => node.id === 'book').text = '# Old title';
+    definition.nodes.find((node) => node.id === 'book').authority = { source: 'author', weight: 1 };
+    definition.edges.push(edge('review.scene.book', 'review.scene', 'book', 'about', undefined, ['author']));
+  });
+  const result = await editNarrativeGraph(f.service, f.input([{ kind: 'replace_text', nodeId: 'book', expectedText: '# Old title', text: '# New title' }]));
+  assert.deepEqual(result.changedNodeIds, ['book']);
+  assert.deepEqual(result.directlyAffectedReviewNodeIds, [], 'a title edit is not direct evidence for whole-document reviews');
+  assert.ok(result.ancestorReviewNodeIds.includes('review.about'), 'reviewed_by from the root needs the lighter check');
+  assert.ok(result.ancestorReviewNodeIds.includes('review.scene'), 'about the root needs the lighter check');
+});

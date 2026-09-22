@@ -19,8 +19,9 @@ export function refreshDepthFixture(view, preparation) {
     contextNodeIds: preparation.scene.context.map((item) => item.nodeId) };
   let basis;
   try { basis = modelDepthBasis(view, locator); } catch { return; }
+  // Record the basis version as life_story_model_depth_record does; an unversioned record reads as version 1.
   const data = { schema: 'meaning-model-story-model-depth-assessment/v1', locator,
-    basisHash: basis.basisHash, sourceSnapshotHash: view.source_snapshot_hash,
+    basisVersion: basis.basis.basisVersion, basisHash: basis.basisHash, sourceSnapshotHash: view.source_snapshot_hash,
     modelHash: view.graph.source_snapshot.model_hash, reviewedGraphHash: view.graph_hash, taskHash: 'e'.repeat(64),
     coverage: 'Fixture review of the declared choices and their model context.',
     findings: [{ subject: 'Scene explanatory basis', status: 'sufficient', explanation: 'Fixture supplied assessment.',

@@ -6,6 +6,29 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Add the `realizes_forecast` event relation. Its `forecast_answer` names a
+  normalized Cut on the source event and the answer key, remainder included, that
+  the target continuation realized; the engine checks the Cut, its parent event and
+  the answer, and allows one realized continuation per Cut. Models without the
+  field serialize and hash as before.
+- Let model-depth evidence cite model records by `kind:id` (for example
+  `process:bakery.debt_nok`) instead of array-index JSON pointers; the server
+  resolves the reference and rejects unknown ones.
+- Keep model-depth reviews fresh when only the story root's text changes, such
+  as a retitle, and name the changed nodes and edges when a review is stale.
+  Reviews recorded before this change keep their original freshness rule.
+- Report reviews linked to a document root as ancestor reviews when only that
+  root is edited, instead of listing every whole-document record as directly
+  affected.
+- Add a `life_narrative_batch` request to the minimal model-and-graph example and
+  state the batch payload shape in the tool description.
+- Shorten the `life_story_structure_explore` generator task for names and
+  structures: it keeps the target instructions and graph-authoring rules and
+  points to the author-model guidance instead of repeating it.
+- In chunked alignment audits, attach the whole-unit score for the same record to
+  each passage contradiction flag and report the arbitration as upheld, cleared
+  or close.
+
 - Add `life_direction_draw`: the server computes a seeded draw over a registered
   model's normalized Cut and can record it in a graph bound to that model. An
   earlier draw over the same Cut is reported and linked, so a second draw is a

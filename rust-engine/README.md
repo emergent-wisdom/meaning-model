@@ -116,7 +116,8 @@ parallel or sequential physical cuts, and typed `define` or `describe`
 realization records distinct. An event relation records unweighted `contains`
 topology or an authored `causes`, `enables`, `prevents`, `constrains`, or
 explicitly described `other` claim; it does not schedule events or create an
-executable law. A binding records its
+executable law. A `realizes_forecast` relation records which answer of a
+normalized Cut on its source event the target continuation realized. A binding records its
 participant or subject role separately from its open-vocabulary binding type;
 realizations likewise keep event roles and referent roles in separate
 namespaces. A `define` realization supplies the static cut-indexed canonical

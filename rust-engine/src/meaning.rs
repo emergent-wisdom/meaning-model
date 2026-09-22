@@ -183,7 +183,19 @@ pub enum EventRelationKind {
     Enables,
     Prevents,
     Constrains,
+    /// The target event is the continuation a direction Cut on the source event
+    /// realized; `forecast_answer` names the Cut and its answer slot.
+    RealizesForecast,
     Other,
+}
+
+/// The direction Cut answer slot a `realizes_forecast` relation realizes,
+/// including the reserved remainder key when a new continuation was modeled.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ForecastAnswerReference {
+    pub cut_id: String,
+    pub answer_key: String,
 }
 
 /// One uncertainty- and provenance-bearing claim about how two declared
@@ -205,6 +217,10 @@ pub struct EventRelationDefinition {
     pub provenance: Vec<String>,
     #[serde(default)]
     pub authority: Option<ClaimAuthority>,
+    /// Required for, and only valid with, `realizes_forecast`. Omitted from
+    /// serialization when absent so existing model hashes are unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub forecast_answer: Option<ForecastAnswerReference>,
 }
 
 /// Selects the paper's `E`: either a semantic event-process grouping or one
@@ -1377,6 +1393,7 @@ pub(super) fn validate_meaning_model(
     }
 
     let mut event_relation_ids = BTreeSet::new();
+    let mut realized_cuts = BTreeSet::new();
     for relation in &meaning_model.event_relations {
         validate_identifier(&relation.id, "event relation id")?;
         if !event_relation_ids.insert(relation.id.as_str()) {
@@ -1420,6 +1437,51 @@ pub(super) fn validate_meaning_model(
                 "event relation {} kind other requires a description",
                 relation.id
             )));
+        }
+        match (&relation.kind, &relation.forecast_answer) {
+            (EventRelationKind::RealizesForecast, None) => {
+                return Err(error(format!(
+                    "event relation {} kind realizes_forecast requires forecast_answer",
+                    relation.id
+                )));
+            }
+            (EventRelationKind::RealizesForecast, Some(answer)) => {
+                let cut = meaning_model
+                    .normalized_cuts
+                    .iter()
+                    .find(|cut| cut.id == answer.cut_id)
+                    .ok_or_else(|| {
+                        error(format!(
+                            "event relation {} realizes unknown Cut {}",
+                            relation.id, answer.cut_id
+                        ))
+                    })?;
+                if cut.parent_event_id != relation.source_event_id {
+                    return Err(error(format!(
+                        "event relation {} must start at Cut {}'s parent event {}",
+                        relation.id, cut.id, cut.parent_event_id
+                    )));
+                }
+                if !cut.answers.iter().any(|item| item.key == answer.answer_key) {
+                    return Err(error(format!(
+                        "event relation {} names unknown answer {} of Cut {}",
+                        relation.id, answer.answer_key, cut.id
+                    )));
+                }
+                if !realized_cuts.insert(answer.cut_id.as_str()) {
+                    return Err(error(format!(
+                        "Cut {} has more than one realized continuation",
+                        answer.cut_id
+                    )));
+                }
+            }
+            (_, Some(_)) => {
+                return Err(error(format!(
+                    "event relation {} forecast_answer is only valid for kind realizes_forecast",
+                    relation.id
+                )));
+            }
+            (_, None) => {}
         }
         super::validate_uncertainty(
             &relation.uncertainty,
@@ -2188,6 +2250,7 @@ pub(super) fn test_meaning_model_fixture() -> MeaningModelDefinition {
                 source: "fixture-author".to_owned(),
                 weight: 0.8,
             }),
+            forecast_answer: None,
         }],
         event_referent_bindings: vec![
             EventReferentBinding {
@@ -2443,6 +2506,7 @@ mod tests {
             uncertainty: ClaimUncertainty::Exact,
             provenance: vec!["unit-test".to_owned()],
             authority: None,
+            forecast_answer: None,
         });
         meaning_model.event_relations.reverse();
 
@@ -2507,6 +2571,92 @@ mod tests {
             weight: 0.5,
         });
         assert!(failure(invalid_authority).contains("source must be nonempty and bounded"));
+    }
+
+    fn with_direction_cut(mut meaning_model: MeaningModelDefinition) -> MeaningModelDefinition {
+        meaning_model.normalized_cuts.push(NormalizedCutDefinition {
+            id: "care-direction".to_owned(),
+            parent_event_id: "care-event".to_owned(),
+            question: "Where does care go next?".to_owned(),
+            unit: "continuation".to_owned(),
+            answers: vec![
+                NormalizedCutAnswer { key: "repair".to_owned(), weight: 0.7 },
+                NormalizedCutAnswer { key: NORMALIZED_CUT_REMAINDER_KEY.to_owned(), weight: 0.3 },
+            ],
+            conditioning: None,
+            provenance: vec!["unit-test".to_owned()],
+        });
+        meaning_model
+    }
+
+    fn realized(answer_key: &str) -> EventRelationDefinition {
+        EventRelationDefinition {
+            id: format!("care-realizes-{answer_key}"),
+            source_event_id: "care-event".to_owned(),
+            target_event_id: "repair-event".to_owned(),
+            kind: EventRelationKind::RealizesForecast,
+            description: None,
+            uncertainty: ClaimUncertainty::Exact,
+            provenance: vec!["unit-test".to_owned()],
+            authority: None,
+            forecast_answer: Some(ForecastAnswerReference {
+                cut_id: "care-direction".to_owned(),
+                answer_key: answer_key.to_owned(),
+            }),
+        }
+    }
+
+    #[test]
+    fn realizes_forecast_links_a_direction_cut_answer_to_its_continuation() {
+        let mut named = with_direction_cut(test_meaning_model_fixture());
+        named.event_relations.push(realized("repair"));
+        validate_meaning_model(&named, &test_processes()).unwrap();
+
+        let mut remainder = with_direction_cut(test_meaning_model_fixture());
+        remainder.event_relations.push(realized(NORMALIZED_CUT_REMAINDER_KEY));
+        validate_meaning_model(&remainder, &test_processes()).unwrap();
+
+        let json = serde_json::to_value(&named.event_relations[1]).unwrap();
+        assert_eq!(json["kind"], "realizes_forecast");
+        assert_eq!(json["forecast_answer"]["cut_id"], "care-direction");
+        let plain = serde_json::to_value(&named.event_relations[0]).unwrap();
+        assert!(plain.get("forecast_answer").is_none(), "absent references stay out of existing model hashes");
+    }
+
+    #[test]
+    fn realizes_forecast_rejects_missing_misplaced_unknown_and_repeated_references() {
+        let mut missing = with_direction_cut(test_meaning_model_fixture());
+        let mut relation = realized("repair");
+        relation.forecast_answer = None;
+        missing.event_relations.push(relation);
+        assert!(failure(missing).contains("realizes_forecast requires forecast_answer"));
+
+        let mut wrong_kind = with_direction_cut(test_meaning_model_fixture());
+        let mut relation = realized("repair");
+        relation.kind = EventRelationKind::Causes;
+        wrong_kind.event_relations.push(relation);
+        assert!(failure(wrong_kind).contains("forecast_answer is only valid for kind realizes_forecast"));
+
+        let mut unknown_cut = with_direction_cut(test_meaning_model_fixture());
+        let mut relation = realized("repair");
+        relation.forecast_answer.as_mut().unwrap().cut_id = "missing-cut".to_owned();
+        unknown_cut.event_relations.push(relation);
+        assert!(failure(unknown_cut).contains("realizes unknown Cut missing-cut"));
+
+        let mut wrong_source = with_direction_cut(test_meaning_model_fixture());
+        let mut relation = realized("repair");
+        relation.source_event_id = "trust-event".to_owned();
+        wrong_source.event_relations.push(relation);
+        assert!(failure(wrong_source).contains("must start at Cut care-direction's parent event care-event"));
+
+        let mut unknown_answer = with_direction_cut(test_meaning_model_fixture());
+        unknown_answer.event_relations.push(realized("abandon"));
+        assert!(failure(unknown_answer).contains("names unknown answer abandon of Cut care-direction"));
+
+        let mut repeated = with_direction_cut(test_meaning_model_fixture());
+        repeated.event_relations.push(realized("repair"));
+        repeated.event_relations.push(realized(NORMALIZED_CUT_REMAINDER_KEY));
+        assert!(failure(repeated).contains("Cut care-direction has more than one realized continuation"));
     }
 
     #[test]

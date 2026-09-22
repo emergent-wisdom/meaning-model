@@ -289,3 +289,19 @@ test('ingest validates parents, participants, duplicates and pending estimates',
   assert.equal(pending.applied, null);
   await assert.rejects(ingestSituation({ requestId: 'r', modelHash: oldModel, apply: true, events: [{ eventId: 'event.kaj.state.h6' }], questions: [{ id: 'q', question: 'Q?', answers: [{ key: 'a', meaning: 'A.' }] }] }, null, f.service), /pending/);
 });
+
+test('passage contradiction flags carry the whole-unit arbiter and its margin', async () => {
+  for (const [whole, expected] of [[0.2, 'cleared'], [0.45, 'close'], [0.6, 'upheld']]) {
+    const f = auditFixture();
+    const fake = { backend: 'typesafe', model: 'jev-1.13.0', label: 'typesafe:jev-1.13.0', async estimate(state, questions) {
+      const isWhole = state.passage_under_review.includes('He fed') && state.passage_under_review.includes('night ferry');
+      const passageOne = !isWhole && state.passage_under_review.includes('He fed');
+      return { model: 'jev-1.13.0', usage: { input_tokens: 1, output_tokens: 1 }, answers: Object.fromEntries(Object.keys(questions).map((key) => [key, { type: 'noul',
+        noul: key.startsWith('narrates_') ? 0.9 : key === 'contradicts_canon.feeding' ? (isWhole ? whole : passageOne ? 0.8 : 0.1) : 0.1 }])) }; } };
+    const result = await prepareAlignmentAudit(f.service, { graphHash, rootId: 'story', accessScopes: ['story-author'] }, fake);
+    const flag = result.results.flags.contradictions.find((item) => item.recordId === 'canon.feeding');
+    assert.equal(flag.unitId, 'scene-1-p1');
+    assert.equal(flag.wholeScore, whole);
+    assert.equal(flag.arbitration, expected, `whole ${whole}`);
+  }
+});

@@ -966,7 +966,9 @@ continuations, fix its proposal weights and a seed before drawing, then draw wit
 `life_direction_draw` and record it in the story graph. The server computes the
 draw, and a later draw over the same Cut is recorded and linked as a reroll. If the
 remainder is drawn, model a new admissible continuation under the remainder's
-meaning; do not renormalize the named answers. When two actors decide jointly,
+meaning; do not renormalize the named answers. In the successor model, link the
+continuation's Event from the Cut's parent Event with a `realizes_forecast`
+relation whose `forecast_answer` names the Cut and the realized answer key. When two actors decide jointly,
 consider whether each attempts a different named continuation: their combination
 can realize an outcome none of them chose.
 

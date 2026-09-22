@@ -51,7 +51,7 @@ function jsonBlocks(markdown) {
 
 test('the minimal example payloads compile, register and round-trip through a revision-safe query', async (t) => {
   const markdown = await readFile(new URL('../../docs/examples/MINIMAL-MODEL-AND-GRAPH.md', import.meta.url), 'utf8');
-  const [compileRequest, registerRequest, graphRequest] = jsonBlocks(markdown);
+  const [compileRequest, registerRequest, graphRequest, batchRequest] = jsonBlocks(markdown);
   const service = new LifeSimulationService();
   t.after(() => service.close());
   await service.initialize();
@@ -63,6 +63,10 @@ test('the minimal example payloads compile, register and round-trip through a re
   const graphText = JSON.stringify(graphRequest).replaceAll('MODEL_HASH', registered.modelHash);
   const graph = await service.registerNarrativeGraph(JSON.parse(graphText));
   assert.equal(graph.stored, true);
+  const batched = await service.applyNarrativeBatch(JSON.parse(JSON.stringify(batchRequest).replaceAll('GRAPH_HASH', graph.graphHash)));
+  assert.equal(batched.stored, true, 'the documented batch payload applies');
+  const withFact = await service.queryNarrativeGraph({ graphHash: batched.graphHash, mode: 'full', includeContent: true });
+  assert.equal(withFact.nodes.find(({ id }) => id === 'canon.debt').evidence_cutoff, 0);
   await assert.rejects(service.queryNarrativeGraph({ graphHash: graph.graphHash, mode: 'skeleton', forRevision: true }), /requires mode full/);
   const view = await service.queryNarrativeGraph({ graphHash: graph.graphHash, mode: 'full', includeContent: true, forRevision: true });
   assert.equal(view.for_revision, true);

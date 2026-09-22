@@ -76,3 +76,30 @@ test('a recorded draw is stored in the bound graph and a second draw over the sa
   await assert.rejects(drawDirection(service, { modelHash, cutId, seed: 's',
     record: { graphHash: second.graphHash, requestId: 'draw-4', nodeId: 'draw-1', rootId: 'story', accessScopes: ['author'] } }), /already exists/);
 });
+
+test('a successor model links the drawn answer to its continuation with realizes_forecast', async (t) => {
+  const markdown = await readFile(new URL('../../docs/examples/MINIMAL-MODEL-AND-GRAPH.md', import.meta.url), 'utf8');
+  const [, registerRequest] = jsonBlocks(markdown);
+  const service = new LifeSimulationService();
+  t.after(() => service.close());
+  await service.initialize();
+  const successor = (answerKey, requestId) => {
+    const request = structuredClone(registerRequest);
+    request.requestId = requestId;
+    const meaning = request.model.meaning_model;
+    meaning.events.push({ id: 'event.ada.follows.h07', boundary: 'What Ada attends to next, after the offer.', interval: { start: 6.25, end: 7 },
+      participants: { subject: 'referent.ada' }, process_ids: [], observation_process_ids: [], region: null, substrate: null, provenance: ['direction-draw test'] });
+    meaning.event_relations.push(
+      { id: 'ada.inner.contains.h07', kind: 'contains', source_event_id: 'event.ada.inner', target_event_id: 'event.ada.follows.h07',
+        description: null, authority: null, uncertainty: { kind: 'unknown' }, provenance: ['direction-draw test'] },
+      { id: 'h06.realizes.h07', kind: 'realizes_forecast', source_event_id: 'event.ada.state.h06', target_event_id: 'event.ada.follows.h07',
+        description: null, authority: null, uncertainty: { kind: 'exact' }, provenance: ['direction-draw test'],
+        forecast_answer: { cut_id: 'cut.ada.h06.attention', answer_key: answerKey } });
+    return request;
+  };
+  const { modelHash } = await service.registerModel(successor('money', 'realized-money'));
+  const inspected = await service.inspectModel({ modelHash, includeDefinition: true });
+  const relation = inspected.model.meaning_model.event_relations.find(({ id }) => id === 'h06.realizes.h07');
+  assert.deepEqual(relation.forecast_answer, { cut_id: 'cut.ada.h06.attention', answer_key: 'money' });
+  await assert.rejects(service.registerModel(successor('savings', 'realized-unknown')), /names unknown answer savings of Cut cut\.ada\.h06\.attention/);
+});
