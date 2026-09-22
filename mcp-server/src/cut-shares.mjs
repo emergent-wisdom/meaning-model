@@ -3,7 +3,9 @@
 // an explicit immutable revision that carries estimator provenance.
 import { createHash } from 'node:crypto';
 import * as z from 'zod/v4';
-import { rebindNarrativeGraph } from './narrative-rebind.mjs';
+import { rebindNarrativeGraph, preflightNarrativeRebind } from './narrative-rebind.mjs';
+
+import { retainEstimatorProposal, readEstimatorProposal, runEstimatorRequest } from './estimator-receipts.mjs';
 
 const id = z.string().trim().min(1).max(256);
 const longId = z.string().trim().min(1).max(1_024);
@@ -23,6 +25,7 @@ export const cutSharesSchema = z.object({
   events: z.array(z.object({ eventId: longId, cutId: longId.nullable().default(null), situationText: prose.nullable().default(null) }).strict()).max(32).default([]),
   distributions: z.array(z.object({ situationId: longId, probabilities: probabilityMap, confidence: z.number().min(0).max(1).nullable().default(null) }).strict()).max(32).default([]),
   idPrefix: id.default('cut.estimated'),
+  proposalId: id.nullable().default(null),
   apply: z.boolean().default(false),
   requestId: z.string().trim().min(1).max(256).nullable().default(null),
   revisionReason: z.string().trim().min(1).max(4_000).nullable().default(null),
@@ -41,6 +44,8 @@ export const cutSharesSchema = z.object({
     if (!input.requestId) context.addIssue({ code: 'custom', path: ['requestId'], message: 'apply requires requestId.' });
   }
   if (input.rebind && !input.apply) context.addIssue({ code: 'custom', path: ['rebind'], message: 'rebind requires apply.' });
+  if (new Set(input.distributions.map((item) => item.situationId)).size !== input.distributions.length) context.addIssue({ code: 'custom', path: ['distributions'], message: 'Distribution targets must be unique.' });
+  if (input.proposalId && !input.apply) context.addIssue({ code: 'custom', path: ['proposalId'], message: 'proposalId is used with apply to adopt an existing proposal.' });
   for (const [index, distribution] of input.distributions.entries()) {
     if (!ids.includes(distribution.situationId)) context.addIssue({ code: 'custom', path: ['distributions', index], message: `Unknown target ${distribution.situationId}.` });
     for (const key of Object.keys(distribution.probabilities)) if (key !== REMAINDER_KEY && !keys.includes(key)) context.addIssue({ code: 'custom', path: ['distributions', index], message: `Unknown answer key ${key}.` });
@@ -57,9 +62,15 @@ export function buildCutShareQuestions(input, targets) {
 
 export function proposalFromProbabilities(input, target, probabilities, meta) {
   const keys = [...input.answers.map((answer) => answer.key), REMAINDER_KEY];
-  const weights = keys.map((key) => Math.max(0, Number(probabilities?.[key] ?? 0)));
-  if (weights.some((weight) => !Number.isFinite(weight))) throw new Error(`Non-finite probability for target ${target.id}.`);
-  // Missing mass is unassigned and belongs to the remainder; only an over-full distribution is renormalized.
+  if (!probabilities || typeof probabilities !== 'object' || Array.isArray(probabilities)) throw new Error(`Missing probability distribution for target ${target.id}.`);
+  for (const key of Object.keys(probabilities)) if (!keys.includes(key)) throw new Error(`Unknown probability key ${key} for target ${target.id}.`);
+  for (const key of (meta.requireComplete ? keys : keys.filter((key) => key !== REMAINDER_KEY))) if (!Object.hasOwn(probabilities, key)) throw new Error(`Missing probability key ${key} for target ${target.id}.`);
+  for (const value of Object.values(probabilities)) if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1) throw new Error(`Probability must be finite and in [0,1] for target ${target.id}.`);
+  if (meta.confidence != null && (typeof meta.confidence !== 'number' || !Number.isFinite(meta.confidence) || meta.confidence < 0 || meta.confidence > 1)) throw new Error(`Confidence must be finite and in [0,1] for target ${target.id}.`);
+  const weights = keys.map((key) => probabilities[key] ?? 0);
+  const providedTotal = weights.reduce((sum, weight) => sum + weight, 0);
+  if (providedTotal > 1 + 1e-6 || (meta.requireComplete && Math.abs(providedTotal - 1) > 1e-6)) throw new Error(`Probability distribution must sum to one for target ${target.id} (supplied distributions may leave remainder mass unassigned).`);
+  // Supplied missing mass belongs to the remainder; tolerate only numerical rounding above one.
   const total = weights.reduce((sum, weight) => sum + weight, 0);
   const scale = total > 1 + 1e-9 ? 1 / total : 1;
   const answers = keys.map((key, index) => ({ key, weight: weights[index] * scale }));
@@ -88,19 +99,43 @@ async function resolveTargets(service, input) {
   return { targets, definition };
 }
 
+const proposalBinding = ({ apply, proposalId, requestId, revisionReason, rebind, ...binding }) => binding;
+
 export async function proposeCutShares(raw, estimator, service = null) {
   const input = cutSharesSchema.parse(raw);
+  if (input.apply) return runEstimatorRequest(service, 'cut-shares', input.requestId, input,
+    (checkpoint) => executeCutShares(input, estimator, service, checkpoint));
+  return executeCutShares(input, estimator, service);
+}
+
+async function executeCutShares(input, estimator, service, checkpoint = null) {
   if ((input.modelHash || input.apply) && !service) throw new Error('Model-bound targets and apply require the modeling service.');
   const { targets, definition } = await resolveTargets(service, input);
+  if (input.apply) {
+    const eventIds = new Set((definition.meaning_model?.events ?? []).map((event) => event.id));
+    const cutIds = new Set((definition.meaning_model?.normalized_cuts ?? []).map((cut) => cut.id));
+    const generatedIds = new Set();
+    for (const target of targets) {
+      const cutId = target.cutId ?? `${input.idPrefix}.${target.id}`;
+      if (!target.parentEventId) throw new Error(`Cut ${cutId} has no parent event; free-text situations need parentEventId to be applied.`);
+      if (!eventIds.has(target.parentEventId)) throw new Error(`Unknown parent event ${target.parentEventId}.`);
+      if (generatedIds.has(cutId)) throw new Error(`Duplicate generated Cut ID ${cutId}.`);
+      generatedIds.add(cutId);
+      if (cutIds.has(cutId) && !input.replaceExisting) throw new Error(`Cut ${cutId} already exists; set replaceExisting to supersede it.`);
+    }
+    if (input.rebind) await preflightNarrativeRebind(service, { ...input.rebind, modelHash: input.modelHash });
+  }
   const requests = buildCutShareQuestions(input, targets);
   const supplied = new Map(input.distributions.map((distribution) => [distribution.situationId, distribution]));
   const common = { schema: 'meaning-model-cut-shares/v1', question: input.question, unit: input.unit, answerKeys: [...input.answers.map((answer) => answer.key), REMAINDER_KEY], canonical: false, evidenceType: 'ai_inference', worldMutation: false, requestHash: digest(input) };
   const needEstimator = requests.filter((request) => !supplied.has(request.situationId));
-  if (needEstimator.length && !estimator) {
+  if (needEstimator.length && !estimator && !input.proposalId && !checkpoint?.get('estimates')) {
     if (input.apply) throw new Error('apply needs a distribution for every target: configure an estimator or supply distributions.');
     return { ...common, evaluator: 'calling_llm', proposals: null, tasks: needEstimator, graphMutation: false, instructions: 'No external estimator is configured (MEANING_MODEL_ESTIMATOR unset). Answer each task yourself with probabilities over the listed answers including the remainder, then call again with those distributions and apply to place the Cuts, or build the model revision yourself. Estimates are not world facts.' };
   }
-  const proposals = []; const usage = { input_tokens: 0, output_tokens: 0 }; let model = estimator?.model ?? null; const sources = new Set();
+  let estimated = checkpoint?.get('estimates') ?? (input.proposalId ? readEstimatorProposal(service ?? estimator, 'cut-shares', proposalBinding(input), input.proposalId) : null);
+  if (!estimated) {
+    const proposals = []; const usage = { input_tokens: 0, output_tokens: 0 }; let model = estimator?.model ?? null; const sources = new Set();
   for (const request of requests) {
     const target = targets.find((item) => item.id === request.situationId);
     const distribution = supplied.get(request.situationId);
@@ -110,10 +145,16 @@ export async function proposeCutShares(raw, estimator, service = null) {
     if (!answer || answer.type !== 'choice' || !answer.probabilities) throw new Error(`Estimator did not return a choice distribution for target ${request.situationId}.`);
     model = result.model ?? model; sources.add(`${estimator.backend}:${model}`);
     usage.input_tokens += Number(result.usage?.input_tokens ?? 0); usage.output_tokens += Number(result.usage?.output_tokens ?? 0);
-    proposals.push(proposalFromProbabilities(input, target, answer.probabilities, { label: `${estimator.backend}:${model}`, confidence: Number(answer.confidence) }));
+    proposals.push(proposalFromProbabilities(input, target, answer.probabilities, { label: `${estimator.backend}:${model}`, confidence: answer.confidence ?? null, requireComplete: true }));
   }
-  const evaluator = [...sources].join('+');
-  if (!input.apply) return { ...common, evaluator, proposals, usage, graphMutation: false, nextStep: 'Review each proposal for coherence and category fit; a large remainder suggests a missing answer, not a fact about the subject. Call again with apply and requestId to place accepted Cuts as an explicit model revision, or use them as exploration baselines. A proposal is not a world fact and has not been semantically verified.' };
+    estimated = { proposals, usage, evaluator: [...sources].join('+') };
+    checkpoint?.set('estimates', estimated);
+  }
+  const { proposals, usage, evaluator } = estimated;
+  if (!input.apply) {
+    const proposalId = retainEstimatorProposal(service ?? estimator, 'cut-shares', proposalBinding(input), estimated);
+    return { ...common, evaluator, proposals, usage, proposalId, graphMutation: false, nextStep: 'Review the proposals, then repeat the modeling inputs with apply, requestId and this proposalId to adopt these exact estimates without another provider call. Direct apply without proposalId makes a fresh estimate. Proposals are AI inference, not verified facts.' };
+  }
   // --- apply: one complete immutable model revision
   const successor = structuredClone(definition);
   successor.meaning_model ??= {}; successor.meaning_model.normalized_cuts ??= [];
@@ -126,10 +167,13 @@ export async function proposeCutShares(raw, estimator, service = null) {
   }
   const previousNumber = Number(definition.revision?.number ?? 0);
   successor.revision = { number: previousNumber + 1, previous_model_hash: input.modelHash, provenance: [`Meaning Model cut-shares apply v1; evaluator ${evaluator}`, ...(definition.revision?.provenance ?? []).slice(0, 8)], reason: input.revisionReason ?? `Add ${proposals.length} estimated attention Cut${proposals.length === 1 ? '' : 's'} (${evaluator}); AI inference, reviewable and supersedable.` };
-  const revised = await service.reviseModel({ requestId: input.requestId, previousModelHash: input.modelHash, model: successor });
+  const revised = checkpoint?.get('revised') ?? await service.reviseModel({ requestId: input.requestId, previousModelHash: input.modelHash, model: successor });
+  checkpoint?.set('revised', revised);
+  const applied = { modelHash: revised.modelHash, previousModelHash: input.modelHash, revisionNumber: successor.revision.number, cutIds: proposals.map((proposal) => proposal.id), summary: revised.summary ?? null };
   let rebound = null;
   if (input.rebind) {
-    rebound = await rebindNarrativeGraph(service, { requestId: input.rebind.requestId ?? `${input.requestId}-rebind`, graphHash: input.rebind.graphHash, modelHash: revised.modelHash, accessScopes: input.rebind.accessScopes, reason: `Rebind after estimated Cuts were applied in model revision ${successor.revision.number}.` });
+    try { rebound = await rebindNarrativeGraph(service, { requestId: input.rebind.requestId ?? `${input.requestId}-rebind`, graphHash: input.rebind.graphHash, modelHash: revised.modelHash, accessScopes: input.rebind.accessScopes, reason: `Rebind after estimated Cuts were applied in model revision ${successor.revision.number}.` }); }
+    catch (error) { return { ...common, evaluator, proposals, usage, applied, rebound: null, graphMutation: false, partial: true, failure: { stage: 'rebind', message: error.message }, nextStep: 'The model revision succeeded but graph rebind did not complete. Retry this exact requestId and payload to resume without re-estimation, or inspect the recorded modelHash before a separate repair.' }; }
   }
-  return { ...common, evaluator, proposals, usage, graphMutation: Boolean(rebound), applied: { modelHash: revised.modelHash, previousModelHash: input.modelHash, revisionNumber: successor.revision.number, cutIds: proposals.map((proposal) => proposal.id), summary: revised.summary ?? null }, rebound, nextStep: rebound ? 'The graph is bound to the new model; historical assessments kept their nodes but lost predecessor anchors. Record fresh depth assessments before committing prose.' : 'The model revision is registered. Rebind any story graph with life_narrative_rebind before preparing scenes against it.' };
+  return { ...common, evaluator, proposals, usage, graphMutation: Boolean(rebound), applied, rebound, nextStep: rebound ? 'The graph is bound to the new model; historical assessments kept their nodes but lost predecessor anchors. Record fresh depth assessments before committing prose.' : 'The model revision is registered. Rebind any story graph with life_narrative_rebind before preparing scenes against it.' };
 }

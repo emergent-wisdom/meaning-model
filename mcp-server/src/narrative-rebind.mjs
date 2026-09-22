@@ -26,12 +26,31 @@ export async function assertModelSuccessor(service, previousModelHash, modelHash
   throw new Error(`Model ${modelHash} is not a successor of the graph's bound model ${previousModelHash}; rebinding to an unrelated model is refused.`);
 }
 
+export function assertCompleteNarrativeView(view, graphHash) {
+  if (view.graph_hash !== graphHash || view.content_included !== true) throw new Error('The exact content-included graph revision is required.');
+  for (const [field, count] of [['nodes', 'node_count'], ['edges', 'edge_count'], ['roots', 'root_count']]) {
+    if (!Array.isArray(view[field]) || !Number.isSafeInteger(view.graph?.[count]) || view[field].length !== view.graph[count]) {
+      throw new Error('Rebind and ingest require the complete graph; include every existing node, edge, and root in accessScopes.');
+    }
+  }
+  if ((view.returned_node_count !== undefined && view.returned_node_count !== view.nodes.length)
+    || (view.returned_edge_count !== undefined && view.returned_edge_count !== view.edges.length)) throw new Error('Rebind requires the complete graph, not a truncated projection.');
+  if (!Number.isSafeInteger(view.graph?.revision?.number) || view.graph.revision.number < 0 || view.graph.revision.number >= Number.MAX_SAFE_INTEGER) throw new Error('The graph requires an exact safe revision clock.');
+  if (view.nodes.some((node) => node.content_included === false || node.boundary === true)) throw new Error('The complete graph requires all node content.');
+}
+
+// Validate the immutable predecessor before a compound operation writes its model.
+export async function preflightNarrativeRebind(service, { graphHash, modelHash, accessScopes }) {
+  const view = await service.queryNarrativeGraph({ graphHash, expectedGraphHash: graphHash, mode: 'full', includeContent: true, accessScopes: [...new Set(accessScopes)].sort() });
+  buildRebindSuccessor(view, { graphHash, modelHash, reason: 'Preflight only.', provenance: [] });
+  await assertModelSuccessor(service, view.graph.source.model_hash, modelHash);
+  return view;
+}
+
 export function buildRebindSuccessor(view, { graphHash, modelHash, reason, provenance }) {
   if (view.graph_hash !== graphHash) throw new Error('Rebind must read the exact requested graph revision.');
   if (!view.content_included) throw new Error('Rebind requires a content-included full graph read.');
-  if (view.returned_node_count !== view.total_node_count || view.returned_edge_count !== view.total_edge_count) {
-    throw new Error(`Rebind requires the complete graph: ${view.returned_node_count}/${view.total_node_count} nodes and ${view.returned_edge_count}/${view.total_edge_count} edges are visible with the supplied scopes.`);
-  }
+  assertCompleteNarrativeView(view, graphHash);
   const source = view.graph?.source;
   if (source?.kind !== 'model') throw new Error(`Rebind supports model-bound graphs only; this graph is bound to a ${source?.kind ?? 'missing'} source.`);
   const dropped = view.edges.filter((edge) => edge.target?.kind === 'anchor' && edge.target?.anchor_kind === 'model' && edge.target?.anchor_id !== modelHash).map((edge) => edge.id);

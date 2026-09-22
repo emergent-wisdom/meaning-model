@@ -6,6 +6,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Bind estimator previews to exact apply proposals and retain bounded retry
+  receipts. Preflight graph completeness and note references; report partial
+  multi-step results. Preserve hidden graph records during rebind. Validate audit
+  answers, preserve evidence audiences, distinguish disclosure audiences, and
+  exclude earlier diagnostics from default audit evidence.
 - Add estimator tools to the default surface: `life_estimate_cut_shares`,
   `life_model_ingest` and `life_narrative_alignment_audit`, plus `life_narrative_rebind`.
   Without configuration the estimator tools return their mechanically generated

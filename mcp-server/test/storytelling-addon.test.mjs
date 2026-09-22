@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { StorytellingAddon } from '../src/storytelling-addon.mjs';
+import { StorytellingAddon, scenePrepareSchema } from '../src/storytelling-addon.mjs';
 import { refreshDepthFixture, lifeConnections, lifeTrendsEdges, lifeTrendsNode } from './storytelling-life-fixture.mjs';
 
 const graphHash = 'a'.repeat(64);
@@ -242,4 +242,14 @@ test('private depth-review explanations constrain the stored scene and review au
   f.preparation.accessScopes.push('different-audience');
   const blocked = await f.addon.prepare(f.preparation);
   assert.ok(blocked.blockers.some((blocker) => blocker.code === 'incompatible-context-scopes'));
+});
+
+
+test('scene interval validation rejects a reversed end even when context is empty', async () => {
+  const f = fixture();
+  const preparation = { ...f.preparation, scene: { ...f.preparation.scene, context: [], worldTime: 4, worldTimeEnd: 3 } };
+  assert.throws(() => scenePrepareSchema.parse(preparation), /worldTimeEnd must not precede/);
+  await assert.rejects(f.addon.prepare(preparation), /worldTimeEnd must not precede/);
+  assert.equal(f.calls.length, 0, 'invalid scene intervals cannot mutate the graph');
+  assert.equal(scenePrepareSchema.parse({ ...preparation, scene: { ...preparation.scene, worldTimeEnd: 4 } }).scene.worldTimeEnd, 4, 'an instantaneous scene remains valid');
 });

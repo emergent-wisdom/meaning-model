@@ -99,7 +99,7 @@ test('alignment audit selects canon records by default, excludes the title and a
   assert.equal(task.records[0].evidenceCutoff, 6.5);
   assert.equal(task.evaluator, 'calling_llm');
   assert.equal(task.results, null);
-  assert.deepEqual(Object.keys(task.questions), ['narrates_canon.feeding', 'contradicts_canon.feeding', 'narrates_ctx.offer', 'contradicts_ctx.offer', 'leak_ctx.offer', 'unsupported_new_fact']);
+  assert.deepEqual(Object.keys(task.questions), ['narrates_canon.feeding', 'contradicts_canon.feeding', 'narrates_ctx.offer', 'contradicts_ctx.offer', 'leak_0', 'unsupported_new_fact']);
   assert.match(task.questions['narrates_canon.feeding'].instructions, /recorded as of time 6.5/);
   assert.deepEqual(task.chunks.map((chunk) => chunk.id), ['whole', 'scene-1-p1', 'scene-1-p2']);
   assert.equal(task.semanticVerification, false);
@@ -142,7 +142,7 @@ const oldModel = 'e'.repeat(64), newModel = 'f'.repeat(64);
 function modelFixture() {
   const calls = [];
   const definition = { id: 'm', time_unit: 'hour', revision: { number: 1, previous_model_hash: '1'.repeat(64), provenance: ['p'], reason: 'r' }, processes: [], meaning_model: { events: [{ id: 'event.kaj.state.h6', boundary: 'Kaj feeds the starter.', description: 'Funeral morning.' }, { id: 'event.silent' }], normalized_cuts: [{ id: 'cut.estimated.event.kaj.state.h6', parent_event_id: 'event.kaj.state.h6', question: 'old', unit: 'u', answers: [{ key: 'remainder', weight: 1 }], provenance: ['old'] }] } };
-  const graphView = { graph_hash: graphHash, content_included: true, source_snapshot_hash: snapshotHash, returned_node_count: 2, total_node_count: 2, returned_edge_count: 3, total_edge_count: 3, graph: { id: 'g', revision: { number: 4 }, source: { kind: 'model', model_hash: oldModel } }, roots: ['story'], nodes: [{ id: 'story', role: 'document_root', text: '# T', boundary: 'projection-only', content_included: true }, { id: 'depth-1', role: 'externalized_reflection', text: 'x', holder: 'a', access_scopes: ['s'] }], edges: [{ id: 'e1', source: { kind: 'node', node_id: 'story' }, target: { kind: 'node', node_id: 'depth-1' }, family: 'structural', relation: 'contains', order: 1, explanation: 'projection-only' }, { id: 'e2', source: { kind: 'node', node_id: 'depth-1' }, target: { kind: 'anchor', anchor_kind: 'model', anchor_id: oldModel }, family: 'grounding', relation: 'about' }, { id: 'e3', source: { kind: 'node', node_id: 'depth-1' }, target: { kind: 'anchor', anchor_kind: 'event', anchor_id: 'event.kaj.state.h6' }, family: 'grounding', relation: 'about' }] };
+  const graphView = { graph_hash: graphHash, content_included: true, source_snapshot_hash: snapshotHash, returned_node_count: 2, total_node_count: 2, returned_edge_count: 3, total_edge_count: 3, graph: { id: 'g', node_count: 2, edge_count: 3, root_count: 1, revision: { number: 4 }, source: { kind: 'model', model_hash: oldModel } }, roots: ['story'], nodes: [{ id: 'story', role: 'document_root', text: '# T', boundary: 'projection-only', content_included: true }, { id: 'depth-1', role: 'externalized_reflection', text: 'x', holder: 'a', access_scopes: ['s'] }], edges: [{ id: 'e1', source: { kind: 'node', node_id: 'story' }, target: { kind: 'node', node_id: 'depth-1' }, family: 'structural', relation: 'contains', order: 1, explanation: 'projection-only' }, { id: 'e2', source: { kind: 'node', node_id: 'depth-1' }, target: { kind: 'anchor', anchor_kind: 'model', anchor_id: oldModel }, family: 'grounding', relation: 'about' }, { id: 'e3', source: { kind: 'node', node_id: 'depth-1' }, target: { kind: 'anchor', anchor_kind: 'event', anchor_id: 'event.kaj.state.h6' }, family: 'grounding', relation: 'about' }] };
   const service = {
     async inspectModel({ modelHash, includeDefinition }) { calls.push(['inspect', modelHash]); if (modelHash === newModel) return { modelHash, summary: { revision: { number: 2, previous_model_hash: oldModel } } }; if (modelHash === oldModel) return { modelHash, summary: { revision: { number: 1, previous_model_hash: '1'.repeat(64) } }, ...(includeDefinition ? { model: structuredClone(definition) } : {}) }; return { modelHash, summary: { revision: { number: 0, previous_model_hash: null } } }; },
     async reviseModel(input) { calls.push(['revise', input]); return { modelHash: newModel, previousModelHash: input.previousModelHash, stored: true, summary: { normalized_cut_count: input.model.meaning_model.normalized_cuts.length } }; },
@@ -180,7 +180,7 @@ test('apply refuses duplicates without replaceExisting, unknown events, silent e
   await assert.rejects(proposeCutShares({ question: 'q', answers, modelHash: oldModel, events: [{ eventId: 'event.silent' }] }, fakeEstimator, f.service), /no boundary or description/);
   await assert.rejects(proposeCutShares({ question: 'q', answers, modelHash: oldModel, events: [{ eventId: 'event.kaj.state.h6' }], apply: true }, fakeEstimator, f.service), /requires requestId/);
   await assert.rejects(proposeCutShares({ question: 'q', answers, events: [{ eventId: 'event.kaj.state.h6' }] }, fakeEstimator, f.service), /require modelHash/);
-  await assert.rejects(proposeCutShares({ question: 'q', answers, situations: [{ id: 's', text: 't' }], apply: true, modelHash: oldModel, requestId: 'r' }, null, f.service), /configure an estimator or supply distributions/);
+  await assert.rejects(proposeCutShares({ question: 'q', answers, situations: [{ id: 's', parentEventId: 'event.kaj.state.h6', text: 't' }], apply: true, modelHash: oldModel, requestId: 'r-no-estimator' }, null, f.service), /configure an estimator or supply distributions/);
 });
 
 test('supplied distributions are placed without an estimator, and rebind moves the graph in the same call', async () => {
@@ -237,7 +237,7 @@ test('alignment audit can skip contradiction checks for knowledge-state records 
   assert.equal(batch.add_nodes[0].role, 'metadata');
   assert.equal(batch.add_nodes[0].node_type, 'alignment_audit');
   assert.equal(batch.add_nodes[0].render, 'exclude');
-  assert.equal(batch.add_nodes[0].evidence_type, 'ai_inference');
+  assert.equal(batch.add_nodes[0].evidence_type, 'estimate');
   assert.deepEqual(batch.add_nodes[0].access_scopes, ['story-author']);
   assert.deepEqual(batch.add_edges.map((edge) => edge.relation), ['contains', 'about']);
   assert.equal(JSON.parse(batch.add_nodes[0].text).evaluator, 'typesafe:jev-1.13.0');

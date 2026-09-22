@@ -55,7 +55,9 @@ export const scenePrepareSchema = z.object({
       id,
       instruction: z.string().trim().min(1).max(2_000),
     }).strict()).max(50).default([]),
-  }).strict(),
+  }).strict().refine((scene) => scene.worldTimeEnd === null || scene.worldTimeEnd >= scene.worldTime, {
+    path: ['worldTimeEnd'], message: 'scene.worldTimeEnd must not precede scene.worldTime.',
+  }),
 }).strict();
 
 export function viewpointAvailability(assignment, node, scene) {
