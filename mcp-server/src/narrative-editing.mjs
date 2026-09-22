@@ -274,13 +274,13 @@ export async function editNarrativeGraph(service, raw) {
       }
     }
   }
-  const reviewIds = new Set();
+  const reviewIds = new Set(); const directReviewIds = new Set();
   for (const current of [before, graph]) for (const edge of current.edges) {
     const from = sourceId(edge);
     const to = targetId(edge);
-    if (reviewTargets.has(from) && ['reviewed_by', 'reviewed_against'].includes(edge.relation) && to) reviewIds.add(to);
+    if (reviewTargets.has(from) && ['reviewed_by', 'reviewed_against'].includes(edge.relation) && to) { reviewIds.add(to); if (affected.has(from)) directReviewIds.add(to); }
     if (reviewTargets.has(to) && edge.relation === 'about'
-      && current.nodes.some((item) => item.id === from && item.role === 'externalized_reflection')) reviewIds.add(from);
+      && current.nodes.some((item) => item.id === from && item.role === 'externalized_reflection')) { reviewIds.add(from); if (affected.has(to)) directReviewIds.add(from); }
   }
   graph.revision = { number: before.revision.number + 1, previous_graph_hash: input.graphHash,
     reason: input.reason, provenance: [marker] };
@@ -291,6 +291,8 @@ export async function editNarrativeGraph(service, raw) {
   return { ...stored, operation: 'edit-narrative-graph', requestHash,
     changedNodeIds, changedEdgeIds, affectedNodeIds: [...affected].sort(),
     affectedReviewNodeIds: [...reviewIds].sort(),
+    directlyAffectedReviewNodeIds: [...directReviewIds].sort(),
+    ancestorReviewNodeIds: [...reviewIds].filter((reviewId) => !directReviewIds.has(reviewId)).sort(),
     reviewRefresh: 'Reassess affected prose, disclosure timing, and linked reviews against this successor. Existing review nodes are historical evidence; this edit does not renew their approval. Refresh any model-depth assessment whose selected evidence changed.',
     preservedPredecessor: true, worldMutation: false, semanticVerification: false,
     semanticLinkReassignment: false };

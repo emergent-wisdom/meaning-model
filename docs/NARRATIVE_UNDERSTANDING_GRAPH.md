@@ -35,6 +35,8 @@ Complete registration and revision enforce the corresponding global invariant: e
 
 `node_type` and `epistemic_status` are intentionally open vocabularies. Nodes also carry evidence type, uncertainty, holder/subject/estimator, time and evidence-cutoff metadata, provenance, authority, access scopes, and independent `render` and `training` inclusion policies. Both policies default to `exclude`. A node with nonempty text must have provenance and authority.
 
+Any record a character may later be shown knowing needs an `evidence_cutoff`; the storytelling scene checks refuse undated sources as viewpoint knowledge. Standing canon without a cutoff remains reader-facing.
+
 Story passages are canonical artifact units: the authoritative prose is the `text` stored in those Rust-owned nodes. An `externalized_reflection` is deliberately authored testimony about the work, not hidden model chain-of-thought. Rust requires it to have a holder and at least one access scope, and rejects any attempt to mark it for story rendering. It may be training-eligible only when explicitly marked and requested through an allowed scope.
 
 Choose units that can usefully change independently: a passage, an event
@@ -137,6 +139,9 @@ scope projection, which would drop hidden records. Supply the scopes needed
 for the entire selected graph; access remains the projection boundary described
 below. The receipt includes `changedNodeIds`, `changedEdgeIds`,
 `affectedNodeIds`, and `affectedReviewNodeIds`, with review-refresh guidance.
+`directlyAffectedReviewNodeIds` lists reviews linked to the changed nodes
+themselves; `ancestorReviewNodeIds` lists reviews linked only to their
+containers, such as whole-document assessments, which need a lighter check.
 
 These operations preserve structure and provenance, but do not reinterpret
 semantic links or establish that changed text still supports them. Inspect
@@ -160,7 +165,7 @@ Training export is a deterministic, read-only projection. It selects explicitly 
 | `life_narrative_revise` | `revise_narrative_graph` | Atomically register a complete immutable successor. |
 | `life_narrative_batch` | `apply_narrative_batch` | Add one or many connected roots, nodes, and edges as one immutable successor. |
 | `life_narrative_edit` | `query_narrative_graph`, then `revise_narrative_graph` | Apply split, merge, move, reorder, or guarded text replacement as one immutable successor. |
-| `life_narrative_query` | `query_narrative_graph` | Read a full, skeleton, or neighborhood projection. |
+| `life_narrative_query` | `query_narrative_graph` | Read a full, skeleton, or neighborhood projection; `forRevision` returns a full content projection stripped to the fields revise accepts. |
 | `life_narrative_render` | `render_narrative_graph` | Derive ordered story text from canonical nodes. |
 | `life_narrative_training_export` | `export_narrative_training` | Derive aligned text/state training records. |
 | `life_narrative_rebind` | `query_narrative_graph`, then `revise_narrative_graph` | Rebind a model-bound graph to a successor model as one complete successor, keeping every node and dropping only predecessor model anchors. |

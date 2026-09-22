@@ -137,6 +137,8 @@ test('merge retains original IDs and semantic evidence as history without render
   assert.deepEqual(byId(after.nodes, 'private.note'), byId(before.nodes, 'private.note'));
   assert.deepEqual(byId(after.edges, 'book.private'), byId(before.edges, 'book.private'));
   assert.deepEqual(result.affectedReviewNodeIds, ['review.about', 'review.scene']);
+  assert.deepEqual([...result.directlyAffectedReviewNodeIds, ...result.ancestorReviewNodeIds].sort(), result.affectedReviewNodeIds, 'direct and ancestor review lists partition the affected reviews');
+  assert.ok(result.directlyAffectedReviewNodeIds.every((id) => !result.ancestorReviewNodeIds.includes(id)));
   assert.ok(result.changedEdgeIds.includes('one.p1'), 'removed placements are explicit in the receipt');
   assert.deepEqual(await f.read(), before);
   assert.ok(!after.edges.some((item) => item.source.node_id === 'merged' && item.relation === 'contains'),

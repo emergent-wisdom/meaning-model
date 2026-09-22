@@ -1,3 +1,4 @@
+import { stripEdgeForRevision, stripNodeForRevision } from './narrative-fields.mjs';
 import { createHash, randomUUID } from 'node:crypto';
 
 import {
@@ -2082,9 +2083,12 @@ export class LifeSimulationService {
     direction = 'both',
     accessScopes = [],
     expectedGraphHash = null,
+    forRevision = false,
   }) {
     ensureHash(graphHash, 'graphHash');
     ensureBoundedStringArray(accessScopes, 'accessScopes', MAX_VIEW_ACCESS_SCOPES);
+    if (typeof forRevision !== 'boolean') throw new Error('forRevision must be boolean.');
+    if (forRevision && (mode !== 'full' || !includeContent)) throw new Error('forRevision requires mode full with includeContent.');
     if (!['full', 'skeleton', 'neighborhood'].includes(mode)) {
       throw new Error('mode must be full, skeleton, or neighborhood.');
     }
@@ -2110,10 +2114,13 @@ export class LifeSimulationService {
       narrativeQuery.depth = depth;
       narrativeQuery.direction = direction;
     }
-    return this.backend.call('query_narrative_graph', {
+    const result = await this.backend.call('query_narrative_graph', {
       narrative_graph_hash: graphHash,
       narrative_query: narrativeQuery,
     });
+    if (!forRevision) return result;
+    // Revision-safe projection: only fields the register/revise operations accept.
+    return { ...result, nodes: (result.nodes ?? []).map(stripNodeForRevision), edges: (result.edges ?? []).map(stripEdgeForRevision), for_revision: true };
   }
 
   async renderNarrativeGraph({

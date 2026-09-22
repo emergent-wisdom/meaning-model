@@ -266,7 +266,10 @@ The required paper-grounded flow is:
 1. `life_modeling_context` for ordered, version-bound reading.
 2. Read both complete theory resources, then the protocol, profile, and example.
    The server refuses `life_profile_compile` until both paper resources have
-   been accessed in the live MCP process.
+   been accessed in the live MCP process after the most recent
+   `life_modeling_context` call; reads made before that call are not counted.
+   `life-sim://example/minimal-model-and-graph` holds complete, test-verified
+   compile, register and graph payloads.
 3. For the supported Story, Person, or Decision conventions, optionally use
    `life_profile_compile` to obtain an ordinary complete model without storing
    it; otherwise author the model directly.

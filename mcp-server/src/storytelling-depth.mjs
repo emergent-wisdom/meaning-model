@@ -193,7 +193,13 @@ export function readModelDepthReview(view, input, lifeTrends) {
   }
   const current = modelDepthBasis(view, data.locator);
   if (current.basisHash !== data.basisHash || current.basis.modelHash !== data.modelHash
-    || current.basis.sourceSnapshotHash !== data.sourceSnapshotHash) throw new Error('Model-depth assessment is stale; review the changed model or story context.');
+    || current.basis.sourceSnapshotHash !== data.sourceSnapshotHash) {
+    const changed = [];
+    if (current.basis.modelHash !== data.modelHash) changed.push(`bound model (${data.modelHash.slice(0, 12)} -> ${current.basis.modelHash.slice(0, 12)})`);
+    if (current.basis.sourceSnapshotHash !== data.sourceSnapshotHash) changed.push('frozen source snapshot');
+    if (current.basisHash !== data.basisHash) changed.push(`selected story evidence (one or more of ${current.nodes.map((item) => item.id).join(', ')} or their edges changed since ${input.modelDepthReviewNodeId} was recorded)`);
+    throw new Error(`Model-depth assessment ${input.modelDepthReviewNodeId} is stale: ${changed.join('; ')}. Run life_story_model_depth_review with the same focus and context and record a new assessment.`);
+  }
   const reviewed = new Set(current.nodes.map((item) => item.id));
   if (input.scene.context.some((item) => !reviewed.has(item.nodeId))) throw new Error('Scene context extends beyond the depth review; review the additional explanatory context.');
   const rooted = (view.edges ?? []).some((edge) => edge.family === 'structural' && edge.relation === 'contains'

@@ -50,7 +50,7 @@ function requireTheoryAccessForProfileCompilation() {
   const missing = modelingTheoryUris.filter((uri) => !accessedTheoryResources.has(uri));
   if (missing.length > 0) {
     throw new Error(
-      `Paper-first gate: read the complete required theory resources before profile compilation: ${missing.join(', ')}. Resource access is verified only within this live MCP process and does not prove comprehension.`,
+      `Paper-first gate: read the complete required theory resources before profile compilation: ${missing.join(', ')}. The access record starts at the most recent life_modeling_context call (except sessionMode repeat_same_domain); reads made before that call are not counted, so call life_modeling_context first and then read both resources. Access is verified only within this live MCP process and does not prove comprehension.`,
     );
   }
 }
@@ -131,7 +131,7 @@ server.registerTool(
 server.registerTool(
   'life_profile_compile',
   {
-    description: 'Optional shortcut after both complete theory resources have been read in this live MCP process: compile Story, Person, Decision, concept_scaffold, change_arc_scaffold, person_scaffold, thing_scaffold, or relationship_scaffold profiles in Rust into an ordinary revision-0 ModelDefinition. The modeler may instead author a model directly with application-specific categories. Structural starters are unweighted by default; person_scaffold offers lifecycle alone or Book-style processes (the existing default). Story and Decision add experimental numerical meanings and behavioural laws, not universal rules; inspect these assumptions before choosing them. This read-only operation never registers or persists the result. Adapt it before life_model_register, or use an explicit successor revision for later category changes.',
+    description: 'Optional shortcut after both complete theory resources have been read in this live MCP process: compile Story, Person, Decision, concept_scaffold, change_arc_scaffold, person_scaffold, thing_scaffold, or relationship_scaffold profiles in Rust into an ordinary revision-0 ModelDefinition. The modeler may instead author a model directly with application-specific categories. Structural starters are unweighted by default; person_scaffold offers lifecycle alone or Book-style processes (the existing default). Story and Decision add experimental numerical meanings and behavioural laws, not universal rules; inspect these assumptions before choosing them. This read-only operation never registers or persists the result. Adapt it before life_model_register, or use an explicit successor revision for later category changes. A complete valid request, model and graph are shown in life-sim://example/minimal-model-and-graph.',
     inputSchema: z.object({
       profileRequest: z.record(z.string(), z.unknown()),
     }),
@@ -168,7 +168,7 @@ server.registerTool(
 server.registerTool(
   'life_model_register',
   {
-    description: 'Validate, hash, and store one complete immutable revision-0 typed model in the Rust machine.',
+    description: 'Validate, hash, and store one complete immutable revision-0 typed model in the Rust machine. A complete valid request, model and graph are shown in life-sim://example/minimal-model-and-graph.',
     inputSchema: z.object({
       requestId: requestIdSchema,
       model: z.record(z.string(), z.unknown()),
@@ -440,7 +440,7 @@ server.registerTool(
 server.registerTool(
   'life_narrative_register',
   {
-    description: 'Register a complete immutable revision-0 graph-native story/understanding artifact in the Rust authority. Story passages remain canonical nodes, externalized reflections remain distinct scope-guarded testimony, and typed edges may target stable model objects or validated nested subpaths. Read life-sim://protocol/narrative-understanding-graph before first use. This layer is optional and does not mutate the bound world.',
+    description: 'Register a complete immutable revision-0 graph-native story/understanding artifact in the Rust authority. Story passages remain canonical nodes, externalized reflections remain distinct scope-guarded testimony, and typed edges may target stable model objects or validated nested subpaths. Read life-sim://protocol/narrative-understanding-graph before first use. This layer is optional and does not mutate the bound world. A complete valid request, model and graph are shown in life-sim://example/minimal-model-and-graph.',
     inputSchema: z.object({
       requestId: requestIdSchema,
       narrativeGraph: z.record(z.string(), z.unknown()),
@@ -503,6 +503,7 @@ server.registerTool(
         .max(serviceLimits.maxViewAccessScopes)
         .default([]),
       expectedGraphHash: z.string().length(64).nullable().default(null),
+      forRevision: z.boolean().default(false),
     }),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },

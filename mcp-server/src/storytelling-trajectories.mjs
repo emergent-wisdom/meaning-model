@@ -110,7 +110,7 @@ export const trajectoryExploreSchema = z.object({
   seed: id.nullable().default(null),
 }).strict().superRefine((input, ctx) => checkPoints(input.definition, input.points, ctx));
 
-const editSchema = z.object({ pointId: id, axisId: id, value: number, reason: prose }).strict();
+const editSchema = z.object({ pointId: id, axisId: id, value: number, reason: prose, compensateAxisId: id.optional() }).strict();
 const candidateSchema = z.object({
   id, points: pointsSchema,
   sampling: z.object({ algorithm: z.literal(ALGORITHM), seed: id, randomness: number.min(0).max(1),
@@ -118,7 +118,7 @@ const candidateSchema = z.object({
   revision: z.object({
     number: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
     parentCandidateHash: hash.nullable(), reason: prose.nullable(),
-    changes: z.array(editSchema.extend({ previousValue: number })).max(192),
+    changes: z.array(editSchema.extend({ previousValue: number, compensatedPreviousValue: number.optional(), compensatedValue: number.optional() })).max(192),
   }).strict(),
   candidateHash: hash,
 }).strict();
@@ -231,6 +231,19 @@ export function reviseTrajectory(raw) {
     if (point.fixed.includes(edit.axisId)) throw new Error('A fixed value cannot be changed by trajectory exploration; revise the accepted model explicitly if justified.');
     const previousValue = point.values[edit.axisId];
     point.values[edit.axisId] = edit.value;
+    if (edit.compensateAxisId !== undefined) {
+      const group = definition.allocations.find((item) => item.axisIds.includes(edit.axisId) && item.axisIds.includes(edit.compensateAxisId));
+      if (!group) throw new Error('compensateAxisId must share an allocation group with the revised axis.');
+      if (edit.compensateAxisId === edit.axisId || point.fixed.includes(edit.compensateAxisId)) throw new Error('The compensating axis must be a different, unfixed axis.');
+      if (seen.has(JSON.stringify([edit.pointId, edit.compensateAxisId]))) throw new Error('The compensating axis was already revised in this batch.');
+      const axis = definition.axes.find((item) => item.id === edit.compensateAxisId);
+      const compensated = point.values[edit.compensateAxisId] + (previousValue - edit.value);
+      if (compensated < axis.minimum - 1e-12 || compensated > axis.maximum + 1e-12) throw new Error('The compensating axis would leave its bounds; revise the allocation explicitly.');
+      const compensatedPrevious = point.values[edit.compensateAxisId];
+      point.values[edit.compensateAxisId] = Math.min(axis.maximum, Math.max(axis.minimum, compensated));
+      seen.add(JSON.stringify([edit.pointId, edit.compensateAxisId]));
+      return { ...edit, previousValue, compensatedPreviousValue: compensatedPrevious, compensatedValue: point.values[edit.compensateAxisId] };
+    }
     return { ...edit, previousValue };
   });
   candidate.revision = { number: previous.revision.number + 1,

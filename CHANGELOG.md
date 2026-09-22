@@ -19,6 +19,17 @@ unpublished work stays under Unreleased. This is not a development transcript.
   successor model, keeping every node and dropping only predecessor model anchors.
   Weights and scores are AI inference; nothing enters the model or graph without an
   explicit `apply` or `record`.
+- Reduce authoring friction found in the 2026-09-22 dogfood run. Serve
+  `life-sim://example/minimal-model-and-graph` with complete, test-verified compile,
+  model and graph payloads, and point the registration tools at it. Say in the
+  paper-first gate message that the access record starts at `life_modeling_context`.
+  Add `forRevision` to `life_narrative_query` so a full read can be resubmitted as a
+  successor. Accept an optional scene `worldTimeEnd` so knowledge acquired during a
+  scene can be declared. Accept `compensateAxisId` in trajectory revisions. Name the
+  changed component in stale depth-assessment errors, distinguish a missing draft
+  node from a text mismatch in review errors, and report directly affected reviews
+  separately from container reviews in edit receipts. Document field types and the
+  allocation `id` in the add-on guide.
 
 - Add the shared `life_narrative_edit` tool for atomic passage splitting,
   merging, moving, reordering and local text changes through immutable Rust

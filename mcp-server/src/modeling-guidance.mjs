@@ -110,6 +110,15 @@ const resourceDefinitions = Object.freeze([
     category: 'example',
   },
   {
+    id: 'minimal-model-and-graph-example',
+    uri: 'life-sim://example/minimal-model-and-graph',
+    title: 'Minimal Model and Graph: complete valid payloads',
+    description: 'Copyable, test-verified payloads for life_profile_compile, life_model_register (one referent, events, a scalar process and a normalized Cut) and life_narrative_register (one document root and one dated canon record with anchors).',
+    mimeType: 'text/markdown',
+    file: new URL('../../docs/examples/MINIMAL-MODEL-AND-GRAPH.md', import.meta.url),
+    category: 'example',
+  },
+  {
     id: 'application-categories-example',
     uri: 'life-sim://example/application-categories',
     title: 'Application-Specific Categories and Revision',

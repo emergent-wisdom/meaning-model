@@ -35,6 +35,7 @@ export const scenePrepareSchema = z.object({
     parentNodeId: id,
     order,
     worldTime: time,
+    worldTimeEnd: time.nullable().default(null).describe('Optional end of the scene in world time. Knowledge available to the viewpoint by this time may be declared; defaults to worldTime.'),
     readerOrder: order,
     viewpoint: id,
     brief: z.string().trim().min(1).max(10_000),
@@ -56,6 +57,14 @@ export const scenePrepareSchema = z.object({
     }).strict()).max(50).default([]),
   }).strict(),
 }).strict();
+
+export function viewpointAvailability(assignment, node, scene) {
+  const sceneEnd = scene.worldTimeEnd ?? scene.worldTime;
+  if (scene.worldTimeEnd !== null && scene.worldTimeEnd !== undefined && scene.worldTimeEnd < scene.worldTime) throw new Error('scene.worldTimeEnd must not precede scene.worldTime.');
+  const declaredKnown = assignment.viewpointKnownAt !== null && assignment.viewpointKnownAt <= sceneEnd;
+  const cutoffSafe = Number.isFinite(node.evidence_cutoff) && node.evidence_cutoff <= sceneEnd;
+  return { sceneEnd, declaredKnown, cutoffSafe, available: declaredKnown && cutoffSafe };
+}
 
 export const sceneReviewSchema = z.object({
   preparation: scenePrepareSchema,
@@ -466,13 +475,12 @@ export class StorytellingAddon {
       if (node.node_type === 'storytelling.author_model') {
         throw new Error('Author models are author-only; select authorModelNodeId instead of assigning character or reader knowledge.');
       }
-      const declaredKnown = assignment.viewpointKnownAt !== null && assignment.viewpointKnownAt <= scene.worldTime;
-      const cutoffSafe = Number.isFinite(node.evidence_cutoff) && node.evidence_cutoff <= scene.worldTime;
-      if (declaredKnown && !cutoffSafe) {
+      const availability = viewpointAvailability(assignment, node, scene);
+      if (availability.declaredKnown && !availability.cutoffSafe) {
         blockers.push({ code: 'viewpoint-evidence-cutoff', nodeId: node.id,
-          explanation: 'Declared viewpoint knowledge requires source evidence_cutoff at or before scene worldTime.' });
+          explanation: `Declared viewpoint knowledge at ${assignment.viewpointKnownAt} requires the source's evidence_cutoff (${node.evidence_cutoff ?? 'none'}) to be at or before the scene end time ${availability.sceneEnd}.` });
       }
-      const viewpointAvailable = declaredKnown && cutoffSafe;
+      const viewpointAvailable = availability.available;
       const readerStatus = assignment.readerKnownAt === null || assignment.readerKnownAt > scene.readerOrder
         ? 'withhold' : assignment.readerKnownAt === scene.readerOrder ? 'reveal' : 'known';
       checks.push(
@@ -546,9 +554,13 @@ export class StorytellingAddon {
     const draft = draftView.nodes.find((node) => node.id === input.draftNodeId);
     let draftText;
     try { draftText = JSON.parse(draft?.text).text; } catch { /* Checked below. */ }
-    if (!draft || draft.node_type !== 'storytelling.draft' || draft.subject !== packet.authorLifeTrends.dossier.storyRootId
-      || draft.render !== 'exclude' || draftText !== input.text) {
-      throw new Error('Review requires the exact draft saved in this story graph with life_story_author_record.');
+    if (!draft) throw new Error(`Draft node ${input.draftNodeId} is not visible in graph revision ${packet.graphHash}; review needs the exact draft saved in this story graph. Store the draft with life_story_author_record on this revision, or prepare against the revision that holds it; an earlier graph hash may be a different branch.`);
+    if (draft.node_type !== 'storytelling.draft' || draft.subject !== packet.authorLifeTrends.dossier.storyRootId || draft.render !== 'exclude') {
+      throw new Error(`Node ${input.draftNodeId} is not a stored draft for this story; review needs the exact draft saved with life_story_author_record kind draft.`);
+    }
+    if (draftText !== input.text) {
+      let offset = 0; const stored = draftText ?? ''; while (offset < Math.min(stored.length, input.text.length) && stored[offset] === input.text[offset]) offset += 1;
+      throw new Error(`Review text differs from the exact draft stored as ${input.draftNodeId} at UTF-16 offset ${offset} (stored ${stored.length} characters, supplied ${input.text.length}). Review the exact stored text or store a new draft.`);
     }
     let passages;
     if (input.passages) {

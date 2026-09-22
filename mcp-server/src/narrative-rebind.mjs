@@ -4,8 +4,8 @@ import * as z from 'zod/v4';
 
 const id = z.string().trim().min(1).max(1_024);
 const hash = z.string().length(64);
-export const NODE_FIELDS = Object.freeze(['id', 'node_type', 'role', 'title', 'text', 'summary', 'epistemic_status', 'evidence_type', 'holder', 'subject', 'estimator', 'uncertainty', 'authority', 'value_time', 'evidence_cutoff', 'interval', 'access_scopes', 'render', 'training', 'provenance']);
-export const EDGE_FIELDS = Object.freeze(['id', 'source', 'target', 'family', 'relation', 'order', 'access_scopes', 'provenance']);
+import { stripEdgeForRevision, stripNodeForRevision } from './narrative-fields.mjs';
+export { NODE_FIELDS, EDGE_FIELDS, stripNodeForRevision, stripEdgeForRevision } from './narrative-fields.mjs';
 const MAX_LINEAGE_STEPS = 256;
 
 export const narrativeRebindSchema = z.object({
@@ -15,10 +15,6 @@ export const narrativeRebindSchema = z.object({
   accessScopes: z.array(id).max(32).default([]),
   reason: z.string().trim().min(1).max(4_000).default('Rebind the narrative graph to a successor model revision.'),
 }).strict();
-
-const pick = (record, fields) => Object.fromEntries(Object.entries(record).filter(([key, value]) => fields.includes(key) && value !== null && value !== undefined));
-export const stripNodeForRevision = (node) => pick(node, NODE_FIELDS);
-export const stripEdgeForRevision = (edge) => pick(edge, EDGE_FIELDS);
 
 export async function assertModelSuccessor(service, previousModelHash, modelHash) {
   let cursor = modelHash;

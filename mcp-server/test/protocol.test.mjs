@@ -188,6 +188,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
     });
     assert.equal(blockedCompile.isError, true);
     assert.match(blockedCompile.content[0].text, /Paper-first gate/);
+    assert.match(blockedCompile.content[0].text, /access record starts at the most recent life_modeling_context/);
 
     const meaningPaper = await client.readResource({
       uri: 'life-sim://theory/meaning-model',

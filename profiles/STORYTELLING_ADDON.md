@@ -144,9 +144,10 @@ readable summary in `text`, and the typed model in `data`:
 - `mode`: `real_author` or `fictional_author`, plus `label` and `modeledAuthorId`;
 - `basis`: entries with `id`, `kind`, and `description`. Kinds are
   `author_statement`, `writing_sample`, `interpretation`, or `invented`;
-- `dispositions`: entries with `id`, `basisIds`, `outlookOrHabit`,
-  `writingConsequences`, `usefulContexts`, `risksOrCounterweights`, and
-  `dimensionIds`;
+- `dispositions`: entries with `id`, `basisIds` (array of basis IDs),
+  `outlookOrHabit` (string), `writingConsequences` (array of strings),
+  `usefulContexts` (string), `risksOrCounterweights` (string), and
+  `dimensionIds` (array, may be empty);
 - optional `dimensions`: entries with `id`, `meaning`, `comparisonQuestion`,
   `unit`, `minimum`, `maximum`, and `value`.
 
@@ -321,7 +322,7 @@ as a life. Give each number a declared meaning: a share of available attention
 allocated to seeking company is different from a count of social encounters.
 There is no built-in universal happiness, shock, or personality scale.
 
-Optional disjoint allocation groups supply a `question`, `axisIds`, and `total`.
+Optional disjoint allocation groups supply an `id`, a `question`, `axisIds`, and `total`.
 Use these when the axes divide one quantity among mutually exclusive answers;
 the sampler preserves their total, including fixed allocations. Independent
 axes need not sum to anything. Declare exclusions and remainders honestly;
@@ -347,8 +348,10 @@ Prefer a useful local revision to discarding a promising character. Use
 `life_story_trajectory_revise` to change selected numerical point values with
 explicit reasons. Input is `{record, sourceNodeId, candidateId, reason, changes}`.
 It reads the original from the graph. Each change has `pointId`, `axisId`,
-`value`, and `reason`; an empty changes array records an interpretation-only
-revision. It saves a new Understanding Node containing the numbers and reasons,
+`value`, and `reason`, and may name a `compensateAxisId` in the same allocation
+group that absorbs the difference exactly, so a share can be moved without
+computing the other value from the stored floats; an empty changes array
+records an interpretation-only revision. It saves a new Understanding Node containing the numbers and reasons,
 linked to the original with `refines`. It retains unlisted and fixed values, checks the original
 bounds and allocation totals, and binds the result to its parent candidate
 hash. If a revised allocation raises one component, explicitly revise the
@@ -633,7 +636,8 @@ The scene fields are:
 | `id` | Identity for the scene being added |
 | `parentNodeId` | Existing narrative parent to which the scene will be attached |
 | `order` | Nonnegative safe integer specifying child order under that parent |
-| `worldTime` | The scene's time in the world chronology |
+| `worldTime` | The scene's start in the world chronology |
+| `worldTimeEnd` | Optional end of the scene; knowledge the viewpoint acquires by this time may be declared. Defaults to `worldTime`. |
 | `readerOrder` | Nonnegative safe integer specifying the scene's position in the authored disclosure sequence |
 | `viewpoint` | Authored holder label; use the stable `characterId` for a principal viewpoint so preparation can require that character's connection |
 | `brief` | What this scene should accomplish |
@@ -648,14 +652,16 @@ scene. The timing rules distinguish character access from reader disclosure:
 
 | Timing | Meaning in the prepared scene |
 | --- | --- |
-| `viewpointKnownAt <= worldTime` | Available to the viewpoint, provided the source node has an `evidence_cutoff` no later than `worldTime` |
+| `viewpointKnownAt <= worldTimeEnd` (or `worldTime` when no end is declared) | Available to the viewpoint, provided the source node has an `evidence_cutoff` no later than that time |
 | Later or null `viewpointKnownAt` | Unavailable to the viewpoint |
 | `readerKnownAt < readerOrder` | Already known to the reader |
 | `readerKnownAt == readerOrder` | Must be revealed in this scene |
 | Later or null `readerKnownAt` | Withheld from the reader |
 
 Declaring viewpoint knowledge without the required source cutoff produces a
-preparation blocker. A source's cutoff supports its declared temporal boundary;
+preparation blocker. A standing canon record without an `evidence_cutoff` can
+never be declared as viewpoint knowledge; give every fact a character may be
+shown knowing a dated context node, and keep undated canon reader-facing. A source's cutoff supports its declared temporal boundary;
 the reviewer still assesses whether the authored knowledge timing is justified.
 
 `readerKnownAt` uses the same nonnegative integer sequence as `readerOrder`.
