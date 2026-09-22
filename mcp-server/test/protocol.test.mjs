@@ -111,6 +111,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_candidate_reroll',
       'life_candidate_roll',
       'life_candidate_route',
+      'life_direction_draw',
       'life_engine_status',
       'life_estimate_cut_shares',
       'life_estimation_proposal_inspect',
@@ -259,6 +260,12 @@ test('official MCP client discovers and calls the local stdio server', async () 
       uri: 'life-sim://protocol/narrative-understanding-graph',
     });
     assert.match(narrativeProtocol.contents[0].text, /additive atomic batches/);
+    const sameContextCheck = await client.callTool({
+      name: 'life_modeling_context',
+      arguments: { purpose: 'person_reflection', sessionMode: 'first_use' },
+    });
+    assert.equal(sameContextCheck.structuredContent.theoryAccessGate.satisfied, true,
+      'checking the gate again for the same purpose must not erase the reading record');
     const repeatContext = await client.callTool({
       name: 'life_modeling_context',
       arguments: { purpose: 'person_reflection', sessionMode: 'repeat_same_domain' },
@@ -279,6 +286,9 @@ test('official MCP client discovers and calls the local stdio server', async () 
       operation: 'registerModel',
       explicit: true,
     });
+    const contextTool = tools.find(({ name }) => name === 'life_modeling_context');
+    assert.equal(contextTool.annotations.readOnlyHint, false, 'a call that can begin a new access record is not read-only');
+    assert.match(contextTool.description, /same purpose keeps that reading record/);
     const newDomainContext = await client.callTool({
       name: 'life_modeling_context',
       arguments: { purpose: 'observation', sessionMode: 'new_domain' },

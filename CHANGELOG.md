@@ -6,6 +6,23 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Add `life_direction_draw`: the server computes a seeded draw over a registered
+  model's normalized Cut and can record it in a graph bound to that model. An
+  earlier draw over the same Cut is reported and linked, so a second draw is a
+  visible reroll rather than a silent replacement.
+- Keep the paper-first access record when `life_modeling_context` is called again
+  for the same purpose, so the gate can be checked after reading; a different
+  purpose, `new_domain` or `consequential` still begins a new record. The tool is
+  no longer annotated read-only.
+- Return the successor graph as `graphHash` from a recorded alignment audit, with
+  the audited revision as `auditedGraphHash`, so later writes do not branch from
+  the pre-audit graph.
+- Name the finding and the node when a model-depth record cites evidence outside
+  the reviewed context.
+- Warn at exploration time when a life trajectory's first point is after birth,
+  before a life-trends dossier would reject it.
+- Lead each storytelling tool description with what the tool does and include the
+  intake rule once; the scene-start prompt no longer repeats it.
 - Prompt every modeling purpose to consider authored numerical judgment scales,
   useful conceptual decomposition, and variation across dates or perspectives.
   Require these considerations before general world construction, with actual

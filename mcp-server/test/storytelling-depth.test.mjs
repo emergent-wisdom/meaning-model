@@ -104,6 +104,14 @@ test('depth preparation reads the frozen source model and binds the exact task',
   await assert.rejects(recordModelDepthReview(f.service,
     assessment(f.preparation, task, { expectedTaskHash: 'e'.repeat(64) })), /task changed/);
   assert.equal(f.writes.length, 0);
+  const outside = assessment(f.preparation, task);
+  outside.findings[0].evidence = [{ kind: 'node', nodeId: 'not-reviewed' }, { kind: 'model', path: '/processes/0/initial_value' }];
+  await assert.rejects(recordModelDepthReview(f.service, outside), (error) => {
+    assert.match(error.message, /finding 0/);
+    assert.match(error.message, /cites node not-reviewed, which is outside the reviewed evidence/);
+    return true;
+  });
+  assert.equal(f.writes.length, 0);
   f.service.inspectModel = async () => ({ modelHash: 'f'.repeat(64), model: f.model });
   await assert.rejects(prepareModelDepthReview(f.service, f.preparation), /exact bound model/);
 });

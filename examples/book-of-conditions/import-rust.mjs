@@ -1,6 +1,7 @@
 // A retrospective import of the accepted artifact, not a replay of its authorship.
 // No story text or psychological weight is generated here.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import assert from 'node:assert/strict';
@@ -321,9 +322,21 @@ export function augmentModel(base, sourceDigest) {
 
 export function engine(binary, operation, fields = {}, state = null) {
   const args = state ? ['--state-file', state] : [];
-  const result = JSON.parse(execFileSync(binary, args, { input: JSON.stringify({ schema: commandSchema, operation, ...fields }), encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 }));
-  assert(result.ok, `${operation}: ${JSON.stringify(result.error)}`);
-  return result;
+  // Commands here are about a megabyte. Piping them through execFileSync's input intermittently
+  // deadlocked (the engine waiting for the rest of stdin, Node waiting for the engine to exit),
+  // so the command goes to a file that becomes the engine's stdin and reaches EOF deterministically.
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'book-engine-command-'));
+  const file = path.join(scratch, 'command.json');
+  fs.writeFileSync(file, JSON.stringify({ schema: commandSchema, operation, ...fields }));
+  const stdin = fs.openSync(file, 'r');
+  try {
+    const result = JSON.parse(execFileSync(binary, args, { stdio: [stdin, 'pipe', 'pipe'], encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 }));
+    assert(result.ok, `${operation}: ${JSON.stringify(result.error)}`);
+    return result;
+  } finally {
+    fs.closeSync(stdin);
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
 }
 
 export function runImport(out, binary = defaultEngine) {

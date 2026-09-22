@@ -251,6 +251,13 @@ test('storytelling opt-in adds only its tools, resource, and prompts to the live
   assert.match(startText, /overall life|whole.life|longitudinal/iu);
   assert.match(startText, /not a form for the user|do not ask the user/iu,
     'routine lifetime modeling is the LLM’s job, not a newly required user form');
+  const preamble = "Respect the human author's starting brief and chosen involvement.";
+  const count = (text) => text.split(preamble).length - 1;
+  assert.ok(count(startText) <= 1, `the start prompt repeats the intake preamble ${count(startText)} times`);
+  for (const tool of enabledTools.tools.filter(({ name }) => name.startsWith('life_story_'))) {
+    assert.ok(count(tool.description) <= 1, `${tool.name} repeats the intake preamble`);
+    assert.ok(!tool.description.startsWith(preamble), `${tool.name} should lead with what it does, not the shared preamble`);
+  }
 });
 
 test('storytelling structure exploration works before modeling and transports prompt constraints as data', async (t) => {

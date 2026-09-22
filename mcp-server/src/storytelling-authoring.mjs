@@ -135,7 +135,13 @@ export async function exploreStoredTrajectory(service, raw) {
   const task = prepareTrajectoryExplore({ ...input.exploration, seed });
   const receipt = await storeAuthorRecord(service, { ...input.record, kind: 'candidate',
     text: 'Numerical trajectory alternatives, unaccepted and awaiting authored assessment.', data: task });
-  return { ...task, ...receipt, seedSource: input.exploration.seed === null ? 'request_derived' : 'caller_supplied',
+  // A life-trends dossier later requires numerical points from lifeBeginning; say so now, before the
+  // candidates are assessed, repaired and adopted.
+  const earliest = Math.min(...task.baseline.points.map((point) => point.at));
+  const warnings = task.definition.targetKind === 'life' && earliest > 0
+    ? [`The earliest life point is at ${earliest} (${task.definition.timeUnit}). A life-trends dossier requires numerical points from its lifeBeginning: that may be this point only if it is the earliest established phase of an unknown origin; if the dossier starts at birth, life_story_life_trends will reject this candidate. In that case add a point at lifeBeginning now, fixing any axis that does not yet apply at a stated conventional value. Points are sampled independently, so re-exploring with the same seed and one added point leaves every other point's values unchanged.`]
+    : [];
+  return { ...task, ...receipt, warnings, seedSource: input.exploration.seed === null ? 'request_derived' : 'caller_supplied',
     nextStep: 'Assess the stored candidates through life_story_author_record, linked about this record. Keep, locally revise, or discard; no automatic acceptance.' };
 }
 

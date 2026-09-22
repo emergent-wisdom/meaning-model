@@ -170,6 +170,7 @@ Training export is a deterministic, read-only projection. It selects explicitly 
 | `life_narrative_training_export` | `export_narrative_training` | Derive aligned text/state training records. |
 | `life_narrative_rebind` | `query_narrative_graph`, then `revise_narrative_graph` | Rebind a model-bound graph to a successor model as one complete successor, keeping every node and dropping only predecessor model anchors. |
 | `life_narrative_alignment_audit` | `render_narrative_graph`, then `query_narrative_graph` | Read-only: generate narrated/contradicted/leaked questions from the graph's records for a rendered unit, per passage and whole; optionally scored by the configured external estimator. |
+| `life_direction_draw` | `inspect_model`, then `query_narrative_graph` and `apply_narrative_batch` when recording | Compute a seeded draw over a model's normalized Cut; optionally record it in a graph bound to that model, linking earlier draws over the same Cut as rerolls. |
 
 The five mutations require request IDs and are idempotent. The query and render tools are read-only; the alignment audit is read-only unless `record` is supplied, and it contacts an external service only when `MEANING_MODEL_ESTIMATOR` is set.
 

@@ -153,7 +153,7 @@ the MCP server. To let TypeSafe's Jev score the estimator tools
 (`life_estimate_cut_shares`, `life_model_ingest`, `life_narrative_alignment_audit`) instead of
 returning their questions to you, add `MEANING_MODEL_ESTIMATOR: "typesafe"` and
 `TYPESAFE_API_KEY` to the same `env`; with that setting the text given to those
-two tools is sent to TypeSafe. Everything else stays local. The add-on exposes twelve tools: `life_story_structure_explore`,
+tools is sent to TypeSafe. Everything else stays local. The add-on exposes twelve tools: `life_story_structure_explore`,
 `life_story_trajectory_explore`, `life_story_trajectory_revise`,
 `life_story_author_record`, `life_story_life_trends`,
 `life_story_model_depth_review`, `life_story_model_depth_record`,

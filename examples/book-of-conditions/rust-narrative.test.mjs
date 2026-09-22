@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -96,10 +99,19 @@ function execute(commands) {
   // Never inherit a user's persistence target: all validation runs are in-memory.
   const env = { ...process.env };
   delete env.LIFE_SIM_STATE_FILE;
-  const run = spawnSync(binary, ["--ndjson"], {
-    input: commands.map((entry) => JSON.stringify(entry)).join("\n") + "\n",
-    encoding: "utf8", maxBuffer: 8 * 1024 * 1024, env,
-  });
+  // The commands carry the whole model (about a megabyte); pass them as a file on stdin rather than
+  // through spawnSync's input pipe, which intermittently deadlocked (see import-rust.mjs).
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "book-narrative-commands-"));
+  const file = path.join(scratch, "commands.ndjson");
+  fs.writeFileSync(file, commands.map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+  const stdin = fs.openSync(file, "r");
+  let run;
+  try {
+    run = spawnSync(binary, ["--ndjson"], { stdio: [stdin, "pipe", "pipe"], encoding: "utf8", maxBuffer: 8 * 1024 * 1024, env });
+  } finally {
+    fs.closeSync(stdin);
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
   if (run.error) throw run.error;
   assert.equal(run.status, 0, run.stderr);
   const responses = run.stdout.trim().split("\n").map((line) => JSON.parse(line));

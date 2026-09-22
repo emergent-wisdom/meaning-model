@@ -225,6 +225,24 @@ test('stale reads, missing content and reused node IDs cannot produce author rec
   assert.equal(f.writes.length, 1);
 });
 
+test('life exploration warns when its first point is after birth, and an added point leaves the others unchanged', async () => {
+  const f = fixture();
+  const late = await exploreStoredTrajectory(f.service, { record: record({ nodeId: 'life.late' }), exploration: { ...exploration(), seed: 'coverage-seed' } });
+  assert.equal(late.warnings.length, 1);
+  assert.match(late.warnings[0], /earliest life point is at 8/);
+  assert.match(late.warnings[0], /lifeBeginning/);
+  const withBirth = exploration();
+  withBirth.points.unshift({ id: 'birth', at: 0, label: 'Birth', values: { trust: 0.9 }, fixed: ['trust'] });
+  const covered = await exploreStoredTrajectory(f.service, { record: record({ requestId: 'birth-request', nodeId: 'life.covered' }), exploration: { ...withBirth, seed: 'coverage-seed' } });
+  assert.deepEqual(covered.warnings, []);
+  for (const [index, candidate] of late.candidates.entries()) {
+    for (const point of candidate.points) {
+      assert.deepEqual(covered.candidates[index].points.find((item) => item.id === point.id).values, point.values,
+        'sampling is per point, so adding a birth point with the same seed keeps every other value');
+    }
+  }
+});
+
 test('trajectory exploration persists all numerical proposals and request-derived seeds replay exactly', async () => {
   const f = fixture();
   const input = { record: record({ nodeId: 'life.candidates' }), exploration: exploration() };

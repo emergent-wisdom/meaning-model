@@ -314,8 +314,12 @@ The required paper-grounded flow is:
 1. `life_modeling_context` for ordered, version-bound reading.
 2. Read both complete theory resources, then the protocol, profile, and example.
    The server refuses `life_profile_compile` until both paper resources have
-   been accessed in the live MCP process after the most recent
-   `life_modeling_context` call; reads made before that call are not counted.
+   been accessed in the live MCP process since the access record began. The
+   first `life_modeling_context` call, a call with a different purpose, and
+   `sessionMode` `new_domain` or `consequential` begin a new record; reads
+   made before it are not counted. Calling it again for the same purpose, or
+   with `repeat_same_domain`, keeps the record, so the call can be used to
+   check `theoryAccessGate` after reading.
    `life-sim://example/minimal-model-and-graph` holds complete, test-verified
    compile, register and graph payloads.
 3. For the supported Story, Person, or Decision conventions, optionally use
@@ -327,7 +331,10 @@ The required paper-grounded flow is:
 6. `life_estimation_request_create` and
    `life_estimation_response_submit` for data or candidate semantic changes.
 7. Review explicitly; register any successor model separately.
-8. Roll, inspect, compare, and reject or accept complete candidates.
+8. Roll, inspect, compare, and reject or accept complete candidates. To decide a
+   continuation from a direction Cut, draw with `life_direction_draw` and a seed
+   fixed beforehand; recorded draws make any later draw over the same Cut a
+   visible reroll.
 9. Optionally use `life_candidate_route` to compare pending alternatives from
    one frozen parent, interval, and dynamics through explicit scalar
    actor/world-state preferences. Its recommendation is advisory and never

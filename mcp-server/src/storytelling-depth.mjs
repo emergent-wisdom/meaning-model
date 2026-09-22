@@ -45,9 +45,7 @@ const storedSchema = z.object({
   semanticVerification: z.literal(false),
 }).strict();
 
-export const modelDepthInstructions = `${storyScopeInstructions}
-
-${conceptualReview}
+export const modelDepthGuidance = `${conceptualReview}
 
 Automatically review model depth before writing prose and after consequential changes to lives, mechanisms, institutions, causal transitions, outcomes, or disclosure plans. Use life_story_model_depth_review with the current story graph, overall-life dossier, a stored outline/plan as focusNodeId, and the relevant contextNodeIds. Read the actual model bound to this graph; model depth cannot be judged from a synopsis or node count alone.
 Ask: Is this model developed enough to explain the consequential choices and outcomes in the planned story? Identify the important explanatory dependencies, then inspect them where relevant: whole-life trends and flaws that affect choices; concepts and what their distinctions mean; physical quantities, capacities and bottlenecks; institutions, incentives and constraints; causal Events, alternatives, anticipation and adaptation; author processes for intentional withholding and later resolution. Choose subjects from this story. These are prompts for attention, not a mandatory taxonomy, fixed list of life processes, decomposition quota, or demand for a shock in every scene.
@@ -56,6 +54,7 @@ For each reviewed subject, give a concise sufficient, needs_opening, or unclear 
 Record coverage and findings with life_story_model_depth_record using the exact taskHash. Findings become an Understanding Node with links to their graph and model evidence. Save gaps honestly rather than marking them sufficient to pass. Repair only the relevant model parts through existing tools, preserve unaffected character/history, then repeat the depth review on the changed basis and re-review affected prose. A new or consequentially changed story plan must be stored and reviewed; do not continue from an external plan. Reuse a sufficient review only while its focus, source, dossier and relevant context remain unchanged and cover the intended scene. Incidental draft or note additions do not require repeating it.
 When rebinding a narrative graph to a successor model, use life_narrative_revise to retain earlier depth-assessment nodes as historical records but remove their predecessor-model anchor edges from that successor only. Native model anchors must resolve against the graph's current source. Never retarget an old finding's path to new model values. The immutable predecessor graph and each assessment's reviewedGraphHash/modelHash preserve its exact evidence. Then record a fresh assessment with new anchors; historical assessments cannot authorize scenes against the changed source. Review other affected anchors explicitly under the existing graph revision contract.
 The calling LLM supplies the judgment. The server verifies references, recorded coverage, source identity and freshness, not explanatory truth, completeness, hidden reasoning, or literary merit. Use an independent reviewer when available; otherwise identify self-review. Model-definition reads are administrative and not scope-filtered. They describe static structure and initial values, not current values in a frozen world/candidate snapshot; inspect appropriate bound evidence for runtime claims and mark unavailable evidence unclear.`;
+export const modelDepthInstructions = `${storyScopeInstructions}\n\n${modelDepthGuidance}`;
 
 function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical);
@@ -151,9 +150,9 @@ export async function recordModelDepthReview(service, raw) {
   const model = task.model.definition ?? inspected.model;
   const nodeIds = new Set(task.nodes.map((node) => node.id));
   const modelPaths = new Set();
-  for (const finding of input.findings) for (const evidence of finding.evidence) {
+  for (const [index, finding] of input.findings.entries()) for (const evidence of finding.evidence) {
     if (evidence.kind === 'node') {
-      if (!nodeIds.has(evidence.nodeId)) throw new Error('Model-depth finding cites a node outside the reviewed evidence.');
+      if (!nodeIds.has(evidence.nodeId)) throw new Error(`Model-depth finding ${index} (${JSON.stringify(finding.subject.slice(0, 80))}) cites node ${evidence.nodeId}, which is outside the reviewed evidence. Add it to contextNodeIds and prepare the review again, or cite a reviewed node.`);
     } else {
       atPointer(model, evidence.path);
       modelPaths.add(evidence.path);

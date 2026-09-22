@@ -5,6 +5,7 @@ import * as z from 'zod/v4';
 import { parseEnabledAddons } from './addon-config.mjs';
 import { createEstimator, parseEstimatorConfig } from './estimator-config.mjs';
 import { registerEstimatorTools } from './estimator-tools.mjs';
+import { directionDrawSchema, drawDirection } from './direction-draw.mjs';
 import { registerJevProcessEstimationTools } from './jev-process-estimation.mjs';
 import { registerGeneralModelingTools } from './general-modeling.mjs';
 import { narrativeRebindSchema, rebindNarrativeGraph } from './narrative-rebind.mjs';
@@ -43,16 +44,23 @@ const handleSchema = z.string().min(1).max(256);
 const processIdSchema = z.string().min(1).max(1_024);
 const prefixSchema = z.string().min(1).max(256);
 const accessedTheoryResources = new Set<string>();
+let theoryAccessPurpose: string | null = null;
 
-function resetTheoryAccessForNewContext(sessionMode: string) {
-  if (sessionMode !== 'repeat_same_domain') accessedTheoryResources.clear();
+// Calling life_modeling_context again for the same purpose, for example to check the gate after
+// reading, keeps the access record. A different purpose, a new domain, or consequential work
+// starts a new record.
+function resetTheoryAccessForNewContext(purpose: string, sessionMode: string) {
+  const keep = sessionMode === 'repeat_same_domain'
+    || (sessionMode === 'first_use' && theoryAccessPurpose === purpose);
+  if (!keep) accessedTheoryResources.clear();
+  theoryAccessPurpose = purpose;
 }
 
 function requireTheoryAccessForProfileCompilation() {
   const missing = modelingTheoryUris.filter((uri) => !accessedTheoryResources.has(uri));
   if (missing.length > 0) {
     throw new Error(
-      `Paper-first gate: read the complete required theory resources before profile compilation: ${missing.join(', ')}. The access record starts at the most recent life_modeling_context call (except sessionMode repeat_same_domain); reads made before that call are not counted, so call life_modeling_context first and then read both resources. Access is verified only within this live MCP process and does not prove comprehension.`,
+      `Paper-first gate: read the complete required theory resources before profile compilation: ${missing.join(', ')}. The access record starts at the most recent life_modeling_context call that began a new record: the first call, a different purpose, or sessionMode new_domain or consequential. Repeating the call for the same purpose, or sessionMode repeat_same_domain, keeps the record. Reads made before the record began are not counted, so call life_modeling_context first and then read both resources. Access is verified only within this live MCP process and does not prove comprehension.`,
     );
   }
 }
@@ -114,15 +122,15 @@ server.registerPrompt(
 server.registerTool(
   'life_modeling_context',
   {
-    description: 'Return the paper-first reading order and minimum operational contract for story, person, observation, forecast, reconstruction, or counterfactual modeling. The live MCP process records access to both complete papers; content digests are provenance only and never replace reading.',
+    description: 'Return the paper-first reading order and minimum operational contract for story, person, observation, forecast, reconstruction, or counterfactual modeling. The live MCP process records access to both complete papers; content digests are provenance only and never replace reading. Calling it again for the same purpose keeps that reading record, so it can be used to check theoryAccessGate; a different purpose, sessionMode new_domain, or sessionMode consequential starts a new record.',
     inputSchema: z.object({
       purpose: z.enum(modelingPurposes),
       sessionMode: z.enum(modelingSessionModes).default('first_use'),
     }),
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   async (input) => {
-    resetTheoryAccessForNewContext(input.sessionMode);
+    resetTheoryAccessForNewContext(input.purpose, input.sessionMode);
     return toolResult(await buildModelingContext({
       ...input,
       readTheoryUris: [...accessedTheoryResources],
@@ -856,6 +864,16 @@ server.registerTool(
 );
 
 registerEstimatorTools(server, service, estimator, { toolResult });
+
+server.registerTool(
+  'life_direction_draw',
+  {
+    description: 'Draw one answer from a registered model\'s normalized Cut, typically a direction Cut over mutually exclusive continuations, with a recorded seed. The server computes u as the first 32 bits of SHA-256(seed) divided by 2^32 and takes the answer whose cumulative interval, in model order, contains u. With record, the draw is stored in a graph bound to that model, and any earlier draw over the same Cut is reported and linked, so a second draw is visible as a reroll rather than a silent replacement. A drawn remainder calls for a new admissible continuation, not renormalization of the named answers. The draw decides nothing by itself: build and accept the realized continuation through the ordinary model and narrative tools.',
+    inputSchema: directionDrawSchema,
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  async (input) => toolResult(await drawDirection(service, input)),
+);
 registerJevProcessEstimationTools(server, service, estimator, { toolResult });
 registerGeneralModelingTools(server, service, estimator, { toolResult });
 

@@ -322,6 +322,7 @@ The state-machine tools are:
 - `life_narrative_training_export`
 - `life_narrative_rebind`
 - `life_narrative_alignment_audit`
+- `life_direction_draw`
 - `life_estimate_cut_shares`
 - `life_model_ingest`
 - `life_candidate_roll`
@@ -550,6 +551,14 @@ generated mechanically from each record (narrated? contradicted?) and from decla
 withheld nodes (leaked to the viewpoint or reader?), plus one advisory holistic
 question. Passage-level flags at or above 0.5 are the actionable signal; whole-unit
 scores arbitrate proposals and reported speech, which score high at passage scope.
+
+`life_direction_draw` draws one answer from a registered model's normalized Cut, usually a
+direction Cut over mutually exclusive continuations, with a caller-supplied seed. The server
+computes the draw (the first 32 bits of SHA-256 of the seed, divided by 2^32, against the
+answers' cumulative weights in model order), so anyone can recompute it. With `record`, the
+draw is stored in a graph bound to that model; an earlier draw over the same Cut is reported
+and linked, so a second draw shows up as a reroll. A drawn remainder asks for a new admissible
+continuation, never a renormalization of the named answers.
 List `knowledgeStateNodeIds` for records phrased as transient knowledge states so they
 are checked only for narration and leaks. With `record` the tool stores the scores and
 flags itself as a derived-diagnostic metadata node under the document root. The audit

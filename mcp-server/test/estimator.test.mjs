@@ -230,6 +230,8 @@ test('alignment audit can skip contradiction checks for knowledge-state records 
   assert.ok(!('contradicts_ctx.offer' in result.results.whole.scores), 'knowledge-state records get no contradiction question');
   assert.ok('contradicts_canon.feeding' in result.results.whole.scores);
   assert.equal(result.recorded.nodeId, 'audit-1');
+  assert.equal(result.graphHash, 'b2'.repeat(32), 'with record, the top-level graphHash is the successor, as for other write tools');
+  assert.equal(result.auditedGraphHash, graphHash, 'the audited revision stays addressable');
   assert.equal(result.recorded.documentRootId, 'story');
   assert.equal(result.graphMutation, true);
   const batch = batches[0].narrativeBatch;

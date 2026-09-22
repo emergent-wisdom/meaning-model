@@ -121,7 +121,9 @@ async function executeAlignmentAudit(service, input, estimator, checkpoint = nul
   const evaluator = `${estimator.backend}:${model}`;
   let recorded = null;
   if (input.record) recorded = await recordAuditFindings(service, view, input, { ...base, evaluator, results });
-  return { ...base, evaluator, results, recorded, graphMutation: Boolean(recorded), nextStep: 'Store the flagged findings with exact citations as an Understanding Node linked about the audited unit; resolve each by revising the prose, revising the record with justification, or recording a declared ambiguity. Do not treat a passing audit as verification.' };
+  // With record, the successor graph is the current graph for later writes (as for every other write tool);
+  // the audited revision stays addressable as auditedGraphHash.
+  return { ...base, auditedGraphHash: input.graphHash, graphHash: recorded?.graphHash ?? input.graphHash, evaluator, results, recorded, graphMutation: Boolean(recorded), nextStep: 'Store the flagged findings with exact citations as an Understanding Node linked about the audited unit; resolve each by revising the prose, revising the record with justification, or recording a declared ambiguity. Do not treat a passing audit as verification.' };
 }
 
 export function documentRootOf(view, nodeId) {

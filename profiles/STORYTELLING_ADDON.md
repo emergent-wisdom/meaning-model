@@ -318,7 +318,10 @@ Each axis specifies its `meaning`, `comparisonQuestion`, `unit`, `minimum`, and
 mark any axis values that must stay fixed. Event exploration requires at least
 two points; whole-life exploration requires at least three. A life candidate
 must cover the intended lifetime interval, rather than rename a short crisis
-as a life. Give each number a declared meaning: a share of available attention
+as a life, and a life-trends dossier needs numerical points from its
+`lifeBeginning`; the explorer warns when the first point is later. Fix axes that
+do not yet apply at birth at stated conventional values. Points are sampled
+independently, so adding one later with the same seed leaves the others unchanged. Give each number a declared meaning: a share of available attention
 allocated to seeking company is different from a count of social encounters.
 There is no built-in universal happiness, shock, or personality scale.
 
@@ -957,6 +960,15 @@ changes, and how they respond over time. A shock may be welcome, unwelcome, or
 expected yet still consequential. Adaptation may begin in anticipation,
 overlap the event, remain partial, fail, or leave lasting changes in a life
 trend. Quiet persistence and an absence of shock are also valid.
+
+When a consequential decision is modeled as a direction Cut over mutually exclusive
+continuations, fix its proposal weights and a seed before drawing, then draw with
+`life_direction_draw` and record it in the story graph. The server computes the
+draw, and a later draw over the same Cut is recorded and linked as a reroll. If the
+remainder is drawn, model a new admissible continuation under the remainder's
+meaning; do not renormalize the named answers. When two actors decide jointly,
+consider whether each attempts a different named continuation: their combination
+can realize an outcome none of them chose.
 
 Keep the character's experience separate from the intended reader response.
 Author processes govern how disclosure creates anticipation, surprise, or
