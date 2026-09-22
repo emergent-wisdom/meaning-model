@@ -134,6 +134,8 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_narrative_render',
       'life_narrative_revise',
       'life_narrative_training_export',
+      'life_process_estimate',
+      'life_process_estimation_record',
       'life_profile_compile',
       'life_story_revision_diagnose',
       'life_trajectory_query',
@@ -141,6 +143,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_view_query',
       'life_world_create',
       'life_world_inspect',
+      'life_world_model_build',
       'life_world_refine_genesis',
       'life_world_revise',
       'life_world_revision_inspect',
@@ -164,6 +167,46 @@ test('official MCP client discovers and calls the local stdio server', async () 
     }
     const { prompts } = await client.listPrompts();
     assert.ok(prompts.some(({ name }) => name === 'life_modeling_start'));
+    assert.ok(prompts.some(({ name }) => name === 'life_general_modeling_start'));
+    assert.ok(resourceUris.includes('life-sim://guide/general-modeling'));
+    const generalStarter = await client.getPrompt({ name: 'life_general_modeling_start', arguments: {} });
+    assert.match(generalStarter.messages[0].content.text, /No external estimator is configured/);
+    assert.match(generalStarter.messages[0].content.text, /no literary requirements/);
+    assert.match(generalStarter.messages[0].content.text, /Start macro to micro/);
+    assert.match(generalStarter.messages[0].content.text, /contextReview.*broaderContext.*longerTerm/);
+    const missingContext = await client.callTool({
+      name: 'life_world_model_build',
+      arguments: { requestId: 'protocol-missing-context', scaffold: {
+        id: 'snapshot', scope: 'Synthetic single sensor snapshot.', question: 'What was reported at inspection?',
+        time: { unit: 'hour', origin: 'Synthetic inspection instant.' }, accessScopes: ['world'],
+        evidence: [{ id: 'report', source: 'fixture:inspection', text: 'The sensor reads 22 degrees Celsius.', evidenceType: 'report', holder: 'inspector', availableAt: 0 }],
+        processes: [{ id: 'temperature', meaning: 'Air temperature at sensor.', unit: 'degrees Celsius', referenceFrame: 'Synthetic sensor reading', type: { kind: 'scalar', minimum: -100, maximum: 100 }, initial: { value: 22, evidenceType: 'report', holder: 'inspector', evidenceCutoff: 0, sourceIds: ['report'] } }],
+      } },
+    });
+    assert.equal(missingContext.structuredContent.status, 'needs_context_review');
+    assert.equal(missingContext.structuredContent.worldMutation, false);
+    assert.equal(missingContext.structuredContent.graphMutation, false);
+    const builderTool = tools.find(({ name }) => name === 'life_world_model_build');
+    assert.match(builderTool.description, /authoredJudgments.*conceptualStructure.*conceptVariation/);
+    assert.match(JSON.stringify(builderTool.inputSchema), /judgmentQuestion/);
+    assert.match(JSON.stringify(builderTool.inputSchema), /abstractCuts/);
+    const missingConsiderations = await client.callTool({
+      name: 'life_world_model_build',
+      arguments: { requestId: 'protocol-missing-considerations', scaffold: {
+        id: 'sensor-considerations', scope: 'Synthetic single sensor inspection.', question: 'What did this sensor report?',
+        time: { unit: 'hour', origin: 'Synthetic inspection instant.' }, accessScopes: ['world'],
+        contextReview: { holder: 'fixture-reviewer', focalInterval: { start: 0, end: 0 },
+          broaderContext: { boundary: 'Conditions beyond this one inspection.', status: 'out_of_scope', assessment: 'The test checks reporting one measurement; no wider environmental claims are needed.' },
+          longerTerm: { interval: null, status: 'unknown', assessment: 'No historical sensor series is provided.' },
+        },
+        evidence: [{ id: 'report', source: 'fixture:inspection', text: 'The sensor reads 22 degrees Celsius.', evidenceType: 'report', holder: 'inspector', availableAt: 0 }],
+        processes: [{ id: 'temperature', meaning: 'Air temperature at the sensor.', unit: 'degrees Celsius', referenceFrame: 'Synthetic sensor reading', type: { kind: 'scalar', minimum: -100, maximum: 100 }, initial: { value: 22, evidenceType: 'report', holder: 'inspector', evidenceCutoff: 0, sourceIds: ['report'] } }],
+      } },
+    });
+    assert.equal(missingConsiderations.structuredContent.status, 'needs_modeling_review');
+    assert.equal(missingConsiderations.structuredContent.worldMutation, false);
+    assert.equal(missingConsiderations.structuredContent.graphMutation, false);
+    for (const aspect of ['authoredJudgments', 'conceptualStructure', 'conceptVariation']) assert.ok(JSON.stringify(missingConsiderations.structuredContent).includes(aspect));
     const starter = await client.getPrompt({
       name: 'life_modeling_start',
       arguments: { purpose: 'creative_story', sessionMode: 'first_use' },
@@ -174,6 +217,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       arguments: { purpose: 'person_reflection', sessionMode: 'first_use' },
     });
     assert.equal(modelingContext.structuredContent.requiresFullTheoryRead, true);
+    assert.match(modelingContext.structuredContent.scaleReview, /longer-term developments/);
     assert.deepEqual(modelingContext.structuredContent.personalModelViews, [
       'external event history',
       'alternative AI-inferred actor-local models',

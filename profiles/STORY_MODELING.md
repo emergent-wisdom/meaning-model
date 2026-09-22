@@ -57,6 +57,15 @@ review findings do not grant permission for a reserved creative decision.
 
 ## Modeling sequence
 
+Apply the shared conceptual review during construction and later depth reviews,
+without waiting for the human author to request it. Consider numerical scales
+for relevant judgments, open broad concepts such as attachment or flexibility
+when their parts explain different actions or voices, and compare an actor's
+meanings across life periods or viewpoints. Use actual model concepts and cuts
+when claiming a conceptual opening. Keep the interpretation and revision reasons
+in Understanding Nodes. Sufficient existing boundaries and explicitly unresolved
+questions are valid; additional scores or detail are not an end in themselves.
+
 1. Create stable referents for the world, principal actors, places, and
    identity-bearing objects. With the storytelling add-on, automatically use
    `life_story_structure_explore` with `targetKind: "name"` and no `seedWord`

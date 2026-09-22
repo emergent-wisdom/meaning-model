@@ -70,6 +70,22 @@ with minimum sufficient explicitness. Add detail only when it changes an
 answer, explains a residual, preserves continuity, or supports a declared
 projection.
 
+Start macro to micro. Before local detail, assess the enclosing system and the
+longer-term developments that could change the interpretation. Choose a broader
+time horizon appropriate to the question, identify enduring events and changing
+processes, and explain their connections to the focal processes. Record this
+assessment in Understanding Nodes with supporting sources, competing hypotheses,
+missing evidence and deliberate scope exclusions. A narrow task may stay narrow;
+it should not silently imply that the larger context is settled or irrelevant.
+Revisit this account when later local findings challenge it.
+
+For general construction, `life_world_model_build` requires this context review
+before estimation or writing. The caller completes it within the agreed
+delegation. Its structural checks validate the declared references and temporal
+anchors, not the adequacy of the explanation. Other core tools remain available
+without this construction gate; this review is a workflow responsibility when
+using them. See [general modeling](GENERAL_MODELING.md) for the exact fields.
+
 Optional expressiveness is an invariant. A valid run may contain one sampled
 or generated process and no semantic, actor, causal-analysis, or writer layer.
 Meaning Model records, Decision profiles, graph projections, reader models,
@@ -83,6 +99,32 @@ use the language; use, adapt, or omit them. Structural starters and experimental
 Story/Decision models serve different purposes: inspect the latter's authored
 numerical meanings and behavioural laws before choosing them. Reading a profile
 does not require compiling it or adopting its vocabulary.
+
+Before construction, also review these questions within the agreed delegation;
+do not wait for the user to suggest them:
+
+- Which relevant meanings, dispositions, capacities or process changes need an
+  **authored numerical scale**, even though no instrument measures them? Define
+  the comparison, units, numeric anchors and uncertainty. A judgment about how
+  coordinated a process is can be numerical without being a physical measurement.
+- Which important concepts need to be **opened** to explain the distinctions or
+  behavior in question? Use native concepts and abstract cuts for alternative
+  lenses, and deepen a child when its broad label is insufficient. For example,
+  flexibility can be opened by functional roles, response characteristics or
+  coordination functions. These views may overlap; do not force them into shares
+  of a physical total. A concept description in graph metadata is not a native cut.
+- Do meanings differ across **dates, actors or contexts**? Preserve the definitions,
+  evidence and holder for each comparison. A changed rubric or different source
+  genre does not by itself establish conceptual change in the world.
+
+Save concise assessments as Understanding Nodes linked to the actual records.
+Explain when existing boundaries are sufficient, evidence is missing or a
+dimension is irrelevant. The requirement is to consider useful depth, not to
+produce a quota of scores or cuts. Revisit these questions after consequential
+findings or revisions. The general builder checks that these considerations and
+their references are present; the other core paths receive this guidance but do
+not enforce the builder's review schema. Story depth and voice reviews should
+apply these questions to the character and author processes they already inspect.
 
 ### 3. Identify continuing referents
 
@@ -149,6 +191,12 @@ automatically operative.
 If evidence supports values at particular times but not a transition function,
 store the values, uncertainty, and interpolation assumptions. Do not invent a
 law merely to make the series executable.
+
+Cover the chosen longer-term horizon as well as local changes, at the resolution
+the evidence supports. An Event with a long interval represents an extended
+episode; its duration does not by itself supply a numerical process trajectory.
+Distinguish dated observations, retrospective estimates and forecasts, including
+the evidence available for each assessment.
 
 Add a generating function only when the mechanism is authored for a creative
 world, supplied by a trusted domain model, or has earned credibility through

@@ -1,5 +1,5 @@
 // Optional external estimator ("Jev on/off"). Off unless MEANING_MODEL_ESTIMATOR names a backend.
-// When on, the two estimator tools send the supplied text to that service; nothing else does.
+// When on, estimator tools and explicit world-builder initial questions send their bounded evidence to the provider.
 export const availableEstimators = Object.freeze(['typesafe']);
 const DEFAULT_ENDPOINT = 'https://api.typesafe.ai/v1/systemone';
 const DEFAULT_MODEL = 'jev-latest';

@@ -28,6 +28,12 @@ export const modelingFreedom =
 export const starterSelection =
   'Structural starters load identities and Events without default semantic scores. person_scaffold offers lifecycle alone or the Book-style processes level; omitting the level retains processes. Story and Decision compilers add particular authored numerical meanings and behavioural laws, so inspect and choose those assumptions explicitly. Reading a profile guide does not require compiling its template or adopting its vocabulary.';
 
+export const scaleReview =
+  'Start macro to micro: assess the enclosing system and its longer-term developments before selecting local detail. State the focal interval and a useful broader horizon; connect large-scale processes and enduring events to the focal processes through evidenced relationships or explicit hypotheses. Record the assessment in Understanding Nodes, with missing evidence and deliberate scope exclusions. Choose depth and timescales for the question, without a fixed ontology or horizon. A long event alone is not a numerical trend: retain dated process values, their evidence cutoffs and uncertainty. Revisit the broader account when local findings change it.';
+
+export const conceptualReview =
+  'Within the agreed delegation, review numerical meaning and conceptual depth without waiting for the user to suggest them. Consider authored judgment scales for relevant meanings, motives, capacities or process changes that are not directly measured; define their comparison, units, anchors and uncertainty, and preserve source measurements separately. Open important concepts into useful parts or alternative lenses using native concepts and abstract cuts, then deepen a child when its label does not explain the relevant behavior or distinction. Assess how meanings differ across dates, actors or contexts; distinguish a changing world from a changed estimate, viewpoint or rubric. Store these assessments as Understanding Nodes linked to the actual definitions and evidence. Revisit them after consequential findings or revisions. Explain adequate boundaries, missing evidence or deliberate exclusions; do not invent scores, change or detail just to fill a checklist.';
+
 const resourceDefinitions = Object.freeze([
   {
     id: 'meaning-model-paper',
@@ -57,6 +63,15 @@ const resourceDefinitions = Object.freeze([
       'Operational checklist used after the complete papers have been understood.',
     mimeType: 'text/markdown',
     file: new URL('../../docs/MODELING_PROTOCOL.md', import.meta.url),
+    category: 'protocol',
+  },
+  {
+    id: 'general-modeling-guide',
+    uri: 'life-sim://guide/general-modeling',
+    title: 'General-purpose World Modeling with Jev',
+    description: 'Macro-to-micro modeling, long-term context, domain-defined processes, compact world construction, optional Jev estimation and graph-backed review without storytelling requirements.',
+    mimeType: 'text/markdown',
+    file: new URL('../../docs/GENERAL_MODELING.md', import.meta.url),
     category: 'protocol',
   },
   {
@@ -173,7 +188,7 @@ function exampleUri(purpose) {
   if (purpose === 'creative_story' || purpose === 'source_reconstruction') {
     return 'life-sim://example/everest-meaning-model';
   }
-  return 'life-sim://example/everest-meaning-model';
+  return 'life-sim://example/minimal-model-and-graph';
 }
 
 function ensurePurpose(purpose) {
@@ -237,6 +252,7 @@ export async function buildModelingContext({
       required: false,
       reason: 'Read before first use of the optional graph-native story, testimony, rendering, or training-export tools.',
     },
+    ...(!selectedProfile ? [{ uri: 'life-sim://guide/general-modeling', required: true, reason: 'General modeling workflow, compact construction, optional Jev estimation and exact review/record boundaries.' }] : []),
     ...(selectedProfile
       ? [{ uri: selectedProfile, required: true, reason: 'Purpose-specific modeling and output contract.' }]
       : []),
@@ -246,9 +262,12 @@ export async function buildModelingContext({
   return {
     schema: 'life-sim-modeling-context/v2',
     purpose,
+    workflow: purpose === 'creative_story' || purpose === 'source_reconstruction' ? 'storytelling' : 'general_modeling',
     sessionMode,
     modelingFreedom,
     starterSelection,
+    scaleReview,
+    conceptualReview,
     paperFirst: true,
     requiresFullTheoryRead,
     theoryDigests,
@@ -263,7 +282,11 @@ export async function buildModelingContext({
     orderedResources,
     minimumChecklist: [
       'declare purpose, interval, scope, resolution, and authority',
+      'assess the enclosing system and longer-term trends before local detail; link supporting processes/events or record unknowns and justified exclusions in Understanding Nodes',
       'choose application-specific processes and categories; inspect any starter assumptions and omit unnecessary layers',
+      'consider authored numerical judgment scales as well as measured values, with explicit meanings and comparison anchors',
+      'open important concepts into native concepts and abstract cuts when useful; explain a sufficient boundary or missing evidence instead of adding arbitrary depth',
+      'compare dated or perspective-specific meanings and preserve the difference between conceptual change, revised estimates and changed rubrics',
       'identify continuing referents and accepted event history',
       'separate observations, reports, estimates, completions, forecasts, and creative premises',
       'connect earlier and later states through supporting events, reports, or declared laws; distinguish world changes from revised estimates and leave unexplained transitions open',
@@ -310,6 +333,10 @@ export async function buildModelingPrompt({ purpose, sessionMode }) {
     context.modelingFreedom,
     '',
     context.starterSelection,
+    '',
+    context.scaleReview,
+    '',
+    context.conceptualReview,
     '',
     'Do not treat the short protocol as a substitute for the theory. Call life_modeling_context, then read the complete current papers and its other required resources in order:',
     ordered,

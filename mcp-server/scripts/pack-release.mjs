@@ -16,7 +16,7 @@ const runtimeFiles = [
   'paper/meaning-model.tex', 'paper/meaning-model-grammar.tex',
   'paper/emergentwisdom-preprint.sty', 'paper/references.bib', 'paper/includes',
   'docs/companions/life-simulation', 'docs/MODELING_PROTOCOL.md', 'docs/IMPLEMENTATION.md',
-  'docs/NARRATIVE_UNDERSTANDING_GRAPH.md', 'docs/examples', 'profiles',
+  'docs/NARRATIVE_UNDERSTANDING_GRAPH.md', 'docs/GENERAL_MODELING.md', 'docs/examples', 'profiles',
   'scripts/verify-resources.mjs', 'mcp-server/README.md', 'mcp-server/NPM-README.md',
 ];
 const excluded = new Set(['.git', '.DS_Store', 'node_modules', 'target']);

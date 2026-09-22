@@ -78,7 +78,7 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
   assert.match(metadata.scripts['install:engine'], /--install-engine/);
   const sources = await readdir(join(packageDirectory, 'mcp-server', 'src'));
   assert.ok(sources.includes('server.mjs'));
-  for (const source of ['narrative-editing.mjs', 'addon-config.mjs', 'estimator-config.mjs', 'estimator-tools.mjs', 'cut-shares.mjs', 'alignment-audit.mjs', 'narrative-rebind.mjs', 'situation-ingest.mjs', 'storytelling-intake.mjs', 'storytelling-addon.mjs', 'storytelling-life-trends.mjs', 'storytelling-trajectories.mjs', 'storytelling-authoring.mjs', 'storytelling-author-model.mjs', 'storytelling-depth.mjs', 'storytelling-deepening.mjs']) {
+  for (const source of ['narrative-editing.mjs', 'addon-config.mjs', 'estimator-config.mjs', 'estimator-tools.mjs', 'cut-shares.mjs', 'alignment-audit.mjs', 'narrative-rebind.mjs', 'situation-ingest.mjs', 'estimator-receipts.mjs', 'general-modeling.mjs', 'jev-process-estimation.mjs', 'storytelling-intake.mjs', 'storytelling-addon.mjs', 'storytelling-life-trends.mjs', 'storytelling-trajectories.mjs', 'storytelling-authoring.mjs', 'storytelling-author-model.mjs', 'storytelling-depth.mjs', 'storytelling-deepening.mjs']) {
     assert.ok(sources.includes(source), `missing bundled runtime source ${source}`);
     assert.equal(
       await readFile(join(packageDirectory, 'mcp-server', 'src', source), 'utf8'),

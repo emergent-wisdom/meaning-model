@@ -5,6 +5,8 @@ import * as z from 'zod/v4';
 import { parseEnabledAddons } from './addon-config.mjs';
 import { createEstimator, parseEstimatorConfig } from './estimator-config.mjs';
 import { registerEstimatorTools } from './estimator-tools.mjs';
+import { registerJevProcessEstimationTools } from './jev-process-estimation.mjs';
+import { registerGeneralModelingTools } from './general-modeling.mjs';
 import { narrativeRebindSchema, rebindNarrativeGraph } from './narrative-rebind.mjs';
 import { narrativeEditSchema, editNarrativeGraph } from './narrative-editing.mjs';
 import {
@@ -127,6 +129,27 @@ server.registerTool(
     }));
   },
 );
+
+server.registerPrompt('life_general_modeling_start', {
+  title: 'Build and revise a general-purpose world model',
+  description: 'Model macro context and long-term developments before local processes, with optional Jev estimation and automatic graph ingestion. Storytelling is independent and opt-in.',
+  argsSchema: z.object({
+    purpose: z.enum(['observation', 'forecasting', 'counterfactual']).default('observation'),
+    sessionMode: z.enum(modelingSessionModes).default('first_use'),
+    brief: z.string().trim().min(1).max(8_000).optional(),
+  }),
+}, async ({ purpose, sessionMode, brief }) => ({
+  messages: [{ role: 'user' as const, content: { type: 'text' as const, text: [
+    await buildModelingPrompt({ purpose, sessionMode }),
+    brief ? `User modeling brief: ${brief}` : '',
+    'Use life-sim://guide/general-modeling. Reuse the user\'s supplied scope and delegation; establish missing purpose, interval, evidence and retained decisions before substantive modeling. Choose useful processes across the system, not only an outcome such as price.',
+    'Before construction, supply contextReview for broaderContext and longerTerm, with focal and broader intervals, assessments and supporting process/event/source references. life_world_model_build returns needs_context_review without a provider call or write when this is missing. Complete the review within the agreed delegation. Unknown context and deliberate scope exclusions require reasons; do not invent history or request a new user checkpoint just to fill the review.',
+    'Also complete contextReview.authoredJudgments, conceptualStructure and conceptVariation without waiting for the user to suggest them. Consider defined numerical scales for interpretive judgments, native concepts and abstract cuts for useful decomposition, and dated or perspective-specific meanings. The builder returns needs_modeling_review before estimation or writing when these considerations are absent. Link represented assessments to actual records or explain sufficient boundaries, unknowns and exclusions; do not manufacture scores or depth.',
+    'Use life_world_model_build for compact initial construction; life_process_estimate for batched bounded estimates; life_process_estimation_record for exact reviewed graph records and Understanding Nodes. Keep unknown values unknown and source measurements in their actual units. Inspect and revise categories or deepen processes when needed.',
+    estimator ? `The configured estimator is ${estimator.label}. It evaluates supplied questions; the calling LLM frames and reviews them. Measure latency and usage; do not assume a speedup.` : 'No external estimator is configured. Use supplied answers or the returned estimation tasks; general modeling works without Jev.',
+    'Keep modeling artifacts and substantive assessments in the graph. Recorded numerical estimates are not accepted runtime observations. Automatic storytelling requires its separate opt-in add-on; this general workflow imposes no literary requirements.',
+  ].filter(Boolean).join('\n\n') } }],
+}));
 
 server.registerTool(
   'life_profile_compile',
@@ -833,6 +856,8 @@ server.registerTool(
 );
 
 registerEstimatorTools(server, service, estimator, { toolResult });
+registerJevProcessEstimationTools(server, service, estimator, { toolResult });
+registerGeneralModelingTools(server, service, estimator, { toolResult });
 
 if (enabledAddons.includes('storytelling')) {
   const { registerStorytellingAddon } = await import('./storytelling-addon.mjs');

@@ -4,6 +4,7 @@ import test from 'node:test';
 import { modelDepthBasis, prepareModelDepthReview, recordModelDepthReview, readModelDepthReview }
   from '../src/storytelling-depth.mjs';
 import { lifeTrendsDossier, lifeTrendsEdges, lifeTrendsNode } from './storytelling-life-fixture.mjs';
+import { conceptualReview } from '../src/modeling-guidance.mjs';
 
 const graphHash = 'a'.repeat(64);
 const snapshotHash = 'b'.repeat(64);
@@ -97,6 +98,7 @@ test('depth preparation reads the frozen source model and binds the exact task',
   assert.deepEqual(task.model.definition, f.model);
   assert.equal(task.model.administrativeRead, true);
   assert.equal(task.model.frozenRuntimeValuesIncluded, false);
+  assert.ok(task.reviewerInstructions.includes(conceptualReview));
   assert.equal(task.semanticVerification, false);
   assert.equal(task.graphMutation, false);
   await assert.rejects(recordModelDepthReview(f.service,

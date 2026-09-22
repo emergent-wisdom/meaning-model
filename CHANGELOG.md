@@ -6,6 +6,26 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Prompt every modeling purpose to consider authored numerical judgment scales,
+  useful conceptual decomposition, and variation across dates or perspectives.
+  Require these considerations before general world construction, with actual
+  record references or reasons for uncertainty and scope exclusions; ingest
+  declared native concepts and abstract cuts and preserve the reviews as
+  Understanding Nodes. No fixed vocabulary or quota of scores or cuts is required.
+- Return inspectable cached diagnostics for rejected initial-estimation answers,
+  preserving the received questions, answers, source context and usage without
+  creating a proposal or writing a model, graph or world. Identical retries do
+  not repeat the provider call; numerical validation policy is unchanged.
+- Require a broader-context and longer-term review before compact world-model
+  construction, including its Jev initial estimates. Validate processes, sources and
+  temporal coverage; preserve represented context, unknowns and justified
+  exclusions as Understanding Nodes. Guide agents from enclosing systems and
+  history toward focal processes, and revisit context during later deepening.
+- Add a general-purpose modeling workflow alongside the opt-in storytelling
+  add-on: compact world/model/graph construction, optional batched Jev process
+  estimation, exact proposal review, and durable numerical records with
+  Understanding Nodes. Process definitions, units, evidence, scope and depth
+  remain application-defined; estimates are not promoted to runtime observations.
 - Bind estimator previews to exact apply proposals and retain bounded retry
   receipts. Preflight graph completeness and note references; report partial
   multi-step results. Preserve hidden graph records during rebind. Validate audit

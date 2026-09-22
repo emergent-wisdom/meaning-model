@@ -5,6 +5,7 @@ import test from 'node:test';
 import {
   buildModelingContext,
   buildModelingPrompt,
+  conceptualReview,
   listModelingResources,
   modelingFreedom,
   modelingPurposes,
@@ -126,12 +127,18 @@ test('every modeling purpose receives the application-choice guidance without by
     const context = await buildModelingContext({ purpose, sessionMode: 'first_use' });
     assert.equal(context.modelingFreedom, modelingFreedom);
     assert.equal(context.starterSelection, starterSelection);
+    assert.match(context.scaleReview, /Start macro to micro/);
+    assert.match(context.scaleReview, /Understanding Nodes/);
+    assert.match(context.scaleReview, /evidence cutoffs/);
+    assert.equal(context.conceptualReview, conceptualReview);
     assert.equal(context.theoryAccessGate.satisfied, false);
     assert.ok(context.orderedResources.some(({ uri, required }) =>
       uri === 'life-sim://example/application-categories' && required === false));
     const prompt = await buildModelingPrompt({ purpose, sessionMode: 'first_use' });
     assert.ok(prompt.includes(modelingFreedom));
     assert.ok(prompt.includes(starterSelection));
+    assert.ok(prompt.includes(context.scaleReview));
+    assert.ok(prompt.includes(conceptualReview));
   }
 });
 

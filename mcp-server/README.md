@@ -824,6 +824,35 @@ MEANING_MODEL_ADDONS=storytelling npm start
 Restart the MCP server after changing its environment. The add-on is bundled
 with the server and uses the existing Rust narrative store.
 
+## General-purpose modeling and optional Jev estimation
+
+Start with `life_general_modeling_start`. The general workflow supports
+domain-defined processes across technology, adoption, institutions, markets,
+physical systems and other applications. `life_world_model_build` constructs
+the initial model and graph from a compact scaffold. Its required context review
+starts with the enclosing system and longer-term developments before focal
+processes; represented context, unknowns and justified exclusions become
+Understanding Nodes. It also requires consideration of authored numerical
+judgments, useful native conceptual decomposition, and meanings across dates or
+perspectives. The agent may explain why a dimension is unnecessary or unresolved;
+the tool does not demand arbitrary scores or depth. These checks do not prove
+completeness or causal relevance.
+The builder's preview can evaluate Jev
+`initialEstimate` questions; applying that exact proposal adopts the initial
+values as estimates without another provider call. `life_process_estimate`
+uses bounded questions to create typed process-value proposals;
+`life_process_estimation_record` saves the exact proposal, process records and
+review in the graph. Estimates retain their status and evidence, and do not
+silently become observations in accepted runtime history.
+
+Set `MEANING_MODEL_ESTIMATOR=typesafe` and `TYPESAFE_API_KEY` to use Jev for
+batched structured judgments. This is independent of the storytelling add-on
+and is off by default. The LLM chooses the scope and questions; tool code
+handles repetitive record construction. Reduced end-to-end cost and latency
+require measurement, including setup and review work.
+
+Read `life-sim://guide/general-modeling` for the complete workflow and limits.
+
 ## Install the npm package
 
 The generated package includes its Rust sources, lockfile, reading resources,

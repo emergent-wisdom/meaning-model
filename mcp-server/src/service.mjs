@@ -1394,9 +1394,13 @@ export class LifeSimulationService {
           baseModel: baseModelResult.model,
           worldProjection: {
             ...estimationRequest.evidenceProjection,
-            // Integrity checks use the complete accepted-head claim set even
-            // when the provider was shown only a scoped projection.
-            claims: structuredClone(head.claims ?? {}),
+            // get_world uses its default public view, not an unfiltered head.
+            // Preserve the request's scoped claims when validating against the
+            // same immutable head; otherwise private observations disappear.
+            claims: structuredClone({
+              ...estimationRequest.evidenceProjection.claims,
+              ...(head.claims ?? {}),
+            }),
           },
           meaningCollections: meaningModelCollections,
         });

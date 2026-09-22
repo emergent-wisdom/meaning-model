@@ -1,4 +1,5 @@
 import { storyScopeInstructions } from './storytelling-intake.mjs';
+import { conceptualReview } from './modeling-guidance.mjs';
 import { createHash } from 'node:crypto';
 import * as z from 'zod/v4';
 import { prepareAuthorRecord, readAuthorGraph } from './storytelling-authoring.mjs';
@@ -45,6 +46,8 @@ const storedSchema = z.object({
 }).strict();
 
 export const modelDepthInstructions = `${storyScopeInstructions}
+
+${conceptualReview}
 
 Automatically review model depth before writing prose and after consequential changes to lives, mechanisms, institutions, causal transitions, outcomes, or disclosure plans. Use life_story_model_depth_review with the current story graph, overall-life dossier, a stored outline/plan as focusNodeId, and the relevant contextNodeIds. Read the actual model bound to this graph; model depth cannot be judged from a synopsis or node count alone.
 Ask: Is this model developed enough to explain the consequential choices and outcomes in the planned story? Identify the important explanatory dependencies, then inspect them where relevant: whole-life trends and flaws that affect choices; concepts and what their distinctions mean; physical quantities, capacities and bottlenecks; institutions, incentives and constraints; causal Events, alternatives, anticipation and adaptation; author processes for intentional withholding and later resolution. Choose subjects from this story. These are prompts for attention, not a mandatory taxonomy, fixed list of life processes, decomposition quota, or demand for a shock in every scene.
