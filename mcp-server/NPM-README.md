@@ -120,8 +120,8 @@ them, add `MEANING_MODEL_ADDONS` to the server configuration:
 ```
 
 Keep any existing `LIFE_SIM_ENGINE_BIN` in the same `env` object, and restart
-the MCP server. To let TypeSafe's Jev score the two estimator tools
-(`life_estimate_cut_shares`, `life_narrative_alignment_audit`) instead of
+the MCP server. To let TypeSafe's Jev score the estimator tools
+(`life_estimate_cut_shares`, `life_model_ingest`, `life_narrative_alignment_audit`) instead of
 returning their questions to you, add `MEANING_MODEL_ESTIMATOR: "typesafe"` and
 `TYPESAFE_API_KEY` to the same `env`; with that setting the text given to those
 two tools is sent to TypeSafe. Everything else stays local. The add-on exposes twelve tools: `life_story_structure_explore`,

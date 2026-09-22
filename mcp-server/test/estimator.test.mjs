@@ -37,7 +37,7 @@ const cutInput = { question: 'How does attention divide?', answers: [{ key: 'mon
 
 test('cut-share questions are one choice per situation over the answers plus an automatic remainder', () => {
   const input = cutSharesSchema.parse(cutInput);
-  const tasks = buildCutShareQuestions(input);
+  const tasks = buildCutShareQuestions(input, input.situations.map((situation) => ({ id: situation.id, text: situation.text, parentEventId: situation.parentEventId, cutId: null })));
   assert.equal(tasks.length, 2);
   assert.deepEqual(Object.keys(tasks[0].questions.shares.criteria), ['money', 'grief', 'remainder']);
   assert.equal(tasks[0].state.situation, cutInput.situations[0].text);
@@ -134,4 +134,156 @@ test('alignment audit rejects unknown record nodes, missing prose, and mismatche
   assert.deepEqual(flags.notNarrated.map((flag) => flag.recordId), ['d']);
   assert.equal(selectRecords(f.view, f.rendered, { recordNodeIds: [] }).length, 2);
   assert.equal(Object.keys(buildAlignmentQuestions([], [], null)).length, 1);
+});
+
+import { assertModelSuccessor, buildRebindSuccessor, rebindNarrativeGraph } from '../src/narrative-rebind.mjs';
+
+const oldModel = 'e'.repeat(64), newModel = 'f'.repeat(64);
+function modelFixture() {
+  const calls = [];
+  const definition = { id: 'm', time_unit: 'hour', revision: { number: 1, previous_model_hash: '1'.repeat(64), provenance: ['p'], reason: 'r' }, processes: [], meaning_model: { events: [{ id: 'event.kaj.state.h6', boundary: 'Kaj feeds the starter.', description: 'Funeral morning.' }, { id: 'event.silent' }], normalized_cuts: [{ id: 'cut.estimated.event.kaj.state.h6', parent_event_id: 'event.kaj.state.h6', question: 'old', unit: 'u', answers: [{ key: 'remainder', weight: 1 }], provenance: ['old'] }] } };
+  const graphView = { graph_hash: graphHash, content_included: true, source_snapshot_hash: snapshotHash, returned_node_count: 2, total_node_count: 2, returned_edge_count: 3, total_edge_count: 3, graph: { id: 'g', revision: { number: 4 }, source: { kind: 'model', model_hash: oldModel } }, roots: ['story'], nodes: [{ id: 'story', role: 'document_root', text: '# T', boundary: 'projection-only', content_included: true }, { id: 'depth-1', role: 'externalized_reflection', text: 'x', holder: 'a', access_scopes: ['s'] }], edges: [{ id: 'e1', source: { kind: 'node', node_id: 'story' }, target: { kind: 'node', node_id: 'depth-1' }, family: 'structural', relation: 'contains', order: 1, explanation: 'projection-only' }, { id: 'e2', source: { kind: 'node', node_id: 'depth-1' }, target: { kind: 'anchor', anchor_kind: 'model', anchor_id: oldModel }, family: 'grounding', relation: 'about' }, { id: 'e3', source: { kind: 'node', node_id: 'depth-1' }, target: { kind: 'anchor', anchor_kind: 'event', anchor_id: 'event.kaj.state.h6' }, family: 'grounding', relation: 'about' }] };
+  const service = {
+    async inspectModel({ modelHash, includeDefinition }) { calls.push(['inspect', modelHash]); if (modelHash === newModel) return { modelHash, summary: { revision: { number: 2, previous_model_hash: oldModel } } }; if (modelHash === oldModel) return { modelHash, summary: { revision: { number: 1, previous_model_hash: '1'.repeat(64) } }, ...(includeDefinition ? { model: structuredClone(definition) } : {}) }; return { modelHash, summary: { revision: { number: 0, previous_model_hash: null } } }; },
+    async reviseModel(input) { calls.push(['revise', input]); return { modelHash: newModel, previousModelHash: input.previousModelHash, stored: true, summary: { normalized_cut_count: input.model.meaning_model.normalized_cuts.length } }; },
+    async queryNarrativeGraph(input) { calls.push(['query', input]); return { ...structuredClone(graphView), graph_hash: input.graphHash }; },
+    async reviseNarrativeGraph(input) { calls.push(['reviseGraph', input]); return { graphHash: 'a1'.repeat(32), stored: true }; },
+  };
+  return { calls, definition, graphView, service };
+}
+const fakeEstimator = { backend: 'typesafe', model: 'jev-1.13.0', label: 'typesafe:jev-1.13.0', async estimate() { return { model: 'jev-1.13.0', usage: { input_tokens: 10, output_tokens: 1 }, answers: { shares: { type: 'choice', choice: 'grief', confidence: 0.5, probabilities: { money: 0.2, grief: 0.7, remainder: 0.1 } } } }; } };
+const answers = [{ key: 'money', meaning: 'Debt.' }, { key: 'grief', meaning: 'The mother.' }];
+
+test('event targets read their situation text from the bound model and apply registers one complete revision', async () => {
+  const f = modelFixture();
+  const result = await proposeCutShares({ question: 'q', answers, modelHash: oldModel, events: [{ eventId: 'event.kaj.state.h6' }], apply: true, replaceExisting: true, requestId: 'req-1' }, fakeEstimator, f.service);
+  assert.equal(result.applied.modelHash, newModel);
+  assert.equal(result.applied.revisionNumber, 2);
+  const revise = f.calls.find(([kind]) => kind === 'revise')[1];
+  assert.equal(revise.requestId, 'req-1');
+  assert.equal(revise.previousModelHash, oldModel);
+  assert.equal(revise.model.revision.previous_model_hash, oldModel);
+  assert.equal(revise.model.revision.number, 2);
+  const cuts = revise.model.meaning_model.normalized_cuts;
+  assert.equal(cuts.length, 1, 'the existing cut with the same id was replaced, not duplicated');
+  assert.equal(cuts[0].parent_event_id, 'event.kaj.state.h6');
+  assert.ok(Math.abs(cuts[0].answers.reduce((sum, answer) => sum + answer.weight, 0) - 1) < 1e-9);
+  assert.match(cuts[0].provenance[0], /estimator:typesafe:jev-1.13.0/);
+  assert.equal(result.rebound, null);
+  assert.equal(result.graphMutation, false);
+});
+
+test('apply refuses duplicates without replaceExisting, unknown events, silent events and missing request ids', async () => {
+  const f = modelFixture();
+  await assert.rejects(proposeCutShares({ question: 'q', answers, modelHash: oldModel, events: [{ eventId: 'event.kaj.state.h6' }], apply: true, requestId: 'r' }, fakeEstimator, f.service), /already exists/);
+  await assert.rejects(proposeCutShares({ question: 'q', answers, modelHash: oldModel, events: [{ eventId: 'event.missing' }] }, fakeEstimator, f.service), /does not exist/);
+  await assert.rejects(proposeCutShares({ question: 'q', answers, modelHash: oldModel, events: [{ eventId: 'event.silent' }] }, fakeEstimator, f.service), /no boundary or description/);
+  await assert.rejects(proposeCutShares({ question: 'q', answers, modelHash: oldModel, events: [{ eventId: 'event.kaj.state.h6' }], apply: true }, fakeEstimator, f.service), /requires requestId/);
+  await assert.rejects(proposeCutShares({ question: 'q', answers, events: [{ eventId: 'event.kaj.state.h6' }] }, fakeEstimator, f.service), /require modelHash/);
+  await assert.rejects(proposeCutShares({ question: 'q', answers, situations: [{ id: 's', text: 't' }], apply: true, modelHash: oldModel, requestId: 'r' }, null, f.service), /configure an estimator or supply distributions/);
+});
+
+test('supplied distributions are placed without an estimator, and rebind moves the graph in the same call', async () => {
+  const f = modelFixture();
+  const result = await proposeCutShares({ question: 'q', answers, modelHash: oldModel, events: [{ eventId: 'event.kaj.state.h6', cutId: 'cut.kaj.h6.attention' }], distributions: [{ situationId: 'event.kaj.state.h6', probabilities: { money: 0.5, grief: 0.4 }, confidence: 0.9 }], apply: true, requestId: 'req-2', rebind: { graphHash, accessScopes: ['s'] } }, null, f.service);
+  assert.equal(result.evaluator, 'supplied');
+  assert.equal(result.proposals[0].id, 'cut.kaj.h6.attention');
+  assert.ok(Math.abs(result.proposals[0].answers.find((answer) => answer.key === 'remainder').weight - 0.1) < 1e-9);
+  assert.equal(result.applied.cutIds[0], 'cut.kaj.h6.attention');
+  assert.equal(result.rebound.modelHash, newModel);
+  assert.deepEqual(result.rebound.droppedModelAnchorEdgeIds, ['e2']);
+  const reviseGraph = f.calls.find(([kind]) => kind === 'reviseGraph')[1];
+  assert.equal(reviseGraph.requestId, 'req-2-rebind');
+  assert.equal(reviseGraph.narrativeGraph.source.model_hash, newModel);
+  assert.equal(reviseGraph.narrativeGraph.revision.number, 5);
+  assert.equal(reviseGraph.narrativeGraph.revision.previous_graph_hash, graphHash);
+  assert.deepEqual(reviseGraph.narrativeGraph.edges.map((edge) => edge.id), ['e1', 'e3']);
+  assert.equal(reviseGraph.narrativeGraph.nodes[0].boundary, undefined, 'projection-only node fields are stripped');
+  assert.equal(reviseGraph.narrativeGraph.edges[0].explanation, undefined, 'projection-only edge fields are stripped');
+  assert.equal(result.graphMutation, true);
+});
+
+test('rebind refuses partial projections, non-model sources, unrelated models and already-bound models', async () => {
+  const f = modelFixture();
+  const partial = { ...f.graphView, returned_node_count: 1 };
+  assert.throws(() => buildRebindSuccessor(partial, { graphHash, modelHash: newModel, reason: 'r', provenance: [] }), /complete graph/);
+  const world = structuredClone(f.graphView); world.graph.source = { kind: 'world', world_id: 'w', world_hash: 'h' };
+  assert.throws(() => buildRebindSuccessor(world, { graphHash, modelHash: newModel, reason: 'r', provenance: [] }), /model-bound graphs only/);
+  await assert.rejects(assertModelSuccessor(f.service, oldModel, 'd'.repeat(64)), /not a successor/);
+  assert.equal(await assertModelSuccessor(f.service, oldModel, newModel), 1);
+  await assert.rejects(rebindNarrativeGraph(f.service, { requestId: 'r', graphHash, modelHash: oldModel, accessScopes: ['s'] }), /already bound/);
+  const result = await rebindNarrativeGraph(f.service, { requestId: 'r', graphHash, modelHash: newModel, accessScopes: ['s', 's'] });
+  assert.equal(result.lineageSteps, 1);
+  assert.equal(result.previousModelHash, oldModel);
+  assert.equal(result.historicalAssessmentsRetained, true);
+});
+
+test('alignment audit can skip contradiction checks for knowledge-state records and record its findings in the graph', async () => {
+  const f = auditFixture();
+  const batches = [];
+  f.service.applyNarrativeBatch = async (input) => { batches.push(input); return { graphHash: 'b2'.repeat(32), stored: true }; };
+  f.view.graph = { id: 'g', revision: { number: 7 }, source: { kind: 'model', model_hash: oldModel } };
+  f.view.edges = [{ id: 'c1', source: { kind: 'node', node_id: 'story' }, target: { kind: 'node', node_id: 'scene-1-p1' }, family: 'structural', relation: 'contains', order: 0 }];
+  f.service.queryNarrativeGraph = async () => structuredClone(f.view);
+  const fake = { backend: 'typesafe', model: 'jev-1.13.0', label: 'typesafe:jev-1.13.0', async estimate(state, questions) { return { model: 'jev-1.13.0', usage: { input_tokens: 5, output_tokens: 1 }, answers: Object.fromEntries(Object.keys(questions).map((key) => [key, { type: 'noul', noul: key.startsWith('narrates_') ? 0.9 : 0.2 }])) }; } };
+  const result = await prepareAlignmentAudit(f.service, { graphHash, rootId: 'story', accessScopes: ['story-author'], knowledgeStateNodeIds: ['ctx.offer'], record: { requestId: 'rec-1', nodeId: 'audit-1' } }, fake);
+  assert.ok(!('contradicts_ctx.offer' in result.results.whole.scores), 'knowledge-state records get no contradiction question');
+  assert.ok('contradicts_canon.feeding' in result.results.whole.scores);
+  assert.equal(result.recorded.nodeId, 'audit-1');
+  assert.equal(result.recorded.documentRootId, 'story');
+  assert.equal(result.graphMutation, true);
+  const batch = batches[0].narrativeBatch;
+  assert.equal(batches[0].requestId, 'rec-1');
+  assert.equal(batch.add_nodes[0].role, 'metadata');
+  assert.equal(batch.add_nodes[0].node_type, 'alignment_audit');
+  assert.equal(batch.add_nodes[0].render, 'exclude');
+  assert.equal(batch.add_nodes[0].evidence_type, 'ai_inference');
+  assert.deepEqual(batch.add_nodes[0].access_scopes, ['story-author']);
+  assert.deepEqual(batch.add_edges.map((edge) => edge.relation), ['contains', 'about']);
+  assert.equal(JSON.parse(batch.add_nodes[0].text).evaluator, 'typesafe:jev-1.13.0');
+  await assert.rejects(prepareAlignmentAudit(f.service, { graphHash, rootId: 'story', knowledgeStateNodeIds: ['nope'] }, fake), /not among the audited records/);
+});
+
+import { ingestSituation } from '../src/situation-ingest.mjs';
+
+test('ingest creates described events under a parent, asks every question per event, applies one revision, rebinds and records notes', async () => {
+  const f = modelFixture();
+  f.definition.meaning_model.referents = [{ id: 'referent.bitcoin' }];
+  f.definition.meaning_model.events.push({ id: 'event.world', boundary: 'Accepted world.' });
+  const batches = [];
+  f.service.applyNarrativeBatch = async (input) => { batches.push(input); return { graphHash: 'c3'.repeat(32), stored: true }; };
+  const estimator = { backend: 'typesafe', model: 'jev-1.13.0', label: 'typesafe:jev-1.13.0', async estimate(state, questions) { const q = questions.shares.instructions; const liquidity = /liquidity/i.test(q); return { model: 'jev-1.13.0', usage: { input_tokens: 20, output_tokens: 1 }, answers: { shares: { type: 'choice', choice: 'x', confidence: 0.4, probabilities: liquidity ? { thin: 0.7, deep: 0.2, remainder: 0.1 } : { fear: 0.6, greed: 0.3, remainder: 0.1 } } } }; } };
+  const result = await ingestSituation({ requestId: 'ing-1', modelHash: oldModel, apply: true,
+    events: [{ eventId: 'event.btc.halving-2028', boundary: 'The 2028 halving cuts issuance by half.', description: 'Miners with thin margins capitulate over the following quarter.', parentEventId: 'event.world', interval: { start: 0, end: 90 }, participants: { asset: 'referent.bitcoin' } }],
+    questions: [{ id: 'sentiment', question: 'Which sentiment dominates market attention?', answers: [{ key: 'fear', meaning: 'Loss aversion.' }, { key: 'greed', meaning: 'Gain seeking.' }] }, { id: 'liquidity', question: 'How is liquidity best described?', answers: [{ key: 'thin', meaning: 'Thin order books.' }, { key: 'deep', meaning: 'Deep order books.' }] }],
+    graph: { graphHash, accessScopes: ['s'], notes: [{ nodeId: 'note.halving', text: 'The halving matters only through miner margins; this is the causal link to model next.', holder: 'author.llm', aboutEventIds: ['event.btc.halving-2028'] }] } }, estimator, f.service);
+  assert.deepEqual(result.eventsAdded, ['event.btc.halving-2028']);
+  assert.deepEqual(result.applied.cutIds, ['cut.event.btc.halving-2028.sentiment', 'cut.event.btc.halving-2028.liquidity']);
+  const revise = f.calls.find(([kind]) => kind === 'revise')[1].model;
+  const added = revise.meaning_model.events.find((event) => event.id === 'event.btc.halving-2028');
+  assert.equal(added.description, 'Miners with thin margins capitulate over the following quarter.');
+  assert.deepEqual(added.participants, { asset: 'referent.bitcoin' });
+  assert.ok(revise.meaning_model.event_relations.some((relation) => relation.kind === 'contains' && relation.source_event_id === 'event.world' && relation.target_event_id === 'event.btc.halving-2028'));
+  assert.equal(revise.meaning_model.normalized_cuts.filter((cut) => cut.parent_event_id === 'event.btc.halving-2028').length, 2);
+  assert.equal(result.rebound.modelHash, newModel);
+  assert.equal(result.notes.nodeIds[0], 'note.halving');
+  const batch = batches[0].narrativeBatch;
+  assert.deepEqual(batch.add_roots, ['understanding.ingest']);
+  assert.equal(batch.add_nodes.at(-1).role, 'externalized_reflection');
+  assert.equal(batch.add_nodes.at(-1).holder, 'author.llm');
+  assert.ok(batch.add_edges.some((edge) => edge.target.kind === 'anchor' && edge.target.anchor_id === 'event.btc.halving-2028'));
+  assert.equal(result.graphMutation, true);
+});
+
+test('ingest validates parents, participants, duplicates and pending estimates', async () => {
+  const f = modelFixture();
+  await assert.rejects(ingestSituation({ requestId: 'r', modelHash: oldModel, events: [{ eventId: 'event.new', boundary: 'b' }] }, fakeEstimator, f.service), /needs a parentEventId/);
+  await assert.rejects(ingestSituation({ requestId: 'r', modelHash: oldModel, events: [{ eventId: 'event.new', boundary: 'b', parentEventId: 'event.nope' }] }, fakeEstimator, f.service), /does not exist/);
+  await assert.rejects(ingestSituation({ requestId: 'r', modelHash: oldModel, events: [{ eventId: 'event.new', boundary: 'b', parentEventId: 'event.kaj.state.h6', participants: { who: 'referent.nope' } }] }, fakeEstimator, f.service), /unknown referent/);
+  await assert.rejects(ingestSituation({ requestId: 'r', modelHash: oldModel, events: [{ eventId: 'event.kaj.state.h6', boundary: 'changed' }] }, fakeEstimator, f.service), /set replaceExisting/);
+  const pending = await ingestSituation({ requestId: 'r', modelHash: oldModel, events: [{ eventId: 'event.kaj.state.h6' }], questions: [{ id: 'q', question: 'Q?', answers: [{ key: 'a', meaning: 'A.' }] }] }, null, f.service);
+  assert.equal(pending.evaluator, 'calling_llm');
+  assert.equal(pending.pending.length, 1);
+  assert.equal(pending.applied, null);
+  await assert.rejects(ingestSituation({ requestId: 'r', modelHash: oldModel, apply: true, events: [{ eventId: 'event.kaj.state.h6' }], questions: [{ id: 'q', question: 'Q?', answers: [{ key: 'a', meaning: 'A.' }] }] }, null, f.service), /pending/);
 });

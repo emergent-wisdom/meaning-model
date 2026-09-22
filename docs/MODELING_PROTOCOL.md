@@ -156,8 +156,10 @@ held-out prediction, intervention, compression, calibration, and stability.
 The MCP estimation exchange supports both data-only provisional claims and a
 separate, explicit proposal for a successor model containing new laws.
 `life_estimate_cut_shares` can propose normalized Cut weights from situation text
-through an optional external estimator; such proposals are AI inference, carry
-estimator provenance, and enter the model only through an explicit revision.
+through an optional external estimator, and `life_model_ingest` can create described
+events, estimate several Cuts for each, register the revision, rebind a bound graph
+and store notes in one call. Such weights are AI inference, carry estimator
+provenance, and enter the model only through an explicit `apply`.
 
 ### 8. Preserve alternatives and residuals
 

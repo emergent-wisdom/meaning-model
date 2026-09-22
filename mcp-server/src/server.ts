@@ -5,6 +5,7 @@ import * as z from 'zod/v4';
 import { parseEnabledAddons } from './addon-config.mjs';
 import { createEstimator, parseEstimatorConfig } from './estimator-config.mjs';
 import { registerEstimatorTools } from './estimator-tools.mjs';
+import { narrativeRebindSchema, rebindNarrativeGraph } from './narrative-rebind.mjs';
 import { narrativeEditSchema, editNarrativeGraph } from './narrative-editing.mjs';
 import {
   LifeSimulationService,
@@ -818,6 +819,16 @@ server.registerTool(
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   async (input) => toolResult(await service.diagnoseStoryRevision(input)),
+);
+
+server.registerTool(
+  'life_narrative_rebind',
+  {
+    description: 'Rebind a model-bound narrative graph to a successor model revision as one complete immutable graph revision. Reads the whole graph with the supplied scopes, refuses partial projections and unrelated models, keeps every node including historical assessments, drops only edges anchored to predecessor model hashes, and submits the successor through the existing revise operation. Record fresh depth assessments against the new model before committing further prose.',
+    inputSchema: narrativeRebindSchema,
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  async (input) => toolResult(await rebindNarrativeGraph(service, input)),
 );
 
 registerEstimatorTools(server, service, estimator, { toolResult });

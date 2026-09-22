@@ -320,8 +320,10 @@ The state-machine tools are:
 - `life_narrative_query`
 - `life_narrative_render`
 - `life_narrative_training_export`
+- `life_narrative_rebind`
 - `life_narrative_alignment_audit`
 - `life_estimate_cut_shares`
+- `life_model_ingest`
 - `life_candidate_roll`
 - `life_candidate_reroll`
 - `life_candidate_reject`
@@ -511,19 +513,36 @@ trajectory, or mutate accepted history.
 
 ## Optional external estimator
 
-Two read-only tools turn an external classifier into a modeling aid. They are always
-registered; without configuration they return their generated questions as a task for
-the calling LLM and send nothing anywhere. Set `MEANING_MODEL_ESTIMATOR=typesafe` with
-`TYPESAFE_API_KEY` (optionally `TYPESAFE_MODEL`, default `jev-latest`) to have TypeSafe's
-Jev score the questions instead. With the estimator on, the text supplied to these two
-tools leaves the machine; no other tool changes behaviour.
+Three tools turn an external classifier into a modeling aid, and one tool makes model
+revisions cheap to follow. They are always registered. Without configuration the
+estimator tools return their generated questions as a task for the calling LLM and
+send nothing anywhere. Set `MEANING_MODEL_ESTIMATOR=typesafe` with `TYPESAFE_API_KEY`
+(optionally `TYPESAFE_MODEL`, default `jev-latest`) to have TypeSafe's Jev score the
+questions instead. With the estimator on, the text supplied to these tools leaves the
+machine; no other tool changes behaviour.
 
-`life_estimate_cut_shares` takes one comparison question, its answer keys with meanings,
-and several described situations. Each situation returns a normalized Cut proposal: the
-estimator's choice distribution over the answers plus an automatic `remainder`, with
-provenance naming the estimator and its confidence. Proposals are AI inference, not
-canon: a large remainder usually means a missing answer category, and accepted Cuts are
-placed in an explicit model revision or used as trajectory baselines.
+`life_estimate_cut_shares` takes one comparison question, its answer keys with
+meanings, and targets: free-text situations, or event IDs in a bound model whose
+boundary and description supply the situation text. Each target returns a normalized
+Cut proposal, the estimator's distribution over the answers plus an automatic
+`remainder`, with provenance naming the estimator and its confidence. With `apply`
+and a `requestId` the tool registers the Cuts as one complete immutable model revision
+itself, under their parent events; `rebind` moves a model-bound story graph to that
+revision in the same call; `distributions` lets you place your own numbers without an
+estimator. Proposals are AI inference, not canon: a large remainder usually means a
+missing answer category.
+
+`life_model_ingest` is the one-call entry for general modeling. You write the event's
+boundary and description once, list the questions to ask about it, and optionally add
+notes; the tool creates the events under their declared parent, asks every question
+for every event, writes the distributions as Cuts, registers the revision, rebinds the
+bound graph, and stores the notes as Understanding Nodes anchored to the events. Text
+is yours; weights are the estimator's; both carry provenance and can be revised.
+
+`life_narrative_rebind` rebinds a model-bound narrative graph to a successor model as
+one complete graph revision. It refuses partial projections and unrelated models, keeps
+every node including historical assessments, and drops only edges anchored to
+predecessor model hashes. Record fresh depth assessments afterwards.
 
 `life_narrative_alignment_audit` renders a prose unit from an exact graph revision and
 audits it against the graph's records, per passage and as a whole. Questions are
@@ -531,10 +550,11 @@ generated mechanically from each record (narrated? contradicted?) and from decla
 withheld nodes (leaked to the viewpoint or reader?), plus one advisory holistic
 question. Passage-level flags at or above 0.5 are the actionable signal; whole-unit
 scores arbitrate proposals and reported speech, which score high at passage scope.
-Records phrased as transient knowledge states belong in leak checks, not contradiction
-checks. The audit is advisory, mutates nothing, and does not verify meaning or
-literary quality; store its findings as an Understanding Node and resolve them by
-revising prose, revising a record with justification, or recording an ambiguity.
+List `knowledgeStateNodeIds` for records phrased as transient knowledge states so they
+are checked only for narration and leaks. With `record` the tool stores the scores and
+flags itself as a derived-diagnostic metadata node under the document root. The audit
+is advisory and does not verify meaning or literary quality; resolve flags by revising
+prose, revising a record with justification, or recording an ambiguity.
 
 ## Opt-in storytelling add-on
 

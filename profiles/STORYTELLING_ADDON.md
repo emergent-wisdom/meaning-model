@@ -524,10 +524,11 @@ consequential model, trajectory, causal, or disclosure revisions, review the
 affected explanation again and then review the affected scenes.
 
 The native graph resolves model anchors against its one bound model. After a
-model revision, rebinding the story to the successor model therefore requires
-an explicit `life_narrative_revise`: retain the old depth-review nodes as
-historical assessments, but remove their model-anchor edges that identify the
-predecessor model from the successor graph. The earlier immutable graph keeps
+model revision, rebind the story to the successor model with
+`life_narrative_rebind`, which submits one complete successor that retains the
+old depth-review nodes as historical assessments and removes only their
+model-anchor edges identifying the predecessor model. A manual
+`life_narrative_revise` remains possible for the same purpose. The earlier immutable graph keeps
 those exact anchors and evidence. Never retarget old findings to new values or
 rewrite their historical model hash. Record a fresh depth assessment with a
 new node and new model anchors before committing affected scenes; the old

@@ -6,14 +6,19 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
-- Add two read-only estimator tools to the default surface, `life_estimate_cut_shares`
-  and `life_narrative_alignment_audit`. Without configuration they return their
-  mechanically generated questions as a task for the calling LLM. With
-  `MEANING_MODEL_ESTIMATOR=typesafe` and `TYPESAFE_API_KEY`, TypeSafe's Jev scores them:
-  Cut-weight proposals from situation text with estimator provenance and an automatic
-  remainder, and per-passage narrated/contradicted/leaked audits of rendered prose
-  against the graph's records. Proposals and audits are AI inference and advisory;
-  nothing enters the model or graph without an explicit revision or record.
+- Add estimator tools to the default surface: `life_estimate_cut_shares`,
+  `life_model_ingest` and `life_narrative_alignment_audit`, plus `life_narrative_rebind`.
+  Without configuration the estimator tools return their mechanically generated
+  questions as a task for the calling LLM. With `MEANING_MODEL_ESTIMATOR=typesafe` and
+  `TYPESAFE_API_KEY`, TypeSafe's Jev scores them. Cut-share proposals carry estimator
+  provenance and an automatic remainder and can be placed as one model revision with
+  `apply`; ingest creates described events, estimates several Cuts each, registers the
+  revision, rebinds a bound graph and stores notes as Understanding Nodes in one call;
+  the audit checks rendered prose against the graph's records per passage and can
+  record its scores as a derived-diagnostic node. Rebind moves a model-bound graph to a
+  successor model, keeping every node and dropping only predecessor model anchors.
+  Weights and scores are AI inference; nothing enters the model or graph without an
+  explicit `apply` or `record`.
 
 - Add the shared `life_narrative_edit` tool for atomic passage splitting,
   merging, moving, reordering and local text changes through immutable Rust
