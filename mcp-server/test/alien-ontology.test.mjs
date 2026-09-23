@@ -120,3 +120,18 @@ test('graded membership is a Cut over active concepts with a remainder, replaced
   assert.throws(() => applyOperations(cleared, [{ op: 'clear_membership', subjectNodeId: 'm1' }], { step: 8 }), /no graded membership/);
   assert.deepEqual(normalizeOntology({ concepts: [], partitions: [], relations: [], instances: [] }).memberships, [], 'states stored before graded membership read as none');
 });
+
+test('exported concepts keep every word of long operators and boundaries within the engine\'s per-text bound', async () => {
+  const { engineTexts } = await import('../src/alien-ontology.mjs');
+  const sentence = (index) => `Sentence ${index} names a rule about what the held thing must do before dusk and why it matters.`;
+  const long = Array.from({ length: 30 }, (_, index) => sentence(index)).join(' ');
+  const { state } = applyOperations(null, [{ op: 'add_concept', concept: { id: 'k', label: 'K', operator: long.slice(0, 1_200), boundary: long.slice(0, 2_000) } }], { step: 0 });
+  const [exported] = meaningModelFragment(state, { ontology: 'mechanisms', searchRootId: 's', provenance: ['p'] }).concepts;
+  for (const text of [exported.boundary, ...exported.differentia]) assert.ok(Buffer.byteLength(text) <= 1_024, `${Buffer.byteLength(text)} bytes`);
+  const joined = [exported.boundary, ...exported.differentia].join(' ');
+  for (const word of long.slice(0, 2_000).split(' ').slice(0, -1)) assert.ok(joined.includes(word), `kept ${word}`);
+  assert.match(exported.differentia[0], /^Operator: /);
+  assert.ok(exported.differentia.some((item) => item.startsWith('Boundary, continued: ')));
+  assert.deepEqual(engineTexts('short'), ['short']);
+  assert.ok(engineTexts('é'.repeat(900)).every((piece) => Buffer.byteLength(piece) <= 1_024), 'multibyte text is split by bytes');
+});

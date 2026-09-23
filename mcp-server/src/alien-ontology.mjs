@@ -383,6 +383,30 @@ export function renderOntologyTree(stored, { labelFor = (subjectNodeId) => subje
 // its children, and its lens becomes a differentia of each child, since the lens is what tells the
 // kinds apart; abstract cuts are left for expressive decompositions. The engine admits a label only
 // on kind other, so a typed relation keeps its kind and any aspect note moves to its provenance.
+// The engine bounds each concept text (label, boundary, each differentia entry, each provenance entry)
+// at 1,024 bytes. Longer ontology texts are split at sentence, then word, boundaries into several
+// entries rather than truncated, so the exported concept keeps every word.
+const MAX_ENGINE_TEXT_BYTES = 1_024;
+export function engineTexts(text, lead = '', more = 'continued: ') {
+  const pieces = [];
+  let rest = String(text).trim();
+  let prefix = lead;
+  while (rest.length) {
+    const budget = MAX_ENGINE_TEXT_BYTES - Buffer.byteLength(prefix);
+    if (Buffer.byteLength(rest) <= budget) { pieces.push(prefix + rest); break; }
+    let fits = 0; let bytes = 0;
+    for (const char of rest) { const size = Buffer.byteLength(char); if (bytes + size > budget) break; bytes += size; fits += char.length; }
+    const window = rest.slice(0, fits);
+    const sentence = window.lastIndexOf('. ');
+    const space = window.lastIndexOf(' ');
+    const at = sentence > fits / 2 ? sentence + 1 : space > 0 ? space : fits;
+    pieces.push(prefix + rest.slice(0, at).trim());
+    rest = rest.slice(at).trim();
+    prefix = more;
+  }
+  return pieces;
+}
+
 export function meaningModelFragment(stored, { ontology, searchRootId, provenance }) {
   const state = normalizeOntology(stored);
   const prefix = `alien.${searchRootId}.${ontology}.`;
@@ -391,22 +415,26 @@ export function meaningModelFragment(stored, { ontology, searchRootId, provenanc
   const partitions = state.partitions.filter((partition) => activeIds.has(partition.parentConceptId));
   const lensesOf = (conceptId) => partitions.filter((partition) => partition.childConceptIds.includes(conceptId)).map((partition) => {
     const parent = state.concepts.find((concept) => concept.id === partition.parentConceptId);
-    return `Distinguished within ${parent.label} by: ${partition.lens}`.slice(0, 1_000);
-  });
+    return engineTexts(`Distinguished within ${parent.label} by: ${partition.lens}`);
+  }).flat();
   return {
-    concepts: active.map((concept) => ({ id: prefix + concept.id, label: concept.label,
-      differentia: [`Operator: ${concept.operator}`, ...concept.differentia, ...lensesOf(concept.id)], boundary: concept.boundary,
+    concepts: active.map((concept) => {
+      const boundary = concept.boundary ? engineTexts(concept.boundary, '', 'Boundary, continued: ') : [null];
+      const differentia = [...engineTexts(concept.operator, 'Operator: ', 'Operator, continued: '), ...concept.differentia.flatMap((item) => engineTexts(item)),
+        ...lensesOf(concept.id), ...boundary.slice(1)];
+      return { id: prefix + concept.id, label: concept.label, differentia: [...new Set(differentia)], boundary: boundary[0],
       state_schema: Object.fromEntries(concept.roles.map((item) => [item.id, item.description])),
-      direction_families: [], observation_methods: [], provenance })),
+      direction_families: [], observation_methods: [], provenance };
+    }),
     abstract_cuts: [],
     abstract_relations: [
       ...partitions.flatMap((partition) => partition.childConceptIds.map((child) => ({
         id: `${prefix}${partition.id}.${child}`, source_concept_id: prefix + partition.parentConceptId, target_concept_id: prefix + child,
-        kind: 'specialization', label: null, provenance: [...provenance, `partition ${partition.id}, lens: ${partition.lens}`.slice(0, 1_000)] }))),
+        kind: 'specialization', label: null, provenance: [...provenance, ...engineTexts(`partition ${partition.id}, lens: ${partition.lens}`)] }))),
       ...state.relations.map((relation) => ({ id: prefix + relation.id, source_concept_id: prefix + relation.sourceConceptId,
         target_concept_id: prefix + relation.targetConceptId, kind: relation.kind,
         label: relation.kind === 'other' ? relation.label : null,
-        provenance: relation.kind !== 'other' && relation.label ? [...provenance, `aspect: ${relation.label}`.slice(0, 1_000)] : provenance })),
+        provenance: relation.kind !== 'other' && relation.label ? [...provenance, ...engineTexts(`aspect: ${relation.label}`)] : provenance })),
     ],
   };
 }

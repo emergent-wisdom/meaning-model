@@ -45,6 +45,13 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
 - Let an alien candidate carry a graded membership, a Cut over the families it
   draws on with a remainder, beside its categorical assignment; the diagnosis
   lists hybrids.
+- Split long concept operators, boundaries and lenses in the alien atlas's Meaning
+  Model fragments into several entries within the engine's 1,024-byte bound per
+  text, instead of exporting concepts the engine refuses to register.
+- Add `examples/alien-retirement`, the first live alien search: its atlas, a
+  four-world library, the ontologies as Meaning Model fragments and the target
+  model, with a test that imports the library into a search on another problem
+  and registers the model with the ontologies merged in.
 - Keep model anchors that name the model by its stable id when
   `life_narrative_rebind` moves a graph to a successor model; only anchors that
   name the predecessor hash are dropped.

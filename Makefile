@@ -31,6 +31,7 @@ test: test-examples test-rust test-mcp test-book verify-resources
 
 test-examples:
 	$(NODE) --test examples/refinement-trial/example.test.mjs
+	$(NODE) --test examples/alien-retirement/example.test.mjs
 	$(NODE) --test scripts/export-release.test.mjs
 
 test-rust:

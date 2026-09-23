@@ -1,0 +1,17 @@
+{
+ "schema": "meaning-model-example-manifest/v1",
+ "example": "alien-retirement",
+ "source": {
+  "searchRootId": "search.retirement",
+  "graphHash": "9599f3dbc88ad3874cbe0f0fc5634a59036a0f4e76747408161d977c63b78234",
+  "worldLibraryHash": "98084bb771db4968a282f0e816894991aaf0d3d92ec3e8a46ecb891532f73a34",
+  "targetModelId": "irregular-income-retirement"
+ },
+ "files": {
+  "README.md": "96ada55147affa3fdf847b44c306eca23d5e22d933377cc3e2fe90f21f3cb3e9",
+  "atlas.md": "af94bfebb29c605030e3fbef046e495f30a7b36522be7aba3866b87837ba7e09",
+  "world-library.json": "396dcc72628e9fd27827eb7f7677baee60dc1043b4324a3be4d0585ea563a469",
+  "ontologies.json": "2bf7c7386c3101bc5439431ee2d2368d7df22707abbce3251a77d254c6ac8b54",
+  "target-model.json": "d76f3d2c333b4754b03bcef3cb9f6aab1d139fd58d47cf585a9ea15cd95a2173"
+ }
+}
