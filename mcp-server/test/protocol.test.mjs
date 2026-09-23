@@ -754,6 +754,29 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'The harbor held one exact state beneath the sentence.\n\n' +
         'A second node arrived in one atomic, connected batch.',
     );
+    // A successor can be sent as its change instead of the complete graph.
+    const changed = await client.callTool({
+      name: 'life_narrative_revise',
+      arguments: {
+        requestId: 'protocol-narrative-change',
+        previousGraphHash: appendedGraphHash,
+        accessScopes: ['world'],
+        change: {
+          revision: { number: 2, previous_graph_hash: appendedGraphHash, reason: 'Rewrite the second passage by its change.', provenance: ['official MCP protocol integration test'] },
+          upsertNodes: [{
+            id: 'passage-2', node_type: 'paragraph', role: 'story_passage', text: 'The second node, rewritten by its change.',
+            epistemic_status: 'fictional_canon', evidence_type: 'fictional_canon', authority: { source: 'protocol-author', weight: 1 },
+            render: 'include', training: 'include', provenance: ['official MCP protocol integration test'],
+          }],
+        },
+      },
+    });
+    assert.equal(changed.isError, undefined, JSON.stringify(changed));
+    assert.equal(changed.structuredContent.revisedByDelta, true);
+    const renderedChange = await client.callTool({ name: 'life_narrative_render', arguments: { graphHash: changed.structuredContent.graphHash } });
+    assert.match(renderedChange.structuredContent.text, /rewritten by its change\.$/);
+    const both = await client.callTool({ name: 'life_narrative_revise', arguments: { requestId: 'protocol-narrative-both', previousGraphHash: appendedGraphHash, narrativeGraph: {}, change: { revision: { number: 2, previous_graph_hash: appendedGraphHash, reason: 'r', provenance: ['p'] } } } });
+    assert.equal(both.isError, true, 'narrativeGraph and change together are refused');
     const narrativeTraining = await client.callTool({
       name: 'life_narrative_training_export',
       arguments: {

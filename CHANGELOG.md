@@ -112,7 +112,8 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
   `revise_narrative_graph_by_change` applies upserts and removals to the stored
   predecessor, refuses a caller whose scopes hide any of it, and validates the
   successor as a complete revision. `life_narrative_rebind`, `life_narrative_edit`
-  and `life_construction_import` use it, so neither the call nor the idempotency
+  and `life_construction_import` use it, and `life_narrative_revise` accepts a
+  `change` instead of the complete graph, so neither the call nor the idempotency
   receipt carries the whole graph. A 147-revision story now imports with about
   3 MB of retained receipts instead of exceeding the 64 MiB budget.
 - Keep every narrative revision materialized in the engine as persistent maps

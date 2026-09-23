@@ -492,15 +492,32 @@ server.registerTool(
 server.registerTool(
   'life_narrative_revise',
   {
-    description: 'Register one complete immutable successor of a Rust-owned narrative/understanding graph. Earlier text and testimony revisions remain addressable; no in-place overwrite occurs and the simulation world remains unchanged. The complete batch contract is documented at life-sim://protocol/narrative-understanding-graph.',
+    description: 'Register one immutable successor of a Rust-owned narrative/understanding graph, from either its complete definition (narrativeGraph) or its change from the predecessor (change): new or replaced nodes and edges, removed ids, and optionally new roots or a new source. Send the change for a large graph; the engine applies it to the stored predecessor, refuses it unless accessScopes reveal the whole predecessor, and validates the successor as a complete revision. Earlier text and testimony revisions remain addressable; no in-place overwrite occurs and the simulation world remains unchanged. The contract is documented at life-sim://protocol/narrative-understanding-graph.',
     inputSchema: z.object({
       requestId: requestIdSchema,
       previousGraphHash: z.string().length(64),
-      narrativeGraph: z.record(z.string(), z.unknown()),
-    }),
+      narrativeGraph: z.record(z.string(), z.unknown()).optional().describe('The complete successor definition.'),
+      change: z.object({
+        revision: z.object({
+          number: z.number().int().positive(),
+          previous_graph_hash: z.string().length(64),
+          reason: z.string().trim().min(1),
+          provenance: z.array(z.string().trim().min(1)).min(1),
+        }).strict(),
+        source: z.record(z.string(), z.unknown()).optional(),
+        roots: z.array(z.string()).optional(),
+        upsertNodes: z.array(z.record(z.string(), z.unknown())).optional(),
+        removeNodeIds: z.array(z.string()).optional(),
+        upsertEdges: z.array(z.record(z.string(), z.unknown())).optional(),
+        removeEdgeIds: z.array(z.string()).optional(),
+      }).strict().optional().describe('The successor as its change from the predecessor, instead of narrativeGraph.'),
+      accessScopes: z.array(z.string()).max(64).optional().describe('With change: scopes that reveal every node, edge and root of the predecessor.'),
+    }).refine((input) => Boolean(input.narrativeGraph) !== Boolean(input.change), 'Send exactly one of narrativeGraph or change.'),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
-  async (input) => toolResult(await service.reviseNarrativeGraph(input)),
+  async ({ change, accessScopes, ...input }) => toolResult(change
+    ? await service.reviseNarrativeGraphByDelta({ requestId: input.requestId, previousGraphHash: input.previousGraphHash, delta: change, accessScopes: accessScopes ?? [] })
+    : await service.reviseNarrativeGraph(input)),
 );
 
 server.registerTool(

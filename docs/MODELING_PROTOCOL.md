@@ -250,8 +250,9 @@ When the output itself should remain linked to the model, use the optional
 narrative/understanding graph. Begin with a complete node-and-edge transaction
 through `life_narrative_register`. Use `life_narrative_batch` to add one or many
 connected nodes and edges without resending the graph, or
-`life_narrative_revise` when replacement or deletion requires a complete
-successor. A one-node batch must connect to an existing node or stable anchor;
+`life_narrative_revise` when replacement or deletion requires a successor, sent
+as its `change` (new or replaced records and removed ids) or as a complete
+definition. A one-node batch must connect to an existing node or stable anchor;
 only the first declared root may stand alone. This lets the agent plan each
 local topology together and lets Rust reject the entire transaction if a node,
 edge, scope, order, stable-object anchor, nested path, or connectivity condition

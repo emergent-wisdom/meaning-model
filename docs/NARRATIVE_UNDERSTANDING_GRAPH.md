@@ -212,7 +212,7 @@ revision, and a session keeps at most 4,096.
 | MCP tool | Rust operation | Effect |
 | --- | --- | --- |
 | `life_narrative_register` | `register_narrative_graph` | Atomically register a complete revision-zero graph. |
-| `life_narrative_revise` | `revise_narrative_graph` | Atomically register a complete immutable successor. |
+| `life_narrative_revise` | `revise_narrative_graph` or `revise_narrative_graph_by_change` | Atomically register an immutable successor from its complete definition or from its change. |
 | `life_narrative_batch` | `apply_narrative_batch` | Add one or many connected roots, nodes, and edges as one immutable successor. |
 | `life_narrative_edit` | `query_narrative_graph`, then `revise_narrative_graph_by_change` | Apply split, merge, move, reorder, or guarded text replacement as one immutable successor, sent and stored as its change. |
 | `life_narrative_query` | `query_narrative_graph` | Read a full, skeleton, or neighborhood projection; `forRevision` returns a full content projection stripped to the fields revise accepts. |
@@ -234,8 +234,8 @@ applies the upserts and removals to the stored predecessor, refuses a caller who
 scopes hide any of it, and validates the successor as a complete revision. Neither
 the call nor the idempotency receipt carries the whole graph, so the service's
 64 MiB receipt budget lasts through long sessions on large graphs. A caller that
-sends `life_narrative_revise` a complete definition still retains that definition
-in the receipt. The query, render, outline, replay and export tools are read-only; the alignment audit is read-only unless `record` is supplied, and it contacts an external service only when `MEANING_MODEL_ESTIMATOR` is set.
+sends `life_narrative_revise` a complete definition retains that definition in the
+receipt; sending its `change` instead keeps both the call and the receipt small. The query, render, outline, replay and export tools are read-only; the alignment audit is read-only unless `record` is supplied, and it contacts an external service only when `MEANING_MODEL_ESTIMATOR` is set.
 
 ## Access boundary
 

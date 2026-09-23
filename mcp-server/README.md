@@ -823,8 +823,9 @@ Scene commit appends new material. Use shared `life_narrative_edit` operations
 for targeted text replacement or structural changes to existing passages,
 then inspect retained semantic links and refresh reviews whose text, order,
 or other evidence changed. The optional scene `passages` form makes its leaves
-independently addressable from commitment. Complete `life_narrative_revise`
-remains available for unsupported topology or source changes; manually
+independently addressable from commitment. `life_narrative_revise`, with a
+complete definition or its `change`, remains available for unsupported topology
+or source changes; manually
 constructed successors require a full graph read with verified node, edge,
 and root counts, never a scope-filtered projection. An append-based replacement
 can still use fresh scene IDs and the preparation/draft/review/commit workflow
