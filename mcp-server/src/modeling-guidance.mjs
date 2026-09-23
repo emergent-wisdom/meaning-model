@@ -40,7 +40,7 @@ const resourceDefinitions = Object.freeze([
     uri: 'life-sim://theory/meaning-model',
     title: 'The Meaning Model: Constructing Worlds and Stories at Progressive Resolution',
     description:
-      'Canonical theory and construction manuscript for progressively resolved worlds, concepts, perspective-separated understanding, and stories.',
+      'Canonical theory and construction manuscript for progressively resolved worlds, concepts, perspective-separated understanding, and stories. Its included files are expanded inline.',
     mimeType: 'text/x-tex',
     file: new URL('../../paper/meaning-model.tex', import.meta.url),
     category: 'theory',
@@ -150,8 +150,18 @@ function sha256(text) {
   return createHash('sha256').update(text).digest('hex');
 }
 
+// A served LaTeX paper includes its \input files inline, so a reader of the resource sees the
+// definitions, boxes and figures the text relies on. Only plain relative names are expanded.
+export async function expandTexInputs(text, file) {
+  const pattern = /^[ \t]*\\input\{([A-Za-z0-9_\-]+(?:\/[A-Za-z0-9_\-]+)*)(\.tex)?\}[ \t]*$/gm;
+  const names = [...new Set([...text.matchAll(pattern)].map((match) => match[1]))];
+  const included = new Map(await Promise.all(names.map(async (name) => [name, await readFile(new URL(`${name}.tex`, file), 'utf8')])));
+  return text.replace(pattern, (_line, name) => `% ---- Begin included file ${name}.tex, expanded inline for this resource ----\n${included.get(name).replace(/\n$/, '')}\n% ---- End included file ${name}.tex ----`);
+}
+
 async function loadDefinition(definition) {
-  const text = await readFile(definition.file, 'utf8');
+  const raw = await readFile(definition.file, 'utf8');
+  const text = definition.mimeType === 'text/x-tex' ? await expandTexInputs(raw, definition.file) : raw;
   return {
     id: definition.id,
     uri: definition.uri,
@@ -328,7 +338,7 @@ export async function buildModelingPrompt({ purpose, sessionMode }) {
     .map((resource, index) => `${index + 1}. ${resource.uri}${resource.required ? ' (required)' : ''}`)
     .join('\n');
   return [
-    `Begin a ${purpose} Meaning Model modeling session in ${sessionMode} mode.`,
+    `Begin a Meaning Model modeling session. Purpose: ${purpose}. Session mode: ${sessionMode}.`,
     '',
     context.modelingFreedom,
     '',

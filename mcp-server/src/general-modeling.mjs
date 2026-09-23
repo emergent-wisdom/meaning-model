@@ -100,6 +100,7 @@ export const worldModelScaffoldSchema = z.object({
     initialEstimate: z.object({ question: jevProcessQuestionSchema, sourceIds: z.array(id).min(1).max(63) }).strict().optional(),
     judgmentQuestion: jevProcessQuestionSchema.optional().describe('Explicit authored rubric for a supplied estimated value; initialEstimate preserves its question here automatically. This does not turn estimates into measurements.'),
     referentIds: z.array(id).max(32).default([]),
+    updateMode: z.enum(['observed', 'static']).optional().describe('observed for a measured series whose later or earlier values can arrive as observed reports, even when its initial value is an estimate. Defaults to observed when the initial value is an observation or report, otherwise static.'),
   }).strict().refine((v) => Boolean(v.initial) !== Boolean(v.initialEstimate), 'Supply exactly one of initial or initialEstimate.')).min(1).max(256),
   events: z.array(z.object({
     id, boundary: prose, description: prose.nullable().default(null),
@@ -120,7 +121,9 @@ export const worldModelBuildSchema = z.object({
   expectedProposalHash: z.string().regex(/^[a-f0-9]{64}$/).nullable().default(null),
   proposalId: id.nullable().default(null),
   includeDefinition: z.boolean().default(false),
-}).strict().refine((input) => Boolean(input.scaffold) || (input.apply && Boolean(input.proposalId)), 'A scaffold is required for preview; apply may omit it only with a stored proposalId.');
+  validateOnly: z.boolean().default(false),
+}).strict().refine((input) => Boolean(input.scaffold) || (input.apply && Boolean(input.proposalId)), 'A scaffold is required for preview; apply may omit it only with a stored proposalId.')
+  .refine((input) => !input.validateOnly || (Boolean(input.scaffold) && !input.apply), 'validateOnly checks a scaffold without applying it.');
 
 const digest = (value) => createHash('sha256').update(canonicalEstimationJson(value)).digest('hex');
 const endpoint = (nodeId) => ({ kind: 'node', node_id: nodeId });
@@ -177,7 +180,7 @@ function validateReferences(input) {
     if (aspect.status !== 'represented') continue;
     if (kind === 'authoredJudgments') {
       const numerical = aspect.processIds.map((processId) => input.processes.find((process) => process.id === processId)).filter((process) => ['scalar', 'distribution'].includes(process.type.kind));
-      if (!numerical.some((process) => process.initialEstimate || (process.judgmentQuestion && (['estimate', 'forecast'].includes(process.initial?.evidenceType) || process.initial?.status)))) throw new Error('authoredJudgments represented requires a referenced numeric estimate process with initialEstimate or an explicit judgmentQuestion; measurements alone do not establish an authored judgment scale.');
+      if (!numerical.some((process) => process.initialEstimate || (process.judgmentQuestion && (['estimate', 'forecast'].includes(process.initial?.evidenceType) || process.initial?.status)))) throw new Error('authoredJudgments represented requires a referenced scalar or distribution estimate process with initialEstimate or an explicit judgmentQuestion; measurements alone do not establish an authored judgment scale, and a category judgment with a choice rubric is recorded but is not a numerical scale. Reference a numeric scale, or mark authoredJudgments unknown or out_of_scope with the reason.');
       continue;
     }
     if (kind === 'conceptualStructure') {
@@ -308,7 +311,7 @@ export function compileWorldModel(raw) {
       : structuredClone(process.type);
     const observed = ['observation', 'report'].includes(initial.evidenceType);
     const refs = sourceProvenance(initial.sourceIds);
-    const record = { id: process.id, value_type, initial_value: value, unit: process.unit, reference_frame: process.referenceFrame, scale: { semantic_role: process.meaning, time_origin: input.time.origin, initial_evidence_type: initial.evidenceType, ...(process.judgmentQuestion ? { authored_judgment_question: canonicalEstimationJson(process.judgmentQuestion) } : {}) }, update_mode: observed ? 'observed' : 'static', support: initial.sourceIds, uncertainty: initial.uncertainty, axes: [], access_scopes: scopes, provenance: refs };
+    const record = { id: process.id, value_type, initial_value: value, unit: process.unit, reference_frame: process.referenceFrame, scale: { semantic_role: process.meaning, time_origin: input.time.origin, initial_evidence_type: initial.evidenceType, ...(process.judgmentQuestion ? { authored_judgment_question: canonicalEstimationJson(process.judgmentQuestion) } : {}) }, update_mode: process.updateMode ?? (observed ? 'observed' : 'static'), support: initial.sourceIds, uncertainty: initial.uncertainty, axes: [], access_scopes: scopes, provenance: refs };
     validateProcessValue(value, record);
     processRecords.push(record);
     const claimId = generated('initial', process.id);
@@ -430,10 +433,18 @@ async function resolveInitialEstimates(scaffold, estimator, checkpoint) {
     process.judgmentQuestion = structuredClone(target.initialEstimate.question);
     delete process.initialEstimate;
     process.initial = mapped.status === 'known'
-      ? { value: mapped.value.value, evidenceType: 'estimate', sourceIds: [...target.initialEstimate.sourceIds, receiptId], holder: label, evidenceCutoff: 0, uncertainty: { kind: 'unknown' } }
+      ? { value: mapped.value.value, evidenceType: 'estimate', sourceIds: [...target.initialEstimate.sourceIds, receiptId], holder: label, evidenceCutoff: 0, uncertainty: mapped.uncertainty ?? { kind: 'unknown' } }
       : { status: 'unknown', reason: mapped.reason, sourceIds: [...target.initialEstimate.sourceIds, receiptId] };
   }
-  return { scaffold: resolved, estimator: { provider: label, evaluatedProcessIds: targets.map((process) => process.id), usage: result.usage ?? null } };
+  // The preview shows what the provider returned, so the values can be reviewed before apply.
+  const answers = targets.map((target, index) => {
+    const answer = result.answers[`q${index}`];
+    const mapped = mappedAnswers[index];
+    return { processId: target.id, questionKey: `q${index}`, status: mapped.status, value: mapped.value?.value ?? null, uncertainty: mapped.uncertainty ?? { kind: 'unknown' },
+      ...(answer.type === 'noul' ? { noul: answer.noul } : { confidence: answer.confidence, probabilities: answer.probabilities, ...(answer.type === 'choice' ? { choice: answer.choice } : { levelIndexScore: answer.score }) }),
+      ...(mapped.status === 'known' ? {} : { reason: mapped.reason }) };
+  });
+  return { scaffold: resolved, estimator: { provider: label, evaluatedProcessIds: targets.map((process) => process.id), usage: result.usage ?? null, answers } };
 }
 
 async function buildWorldModelOnce(input, service, estimator, checkpoint) {
@@ -441,6 +452,7 @@ async function buildWorldModelOnce(input, service, estimator, checkpoint) {
   const missingReviews = input.proposalId ? [] : missingModelingReviews(input.scaffold);
   if (missingReviews.length) return { schema: 'meaning-model-world-build/v1', status: 'needs_modeling_review', stored: false, modelMutation: false, worldMutation: false, graphMutation: false, missingReviews, nextStep: modelingReviewTask,
     retry: 'Complete the missing modeling considerations within the agreed delegation and preview with a new requestId. No provider call or model/graph/world write has occurred.' };
+  if (input.validateOnly) return validateScaffold(input, service);
   let resolved;
   if (input.proposalId) {
     resolved = input.scaffold
@@ -485,6 +497,22 @@ async function buildWorldModelOnce(input, service, estimator, checkpoint) {
   return { ...common, status: 'applied', stored: true, worldMutation: true, graphMutation: true, modelHash: completed.model.modelHash, graphHash: completed.graph.graphHash, worldId: completed.world.worldId, headHash: completed.world.headHash, headVersion: completed.world.headVersion, nextStep: 'Use the returned world/model/process identifiers with the core estimation exchange and Jev provider; record reviews under the Understanding root. Observations, estimates and forecasts retain their evidence types. This scaffold creates no executable causal laws.' };
 }
 
+// Every structural check the preview makes, with initial-estimate questions standing in as
+// unknown values, so a scaffold can be corrected before a provider call is spent on it.
+async function validateScaffold(input, service) {
+  const preflight = structuredClone(input.scaffold);
+  const questions = preflight.processes.filter((process) => process.initialEstimate).map((process) => process.id);
+  validateReferences(preflight);
+  for (const process of preflight.processes) if (process.initialEstimate) { process.judgmentQuestion = structuredClone(process.initialEstimate.question); delete process.initialEstimate; process.initial = { status: 'unknown', reason: 'Awaiting the requested initial estimate.' }; }
+  const compiled = compileWorldModel(preflight);
+  if (compiled.model.processes.length) await service.validateModel({ model: compiled.model });
+  return { schema: 'meaning-model-world-build/v1', status: 'validated', stored: false, modelMutation: false, worldMutation: false, graphMutation: false, providerCall: false,
+    summary: compiled.summary, initialEstimateProcessIds: questions,
+    nextStep: questions.length
+      ? `The scaffold passes the structural checks. A preview with a new requestId will send ${questions.length} initial-estimate question${questions.length === 1 ? '' : 's'} to the estimator.`
+      : 'The scaffold passes the structural checks. Preview it with a new requestId to obtain the proposal to apply.' };
+}
+
 export async function buildWorldModel(raw, service, estimator = null) {
   const input = worldModelBuildSchema.parse(raw);
   return runEstimatorRequest(service, input.apply ? 'world-model-build-apply' : 'world-model-build-preview', input.requestId,
@@ -494,7 +522,7 @@ export async function buildWorldModel(raw, service, estimator = null) {
 
 export function registerGeneralModelingTools(server, service, estimator, { toolResult }) {
   server.registerTool('life_world_model_build', {
-    description: 'Build a general-purpose world model from a compact domain-defined scaffold without storytelling prerequisites. Automatically consider authored numerical judgments, useful conceptual openings and differences in meaning; the user need not request these separately. contextReview requires authoredJudgments, conceptualStructure and conceptVariation alongside broaderContext and longerTerm, with focalInterval, holder, represented/unknown/out_of_scope status and reasoned references. Missing context returns needs_context_review; missing considerations return needs_modeling_review before Jev calls or writes. concepts and abstractCuts create native model records and graph anchors, not merely labels in notes. Use cuts only when useful; an adequate unopened concept or a justified exclusion is valid. Supplied numerical judgments declare judgmentQuestion; initialEstimate retains its rubric automatically. Dated conceptual comparisons preserve distinct contexts or same-event viewpoints without asserting universal semantic change. Represented long-term context requires an enclosing extended interval and a linked dated event beyond the focal window. The tool preserves these assessments as Understanding Nodes; it checks references, not historical completeness or causal adequacy. Supply scope/question, time unit/origin (initial values and cutoff at 0), timestamped source evidence, referent lifecycles, typed processes with units, events and optional externalized review notes. Each process takes a sourced initial value, an explicit unknown/unmodeled disposition, or initialEstimate with a typed Jev question and sourceIds. Preview batches those initial questions through the configured estimator and retains exact inferred values/provenance; without an estimator it returns pending questions. Apply sends only requestId, apply:true, stored proposalId and expectedProposalHash; no scaffold repetition is needed. It automatically registers the model, source-bound evidence/Understanding graph and world without another estimator call. An optionally repeated scaffold must match the stored proposal. Unknowns stay graph definitions, never invented zeros; at least one supported process value is required. Initial measurements keep their units and estimates remain estimates. No causal laws are invented. Same-ID retries reuse provider results and resume partial creation within this server session.',
+    description: 'Build a general-purpose world model from a compact domain-defined scaffold without storytelling prerequisites. Automatically consider authored numerical judgments, useful conceptual openings and differences in meaning; the user need not request these separately. contextReview requires authoredJudgments, conceptualStructure and conceptVariation alongside broaderContext and longerTerm, with focalInterval, holder, represented/unknown/out_of_scope status and reasoned references. Missing context returns needs_context_review; missing considerations return needs_modeling_review before Jev calls or writes. concepts and abstractCuts create native model records and graph anchors, not merely labels in notes. Use cuts only when useful; an adequate unopened concept or a justified exclusion is valid. Supplied numerical judgments declare judgmentQuestion; initialEstimate retains its rubric automatically. Dated conceptual comparisons preserve distinct contexts or same-event viewpoints without asserting universal semantic change. Represented long-term context requires an enclosing extended interval and a linked dated event beyond the focal window. The tool preserves these assessments as Understanding Nodes; it checks references, not historical completeness or causal adequacy. Supply scope/question, time unit/origin (initial values and cutoff at 0), timestamped source evidence, referent lifecycles, typed processes with units, events and optional externalized review notes. Each process takes a sourced initial value, an explicit unknown/unmodeled disposition, or initialEstimate with a typed Jev question and sourceIds. Preview batches those initial questions through the configured estimator and retains exact inferred values/provenance; without an estimator it returns pending questions. Apply sends only requestId, apply:true, stored proposalId and expectedProposalHash; no scaffold repetition is needed. It automatically registers the model, source-bound evidence/Understanding graph and world without another estimator call. An optionally repeated scaffold must match the stored proposal. Unknowns stay graph definitions, never invented zeros; at least one supported process value is required. Initial measurements keep their units and estimates remain estimates. No causal laws are invented. Same-ID retries reuse provider results and resume partial creation within this server session. validateOnly runs every structural check with initial-estimate questions as unknowns and never calls the estimator.',
     inputSchema: worldModelBuildSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: Boolean(estimator) },
   }, async (input) => toolResult(await buildWorldModel(input, service, estimator)));

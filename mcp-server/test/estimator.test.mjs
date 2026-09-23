@@ -272,10 +272,54 @@ test('ingest creates described events under a parent, asks every question per ev
   assert.equal(result.notes.nodeIds[0], 'note.halving');
   const batch = batches[0].narrativeBatch;
   assert.deepEqual(batch.add_roots, ['understanding.ingest']);
-  assert.equal(batch.add_nodes.at(-1).role, 'externalized_reflection');
-  assert.equal(batch.add_nodes.at(-1).holder, 'author.llm');
+  const note = batch.add_nodes.find((node) => node.id === 'note.halving');
+  assert.equal(note.role, 'externalized_reflection');
+  assert.equal(note.holder, 'author.llm');
   assert.ok(batch.add_edges.some((edge) => edge.target.kind === 'anchor' && edge.target.anchor_id === 'event.btc.halving-2028'));
+  // What the estimator judged stays in the graph: both question definitions and the exact situation text.
+  const definitions = batch.add_nodes.filter((node) => node.node_type === 'cut_question_definition').map((node) => JSON.parse(node.text));
+  assert.deepEqual(definitions.map((definition) => definition.questionId), ['sentiment', 'liquidity']);
+  assert.deepEqual(definitions[0].answers, [{ key: 'fear', meaning: 'Loss aversion.' }, { key: 'greed', meaning: 'Gain seeking.' }]);
+  assert.equal(definitions[0].remainderMeaning, 'Something else, or no single named answer dominates.');
+  assert.deepEqual(definitions[1].cutIds, ['cut.event.btc.halving-2028.liquidity']);
+  const situation = JSON.parse(batch.add_nodes.find((node) => node.node_type === 'estimator_situation_text').text);
+  assert.equal(situation.text, 'The 2028 halving cuts issuance by half. Miners with thin margins capitulate over the following quarter.');
+  assert.equal(batch.add_edges.filter((edge) => edge.relation === 'judged_against').length, 2);
+  assert.equal(result.notes.evidenceNodeIds.length, 3);
   assert.equal(result.graphMutation, true);
+});
+
+test('ingest notes can link to each other, and a conditioned question divides one answer of another', async () => {
+  const f = modelFixture();
+  f.definition.meaning_model.events.push({ id: 'event.world', boundary: 'Accepted world.' });
+  const batches = [];
+  f.service.applyNarrativeBatch = async (input) => { batches.push(input); return { graphHash: 'c3'.repeat(32), stored: true }; };
+  const estimator = { backend: 'typesafe', model: 'jev-1.13.0', label: 'typesafe:jev-1.13.0', async estimate(state, questions) {
+    const conduit = /conduit/i.test(questions.shares.instructions);
+    return { model: 'jev-1.13.0', usage: { input_tokens: 20, output_tokens: 1 }, answers: { shares: { type: 'choice', choice: 'x', confidence: 0.4,
+      probabilities: conduit ? { stablecoins: 0.7, etfs: 0.2, remainder: 0.1 } : { monetary: 0.02, crypto: 0.9, remainder: 0.08 } } } };
+  } };
+  const result = await ingestSituation({ requestId: 'ing-2', modelHash: oldModel, apply: true,
+    events: [{ eventId: 'event.2024', boundary: 'Bitcoin in 2024.', parentEventId: 'event.world' }],
+    questions: [
+      { id: 'driver', question: 'What moved the price?', answers: [{ key: 'monetary', meaning: 'US monetary conditions.' }, { key: 'crypto', meaning: 'Crypto-internal causes.' }] },
+      { id: 'conduit', question: 'Through which conduit did the monetary part travel?', answers: [{ key: 'stablecoins', meaning: 'Stablecoin supply.' }, { key: 'etfs', meaning: 'ETF flows.' }], conditionedOn: { questionId: 'driver', answerKey: 'monetary' } },
+    ],
+    graph: { graphHash, accessScopes: ['s'], notes: [
+      { nodeId: 'note.review', text: 'Review of both Cuts.', holder: 'author.llm' },
+      { nodeId: 'note.disagreement', text: 'Where the two estimators disagree.', holder: 'author.llm', links: [{ relation: 'refines', targetNodeId: 'note.review' }] },
+    ] } }, estimator, f.service);
+  const revise = f.calls.find(([kind]) => kind === 'revise')[1].model;
+  const conduit = revise.meaning_model.normalized_cuts.find((cut) => cut.id === 'cut.event.2024.conduit');
+  assert.deepEqual(conduit.conditioning, { cut_id: 'cut.event.2024.driver', answer_key: 'monetary' });
+  assert.equal(revise.meaning_model.normalized_cuts.find((cut) => cut.id === 'cut.event.2024.driver').conditioning, undefined);
+  assert.match(result.warnings[0], /carries only 0\.02/);
+  const link = batches[0].narrativeBatch.add_edges.find((edge) => edge.relation === 'refines');
+  assert.deepEqual([link.source.node_id, link.target.node_id], ['note.disagreement', 'note.review']);
+  await assert.rejects(ingestSituation({ requestId: 'ing-3', modelHash: oldModel, events: [{ eventId: 'event.2024', boundary: 'b', parentEventId: 'event.world' }],
+    questions: [{ id: 'conduit', question: 'Q?', answers: [{ key: 'a', meaning: 'A.' }], conditionedOn: { questionId: 'driver', answerKey: 'monetary' } }] }, estimator, f.service), /neither asked in this call nor stored/);
+  await assert.rejects(ingestSituation({ requestId: 'ing-4', modelHash: oldModel, events: [{ eventId: 'event.2024', boundary: 'b', parentEventId: 'event.world' }],
+    questions: [{ id: 'driver', question: 'Q?', answers: [{ key: 'monetary', meaning: 'M.' }] }, { id: 'conduit', question: 'Q?', answers: [{ key: 'a', meaning: 'A.' }], conditionedOn: { questionId: 'driver', answerKey: 'nope' } }] }, estimator, f.service), /has no answer nope/);
 });
 
 test('ingest validates parents, participants, duplicates and pending estimates', async () => {

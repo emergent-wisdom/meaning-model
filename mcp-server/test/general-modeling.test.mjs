@@ -602,7 +602,7 @@ test('unsupported judgment and concept declarations fail before paid Jev calls',
   const service = await realService(t);
   const estimator = scoreEstimator();
   const cases = [
-    ['unbound-judgment', (s) => s.contextReview.authoredJudgments.processIds = ['market.price'], /numeric estimate process/],
+    ['unbound-judgment', (s) => s.contextReview.authoredJudgments.processIds = ['market.price'], /scalar or distribution estimate process/],
     ['missing-native-concept', (s) => s.contextReview.conceptualStructure.conceptIds = ['metadata-only-concept'], /conceptIds names unknown/],
     ['false-structure', (s) => s.contextReview.conceptualStructure.conceptIds = [], /actual native conceptIds/],
     ['unknown-child', (s) => s.abstractCuts[0].childConceptIds[0] = 'missing', /concept references names unknown/],

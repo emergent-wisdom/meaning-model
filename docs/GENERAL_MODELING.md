@@ -10,7 +10,11 @@ personality, or storytelling vocabulary.
 
 Use `life_general_modeling_start` or `life_modeling_context` and read the required
 resources. Establish the purpose, system boundary, time interval, resolution,
-available evidence, and decisions the user wants to retain. Reuse instructions
+available evidence, and decisions the user wants to retain. The purpose
+`observation` keeps each report, estimate and judgment in its own authority and
+suits explanatory or retrospective accounts built from records or recalled
+knowledge; `forecasting` adds values after the evidence cutoff that later
+observations can test; `counterfactual` holds an explicit alternative premise. Reuse instructions
 already supplied. A fully delegated run may select and revise its own categories;
 it still records its evidence, assumptions, review findings, and uncertainties.
 
@@ -76,7 +80,10 @@ before calling Jev or writing the model or graph.
   Declare the comparison, units, bounds and numeric anchors before estimating.
   Keep the rubric with the process and preserve the supporting evidence and
   uncertainty. A score of 80 does not imply twice as much of a quality as 40
-  unless the declared scale supports that interpretation.
+  unless the declared scale supports that interpretation. A category judgment
+  with a choice rubric is recorded, but this review needs at least one numeric
+  scale (a scalar or distribution process); otherwise mark it `unknown` or
+  `out_of_scope` with the reason.
 - **Conceptual structure:** decide which important concepts need opening.
   Represent the concepts and abstract cuts themselves, with source provenance;
   a prose note saying "decomposed" is not a native decomposition. Use alternative
@@ -156,23 +163,60 @@ returns bounded tasks for the caller or accepts supplied answers.
    questions in one batch; inspect the preview and apply its exact `proposalId`
    and `expectedProposalHash`. Apply can name only those identifiers plus
    `requestId` and `apply: true`; the scaffold need not be repeated. No estimator
-   runs during apply. Initial values and evidence cutoff use time 0 in the
-   declared time basis. Unknown processes remain
-   graph definitions; at least one supported process value is needed to create
-   an executable world. The tool does not invent a zero to satisfy this constraint.
+   runs during apply. `validateOnly: true` runs every structural check first, with
+   initial-estimate questions standing in as unknowns, and never calls the
+   estimator. Initial values and evidence cutoff use time 0 in the declared time
+   basis, so earlier history has negative times (see "Record dated history").
+   An initial value with evidence type `observation` or `report` becomes an
+   observed claim on an observed process; its `evidence_type` stays `report`, so
+   it remains distinguishable from a measurement. File a recollection as `estimate`
+   when that is its real strength. Unknown processes remain graph definitions
+   with no native process, so they cannot yet hold dated values or be anchor
+   targets; link to their definition node instead. At least one supported process
+   value is needed to create an executable world. The tool does not invent a zero
+   to satisfy this constraint.
 2. **Estimate process states.** `life_process_estimate` binds questions to process
    coordinates, evidence cutoff, access scopes, and an exact world/model revision.
    Jev answers are validated and submitted to the existing estimation exchange.
+   The provider sees the `context` string, each target process definition, and the
+   current state and claims of the requested processes within `accessScopes`. It
+   does not see graph evidence nodes or the builder's sources, so put the relevant
+   evidence text in `context`. Questions are answered independently: an answer that
+   fails validation is declined on its own coordinate (disposed `unknown`, with the
+   raw answer kept) and the rest of the batch still counts. Usage is always returned.
 3. **Review and record.** `life_process_estimation_record` records the exact
    typed process-value proposal and its review in the graph, with process anchors
-   and an Understanding Node containing the review rationale. Approval records an
-   interpretation; it does not promote an estimate into an observation or advance
-   accepted runtime history.
+   and an Understanding Node containing the review rationale. It records either a
+   `life_process_estimate` proposal or a data-only proposal the caller submitted
+   through the exchange. Approval records an interpretation; it does not promote an
+   estimate into an observation or advance accepted runtime history.
 4. **Add events and comparisons.** `life_model_ingest` can add described events,
    declared Cut questions, estimates and Understanding notes to an existing model.
    A preview's proposal ID binds its exact values; apply that ID rather than asking
    the provider to generate a replacement. A direct apply requests a fresh estimate.
-5. **Inspect and deepen.** Reassess broader context, longer-term developments,
+   With a graph, the ingest also records each question's answer and remainder
+   meanings and the exact situation text judged for each event, so every Cut
+   stays traceable to what was asked. Graph anchors cannot yet address a Cut
+   itself, so these records name their Cut ids and anchor to the Cut's event.
+   Notes may link to each other. A question
+   with `conditionedOn: {questionId, answerKey}` divides only the part of the same
+   event that another question gave to that answer, for example the conduits of
+   the monetary share of a price move. The Cut stores the conditioning, and the
+   result warns when that part carries less than 0.05, because such shares then
+   describe almost nothing of the whole.
+5. **Revise the model and world.** `life_model_revise` registers a complete
+   successor. A world adopts it through `life_world_revise` only if no process was
+   removed and none changed its value type, axes, unit, reference frame or scale;
+   the scale holds the process meaning. The revision result's `worldAdoption` lists
+   any such change, and `requireWorldAdoptable: true` refuses the revision before
+   it is registered. To correct a mis-defined process, keep its definition, add a
+   process with the corrected meaning or unit, and record the supersession in the
+   graph. A world revision sets state values but writes no claims: its
+   `claimConsistency` names current claims that now disagree with the revised
+   state and new processes that have no claim, which you then submit through the
+   exchange. Records added by a revision get no builder-style graph node; describe
+   them in Understanding Nodes anchored to them.
+6. **Inspect and deepen.** Reassess broader context, longer-term developments,
    judgment scales, conceptual openings and variation, and feedback from focal
    processes. Query the graph/model, compare explanations,
    identify missing evidence, revise boundaries or categories, and retain the predecessor.
@@ -184,6 +228,48 @@ exports, not parallel sources of modeling truth. A partial multi-step operation
 reports completed work and a retry path; do not mistake it for an atomic world update.
 Process-local request and proposal handles do not survive an MCP restart; graph
 records and engine persistence have their own explicit retention guarantees.
+
+## Record dated history
+
+A long event is not a trend. To keep dated values, file them as claims at their
+own times and record them in the graph. With time 0 at the evidence cutoff, a
+value twelve months earlier sits at time -12 in a monthly model.
+
+1. Create a request with `life_estimation_request_create`: `operation: "infer"`,
+   `intent: "reality"`, `evidenceCutoff: 0`, and one coordinate per dated value,
+   for example `{ id: "rate.m12", processId: "rate", targetTime: -12 }`.
+2. Submit the values with `life_estimation_response_submit`. Dispose every
+   coordinate as `known`, `unknown` or `unmodeled`, and give each known one a claim
+   with exactly these fields:
+
+   ```json
+   { "coordinateId": "rate.m12", "outputMode": "observed", "valueTime": -12,
+     "claim": { "id": "hist.rate.m12", "subject": "rate", "value": { "kind": "scalar", "value": 4.5 },
+       "uncertainty": { "kind": "exact" }, "evidence_type": "report", "holder": "modeler",
+       "evidence_cutoff": -12, "provenance": ["recalled FOMC statement"],
+       "authority": { "source": "modeler", "weight": 1 }, "access_scopes": ["market"] } }
+   ```
+
+   `observed` output needs an observed process, `observation` or `report`
+   evidence, and `evidence_cutoff` equal to `valueTime`. A process is observed
+   when its initial value was an observation or report, or when the scaffold
+   declares `updateMode: "observed"`, the right choice for a measured series whose
+   starting value is only an estimate. An existing model can be revised to set a
+   process's `update_mode` to `observed`, and a world can adopt that revision. A retrospective estimate
+   of a past value uses `outputMode: "estimated"`, `evidence_type: "estimate"`, the
+   cutoff of the knowledge it rests on (0 for present recollection), and an honest
+   `uncertainty` such as `{ "kind": "interval", "lower": 90000, "upper": 97000 }`.
+   `valueTime` and the claim's `subject` must match the coordinate. The claim takes
+   no `value_time` or `mode` field.
+3. Review the proposal and record it with `life_process_estimation_record`. Each
+   value becomes a graph node anchored to its process at its value time, keeping
+   its holder, evidence type, cutoff and uncertainty, beside an Understanding Node
+   with the review.
+
+Proposals and requests are process-local, so record them in the same server
+session. The graph copy is durable.
+
+## Rejected answers
 
 If initial provider answers fail validation, the builder returns `status:
 "rejected"` with the original questions, answers, evidence context, provider
@@ -199,8 +285,16 @@ uncertain outcome remain separate from an explicitly received rejected answer.
 Keep reported prices, energy, counts, rates and volumes in their declared units.
 Jev's probability of a category is not a measured share of a physical quantity.
 A rubric score requires explicit numeric anchors and its interpretation; retain
-the distribution and confidence with the derived estimate. Use a normalized Cut
-only for an explicitly declared comparison/partition, with a remainder.
+the distribution and confidence with the derived estimate. A Score answer becomes
+the mean of Jev's distribution over the declared level values, stored with its
+standard deviation as the claim's uncertainty. For an ordinal rubric, where +2 is
+not twice +1, set `summary: "median"` to store the median level with its
+interquartile levels instead. The raw answer's `score` is on the level-index scale
+(0 to n-1), not the declared scale. Jev reports probabilities to two decimals, so
+its score may differ slightly from their expectation; that rounding is accepted.
+The builder preview shows each answer's probabilities and confidence before apply.
+Use a normalized Cut only for an explicitly declared comparison/partition, with a
+remainder.
 
 Distinguish observations, reports, estimates, beliefs, forecasts, counterfactuals
 and fictional premises. Missing evidence means unknown or unmodeled, not zero.

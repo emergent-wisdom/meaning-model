@@ -136,10 +136,46 @@ test('failed or malformed provider response is not retried implicitly', async (t
   const { service, world } = await fixture(t);
   const backend = provider({ answers: {} });
   const estimate = createJevProcessEstimator({ service, estimator: backend.estimator });
-  await assert.rejects(estimate(input(world)), /exactly the expected keys/);
-  await assert.rejects(estimate(input(world)), /exactly the expected keys/);
+  const rejected = await estimate(input(world));
+  assert.equal(rejected.status, 'rejected');
+  assert.match(rejected.error, /exactly the expected keys/);
+  assert.deepEqual(rejected.usage, { input_tokens: 123, output_tokens: 45 }, 'the diagnostic keeps the provider usage');
+  assert.deepEqual(await estimate(input(world)), rejected);
   assert.equal(backend.calls, 1);
   assert.equal(service.estimationProposals.size, 0);
+});
+
+test('one invalid answer is declined on its own coordinate and the rest of the batch still counts', async (t) => {
+  const { service, world } = await fixture(t);
+  const backend = provider({ answers: { q0: { ...scoreAnswer, score: 0.1 }, q1: choiceAnswer, q2: { type: 'noul', noul: 0.9 }, q3: choiceAnswer } });
+  const estimate = createJevProcessEstimator({ service, estimator: backend.estimator });
+  const result = await estimate(input(world));
+  assert.equal(result.status, 'review_required');
+  assert.deepEqual(result.declined.map((entry) => entry.coordinateId), ['development']);
+  assert.match(result.declined[0].reason, /inconsistent with its distribution/);
+  assert.equal(result.mapped[0].status, 'unknown');
+  assert.deepEqual(result.mapped[0].answer, { ...scoreAnswer, score: 0.1 }, 'the declined raw answer is retained');
+  assert.equal(result.dispositionCounts.known, 3);
+  assert.equal(result.dispositionCounts.unknown, 1);
+  assert.deepEqual(result.usage, { input_tokens: 123, output_tokens: 45 });
+  assert.equal(backend.calls, 1);
+});
+
+test('rounded two-decimal Jev scores are accepted and the distribution becomes the claim uncertainty', () => {
+  // Returned by jev-1.13.0 on 2026-09-23: the score comes from the unrounded distribution.
+  const levels = ['very low', 'low', 'somewhat low', 'middle', 'somewhat high', 'high', 'very high'].map((description, index) => ({ description, value: index - 3 }));
+  const spec = { type: 'score', instructions: 'How high was leverage?', unit: 'rubric points', levels, minimumConfidence: 0 };
+  const process = { ...scalar('market.leverage', 'rubric points'), value_type: { kind: 'scalar', bounds: { minimum: -3, maximum: 3 } } };
+  const answer = { type: 'score', score: 5.53, confidence: 0.73, probabilities: { 0: 0, 1: 0, 2: 0, 3: 0.01, 4: 0.03, 5: 0.32, 6: 0.64 }, legend: Object.fromEntries(levels.map((level, index) => [String(index), level.description])) };
+  const mean = mapJevProcessAnswer(answer, spec, process);
+  assert.equal(mean.status, 'known');
+  assert.ok(Math.abs(mean.value.value - 2.59) < 1e-9, 'the mean is on the declared level values');
+  assert.equal(mean.uncertainty.kind, 'standard_deviation');
+  assert.ok(mean.uncertainty.value > 0.5 && mean.uncertainty.value < 0.7);
+  const median = mapJevProcessAnswer(answer, { ...spec, summary: 'median' }, process);
+  assert.equal(median.value.value, 3, 'the median level of an ordinal rubric');
+  assert.deepEqual(median.uncertainty, { kind: 'interval', lower: 2, upper: 3 });
+  assert.throws(() => mapJevProcessAnswer({ ...answer, score: 5.0 }, spec, process), /inconsistent with its distribution/);
 });
 
 test('a core conflict rejection retains the exact provider output without changing strong observations', async (t) => {

@@ -22,7 +22,9 @@ export const cutSharesSchema = z.object({
   subject: z.string().trim().min(1).max(1_000).nullable().default(null),
   situations: z.array(z.object({ id, parentEventId: longId.nullable().default(null), text: prose }).strict()).max(32).default([]),
   modelHash: hash.nullable().default(null),
-  events: z.array(z.object({ eventId: longId, cutId: longId.nullable().default(null), situationText: prose.nullable().default(null) }).strict()).max(32).default([]),
+  // conditionedOn names a stored Cut and one of its answers: this Cut divides only that part.
+  events: z.array(z.object({ eventId: longId, cutId: longId.nullable().default(null), situationText: prose.nullable().default(null),
+    conditionedOn: z.object({ cutId: longId, answerKey: id }).strict().nullable().default(null) }).strict()).max(32).default([]),
   distributions: z.array(z.object({ situationId: longId, probabilities: probabilityMap, confidence: z.number().min(0).max(1).nullable().default(null) }).strict()).max(32).default([]),
   idPrefix: id.default('cut.estimated'),
   proposalId: id.nullable().default(null),
@@ -93,7 +95,7 @@ async function resolveTargets(service, input) {
       if (!event) throw new Error(`Event ${target.eventId} does not exist in model ${input.modelHash}.`);
       const text = target.situationText ?? [event.boundary, event.description].filter((part) => typeof part === 'string' && part.trim()).join(' ');
       if (!text.trim()) throw new Error(`Event ${target.eventId} has no boundary or description text to estimate from; supply situationText.`);
-      targets.push({ id: target.eventId, parentEventId: target.eventId, cutId: target.cutId, text });
+      targets.push({ id: target.eventId, parentEventId: target.eventId, cutId: target.cutId, text, conditionedOn: target.conditionedOn });
     }
   }
   return { targets, definition };
@@ -122,6 +124,11 @@ async function executeCutShares(input, estimator, service, checkpoint = null) {
       if (generatedIds.has(cutId)) throw new Error(`Duplicate generated Cut ID ${cutId}.`);
       generatedIds.add(cutId);
       if (cutIds.has(cutId) && !input.replaceExisting) throw new Error(`Cut ${cutId} already exists; set replaceExisting to supersede it.`);
+      if (target.conditionedOn) {
+        const enclosing = (definition.meaning_model?.normalized_cuts ?? []).find((cut) => cut.id === target.conditionedOn.cutId);
+        if (!enclosing) throw new Error(`Cut ${cutId} is conditioned on unknown Cut ${target.conditionedOn.cutId}.`);
+        if (!enclosing.answers.some((answer) => answer.key === target.conditionedOn.answerKey)) throw new Error(`Cut ${target.conditionedOn.cutId} has no answer ${target.conditionedOn.answerKey}.`);
+      }
     }
     if (input.rebind) await preflightNarrativeRebind(service, { ...input.rebind, modelHash: input.modelHash });
   }
@@ -159,8 +166,10 @@ async function executeCutShares(input, estimator, service, checkpoint = null) {
   const successor = structuredClone(definition);
   successor.meaning_model ??= {}; successor.meaning_model.normalized_cuts ??= [];
   const existing = new Map(successor.meaning_model.normalized_cuts.map((cut, index) => [cut.id, index]));
+  const conditions = new Map(targets.filter((target) => target.conditionedOn).map((target) => [target.cutId ?? `${input.idPrefix}.${target.id}`, { cut_id: target.conditionedOn.cutId, answer_key: target.conditionedOn.answerKey }]));
   for (const proposal of proposals) {
-    const cut = { id: proposal.id, parent_event_id: proposal.parent_event_id, question: proposal.question, unit: proposal.unit, answers: proposal.answers.map(({ key, weight }) => ({ key, weight })), provenance: proposal.provenance };
+    const condition = conditions.get(proposal.id);
+    const cut = { id: proposal.id, parent_event_id: proposal.parent_event_id, question: proposal.question, unit: proposal.unit, answers: proposal.answers.map(({ key, weight }) => ({ key, weight })), ...(condition ? { conditioning: condition } : {}), provenance: proposal.provenance };
     if (!cut.parent_event_id) throw new Error(`Cut ${cut.id} has no parent event; free-text situations need parentEventId to be applied.`);
     if (existing.has(cut.id)) { if (!input.replaceExisting) throw new Error(`Cut ${cut.id} already exists in the model; set replaceExisting to supersede it in this revision.`); successor.meaning_model.normalized_cuts[existing.get(cut.id)] = cut; }
     else successor.meaning_model.normalized_cuts.push(cut);

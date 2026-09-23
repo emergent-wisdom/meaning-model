@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
+import { expandTexInputs } from '../src/modeling-guidance.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serverPath = join(here, '..', 'src', 'server.ts');
@@ -172,6 +173,11 @@ test('official MCP client discovers and calls the local stdio server', async () 
     assert.ok(resourceUris.includes('life-sim://guide/general-modeling'));
     const generalStarter = await client.getPrompt({ name: 'life_general_modeling_start', arguments: {} });
     assert.match(generalStarter.messages[0].content.text, /No external estimator is configured/);
+    assert.match(generalStarter.messages[0].content.text, /Purpose: observation\./);
+    assert.match(generalStarter.messages[0].content.text, /Purpose defaulted to observation; pass purpose to change it/);
+    const chosen = await client.getPrompt({ name: 'life_general_modeling_start', arguments: { purpose: 'forecasting' } });
+    assert.match(chosen.messages[0].content.text, /Purpose: forecasting\./);
+    assert.doesNotMatch(chosen.messages[0].content.text, /Purpose defaulted/);
     assert.match(generalStarter.messages[0].content.text, /no literary requirements/);
     assert.match(generalStarter.messages[0].content.text, /Start macro to micro/);
     assert.match(generalStarter.messages[0].content.text, /contextReview.*broaderContext.*longerTerm/);
@@ -242,10 +248,13 @@ test('official MCP client discovers and calls the local stdio server', async () 
       meaningPaper.contents[0].text,
       /Constructing Worlds and Stories at Progressive Resolution/,
     );
+    const paperFile = new URL('../../paper/meaning-model.tex', import.meta.url);
     assert.equal(
       meaningPaper.contents[0].text,
-      await readFile(new URL('../../paper/meaning-model.tex', import.meta.url), 'utf8'),
+      await expandTexInputs(await readFile(paperFile, 'utf8'), paperFile),
     );
+    assert.doesNotMatch(meaningPaper.contents[0].text, /^\\input\{/m, 'the served paper carries its included files');
+    assert.match(meaningPaper.contents[0].text, /\\newcommand\{\\MMCoreSchema\}/);
     assert.match(meaningPaper.contents[0]._meta.sha256, /^[a-f0-9]{64}$/);
     const lifePaper = await client.readResource({
       uri: 'life-sim://theory/life-simulation',

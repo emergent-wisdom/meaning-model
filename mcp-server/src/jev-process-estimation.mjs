@@ -11,7 +11,7 @@ const text = z.string().trim().min(1).max(4_000);
 const probability = z.number().min(0).max(1);
 export const jevProcessQuestionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('choice'), instructions: text, criteria: z.record(id, text), minimumConfidence: probability.default(0) }).strict(),
-  z.object({ type: z.literal('score'), instructions: text, unit: id, levels: z.array(z.object({ description: text, value: z.number() }).strict()).min(2).max(10), minimumConfidence: probability.default(0) }).strict(),
+  z.object({ type: z.literal('score'), instructions: text, unit: id, levels: z.array(z.object({ description: text, value: z.number() }).strict()).min(2).max(10), summary: z.enum(['mean', 'median']).optional(), minimumConfidence: probability.default(0) }).strict(),
   z.object({ type: z.literal('noul'), instructions: text, interpretation: z.literal('truth_probability') }).strict(),
 ]);
 export const jevProcessEstimationSchema = z.object({
@@ -62,6 +62,30 @@ function distribution(value, keys, label) {
   // Only remove floating-point rounding error; invalid distributions are never repaired.
   const total = values.reduce((sum, item) => sum + item, 0);
   return values.map((value) => value / total);
+}
+// Jev reports probabilities to two decimals and its score from the unrounded distribution,
+// so the two can differ by the rounding carried through the level indices.
+export function scoreTolerance(levelCount) {
+  let spread = 0;
+  for (let index = 0; index < levelCount; index++) spread += Math.abs(index - (levelCount - 1) / 2);
+  return 0.005 * spread + 0.01;
+}
+// A score's value summarizes the provider's distribution over the declared level values:
+// the mean with its standard deviation, or, for an ordinal rubric, the median level with
+// its interquartile levels.
+function scoreSummary(probabilities, levels, summary = 'mean') {
+  const values = levels.map((level) => level.value);
+  if (summary === 'median') {
+    const at = (quantile) => {
+      let cumulative = 0;
+      for (const [index, p] of probabilities.entries()) { cumulative += p; if (cumulative + 1e-9 >= quantile) return values[index]; }
+      return values[values.length - 1];
+    };
+    return { value: at(0.5), uncertainty: { kind: 'interval', lower: at(0.25), upper: at(0.75) } };
+  }
+  const mean = probabilities.reduce((sum, p, index) => sum + p * values[index], 0);
+  const variance = probabilities.reduce((sum, p, index) => sum + p * (values[index] - mean) ** 2, 0);
+  return { value: mean, uncertainty: { kind: 'standard_deviation', value: Math.sqrt(Math.max(0, variance)) } };
 }
 function intersectionAudiences(lists) {
   const restricted = lists.filter((scopes) => scopes.length > 0).map((scopes) => new Set(scopes));
@@ -132,6 +156,7 @@ export function mapJevProcessAnswer(answer, spec, process) {
   buildJevProcessQuestion(spec, process);
   if (!record(answer) || answer.type !== spec.type) throw new Error(`${process.id} answer type must equal ${spec.type}.`);
   let value;
+  let uncertainty = { kind: 'unknown' };
   if (spec.type === 'noul') {
     exactKeys(answer, ['type', 'noul'], `${process.id} answer`);
     boundedNumber(answer.noul, 0, 1, `${process.id} noul`);
@@ -152,13 +177,15 @@ export function mapJevProcessAnswer(answer, spec, process) {
       exactKeys(answer.legend, keys, `${process.id} legend`);
       if (keys.some((key) => answer.legend[key] !== spec.levels[Number(key)].description)) throw new Error(`${process.id} returned legend does not match the supplied rubric.`);
       const expectedScore = probabilities.reduce((sum, p, index) => sum + p * index, 0);
-      if (Math.abs(expectedScore - answer.score) > 0.02) throw new Error(`${process.id} score is inconsistent with its distribution.`);
-      value = { kind: 'scalar', value: probabilities.reduce((sum, p, index) => sum + p * spec.levels[index].value, 0) };
+      if (Math.abs(expectedScore - answer.score) > scoreTolerance(keys.length)) throw new Error(`${process.id} score ${answer.score} is inconsistent with its distribution (expected ${expectedScore.toFixed(3)} on the level-index scale, tolerance ${scoreTolerance(keys.length).toFixed(3)}).`);
+      const summarized = scoreSummary(probabilities, spec.levels, spec.summary);
+      value = { kind: 'scalar', value: summarized.value };
+      uncertainty = summarized.uncertainty;
     }
     if (answer.confidence < spec.minimumConfidence) return { status: 'unknown', reason: `Provider confidence ${answer.confidence} is below the caller's threshold ${spec.minimumConfidence}.` };
   }
   validateProcessValue(value, process);
-  return { status: 'known', value, reason: 'The provider produced a typed provisional estimate; known means a supplied value, not verified truth.' };
+  return { status: 'known', value, uncertainty, reason: 'The provider produced a typed provisional estimate; known means a supplied value, not verified truth.' };
 }
 
 // Receipts retain both successful and uncertain failed calls. Replaying the same key
@@ -227,13 +254,31 @@ export function createJevProcessEstimator({ service, estimator = null }) {
         try { result = await estimator.estimate(state, questions); }
         catch (error) { throw new Error(`Provider request failed or has an uncertain outcome; this requestId will not resend it. Request ${request.estimationRequestId} is retained, with no proposal or world mutation. A deliberate retry requires a new requestId. ${error.message}`); }
       }
-      exactKeys(result.answers, Object.keys(questions), 'Provider answers');
-      const dispositions = []; const provisionalClaims = []; const mapped = [];
       const provider = estimator?.label ?? 'no_provider_needed';
+      try { exactKeys(result.answers, Object.keys(questions), 'Provider answers'); }
+      catch (error) {
+        // Keep the received response and usage; replaying this requestId returns this diagnostic without another call.
+        return { schema: 'meaning-model-process-estimation/v1', status: 'rejected', error: error.message,
+          estimationRequestId: request.estimationRequestId, modelHash: request.modelHash, acceptedHeadHash: request.acceptedHeadHash,
+          provider, providerModel: result.model, usage: result.usage, questions, coordinateQuestionKeys: Object.fromEntries(coordinateQuestions), response: result,
+          worldMutationPerformed: false, providerResponseRetained: true,
+          nextStep: 'The provider response did not answer exactly the requested questions, so nothing was submitted. Replaying this requestId returns this diagnostic without calling Jev again; a new requestId is a deliberate new call.' };
+      }
+      const dispositions = []; const provisionalClaims = []; const mapped = []; const declined = [];
       for (const coordinate of input.coordinates) {
         const process = processes.get(coordinate.processId);
         const answer = coordinate.question ? result.answers[coordinateQuestions.get(coordinate.id)] : null;
-        const output = coordinate.question ? mapJevProcessAnswer(answer, coordinate.question, process) : { status: coordinate.disposition, reason: coordinate.reason };
+        let output;
+        if (!coordinate.question) output = { status: coordinate.disposition, reason: coordinate.reason };
+        else {
+          // Questions are evaluated independently, so one invalid answer is declined on its own
+          // coordinate: it is never repaired or adopted, and the other answers still count.
+          try { output = mapJevProcessAnswer(answer, coordinate.question, process); }
+          catch (error) {
+            output = { status: 'unknown', reason: `The provider answer was declined: ${error.message} The raw answer is retained with this coordinate.`, declined: true };
+            declined.push({ coordinateId: coordinate.id, processId: process.id, reason: error.message });
+          }
+        }
         dispositions.push({ coordinateId: coordinate.id, status: output.status, reason: output.reason });
         mapped.push({ coordinateId: coordinate.id, processId: process.id, unit: process.unit ?? null, question: coordinate.question ?? null, answer, ...output });
         if (output.status !== 'known') continue;
@@ -242,7 +287,7 @@ export function createJevProcessEstimator({ service, estimator = null }) {
         provisionalClaims.push({ coordinateId: coordinate.id, outputMode: 'estimated', valueTime,
           acknowledgedClaimIds: coordinate.acknowledgedClaimIds,
           claim: { id: `jev.claim.${digest({ requestId: input.requestId, coordinateId: coordinate.id })}`, subject: process.id, value: output.value,
-            uncertainty: { kind: 'unknown' }, evidence_type: valueTime > input.evidenceCutoff ? 'forecast' : 'estimate', holder: provider,
+            uncertainty: output.uncertainty ?? { kind: 'unknown' }, evidence_type: valueTime > input.evidenceCutoff ? 'forecast' : 'estimate', holder: provider,
             evidence_cutoff: input.evidenceCutoff, provenance: [`provider:${provider}`, `provider-model:${result.model ?? 'none'}`, `request:${request.estimationRequestId}`, `evidence-digest:${digest({ state, questions })}`],
             authority: { source: provider, weight: 0.5 }, access_scopes: scopes } });
       }
@@ -252,18 +297,37 @@ export function createJevProcessEstimator({ service, estimator = null }) {
       catch (error) {
         return { schema: 'meaning-model-process-estimation/v1', status: 'submission_failed', error: error.message,
           estimationRequestId: request.estimationRequestId, modelHash: request.modelHash, acceptedHeadHash: request.acceptedHeadHash,
-          provider, providerModel: result.model, usage: result.usage, mapped, response: result, submission,
+          provider, providerModel: result.model, usage: result.usage, mapped, declined, response: result, submission,
           worldMutationPerformed: false, providerResponseRetained: true,
           nextStep: 'The exact provider output is retained in this receipt. Inspect the core rejection and, if appropriate, use life_estimation_response with these exact claims and explicit conflict acknowledgements. Replaying this request does not query Jev again.' };
       }
       const bundle = { schema: 'meaning-model-process-estimation/v1', input, request, provider, providerModel: result.model, state, questions, response: result, mapped, proposal, outputScopes };
       if (JSON.stringify(bundle).length > 1_000_000) throw new Error(`Estimation proposal ${proposal.proposalId} was stored, but its provider bundle exceeds the recording limit. No world mutation occurred.`);
       cache.proposals.set(proposal.proposalId, bundle);
-      return { schema: bundle.schema, status: 'review_required', ...proposal, provider, providerModel: result.model, usage: result.usage, mapped,
+      return { schema: bundle.schema, status: 'review_required', ...proposal, provider, providerModel: result.model, usage: result.usage, mapped, declined,
         nextStep: { tool: 'life_process_estimation_record', proposalId: proposal.proposalId, requiresExplicitReview: true,
           meaning: 'Record the exact estimates and an attributed review in the canonical graph. This does not alter the accepted Rust world or turn estimates into observations.' } };
     });
   };
+}
+
+// A proposal submitted through the estimation exchange (the caller's own dated values, or
+// provider claims resubmitted after a conflict) has no Jev bundle. Its records come from the
+// stored proposal and request, keeping each claim's own holder, evidence type and uncertainty.
+async function exchangeBundle(service, inspected) {
+  const request = await service.inspectEstimationRequest({ estimationRequestId: inspected.estimationRequestId });
+  const claims = new Map(inspected.provisionalClaims.map((entry) => [entry.coordinateId, entry]));
+  const mapped = inspected.dispositions.map((disposition) => {
+    const coordinate = request.coordinates.find((entry) => entry.id === disposition.coordinateId);
+    const entry = claims.get(disposition.coordinateId);
+    return { coordinateId: disposition.coordinateId, processId: coordinate.processId, status: disposition.status, reason: disposition.reason,
+      ...(coordinate.question ? { question: coordinate.question } : {}),
+      ...(entry ? { value: entry.claim.value, uncertainty: entry.claim.uncertainty, outputMode: entry.outputMode, claimId: entry.claim.id,
+        evidenceType: entry.claim.evidence_type, holder: entry.claim.holder, authority: entry.claim.authority, claimEvidenceCutoff: entry.claim.evidence_cutoff, provenance: entry.claim.provenance } : {}) };
+  });
+  const { evidenceProjection: _projection, ...boundRequest } = request;
+  return { schema: 'meaning-model-process-estimation/v1', source: 'estimation_exchange_proposal', provider: null, request: boundRequest, mapped, outputScopes: [],
+    proposal: { proposalId: inspected.proposalId, dispositions: inspected.dispositions, provisionalClaims: inspected.provisionalClaims, strongerClaimConflicts: inspected.strongerClaimConflicts } };
 }
 
 export async function recordJevProcessEstimation(service, raw) {
@@ -272,9 +336,10 @@ export async function recordJevProcessEstimation(service, raw) {
   return runEstimatorRequest(service, 'jev-process-record', input.requestId, input, async (checkpoint) => {
     let prepared = checkpoint.get('prepared');
     if (!prepared) {
-      const bundle = cache.proposals.get(input.proposalId);
-      if (!bundle) throw new Error('The exact provider bundle is unavailable in this session; do not reconstruct or rerun it silently. Read a previously recorded bundle from its graph instead.');
       const inspected = await service.inspectEstimationProposal({ proposalId: input.proposalId });
+      const bundle = cache.proposals.get(input.proposalId) ?? await exchangeBundle(service, inspected);
+      const fromExchange = bundle.source === 'estimation_exchange_proposal';
+      if (fromExchange && inspected.modelProposalIncluded) throw new Error('This proposal carries a model revision; record data-only proposals here and register model changes with life_model_revise.');
       const view = await service.queryNarrativeGraph({ graphHash: input.graphHash, expectedGraphHash: input.graphHash, mode: 'full', includeContent: true, accessScopes: input.accessScopes, forRevision: true });
       if (view.graph_hash !== input.graphHash || !view.content_included || view.nodes.length !== view.graph.node_count || view.edges.length !== view.graph.edge_count || view.roots.length !== view.graph.root_count) throw new Error('Recording requires the complete exact graph, including all private nodes, edges and roots.');
       if (view.graph.source?.kind !== 'model' || view.graph.source.model_hash !== inspected.baseModelHash) throw new Error('The graph must be bound to the exact proposal model.');
@@ -286,8 +351,10 @@ export async function recordJevProcessEstimation(service, raw) {
       assertAccess(scopes, input.accessScopes, 'Derived estimation records');
       const stem = `estimation.${digest({ proposalId: input.proposalId, requestId: input.requestId }).slice(0, 24)}`;
       const rootId = `${stem}.understanding`;
-      const common = { role: 'metadata', render: 'exclude', training: 'exclude', epistemic_status: 'ai_inference', evidence_type: 'estimate', access_scopes: scopes,
-        authority: { source: bundle.provider, weight: 0.5 }, uncertainty: { kind: 'unknown' }, provenance: [`process-estimation:${input.proposalId}`, `provider:${bundle.provider}`] };
+      const holders = [...new Set(bundle.mapped.map((output) => output.holder).filter(Boolean))].sort();
+      const source = bundle.provider ?? (holders.length === 1 ? holders[0] : 'estimation-exchange');
+      const common = { role: 'metadata', render: 'exclude', training: 'exclude', epistemic_status: fromExchange ? 'attributed_estimate' : 'ai_inference', evidence_type: 'estimate', access_scopes: scopes,
+        authority: { source, weight: 0.5 }, uncertainty: { kind: 'unknown' }, provenance: [`process-estimation:${input.proposalId}`, fromExchange ? `holders:${holders.join(',') || 'none'}` : `provider:${bundle.provider}`] };
       const nodes = [
         { ...common, id: stem, node_type: 'process_estimation_bundle', text: JSON.stringify({ ...bundle, reviewedDisposition: input.review.verdict, review: input.review, worldMutationPerformed: false }) },
         { ...common, id: rootId, node_type: 'understanding_process_root', text: JSON.stringify({ clock: 'graph_revision', purpose: 'Attributed review of provider process estimates.' }) },
@@ -304,8 +371,12 @@ export async function recordJevProcessEstimation(service, raw) {
       for (const [index, output] of bundle.mapped.entries()) {
         const coordinate = bundle.request.coordinates.find((entry) => entry.id === output.coordinateId);
         const nodeId = `${stem}.coordinate.${index}`;
-        nodes.push({ ...common, id: nodeId, node_type: 'process_estimate', value_time: coordinate.targetTime ?? bundle.request.acceptedHeadTime, evidence_cutoff: bundle.request.evidenceCutoff,
-          text: JSON.stringify({ ...output, reviewStatus: input.review.verdict, acceptedWorldValue: false, evidenceCutoff: bundle.request.evidenceCutoff, valueTime: coordinate.targetTime ?? bundle.request.acceptedHeadTime }) });
+        // Caller-supplied claims keep their own evidence type, holder, authority, cutoff and uncertainty.
+        const own = fromExchange && output.evidenceType ? { evidence_type: output.evidenceType, holder: output.holder, authority: output.authority, uncertainty: output.uncertainty,
+          epistemic_status: ['observation', 'report'].includes(output.evidenceType) ? 'attributed_report' : 'attributed_estimate' } : {};
+        const cutoff = own.evidence_type ? output.claimEvidenceCutoff : bundle.request.evidenceCutoff;
+        nodes.push({ ...common, ...own, id: nodeId, node_type: 'process_estimate', value_time: coordinate.targetTime ?? bundle.request.acceptedHeadTime, evidence_cutoff: cutoff,
+          text: JSON.stringify({ ...output, reviewStatus: input.review.verdict, acceptedWorldValue: false, evidenceCutoff: cutoff, valueTime: coordinate.targetTime ?? bundle.request.acceptedHeadTime }) });
         link(stem, nodeId, 'contains', 'structural', index);
         link(nodeId, { kind: 'anchor', anchor_kind: 'process', anchor_id: output.processId }, 'about', 'grounding');
       }
@@ -338,11 +409,11 @@ export async function recordJevProcessEstimation(service, raw) {
 export function registerJevProcessEstimationTools(server, service, estimator, { toolResult }) {
   const estimate = createJevProcessEstimator({ service, estimator });
   server.registerTool('life_process_estimate', {
-    description: 'Evaluate bounded process questions with the configured Jev provider in one batch and automatically submit typed provisional claims to the core estimation exchange. Choice targets category/regime/distribution; Score maps a declared numeric rubric in the exact process unit; Noul targets an explicit probability process. Observations stay distinct from AI estimates. No provider returns tasks. requestId retries reuse the exact response and never rerun Jev. Record the result with life_process_estimation_record after an explicit attributed review.',
+    description: 'Evaluate bounded process questions with the configured Jev provider in one batch and automatically submit typed provisional claims to the core estimation exchange. Choice targets category/regime/distribution; Score maps a declared numeric rubric in the exact process unit, as the mean with its standard deviation or, with summary median, the median level with its interquartile levels; Noul targets an explicit probability process. Observations stay distinct from AI estimates. An answer that fails validation is declined on its own coordinate (disposed unknown, raw answer retained) and the rest of the batch still counts; usage is always returned. No provider returns tasks. requestId retries reuse the exact response and never rerun Jev. Record the result with life_process_estimation_record after an explicit attributed review.',
     inputSchema: jevProcessEstimationSchema, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: Boolean(estimator) },
   }, async (input) => toolResult(await estimate(input)));
   server.registerTool('life_process_estimation_record', {
-    description: 'Record exact process-estimation values, evidence, questions and provider responses in a model-bound graph, together with an explicit core review and a real Understanding Node. Preserves the accepted world and measurements. Requires the same server session for the exact provider bundle; a stored graph bundle remains durable. Approval is an attributed review, not verification or a simulation-state update.',
+    description: 'Record exact process-estimation values, evidence, questions and provider responses in a model-bound graph, together with an explicit core review and a real Understanding Node. Records a life_process_estimate proposal, or a data-only proposal submitted through life_estimation_response_submit, such as the caller\'s own dated history, whose records keep each claim\'s holder, evidence type, cutoff and uncertainty. Each value becomes a node anchored to its process at its value time. Preserves the accepted world and measurements. Requires the same server session as the proposal; a stored graph bundle remains durable. Approval is an attributed review, not verification or a simulation-state update.',
     inputSchema: jevProcessRecordSchema, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await recordJevProcessEstimation(service, input)));
 }

@@ -38,6 +38,7 @@
     "examples/progressive-authoring",
     "examples/alien-retirement",
     "examples/integration-time",
+    "examples/crypto-market",
     "rust-engine/Cargo.toml",
     "rust-engine/Cargo.lock",
     "rust-engine/README.md",

@@ -772,6 +772,15 @@ function endpointDifferences(first, second) {
   };
 }
 
+// Estimator proposals (builder, ingest and Cut-share previews) share the word "estimate" but
+// not the exchange's store; say which tool holds one instead of calling it unknown.
+function unknownEstimationProposal(proposalId) {
+  if (proposalId.startsWith('estimate.')) {
+    return `${proposalId} is an estimator preview proposal from life_world_model_build, life_model_ingest or life_estimate_cut_shares, not an estimation-exchange proposal. Its values are in that preview's result; apply it by passing the proposalId back to the same tool.`;
+  }
+  return 'Unknown or inaccessible estimation proposal.';
+}
+
 export class LifeSimulationService {
   constructor({
     backend = new RustEngineProcess(),
@@ -1113,19 +1122,23 @@ export class LifeSimulationService {
     );
   }
 
-  async reviseModel({ requestId, previousModelHash, model }) {
+  async reviseModel({ requestId, previousModelHash, model, requireWorldAdoptable = false }) {
     ensureHash(previousModelHash, 'previousModelHash');
     validateModelBounds(model);
     return this.#withIdempotentReceipt(
       this.modelReceipts,
       'revise-model',
       requestId,
-      { previousModelHash, model },
+      { previousModelHash, model, ...(requireWorldAdoptable ? { requireWorldAdoptable } : {}) },
       async () => {
         if (model?.revision?.previous_model_hash !== previousModelHash) {
           throw new Error(
             'Complete revised model must link revision.previous_model_hash to previousModelHash.',
           );
+        }
+        const worldAdoption = await this.#worldAdoption(previousModelHash, model);
+        if (requireWorldAdoptable && worldAdoption.adoptableByParentWorlds === false) {
+          throw new Error(`A world on the parent revision could not adopt this revision, so it was not registered: ${worldAdoption.blockingChanges.map((change) => change.processId ? `${change.processId} (${change.change})` : change.change).join('; ')}. ${worldAdoption.guidance}`);
         }
         this.#reserveModel();
         try {
@@ -1144,12 +1157,45 @@ export class LifeSimulationService {
             atomicCompleteModelRevision: true,
             inPlacePatchApplied: false,
             summary,
+            worldAdoption,
           };
         } finally {
           this.pendingModels -= 1;
         }
       },
     );
+  }
+
+  // life_world_revise refuses a successor that removes a process or changes one's value type,
+  // axes, unit, reference frame or scale (the scale holds the process meaning). Report that
+  // before registration, comparing the engine's normalized definitions.
+  async #worldAdoption(previousModelHash, model) {
+    let parent; let candidate;
+    try {
+      parent = (await this.backend.call('get_model', { model_hash: previousModelHash })).model;
+      candidate = (await this.backend.call('validate_model', { model })).model;
+    } catch (error) {
+      return { checked: false, reason: `The compatibility check could not run: ${error.message}` };
+    }
+    const blockingChanges = [];
+    if (parent.time_unit !== candidate.time_unit) blockingChanges.push({ change: 'time_unit changed' });
+    const next = new Map((candidate.processes ?? []).map((process) => [process.id, process]));
+    for (const old of parent.processes ?? []) {
+      const process = next.get(old.id);
+      if (!process) { blockingChanges.push({ processId: old.id, change: 'removed' }); continue; }
+      const fields = ['value_type', 'axes', 'unit', 'reference_frame'].filter((field) => canonicalJson(old[field] ?? null) !== canonicalJson(process[field] ?? null));
+      const scaleKeys = [...new Set([...Object.keys(old.scale ?? {}), ...Object.keys(process.scale ?? {})])].filter((key) => old.scale?.[key] !== process.scale?.[key]).sort();
+      if (scaleKeys.length) fields.push(`scale (${scaleKeys.join(', ')})`);
+      if (fields.length) blockingChanges.push({ processId: old.id, change: `changed ${fields.join(', ')}` });
+    }
+    return {
+      checked: true,
+      adoptableByParentWorlds: blockingChanges.length === 0,
+      blockingChanges,
+      guidance: blockingChanges.length === 0
+        ? 'life_world_revise can adopt this revision for a world on the parent revision.'
+        : 'Keep a changed process\'s definition and add a new process with the corrected meaning, unit or scale, recording the supersession in the graph; or create a new world from this revision.',
+    };
   }
 
   async inspectModel({ modelHash, includeDefinition = false }) {
@@ -1496,7 +1542,7 @@ export class LifeSimulationService {
   async inspectEstimationProposal({ proposalId, includeProposedModel = false }) {
     ensureHandle(proposalId, 'proposalId');
     const proposal = this.estimationProposals.get(proposalId);
-    if (!proposal) throw new Error('Unknown or inaccessible estimation proposal.');
+    if (!proposal) throw new Error(unknownEstimationProposal(proposalId));
     const reviews = [...this.estimationReviews.values()]
       .filter((review) => review.proposalId === proposalId)
       .map((review) => structuredClone(review));
@@ -1533,11 +1579,18 @@ export class LifeSimulationService {
     };
   }
 
+  async inspectEstimationRequest({ estimationRequestId }) {
+    ensureHandle(estimationRequestId, 'estimationRequestId');
+    const request = this.estimationRequests.get(estimationRequestId);
+    if (!request) throw new Error('Unknown or inaccessible estimation request.');
+    return structuredClone(request);
+  }
+
   async reviewEstimationProposal({ proposalId, requestId, verdict, rationale }) {
     ensureHandle(proposalId, 'proposalId');
     validateEstimationReviewInput({ verdict, rationale });
     const proposal = this.estimationProposals.get(proposalId);
-    if (!proposal) throw new Error('Unknown or inaccessible estimation proposal.');
+    if (!proposal) throw new Error(unknownEstimationProposal(proposalId));
     return this.#withIdempotentReceipt(
       this.estimationReceipts,
       'review-estimation-proposal',
@@ -1825,6 +1878,7 @@ export class LifeSimulationService {
         });
         // Only adopt the model handle after Rust has accepted the exact-head revision.
         // Existing candidates and narrative graphs remain pinned to their old sources.
+        const newProcessIds = processIds.filter((id) => !world.processIds.includes(id));
         world.modelHash = targetModelHash;
         world.processIds = processIds;
         world.presetId = null;
@@ -1835,9 +1889,36 @@ export class LifeSimulationService {
           worldId,
           modelHash: targetModelHash,
           canonical: true,
+          claimConsistency: await this.#claimConsistency(worldId, stateValues, newProcessIds, view.access_scopes),
         };
       },
     );
+  }
+
+  // A world revision sets state values but neither updates nor adds claims. Name the current
+  // claims that now disagree with the revised state, and new processes that have no claim.
+  async #claimConsistency(worldId, stateValues, newProcessIds, accessScopes) {
+    const ids = [...new Set([...Object.keys(stateValues), ...newProcessIds])].sort();
+    if (!ids.length) return { checked: true, claimsDifferingFromState: [], newProcessesWithoutClaims: [] };
+    let head;
+    try {
+      head = await this.backend.call('get_world', { world_id: worldId, view: { requested_observables: ids, access_scopes: accessScopes, include_path: false } });
+    } catch (error) {
+      return { checked: false, reason: `The claim check could not run: ${error.message}` };
+    }
+    const claims = Object.values(head.claims ?? {});
+    const claimsDifferingFromState = claims
+      .filter((claim) => Object.hasOwn(stateValues, claim.subject) && (claim.value_time ?? head.time) === head.time
+        && canonicalJson(claim.value) !== canonicalJson(stateValues[claim.subject]))
+      .map((claim) => ({ claimId: claim.id, processId: claim.subject, claimValue: claim.value, stateValue: stateValues[claim.subject] }));
+    const newProcessesWithoutClaims = newProcessIds.filter((id) => !claims.some((claim) => claim.subject === id));
+    return {
+      checked: true,
+      scope: 'Claims visible to the supplied accessScopes at the revised head time.',
+      claimsDifferingFromState,
+      newProcessesWithoutClaims,
+      ...(claimsDifferingFromState.length || newProcessesWithoutClaims.length ? { nextStep: 'A world revision sets state but does not write claims. Submit current claims through the estimation exchange, acknowledging the superseded claim ids, and record the supersession in the graph.' } : {}),
+    };
   }
 
   async inspectWorldRevision({ revisionHash, requestedObservables = [], accessScopes = [] }) {

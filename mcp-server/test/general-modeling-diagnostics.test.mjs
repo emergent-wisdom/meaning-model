@@ -45,7 +45,7 @@ test('rejected initial answers return exact bounded diagnostics and identical re
     providerState = state; providerQuestions = structuredClone(questions);
     providerResult = { model: 'fake-jev-response', usage: { input_tokens: 123, output_tokens: 45 },
       answers: Object.fromEntries(Object.entries(questions).map(([key, question]) => [key, {
-        type: 'score', score: key === 'q0' ? 2 : 2.03,
+        type: 'score', score: key === 'q0' ? 2.03 : 2.5,
         probabilities: { 0: 0.2, 1: 0.2, 2: 0.2, 3: 0.2, 4: 0.2 }, confidence: 0.3,
         legend: Object.fromEntries(question.criteria.map((description, index) => [index, description])),
       }])) };
@@ -57,7 +57,7 @@ test('rejected initial answers return exact bounded diagnostics and identical re
   assert.equal(result.requestId, input.requestId);
   for (const flag of ['stored', 'modelMutation', 'worldMutation', 'graphMutation']) assert.equal(result[flag], false);
   for (const handle of ['proposalId', 'modelHash', 'graphHash', 'worldId', 'model', 'graph']) assert.equal(Object.hasOwn(result, handle), false);
-  assert.deepEqual(result.validationError, { validator: 'meaning-model-initial-estimation/v1', message: 'horizon score is inconsistent with its distribution.', questionKey: 'q1', processId: 'horizon' });
+  assert.deepEqual(result.validationError, { validator: 'meaning-model-initial-estimation/v1', message: 'horizon score 2.5 is inconsistent with its distribution (expected 2.000 on the level-index scale, tolerance 0.040).', questionKey: 'q1', processId: 'horizon' });
   assert.deepEqual(result.accessScopes, ['research-private']);
   assert.equal(result.estimatorReceipt.provider, 'typesafe:fake-jev-response');
   assert.equal(result.estimatorReceipt.state, providerState);

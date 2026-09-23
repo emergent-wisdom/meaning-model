@@ -60,6 +60,41 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
 - Keep model anchors that name the model by its stable id when
   `life_narrative_rebind` moves a graph to a successor model; only anchors that
   name the predecessor hash are dropped.
+- Accept Jev Score answers whose score differs from its two-decimal probabilities
+  by rounding, and decline an answer that fails validation on its own coordinate
+  in `life_process_estimate` instead of discarding the whole batch. Declined
+  answers are kept, and usage is always returned. A malformed provider response
+  now returns a diagnostic with the response and usage instead of a bare error.
+- Store a Score estimate with the standard deviation of Jev's distribution over
+  the declared levels as its uncertainty, or, with `summary: "median"` for an
+  ordinal rubric, the median level with its interquartile levels. The world
+  builder's preview shows each answer's probabilities and confidence.
+- Let `life_process_estimation_record` record a data-only proposal submitted
+  through the estimation exchange, such as the caller's own dated history. Each
+  value keeps its holder, evidence type, cutoff and uncertainty. Add
+  `validateOnly` to `life_world_model_build`, which checks a scaffold without
+  calling the estimator, and a per-process `updateMode`, so a measured series
+  whose starting value is only an estimate can still take observed reports.
+- Report in `life_model_revise` which changes a world on the parent revision
+  cannot adopt: a removed process, or a changed value type, axes, unit, reference
+  frame or scale. `requireWorldAdoptable` refuses such a revision before it is
+  registered. `life_world_revise` names claims that disagree with the revised
+  state and new processes with no claim.
+- Let `life_model_ingest` and `life_estimate_cut_shares` declare a conditioned
+  question, whose Cut divides one answer of another Cut, and warn when that
+  answer carries under 0.05. With a graph, the ingest records each question's
+  answer and remainder meanings and the exact situation text judged, and its
+  notes can link to each other.
+- Serve the Meaning Model and Ontology of the Alien papers with their included
+  files inline, so the resource carries the core schema box, the figures and the
+  decision trees. State the default purpose in `life_general_modeling_start`, and
+  name the owning tool when an estimator preview id is passed to the estimation
+  inspector. The general modeling guide gains a worked recipe for recording dated
+  history.
+- Add `examples/crypto-market`, a general-modeling run on how US monetary
+  conditions reach the crypto market, built from recalled public records and
+  checked against retrieved sources, with a test that re-registers the model and
+  graph on a fresh engine and runs a world from it.
 
 - Add the `realizes_forecast` event relation. Its `forecast_answer` names a
   normalized Cut on the source event and the answer key, remainder included, that

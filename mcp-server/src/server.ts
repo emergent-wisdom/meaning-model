@@ -138,17 +138,20 @@ server.registerTool(
   },
 );
 
+const generalPurposeNote = 'Purpose defaulted to observation; pass purpose to change it. observation keeps each report, estimate and judgment in its own authority, and suits explanatory or retrospective accounts built from records or recalled knowledge. forecasting adds values after the evidence cutoff that later observations can test. counterfactual holds an explicit alternative premise apart from the accepted history.';
+
 server.registerPrompt('life_general_modeling_start', {
   title: 'Build and revise a general-purpose world model',
   description: 'Model macro context and long-term developments before local processes, with optional Jev estimation and automatic graph ingestion. Storytelling is independent and opt-in.',
   argsSchema: z.object({
-    purpose: z.enum(['observation', 'forecasting', 'counterfactual']).default('observation'),
+    purpose: z.enum(['observation', 'forecasting', 'counterfactual']).optional(),
     sessionMode: z.enum(modelingSessionModes).default('first_use'),
     brief: z.string().trim().min(1).max(8_000).optional(),
   }),
 }, async ({ purpose, sessionMode, brief }) => ({
   messages: [{ role: 'user' as const, content: { type: 'text' as const, text: [
-    await buildModelingPrompt({ purpose, sessionMode }),
+    await buildModelingPrompt({ purpose: purpose ?? 'observation', sessionMode }),
+    purpose ? '' : generalPurposeNote,
     brief ? `User modeling brief: ${brief}` : '',
     'Use life-sim://guide/general-modeling. Reuse the user\'s supplied scope and delegation; establish missing purpose, interval, evidence and retained decisions before substantive modeling. Choose useful processes across the system, not only an outcome such as price.',
     'Before construction, supply contextReview for broaderContext and longerTerm, with focal and broader intervals, assessments and supporting process/event/source references. life_world_model_build returns needs_context_review without a provider call or write when this is missing. Complete the review within the agreed delegation. Unknown context and deliberate scope exclusions require reasons; do not invent history or request a new user checkpoint just to fill the review.',
@@ -212,11 +215,12 @@ server.registerTool(
 server.registerTool(
   'life_model_revise',
   {
-    description: 'Register a complete immutable successor model revision. Added dimensions and laws are schema changes, never in-place patches.',
+    description: 'Register a complete immutable successor model revision. Added dimensions and laws are schema changes, never in-place patches. The result\'s worldAdoption lists changes that a world on the parent revision cannot adopt through life_world_revise: a removed process, or a changed value type, axes, unit, reference frame or scale (the scale holds the process meaning). requireWorldAdoptable refuses such a revision before registering it.',
     inputSchema: z.object({
       requestId: requestIdSchema,
       previousModelHash: z.string().length(64),
       model: z.record(z.string(), z.unknown()),
+      requireWorldAdoptable: z.boolean().default(false),
     }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },

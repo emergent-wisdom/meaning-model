@@ -5,6 +5,7 @@ import test from 'node:test';
 import {
   buildModelingContext,
   buildModelingPrompt,
+  expandTexInputs,
   conceptualReview,
   listModelingResources,
   modelingFreedom,
@@ -35,10 +36,12 @@ test('modeling resources expose complete theory before operational profiles', as
     'The Meaning Model: Constructing Worlds and Stories at Progressive Resolution',
   );
   assert.match(meaning.text, /Constructing Worlds and Stories at Progressive Resolution/);
-  assert.equal(
-    meaning.text,
-    await readFile(new URL('../../paper/meaning-model.tex', import.meta.url), 'utf8'),
-  );
+  const paperFile = new URL('../../paper/meaning-model.tex', import.meta.url);
+  assert.equal(meaning.text, await expandTexInputs(await readFile(paperFile, 'utf8'), paperFile));
+  for (const include of ['interface-blocks', 'conceptual-decomposition', 'book-trajectory-figures']) {
+    const body = await readFile(new URL(`../../paper/includes/${include}.tex`, import.meta.url), 'utf8');
+    assert.ok(meaning.text.includes(body.replace(/\n$/, '')), `${include} is served inline`);
+  }
   assert.equal(
     life.text,
     await readFile(new URL('../../docs/companions/life-simulation/life-simulation.tex', import.meta.url), 'utf8'),

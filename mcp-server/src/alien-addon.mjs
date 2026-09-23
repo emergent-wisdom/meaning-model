@@ -5,6 +5,7 @@ import { digest, findTargetLeaks, ISOLATION, PROVENANCE, readSearch, RECORD_SCHE
 import { buildTask, CANDIDATE_LIMITS, mechanismLabel, POPULATION_STATES, SIGNATURE_AXES, storedTask, TASK_ROLES, verifyTaskRef, worldOperatorSchema } from './alien-tasks.mjs';
 import { diagnoseSearch, mechanismCondition } from './alien-diagnose.mjs';
 import { runEstimatorRequest } from './estimator-receipts.mjs';
+import { expandTexInputs } from './modeling-guidance.mjs';
 
 const RESOURCE_URI = 'life-sim://addon/alien';
 export const ALIEN_PAPER_URI = 'life-sim://theory/ontology-of-the-alien';
@@ -786,10 +787,11 @@ export function registerAlienAddon(server, service, { estimator = null } = {}) {
     text: await readFile(new URL('../../profiles/ALIEN_ADDON.md', import.meta.url), 'utf8') }] }));
   server.registerResource('ontology-of-the-alien', ALIEN_PAPER_URI, {
     title: 'Ontology of the Alien (paper)',
-    description: 'Complete Ontology of the Alien manuscript: world-diversity search, ontology-governed intervention search, the study, its evidence boundary and the proposals this add-on implements. Required reading before an alien search; source digests are recorded in docs/companions/ontology-of-the-alien/SOURCE.json.',
+    description: 'Complete Ontology of the Alien manuscript: world-diversity search, ontology-governed intervention search, the study, its evidence boundary and the proposals this add-on implements. Required reading before an alien search; its decision trees are expanded inline, and source digests are recorded in docs/companions/ontology-of-the-alien/SOURCE.json.',
     mimeType: 'text/x-tex',
   }, async () => {
-    const text = await readFile(new URL('../../docs/companions/ontology-of-the-alien/ontology_of_the_alien.tex', import.meta.url), 'utf8');
+    const file = new URL('../../docs/companions/ontology-of-the-alien/ontology_of_the_alien.tex', import.meta.url);
+    const text = await expandTexInputs(await readFile(file, 'utf8'), file);
     paperRead = true;
     return { contents: [{ uri: ALIEN_PAPER_URI, mimeType: 'text/x-tex', text }] };
   });

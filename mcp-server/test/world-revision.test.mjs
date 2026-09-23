@@ -17,6 +17,7 @@ function fixture({ fail = false } = {}) {
       calls.push({ operation, payload });
       if (operation === 'get_model') return { summary: { process_ids: ['old', 'detail'] } };
       if (operation === 'get_world_revision') return { world_revision_hash: revisionHash };
+      if (operation === 'get_world') return { time: 0, claims: {} };
       assert.equal(operation, 'revise_world');
       if (fail) throw new Error('conflict: expected world hash is stale');
       return { world_revision_hash: revisionHash, world_head: { model_hash: targetHash } };
@@ -55,12 +56,15 @@ test('world revision delegates explicit state, mode, provenance and exact head w
       view: { requested_observables: [], access_scopes: [], include_path: false },
     },
   });
+  assert.deepEqual(calls[2], { operation: 'get_world', payload: { world_id: world.id, view: { requested_observables: ['detail'], access_scopes: [], include_path: false } } });
+  assert.deepEqual(result.claimConsistency.newProcessesWithoutClaims, ['detail'], 'the new process has state but no claim');
+  assert.match(result.claimConsistency.nextStep, /does not write claims/);
   assert.deepEqual(await service.reviseWorld(input), result);
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   await assert.rejects(service.reviseWorld({ ...input, mode: 'revise' }), /different revise-world payload/);
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   assert.deepEqual(await service.inspectWorldRevision({ revisionHash }), { world_revision_hash: revisionHash });
-  assert.deepEqual(calls[2], { operation: 'get_world_revision', payload: {
+  assert.deepEqual(calls[3], { operation: 'get_world_revision', payload: {
     world_revision_hash: revisionHash,
     view: { requested_observables: [], access_scopes: [], include_path: false },
   } });

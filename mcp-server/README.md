@@ -153,7 +153,9 @@ The model tools expose immutable typed profiles:
 - `life_model_inspect` returns a model summary and, when requested, its bounded
   complete definition.
 - `life_model_revise` stores a complete hash-linked successor revision. Adding
-  a dimension or law is an atomic schema revision, never an in-place patch.
+  a dimension or law is an atomic schema revision, never an in-place patch. Its
+  `worldAdoption` names changes a world on the parent revision cannot adopt,
+  and `requireWorldAdoptable` refuses such a revision before storing it.
 - `life_meaning_query` pages authored records from an optional Meaning Model
   layer by collection and exact id without returning the full model.
 - `life_world_refine_genesis` applies an already registered direct-next
@@ -163,6 +165,8 @@ The model tools expose immutable typed profiles:
   world hash, including after history has begun. `refine` preserves prior commitments;
   `revise` permits explicit compatible changes. Both retain an immutable receipt,
   require a reason and provenance, and require current values for new processes.
+  The result's `claimConsistency` names claims that disagree with the revised
+  state and new processes with no claim, because a revision writes no claims.
 - `life_world_revision_inspect` reads that receipt by hash, with explicit state
   projection. Empty requested observables return no state values.
 
@@ -540,7 +544,9 @@ missing answer category.
 boundary and description once, list the questions to ask about it, and optionally add
 notes; the tool creates the events under their declared parent, asks every question
 for every event, writes the distributions as Cuts, registers the revision, rebinds the
-bound graph, and stores the notes as Understanding Nodes anchored to the events. Text
+bound graph, and stores the notes as Understanding Nodes anchored to the events. It also
+records each question's answer meanings and the exact situation text judged, and a
+question with `conditionedOn` divides only one answer of another question's Cut. Text
 is yours; weights are the estimator's; both carry provenance and can be revised.
 
 `life_narrative_rebind` rebinds a model-bound narrative graph to a successor model as
@@ -919,10 +925,13 @@ completeness or causal relevance.
 The builder's preview can evaluate Jev
 `initialEstimate` questions; applying that exact proposal adopts the initial
 values as estimates without another provider call. `life_process_estimate`
-uses bounded questions to create typed process-value proposals;
-`life_process_estimation_record` saves the exact proposal, process records and
-review in the graph. Estimates retain their status and evidence, and do not
-silently become observations in accepted runtime history.
+uses bounded questions to create typed process-value proposals, declining an
+invalid answer on its own coordinate; `life_process_estimation_record` saves the
+exact proposal, process records and review in the graph, including a caller's own
+dated history submitted through the estimation exchange. `validateOnly` checks a
+scaffold without an estimator call. Estimates retain their status and evidence,
+and do not silently become observations in accepted runtime history. The
+[crypto-market example](../examples/crypto-market/) shows the whole loop.
 
 Set `MEANING_MODEL_ESTIMATOR=typesafe` and `TYPESAFE_API_KEY` to use Jev for
 batched structured judgments. This is independent of the storytelling add-on

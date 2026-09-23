@@ -1,0 +1,24 @@
+{
+ "schema": "meaning-model-example-manifest/v1",
+ "example": "crypto-market",
+ "source": {
+  "modelHash": "0e86c3e7a8751a70b346e4af4e50526b09bfda64cf9e5c4959c85ec286f84d4b",
+  "modelRevision": 5,
+  "graphHash": "ad18694cc4a40661de0e96a919fdad2c881cfadd1c072c86b2ca1dfb19881ffe",
+  "graphRevision": 13,
+  "processes": 13,
+  "events": 50,
+  "normalizedCuts": 15,
+  "graphNodes": 242,
+  "graphEdges": 915
+ },
+ "files": {
+  "README.md": "1437b2217a4a3cbad65cc3556d7b398160fafb49de92b726be27bae595b58c66",
+  "model.json": "ba94062d65fd47a9e2631ec7dd36678348a821f4fcd866860e91f096dba141fb",
+  "graph.json": "c42a407ba90a25d883fee8062e8446c971cebcebd80e03f0a5267f6456c76e1e",
+  "notes/reading.md": "24c61c59bda11193a5d7d7502fb169219dd723e41ec8f91f47fe3669464b1e06",
+  "notes/summary.md": "70befccf4f0a033a03c74d838594ec2d6bff1a6168ff19a958c2273499e10779",
+  "notes/friction.md": "eaf961def774124ff14e01ed9b9c846ccc998ce70268abe9c98c2cc73111ccea",
+  "notes/fact-check.md": "4c7a2ba5af828263c6341dc51afa60df2a93d03cd65034a72ba8954ee08fa363"
+ }
+}

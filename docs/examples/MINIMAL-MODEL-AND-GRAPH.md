@@ -221,4 +221,7 @@ Read a graph back for revision with `life_narrative_query` in `full` mode with
 `includeContent` and `forRevision: true`; the projection then contains only fields the
 revise operation accepts. Move a graph to a successor model with `life_narrative_rebind`.
 Add estimated Cuts to existing or new events with `life_estimate_cut_shares` or
-`life_model_ingest`. The storytelling add-on guide covers scenes, drafts and reviews.
+`life_model_ingest`. To keep dated values of a process, file them as claims through
+the estimation exchange and record them with `life_process_estimation_record`; the
+"Record dated history" section of `life-sim://guide/general-modeling` gives a complete
+claim. The storytelling add-on guide covers scenes, drafts and reviews.

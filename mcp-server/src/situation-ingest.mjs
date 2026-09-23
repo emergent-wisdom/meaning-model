@@ -34,6 +34,8 @@ export const ingestSchema = z.object({
     remainderMeaning: prose.default('Something else, or no single named answer dominates.'),
     subject: z.string().trim().min(1).max(1_000).nullable().default(null),
     eventIds: z.array(id).max(32).default([]),
+    // This question divides only the part of the same event that another question gave to answerKey.
+    conditionedOn: z.object({ questionId: shortId, answerKey: shortId }).strict().nullable().default(null),
   }).strict()).max(16).default([]),
   distributions: z.array(z.object({ questionId: shortId, eventId: id, probabilities: z.record(shortId, z.number().min(0).max(1)), confidence: z.number().min(0).max(1).nullable().default(null) }).strict()).max(256).default([]),
   proposalId: shortId.nullable().default(null),
@@ -56,6 +58,15 @@ export const ingestSchema = z.object({
     if (new Set(keys).size !== keys.length || keys.includes(REMAINDER_KEY)) context.addIssue({ code: 'custom', path: ['questions', index, 'answers'], message: `Answer keys must be unique and must not include ${REMAINDER_KEY}.` });
     if (new Set(question.eventIds).size !== question.eventIds.length) context.addIssue({ code: 'custom', path: ['questions', index, 'eventIds'], message: 'Question eventIds must be unique.' });
     for (const eventId of question.eventIds) if (!eventIds.includes(eventId)) context.addIssue({ code: 'custom', path: ['questions', index, 'eventIds'], message: `Unknown event ${eventId}.` });
+    const condition = question.conditionedOn;
+    const enclosing = condition && input.questions.find((other) => other.id === condition.questionId);
+    if (condition && condition.questionId === question.id) context.addIssue({ code: 'custom', path: ['questions', index, 'conditionedOn'], message: 'A question cannot be conditioned on itself.' });
+    if (enclosing && !enclosing.answers.some((answer) => answer.key === condition.answerKey)) context.addIssue({ code: 'custom', path: ['questions', index, 'conditionedOn'], message: `Question ${enclosing.id} has no answer ${condition.answerKey}.` });
+    if (enclosing) {
+      const targets = question.eventIds.length ? question.eventIds : eventIds;
+      const enclosingTargets = enclosing.eventIds.length ? enclosing.eventIds : eventIds;
+      for (const eventId of targets) if (!enclosingTargets.includes(eventId)) context.addIssue({ code: 'custom', path: ['questions', index, 'conditionedOn'], message: `Question ${enclosing.id} is not asked for event ${eventId}, so it cannot condition ${question.id} there.` });
+    }
   }
   for (const [index, event] of input.events.entries()) if (event.interval && event.interval.end < event.interval.start) context.addIssue({ code: 'custom', path: ['events', index, 'interval'], message: 'Event interval end must not precede start.' });
   const pairs = input.distributions.map((item) => JSON.stringify([item.questionId, item.eventId]));
@@ -127,9 +138,17 @@ async function executeIngest(input, estimator, service, checkpoint = null) {
     if (input.graph.notes.length) {
       const validEventIds = input.graph.rebind ? new Set(events.keys()) : new Set(definition.meaning_model?.events?.map((event) => event.id) ?? []);
       if (!input.graph.rebind && view.graph.source.model_hash !== input.modelHash) throw new Error('Notes without rebind require a graph bound to the input model.');
-      buildIngestNotes(view, { graphHash: input.graph.graphHash, accessScopes: input.graph.accessScopes, notes: input.graph.notes, eventIds: validEventIds, provenance });
+      buildIngestNotes(view, { graphHash: input.graph.graphHash, accessScopes: input.graph.accessScopes, notes: input.graph.notes, eventIds: validEventIds, provenance, evidence: input.graph.rebind ? { questions: [], situations: [] } : null });
     }
   }
+  // The exact text each question is judged against; the graph keeps it with the question definitions.
+  const situationText = (eventId) => {
+    const spec = input.events.find((event) => event.eventId === eventId); const event = events.get(eventId);
+    const text = spec.situationText ?? [event.boundary, event.description].filter((part) => typeof part === 'string' && part.trim()).join(' ');
+    if (!text.trim()) throw new Error(`Event ${eventId} has no text to estimate from.`);
+    return text;
+  };
+  const conditioning = conditioningFor(input, successor);
   // estimate every question for its events
   const supplied = new Map(input.distributions.map((distribution) => [JSON.stringify([distribution.questionId, distribution.eventId]), distribution]));
   let estimated = checkpoint?.get('estimates') ?? (input.proposalId ? readEstimatorProposal(service, 'situation-ingest', proposalBinding(input), input.proposalId) : null);
@@ -137,7 +156,7 @@ async function executeIngest(input, estimator, service, checkpoint = null) {
   const proposals = []; const usage = { input_tokens: 0, output_tokens: 0 }; const sources = new Set(); let model = estimator?.model ?? null; const pending = [];
   for (const question of input.questions) {
     const targetIds = question.eventIds.length ? question.eventIds : input.events.map((event) => event.eventId);
-    const targets = targetIds.map((eventId) => { const spec = input.events.find((event) => event.eventId === eventId); const event = events.get(eventId); const text = spec.situationText ?? [event.boundary, event.description].filter((part) => typeof part === 'string' && part.trim()).join(' '); if (!text.trim()) throw new Error(`Event ${eventId} has no text to estimate from.`); return { id: eventId, parentEventId: eventId, cutId: `cut.${eventId}.${question.id}`, text }; });
+    const targets = targetIds.map((eventId) => ({ id: eventId, parentEventId: eventId, cutId: `cut.${eventId}.${question.id}`, text: situationText(eventId) }));
     const shaped = { question: question.question, unit: question.unit, answers: question.answers, remainderMeaning: question.remainderMeaning, subject: question.subject, idPrefix: `cut.${question.id}` };
     for (const request of buildCutShareQuestions(shaped, targets)) {
       const target = targets.find((item) => item.id === request.situationId);
@@ -158,7 +177,9 @@ async function executeIngest(input, estimator, service, checkpoint = null) {
   const { proposals, usage, pending } = estimated;
   const sources = new Set(estimated.sources);
   const evaluator = [...sources].join('+') || 'calling_llm';
-  const common = { schema: 'meaning-model-situation-ingest/v1', modelHash: input.modelHash, eventsAdded: addedEventIds, proposals, pending, usage, evaluator, canonical: false, epistemicStatus: 'ai_inference', evidenceType: 'estimate', requestHash: digest(input) };
+  const conditioningWarnings = conditionedWeightWarnings(proposals, conditioning, successor);
+  const common = { schema: 'meaning-model-situation-ingest/v1', modelHash: input.modelHash, eventsAdded: addedEventIds, proposals, pending, usage, evaluator, canonical: false, epistemicStatus: 'ai_inference', evidenceType: 'estimate', requestHash: digest(input),
+    ...(conditioning.size ? { conditioning: Object.fromEntries(conditioning) } : {}), ...(conditioningWarnings.length ? { warnings: conditioningWarnings } : {}) };
   if (pending.length) {
     if (input.apply) throw new Error(`apply needs a distribution for every question and event; ${pending.length} pending. Configure an estimator or supply distributions.`);
     return { ...common, applied: null, worldMutation: false, graphMutation: false, instructions: 'No external estimator is configured. Answer the pending tasks with probabilities over the listed answers including the remainder, then call again with those distributions and apply.' };
@@ -169,7 +190,8 @@ async function executeIngest(input, estimator, service, checkpoint = null) {
   }
   const cuts = new Map(successor.meaning_model.normalized_cuts.map((cut, index) => [cut.id, index]));
   for (const proposal of proposals) {
-    const cut = { id: proposal.id, parent_event_id: proposal.parent_event_id, question: proposal.question, unit: proposal.unit, answers: proposal.answers.map(({ key, weight }) => ({ key, weight })), provenance: proposal.provenance };
+    const condition = conditioning.get(proposal.id);
+    const cut = { id: proposal.id, parent_event_id: proposal.parent_event_id, question: proposal.question, unit: proposal.unit, answers: proposal.answers.map(({ key, weight }) => ({ key, weight })), ...(condition ? { conditioning: condition } : {}), provenance: proposal.provenance };
     if (cuts.has(cut.id)) { if (!input.replaceExisting) throw new Error(`Cut ${cut.id} already exists; set replaceExisting to supersede it.`); successor.meaning_model.normalized_cuts[cuts.get(cut.id)] = cut; }
     else successor.meaning_model.normalized_cuts.push(cut);
   }
@@ -188,8 +210,9 @@ async function executeIngest(input, estimator, service, checkpoint = null) {
         checkpoint?.set('rebound', rebound); graphHash = rebound.graphHash;
       }
       stage = 'notes';
-      if (input.graph.notes.length) {
-        notes ??= await recordIngestNotes(service, { graphHash, accessScopes: input.graph.accessScopes, requestId: `${input.requestId}-notes`, notes: input.graph.notes, eventIds: new Set(events.keys()), provenance });
+      const evidence = input.graph.rebind ? ingestEvidence(input, situationText, applied.cutIds) : null;
+      if (input.graph.notes.length || evidence) {
+        notes ??= await recordIngestNotes(service, { graphHash, accessScopes: input.graph.accessScopes, requestId: `${input.requestId}-notes`, notes: input.graph.notes, eventIds: new Set(events.keys()), provenance, evidence });
         checkpoint?.set('notes', notes);
       }
     }
@@ -199,14 +222,64 @@ async function executeIngest(input, estimator, service, checkpoint = null) {
   return { ...common, applied, rebound, notes, worldMutation: false, graphMutation: Boolean(rebound || notes), nextStep: 'Events and Cuts are in the new model revision with provenance; notes are Understanding Nodes. Review, then revise explicitly where the estimates are wrong; nothing here is verified truth.' };
 }
 
-export async function recordIngestNotes(service, { graphHash, accessScopes, requestId, notes, eventIds, provenance }) {
-  const view = await service.queryNarrativeGraph({ graphHash, expectedGraphHash: graphHash, mode: 'full', includeContent: true, accessScopes: [...new Set(accessScopes)].sort() });
-  const { narrativeBatch, rootId } = buildIngestNotes(view, { graphHash, accessScopes, notes, eventIds, provenance });
-  const stored = await service.applyNarrativeBatch({ requestId, previousGraphHash: graphHash, narrativeBatch });
-  return { graphHash: stored.graphHash ?? null, understandingRootId: rootId, nodeIds: notes.map((note) => note.nodeId), stored };
+// A conditioned question divides the part of the same event that the enclosing question gave
+// to answerKey; the engine stores that as the Cut's conditioning.
+function conditioningFor(input, successor) {
+  const conditioning = new Map();
+  const existing = new Map((successor.meaning_model.normalized_cuts ?? []).map((cut) => [cut.id, cut]));
+  for (const question of input.questions) {
+    if (!question.conditionedOn) continue;
+    const { questionId, answerKey } = question.conditionedOn;
+    const declared = input.questions.find((other) => other.id === questionId);
+    for (const eventId of (question.eventIds.length ? question.eventIds : input.events.map((event) => event.eventId))) {
+      const cutId = `cut.${eventId}.${questionId}`;
+      if (!declared) {
+        const cut = existing.get(cutId);
+        if (!cut) throw new Error(`Question ${question.id} is conditioned on ${questionId}, which is neither asked in this call nor stored as ${cutId}.`);
+        if (!cut.answers.some((answer) => answer.key === answerKey)) throw new Error(`Cut ${cutId} has no answer ${answerKey}.`);
+      }
+      conditioning.set(`cut.${eventId}.${question.id}`, { cut_id: cutId, answer_key: answerKey });
+    }
+  }
+  return conditioning;
 }
 
-export function buildIngestNotes(view, { graphHash, accessScopes, notes, eventIds, provenance }) {
+// Shares conditioned on a component that carries almost no weight describe almost nothing of the whole.
+function conditionedWeightWarnings(proposals, conditioning, successor) {
+  const weights = new Map((successor.meaning_model.normalized_cuts ?? []).map((cut) => [cut.id, cut.answers]));
+  for (const proposal of proposals) weights.set(proposal.id, proposal.answers);
+  const warnings = [];
+  for (const [cutId, condition] of conditioning) {
+    const weight = weights.get(condition.cut_id)?.find((answer) => answer.key === condition.answer_key)?.weight;
+    if (typeof weight === 'number' && weight < 0.05) warnings.push(`${cutId} divides answer ${condition.answer_key} of ${condition.cut_id}, which carries only ${weight.toFixed(2)}; its shares describe that small part, not the whole event.`);
+  }
+  return warnings;
+}
+
+// What the estimator judged: each question's answers and remainder meanings, and the exact
+// situation text for each event, recorded with the notes so the Cuts stay traceable.
+function ingestEvidence(input, situationText, cutIds) {
+  const questions = input.questions.map((question) => {
+    const targets = question.eventIds.length ? question.eventIds : input.events.map((event) => event.eventId);
+    return { questionId: question.id, eventIds: targets, definition: { questionId: question.id, question: question.question, unit: question.unit, subject: question.subject,
+      answers: question.answers, remainderMeaning: question.remainderMeaning, conditionedOn: question.conditionedOn,
+      cutIds: targets.map((eventId) => `cut.${eventId}.${question.id}`).filter((cutId) => cutIds.includes(cutId)) } };
+  });
+  if (!questions.length) return null;
+  const asked = [...new Set(questions.flatMap((question) => question.eventIds))];
+  const situations = asked.map((eventId) => ({ eventId, text: situationText(eventId),
+    questionIds: questions.filter((question) => question.eventIds.includes(eventId)).map((question) => question.questionId) }));
+  return { questions, situations, stem: `ingest.${digest(input.requestId).slice(0, 12)}` };
+}
+
+export async function recordIngestNotes(service, { graphHash, accessScopes, requestId, notes, eventIds, provenance, evidence = null }) {
+  const view = await service.queryNarrativeGraph({ graphHash, expectedGraphHash: graphHash, mode: 'full', includeContent: true, accessScopes: [...new Set(accessScopes)].sort() });
+  const { narrativeBatch, rootId, evidenceNodeIds } = buildIngestNotes(view, { graphHash, accessScopes, notes, eventIds, provenance, evidence });
+  const stored = await service.applyNarrativeBatch({ requestId, previousGraphHash: graphHash, narrativeBatch });
+  return { graphHash: stored.graphHash ?? null, understandingRootId: rootId, nodeIds: notes.map((note) => note.nodeId), evidenceNodeIds, stored };
+}
+
+export function buildIngestNotes(view, { graphHash, accessScopes, notes, eventIds, provenance, evidence = null }) {
   const scopes = [...new Set(accessScopes)].sort();
   if (!scopes.length) throw new Error('Understanding notes require at least one access scope.');
   assertCompleteNarrativeView(view, graphHash);
@@ -221,13 +294,36 @@ export function buildIngestNotes(view, { graphHash, accessScopes, notes, eventId
   for (const [index, note] of notes.entries()) {
     if (note.nodeId === rootId || view.nodes.some((node) => node.id === note.nodeId)) throw new Error(`Note ${note.nodeId} already exists; use a new node ID.`);
     for (const eventId of note.aboutEventIds) if (!eventIds.has(eventId)) throw new Error(`Note ${note.nodeId} is about unknown event ${eventId}.`);
-    for (const link of note.links) if (!view.nodes.some((node) => node.id === link.targetNodeId)) throw new Error(`Note ${note.nodeId} links to unknown node ${link.targetNodeId}.`);
+    for (const link of note.links) if (!view.nodes.some((node) => node.id === link.targetNodeId) && !notes.some((other) => other.nodeId === link.targetNodeId && other !== note)) throw new Error(`Note ${note.nodeId} links to unknown node ${link.targetNodeId}.`);
     nodes.push({ ...common, id: note.nodeId, node_type: 'ingest.note', role: 'externalized_reflection', text: note.text, epistemic_status: 'authored_proposal', evidence_type: 'creative_hypothesis', holder: note.holder, authority: { source: note.holder, weight: 1 }, value_time: step });
     edges.push({ id: `${note.nodeId}.placement`, source: endpoint(rootId), target: endpoint(note.nodeId), family: 'structural', relation: 'contains', order: step * 100 + index, access_scopes: scopes, provenance });
     for (const eventId of note.aboutEventIds) edges.push({ id: `${note.nodeId}.about.${eventId}`, source: endpoint(note.nodeId), target: { kind: 'anchor', anchor_kind: 'event', anchor_id: eventId }, family: 'grounding', relation: 'about', access_scopes: scopes, provenance });
     for (const [linkIndex, link] of note.links.entries()) edges.push({ id: `${note.nodeId}.link.${linkIndex}`, source: endpoint(note.nodeId), target: endpoint(link.targetNodeId), family: 'semantic', relation: link.relation, access_scopes: scopes, provenance });
   }
+  const evidenceNodeIds = [];
+  if (evidence) {
+    const record = { ...common, role: 'metadata', epistemic_status: 'source_bound_record', evidence_type: 'report', authority: { source: 'situation-ingest', weight: 1 }, value_time: step };
+    const place = (nodeId, index) => edges.push({ id: `${nodeId}.placement`, source: endpoint(rootId), target: endpoint(nodeId), family: 'structural', relation: 'contains', order: step * 100 + notes.length + index, access_scopes: scopes, provenance });
+    const about = (nodeId, eventId, index) => edges.push({ id: `${nodeId}.about.${index}`, source: endpoint(nodeId), target: { kind: 'anchor', anchor_kind: 'event', anchor_id: eventId }, family: 'grounding', relation: 'about', access_scopes: scopes, provenance });
+    const questionNodes = new Map();
+    for (const [index, question] of evidence.questions.entries()) {
+      const nodeId = `${evidence.stem}.question.${index}`;
+      questionNodes.set(question.questionId, nodeId); evidenceNodeIds.push(nodeId);
+      nodes.push({ ...record, id: nodeId, node_type: 'cut_question_definition', text: JSON.stringify(question.definition) });
+      place(nodeId, evidenceNodeIds.length);
+      for (const [eventIndex, eventId] of question.eventIds.entries()) if (eventIds.has(eventId)) about(nodeId, eventId, eventIndex);
+    }
+    for (const [index, situation] of evidence.situations.entries()) {
+      const nodeId = `${evidence.stem}.situation.${index}`;
+      evidenceNodeIds.push(nodeId);
+      nodes.push({ ...record, id: nodeId, node_type: 'estimator_situation_text', text: JSON.stringify({ eventId: situation.eventId, text: situation.text, questionIds: situation.questionIds }) });
+      place(nodeId, evidenceNodeIds.length);
+      if (eventIds.has(situation.eventId)) about(nodeId, situation.eventId, 0);
+      for (const [linkIndex, questionId] of situation.questionIds.entries()) edges.push({ id: `${nodeId}.judged.${linkIndex}`, source: endpoint(questionNodes.get(questionId)), target: endpoint(nodeId), family: 'semantic', relation: 'judged_against', access_scopes: scopes, provenance });
+    }
+    for (const nodeId of evidenceNodeIds) if (view.nodes.some((node) => node.id === nodeId)) throw new Error(`Ingest record ${nodeId} already exists; use a new requestId.`);
+  }
   const existingEdges = new Set(view.edges.map((edge) => edge.id));
   if (new Set(edges.map((edge) => edge.id)).size !== edges.length || edges.some((edge) => existingEdges.has(edge.id))) throw new Error('Generated note edge IDs conflict; choose distinct note IDs and targets.');
-  return { rootId, narrativeBatch: { schema: 'life-sim-rust-narrative-batch/v1', previous_graph_hash: graphHash, reason: `Record ${notes.length} understanding note${notes.length === 1 ? '' : 's'} from situation ingest.`, provenance, add_roots: addRoots, add_nodes: nodes, add_edges: edges } };
+  return { rootId, evidenceNodeIds, narrativeBatch: { schema: 'life-sim-rust-narrative-batch/v1', previous_graph_hash: graphHash, reason: `Record ${notes.length} understanding note${notes.length === 1 ? '' : 's'}${evidenceNodeIds.length ? ` and ${evidenceNodeIds.length} ingest record${evidenceNodeIds.length === 1 ? '' : 's'}` : ''} from situation ingest.`, provenance, add_roots: addRoots, add_nodes: nodes, add_edges: edges } };
 }
