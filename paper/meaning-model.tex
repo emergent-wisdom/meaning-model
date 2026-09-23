@@ -31,7 +31,7 @@
 \title{The Meaning Model:\\Constructing Worlds and Stories at Progressive Resolution}
 \author{Henrik Westerberg\\Emergent Wisdom\\
   \texttt{henrik.westerberg@emergentwisdom.org}}
-\ewreviseddates{September 5, 2026}{September 22, 2026}
+\ewreviseddates{September 5, 2026}{September 23, 2026}
 
 \begin{document}
 \maketitle
@@ -1332,6 +1332,10 @@ Understanding links include \texttt{about}, \texttt{supports},
 \texttt{learned-from}, and \texttt{supersedes}. A DocumentNode links to Events
 through \texttt{renders} and to an UnderstandingNode through \texttt{shaped-by}.
 These links retain their surface-specific roles, not authority over their targets.
+This paper writes link names with hyphens; the implementation serializes them
+with underscores, for example \texttt{learned\_from}, \texttt{shaped\_by}, and
+\texttt{realizes\_forecast}. The released Book import records its rendering
+links as \texttt{expresses}.
 
 For example, a software investigation could link a measured response-time
 history to a bottleneck hypothesis, the code unit changed to test it, and an
@@ -2197,11 +2201,12 @@ incremental advantage beyond the partial descriptive witness at one
 resolution; it does not establish a universal ontology or a theory of temporal
 dynamics.
 
-\section{General Modeling and Automatic Story Construction}
+\section{General Modeling, Story Construction, and Mechanism Search}
 \label{sec:modeling-workflows}
 
-The MCP interface exposes two workflows over the same model and graph:
-general-purpose modeling and an optional storytelling add-on. A general model
+The MCP interface exposes three workflows over the same model and graph:
+general-purpose modeling, an optional storytelling add-on, and an optional
+mechanism-search add-on. A general model
 may connect technological development, adoption, institutions, public
 interpretations, and markets, or describe an entirely different physical or
 organizational system. A price series is one possible process, not the boundary
@@ -2224,7 +2229,11 @@ second language-model pass that manually transcribes each value and graph edge.
 The current optional provider is TypeSafe's Jev, whose
 \href{https://docs.typesafe.ai/introduction}{documented primitives} are Choice,
 Score, and Noul. Choice evaluates declared alternatives; Score evaluates an
-ordered rubric; Noul assesses a bounded truth question. Independent questions
+ordered rubric; Noul assesses a bounded truth question. Answering a bounded
+question with a classifier's decision rather than generated text predates Jev:
+SetFit, for example, fine-tunes a compact sentence encoder and fits a
+classification head for a fixed label set, without prompts~\cite{tunstall2022setfit}.
+Jev instead takes each question and its typed options at call time. Independent questions
 over a shared evidence state can be submitted together. An answer needed to
 formulate a later question requires another step. Jev does not supply the
 open-ended process descriptions, a universal ontology, or an independently
@@ -2301,6 +2310,30 @@ construction and review; they do not establish distinctive voice, literary
 quality, or semantic alignment merely by accepting a structurally valid record.
 General-purpose modeling does not require author personas, dramatic goals, or
 any other literary vocabulary.
+
+\subsection{Mechanism search through invented worlds}
+
+The optional alien add-on implements the world-diversity search of Ontology of
+the Alien over the same graph~\cite{westerbergOntology2026}. A target-blind
+builder turns a seed word into an invented world; a purpose-blind solver addresses
+the problem inside that world; a compiler states the operative causal relation in
+the problem's own domain. The server writes each role's task, stores its exact
+text, and records every output against the task it answers. Curators maintain
+three revisable ontologies: mechanism families, claimed outcomes, and causal world
+regimes. Their partitions are specializations under a named lens, not expressive
+decompositions. A new family is admitted only when the recorded equivalence test
+says the primary causal operator changed; the judgment itself remains the
+curator's. Diagnosis of the ontologies, including family and outcome
+combinations that no candidate yet realizes, informs the commission of the next
+world. A transfer maps a mechanism's roles onto records of the target model and
+states where the analogy breaks; a graded fit is a fit Cut with its own remainder.
+
+These records organize ideation. A world is a textual thought experiment, not a
+simulation, and a transfer records an idea and its mapping, not evidence that the
+idea works. The add-on implements the world-population ontology and graph-directed
+world commissioning that Ontology of the Alien proposes. Whether governed world
+coverage yields more useful mechanisms than unguided generation remains that
+paper's open experiment.
 
 The architecture is intended to reduce repetitive language-model work through
 batched judgments and automatic ingestion. An end-to-end efficiency claim must

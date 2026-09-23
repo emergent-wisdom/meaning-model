@@ -47,13 +47,15 @@ export async function preflightNarrativeRebind(service, { graphHash, modelHash, 
   return view;
 }
 
-export function buildRebindSuccessor(view, { graphHash, modelHash, reason, provenance }) {
+export function buildRebindSuccessor(view, { graphHash, modelHash, modelId = null, reason, provenance }) {
   if (view.graph_hash !== graphHash) throw new Error('Rebind must read the exact requested graph revision.');
   if (!view.content_included) throw new Error('Rebind requires a content-included full graph read.');
   assertCompleteNarrativeView(view, graphHash);
   const source = view.graph?.source;
   if (source?.kind !== 'model') throw new Error(`Rebind supports model-bound graphs only; this graph is bound to a ${source?.kind ?? 'missing'} source.`);
-  const dropped = view.edges.filter((edge) => edge.target?.kind === 'anchor' && edge.target?.anchor_kind === 'model' && edge.target?.anchor_id !== modelHash).map((edge) => edge.id);
+  // A model anchor may name the model by hash or by its stable id; only anchors to a predecessor hash are dropped.
+  const dropped = view.edges.filter((edge) => edge.target?.kind === 'anchor' && edge.target?.anchor_kind === 'model'
+    && edge.target?.anchor_id !== modelHash && (modelId === null || edge.target?.anchor_id !== modelId)).map((edge) => edge.id);
   const droppedSet = new Set(dropped);
   const successor = {
     schema: 'life-sim-rust-narrative-graph/v1',
@@ -72,7 +74,9 @@ export async function rebindNarrativeGraph(service, raw) {
   const accessScopes = [...new Set(input.accessScopes)].sort();
   const view = await service.queryNarrativeGraph({ graphHash: input.graphHash, expectedGraphHash: input.graphHash, mode: 'full', includeContent: true, accessScopes });
   const provenance = ['Meaning Model narrative rebind v1', `rebind:${input.graphHash.slice(0, 12)}->model:${input.modelHash.slice(0, 12)}`];
-  const { successor, droppedModelAnchorEdgeIds, previousModelHash } = buildRebindSuccessor(view, { graphHash: input.graphHash, modelHash: input.modelHash, reason: input.reason, provenance });
+  const successorModel = await service.inspectModel({ modelHash: input.modelHash, includeDefinition: true });
+  const modelId = typeof successorModel?.model?.id === 'string' ? successorModel.model.id : null;
+  const { successor, droppedModelAnchorEdgeIds, previousModelHash } = buildRebindSuccessor(view, { graphHash: input.graphHash, modelHash: input.modelHash, modelId, reason: input.reason, provenance });
   if (previousModelHash === input.modelHash) throw new Error('The graph is already bound to this model.');
   const lineageSteps = await assertModelSuccessor(service, previousModelHash, input.modelHash);
   const stored = await service.reviseNarrativeGraph({ requestId: input.requestId, previousGraphHash: input.graphHash, narrativeGraph: successor });

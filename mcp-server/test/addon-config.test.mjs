@@ -13,6 +13,7 @@ test('addons are opt-in and comma-separated settings are normalized once', () =>
   assert.deepEqual(parseEnabledAddons(''), []);
   assert.deepEqual(parseEnabledAddons('  '), []);
   assert.deepEqual(parseEnabledAddons(' storytelling, storytelling, '), ['storytelling']);
+  assert.deepEqual(parseEnabledAddons('alien, storytelling'), ['alien', 'storytelling']);
 });
 
 test('unknown addons and non-string settings reject the whole configuration', () => {

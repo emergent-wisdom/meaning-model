@@ -111,6 +111,10 @@ test('depth preparation reads the frozen source model and binds the exact task',
     assert.match(error.message, /cites node not-reviewed, which is outside the reviewed evidence/);
     return true;
   });
+  outside.findings[0].evidence.push({ kind: 'node', nodeId: 'also-not-reviewed' }, { kind: 'node', nodeId: 'not-reviewed' });
+  await assert.rejects(recordModelDepthReview(f.service, outside),
+    /cite 2 nodes outside the reviewed evidence: not-reviewed \(first cited by finding 0\), also-not-reviewed \(first cited by finding 0\)/,
+    'every out-of-context citation is named at once');
   assert.equal(f.writes.length, 0);
   f.service.inspectModel = async () => ({ modelHash: 'f'.repeat(64), model: f.model });
   await assert.rejects(prepareModelDepthReview(f.service, f.preparation), /exact bound model/);

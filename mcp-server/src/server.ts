@@ -881,6 +881,10 @@ if (enabledAddons.includes('storytelling')) {
   const { registerStorytellingAddon } = await import('./storytelling-addon.mjs');
   await registerStorytellingAddon(server, service);
 }
+if (enabledAddons.includes('alien')) {
+  const { registerAlienAddon } = await import('./alien-addon.mjs');
+  registerAlienAddon(server, service);
+}
 
 await service.initialize();
 const transport = new StdioServerTransport();

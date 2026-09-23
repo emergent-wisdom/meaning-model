@@ -1,0 +1,34 @@
+{
+  "schema": "meaning-model-companion-source/v1",
+  "repository": "ontology-of-the-alien",
+  "source_state": "content_addressed_release_snapshot",
+  "release_provenance_status": "content_verified",
+  "artifact": "ontology_of_the_alien.tex",
+  "source_path": "paper/ontology_of_the_alien.tex",
+  "sha256": "2973e2b26d2516bf4efc46907b92e6ac9ea40594b98b2ce47ad44681df6c9545",
+  "source_commit": "5fe25fcd7bbff6d301072aa365c59b6d716b1746",
+  "license": "CC-BY-4.0 (paper source, bibliography and tree figures, per the repository license map)",
+  "dependencies": [
+    {
+      "artifact": "references.bib",
+      "source_path": "paper/references.bib",
+      "sha256": "a13eee2d14b1b9621c81f00ddb83927790a8afbb2c9b80a94511c744b6363fb5"
+    },
+    {
+      "artifact": "tree_B.tex",
+      "source_path": "paper/tree_B.tex",
+      "sha256": "0db5b58c775c15fd170a4c778fedeadd498946d40c2a3a87d17d35b4fec04e84"
+    },
+    {
+      "artifact": "tree_E.tex",
+      "source_path": "paper/tree_E.tex",
+      "sha256": "e3bea7dc622af757f205d69039ae8f131eb8032f2654f796dba9951f02d12376"
+    },
+    {
+      "artifact": "tree_H.tex",
+      "source_path": "paper/tree_H.tex",
+      "sha256": "7a4c9b19f5ed85c2db39fb93bfdd96b85959e225a3e2ea930d2e2c27dfc0c219"
+    }
+  ],
+  "boundary": "Byte-identical snapshot of the Ontology of the Alien manuscript (revised August 15, 2026) and the inputs it includes, identified by the digests above and taken from the named source commit. Ontology of the Alien remains the canonical source; this companion lets the alien add-on require the paper before a search, as the modeling tools require the two theory papers."
+}

@@ -31,6 +31,15 @@ await verifyDigest(companionDirectory, companionSource.artifact, companionSource
 for (const dependency of companionSource.dependencies) {
   await verifyDigest(companionDirectory, dependency.artifact, dependency.sha256);
 }
+// The alien add-on's paper companion is digest-bound the same way.
+const alienDirectory = new URL('docs/companions/ontology-of-the-alien/', repositoryRoot);
+const alienSource = JSON.parse(await readFile(new URL('SOURCE.json', alienDirectory), 'utf8'));
+assert.equal(alienSource.schema, 'meaning-model-companion-source/v1');
+assert.equal(alienSource.repository, 'ontology-of-the-alien');
+await verifyDigest(alienDirectory, alienSource.artifact, alienSource.sha256);
+for (const dependency of alienSource.dependencies) {
+  await verifyDigest(alienDirectory, dependency.artifact, dependency.sha256);
+}
 
 const presetDirectory = new URL('mcp-server/resources/presets/', repositoryRoot);
 const presetSource = JSON.parse(await readFile(new URL('SOURCE.json', presetDirectory), 'utf8'));
@@ -47,5 +56,5 @@ for (const resource of resources) {
 }
 
 console.log(
-  `Verified digest-bound Life Simulation companion, ${presetSource.presets.length} presets, and ${resources.length} MCP resources.`,
+  `Verified digest-bound Life Simulation and Ontology of the Alien companions, ${presetSource.presets.length} presets, and ${resources.length} MCP resources.`,
 );

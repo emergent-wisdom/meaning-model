@@ -185,14 +185,23 @@ export async function recordModelDepthReview(service, raw) {
   const model = task.model.definition ?? inspected.model;
   const nodeIds = new Set(task.nodes.map((node) => node.id));
   const modelPaths = new Set();
+  // Every out-of-context citation is reported at once, so one re-preparation can add them all.
+  const outside = new Map();
   for (const [index, finding] of input.findings.entries()) for (const evidence of finding.evidence) {
     if (evidence.kind === 'node') {
-      if (!nodeIds.has(evidence.nodeId)) throw new Error(`Model-depth finding ${index} (${JSON.stringify(finding.subject.slice(0, 80))}) cites node ${evidence.nodeId}, which is outside the reviewed evidence. Add it to contextNodeIds and prepare the review again, or cite a reviewed node.`);
+      if (!nodeIds.has(evidence.nodeId) && !outside.has(evidence.nodeId)) outside.set(evidence.nodeId, { index, subject: finding.subject });
     } else {
       if (evidence.ref) evidence.path = resolveModelRef(model, evidence.ref, evidence.path ?? '');
       atPointer(model, evidence.path);
       modelPaths.add(evidence.path);
     }
+  }
+  if (outside.size === 1) {
+    const [[nodeId, { index, subject }]] = outside;
+    throw new Error(`Model-depth finding ${index} (${JSON.stringify(subject.slice(0, 80))}) cites node ${nodeId}, which is outside the reviewed evidence. Add it to contextNodeIds and prepare the review again, or cite a reviewed node.`);
+  }
+  if (outside.size > 1) {
+    throw new Error(`Model-depth findings cite ${outside.size} nodes outside the reviewed evidence: ${[...outside].map(([nodeId, { index }]) => `${nodeId} (first cited by finding ${index})`).join(', ')}. Add them to contextNodeIds and prepare the review again, or cite reviewed nodes.`);
   }
   if (!modelPaths.size) throw new Error('Depth assessment must cite actual model evidence, not only narrative summaries.');
   const data = storedSchema.parse({ schema: 'meaning-model-story-model-depth-assessment/v1',

@@ -305,3 +305,14 @@ test('passage contradiction flags carry the whole-unit arbiter and its margin', 
     assert.equal(flag.arbitration, expected, `whole ${whole}`);
   }
 });
+
+test('rebind keeps a model anchor that names the successor by its stable id and drops predecessor-hash anchors', () => {
+  const oldHash = 'a'.repeat(64); const newHash = 'b'.repeat(64);
+  const node = { id: 'root', node_type: 'story', role: 'document_root', text: '# R', epistemic_status: 'fictional_artifact', evidence_type: 'fictional_canon', provenance: ['t'] };
+  const anchor = (edgeId, anchorId) => ({ id: edgeId, source: { kind: 'node', node_id: 'root' }, target: { kind: 'anchor', anchor_kind: 'model', anchor_id: anchorId }, family: 'grounding', relation: 'targets', provenance: ['t'] });
+  const view = { graph_hash: 'c'.repeat(64), content_included: true, roots: ['root'], nodes: [node], edges: [anchor('by-id', 'harbour-example'), anchor('by-hash', oldHash)],
+    graph: { id: 'g', revision: { number: 3 }, source: { kind: 'model', model_hash: oldHash }, node_count: 1, edge_count: 2, root_count: 1 } };
+  const kept = buildRebindSuccessor(view, { graphHash: 'c'.repeat(64), modelHash: newHash, modelId: 'harbour-example', reason: 'r', provenance: [] });
+  assert.deepEqual(kept.droppedModelAnchorEdgeIds, ['by-hash']);
+  assert.deepEqual(kept.successor.edges.map((edge) => edge.id), ['by-id']);
+});

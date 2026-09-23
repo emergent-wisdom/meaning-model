@@ -302,6 +302,45 @@ available. See the [storytelling add-on guide](profiles/STORYTELLING_ADDON.md)
 for the workflow and the distinction between mechanical checks and authored
 prose-review findings.
 
+### Optional alien add-on
+
+Set `MEANING_MODEL_ADDONS=alien` (or `storytelling,alien`) to add world-diversity
+ideation from *Ontology of the Alien*. The server writes each role's task with
+only what that role may see:
+
+- a target-blind builder turns a seed word into an invented world;
+- a purpose-blind solver solves the problem inside that world;
+- a compiler brings the operative mechanism back into the problem's domain.
+
+The paper is bundled and must be read before a search: the write tools refuse
+until it has been read in the MCP process. Every cell of the paper's condition
+matrix can be run, from direct proposals with a Semantic Tabu archive or the
+curated map to map-conditioned compilation.
+
+Curators keep three revisable ontologies: mechanism families, claimed outcomes
+and causal world regimes. A new family is admitted only when the recorded
+equivalence test says the primary causal operator changed. Diagnosis of those
+ontologies decides which world to commission next, including family and outcome
+combinations no candidate has yet. Promising mechanisms are transferred onto a
+target model, with every role mapped and every disanalogy stated.
+
+Everything lives in the narrative graph as Understanding Nodes. Every task text
+is stored, so each output cites what its role actually saw. Graded fits and
+weighted selections follow the Meaning Model's Cut rule. Each ontology can be
+exported as Meaning Model concepts and specialization relations. Worlds are
+textual thought experiments and transfers are ideas, not evidence. See the
+[alien add-on guide](profiles/ALIEN_ADDON.md). It exposes six tools:
+
+- `life_alien_search_start`
+- `life_alien_task`
+- `life_alien_record`
+- `life_alien_ontology_revise`
+- `life_alien_search_diagnose`
+- `life_alien_atlas`
+
+It also adds the `life-sim://addon/alien` resource and the `life_alien_start`
+prompt.
+
 ### Registry clients using npx
 
 The official MCP Registry name is `io.github.emergent-wisdom/meaning-model`.

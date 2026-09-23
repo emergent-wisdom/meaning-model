@@ -95,6 +95,9 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
     'rust-engine/examples/category_revision.rs',
     'docs/examples/APPLICATION-CATEGORIES.md',
     'profiles/STORYTELLING_ADDON.md',
+    'profiles/ALIEN_ADDON.md',
+    'docs/companions/ontology-of-the-alien/ontology_of_the_alien.tex',
+    'docs/companions/ontology-of-the-alien/SOURCE.json',
   ]) {
     assert.equal(await readFile(join(packageDirectory, path), 'utf8'), await readFile(join(root, path), 'utf8'));
   }

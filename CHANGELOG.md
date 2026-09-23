@@ -6,6 +6,27 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Add the opt-in alien add-on (`MEANING_MODEL_ADDONS=alien`), following *Ontology
+  of the Alien*, whose paper is bundled and must be read before a search. The
+  add-on:
+  - builds target-blind worlds from seed words or commissions, solves the problem
+    inside them, and compiles the operative mechanisms, under any cell of the
+    paper's condition matrix;
+  - curates the results in three revisable ontologies: mechanism families, claimed
+    outcomes and causal world regimes;
+  - transfers promising mechanisms onto the target model.
+
+  The server stores every role task and checks each recorded output against the
+  task it cites. It admits a new family only when the equivalence test records a
+  changed primary operator, and it diagnoses gaps, uncombined family and outcome
+  pairs, saturation, redirect chains and world coverage. Fits and weighted
+  selections are Cuts with a remainder. Every record is an Understanding Node in
+  the narrative graph, and each ontology can be exported as Meaning Model concepts
+  and specialization relations.
+- Keep model anchors that name the model by its stable id when
+  `life_narrative_rebind` moves a graph to a successor model; only anchors that
+  name the predecessor hash are dropped.
+
 - Add the `realizes_forecast` event relation. Its `forecast_answer` names a
   normalized Cut on the source event and the answer key, remainder included, that
   the target continuation realized; the engine checks the Cut, its parent event and
@@ -41,7 +62,7 @@ unpublished work stays under Unreleased. This is not a development transcript.
   the audited revision as `auditedGraphHash`, so later writes do not branch from
   the pre-audit graph.
 - Name the finding and the node when a model-depth record cites evidence outside
-  the reviewed context.
+  the reviewed context, listing every such node at once.
 - Warn at exploration time when a life trajectory's first point is after birth,
   before a life-trends dossier would reject it.
 - Lead each storytelling tool description with what the tool does and include the
