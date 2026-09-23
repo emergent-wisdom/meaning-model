@@ -184,5 +184,6 @@ test('the combined deepening task stays small enough to preserve exactly in an a
   const f = fixture();
   f.view.nodes.find(({ id }) => id === 'capacity').text = 'x'.repeat(390 * 1024);
   await assert.rejects(f.addon.prepareDeepening(f.input), /Deepening task exceeds.*smaller coherent unit/iu);
+  await assert.rejects(f.addon.prepareDeepening(f.input), /Largest context records: capacity \(\d+ KiB\)/u, 'the error names what to leave out');
   assert.deepEqual(f.writes, []);
 });

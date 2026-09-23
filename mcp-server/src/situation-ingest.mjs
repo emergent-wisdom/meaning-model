@@ -158,7 +158,7 @@ async function executeIngest(input, estimator, service, checkpoint = null) {
   const { proposals, usage, pending } = estimated;
   const sources = new Set(estimated.sources);
   const evaluator = [...sources].join('+') || 'calling_llm';
-  const common = { schema: 'meaning-model-situation-ingest/v1', modelHash: input.modelHash, eventsAdded: addedEventIds, proposals, pending, usage, evaluator, canonical: false, evidenceType: 'ai_inference', requestHash: digest(input) };
+  const common = { schema: 'meaning-model-situation-ingest/v1', modelHash: input.modelHash, eventsAdded: addedEventIds, proposals, pending, usage, evaluator, canonical: false, epistemicStatus: 'ai_inference', evidenceType: 'estimate', requestHash: digest(input) };
   if (pending.length) {
     if (input.apply) throw new Error(`apply needs a distribution for every question and event; ${pending.length} pending. Configure an estimator or supply distributions.`);
     return { ...common, applied: null, worldMutation: false, graphMutation: false, instructions: 'No external estimator is configured. Answer the pending tasks with probabilities over the listed answers including the remainder, then call again with those distributions and apply.' };

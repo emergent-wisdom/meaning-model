@@ -127,7 +127,7 @@ async function executeCutShares(input, estimator, service, checkpoint = null) {
   }
   const requests = buildCutShareQuestions(input, targets);
   const supplied = new Map(input.distributions.map((distribution) => [distribution.situationId, distribution]));
-  const common = { schema: 'meaning-model-cut-shares/v1', question: input.question, unit: input.unit, answerKeys: [...input.answers.map((answer) => answer.key), REMAINDER_KEY], canonical: false, evidenceType: 'ai_inference', worldMutation: false, requestHash: digest(input) };
+  const common = { schema: 'meaning-model-cut-shares/v1', question: input.question, unit: input.unit, answerKeys: [...input.answers.map((answer) => answer.key), REMAINDER_KEY], canonical: false, epistemicStatus: 'ai_inference', evidenceType: 'estimate', worldMutation: false, requestHash: digest(input) };
   const needEstimator = requests.filter((request) => !supplied.has(request.situationId));
   if (needEstimator.length && !estimator && !input.proposalId && !checkpoint?.get('estimates')) {
     if (input.apply) throw new Error('apply needs a distribution for every target: configure an estimator or supply distributions.');

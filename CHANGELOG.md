@@ -28,6 +28,11 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
   selections are Cuts with a remainder. Every record is an Understanding Node in
   the narrative graph, and each ontology can be exported as Meaning Model concepts
   and specialization relations.
+- Label estimator results with `epistemicStatus: "ai_inference"` and
+  `evidenceType: "estimate"`, the pair the graph records they produce already
+  use, instead of reporting the inference status as an evidence type.
+- Name the prose size, the bound model size and the largest context records
+  when a story deepening task exceeds its size limit.
 - Keep model anchors that name the model by its stable id when
   `life_narrative_rebind` moves a graph to a successor model; only anchors that
   name the predecessor hash are dropped.

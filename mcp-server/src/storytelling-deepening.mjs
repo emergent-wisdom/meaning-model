@@ -90,6 +90,15 @@ export async function prepareDeepening(service, raw, preparePurposeReview) {
   };
   // Leave room to persist the exact task plus a concise assessment under the
   // existing 512 KiB author-record limit instead of encouraging external notes.
-  bounded(task, 384 * 1024, 'Deepening task');
+  const limit = 384 * 1024;
+  if (Buffer.byteLength(JSON.stringify(task)) > limit) {
+    // Name what to drop: long revision histories fill the task with superseded reviews.
+    const kib = (value) => `${Math.ceil(Buffer.byteLength(JSON.stringify(value)) / 1024)} KiB`;
+    const largest = (modelDepth.nodes ?? []).map((node) => [node.id, Buffer.byteLength(JSON.stringify(node))])
+      .sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, bytes]) => `${id} (${Math.ceil(bytes / 1024)} KiB)`);
+    throw new Error(`Deepening task exceeds ${limit} UTF-8 bytes; select a smaller coherent unit, never truncate its evidence. `
+      + `The prose is ${kib(task.text)} and the bound model ${kib(modelDepth.model ?? null)}.`
+      + (largest.length ? ` Largest context records: ${largest.join(', ')}; superseded reviews are usually safe to leave out of contextNodeIds.` : ''));
+  }
   return { ...task, taskHash: digest(task) };
 }

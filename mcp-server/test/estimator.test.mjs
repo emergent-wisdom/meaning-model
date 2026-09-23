@@ -51,7 +51,8 @@ test('without an estimator the cut-share tool returns a calling-LLM task and no 
   assert.equal(result.proposals, null);
   assert.equal(result.tasks.length, 2);
   assert.equal(result.canonical, false);
-  assert.equal(result.evidenceType, 'ai_inference');
+  assert.equal(result.evidenceType, 'estimate', 'the engine vocabulary: an AI estimate is evidence of type estimate');
+  assert.equal(result.epistemicStatus, 'ai_inference');
 });
 
 test('with an estimator the proposals are normalized Cuts with remainder, provenance and confidence', async () => {
