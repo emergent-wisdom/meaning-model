@@ -9,7 +9,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serverPath = join(here, '..', 'src', 'server.ts');
-const alienTools = ['life_alien_atlas', 'life_alien_ontology_revise', 'life_alien_record', 'life_alien_search_diagnose', 'life_alien_search_start', 'life_alien_task'];
+const alienTools = ['life_alien_atlas', 'life_alien_decision_check', 'life_alien_ontology_revise', 'life_alien_record', 'life_alien_search_diagnose', 'life_alien_search_start', 'life_alien_task', 'life_alien_worlds_export', 'life_alien_worlds_import'];
 const addonUri = 'life-sim://addon/alien';
 const paperUri = 'life-sim://theory/ontology-of-the-alien';
 
@@ -39,8 +39,9 @@ test('the alien add-on is opt-in and adds only its tools, resources and prompt',
   const bothNames = bothTools.tools.map(({ name }) => name);
   assert.ok(alienTools.every((name) => bothNames.includes(name)) && bothNames.includes('life_story_scene_prepare'), 'the add-ons combine');
   const readOnly = Object.fromEntries(enabledTools.tools.filter(({ name }) => alienTools.includes(name)).map(({ name, annotations }) => [name, annotations.readOnlyHint]));
-  assert.deepEqual(readOnly, { life_alien_atlas: true, life_alien_ontology_revise: false, life_alien_record: false,
-    life_alien_search_diagnose: true, life_alien_search_start: false, life_alien_task: false }, 'tasks are stored, so preparing one writes');
+  assert.deepEqual(readOnly, { life_alien_atlas: true, life_alien_decision_check: false, life_alien_ontology_revise: false, life_alien_record: false,
+    life_alien_search_diagnose: true, life_alien_search_start: false, life_alien_task: false, life_alien_worlds_export: true, life_alien_worlds_import: false },
+  'tasks are stored, so preparing one writes; a decision check can record; export is read-only');
   const [baseResources, enabledResources] = await Promise.all([base.listResources(), enabled.listResources()]);
   assert.ok(!baseResources.resources.some(({ uri }) => [addonUri, paperUri].includes(uri)));
   assert.deepEqual(enabledResources.resources.filter(({ uri }) => ![addonUri, paperUri].includes(uri)), baseResources.resources);

@@ -325,6 +325,41 @@ A retry that picks one of the curator's named alternatives shows responsiveness,
 not discovery. The redirect records its alternatives, so a later reader can tell
 the two apart.
 
+### Graded membership
+
+A candidate can sit between families. Beside its categorical assignment, the
+curator may record a graded membership with `set_membership`: a question, a unit,
+shares over the concepts the subject draws on, and a remainder, summing to one. It
+is a Cut in the Meaning Model's sense, not a probability. A new `set_membership`
+for the same subject replaces the old one, and `clear_membership` removes it.
+Merging two concepts folds their shares together. A merge that would leave a
+membership over a single concept is refused, as a partition left with one child
+is. Diagnosis lists hybrids: subjects with at least a fifth of their membership in
+each of two or more families.
+
+## A second judge for curator decisions
+
+`life_alien_decision_check` asks a second judge about a recorded decision. It
+poses the comparison the curator faced as bounded questions:
+
+- which concept that existed before the decision is nearest to the candidate's
+  primary operator (for outcomes, its primary claimed outcome);
+- against the concept the curator compared with, whether the primary operator
+  changed, or only its name, actor, parameter or input signal;
+- how well the candidate fits the concept it was assigned to.
+
+The judge sees the candidate and the concepts, never the curator's explanation or
+rationale. With `MEANING_MODEL_ESTIMATOR=typesafe`, Jev answers and the result
+reports agreement for each aspect; with `record`, the check is stored as a
+`decision_check` record linked to the revision. Without an estimator the tool
+returns the questions for a fresh context to answer. Diagnosis counts checked
+decisions and lists disagreements.
+
+The check audits a decision; it never changes the ontology, and a disagreement is
+a reason to reread, not a verdict. It addresses the limitation *Ontology of the
+Alien* states for its own study, a single unblinded coder, with a judge from a
+different model family.
+
 ## Diagnosis and commissioning
 
 `life_alien_search_diagnose` reads the search at one revision and reports:
@@ -416,6 +451,32 @@ development and testing before familiarity or early feasibility judgments may
 eliminate it. The diagnosis lists undeveloped branches for this reason. A
 familiar-sounding mechanism is not better evidence than a strange one.
 
+## World libraries
+
+Builders never see the problem, so a target-blind world is reusable by any search.
+`life_alien_worlds_export` writes a content-addressed library
+(`meaning-model-alien-world-library/v1`) with, for each world:
+
+- its text, rules, seed, builder isolation and text hash;
+- its regime classification and signature codes;
+
+and the regime ontology itself. Worlds built from an oracle premise or with target
+terms are left out and listed.
+
+`life_alien_worlds_import` records the worlds in another search as
+`<prefix>.<source id>`, so that search starts at the solver. It checks the bundle
+hash and each text hash, and checks each world against the new search's own target
+terms: a world that happens to name them is recorded as not target-blind there.
+Imported worlds hold no draw slot. With `includeRegimes`, an empty regime ontology
+receives the library's regimes and the worlds' classification as one revision
+whose curator isolation is `imported`; otherwise classify the imported worlds with
+world-curator tasks. Diagnosis counts imported worlds and uses their signatures for
+coverage.
+
+Reuse trades diversity for cost: searches that draw on the same library share its
+premises. Use the coverage map to see which regimes are missing, and commission
+fresh worlds for them.
+
 ## Reading the search
 
 `life_alien_atlas` renders the search as Markdown:
@@ -455,7 +516,9 @@ The server checks:
 - the admission guard, and that the verdict agrees with the equivalence test;
 - the head chain;
 - model refs in transfers, and role coverage;
-- Cut sums in fit Cuts and weighted selections;
+- Cut sums in fit Cuts, weighted selections and graded memberships;
+- library bundle and world text hashes, and each imported world's target terms
+  in its new search;
 - diagnosis hashes;
 - target terms in target-blind tasks;
 - that the paper has been read in this process.
@@ -484,14 +547,17 @@ decisions and yields.
 
 ## Configuration
 
-`MEANING_MODEL_ADDONS=alien` enables this add-on. The first release has six tools:
+`MEANING_MODEL_ADDONS=alien` enables this add-on. It has nine tools:
 
 - `life_alien_search_start`
 - `life_alien_task`
 - `life_alien_record`
 - `life_alien_ontology_revise`
+- `life_alien_decision_check`, the second judge
 - `life_alien_search_diagnose`
 - `life_alien_atlas`
+- `life_alien_worlds_export`
+- `life_alien_worlds_import`
 
 It also adds:
 

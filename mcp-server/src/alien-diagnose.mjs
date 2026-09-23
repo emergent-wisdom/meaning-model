@@ -73,6 +73,8 @@ export function diagnoseSearch(search) {
 
   const signatures = new Map();
   for (const record of worldDecisions) if (record.data.decision.signature) signatures.set(record.data.decision.subjectNodeId, record.data.decision.signature);
+  // A world imported from a library brings the signature its source curator coded, unless this search recodes it.
+  for (const world of search.worlds) if (world.data.imported?.signature && !signatures.has(world.nodeId)) signatures.set(world.nodeId, world.data.imported.signature);
   const axes = {};
   // Coverage counts codes; notes explain them but are never compared.
   for (const signature of signatures.values()) for (const [axis, value] of Object.entries(signature)) {
@@ -124,7 +126,7 @@ export function diagnoseSearch(search) {
     conditions,
     outcomes: { ...ontologyGaps(outcomeState), uncombinedPairs: uncombinedPairs(search),
       unclassified: search.mechanisms.filter((item) => !outcomeState.instances.some((instance) => instance.subjectNodeId === item.nodeId)).map((item) => item.nodeId) },
-    population: { worlds: search.worlds.length, solutions: search.solutions.length,
+    population: { worlds: search.worlds.length, importedWorlds: search.worlds.filter((item) => item.data.imported).length, solutions: search.solutions.length,
       mechanisms: { total: search.mechanisms.length, fromWorlds: search.mechanisms.filter((item) => item.data.source.kind === 'world').length,
         fromExplorer: search.mechanisms.filter((item) => item.data.source.kind === 'explorer').length,
         retries: search.mechanisms.filter((item) => item.data.source.commissionNodeId).length },
@@ -141,7 +143,10 @@ export function diagnoseSearch(search) {
       relabelPressure: mechanismDecisions.filter((item) => item.data.decision.equivalence?.primaryOperatorChanged === false).length,
       redirectChains: chains.filter((item) => item.ontology === 'mechanisms'),
       undecided: search.mechanisms.filter((item) => !latestDecision.has(item.nodeId)).map((item) => item.nodeId),
-      undeveloped: activeFamilies.filter((conceptId) => mechanismState.instances.some((item) => item.conceptId === conceptId) && !developed.has(conceptId)).sort() },
+      undeveloped: activeFamilies.filter((conceptId) => mechanismState.instances.some((item) => item.conceptId === conceptId) && !developed.has(conceptId)).sort(),
+      // Candidates whose graded membership spreads over two or more families with at least a fifth each.
+      hybrids: mechanismState.memberships.filter((item) => item.shares.filter((share) => share.share >= 0.2).length >= 2)
+        .map((item) => ({ subjectNodeId: item.subjectNodeId, shares: item.shares, remainder: item.remainder })) },
     worlds: { ...ontologyGaps(worldState), decisions: tally(worldDecisions.map((item) => item.data.decision.verdict)),
       signatureCoverage: coverage, uncoded: search.worlds.filter((item) => !signatures.has(item.nodeId)).map((item) => item.nodeId),
       yield: yieldRows, newFamiliesPerWorld: search.worlds.length ? yieldRows.reduce((sum, row) => sum + row.newFamilies, 0) / search.worlds.length : null },
@@ -153,6 +158,12 @@ export function diagnoseSearch(search) {
     audits: { bottleneckRelief: tally(audits.map((item) => item.bottleneckRelief)), fiat: tally(audits.map((item) => item.fiat)),
       capabilityProvenance: tally(audits.map((item) => item.capabilityProvenance)),
       fiatFailures: search.mechanisms.filter((item) => item.data.selfAudit?.fiat === 'fail').map((item) => item.nodeId) },
+    secondJudge: {
+      checked: [...new Set(search.decisionChecks.map((item) => item.data.revisionNodeId))].length,
+      decisions: search.revisions.filter((item) => item.data.decision.subjectNodeId && item.data.decision.verdict !== 'restructure_only').length,
+      disagreements: search.decisionChecks.filter((item) => item.data.disagreements.length)
+        .map((item) => ({ checkNodeId: item.nodeId, revisionNodeId: item.data.revisionNodeId, subjectNodeId: item.data.subjectNodeId, aspects: item.data.disagreements })),
+    },
     commissions: { open: search.commissions.filter((item) => fulfilled(item).length === 0).map((item) => ({ nodeId: item.nodeId, addressedTo: item.data.addressedTo })),
       fulfilled: search.commissions.map((item) => ({ nodeId: item.nodeId, by: fulfilled(item) })).filter((item) => item.by.length) },
     transfers: { byMechanism: tally(search.transfers.map((item) => item.data.mechanismNodeId)),
@@ -167,6 +178,7 @@ export function diagnoseSearch(search) {
   if (diagnosis.audits.fiatFailures.length) warnings.push(`Final-outcome fiat failed for ${diagnosis.audits.fiatFailures.join(', ')}: the principal operation asserts the desired end.`);
   if (search.worlds.length && !signatures.size) warnings.push('No world has a coded causal signature yet, so world coverage cannot be diagnosed; curate worlds with the world_curator task.');
   for (const [axis, value] of Object.entries(coverage)) if (value.uniform) warnings.push(`Every coded world shares one ${axis} value (${Object.keys(value.values)[0]}).`);
+  if (diagnosis.secondJudge.disagreements.length) warnings.push(`The second judge disagrees with ${diagnosis.secondJudge.disagreements.length} curator decisions (${diagnosis.secondJudge.disagreements.map((item) => `${item.revisionNodeId}: ${item.aspects.join(', ')}`).join('; ')}); reread them.`);
   if (diagnosis.commissions.open.length) warnings.push(`${diagnosis.commissions.open.length} commissions are still open.`);
   if (diagnosis.tasks.unused.length) warnings.push(`${diagnosis.tasks.unused.length} prepared tasks have no recorded output; they stay visible as attempts.`);
   if (diagnosis.mechanisms.undeveloped.length) warnings.push(`Families with instances but no transfer or assessment yet: ${diagnosis.mechanisms.undeveloped.join(', ')}. Develop an unusual branch before judging it on familiarity.`);

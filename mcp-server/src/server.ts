@@ -883,7 +883,7 @@ if (enabledAddons.includes('storytelling')) {
 }
 if (enabledAddons.includes('alien')) {
   const { registerAlienAddon } = await import('./alien-addon.mjs');
-  registerAlienAddon(server, service);
+  registerAlienAddon(server, service, { estimator });
 }
 
 await service.initialize();

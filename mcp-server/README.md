@@ -858,6 +858,13 @@ ontologies informs which world to commission next, including family and outcome
 combinations no candidate has yet; the choice stays with the caller. Promising mechanisms are transferred onto a
 target model, with every role mapped and every disanalogy stated.
 
+A second judge can check each curator decision: with the Jev estimator
+configured it answers the same comparison without seeing the curator's reasons,
+and disagreements appear in the diagnosis. A candidate between families can carry
+a graded membership, shares with a remainder, beside its category. Target-blind
+worlds can be exported as a content-addressed library and imported into another
+search, which then starts at the solver.
+
 Everything lives in the narrative graph as Understanding Nodes. Every task text
 is stored, so each output cites what its role actually saw. Graded fits and
 weighted selections follow the Meaning Model's Cut rule. Each ontology can be
@@ -865,14 +872,18 @@ exported as Meaning Model concepts and specialization relations. Worlds are
 textual thought experiments and transfers are ideas, not evidence. See the
 [alien add-on guide](../profiles/ALIEN_ADDON.md).
 
-Start the server with `MEANING_MODEL_ADDONS=alien` to enable six tools:
+Start the server with `MEANING_MODEL_ADDONS=alien` to enable nine tools:
 
 - `life_alien_search_start`
 - `life_alien_task`, which stores each task it writes
 - `life_alien_record`
 - `life_alien_ontology_revise`
+- `life_alien_decision_check`, a second judge for curator decisions (Jev when an
+  estimator is configured), which can record its result
 - `life_alien_search_diagnose`, which is read-only
 - `life_alien_atlas`, which is read-only
+- `life_alien_worlds_export`, which writes a world library and is read-only
+- `life_alien_worlds_import`, which records library worlds in another search
 
 It also enables the `life-sim://addon/alien` guide, the bundled paper as
 `life-sim://theory/ontology-of-the-alien`, and the `life_alien_start` prompt.

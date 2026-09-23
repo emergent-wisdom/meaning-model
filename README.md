@@ -190,6 +190,13 @@ ontologies informs which world to commission next, including family and outcome
 combinations no candidate has yet; the choice stays with the caller. Promising mechanisms are transferred onto a
 target model, with every role mapped and every disanalogy stated.
 
+A second judge can check each curator decision: with the Jev estimator
+configured it answers the same comparison without seeing the curator's reasons,
+and disagreements appear in the diagnosis. A candidate between families can carry
+a graded membership, shares with a remainder, beside its category. Target-blind
+worlds can be exported as a content-addressed library and imported into another
+search, which then starts at the solver.
+
 Everything lives in the narrative graph as Understanding Nodes. Every task text
 is stored, so each output cites what its role actually saw. Graded fits and
 weighted selections follow the Meaning Model's Cut rule. Each ontology can be

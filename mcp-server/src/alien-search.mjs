@@ -9,7 +9,8 @@ import { normalizeOntology, ONTOLOGY_KINDS } from './alien-ontology.mjs';
 export const RECORD_SCHEMA = 'meaning-model-alien-record/v1';
 export const SEARCH_NODE_TYPE = 'alien.search';
 export const PROVENANCE = 'Meaning Model alien add-on v1';
-export const ISOLATION = Object.freeze(['fresh_context', 'same_context', 'human']);
+// imported: the record came from a world library; its original isolation is kept in the library provenance.
+export const ISOLATION = Object.freeze(['fresh_context', 'same_context', 'human', 'imported']);
 export const REFLECTION_KINDS = new Set(['ontology_revision', 'commission', 'assessment', 'selection']);
 const MAX_RECORD_BYTES = 512 * 1024;
 
@@ -154,7 +155,7 @@ export async function readSearch(service, { graphHash, searchRootId, accessScope
     problem: byKind('problem')[0] ?? null, tasks: byKind('task'),
     worlds: byKind('world'), solutions: byKind('solution'), mechanisms: byKind('mechanism'),
     revisions: byKind('ontology_revision'), commissions: byKind('commission'), transfers: byKind('transfer'),
-    assessments: byKind('assessment'), selections: byKind('selection'), heads,
+    assessments: byKind('assessment'), selections: byKind('selection'), decisionChecks: byKind('decision_check'), heads,
     ontologyState: (ontology) => normalizeOntology(heads[ontology]?.data.state),
     record: (nodeId, kind) => {
       const found = records.find((record) => record.nodeId === nodeId);

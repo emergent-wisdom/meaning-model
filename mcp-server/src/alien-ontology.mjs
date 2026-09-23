@@ -52,6 +52,12 @@ export const operationSchema = z.discriminatedUnion('op', [
     children: z.array(conceptInput.extend({ instanceSubjectNodeIds: z.array(id).max(1_000).default([]) }).strict()).min(2).max(32) }).strict(),
   z.object({ op: z.literal('assign_instance'), subjectNodeId: id, conceptId: id, fit }).strict(),
   z.object({ op: z.literal('unassign_instance'), subjectNodeId: id, conceptId: id }).strict(),
+  // Graded membership is a Cut: one declared question and unit divided among the concepts a subject
+  // draws on, plus an explicit remainder. It sits beside the categorical instance assignments.
+  z.object({ op: z.literal('set_membership'), subjectNodeId: id, question: text(400), unit: text(200),
+    shares: z.array(z.object({ conceptId: id, share: z.number().min(0).max(1) }).strict()).min(2).max(12),
+    remainder: z.number().min(0).max(1) }).strict(),
+  z.object({ op: z.literal('clear_membership'), subjectNodeId: id }).strict(),
 ]);
 
 export const equivalenceSchema = z.object({
@@ -61,7 +67,7 @@ export const equivalenceSchema = z.object({
 }).strict();
 
 export function emptyOntology() {
-  return { concepts: [], partitions: [], relations: [], instances: [] };
+  return { concepts: [], partitions: [], relations: [], instances: [], memberships: [] };
 }
 
 // States stored before partitions were named used a cuts array and numeric fit; read them as partitions.
@@ -69,7 +75,8 @@ export function normalizeOntology(stored) {
   if (!stored) return emptyOntology();
   const { cuts, ...rest } = stored;
   return { ...rest, partitions: rest.partitions ?? cuts ?? [],
-    instances: (rest.instances ?? []).map((item) => (typeof item.fit === 'number' ? { ...item, fit: null } : item)) };
+    instances: (rest.instances ?? []).map((item) => (typeof item.fit === 'number' ? { ...item, fit: null } : item)),
+    memberships: rest.memberships ?? [] };
 }
 
 function fail(message) {
@@ -166,6 +173,15 @@ export function applyOperations(previous, operations, { step, subjectExists = ()
           sourceConceptId: relation.sourceConceptId === gone ? keep : relation.sourceConceptId,
           targetConceptId: relation.targetConceptId === gone ? keep : relation.targetConceptId }))
           .filter((relation) => relation.sourceConceptId !== relation.targetConceptId);
+        // A merged concept's membership share joins the kept concept's share; the Cut still sums to one.
+        state.memberships = state.memberships.map((membership) => {
+          const folded = new Map();
+          for (const item of membership.shares) {
+            const conceptId = item.conceptId === gone ? keep : item.conceptId;
+            folded.set(conceptId, (folded.get(conceptId) ?? 0) + item.share);
+          }
+          return { ...membership, shares: [...folded].map(([conceptId, value]) => ({ conceptId, share: value })) };
+        });
         break;
       }
       case 'split': {
@@ -195,6 +211,20 @@ export function applyOperations(previous, operations, { step, subjectExists = ()
         const before = state.instances.length;
         state.instances = state.instances.filter((item) => !(item.subjectNodeId === operation.subjectNodeId && item.conceptId === operation.conceptId));
         if (state.instances.length === before) fail(`${at}: ${operation.subjectNodeId} is not assigned to ${operation.conceptId}.`);
+        break;
+      }
+      case 'set_membership': {
+        if (!subjectExists(operation.subjectNodeId)) fail(`${at} names ${operation.subjectNodeId}, which is not a record of this ontology's kind in the search.`);
+        for (const item of operation.shares) activeConcept(state, item.conceptId, at);
+        state.memberships = state.memberships.filter((item) => item.subjectNodeId !== operation.subjectNodeId);
+        state.memberships.push({ subjectNodeId: operation.subjectNodeId, question: operation.question, unit: operation.unit,
+          shares: operation.shares.map((item) => ({ ...item })), remainder: operation.remainder, setAt: step });
+        break;
+      }
+      case 'clear_membership': {
+        const before = state.memberships.length;
+        state.memberships = state.memberships.filter((item) => item.subjectNodeId !== operation.subjectNodeId);
+        if (state.memberships.length === before) fail(`${at}: ${operation.subjectNodeId} has no graded membership.`);
         break;
       }
       default: fail(`${at} is not supported.`);
@@ -253,6 +283,18 @@ export function validateOntology(state) {
     const key = `${instance.subjectNodeId}\u0000${instance.conceptId}`;
     if (instanceKeys.has(key)) fail(`${instance.subjectNodeId} is assigned twice to ${instance.conceptId}.`);
     instanceKeys.add(key);
+  }
+  const memberships = state.memberships ?? [];
+  if (memberships.length > MAX_ONTOLOGY_INSTANCES) fail('the ontology exceeds the graded-membership limit.');
+  const members = new Set();
+  for (const membership of memberships) {
+    if (members.has(membership.subjectNodeId)) fail(`${membership.subjectNodeId} has two graded memberships.`);
+    members.add(membership.subjectNodeId);
+    const ids = membership.shares.map((item) => item.conceptId);
+    for (const conceptId of ids) active(conceptId, `Membership of ${membership.subjectNodeId}`);
+    if (new Set(ids).size !== ids.length || ids.length < 2) fail(`the graded membership of ${membership.subjectNodeId} names at least two distinct concepts.`);
+    const total = membership.shares.reduce((sum, item) => sum + item.share, 0) + membership.remainder;
+    if (Math.abs(total - 1) > 1e-9) fail(`the graded membership of ${membership.subjectNodeId} is a Cut: its shares and remainder sum to 1, not ${Number(total.toFixed(6))}.`);
   }
   return true;
 }
@@ -327,6 +369,10 @@ export function renderOntologyTree(stored, { labelFor = (subjectNodeId) => subje
   if (other.length) {
     lines.push('', 'Relations:');
     for (const relation of other) lines.push(`- ${relation.sourceConceptId} ${relation.kind} ${relation.targetConceptId}${relation.label ? `: ${relation.label}` : ''}`);
+  }
+  if (state.memberships.length) {
+    lines.push('', 'Graded membership (Cuts):');
+    for (const membership of state.memberships) lines.push(`- ${labelFor(membership.subjectNodeId)}: ${membership.shares.map((item) => `${item.conceptId} ${item.share}`).join(', ')}, remainder ${membership.remainder} (${membership.question}; unit: ${membership.unit})`);
   }
   return lines.join('\n');
 }

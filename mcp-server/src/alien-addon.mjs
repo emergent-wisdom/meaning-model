@@ -4,6 +4,7 @@ import { applyOperations, equivalenceSchema, FIT_LABELS, meaningModelFragment, n
 import { digest, findTargetLeaks, ISOLATION, PROVENANCE, readSearch, RECORD_SCHEMA, requireProblem, SEARCH_NODE_TYPE, sortedScopes, storeRecords, targetTerms, understandingRootId } from './alien-search.mjs';
 import { buildTask, CANDIDATE_LIMITS, mechanismLabel, POPULATION_STATES, SIGNATURE_AXES, storedTask, TASK_ROLES, verifyTaskRef, worldOperatorSchema } from './alien-tasks.mjs';
 import { diagnoseSearch, mechanismCondition } from './alien-diagnose.mjs';
+import { runEstimatorRequest } from './estimator-receipts.mjs';
 
 const RESOURCE_URI = 'life-sim://addon/alien';
 export const ALIEN_PAPER_URI = 'life-sim://theory/ontology-of-the-alien';
@@ -34,7 +35,7 @@ Roles and what each may see. The server writes and stores every task with life_a
 - transfer: maps a mechanism's roles onto the bound target model
 Run builder, solver and world_curator tasks in fresh contexts that see only the task, for example separate subagents. When you cannot, do the step yourself and record same_context honestly; target blindness is then procedural, not established.
 Loop: life_alien_search_start (problem and target model) -> builder task -> record world with its taskNodeId -> solver task -> record solution -> world_curator task -> life_alien_ontology_revise (worlds) -> compiler task -> record mechanism -> curator tasks (mechanisms, outcomes) -> life_alien_ontology_revise -> life_alien_search_diagnose -> record a commission for the gap you judge most useful -> the next builder task takes commissionNodeId. Transfer the mechanisms you want to develop, record assessments, and record a selection when the user wants a single idea, a diverse portfolio or a weighted set. Read the whole search with life_alien_atlas.
-Numbers follow the Meaning Model rule: a graded fit is a fit Cut with a question, unit and remainder; a weighted selection is an allocation with a remainder; ontology fit is categorical.
+Check curator decisions with life_alien_decision_check, a second judge that sees the candidate and the concepts but not the curator's reasons (Jev when MEANING_MODEL_ESTIMATOR is set). Reuse target-blind worlds from another search with life_alien_worlds_export and life_alien_worlds_import; the importing search starts at the solver.\nNumbers follow the Meaning Model rule: a graded fit is a fit Cut with a question, unit and remainder; a weighted selection is an allocation with a remainder; ontology fit is categorical, and a candidate between families may also carry a graded membership Cut.
 The server checks structure: stored task provenance, rule and role bindings, ontology references and acyclicity, the admission guard, model references, Cut sums, and target terms in target-blind tasks. It does not judge whether a world is coherent, whether two mechanisms are equivalent, or whether an idea works. Worlds are textual thought experiments, not simulations; a transfer records an idea and its mapping, not evidence. Develop an unusual branch before judging it on familiarity.`;
 
 const searchStartSchema = z.object({
@@ -184,6 +185,40 @@ const reviseSchema = z.object({
 
 const readSchema = z.object({ graphHash: hash, searchRootId: id, accessScopes: scopes }).strict();
 const atlasSchema = readSchema.extend({ includeWorldTexts: z.boolean().default(false) }).strict();
+const checkSchema = readSchema.extend({
+  revisionNodeId: id.describe('The ontology revision whose curator decision is checked.'),
+  record: z.object({ requestId: id, nodeId: id, authorId: id }).strict().nullable().default(null)
+    .describe('Store the check as a decision_check record linked to the revision. Needs the configured estimator.'),
+}).strict();
+const exportSchema = readSchema.extend({
+  worldNodeIds: z.array(id).max(200).nullable().default(null).describe('Worlds to export; omit for every target-blind world of the search.'),
+}).strict();
+export const WORLD_LIBRARY_SCHEMA = 'meaning-model-alien-world-library/v1';
+const libraryWorld = z.object({
+  sourceNodeId: id, title: prose(200), text: prose(64_000), principle: prose(4_000),
+  rules: z.array(z.object({ id: ruleId, statement: prose(2_000) }).strict()).min(1).max(12),
+  society: z.string().max(8_000).default(''), easy: z.array(prose(1_000)).max(12).default([]), hard: z.array(prose(1_000)).max(12).default([]),
+  seed: z.object({ word: z.string().max(120), source: z.string().max(40), salt: z.string().max(256).nullable().default(null) }).strict(),
+  operators: z.array(worldOperatorSchema).max(6).default([]),
+  isolation: z.object({ builder: isolation }).strict(), textHash: hash,
+  regimes: z.array(z.object({ conceptId: id, relation: z.enum(['instance', 'alias']), fit: z.enum(FIT_LABELS).nullable() }).strict()).max(32).default([]),
+  signature: z.record(z.string(), z.object({ code: z.string().max(80), note: z.string().max(600).nullable() }).strict().nullable()).nullable().default(null),
+}).strict();
+const librarySchema = z.object({
+  schema: z.literal(WORLD_LIBRARY_SCHEMA),
+  source: z.object({ searchRootId: id, graphHash: hash, provenance: z.string().max(400) }).strict(),
+  worlds: z.array(libraryWorld).min(1).max(200),
+  regimes: z.object({ concepts: z.array(z.json()).max(500), partitions: z.array(z.json()).max(500), relations: z.array(z.json()).max(2_000) }).strict(),
+  excluded: z.array(z.object({ worldNodeId: id, reason: prose(400) }).strict()).max(200).default([]),
+  bundleHash: hash,
+}).strict();
+const importSchema = z.object({
+  graphHash: hash, requestId: id, searchRootId: id, authorId: id, accessScopes: scopes,
+  library: z.json().describe(`A ${WORLD_LIBRARY_SCHEMA} bundle from life_alien_worlds_export, unchanged: its bundleHash is checked.`),
+  worldIds: z.array(id).max(200).nullable().default(null).describe('Source world ids to import; omit for all.'),
+  nodeIdPrefix: id.default('lib').describe('Imported worlds become <prefix>.<source world id>.'),
+  includeRegimes: z.boolean().default(true).describe('Also import the regime ontology and the worlds\' classification when this search has no regimes yet.'),
+}).strict();
 
 function resolveModelRef(model, ref) {
   const split = ref.indexOf(':'); const kind = ref.slice(0, split); const recordId = ref.slice(split + 1);
@@ -195,7 +230,7 @@ function resolveModelRef(model, ref) {
 }
 
 export class AlienAddon {
-  constructor(service) { this.service = service; }
+  constructor(service, { estimator = null } = {}) { this.service = service; this.estimator = estimator; }
 
   async startSearch(raw) {
     const input = searchStartSchema.parse(raw);
@@ -504,6 +539,162 @@ export class AlienAddon {
       nextStep: 'Choose the gap you judge most useful and record a commission (kind commission, with this diagnosisHash) for a new world or an explorer, or transfer a family worth developing.' };
   }
 
+  // A second judge for a recorded curator decision. The estimator answers bounded questions about the
+  // same comparison the curator made (nearest concept, whether the primary operator changed, fit), and
+  // the result reports agreement. It audits a decision; it never changes the ontology.
+  async checkDecision(raw) {
+    const input = checkSchema.parse(raw);
+    const search = await readSearch(this.service, input);
+    const revision = search.record(input.revisionNodeId, 'ontology_revision');
+    const { decision, ontology } = revision.data;
+    if (!decision.subjectNodeId || decision.verdict === 'restructure_only') throw new Error('Only a decision about a subject can be checked; restructure_only revisions have none.');
+    const worlds = ontology === 'worlds';
+    const noun = worlds ? 'regime' : ontology === 'outcomes' ? 'outcome class' : 'family';
+    const operatorPhrase = worlds ? 'primary causal operator of the world' : ontology === 'outcomes' ? 'primary claimed outcome' : 'primary causal operator';
+    const previous = normalizeOntology(revision.data.previousRevisionNodeId ? search.record(revision.data.previousRevisionNodeId, 'ontology_revision').data.state : null);
+    const after = normalizeOntology(revision.data.state);
+    const describe = (concept) => `${concept.label}. ${ontology === 'outcomes' ? 'Outcome' : 'Operator'}: ${concept.operator.slice(0, 700)}${concept.boundary ? ` Boundary: ${concept.boundary.slice(0, 500)}` : ''}`;
+    const candidates = previous.concepts.filter((concept) => concept.status === 'active');
+    const subject = search.record(decision.subjectNodeId, worlds ? 'world' : 'mechanism');
+    const subjectText = worlds
+      ? [`Principle: ${subject.data.principle}`, ...subject.data.rules.map((rule) => `${rule.id}: ${rule.statement}`)].join('\n')
+      : [`Operator: ${subject.data.operator}`, `Core mechanism: ${subject.data.candidate.core_mechanism}`, `How it works: ${subject.data.candidate.how_it_works}`,
+        `What is new: ${subject.data.candidate.what_is_new}`, ...(ontology === 'outcomes' ? [`Why it works: ${subject.data.candidate.why_it_works}`, `Long-term vision: ${subject.data.candidate.long_term_vision}`] : [])].join('\n');
+    const options = new Map(candidates.map((concept, index) => [`c${index + 1}`, concept.id]));
+    const questions = {};
+    if (candidates.length) {
+      questions.nearest = { type: 'choice', instructions: `Which existing ${noun} is nearest to the candidate's ${operatorPhrase}? Compare that, not names, actors, parameters or input signals.`,
+        criteria: { ...Object.fromEntries(candidates.map((concept, index) => [`c${index + 1}`, `${concept.id}: ${describe(concept)}`])), none: `None of these ${noun === 'family' ? 'families' : `${noun}s`} is close.` } };
+    }
+    const comparedId = decision.nearestConceptId ?? (['admit_instance', 'equivalent'].includes(decision.verdict) ? decision.conceptId : null);
+    const compared = comparedId ? (previous.concepts.find((concept) => concept.id === comparedId) ?? after.concepts.find((concept) => concept.id === comparedId)) : null;
+    if (compared) {
+      questions.operator = { type: 'choice', instructions: `Compare the candidate with ${compared.id}: ${describe(compared)} Does the candidate change the ${operatorPhrase}, or only its name, actor, parameter or input signal?`,
+        criteria: { changed: `The ${operatorPhrase} is different.`, surface_only: 'Only the name, actor, parameter or input signal differs.', unclear: 'The texts do not settle it.' } };
+    }
+    const assigned = ['admit_new', 'admit_instance', 'equivalent'].includes(decision.verdict) ? after.concepts.find((concept) => concept.id === decision.conceptId) : null;
+    if (assigned) {
+      questions.fit = { type: 'choice', instructions: `How well does the candidate fit ${assigned.id}: ${describe(assigned)}`,
+        criteria: { clear: 'It fits clearly.', partial: 'It fits in part.', borderline: 'It is a borderline case.', no_fit: 'It does not fit.' } };
+    }
+    if (!Object.keys(questions).length) throw new Error('This decision has nothing to compare: no earlier concepts and no assigned concept.');
+    const state = { task: `Second judge for a curator decision in the ${ontology} ontology of an ideation search.`, candidate: subjectText };
+    const base = { schema: 'meaning-model-alien-decision-check/v1', graphHash: input.graphHash, searchRootId: input.searchRootId, revisionNodeId: revision.nodeId,
+      ontology, verdict: decision.verdict, subjectNodeId: decision.subjectNodeId, questions, state, semanticVerification: false, worldMutation: false };
+    if (!this.estimator) {
+      if (input.record) throw new Error('Recording a decision check needs the configured estimator (MEANING_MODEL_ESTIMATOR); without it, answer the questions in a fresh context and record an assessment.');
+      return { ...base, evaluator: 'calling_llm', answers: null, agreement: null, graphMutation: false,
+        instructions: 'No external estimator is configured. Answer each question in a fresh context that has not seen the curator\'s decision, then record the comparison as an assessment linked to the revision.' };
+    }
+    const produce = async () => {
+      const result = await this.estimator.estimate(state, questions);
+      const answers = {};
+      for (const [key, question] of Object.entries(questions)) {
+        const answer = result.answers?.[key];
+        if (answer?.type !== 'choice' || !Object.hasOwn(question.criteria, answer.choice)) throw new Error(`Estimator returned no valid choice for ${key}.`);
+        answers[key] = { choice: key === 'nearest' ? (options.get(answer.choice) ?? answer.choice) : answer.choice,
+          confidence: typeof answer.confidence === 'number' ? answer.confidence : null, probabilities: answer.probabilities ?? null };
+      }
+      return { answers, usage: result.usage ?? null, model: result.model ?? this.estimator.model };
+    };
+    const estimated = input.record ? await runEstimatorRequest(this.service, 'alien-decision-check', input.record.requestId, input, produce) : await produce();
+    const curatorOperator = decision.equivalence ? decision.equivalence.primaryOperatorChanged : null;
+    const judgeOperator = estimated.answers.operator ? { changed: true, surface_only: false, unclear: null }[estimated.answers.operator.choice] : undefined;
+    const agreement = {
+      nearest: estimated.answers.nearest && comparedId ? estimated.answers.nearest.choice === comparedId : null,
+      operator: judgeOperator === undefined || judgeOperator === null || curatorOperator === null ? null : judgeOperator === curatorOperator,
+      fit: estimated.answers.fit && decision.fit ? estimated.answers.fit.choice === decision.fit : null,
+    };
+    const disagreements = Object.entries(agreement).filter(([, value]) => value === false).map(([aspect]) => aspect);
+    const evaluator = `${this.estimator.backend}:${estimated.model}`;
+    const result = { ...base, evaluator, answers: estimated.answers, agreement, disagreements, usage: estimated.usage };
+    if (!input.record) return { ...result, graphMutation: false, nextStep: disagreements.length ? 'Reread the decision where the judges disagree; revise the ontology if the curator was wrong, or record why the decision stands.' : 'No disagreement on the checked aspects.' };
+    const { stored } = await storeRecords(this.service, search, { requestId: input.record.requestId, authorId: input.record.authorId, accessScopes: input.accessScopes,
+      reason: `Check the curator decision ${revision.nodeId}.`, records: [{ nodeId: input.record.nodeId, kind: 'decision_check', title: `Second judge: ${revision.nodeId}`,
+        data: { revisionNodeId: revision.nodeId, ontology, verdict: decision.verdict, subjectNodeId: decision.subjectNodeId, evaluator, questions, answers: estimated.answers, agreement, disagreements, usage: estimated.usage },
+        links: [{ relation: 'checks', targetNodeId: revision.nodeId }, { relation: 'about', targetNodeId: decision.subjectNodeId }], epistemicStatus: 'ai_inference', evidenceType: 'estimate' }] });
+    return { ...result, ...stored, recordNodeId: input.record.nodeId, graphMutation: true,
+      nextStep: disagreements.length ? 'Reread the decision where the judges disagree; revise the ontology if the curator was wrong, or record why the decision stands.' : 'No disagreement on the checked aspects.' };
+  }
+
+  // Worlds are built without the problem, so a target-blind world is reusable by any other search.
+  // A library carries each world with its seed, isolation, regime classification and signature codes.
+  async exportWorlds(raw) {
+    const input = exportSchema.parse(raw);
+    const search = await readSearch(this.service, input);
+    const wanted = input.worldNodeIds ? new Set(input.worldNodeIds) : null;
+    if (wanted) for (const worldNodeId of wanted) search.record(worldNodeId, 'world');
+    const state = search.ontologyState('worlds');
+    const signatures = new Map();
+    for (const record of search.revisions) if (record.data.ontology === 'worlds' && record.data.decision.signature) signatures.set(record.data.decision.subjectNodeId, record.data.decision.signature);
+    const worldsOut = []; const excluded = [];
+    for (const world of search.worlds) {
+      if (wanted && !wanted.has(world.nodeId)) continue;
+      if (!world.data.targetBlind) { excluded.push({ worldNodeId: world.nodeId, reason: world.data.oraclePremise ? 'built from an oracle premise, which carries the problem' : `its task named target terms (${world.data.targetLeaks.join(', ')})` }); continue; }
+      worldsOut.push({ sourceNodeId: world.nodeId, title: world.data.title, text: world.data.text, principle: world.data.principle, rules: world.data.rules,
+        society: world.data.society ?? '', easy: world.data.easy ?? [], hard: world.data.hard ?? [],
+        seed: { word: world.data.seed.word, source: world.data.seed.source, salt: world.data.seed.salt ?? null }, operators: world.data.operators ?? [],
+        isolation: world.data.isolation, textHash: digest({ text: world.data.text }),
+        regimes: state.instances.filter((item) => item.subjectNodeId === world.nodeId).map((item) => ({ conceptId: item.conceptId, relation: item.relation, fit: item.fit ?? null })),
+        signature: signatures.get(world.nodeId) ?? world.data.imported?.signature ?? null });
+    }
+    if (!worldsOut.length) throw new Error('No target-blind world to export.');
+    const active = state.concepts.filter((concept) => concept.status === 'active');
+    const activeIds = new Set(active.map((concept) => concept.id));
+    const library = { schema: WORLD_LIBRARY_SCHEMA, source: { searchRootId: search.searchRootId, graphHash: input.graphHash, provenance: PROVENANCE },
+      worlds: worldsOut, regimes: { concepts: active.map(({ id: conceptId, label, operator, differentia, boundary, roles }) => ({ id: conceptId, label, operator, differentia, boundary, roles })),
+        partitions: state.partitions.filter((item) => activeIds.has(item.parentConceptId)).map(({ id: partitionId, parentConceptId, childConceptIds, lens, query }) => ({ id: partitionId, parentConceptId, childConceptIds, lens, query })),
+        relations: state.relations.filter((item) => activeIds.has(item.sourceConceptId) && activeIds.has(item.targetConceptId)) },
+      excluded };
+    library.bundleHash = digest(library);
+    return { library, counts: { worlds: worldsOut.length, excluded: excluded.length, regimes: active.length }, graphMutation: false, worldMutation: false,
+      nextStep: 'Save the library; another search imports it with life_alien_worlds_import and starts at the solver.' };
+  }
+
+  async importWorlds(raw) {
+    const input = importSchema.parse(raw);
+    const library = librarySchema.parse(input.library);
+    const { bundleHash, ...content } = library;
+    if (digest(content) !== bundleHash) throw new Error('The library bundleHash does not match its contents; import the bundle exactly as exported.');
+    const search = await readSearch(this.service, input);
+    const terms = targetTerms(requireProblem(search));
+    const chosen = input.worldIds ? library.worlds.filter((world) => input.worldIds.includes(world.sourceNodeId)) : library.worlds;
+    if (input.worldIds && chosen.length !== input.worldIds.length) throw new Error('worldIds names worlds the library does not contain.');
+    const warnings = []; const imported = []; const records = [];
+    for (const world of chosen) {
+      const nodeId = `${input.nodeIdPrefix}.${world.sourceNodeId}`;
+      if (search.records.some((record) => record.nodeId === nodeId) || search.view.nodes.some((node) => node.id === nodeId)) throw new Error(`Node ${nodeId} already exists; choose another nodeIdPrefix.`);
+      if (digest({ text: world.text }) !== world.textHash) throw new Error(`World ${world.sourceNodeId} text does not match its textHash.`);
+      // Built blind to another problem, a world can still happen to name this one's target terms.
+      const leaks = findTargetLeaks([world.title, world.principle, world.text, ...world.rules.map((rule) => rule.statement)].join('\n'), terms);
+      const data = recordData.world.parse({ title: world.title, text: world.text, principle: world.principle, rules: world.rules, society: world.society, easy: world.easy, hard: world.hard, isolation: world.isolation });
+      Object.assign(data, { seed: { word: world.seed.word, source: 'library', salt: world.seed.salt, drawIndex: null }, operators: world.operators, commissionNodeId: null,
+        oraclePremise: false, targetBlind: leaks.length === 0, targetLeaks: leaks,
+        imported: { bundleHash, sourceSearchRootId: library.source.searchRootId, sourceGraphHash: library.source.graphHash, sourceWorldNodeId: world.sourceNodeId, textHash: world.textHash, signature: world.signature, regimes: world.regimes } });
+      if (leaks.length) warnings.push(`${nodeId} names this search's target terms (${leaks.join(', ')}); it is recorded as not target-blind.`);
+      records.push({ nodeId, kind: 'world', title: world.title, data, links: [], epistemicStatus: 'fictional_artifact', evidenceType: 'fictional_canon' });
+      imported.push({ nodeId, sourceWorldNodeId: world.sourceNodeId, targetBlind: leaks.length === 0, targetLeaks: leaks });
+    }
+    let { stored } = await storeRecords(this.service, search, { requestId: input.requestId, authorId: input.authorId, accessScopes: input.accessScopes,
+      reason: `Import ${records.length} worlds from library ${bundleHash.slice(0, 12)}.`, records });
+    let regimesImported = false;
+    if (input.includeRegimes && library.regimes.concepts.length) {
+      if (search.heads.worlds) warnings.push('This search already has a regime ontology, so the library\'s regimes were not imported; classify the imported worlds with world_curator tasks.');
+      else {
+        const assignments = chosen.flatMap((world) => world.regimes.filter((item) => item.relation === 'instance').map((item) => ({ op: 'assign_instance', subjectNodeId: `${input.nodeIdPrefix}.${world.sourceNodeId}`, conceptId: item.conceptId, fit: item.fit })));
+        const revised = await this.reviseOntology({ graphHash: stored.graphHash, requestId: `${input.requestId}.regimes`, nodeId: `${input.nodeIdPrefix}.regimes.${bundleHash.slice(0, 12)}`,
+          searchRootId: input.searchRootId, authorId: input.authorId, accessScopes: input.accessScopes, ontology: 'worlds', expectedHeadNodeId: null,
+          decision: { verdict: 'restructure_only', rationale: `Imported the regime ontology of world library ${bundleHash} (search ${library.source.searchRootId}) with the imported worlds' classification; its curators' isolation is recorded with the source search.` },
+          operations: [...library.regimes.concepts.map((concept) => ({ op: 'add_concept', concept })), ...library.regimes.partitions.map((partition) => ({ op: 'add_partition', partition })),
+            ...library.regimes.relations.map((relation) => ({ op: 'add_relation', relation })), ...assignments], isolation: { curator: 'imported' } });
+        stored = { ...stored, graphHash: revised.graphHash, previousGraphHash: stored.previousGraphHash };
+        regimesImported = true;
+      }
+    }
+    return { ...stored, imported, regimesImported, bundleHash, warnings, graphMutation: true, worldMutation: false,
+      nextStep: `Prepare solver tasks for the imported worlds (life_alien_task role solver with worldNodeId ${imported[0].nodeId}, ...); they need no builder.` };
+  }
+
   async atlas(raw) {
     const input = atlasSchema.parse(raw);
     const search = await readSearch(this.service, input);
@@ -527,6 +718,7 @@ export class AlienAddon {
         `Seed: ${world.data.seed.word} (${world.data.seed.source}${world.data.seed.salt ? `, salt ${world.data.seed.salt}` : ''}). Builder isolation: ${world.data.isolation.builder}. Target-blind task: ${world.data.targetBlind ? 'yes' : `no${world.data.targetLeaks.length ? ` (${world.data.targetLeaks.join(', ')})` : ' (oracle premise)'}`}.`,
         ...(world.data.operators.length ? [`Departures: ${world.data.operators.map((item) => `${item.kind}: ${item.statement}`).join('; ')}`] : []),
         ...(world.data.commissionNodeId ? [`Commissioned by ${world.data.commissionNodeId}.`] : []),
+        ...(world.data.imported ? [`Imported from world library ${world.data.imported.bundleHash.slice(0, 12)} (search ${world.data.imported.sourceSearchRootId}, world ${world.data.imported.sourceWorldNodeId}).`] : []),
         '', `Principle: ${world.data.principle}`, '', ...world.data.rules.map((rule) => `- ${rule.id}: ${rule.statement}`), '');
       if (input.includeWorldTexts) lines.push(world.data.text, '');
       for (const solution of solutions) lines.push(`Solve (${solution.nodeId}, solver isolation ${solution.data.isolation.solver}):`, '',
@@ -581,8 +773,8 @@ export class AlienAddon {
   }
 }
 
-export function registerAlienAddon(server, service) {
-  const addon = new AlienAddon(service);
+export function registerAlienAddon(server, service, { estimator = null } = {}) {
+  const addon = new AlienAddon(service, { estimator });
   const result = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }], structuredContent: value });
   // Paper first, as for modeling: the write tools refuse until the paper has been read in this MCP process.
   let paperRead = false;
@@ -606,7 +798,7 @@ export function registerAlienAddon(server, service) {
     description: 'Read the paper, settle the problem, the target model and the human role, then build target-blind worlds, solve and compile them, curate the mechanisms and outcomes found, commission the next world from the gaps, and transfer promising mechanisms onto the target model.',
     argsSchema: z.object({}),
   }, async () => ({ messages: [{ role: 'user', content: { type: 'text', text: `First read ${ALIEN_PAPER_URI} completely; the alien write tools refuse until it has been read in this MCP process. Then settle with the user: the problem statement and any context; the target model the ideas should land in (build it with the general modeling workflow if none exists, after reading the modeling papers); terms that would disclose the target; how many worlds to try; and who curates, the user or you under delegation. Record the problem with life_alien_search_start.\n\nRead ${RESOURCE_URI}.\n\n${alienInstructions}` } }] }));
-  const gated = new Set(['life_alien_search_start', 'life_alien_task', 'life_alien_record', 'life_alien_ontology_revise']);
+  const gated = new Set(['life_alien_search_start', 'life_alien_task', 'life_alien_record', 'life_alien_ontology_revise', 'life_alien_decision_check', 'life_alien_worlds_import']);
   for (const [name, method, schema, description, readOnly, idempotent] of [
     ['life_alien_search_start', 'startSearch', searchStartSchema,
       'Start an alien search: record the problem as an author-scoped record and create a search root, either in a new graph bound to the target model or in an existing graph. Returns the derived target terms that builder tasks are checked against.', false, false],
@@ -618,6 +810,12 @@ export function registerAlienAddon(server, service) {
       'Record a curator decision on the mechanism, claimed-outcome or world-regime ontology as a new immutable revision: admit_new, admit_instance, equivalent (alias), reject_redirect (writes a retry or new-world commission) or restructure_only, with operations (add, revise, merge or split concepts; partitions, meaning more specific kinds under a named lens; relations; instance assignments with categorical fit). The server applies the operations, checks references, acyclicity and at least two children per partition, and admits a new concept only when the equivalence test says the primary operator changed. It does not judge equivalence itself.', false, false],
     ['life_alien_search_diagnose', 'diagnose', readSchema,
       'Diagnose the search from its records: crowded and thin families and roots, saturation since the last new family, redirect chains, undecided mechanisms, uncombined family and claimed-outcome pairs, yield per condition and per world, isolation used, world signature coverage, regime-family combinations, fiat failures, open commissions, unused tasks and undeveloped branches. Returns a diagnosisHash to cite in a commission. Read-only.', true, true],
+    ['life_alien_decision_check', 'checkDecision', checkSchema,
+      'Check a recorded curator decision with a second judge. With MEANING_MODEL_ESTIMATOR set, the estimator answers bounded questions about the same comparison (the nearest concept among those that existed before the decision, whether the primary operator changed, and fit) and the result reports where it agrees or disagrees with the curator; with record, the check is stored as a decision_check record. Without an estimator it returns the questions for a fresh context. It never changes the ontology.', false, false],
+    ['life_alien_worlds_export', 'exportWorlds', exportSchema,
+      'Export target-blind worlds as a content-addressed world library: texts, rules, seeds, builder isolation, regime classification, causal signature codes and the regime ontology. Worlds built from an oracle premise or with target terms are excluded. Read-only.', true, true],
+    ['life_alien_worlds_import', 'importWorlds', importSchema,
+      'Import worlds from a world library into this search, so it starts at the solver without building them again. The bundle hash and each world\'s text hash are checked; each world is checked against this search\'s target terms and recorded as not target-blind when it names them. With includeRegimes, an empty regime ontology receives the library\'s regimes and the worlds\' classification as an imported revision.', false, false],
     ['life_alien_atlas', 'atlas', atlasSchema,
       'Render the whole search as Markdown (problem, all three ontologies, worlds with seeds and isolation, mechanisms with conditions, transfers, commissions and selections) and return each ontology as Meaning Model concepts and specialization relations ready to merge into a successor model. Read-only.', true, true],
   ]) {

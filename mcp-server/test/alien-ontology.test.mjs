@@ -92,3 +92,31 @@ test('fit is categorical, and states stored with cuts and numeric fit read as pa
   assert.equal(legacy.cuts, undefined);
   assert.equal(legacy.instances[0].fit, null, 'a numeric fit stored earlier is dropped rather than reinterpreted');
 });
+
+test('graded membership is a Cut over active concepts with a remainder, replaced on set and folded on merge', () => {
+  const membership = (shares, remainder) => ({ op: 'set_membership', subjectNodeId: 'm1', question: 'How does the candidate\'s operator divide among the families it draws on?',
+    unit: 'one unit of the primary operator', shares, remainder });
+  const base = [concept('a'), concept('b'), concept('c'), assign('m1', 'a')];
+  const { state } = applyOperations(null, [...base, membership([{ conceptId: 'a', share: 0.5 }, { conceptId: 'b', share: 0.3 }], 0.2)], { step: 4 });
+  assert.equal(state.memberships.length, 1);
+  assert.deepEqual(state.memberships[0].shares, [{ conceptId: 'a', share: 0.5 }, { conceptId: 'b', share: 0.3 }]);
+  assert.match(renderOntologyTree(state), /Graded membership \(Cuts\):\n- m1: a 0\.5, b 0\.3, remainder 0\.2/);
+  assert.throws(() => applyOperations(null, [...base, membership([{ conceptId: 'a', share: 0.5 }, { conceptId: 'b', share: 0.3 }], 0.3)], { step: 4 }), /sum to 1/);
+  assert.throws(() => applyOperations(null, [...base, membership([{ conceptId: 'a', share: 0.5 }, { conceptId: 'a', share: 0.3 }], 0.2)], { step: 4 }), /two distinct concepts/);
+  assert.throws(() => applyOperations(null, [...base, membership([{ conceptId: 'a', share: 0.5 }, { conceptId: 'nope', share: 0.3 }], 0.2)], { step: 4 }), /unknown concept nope/);
+  assert.throws(() => applyOperations(null, [...base, membership([{ conceptId: 'a', share: 0.8 }, { conceptId: 'b', share: 0.1 }], 0.1)], { step: 4, subjectExists: () => false }),
+    /not a record of this ontology's kind/);
+  const replaced = applyOperations(state, [membership([{ conceptId: 'b', share: 0.6 }, { conceptId: 'c', share: 0.3 }], 0.1)], { step: 5 }).state;
+  assert.equal(replaced.memberships.length, 1, 'a new membership for the same subject replaces the old one');
+  assert.deepEqual(replaced.memberships[0].shares.map((item) => item.conceptId), ['b', 'c']);
+  assert.throws(() => applyOperations(replaced, [{ op: 'merge', keepConceptId: 'b', mergeConceptId: 'c' }], { step: 6 }), /two distinct concepts/,
+    'a merge that would leave a membership over one concept is refused, as a partition left with one child is');
+  assert.equal(applyOperations(replaced, [{ op: 'clear_membership', subjectNodeId: 'm1' }, { op: 'merge', keepConceptId: 'b', mergeConceptId: 'c' }], { step: 6 }).state.memberships.length, 0);
+  const three = applyOperations(null, [...base, membership([{ conceptId: 'a', share: 0.4 }, { conceptId: 'b', share: 0.3 }, { conceptId: 'c', share: 0.2 }], 0.1)], { step: 4 }).state;
+  const folded = applyOperations(three, [{ op: 'merge', keepConceptId: 'b', mergeConceptId: 'c' }], { step: 6 }).state;
+  assert.deepEqual(folded.memberships[0].shares.map((item) => [item.conceptId, Number(item.share.toFixed(10))]), [['a', 0.4], ['b', 0.5]], 'the merged share joins the kept concept');
+  const cleared = applyOperations(state, [{ op: 'clear_membership', subjectNodeId: 'm1' }], { step: 7 }).state;
+  assert.equal(cleared.memberships.length, 0);
+  assert.throws(() => applyOperations(cleared, [{ op: 'clear_membership', subjectNodeId: 'm1' }], { step: 8 }), /no graded membership/);
+  assert.deepEqual(normalizeOntology({ concepts: [], partitions: [], relations: [], instances: [] }).memberships, [], 'states stored before graded membership read as none');
+});

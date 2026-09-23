@@ -33,6 +33,18 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
   use, instead of reporting the inference status as an evidence type.
 - Name the prose size, the bound model size and the largest context records
   when a story deepening task exceeds its size limit.
+- Add a second judge for alien curator decisions, `life_alien_decision_check`.
+  With the Jev estimator configured it answers the curator's comparison as
+  bounded questions (nearest earlier concept, whether the primary operator
+  changed, fit) without seeing the curator's reasons, can record the result,
+  and the diagnosis lists disagreements.
+- Add world libraries: `life_alien_worlds_export` writes target-blind worlds with
+  their regime classification and signature codes as a content-addressed bundle,
+  and `life_alien_worlds_import` records them in another search, checked against
+  that search's target terms, so it starts at the solver.
+- Let an alien candidate carry a graded membership, a Cut over the families it
+  draws on with a remainder, beside its categorical assignment; the diagnosis
+  lists hybrids.
 - Keep model anchors that name the model by its stable id when
   `life_narrative_rebind` moves a graph to a successor model; only anchors that
   name the predecessor hash are dropped.
