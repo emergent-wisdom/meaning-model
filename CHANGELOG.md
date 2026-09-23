@@ -183,6 +183,10 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
     notes at 8,000 characters instead of 4,000 and says where it cut and how to
     read the rest; probes had pulled graph neighborhoods of 231 KB and 809 KB to
     read one review.
+  - A node read back from a query can be written again as it came. Narrative
+    registration, revision, revision by change and batches drop the fields a
+    query adds for display (`boundary`, `content_included`), which batches had
+    refused.
   - `life_story_release` in the storytelling add-on releases a story's
     committed prose to readers. Prose inherits the author-only scope of the
     records it was built from, so a reader's render showed only the title. The

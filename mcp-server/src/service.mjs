@@ -1,4 +1,4 @@
-import { stripEdgeForRevision, stripNodeForRevision } from './narrative-fields.mjs';
+import { stripEdgeForRevision, stripNodeForRevision, withoutProjectionFields } from './narrative-fields.mjs';
 import { descriptionCoverage } from './description-coverage.mjs';
 import { validateNarrativeDelta } from './narrative-delta.mjs';
 import { createHash, randomUUID } from 'node:crypto';
@@ -2091,6 +2091,7 @@ export class LifeSimulationService {
   }
 
   async registerNarrativeGraph({ requestId, narrativeGraph }) {
+    if (Array.isArray(narrativeGraph?.nodes)) narrativeGraph = { ...narrativeGraph, nodes: narrativeGraph.nodes.map(withoutProjectionFields) };
     validateNarrativeGraphInput(narrativeGraph);
     if (narrativeGraph.revision.number !== 0) {
       throw new Error('Narrative registration requires revision 0.');
@@ -2120,6 +2121,7 @@ export class LifeSimulationService {
   async reviseNarrativeGraph({ requestId, previousGraphHash, narrativeGraph, preserveSourceSnapshot = false }) {
     ensureHash(previousGraphHash, 'previousGraphHash');
     if (typeof preserveSourceSnapshot !== 'boolean') throw new Error('preserveSourceSnapshot must be a boolean.');
+    if (Array.isArray(narrativeGraph?.nodes)) narrativeGraph = { ...narrativeGraph, nodes: narrativeGraph.nodes.map(withoutProjectionFields) };
     validateNarrativeGraphInput(narrativeGraph);
     if (narrativeGraph.revision.number === 0) {
       throw new Error('Narrative revision requires a nonzero revision number.');
@@ -2161,6 +2163,7 @@ export class LifeSimulationService {
     ensureHash(previousGraphHash, 'previousGraphHash');
     if (typeof preserveSourceSnapshot !== 'boolean') throw new Error('preserveSourceSnapshot must be a boolean.');
     ensureBoundedStringArray(accessScopes, 'accessScopes', MAX_VIEW_ACCESS_SCOPES);
+    if (Array.isArray(delta?.upsertNodes)) delta = { ...delta, upsertNodes: delta.upsertNodes.map(withoutProjectionFields) };
     validateNarrativeDelta(delta);
     if (delta.revision.previous_graph_hash !== previousGraphHash) {
       throw new Error('A revision by change must link delta.revision.previous_graph_hash to previousGraphHash.');
@@ -2204,6 +2207,7 @@ export class LifeSimulationService {
 
   async applyNarrativeBatch({ requestId, previousGraphHash, narrativeBatch }) {
     ensureHash(previousGraphHash, 'previousGraphHash');
+    if (Array.isArray(narrativeBatch?.add_nodes)) narrativeBatch = { ...narrativeBatch, add_nodes: narrativeBatch.add_nodes.map(withoutProjectionFields) };
     validateNarrativeBatchInput(narrativeBatch);
     if (narrativeBatch.previous_graph_hash !== previousGraphHash) {
       throw new Error(

@@ -6,3 +6,10 @@ export const EDGE_FIELDS = Object.freeze(['id', 'source', 'target', 'family', 'r
 const pick = (record, fields) => Object.fromEntries(Object.entries(record).filter(([key, value]) => fields.includes(key) && value !== null && value !== undefined));
 export const stripNodeForRevision = (node) => pick(node, NODE_FIELDS);
 export const stripEdgeForRevision = (edge) => pick(edge, EDGE_FIELDS);
+// A query adds these to each node for display. A write drops them, so a record read back from a query can be
+// sent again as it came (found by the 2026-09-23 instruction test: a copied record failed on its boundary field).
+export const NODE_PROJECTION_FIELDS = Object.freeze(['boundary', 'content_included']);
+export function withoutProjectionFields(node) {
+  if (!node || typeof node !== 'object' || Array.isArray(node) || !NODE_PROJECTION_FIELDS.some((field) => Object.hasOwn(node, field))) return node;
+  return Object.fromEntries(Object.entries(node).filter(([key]) => !NODE_PROJECTION_FIELDS.includes(key)));
+}
