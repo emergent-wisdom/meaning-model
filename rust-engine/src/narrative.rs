@@ -129,6 +129,8 @@ pub enum NarrativeAnchorKind {
     EventReferentBinding,
     PhysicalCut,
     Realization,
+    /// A normalized Cut by its stable id; a path such as `/answers/0` addresses one answer.
+    NormalizedCut,
     World,
     Candidate,
     Occurrence,

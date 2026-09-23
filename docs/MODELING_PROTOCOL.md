@@ -279,6 +279,15 @@ These arithmetic checks do not judge narrative plausibility. Histories spanning
 world revisions persist in SQLite, but portable project/checkpoint and
 accepted-history training exports across those boundaries are not yet supported.
 
+### 13. Record the construction as you go
+
+The model and its Understanding Graph are the modeler's understanding. Give every
+Event that carries a Cut a description of what happens in it. Record choices,
+ideas, predictions, questions and reasons with `life_understanding_record`, linked to
+the records they concern, and outside reviews with `life_review_record` under their
+actual reviewers. When continuing existing work, read `life_construction_replay`
+from the first revision and `life_model_outline` before changing anything.
+
 ## Fear, concern, and operative motivation
 
 Modeling a state is not the same as adopting it. A character's fear, the Reader
@@ -311,6 +320,8 @@ separate governance and validated domain practice beyond this protocol.
 
 The required paper-grounded flow is:
 
+0. When continuing existing work, `life_construction_replay` and
+   `life_model_outline` on the graph you are given.
 1. `life_modeling_context` for ordered, version-bound reading.
 2. Read both complete theory resources, then the protocol, profile, and example.
    The server refuses `life_profile_compile` until both paper resources have

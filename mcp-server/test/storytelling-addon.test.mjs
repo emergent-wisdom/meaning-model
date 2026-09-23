@@ -32,6 +32,9 @@ function fixture() {
       calls.push(input);
       return { graphHash: 'd'.repeat(64), snapshotHash, immutableRevision: true };
     },
+    // The bound model: its Cut-bearing Events are described unless a test says otherwise.
+    model: { id: 'fixture-model', meaning_model: { events: [], normalized_cuts: [] } },
+    async inspectModel() { return { modelHash: 'f'.repeat(64), model: structuredClone(this.model) }; },
   };
   const preparation = {
     graphHash, lifeTrendsNodeId: 'life.trends', modelDepthReviewNodeId: 'depth.review', accessScopes: [], scene: {
@@ -45,8 +48,19 @@ function fixture() {
       requirements: [{ id: 'voice', instruction: 'Keep Leo’s speech terse.' }],
     },
   };
-  return { addon: new StorytellingAddon(service), calls, view, preparation };
+  return { addon: new StorytellingAddon(service), calls, view, preparation, service };
 }
+
+test('a scene cannot be committed while an Event carries a Cut without a description', async () => {
+  const { addon, preparation, service } = fixture();
+  service.model = { id: 'fixture-model', meaning_model: {
+    events: [{ id: 'ev.bridge', boundary: 'Leo at the bridge.' }, { id: 'ev.home', boundary: 'Leo at home.', description: 'Leo comes home and hides the key.' }],
+    normalized_cuts: [{ id: 'cut.bridge.attention', parent_event_id: 'ev.bridge' }, { id: 'cut.home.attention', parent_event_id: 'ev.home' }] } };
+  const packet = await addon.prepare(preparation);
+  const blocker = packet.blockers.find((entry) => entry.code === 'undescribed-numbers');
+  assert.deepEqual(blocker.eventIds, ['ev.bridge']);
+  assert.match(blocker.explanation, /Describe them in a model revision/);
+});
 
 async function reviewedInput(f) {
   const packet = await f.addon.prepare(f.preparation);

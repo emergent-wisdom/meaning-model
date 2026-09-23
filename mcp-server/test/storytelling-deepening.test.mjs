@@ -71,6 +71,7 @@ function fixture() {
     },
     async applyNarrativeBatch(input) { writes.push(input); throw new Error('Deepening preparation must not mutate the graph.'); },
     async reviseNarrativeGraph(input) { writes.push(input); throw new Error('Deepening preparation must not revise prose.'); },
+    async reviseNarrativeGraphByDelta(input) { writes.push(input); throw new Error('Deepening preparation must not revise prose.'); },
   };
   const input = { graphHash, storyRootId: 'book', rootId: 'chapter', lifeTrendsNodeId: 'life.trends',
     focusNodeId: 'outline', contextNodeIds: ['capacity', 'capacity'], authorModelNodeId: 'author.model',

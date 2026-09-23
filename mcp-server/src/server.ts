@@ -8,6 +8,7 @@ import { registerEstimatorTools } from './estimator-tools.mjs';
 import { directionDrawSchema, drawDirection } from './direction-draw.mjs';
 import { registerJevProcessEstimationTools } from './jev-process-estimation.mjs';
 import { registerGeneralModelingTools } from './general-modeling.mjs';
+import { constructionRecordInstructions, registerConstructionRecordTools } from './construction-record.mjs';
 import { narrativeRebindSchema, rebindNarrativeGraph } from './narrative-rebind.mjs';
 import { narrativeEditSchema, editNarrativeGraph } from './narrative-editing.mjs';
 import {
@@ -159,6 +160,7 @@ server.registerPrompt('life_general_modeling_start', {
     'Use life_world_model_build for compact initial construction; life_process_estimate for batched bounded estimates; life_process_estimation_record for exact reviewed graph records and Understanding Nodes. Keep unknown values unknown and source measurements in their actual units. Inspect and revise categories or deepen processes when needed.',
     estimator ? `The configured estimator is ${estimator.label}. It evaluates supplied questions; the calling LLM frames and reviews them. Measure latency and usage; do not assume a speedup.` : 'No external estimator is configured. Use supplied answers or the returned estimation tasks; general modeling works without Jev.',
     'Keep modeling artifacts and substantive assessments in the graph. Recorded numerical estimates are not accepted runtime observations. Automatic storytelling requires its separate opt-in add-on; this general workflow imposes no literary requirements.',
+    constructionRecordInstructions,
   ].filter(Boolean).join('\n\n') } }],
 }));
 
@@ -202,10 +204,11 @@ server.registerTool(
 server.registerTool(
   'life_model_register',
   {
-    description: 'Validate, hash, and store one complete immutable revision-0 typed model in the Rust machine. A complete valid request, model and graph are shown in life-sim://example/minimal-model-and-graph.',
+    description: 'Validate, hash, and store one complete immutable revision-0 typed model in the Rust machine. The result\'s descriptionCoverage lists Events that carry a Cut without a description; give each one, so its numbers mean something, and describe most other Events. requireDescribedNumbers refuses such a model. A complete valid request, model and graph are shown in life-sim://example/minimal-model-and-graph.',
     inputSchema: z.object({
       requestId: requestIdSchema,
       model: z.record(z.string(), z.unknown()),
+      requireDescribedNumbers: z.boolean().default(false),
     }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
@@ -215,12 +218,13 @@ server.registerTool(
 server.registerTool(
   'life_model_revise',
   {
-    description: 'Register a complete immutable successor model revision. Added dimensions and laws are schema changes, never in-place patches. The result\'s worldAdoption lists changes that a world on the parent revision cannot adopt through life_world_revise: a removed process, or a changed value type, axes, unit, reference frame or scale (the scale holds the process meaning). requireWorldAdoptable refuses such a revision before registering it.',
+    description: 'Register a complete immutable successor model revision. Added dimensions and laws are schema changes, never in-place patches. The result\'s worldAdoption lists changes that a world on the parent revision cannot adopt through life_world_revise: a removed process, or a changed value type, axes, unit, reference frame or scale (the scale holds the process meaning). requireWorldAdoptable refuses such a revision before registering it. descriptionCoverage lists Events that carry a Cut without a description, and requireDescribedNumbers refuses them.',
     inputSchema: z.object({
       requestId: requestIdSchema,
       previousModelHash: z.string().length(64),
       model: z.record(z.string(), z.unknown()),
       requireWorldAdoptable: z.boolean().default(false),
+      requireDescribedNumbers: z.boolean().default(false),
     }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
@@ -880,6 +884,7 @@ server.registerTool(
 );
 registerJevProcessEstimationTools(server, service, estimator, { toolResult });
 registerGeneralModelingTools(server, service, estimator, { toolResult });
+registerConstructionRecordTools(server, service, { toolResult });
 
 if (enabledAddons.includes('storytelling')) {
   const { registerStorytellingAddon } = await import('./storytelling-addon.mjs');

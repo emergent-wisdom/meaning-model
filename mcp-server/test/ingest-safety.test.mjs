@@ -9,16 +9,16 @@ import { rebindNarrativeGraph } from '../src/narrative-rebind.mjs';
 const modelHash = 'a'.repeat(64), nextModel = 'b'.repeat(64), graphHash = 'c'.repeat(64), nextGraph = 'd'.repeat(64);
 const question = { question: 'Which account best describes the event?', answers: [{ key: 'activity', meaning: 'Protocol activity.' }] };
 const cutRequest = { ...question, modelHash, events: [{ eventId: 'world' }] };
-const ingestRequest = { requestId: 'ingest', modelHash, events: [{ eventId: 'new', parentEventId: 'world', boundary: 'Protocol release observation.' }], questions: [{ id: 'theme', ...question }] };
+const ingestRequest = { requestId: 'ingest', modelHash, events: [{ eventId: 'new', parentEventId: 'world', boundary: 'Protocol release observation.', description: 'A new protocol release is observed and discussed.' }], questions: [{ id: 'theme', ...question }] };
 function fixture() {
   const calls = { estimates: 0, revisions: 0, rebinds: 0, notes: 0 };
-  const definition = { id: 'test', revision: { number: 0 }, meaning_model: { events: [{ id: 'world', boundary: 'Protocol activity.' }], event_relations: [], normalized_cuts: [], referents: [] } };
+  const definition = { id: 'test', revision: { number: 0 }, meaning_model: { events: [{ id: 'world', boundary: 'Protocol activity.', description: 'Protocol development and discussion over the observed period.' }], event_relations: [], normalized_cuts: [], referents: [] } };
   const view = { graph_hash: graphHash, content_included: true, graph: { id: 'graph', node_count: 1, edge_count: 0, root_count: 1, revision: { number: 0 }, source: { kind: 'model', model_hash: modelHash } }, roots: ['report'], nodes: [{ id: 'report', role: 'document_root', text: '# Report' }], edges: [] };
   const service = {
     async inspectModel({ modelHash: requested }) { return { model: structuredClone(definition), summary: { revision: { previous_model_hash: requested === nextModel ? modelHash : null } } }; },
     async reviseModel(input) { calls.revisions += 1; calls.revised = input; return { modelHash: nextModel, stored: true }; },
     async queryNarrativeGraph({ graphHash: requested }) { const result = structuredClone(view); result.graph_hash = requested; if (requested === nextGraph) { result.graph.source.model_hash = nextModel; result.graph.revision.number = 1; } return result; },
-    async reviseNarrativeGraph() { calls.rebinds += 1; return { graphHash: nextGraph, stored: true }; },
+    async reviseNarrativeGraphByDelta() { calls.rebinds += 1; return { graphHash: nextGraph, stored: true }; },
     async applyNarrativeBatch(input) { calls.notes += 1; calls.batch = input; return { graphHash: 'e'.repeat(64), stored: true }; },
   };
   const estimator = { backend: 'typesafe', model: 'jev-test', async estimate() {
@@ -58,9 +58,9 @@ test('ingest proposals use their exact reviewed values even with the provider su
 
 test('direct ingest apply freezes estimates for retries and reports partial graph failures honestly', async () => {
   const f = fixture();
-  const ordinaryRebind = f.service.reviseNarrativeGraph;
+  const ordinaryRebind = f.service.reviseNarrativeGraphByDelta;
   let fail = true;
-  f.service.reviseNarrativeGraph = async (input) => { if (fail) { fail = false; throw new Error('Temporary storage outage.'); } return ordinaryRebind(input); };
+  f.service.reviseNarrativeGraphByDelta = async (input) => { if (fail) { fail = false; throw new Error('Temporary storage outage.'); } return ordinaryRebind(input); };
   const input = { ...ingestRequest, apply: true, graph: { graphHash, accessScopes: ['modeler'] } };
   const partial = await ingestSituation(input, f.estimator, f.service);
   assert.equal(partial.partial, true);
@@ -138,7 +138,7 @@ test('real Rust rebind refuses a filtered projection and preserves all private n
 test('real Rust ingest registers a new event, exact supplied Cut and actual Understanding Node in the rebound graph', async (t) => {
   const f = await engineFixture(t);
   const input = { requestId: 'real-ingest', modelHash: f.registered.modelHash, apply: true,
-    events: [{ eventId: 'event.followup', parentEventId: 'event.world', boundary: 'Follow-up observation.', interval: { start: 7, end: 8 } }],
+    events: [{ eventId: 'event.followup', parentEventId: 'event.world', boundary: 'Follow-up observation.', description: 'A follow-up observation of the same activity.', interval: { start: 7, end: 8 } }],
     questions: [{ id: 'theme', ...question }], distributions: [{ questionId: 'theme', eventId: 'event.followup', probabilities: { activity: 0.7, remainder: 0.3 } }],
     graph: { graphHash: f.stored.graphHash, accessScopes: ['secret'], notes: [{ nodeId: 'followup.note', text: 'The category remains uncertain; compare the next observation before adopting a causal explanation.', holder: 'modeler', aboutEventIds: ['event.followup'] }] } };
   const result = await ingestSituation(input, null, f.service);

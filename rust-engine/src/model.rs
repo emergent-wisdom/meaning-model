@@ -5831,6 +5831,9 @@ fn validate_frozen_narrative_anchor_references(
             NarrativeAnchorKind::Realization => meaning
                 .and_then(|layer| layer.realizations.iter().find(|record| record.id == id))
                 .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::NormalizedCut => meaning
+                .and_then(|layer| layer.normalized_cuts.iter().find(|record| record.id == id))
+                .and_then(|record| serde_json::to_value(record).ok()),
             NarrativeAnchorKind::World if snapshot.world_id.as_deref() == Some(id) => {
                 serde_json::to_value(snapshot).ok()
             }
@@ -6580,6 +6583,9 @@ impl MachineSession {
                     .and_then(|record| serde_json::to_value(record).ok()),
                 NarrativeAnchorKind::Realization => meaning
                     .and_then(|layer| layer.realizations.iter().find(|record| record.id == id))
+                    .and_then(|record| serde_json::to_value(record).ok()),
+                NarrativeAnchorKind::NormalizedCut => meaning
+                    .and_then(|layer| layer.normalized_cuts.iter().find(|record| record.id == id))
                     .and_then(|record| serde_json::to_value(record).ok()),
                 NarrativeAnchorKind::World if snapshot.world_id.as_deref() == Some(id) => {
                     serde_json::to_value(snapshot).ok()

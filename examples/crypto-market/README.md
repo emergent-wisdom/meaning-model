@@ -93,8 +93,8 @@ Jev was called three times, using 20,457 input and 843 output tokens in total.
 One call was lost to a validation bug, described below. The steps after the run
 made no Jev call.
 
-Revisions 0 to 3 are the agent's run. Two revisions were added afterwards by the
-maintainer, and neither changes a value:
+Revisions 0 to 3 are the agent's run. Three revisions were added afterwards by
+the maintainer, and none changes a value:
 
 - **Revision 4** declares that each conduit Cut is conditioned on its episode's
   monetary share. The agent could state that only in the question text. In 2024
@@ -103,6 +103,37 @@ maintainer, and neither changes a value:
 - **Revision 5** marks the eight measured series as observed processes, so
   retrieved values can be filed as observed reports. The builder had made them
   static only because the agent's cutoff values were recollections.
+- **Revision 6** describes the 30 Events that had no description, so every dated
+  value and Cut sits in a described situation. The descriptions use the dates and
+  figures the retrieval check confirmed.
+
+## The construction record
+
+The whole construction is in `history.json`: 7 model revisions and 17 graph
+revisions, from the first build to the maintainer's last note. Import it on any
+engine with `life_construction_import`. The engine rebuilds every revision and
+checks each hash against the exported one. Then `life_construction_replay` walks
+the history one step at a time: why each step was taken, what each model revision
+changed, and each note shown beside the records it concerned, as those records
+were at that step.
+
+- `REPLAY.md` is the replay at outline level, one entry per graph revision.
+- `OUTLINE.md` is the present state: all 50 Events with their descriptions, the
+  Cuts under them, the processes and concepts, and the first line of every note
+  linked to each record.
+
+The maintainer (Claude Opus 5.5, in the session that prepared this release) added
+the last steps through the same tools:
+
+- **The review.** The retrieval check is recorded as a review held by its checker.
+  It carries the prompt the checker was given, the graph revision its input came
+  from (revision 9, the agent's last), its verdict and its findings, and it is
+  linked to the 59 samples and 32 events it was given.
+- **Notes.** Five notes held by the maintainer explain revisions 4, 5 and 6 and how
+  the check was answered. They are linked to the Cuts, processes and Events they
+  concern. One note corrects the review record itself: the checker's input listed
+  59 dated samples, not 56. It checked the 56 numeric ones and skipped three dated
+  policy-regime categories, which are judgments.
 
 ## What the retrieval check found
 
@@ -132,7 +163,8 @@ and linked to the recalled values they check:
 
 The recalled values stay in place beside the retrieved ones, so both accounts
 remain visible. The full report, with a source URL for every item, is in
-`notes/fact-check.md`, and a copy is a source record in the graph. The report
+`notes/fact-check.md`, and a copy is a source record in the graph. The checker's
+input is `notes/facts-to-check.md`. The report
 also notes where a figure depends on the source's definition. For example,
 DefiLlama's 2020 stablecoin total omits Tether on one ledger (Omni).
 
@@ -158,14 +190,18 @@ the tool as follows:
 
 | File | What it is |
 |---|---|
-| `model.json` | The final model definition (revision 5) |
-| `graph.json` | The final Understanding graph (revision 13): sources, reviews, dated values, the texts Jev judged, and the retrieval check |
+| `history.json` | The whole construction: every model revision and every graph revision as its change |
+| `REPLAY.md` | The construction replayed at outline level, one entry per graph revision |
+| `OUTLINE.md` | The present model and graph as an outline, with the first line of each linked note |
+| `model.json` | The final model definition (revision 6) |
+| `graph.json` | The final Understanding graph (revision 16): sources, reviews, dated values, the texts Jev judged, the retrieval check and the maintainer's notes |
 | `notes/reading.md` | What the agent read before modeling |
 | `notes/summary.md` | The agent's summary of the model |
 | `notes/friction.md` | The agent's friction log, verbatim |
+| `notes/facts-to-check.md` | The 97 dated items given to the checker |
 | `notes/fact-check.md` | The retrieval check of the dated figures |
 | `MANIFEST.json` | SHA-256 digests and source identities |
-| `example.test.mjs` | Re-registers the model and graph on a fresh engine, runs a world and checks the records |
+| `example.test.mjs` | Imports `history.json` on a fresh engine and checks every hash, the replay, the outline and the review record; re-registers the final model and graph, runs a world and checks the records |
 
 ## Boundaries
 

@@ -95,7 +95,10 @@ async function resolveTargets(service, input) {
       if (!event) throw new Error(`Event ${target.eventId} does not exist in model ${input.modelHash}.`);
       const text = target.situationText ?? [event.boundary, event.description].filter((part) => typeof part === 'string' && part.trim()).join(' ');
       if (!text.trim()) throw new Error(`Event ${target.eventId} has no boundary or description text to estimate from; supply situationText.`);
-      targets.push({ id: target.eventId, parentEventId: target.eventId, cutId: target.cutId, text, conditionedOn: target.conditionedOn });
+      // A Cut needs its Event described; the situation text judged becomes the description when there is none.
+      const described = typeof event.description === 'string' && event.description.trim();
+      if (!described && !target.situationText) throw new Error(`Event ${target.eventId} has no description to judge or to give its Cut meaning; describe what happens in it, or pass situationText, which becomes its description.`);
+      targets.push({ id: target.eventId, parentEventId: target.eventId, cutId: target.cutId, text, conditionedOn: target.conditionedOn, describeWith: described ? null : target.situationText });
     }
   }
   return { targets, definition };
@@ -165,6 +168,12 @@ async function executeCutShares(input, estimator, service, checkpoint = null) {
   // --- apply: one complete immutable model revision
   const successor = structuredClone(definition);
   successor.meaning_model ??= {}; successor.meaning_model.normalized_cuts ??= [];
+  const descriptionsAdded = [];
+  for (const target of targets) {
+    const event = (successor.meaning_model.events ?? []).find((item) => item.id === (target.describeWith ? target.id : target.parentEventId));
+    const text = target.describeWith ?? (event && !(typeof event.description === 'string' && event.description.trim()) ? target.text : null);
+    if (event && text && !(typeof event.description === 'string' && event.description.trim())) { event.description = text; descriptionsAdded.push(event.id); }
+  }
   const existing = new Map(successor.meaning_model.normalized_cuts.map((cut, index) => [cut.id, index]));
   const conditions = new Map(targets.filter((target) => target.conditionedOn).map((target) => [target.cutId ?? `${input.idPrefix}.${target.id}`, { cut_id: target.conditionedOn.cutId, answer_key: target.conditionedOn.answerKey }]));
   for (const proposal of proposals) {
@@ -178,7 +187,7 @@ async function executeCutShares(input, estimator, service, checkpoint = null) {
   successor.revision = { number: previousNumber + 1, previous_model_hash: input.modelHash, provenance: [`Meaning Model cut-shares apply v1; evaluator ${evaluator}`, ...(definition.revision?.provenance ?? []).slice(0, 8)], reason: input.revisionReason ?? `Add ${proposals.length} estimated attention Cut${proposals.length === 1 ? '' : 's'} (${evaluator}); AI inference, reviewable and supersedable.` };
   const revised = checkpoint?.get('revised') ?? await service.reviseModel({ requestId: input.requestId, previousModelHash: input.modelHash, model: successor });
   checkpoint?.set('revised', revised);
-  const applied = { modelHash: revised.modelHash, previousModelHash: input.modelHash, revisionNumber: successor.revision.number, cutIds: proposals.map((proposal) => proposal.id), summary: revised.summary ?? null };
+  const applied = { modelHash: revised.modelHash, previousModelHash: input.modelHash, revisionNumber: successor.revision.number, cutIds: proposals.map((proposal) => proposal.id), descriptionsAdded, summary: revised.summary ?? null };
   let rebound = null;
   if (input.rebind) {
     try { rebound = await rebindNarrativeGraph(service, { requestId: input.rebind.requestId ?? `${input.requestId}-rebind`, graphHash: input.rebind.graphHash, modelHash: revised.modelHash, accessScopes: input.rebind.accessScopes, reason: `Rebind after estimated Cuts were applied in model revision ${successor.revision.number}.` }); }

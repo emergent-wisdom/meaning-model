@@ -35,7 +35,8 @@ A complete hand-authored revision-0 model. Note the fields validation insists on
 process needs `value_type` with `bounds`, an `initial_value` with a `kind`, and a nonempty
 `support` list; every referent needs a `lifecycle_event_id`; context roots opt every event
 into containment validation, so each event has a `contains` relation from a root; a
-normalized Cut needs an explicit `remainder` answer and weights that sum to one.
+normalized Cut needs an explicit `remainder` answer and weights that sum to one. The Event a
+Cut divides also carries a `description` of what happens in it, so its numbers mean something.
 
 ```json
 {
@@ -72,7 +73,9 @@ normalized Cut needs an explicit `remainder` answer and weights that sum to one.
         { "id": "event.offer", "boundary": "A written offer to buy the bakery arrives at hour 6 and must be answered within the day.",
           "description": "The offer would clear the loan. Ada has told nobody.",
           "interval": { "start": 6, "end": 7 }, "participants": { "recipient": "referent.ada", "object": "referent.bakery" }, "process_ids": ["bakery.debt_nok"], "observation_process_ids": [], "region": null, "substrate": null, "provenance": ["minimal-example"] },
-        { "id": "event.ada.state.h06", "boundary": "Ada's attributed attention state at hour 6, when the offer arrives.", "interval": { "start": 6, "end": 6.25 }, "participants": { "subject": "referent.ada" }, "process_ids": [], "observation_process_ids": [], "region": null, "substrate": null, "provenance": ["minimal-example"] }
+        { "id": "event.ada.state.h06", "boundary": "Ada's attributed attention state at hour 6, when the offer arrives.",
+          "description": "The offer has just arrived. Ada reads it at the counter before the first customers, thinking first of the loan and then of the ovens her grandmother lit.",
+          "interval": { "start": 6, "end": 6.25 }, "participants": { "subject": "referent.ada" }, "process_ids": [], "observation_process_ids": [], "region": null, "substrate": null, "provenance": ["minimal-example"] }
       ],
       "event_referent_bindings": [
         { "id": "binding.ada.life.subject", "binding_type": "lifecycle_subject", "role": "subject", "referent_id": "referent.ada", "target": { "kind": "event", "event_id": "event.ada.life" }, "interval": null, "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] },

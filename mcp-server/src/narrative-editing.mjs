@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import * as z from 'zod/v4';
+import { narrativeDefinitionDelta } from './narrative-delta.mjs';
 
 const id = z.string().trim().min(1).max(256);
 const text = z.string().max(1_048_576);
@@ -291,8 +292,9 @@ export async function editNarrativeGraph(service, raw) {
   graph.revision = { number: before.revision.number + 1, previous_graph_hash: input.graphHash,
     reason: input.reason, provenance: [marker] };
   bounded(graph);
-  const stored = await service.reviseNarrativeGraph({ requestId: input.requestId,
-    previousGraphHash: input.graphHash, narrativeGraph: graph, preserveSourceSnapshot: true });
+  // Stored as its change, so the receipt keeps no copy of the whole graph.
+  const stored = await service.reviseNarrativeGraphByDelta({ requestId: input.requestId, previousGraphHash: input.graphHash,
+    delta: narrativeDefinitionDelta(before, graph), accessScopes: input.accessScopes, preserveSourceSnapshot: true });
   if (stored.snapshotHash !== view.source_snapshot_hash) throw new Error('Narrative edit did not preserve its frozen source snapshot.');
   return { ...stored, operation: 'edit-narrative-graph', requestHash,
     changedNodeIds, changedEdgeIds, affectedNodeIds: [...affected].sort(),

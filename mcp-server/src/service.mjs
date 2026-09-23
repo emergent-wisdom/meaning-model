@@ -1,4 +1,6 @@
 import { stripEdgeForRevision, stripNodeForRevision } from './narrative-fields.mjs';
+import { descriptionCoverage } from './description-coverage.mjs';
+import { applyNarrativeDefinitionDelta, definitionFromCompleteView, validateNarrativeDelta } from './narrative-delta.mjs';
 import { createHash, randomUUID } from 'node:crypto';
 
 import {
@@ -772,6 +774,11 @@ function endpointDifferences(first, second) {
   };
 }
 
+function refuseUndescribedNumbers(coverage) {
+  if (!coverage.undescribedNumbers.length) return;
+  throw new Error(`Every Event that carries a Cut needs a description, so its numbers mean something; the model was not registered. Undescribed: ${coverage.undescribedNumbers.map((entry) => `${entry.eventId} (${entry.carries.join(', ')})`).join('; ')}.`);
+}
+
 // Estimator proposals (builder, ingest and Cut-share previews) share the word "estimate" but
 // not the exchange's store; say which tool holds one instead of calling it unknown.
 function unknownEstimationProposal(proposalId) {
@@ -1091,14 +1098,16 @@ export class LifeSimulationService {
     };
   }
 
-  async registerModel({ requestId, model }) {
+  async registerModel({ requestId, model, requireDescribedNumbers = false }) {
     validateModelBounds(model);
     return this.#withIdempotentReceipt(
       this.modelReceipts,
       'register-model',
       requestId,
-      { model },
+      { model, ...(requireDescribedNumbers ? { requireDescribedNumbers } : {}) },
       async () => {
+        const coverage = descriptionCoverage(model);
+        if (requireDescribedNumbers) refuseUndescribedNumbers(coverage);
         this.#reserveModel();
         try {
           const result = await this.backend.call('register_model', { model });
@@ -1114,6 +1123,7 @@ export class LifeSimulationService {
             stored: true,
             immutableRevision: true,
             summary,
+            descriptionCoverage: coverage,
           };
         } finally {
           this.pendingModels -= 1;
@@ -1122,15 +1132,17 @@ export class LifeSimulationService {
     );
   }
 
-  async reviseModel({ requestId, previousModelHash, model, requireWorldAdoptable = false }) {
+  async reviseModel({ requestId, previousModelHash, model, requireWorldAdoptable = false, requireDescribedNumbers = false }) {
     ensureHash(previousModelHash, 'previousModelHash');
     validateModelBounds(model);
     return this.#withIdempotentReceipt(
       this.modelReceipts,
       'revise-model',
       requestId,
-      { previousModelHash, model, ...(requireWorldAdoptable ? { requireWorldAdoptable } : {}) },
+      { previousModelHash, model, ...(requireWorldAdoptable ? { requireWorldAdoptable } : {}), ...(requireDescribedNumbers ? { requireDescribedNumbers } : {}) },
       async () => {
+        const coverage = descriptionCoverage(model);
+        if (requireDescribedNumbers) refuseUndescribedNumbers(coverage);
         if (model?.revision?.previous_model_hash !== previousModelHash) {
           throw new Error(
             'Complete revised model must link revision.previous_model_hash to previousModelHash.',
@@ -1158,6 +1170,7 @@ export class LifeSimulationService {
             inPlacePatchApplied: false,
             summary,
             worldAdoption,
+            descriptionCoverage: coverage,
           };
         } finally {
           this.pendingModels -= 1;
@@ -2126,6 +2139,48 @@ export class LifeSimulationService {
     );
   }
 
+  // A complete revision written as its change from the predecessor, the form a portable history
+  // stores. The service reads the complete predecessor, applies the change and stores the successor
+  // through the same validation as reviseNarrativeGraph. The receipt keeps only the change, so long
+  // sessions and imported histories do not retain a copy of the whole graph for every revision.
+  async reviseNarrativeGraphByDelta({ requestId, previousGraphHash, delta, accessScopes = [], preserveSourceSnapshot = false }) {
+    ensureHash(previousGraphHash, 'previousGraphHash');
+    if (typeof preserveSourceSnapshot !== 'boolean') throw new Error('preserveSourceSnapshot must be a boolean.');
+    ensureBoundedStringArray(accessScopes, 'accessScopes', MAX_VIEW_ACCESS_SCOPES);
+    validateNarrativeDelta(delta);
+    if (delta.revision.previous_graph_hash !== previousGraphHash) {
+      throw new Error('A revision by change must link delta.revision.previous_graph_hash to previousGraphHash.');
+    }
+    const scopes = [...new Set(accessScopes)].sort();
+    return this.#withIdempotentReceipt(
+      this.narrativeReceipts,
+      'revise-narrative-graph-by-delta',
+      requestId,
+      { previousGraphHash, delta, accessScopes: scopes, ...(preserveSourceSnapshot ? { preserveSourceSnapshot } : {}) },
+      async () => {
+        const view = await this.queryNarrativeGraph({ graphHash: previousGraphHash, expectedGraphHash: previousGraphHash,
+          mode: 'full', includeContent: true, accessScopes: scopes, forRevision: true });
+        const narrativeGraph = applyNarrativeDefinitionDelta(definitionFromCompleteView(view, 'A revision by change'), delta);
+        validateNarrativeGraphInput(narrativeGraph);
+        const result = await this.backend.call('revise_narrative_graph', {
+          narrative_graph: narrativeGraph,
+          ...(preserveSourceSnapshot ? { preserve_narrative_source_snapshot: true } : {}),
+        });
+        return {
+          schema: SERVICE_SCHEMA,
+          graphHash: result.summary.graph_hash,
+          previousGraphHash,
+          snapshotHash: result.snapshot_hash,
+          stored: result.stored === true,
+          reusedExisting: result.reused_existing === true,
+          immutableRevision: true,
+          revisedByDelta: true,
+          summary: structuredClone(result.summary),
+        };
+      },
+    );
+  }
+
   async applyNarrativeBatch({ requestId, previousGraphHash, narrativeBatch }) {
     ensureHash(previousGraphHash, 'previousGraphHash');
     validateNarrativeBatchInput(narrativeBatch);
@@ -2157,6 +2212,13 @@ export class LifeSimulationService {
         };
       },
     );
+  }
+
+  // Every revision of one graph (or of all graphs) in operation order, with branch points and heads.
+  // Reasons and provenance are read from each revision itself, within the caller's access scopes.
+  async listNarrativeRevisions({ graphId = null } = {}) {
+    if (graphId !== null) ensureBoundedNonemptyString(graphId, 'graphId');
+    return this.backend.call('list_narrative_revisions', { narrative_history: graphId === null ? {} : { graph_id: graphId } });
   }
 
   async queryNarrativeGraph({

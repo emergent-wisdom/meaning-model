@@ -19,9 +19,12 @@ mappings, not evidence that any design works.
 | `atlas.md` | The whole search as rendered by `life_alien_atlas`: problem, the three ontologies, worlds, solves, mechanisms, transfers, the commission and the selection |
 | `world-library.json` | The four target-blind worlds as a content-addressed world library, with seeds, builder isolation, regime classification and signature codes, from `life_alien_worlds_export` |
 | `ontologies.json` | The mechanism, claimed-outcome and world-regime ontologies as Meaning Model concepts and relations, ready to merge into a successor of the target model |
-| `target-model.json` | The target model the transfers bind to (illustrative, authored values) |
+| `target-model.json` | The target model the transfers bind to (illustrative, authored values), at revision 2 |
+| `history.json` | The whole construction: the three target-model revisions and all 53 graph revisions of the search |
+| `REPLAY.md` | The construction replayed at outline level, one entry per graph revision |
+| `OUTLINE.md` | The target model as an outline, with the first line of each linked note |
 | `MANIFEST.json` | SHA-256 digests of these files and the source identities |
-| `example.test.mjs` | Checks the digests, imports the world library into a search on another problem, and registers the target model with the ontologies merged in |
+| `example.test.mjs` | Checks the digests; imports `history.json` on a fresh engine, checks every hash and regenerates the replay, the outline, the target model and the atlas from it; imports the world library into a search on another problem; and registers the target model with the ontologies merged in |
 
 ## What was run
 
@@ -38,6 +41,28 @@ mappings, not evidence that any design works.
   curators. The decisions are not independent of the caller's knowledge.
 - **Transfers.** Three mechanisms were mapped onto the target model, each with
   dated proxy labels, at least seven disanalogies, and a fit Cut with a remainder.
+
+## The construction record
+
+`history.json` holds the whole search as it was built: every world, solve, task,
+mechanism, ontology revision, transfer, commission and selection, one graph
+revision each. Import it on any engine with `life_construction_import`. The engine
+rebuilds every revision and checks each hash against the exported one. Then
+`life_construction_replay` walks the search step by step. `REPLAY.md` is that
+replay at outline level, and the reasoning level adds each record's principle,
+decision or rationale.
+
+After the run the maintainer (Claude Opus 5.5, in the session that prepared this
+release) made two changes through the same tools. The last steps of the replay
+show them:
+
+- Revision 2 of the target model describes its five Events, which had none. No
+  value changed.
+- The search was rebound to that revision, and a note held by the maintainer says
+  why. The rebind dropped no anchor.
+
+The atlas re-rendered at the new head is byte-identical to `atlas.md`, and the
+world library and ontologies are as exported at the end of the run.
 
 ## What it found
 

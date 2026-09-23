@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import * as z from 'zod/v4';
 import { authorModelSchema, authorModelSourceIds, validateAuthorModelSources } from './storytelling-author-model.mjs';
 import { trajectoryExploreSchema, trajectoryReviseSchema, prepareTrajectoryExplore, reviseTrajectory } from './storytelling-trajectories.mjs';
+import { recordAnchorEndpoint, targetSchema } from './construction-record.mjs';
+import { constructionRecordInstructions } from './construction-principles.mjs';
 
 const id = z.string().trim().min(1).max(256);
 const prose = z.string().min(1).max(64_000).refine((text) => text.trim().length > 0, 'Authored text must not be blank.');
@@ -10,14 +12,17 @@ export const authorRecordContextSchema = z.object({
   storyRootId: id, authorId: id,
   accessScopes: z.array(id).min(1).max(64),
 }).strict();
+const reflectionKinds = ['assessment', 'selection', 'revision', 'disclosure', 'idea', 'prediction', 'question', 'voice', 'decision', 'reference'];
 export const authorRecordSchema = authorRecordContextSchema.extend({
-  kind: z.enum(['candidate', 'draft', 'assessment', 'selection', 'revision', 'disclosure', 'context', 'author_model']),
+  kind: z.enum(['candidate', 'draft', 'context', 'author_model', ...reflectionKinds]),
   text: prose,
   data: z.json().optional(),
   links: z.array(z.object({
     relation: z.enum(['about', 'supports', 'contradicts', 'refines', 'answers', 'learned_from', 'supersedes', 'shaped_by']),
     targetNodeId: id,
   }).strict()).max(128).default([]),
+  // Model records the note concerns, by kind:id, such as event:ev.arrival or cut:cut.d09.attention.
+  about: z.array(targetSchema).max(32).default([]),
 }).strict().superRefine((record, context) => {
   if (record.kind !== 'author_model') return;
   const parsed = authorModelSchema.safeParse(record.data);
@@ -37,7 +42,8 @@ export const storedTrajectoryReviseSchema = z.object({
 export const graphAuthoringInstructions = `Keep the complete authoring record inside Meaning Model. Once the initial brief and human involvement are settled, store them through life_story_author_record with explicit author-only scopes (context for the brief, selection for the agreement); record later changes with supersedes links. Distinguish human decisions from LLM choices made under delegation. The narrative graph is authoritative for story text, draft alternatives, numerical proposals, seed draws and naming alternatives, assessments, selection decisions, revision reasons, context and disclosure plans. Create the model and story graph before developing them. Files, chat summaries and PDFs are exports, never a parallel source of story facts or decisions.
 Use life_story_author_record to save draft/seed alternatives and author-process material, and concise assessments or decisions as actual Understanding Nodes. Save the exact task and result in data when reviewing or exploring; link the result to the relevant candidate, draft or passage. Use the current graphHash returned by each write. Reuse/query those graph records as context; do not continue from an unrecorded external plan. The author understanding root and its authoring_step clock are distinct from world time and reader order. Record authored explanations, not hidden internal reasoning.
 When a scene contains independently changeable beats, images, exchanges or paragraphs, pass ordered passages to scene review and commit. Their exact blank-line join is the stored draft; review binds their IDs and text as well as the whole scene. Keep naturally coupled prose together; there is no quota. Use the shared life_narrative_edit operation for later splitting, merging, movement, reordering and local text replacement. Preserve the returned predecessor identity, inspect affected review IDs, and review the newly rendered scene and its context after substantive changes; existing review text does not certify a changed passage.
-life_story_trajectory_explore and life_story_trajectory_revise persist their numerical results directly; revise reads an existing graph record and preserves its predecessor. Then record your keep/revise/discard assessment with life_story_author_record. A promising character should usually receive the smallest useful repair, preserving identity and unaffected points. Keep proposals distinct from accepted model facts. Store scene drafts before review, including rejected alternatives; scene_commit stores the reviewed story text. Record purpose-review outcomes and deliberate suspense/disclosure processes in the graph. After narrative revision, update the graph and export the rendered text again; never patch the exported manuscript independently. Tool validation checks structure and references, not whether every unwritten thought was recorded or every literary judgment is correct.`;
+life_story_trajectory_explore and life_story_trajectory_revise persist their numerical results directly; revise reads an existing graph record and preserves its predecessor. Then record your keep/revise/discard assessment with life_story_author_record. A promising character should usually receive the smallest useful repair, preserving identity and unaffected points. Keep proposals distinct from accepted model facts. Store scene drafts before review, including rejected alternatives; scene_commit stores the reviewed story text. Record purpose-review outcomes and deliberate suspense/disclosure processes in the graph. After narrative revision, update the graph and export the rendered text again; never patch the exported manuscript independently. Tool validation checks structure and references, not whether every unwritten thought was recorded or every literary judgment is correct.
+Record as you write, not only at milestones: ideas for later scenes, predictions, questions, decisions, references back and voice or phrasing choices (why a line sounds like its speaker) are life_story_author_record kinds idea, prediction, question, decision, reference and voice. Link each to the passages it concerns and, with about, to the model records it concerns (event:, cut:, process:, referent:), so a later agent sees the thought beside its subject. Record every outside review, from a blind reader, another model, an estimator or a person, with life_review_record under its actual reviewer, and link the changes that answer it with answers. Give every Event that carries a Cut a description; scene preparation blocks commits until it has one. ${constructionRecordInstructions}`;
 
 function bounded(value) {
   if (Buffer.byteLength(JSON.stringify(value)) > 512 * 1024) throw new Error('Author record exceeds 512 KiB.');
@@ -76,7 +82,7 @@ export async function prepareAuthorRecord(service, raw) {
   if (root && (root.node_type !== 'understanding_process_root' || root.subject !== input.storyRootId
     || root.render !== 'exclude' || root.training !== 'exclude')) throw new Error('Author understanding root has incompatible semantics.');
   if (input.nodeId === rootId || view.nodes.some((node) => node.id === input.nodeId)) throw new Error('Author record already exists; use a new node ID for an explicit revision.');
-  const targets = [...new Set([input.storyRootId, ...input.links.map((link) => link.targetNodeId), ...(root ? [rootId] : [])])];
+  const targets = [...new Set([input.storyRootId, ...input.links.map((link) => link.targetNodeId), ...input.about.filter((target) => target.nodeId).map((target) => target.nodeId), ...(root ? [rootId] : [])])];
   let scopes = [...new Set(input.accessScopes)].sort();
   for (const targetId of targets) {
     const target = view.nodes.find((node) => node.id === targetId);
@@ -94,7 +100,16 @@ export async function prepareAuthorRecord(service, raw) {
   const payload = { schema: 'meaning-model-story-author-record/v1', kind: input.kind,
     text: input.text, ...(input.data === undefined ? {} : { data: input.data }),
     authoringClock: { rootId, unit: 'authoring_step', at: step } };
-  const reflection = ['assessment', 'selection', 'revision', 'disclosure'].includes(input.kind);
+  const reflection = reflectionKinds.includes(input.kind);
+  const recordTargets = input.about.filter((target) => target.record);
+  let bound = null;
+  if (recordTargets.length) {
+    const modelHash = view.graph.source?.model_hash ?? view.graph.source_snapshot?.model_hash ?? null;
+    if (!modelHash) throw new Error('Author record model targets need a model-bound story graph.');
+    bound = { modelHash, model: (await service.inspectModel({ modelHash, includeDefinition: true })).model };
+    provenance.push(`written-against-model:${modelHash}`);
+  }
+
   const nodes = [{ ...common, id: input.nodeId, node_type: `storytelling.${input.kind}`,
     role: reflection ? 'externalized_reflection' : 'metadata', text: JSON.stringify(payload),
     epistemic_status: 'authored_proposal', evidence_type: 'creative_hypothesis',
@@ -110,7 +125,10 @@ export async function prepareAuthorRecord(service, raw) {
     family, relation, access_scopes: scopes, provenance, ...extra });
   const edges = [edge('placement', rootId, input.nodeId, 'structural', 'contains', { order: step }),
     edge('story', input.nodeId, input.storyRootId, 'semantic', 'about'),
-    ...input.links.map((link, index) => edge(`link.${index}`, input.nodeId, link.targetNodeId, 'semantic', link.relation))];
+    ...input.links.map((link, index) => edge(`link.${index}`, input.nodeId, link.targetNodeId, 'semantic', link.relation)),
+    ...input.about.map((target, index) => (target.record
+      ? { id: `${input.nodeId}.about.${index}`, source: endpoint(input.nodeId), target: recordAnchorEndpoint(bound.model, target, `Author record ${input.nodeId}`, bound.modelHash), family: 'grounding', relation: 'about', access_scopes: scopes, provenance }
+      : edge(`about.${index}`, input.nodeId, target.nodeId, 'semantic', 'about')))];
   return { input, narrativeBatch: { schema: 'life-sim-rust-narrative-batch/v1', previous_graph_hash: input.graphHash,
       reason: `Record ${input.kind} ${input.nodeId}.`, provenance,
       add_roots: root ? [] : [rootId], add_nodes: nodes, add_edges: edges },

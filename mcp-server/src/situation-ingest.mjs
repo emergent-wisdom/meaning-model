@@ -7,6 +7,7 @@ import { REMAINDER_KEY, buildCutShareQuestions, proposalFromProbabilities } from
 import { rebindNarrativeGraph, preflightNarrativeRebind, assertCompleteNarrativeView } from './narrative-rebind.mjs';
 
 import { retainEstimatorProposal, readEstimatorProposal, runEstimatorRequest } from './estimator-receipts.mjs';
+import { assertDescribedEvents } from './construction-record.mjs';
 
 const id = z.string().trim().min(1).max(1_024);
 const shortId = z.string().trim().min(1).max(256);
@@ -105,7 +106,9 @@ async function executeIngest(input, estimator, service, checkpoint = null) {
   for (const spec of input.events) {
     const existing = events.get(spec.eventId);
     if (existing) {
-      if ((spec.boundary || spec.description) && !input.replaceExisting) throw new Error(`Event ${spec.eventId} already exists; set replaceExisting to revise its boundary or description.`);
+      // Adding a missing description gives the Event's numbers meaning; replacing one is a revision.
+      const describing = spec.description && !(typeof existing.description === 'string' && existing.description.trim());
+      if ((spec.boundary || (spec.description && !describing)) && !input.replaceExisting) throw new Error(`Event ${spec.eventId} already exists; set replaceExisting to revise its boundary or description.`);
       if (spec.boundary) existing.boundary = spec.boundary;
       if (spec.description) existing.description = spec.description;
       if ((spec.interval || Object.keys(spec.participants).length || spec.parentEventId) && !input.replaceExisting) throw new Error(`Event ${spec.eventId} already exists; set replaceExisting for event field changes.`);
@@ -125,6 +128,8 @@ async function executeIngest(input, estimator, service, checkpoint = null) {
     successor.meaning_model.events.push(event); events.set(spec.eventId, event); addedEventIds.push(spec.eventId);
     successor.meaning_model.event_relations.push({ id: `${spec.parentEventId}.contains.${spec.eventId}`, kind: 'contains', source_event_id: spec.parentEventId, target_event_id: spec.eventId, description: 'Containment declared at ingest.', authority: null, uncertainty: { kind: 'unknown' }, provenance });
   }
+  // Every Event that will carry a Cut needs a description before any estimate is asked for.
+  assertDescribedEvents(events, input.questions.flatMap((question) => (question.eventIds.length ? question.eventIds : input.events.map((event) => event.eventId))), 'Placing Cuts');
   const generatedCutIds = new Set();
   const previousCuts = new Set(successor.meaning_model.normalized_cuts.map((cut) => cut.id));
   for (const question of input.questions) for (const eventId of (question.eventIds.length ? question.eventIds : input.events.map((event) => event.eventId))) {

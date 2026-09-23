@@ -1774,6 +1774,7 @@
    },
    {
     "boundary": "Bitcoin whitepaper released",
+    "description": "The paper describing Bitcoin, a peer-to-peer electronic cash system, is posted to the Cryptography mailing list on 2008-10-31, about six weeks after the Lehman failure. It begins the reading of Bitcoin as money outside the banks, the first of Bitcoin's four dated monetary meanings in the model.",
     "id": "ev.bitcoin_whitepaper",
     "interval": {
      "end": -206,
@@ -1793,6 +1794,7 @@
    },
    {
     "boundary": "BTC all-time high near $69K",
+    "description": "BTC reaches the high of the easy-money cycle, an intraday $69,000 on 2021-11-10. The record daily close came two days earlier, about $67,500 on November 8. The model's sample dated November 10 records that close; the close on the 10th was about $64,800. The first hike follows four months later.",
     "id": "ev.btc_ath_2021",
     "interval": {
      "end": -49.667,
@@ -1814,6 +1816,7 @@
    },
    {
     "boundary": "BTC all-time high near $126K",
+    "description": "BTC reaches its all-time high, an intraday $126,296 on 2025-10-06, four days before the liquidation cascade. Cumulative US spot ETP net inflows peak three days later, at about $62.7bn on October 9.",
     "id": "ev.btc_ath_oct_2025",
     "interval": {
      "end": -2.806,
@@ -1864,6 +1867,7 @@
    },
    {
     "boundary": "Celsius and Three Arrows Capital fail",
+    "description": "Crypto credit fails in sequence: Celsius pauses withdrawals on 2022-06-12, a British Virgin Islands court orders Three Arrows Capital into liquidation on June 27, and Celsius files for Chapter 11 on July 13. Leverage built in the easy years unwinds; the model records the failures on its leverage regime.",
     "id": "ev.celsius_3ac_2022",
     "interval": {
      "end": -41.581,
@@ -1885,6 +1889,7 @@
    },
    {
     "boundary": "Debt limit suspended; TGA rebuilt mostly from bill issuance absorbed by ON RRP",
+    "description": "The Fiscal Responsibility Act, signed 2023-06-03, suspends the debt limit until 2025-01-01. From June 2 to October 2 the Treasury rebuilds its cash account from about $23bn to about $678bn by issuing bills, while ON RRP balances fall from about $2,142bn to $1,366bn. ON RRP fell by more than the TGA rose: cash that had sat in the Fed facility absorbed the bills, so this rebuild spared bank reserves, unlike the rebuild of 2025.",
     "id": "ev.debt_limit_2023_tga_rebuild",
     "interval": {
      "end": -27,
@@ -2036,6 +2041,7 @@
    },
    {
     "boundary": "100bp of cuts from 5.50% to 4.50% upper bound",
+    "description": "The Fed cuts 50bp on 2024-09-18, 25bp on November 7 and 25bp on December 18, taking the upper bound from 5.50% to 4.50%. These are the first cuts since 2020, after fourteen months at the plateau. They overlap the election and the late-2024 rally, so the 2024 assessment has to separate the monetary share from the crypto-policy share.",
     "id": "ev.fed_cuts_2024",
     "interval": {
      "end": -12.419,
@@ -2058,6 +2064,7 @@
    },
    {
     "boundary": "75bp of cuts from 4.50% to 3.75% upper bound (September-December 2025)",
+    "description": "The Fed cuts 25bp each on 2025-09-17, October 29 and December 10, taking the upper bound from 4.50% to 3.75%. Easing resumes after nine months on hold. The October and December cuts fall inside the Q4 drawdown, which the model keeps as an open anomaly.",
     "id": "ev.fed_cuts_2025",
     "interval": {
      "end": -0.677,
@@ -2080,6 +2087,7 @@
    },
    {
     "boundary": "First hike of the 2022 cycle",
+    "description": "The Fed raises the target range from 0-0.25% to 0.25-0.50% on 2022-03-16, effective the next day. It is the first of the hikes that take the upper bound to 5.50% by July 2023, and it ends the pandemic-easing era.",
     "id": "ev.fed_first_hike_2022",
     "interval": {
      "end": -45.484,
@@ -2101,6 +2109,7 @@
    },
    {
     "boundary": "Fed announces first large-scale asset purchases and cuts to 0-0.25%",
+    "description": "On 2008-11-25 the Fed announces its first large-scale asset purchases: up to $100bn of GSE debt and $500bn of mortgage-backed securities. On 2008-12-16 it cuts the target range to 0-0.25%. This opens the zero-rate, balance-sheet era in which Bitcoin was created; the model keeps no numerical series for it.",
     "id": "ev.fed_qe1_zlb_2008",
     "interval": {
      "end": -204.484,
@@ -2123,6 +2132,7 @@
    },
    {
     "boundary": "Emergency cuts to 0-0.25% and open-ended asset purchases",
+    "description": "In March 2020 the Fed cuts 50bp on March 3, cuts to 0-0.25% on March 15 with at least $500bn of Treasury and $200bn of mortgage-backed purchases, and on March 23 makes the purchases open-ended, in the amounts needed. Its total assets then grow from about $4.2T to about $9T. This is the easing that the 2020-2021 assessment divides among the conduits.",
     "id": "ev.fed_zlb_qe_2020",
     "interval": {
      "end": -69.258,
@@ -2145,6 +2155,7 @@
    },
    {
     "boundary": "Final hike to 5.25-5.50%",
+    "description": "The Fed raises the target range to 5.25-5.50% on 2023-07-26, effective the next day. It is the last hike of the cycle; the rate holds at this plateau until September 2024.",
     "id": "ev.final_hike_2023",
     "interval": {
      "end": -29.161,
@@ -2166,6 +2177,7 @@
    },
    {
     "boundary": "FTX collapses and files for bankruptcy",
+    "description": "After a run from November 6 to 10, 2022, the FTX exchange files for Chapter 11 on November 11. BTC closes near its cycle low, about $15,800, on November 9 and again on November 21. It is the largest of 2022's crypto credit failures, and crypto-internal rather than monetary.",
     "id": "ev.ftx_collapse",
     "interval": {
      "end": -37.633,
@@ -2189,6 +2201,7 @@
    },
    {
     "boundary": "Bitcoin genesis block mined",
+    "description": "The first Bitcoin block, block 0, is mined with the timestamp 2009-01-03 18:15 UTC. The network and the BTC supply begin here.",
     "id": "ev.genesis_block",
     "interval": {
      "end": -203.903,
@@ -2208,6 +2221,7 @@
    },
    {
     "boundary": "GENIUS Act signed (federal payment-stablecoin framework)",
+    "description": "The GENIUS Act, the federal framework for payment stablecoins, is signed on 2025-07-18. It writes into law the reserve composition that fiat-backed issuers already used, mainly short Treasury bills, so stablecoin growth adds steady demand for bills. It is a crypto-policy event on the stablecoin conduit.",
     "id": "ev.genius_act",
     "interval": {
      "end": -5.419,
@@ -2270,6 +2284,7 @@
    },
    {
     "boundary": "Largest recorded crypto liquidation cascade (about $19B) after a US-China tariff threat",
+    "description": "On October 10-11, 2025, after a threat of 100% US tariffs on China, more than $19bn of leveraged crypto positions are liquidated, the largest cascade on record; CoinGlass estimates that undisclosed liquidations put the true total at $30-40bn. It flushes the leverage built in the rally, the first candidate explanation for the Q4 drawdown.",
     "id": "ev.liquidation_cascade_oct_2025",
     "interval": {
      "end": -2.645,
@@ -2328,6 +2343,7 @@
    },
    {
     "boundary": "Balance-sheet runoff begins",
+    "description": "Balance-sheet runoff begins on 2022-06-01, as planned on May 4: the Fed stops reinvesting part of its maturing securities, and its total assets begin to fall. Runoff is the quantity side of the 2022 tightening, next to the hikes.",
     "id": "ev.qt_start_2022",
     "interval": {
      "end": -42.967,
@@ -2349,6 +2365,7 @@
    },
    {
     "boundary": "Runoff slowed (Treasury cap $60B to $25B)",
+    "description": "From June 2024 the monthly cap on Treasury runoff falls from $60bn to $25bn, as announced on May 1. The balance sheet keeps shrinking, more slowly.",
     "id": "ev.qt_taper_2024",
     "interval": {
      "end": -18.967,
@@ -2370,6 +2387,7 @@
    },
    {
     "boundary": "Runoff slowed further (Treasury cap $25B to $5B)",
+    "description": "From April 2025 the monthly cap on Treasury runoff falls again, from $25bn to $5bn, as announced on March 19. Treasury runoff nearly stops; runoff ends entirely on 2025-12-01.",
     "id": "ev.qt_taper_2025",
     "interval": {
      "end": -8.967,
@@ -2391,6 +2409,7 @@
    },
    {
     "boundary": "Repo pressure and record Standing Repo Facility use; runoff ends 2025-12-01",
+    "description": "As the TGA rebuild drains reserves, funding tightens: on 2025-10-31 banks draw $50.35bn from the Standing Repo Facility, the most since it began in 2021. The FOMC statement of October 29 ends balance-sheet runoff on December 1. Reserve scarcity is one of the unresolved candidate explanations for the Q4 drawdown.",
     "id": "ev.repo_pressure_qt_end_2025",
     "interval": {
      "end": -1,
@@ -2463,6 +2482,7 @@
    },
    {
     "boundary": "Executive order establishing a US Strategic Bitcoin Reserve",
+    "description": "On 2025-03-06 the President signs an executive order establishing a Strategic Bitcoin Reserve and a US Digital Asset Stockpile. It is a crypto-policy event, not a monetary one, and belongs to the latest of Bitcoin's dated meanings in the model, BTC as an institutional allocation.",
     "id": "ev.strategic_btc_reserve_eo",
     "interval": {
      "end": -9.806,
@@ -2508,6 +2528,7 @@
    },
    {
     "boundary": "Broad tariff announcement and risk-asset selloff; dollar weakens",
+    "description": "The reciprocal-tariff order of 2025-04-02 sets off a broad selloff in risk assets. The dollar index falls from 103.81 on April 2 to 99.78 on April 11, and BTC closes at $76,351 on April 8. It is a trade shock rather than a US monetary one: the dollar weakened and BTC fell at the same time.",
     "id": "ev.tariff_shock_2025",
     "interval": {
      "end": -8.7,
@@ -2529,6 +2550,7 @@
    },
    {
     "boundary": "Terra's UST loses its peg; LUNA collapses",
+    "description": "Terra's algorithmic stablecoin UST slips below its peg on 2022-05-07 and breaks it on May 9, falling as low as $0.65; by May 16 it trades near $0.11 and LUNA is near zero. UST was not a member of the fiat-backed conduit. Its collapse is the first of 2022's three crypto credit failures, before Celsius and Three Arrows, then FTX.",
     "id": "ev.terra_collapse",
     "interval": {
      "end": -43.516,
@@ -2596,6 +2618,7 @@
    },
    {
     "boundary": "Illustrative, revisable explanatory model of how US monetary conditions reach the crypto market, focused on Bitcoin. In scope: the US policy-rate path, the Fed balance sheet and reserves, Treasury cash management (TGA) and the ON RRP facility, the dollar index and real yields; two dollar conduits into crypto (USD stablecoin supply; US spot bitcoin ETP flows), a leverage amplifier, a valuation channel and corporate-treasury buying; BTC's price as one outcome process; and the US crypto-policy regime as a gate on the conduits. Out of scope: other central banks except as dated events, altcoins including Ethereum, on-chain microstructure, individual investors, and any forecast. Evidence cutoff 2025-12-31 (t = 0). Built from the modeler's recalled knowledge of public records, not retrieved data. Not a forecast, trading signal or investment analysis.",
+    "description": "The whole modeled span: US dollar conditions and the crypto market from the 2008 crisis (month -208) to the evidence cutoff at the end of 2025 (month 0), in four eras. Every other Event happens inside it. The modeler recalled the values; a separate pass later checked the dated ones against retrieved public sources.",
     "id": "general.event.world",
     "interval": null,
     "observation_process_ids": [],
@@ -2609,6 +2632,7 @@
    },
    {
     "boundary": "Genesis block 2009-01-03; continuing",
+    "description": "Bitcoin exists as a network and an asset from the genesis block on 2009-01-03 to beyond the cutoff. BTC's dollar price is the model's outcome process.",
     "id": "general.lifecycle.ref.bitcoin",
     "interval": null,
     "observation_process_ids": [],
@@ -2626,6 +2650,7 @@
    },
    {
     "boundary": "From August 2020 (first large corporate treasury purchases) to the cutoff",
+    "description": "Listed companies hold BTC as a treasury asset from the first large purchases in August 2020 to the cutoff: Strategy, and in 2025 a wave of digital-asset-treasury firms. Their buying is the corporate-treasury conduit, which Jev's Cuts give almost nothing; the modeler recorded a disagreement.",
     "id": "general.lifecycle.ref.corporate_treasuries",
     "interval": null,
     "observation_process_ids": [],
@@ -2642,6 +2667,7 @@
    },
    {
     "boundary": "Continuing across the modeled horizon",
+    "description": "Crypto derivatives venues, offshore perpetual swaps and CME futures taken as one leverage collective, operate across the whole horizon. They are the model's leverage amplifier: leverage builds in rallies and is flushed in failures and cascades, as in 2022 and October 2025.",
     "id": "general.lifecycle.ref.crypto_derivatives",
     "interval": null,
     "observation_process_ids": [],
@@ -2659,6 +2685,7 @@
    },
    {
     "boundary": "Established 1913; continuing past the evidence cutoff",
+    "description": "The Federal Reserve exists from 1913 to beyond the cutoff. It acts through the FOMC and the New York Fed's open-market desk, and sets the two conditions the model follows most closely: the policy rate and the size of its balance sheet.",
     "id": "general.lifecycle.ref.fed",
     "interval": null,
     "observation_process_ids": [],
@@ -2676,6 +2703,7 @@
    },
    {
     "boundary": "Established 1789; continuing",
+    "description": "The US Treasury exists from 1789 onward. In the model it matters as the issuer of bills and the holder of its cash account at the Fed, the TGA, whose rebuilds and drawdowns move bank reserves.",
     "id": "general.lifecycle.ref.treasury",
     "interval": null,
     "observation_process_ids": [],
@@ -2692,6 +2720,7 @@
    },
    {
     "boundary": "Trading from 2024-01-11; continuing",
+    "description": "US-listed spot bitcoin ETPs trade from 2024-01-11 onward. Their net flows are the second dollar conduit, the regulated route from traditional finance into spot BTC.",
     "id": "general.lifecycle.ref.us_spot_btc_etps",
     "interval": null,
     "observation_process_ids": [],
@@ -2708,6 +2737,7 @@
    },
    {
     "boundary": "From 2014 (Tether) to the cutoff and beyond",
+    "description": "Fiat-backed USD stablecoins exist as a class from Tether's start in 2014 to beyond the cutoff. Their supply is one of the two dollar conduits into crypto, and their issuers hold reserves mainly in short Treasury bills.",
     "id": "general.lifecycle.ref.usd_stablecoins",
     "interval": null,
     "observation_process_ids": [],
@@ -3908,13 +3938,13 @@
   }
  ],
  "revision": {
-  "number": 5,
-  "previous_model_hash": "bcc7ce6238a0b9a5f2c31fdb8b8469e916f458f1ef28c1047a93304823d7837e",
+  "number": 6,
+  "previous_model_hash": "0e86c3e7a8751a70b346e4af4e50526b09bfda64cf9e5c4959c85ec286f84d4b",
   "provenance": [
    "meaning-model maintainer, 2026-09-23, after the market run",
    "notes/fact-check.md"
   ],
-  "reason": "Mark the eight measured series observed, so that retrieved reports of their past values can be filed as observations. The builder had made them static only because the modeler's cutoff values were recollections. Added after the run by the maintainer, for the retrieval check; no value changes."
+  "reason": "Describe the 30 Events that had no description, so that every Event says what happens in it and each number sits in a described situation. Written after the run by the maintainer (Claude Opus 5.5) from the event records, the modeler’s notes and the retrieval check; no value, interval, weight or boundary changes."
  },
  "schema": "life-sim-rust-model/v1",
  "time_unit": "month"

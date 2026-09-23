@@ -2804,3 +2804,49 @@ fn restart_rejects_tampered_revision_metadata_and_stale_writers_cannot_overwrite
     assert_eq!(visible_after_reload["summary"]["id"], "first-writer-model");
     fs::remove_file(&concurrent_state).unwrap();
 }
+
+#[test]
+fn understanding_nodes_anchor_to_a_normalized_cut_and_one_of_its_answers() {
+    let mut session = MachineSession::default();
+    let mut definition = model();
+    definition["meaning_model"]["normalized_cuts"] = json!([{
+        "id": "cut.mara.attention",
+        "parent_event_id": "mara-discloses",
+        "question": "How does Mara's attention divide as she discloses?",
+        "unit": "share of one attention budget",
+        "answers": [{"key": "jonas", "weight": 0.6}, {"key": "remainder", "weight": 0.4}],
+        "provenance": ["rust narrative graph test"]
+    }]);
+    let registered = execute(&mut session, json!({
+        "schema": "life-sim-rust-command/v1", "operation": "register_model", "model": definition
+    }));
+    let model_hash = registered["summary"]["model_hash"].as_str().unwrap().to_owned();
+    let note = json!({
+        "id": "note", "node_type": "understanding.decision", "role": "externalized_reflection",
+        "text": "Jonas takes most of her attention because the secret concerns him.",
+        "epistemic_status": "externalized_reflection", "evidence_type": "belief", "holder": "modeler",
+        "access_scopes": ["modeler"],
+        "authority": {"source": "modeler", "weight": 1.0}, "render": "exclude", "training": "exclude",
+        "provenance": ["rust narrative graph test"]
+    });
+    let anchored = |graph_id: &str, anchor_id: &str, path: Option<&str>| {
+        let mut target = json!({"kind": "anchor", "anchor_kind": "normalized_cut", "anchor_id": anchor_id});
+        if let Some(path) = path { target["path"] = json!(path); }
+        root_story_graph(&model_hash, graph_id, vec![note.clone()], vec![
+            story_edge("root.contains.note", "note", 0),
+            json!({"id": "note.about.cut", "source": {"kind": "node", "node_id": "note"}, "target": target,
+                "family": "grounding", "relation": "about", "provenance": ["rust narrative graph test"]}),
+        ])
+    };
+    let register = |session: &mut MachineSession, graph: Value| session.parse_and_execute(&json!({
+        "schema": "life-sim-rust-command/v1", "operation": "register_narrative_graph", "narrative_graph": graph
+    }).to_string());
+    let accepted = register(&mut session, anchored("cut-anchor", "cut.mara.attention", Some("/answers/0")));
+    assert!(accepted.ok, "a note anchors to one answer of a Cut: {:?}", accepted.error);
+    let unknown = register(&mut session, anchored("cut-anchor-unknown", "cut.missing", None));
+    assert!(!unknown.ok);
+    assert!(format!("{:?}", unknown.error).contains("NormalizedCut anchor cut.missing"), "{:?}", unknown.error);
+    let bad_path = register(&mut session, anchored("cut-anchor-path", "cut.mara.attention", Some("/answers/9")));
+    assert!(!bad_path.ok);
+    assert!(format!("{:?}", bad_path.error).contains("unresolved subpath"), "{:?}", bad_path.error);
+}

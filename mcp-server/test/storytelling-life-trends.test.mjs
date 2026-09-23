@@ -65,6 +65,9 @@ function fixture() {
       calls.push(input);
       return { graphHash: 'd'.repeat(64), snapshotHash, immutableRevision: true };
     },
+    // The bound model: its Cut-bearing Events are described unless a test says otherwise.
+    model: { id: 'fixture-model', meaning_model: { events: [], normalized_cuts: [] } },
+    async inspectModel() { return { modelHash: 'f'.repeat(64), model: structuredClone(this.model) }; },
   };
   const preparation = {
     graphHash, lifeTrendsNodeId: 'life.trends', modelDepthReviewNodeId: 'depth.review', accessScopes: [],

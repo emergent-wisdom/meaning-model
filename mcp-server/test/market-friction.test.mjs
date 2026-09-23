@@ -138,7 +138,8 @@ test('a Cut-share event target can divide one answer of a stored Cut', async (t)
   const { model } = await service.inspectModel({ modelHash: applied.modelHash, includeDefinition: true });
   const root = model.meaning_model.context_roots[0].event_id;
   const drivers = await proposeCutShares({ requestId: 'drivers', apply: true, modelHash: applied.modelHash, question: 'What moved the price?', answers: [{ key: 'monetary', meaning: 'Monetary conditions.' }, { key: 'crypto', meaning: 'Crypto-internal causes.' }],
-    events: [{ eventId: root, cutId: 'cut.drivers' }], distributions: [{ situationId: root, probabilities: { monetary: 0.6, crypto: 0.3 } }] }, null, service);
+    events: [{ eventId: root, cutId: 'cut.drivers', situationText: 'Over the year the rate fell and the price rose.' }], distributions: [{ situationId: root, probabilities: { monetary: 0.6, crypto: 0.3 } }] }, null, service);
+  assert.deepEqual(drivers.applied.descriptionsAdded, [root], 'the situation text judged becomes the undescribed Event\'s description');
   const conduit = await proposeCutShares({ requestId: 'conduit', apply: true, modelHash: drivers.applied.modelHash, question: 'Through which conduit did the monetary part travel?', answers: [{ key: 'stablecoins', meaning: 'Stablecoin supply.' }, { key: 'etfs', meaning: 'ETF flows.' }],
     events: [{ eventId: root, cutId: 'cut.conduit', conditionedOn: { cutId: 'cut.drivers', answerKey: 'monetary' } }], distributions: [{ situationId: root, probabilities: { stablecoins: 0.7, etfs: 0.2 } }] }, null, service);
   const stored = await service.inspectModel({ modelHash: conduit.applied.modelHash, includeDefinition: true });

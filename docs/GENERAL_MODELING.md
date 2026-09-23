@@ -26,6 +26,22 @@ Preserve competing explanations instead of assigning unsupported causal laws.
 Connect models through explicit referents and supported relationships; the tool
 does not automatically reconcile separately modeled systems.
 
+## Record what you do
+
+The model and its graph are your understanding. A later agent can continue only from
+what was recorded, and a thought helps only when it is linked to what it concerns.
+
+- Give every Event that carries a Cut a `description` of what happens in it, and
+  describe most other Events. Model writes report `descriptionCoverage`; the ingest
+  refuses Cuts on undescribed Events before any estimate.
+- Record your choices, ideas, predictions, questions and reasons with
+  `life_understanding_record`, linked to the records they concern (`event:`, `cut:`,
+  `process:` and the other kinds) or to graph nodes. Batch related notes.
+- Record outside reviews with `life_review_record` under their actual reviewer, with
+  the revision and text they saw, and link the changes that answer them.
+- To continue someone's model, read `life_construction_replay` from the start at
+  outline level, then `life_model_outline`, and open detail where you need it.
+
 ## Review broader context and longer-term developments
 
 Before construction, the agent completes `scaffold.contextReview` within the

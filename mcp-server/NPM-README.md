@@ -32,6 +32,20 @@ Modeling is always available; the two add-ons are opt-in with
 inspectable structure. None of them turns an estimate, a review or an idea into
 evidence.
 
+## The construction record
+
+The model and its Understanding Graph are the modeler's understanding, not a report
+about it: what is done and not recorded cannot be picked up by the next agent. Every
+Event that carries a Cut has a description of what happens in it, so its numbers mean
+something. Choices, ideas, predictions and voice decisions are recorded as
+Understanding Nodes linked to the events, Cuts and passages they concern, and outside
+reviews are recorded under their actual reviewers. `life_model_outline` shows the
+present state with its notes at a chosen depth, and `life_construction_replay` replays
+the whole development step by step, each note beside the records as they were when it
+was written. A model that continues someone else's story or model replays it first.
+`life_construction_export` and `life_construction_import` carry the whole history to
+another engine with the same hashes, so the worked examples can be replayed anywhere.
+
 ## Model what your application needs
 
 Choose your own processes, categories, relationships, and depth. Begin with

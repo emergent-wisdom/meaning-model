@@ -49,17 +49,76 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
   Model fragments into several entries within the engine's 1,024-byte bound per
   text, instead of exporting concepts the engine refuses to register.
 - Add `examples/alien-retirement`, the first live alien search: its atlas, a
-  four-world library, the ontologies as Meaning Model fragments and the target
-  model, with a test that imports the library into a search on another problem
-  and registers the model with the ontologies merged in.
-- Add `examples/integration-time`, a hard science-fiction story written in the
-  storytelling add-on and revised in five passes, each answering a blind reader:
+  four-world library, the ontologies as Meaning Model fragments, the target model
+  and the search's construction history (53 graph revisions) with the replay and
+  the outline. Revision 2 of the target model describes its five Events. Its test
+  rebuilds the history, imports the library into a search on another problem and
+  registers the model with the ontologies merged in.
+- Add `examples/integration-time`, a hard science-fiction story written by
+  Claude Opus 5.5 in the storytelling add-on, with Jev estimating the ending's
+  direction weights and auditing the prose, and revised in five passes, each
+  answering a blind reader:
   the story, its final model and narrative graph with every review and audit,
-  and the readers' reports, with a test that re-registers the model and graph on
-  a fresh engine and renders the story byte for byte.
+  the readers' reports, and its whole construction history (11 model and 147
+  graph revisions) with the replay and the outline. Its test rebuilds the
+  history on a fresh engine, checks every hash, renders the story byte for byte
+  and regenerates the replay and the outline. After the writing, model revision
+  10 described every Event, and each reader's report was recorded as a review
+  held by that reader.
 - Keep model anchors that name the model by its stable id when
   `life_narrative_rebind` moves a graph to a successor model; only anchors that
   name the predecessor hash are dropped.
+- Add the construction record: the model and its Understanding Graph are the
+  modeler's understanding, so what is done and why is recorded where a later agent
+  can read it.
+  - `life_understanding_record` records choices, ideas, predictions, questions,
+    voice decisions and reasons as Understanding Nodes held by a named holder,
+    each linked to the model records or nodes it concerns and stamped with the
+    model revision it was written against.
+  - `life_review_record` records a review under its actual reviewer (another
+    model, a blind reader, an estimator or a person), with what it was given, how
+    independent it was, the exact revision and text hash it read, and its findings.
+  - `life_model_outline` reads the present state as an outline with the linked
+    notes at a chosen depth.
+  - `life_construction_replay` replays the graph and model revisions from the
+    first, each step with its reasons, changes and notes, each note beside the
+    records as they were when it was written. It pages, focuses on records, and
+    replays a model revision chain alone.
+  - `life_construction_export` writes the whole construction of a model-bound
+    graph as a portable history with a bundle hash, and
+    `life_construction_import` rebuilds it on another engine, checking that every
+    model and graph hash is reproduced. Steps that only added records go in as
+    additive batches and the others as revisions by change.
+  - In the outline and the replay, a review leads with its verdict, and a note
+    linked to several records is shown once and named at the later ones.
+    Structured records, such as alien worlds, mechanisms and ontology decisions,
+    show their title and their most readable field. The replay names titled
+    records at outline level and gives each readable record a line at the
+    reasoning level.
+  - The modeling, storytelling and alien prompts ask for this record, and for a
+    replay before continuing existing work. Story author records gain the kinds
+    `idea`, `prediction`, `question`, `decision`, `reference` and `voice`, and
+    `about` links to model records.
+- Require descriptions where numbers live. Model registration and revision report
+  `descriptionCoverage`, the Events that carry a Cut without a description, and
+  `requireDescribedNumbers` refuses them. `life_model_ingest` refuses to place a
+  Cut on an undescribed Event before asking for any estimate, and can now add a
+  missing description without `replaceExisting`. `life_estimate_cut_shares`
+  records the situation text it judged as a missing description. Story scene
+  preparation reports an `undescribed-numbers` blocker.
+- Let narrative graph edges anchor to a normalized Cut (`normalized_cut`), and with
+  a path to one of its answers.
+- Store a narrative revision as its change. The service accepts a revision
+  written as its change from the predecessor, reads the complete predecessor,
+  applies the change strictly and validates the successor as a complete revision.
+  Its idempotency receipt keeps only the change. `life_narrative_rebind` and
+  `life_narrative_edit` use it, so a long session on a large graph no longer
+  retains a copy of the whole graph for every rebind or edit. A 147-revision story
+  now imports with about 3 MB of retained receipts instead of exceeding the 64 MiB
+  budget.
+- Keep edge explanations through rebinds, history exports and revision reads.
+  The list of revision fields had left out the stored `explanation` of an edge, so
+  a rebind silently dropped every explanation in the graph.
 - Accept Jev Score answers whose score differs from its two-decimal probabilities
   by rounding, and decline an answer that fails validation on its own coordinate
   in `life_process_estimate` instead of discarding the whole batch. Declined
@@ -93,8 +152,11 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
   history.
 - Add `examples/crypto-market`, a general-modeling run on how US monetary
   conditions reach the crypto market, built from recalled public records and
-  checked against retrieved sources, with a test that re-registers the model and
-  graph on a fresh engine and runs a world from it.
+  checked against retrieved sources, with its construction history (7 model and
+  17 graph revisions), the replay and the outline. Model revision 6 describes all
+  50 Events, and the retrieval check is recorded as a review held by its checker.
+  Its test rebuilds the history on a fresh engine, checks every hash, regenerates
+  the replay and the outline, and runs a world from the model.
 
 - Add the `realizes_forecast` event relation. Its `forecast_answer` names a
   normalized Cut on the source event and the answer key, remainder included, that

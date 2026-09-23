@@ -1,3 +1,4 @@
+import { descriptionCoverage } from './construction-record.mjs';
 import { createHash, randomInt } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import * as z from 'zod/v4';
@@ -456,6 +457,14 @@ export class StorytellingAddon {
     const blockers = [];
     if (!depthReview.readyForScene) blockers.push({ code: 'model-depth-unresolved',
       explanation: 'The saved depth review identifies missing explanation or evidence. Make the smallest useful repair and reassess before committing prose.' });
+    // Numbers mean something only against a description of the Event they divide.
+    const boundModelHash = view.graph.source?.model_hash ?? source.model_hash ?? null;
+    if (boundModelHash) {
+      const { model } = await this.service.inspectModel({ modelHash: boundModelHash, includeDefinition: true });
+      const coverage = descriptionCoverage(model);
+      if (coverage.undescribedNumbers.length) blockers.push({ code: 'undescribed-numbers', eventIds: coverage.undescribedNumbers.map((entry) => entry.eventId),
+        explanation: `These Events carry Cuts without a description of what happens in them: ${coverage.undescribedNumbers.map((entry) => entry.eventId).join(', ')}. Describe them in a model revision, rebind the story graph and prepare again.` });
+    }
     const checks = [
       { id: 'depth:scope', instruction: `Verify that this scene's consequential choices and outcomes are within the reviewed focus ${depthReview.focusNodeId} and that no new explanatory dependency or consequential change has been omitted. If outside that focus, store the revised plan/context and repeat life_story_model_depth_review and life_story_model_depth_record before proceeding.` },
       { id: 'depth:explanation', instruction: 'Verify that the actual scene relies on the reviewed causes, character limitations, relevant concepts and physical/institutional constraints. An authored sufficient assessment is not proof; report a missing mechanism or implausible choice honestly and refine the smallest necessary model part.' },

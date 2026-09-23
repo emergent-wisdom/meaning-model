@@ -5,6 +5,7 @@ import * as z from 'zod/v4';
 const id = z.string().trim().min(1).max(1_024);
 const hash = z.string().length(64);
 import { stripEdgeForRevision, stripNodeForRevision } from './narrative-fields.mjs';
+import { definitionFromCompleteView, narrativeDefinitionDelta } from './narrative-delta.mjs';
 export { NODE_FIELDS, EDGE_FIELDS, stripNodeForRevision, stripEdgeForRevision } from './narrative-fields.mjs';
 const MAX_LINEAGE_STEPS = 256;
 
@@ -79,6 +80,8 @@ export async function rebindNarrativeGraph(service, raw) {
   const { successor, droppedModelAnchorEdgeIds, previousModelHash } = buildRebindSuccessor(view, { graphHash: input.graphHash, modelHash: input.modelHash, modelId, reason: input.reason, provenance });
   if (previousModelHash === input.modelHash) throw new Error('The graph is already bound to this model.');
   const lineageSteps = await assertModelSuccessor(service, previousModelHash, input.modelHash);
-  const stored = await service.reviseNarrativeGraph({ requestId: input.requestId, previousGraphHash: input.graphHash, narrativeGraph: successor });
+  // Stored as its change (the new source and the dropped anchors), so the receipt keeps no copy of the graph.
+  const stored = await service.reviseNarrativeGraphByDelta({ requestId: input.requestId, previousGraphHash: input.graphHash,
+    delta: narrativeDefinitionDelta(definitionFromCompleteView(view, 'Rebind'), successor), accessScopes });
   return { ...stored, schema: 'meaning-model-narrative-rebind/v1', previousGraphHash: input.graphHash, previousModelHash, modelHash: input.modelHash, lineageSteps, droppedModelAnchorEdgeIds, retainedNodeCount: successor.nodes.length, historicalAssessmentsRetained: true, worldMutation: false, nextStep: 'Historical depth and review nodes remain but their predecessor-model anchors were removed; record fresh assessments against the successor model before committing further prose.' };
 }

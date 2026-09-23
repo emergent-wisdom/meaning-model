@@ -2,23 +2,31 @@
  "schema": "meaning-model-example-manifest/v1",
  "example": "crypto-market",
  "source": {
-  "modelHash": "0e86c3e7a8751a70b346e4af4e50526b09bfda64cf9e5c4959c85ec286f84d4b",
-  "modelRevision": 5,
-  "graphHash": "ad18694cc4a40661de0e96a919fdad2c881cfadd1c072c86b2ca1dfb19881ffe",
-  "graphRevision": 13,
+  "modelHash": "bf066d32d851be8268eb9f3410f2d5efecb4edd5cff0d1763d8c9311917dfb62",
+  "modelRevision": 6,
+  "graphHash": "f98b569a9da049f9b4f2df72c0c5662d7971a12ddb893bf8f11f50f423f8904a",
+  "graphRevision": 16,
+  "historyBundleSha256": "2a37c531239a2a905e949894edb4adb2c9cf2252776709b89dea719a4e8e3532",
+  "historyRevisions": 17,
+  "historyModels": 7,
   "processes": 13,
   "events": 50,
+  "describedEvents": 50,
   "normalizedCuts": 15,
-  "graphNodes": 242,
-  "graphEdges": 915
+  "graphNodes": 250,
+  "graphEdges": 1068
  },
  "files": {
-  "README.md": "1437b2217a4a3cbad65cc3556d7b398160fafb49de92b726be27bae595b58c66",
-  "model.json": "ba94062d65fd47a9e2631ec7dd36678348a821f4fcd866860e91f096dba141fb",
-  "graph.json": "c42a407ba90a25d883fee8062e8446c971cebcebd80e03f0a5267f6456c76e1e",
+  "README.md": "c2609eae0045ecb07e4ce3ce94914549f91f50d2ed8a4e5436826708c2319ffa",
+  "model.json": "6a9665adfe5f173f842f3f5891515f292ec31ae1c841503c00317d4e1c3e2215",
+  "graph.json": "29bed99d7ae169e07cbebf3a42a91a4621a513d7cffbf4a4262c23a14a57b549",
+  "history.json": "08f33d30f7731688b1762e4ed24eca3ea376fb6821a2f855ca8ff208b0dc2793",
+  "REPLAY.md": "ac136d33731503dfe18b44d0c535952f805388c74a9c8eee2810d8b87be60203",
+  "OUTLINE.md": "3d81dea4279d0a75b6267fc68a855365faf3799d2558f82eb1aec4a95768443e",
   "notes/reading.md": "24c61c59bda11193a5d7d7502fb169219dd723e41ec8f91f47fe3669464b1e06",
   "notes/summary.md": "70befccf4f0a033a03c74d838594ec2d6bff1a6168ff19a958c2273499e10779",
   "notes/friction.md": "eaf961def774124ff14e01ed9b9c846ccc998ce70268abe9c98c2cc73111ccea",
+  "notes/facts-to-check.md": "a5faeb9b09b75b4596f92b08c79dcb48aaed7d35511171bdb0457b190697f25d",
   "notes/fact-check.md": "4c7a2ba5af828263c6341dc51afa60df2a93d03cd65034a72ba8954ee08fa363"
  }
 }

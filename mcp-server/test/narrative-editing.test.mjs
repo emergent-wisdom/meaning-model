@@ -255,7 +255,8 @@ test('the edit helper rejects a mismatched full projection before requesting any
   const view = await f.read();
   let writes = 0;
   const proxy = { queryNarrativeGraph: async () => ({ ...view, graph_hash: 'f'.repeat(64) }),
-    reviseNarrativeGraph: async () => { writes++; throw new Error('Unexpected mutation.'); } };
+    reviseNarrativeGraph: async () => { writes++; throw new Error('Unexpected mutation.'); },
+    reviseNarrativeGraphByDelta: async () => { writes++; throw new Error('Unexpected mutation.'); } };
   await assert.rejects(editNarrativeGraph(proxy, f.input([
     { kind: 'replace_text', nodeId: 'p2', expectedText: 'Third.', text: 'New.' },
   ])), /exact full graph/);

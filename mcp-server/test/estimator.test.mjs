@@ -148,7 +148,7 @@ function modelFixture() {
     async inspectModel({ modelHash, includeDefinition }) { calls.push(['inspect', modelHash]); if (modelHash === newModel) return { modelHash, summary: { revision: { number: 2, previous_model_hash: oldModel } } }; if (modelHash === oldModel) return { modelHash, summary: { revision: { number: 1, previous_model_hash: '1'.repeat(64) } }, ...(includeDefinition ? { model: structuredClone(definition) } : {}) }; return { modelHash, summary: { revision: { number: 0, previous_model_hash: null } } }; },
     async reviseModel(input) { calls.push(['revise', input]); return { modelHash: newModel, previousModelHash: input.previousModelHash, stored: true, summary: { normalized_cut_count: input.model.meaning_model.normalized_cuts.length } }; },
     async queryNarrativeGraph(input) { calls.push(['query', input]); return { ...structuredClone(graphView), graph_hash: input.graphHash }; },
-    async reviseNarrativeGraph(input) { calls.push(['reviseGraph', input]); return { graphHash: 'a1'.repeat(32), stored: true }; },
+    async reviseNarrativeGraphByDelta(input) { calls.push(['reviseGraph', input]); return { graphHash: 'a1'.repeat(32), stored: true }; },
   };
   return { calls, definition, graphView, service };
 }
@@ -195,12 +195,13 @@ test('supplied distributions are placed without an estimator, and rebind moves t
   assert.deepEqual(result.rebound.droppedModelAnchorEdgeIds, ['e2']);
   const reviseGraph = f.calls.find(([kind]) => kind === 'reviseGraph')[1];
   assert.equal(reviseGraph.requestId, 'req-2-rebind');
-  assert.equal(reviseGraph.narrativeGraph.source.model_hash, newModel);
-  assert.equal(reviseGraph.narrativeGraph.revision.number, 5);
-  assert.equal(reviseGraph.narrativeGraph.revision.previous_graph_hash, graphHash);
-  assert.deepEqual(reviseGraph.narrativeGraph.edges.map((edge) => edge.id), ['e1', 'e3']);
-  assert.equal(reviseGraph.narrativeGraph.nodes[0].boundary, undefined, 'projection-only node fields are stripped');
-  assert.equal(reviseGraph.narrativeGraph.edges[0].explanation, undefined, 'projection-only edge fields are stripped');
+  assert.equal(reviseGraph.delta.source.model_hash, newModel);
+  assert.equal(reviseGraph.delta.revision.number, 5);
+  assert.equal(reviseGraph.delta.revision.previous_graph_hash, graphHash);
+  assert.deepEqual(reviseGraph.delta.removeEdgeIds, ['e2'], 'the rebind is stored as its change: the new source and the dropped predecessor anchor');
+  assert.deepEqual([reviseGraph.delta.upsertNodes, reviseGraph.delta.upsertEdges, reviseGraph.delta.removeNodeIds], [[], [], []], 'projection-only fields are not changes');
+  const rebindRead = f.calls.filter(([kind]) => kind === 'query').at(-1)[1];
+  assert.deepEqual(reviseGraph.accessScopes, rebindRead.accessScopes, 'the service reads the predecessor with the scopes the rebind read it with');
   assert.equal(result.graphMutation, true);
 });
 
@@ -300,7 +301,7 @@ test('ingest notes can link to each other, and a conditioned question divides on
       probabilities: conduit ? { stablecoins: 0.7, etfs: 0.2, remainder: 0.1 } : { monetary: 0.02, crypto: 0.9, remainder: 0.08 } } } };
   } };
   const result = await ingestSituation({ requestId: 'ing-2', modelHash: oldModel, apply: true,
-    events: [{ eventId: 'event.2024', boundary: 'Bitcoin in 2024.', parentEventId: 'event.world' }],
+    events: [{ eventId: 'event.2024', boundary: 'Bitcoin in 2024.', description: 'Spot ETFs open and the price roughly doubles while policy stays tight.', parentEventId: 'event.world' }],
     questions: [
       { id: 'driver', question: 'What moved the price?', answers: [{ key: 'monetary', meaning: 'US monetary conditions.' }, { key: 'crypto', meaning: 'Crypto-internal causes.' }] },
       { id: 'conduit', question: 'Through which conduit did the monetary part travel?', answers: [{ key: 'stablecoins', meaning: 'Stablecoin supply.' }, { key: 'etfs', meaning: 'ETF flows.' }], conditionedOn: { questionId: 'driver', answerKey: 'monetary' } },
@@ -316,10 +317,16 @@ test('ingest notes can link to each other, and a conditioned question divides on
   assert.match(result.warnings[0], /carries only 0\.02/);
   const link = batches[0].narrativeBatch.add_edges.find((edge) => edge.relation === 'refines');
   assert.deepEqual([link.source.node_id, link.target.node_id], ['note.disagreement', 'note.review']);
-  await assert.rejects(ingestSituation({ requestId: 'ing-3', modelHash: oldModel, events: [{ eventId: 'event.2024', boundary: 'b', parentEventId: 'event.world' }],
+  await assert.rejects(ingestSituation({ requestId: 'ing-3', modelHash: oldModel, events: [{ eventId: 'event.2024', boundary: 'b', description: 'd', parentEventId: 'event.world' }],
     questions: [{ id: 'conduit', question: 'Q?', answers: [{ key: 'a', meaning: 'A.' }], conditionedOn: { questionId: 'driver', answerKey: 'monetary' } }] }, estimator, f.service), /neither asked in this call nor stored/);
-  await assert.rejects(ingestSituation({ requestId: 'ing-4', modelHash: oldModel, events: [{ eventId: 'event.2024', boundary: 'b', parentEventId: 'event.world' }],
+  await assert.rejects(ingestSituation({ requestId: 'ing-4', modelHash: oldModel, events: [{ eventId: 'event.2024', boundary: 'b', description: 'd', parentEventId: 'event.world' }],
     questions: [{ id: 'driver', question: 'Q?', answers: [{ key: 'monetary', meaning: 'M.' }] }, { id: 'conduit', question: 'Q?', answers: [{ key: 'a', meaning: 'A.' }], conditionedOn: { questionId: 'driver', answerKey: 'nope' } }] }, estimator, f.service), /has no answer nope/);
+  // Numbers need meaning: a Cut cannot be placed on an Event without a description, and no estimate is asked for.
+  let calls = 0;
+  const counting = { ...estimator, async estimate(...args) { calls++; return estimator.estimate(...args); } };
+  await assert.rejects(ingestSituation({ requestId: 'ing-5', modelHash: oldModel, events: [{ eventId: 'event.2025', boundary: 'Bitcoin in 2025.', parentEventId: 'event.world' }],
+    questions: [{ id: 'driver', question: 'What moved the price?', answers: [{ key: 'monetary', meaning: 'M.' }] }] }, counting, f.service), /Placing Cuts needs a description on Event event\.2025/);
+  assert.equal(calls, 0);
 });
 
 test('ingest validates parents, participants, duplicates and pending estimates', async () => {

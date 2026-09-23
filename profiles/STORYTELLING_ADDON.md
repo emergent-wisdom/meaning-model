@@ -107,6 +107,16 @@ The tool validates visible targets and preserves a common permitted scope;
 it does not establish whether an authored explanation is true. Record concise
 rationales and inspectable conclusions, not hidden internal reasoning.
 
+Record as you write, not only at milestones. The kinds `idea`, `prediction`,
+`question`, `decision`, `reference` and `voice` hold ideas for later scenes,
+predictions of what could happen, open questions, editing choices, references back,
+and phrasing and voice decisions, such as why a line sounds like its speaker. Link
+each to the passages it concerns with `links`, and to the model records it concerns
+with `about`: `event:`, `cut:`, `process:`, `referent:` and the other kinds, with an
+optional JSON Pointer `path`. A later agent then reads the thought beside its subject.
+Every Event that carries a Cut needs a description of what happens in it; scene
+preparation reports an `undescribed-numbers` blocker until it has one.
+
 ## Model the author and its effect on prose
 
 For new generation, automatically build or reuse a meaningful author model
@@ -817,9 +827,22 @@ Random trajectories provide possible material; they do not replace review.
 
 At substantial milestones or consequential revisions, use an independent
 reviewer when available, supplied with the exact graph revision and relevant
-model context. Record its findings as Understanding Nodes. Otherwise explicitly
-label the result as self-review. The server does not launch a reviewer or claim
-independence merely because a reviewer name was supplied.
+model context. Record each review with `life_review_record` under its actual
+reviewer: a blind reader, another model, an estimator or a person. State what it
+was given (the rendered text only, text and records, or records), how independent
+it was, the exact revision it read, with a hash of the text, and the prompt. Link
+the changes that answer it with `answers`. Otherwise explicitly label the result
+as self-review. The server does not launch a reviewer or claim independence merely
+because a reviewer name was supplied.
+
+## Continue a story someone else began
+
+Read `life_construction_replay` on the story's graph from the first revision, at
+outline level, then open the steps you need at reasoning or full level, and read
+`life_model_outline` for the present state. The replay shows every model revision,
+note, review and prose change in order, each note beside the records it concerned
+as they were then, so you continue from the recorded choices rather than from the
+text alone.
 
 ## Deepen an existing work
 

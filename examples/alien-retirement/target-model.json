@@ -94,6 +94,7 @@
   "events": [
    {
     "boundary": "An earning arrives, of unpredictable size and timing.",
+    "description": "An earning arrives from a client or platform, of unpredictable size and timing. It adds to the month's earnings, and nothing tells the household when the next one comes or how large it will be.",
     "id": "event.earning.arrival",
     "interval": null,
     "observation_process_ids": [],
@@ -111,6 +112,7 @@
    },
    {
     "boundary": "A month in which earnings fall below spending.",
+    "description": "A month in which earnings fall below spending, so the household draws on its buffer: 45,000 NOK at the start, about a month and a half of living costs. Lean months constrain retirement, because what the buffer absorbs is not saved as pension claims.",
     "id": "event.lean.month",
     "interval": null,
     "observation_process_ids": [],
@@ -128,6 +130,7 @@
    },
    {
     "boundary": "The household stops earning and draws on its claims, over an illustrative twenty years.",
+    "description": "Twenty illustrative years, months 480 to 720, in which the household stops earning and draws on its accumulated claims, held and paid by a pension provider under rules the state sets. The claims stand at 180,000 NOK at month 0. The search asks how such claims can be built when earnings are unpredictable.",
     "id": "event.retirement",
     "interval": {
      "end": 720,
@@ -148,6 +151,7 @@
    },
    {
     "boundary": "The household's working life, with earnings arriving irregularly, over an illustrative forty years.",
+    "description": "Forty illustrative years, months 0 to 480, in which the household works for shifting clients through platforms. The main earner is 34 at the start. Earnings in the first month are 34,000 NOK and vary from month to month with a coefficient of variation of 0.5, against living costs of 30,000 NOK a month.",
     "id": "event.working.life",
     "interval": {
      "end": 480,
@@ -169,6 +173,7 @@
    },
    {
     "boundary": "The accepted present-day economy the household lives in.",
+    "description": "The present-day economy the household lives in: a public authority sets pension, tax and benefit rules, pension providers hold and pay claims, and shifting clients and platforms pay the household. All values are authored and illustrative, in NOK; nothing here is measured. Working life and retirement both happen inside it.",
     "id": "event.world",
     "interval": null,
     "observation_process_ids": [],
@@ -460,12 +465,12 @@
   }
  ],
  "revision": {
-  "number": 1,
-  "previous_model_hash": "483e7cca70712be11481ddfa70b60a4dceb2a7489261eb616b90987a5f64c44d",
+  "number": 2,
+  "previous_model_hash": "34182691186e8a18ceeb47cfb9a94f3517b8944f28f0c7cfef4efc0679626fa7",
   "provenance": [
-   "alien-mode run 2026-09-23; revision 1: authored illustrative values for ideation, not measured or estimated"
+   "meaning-model maintainer, 2026-09-23, after the alien run"
   ],
-  "reason": "Correct the provenance of illustrative values (they were marked observed), and add the phases and actors the context review found missing for transfers."
+  "reason": "Describe the five Events, so each says what happens in it and which authored values it rests on. Written after the run by the maintainer (Claude Opus 5.5) from the model’s own processes, Things and relations; no value, interval or boundary changes."
  },
  "schema": "life-sim-rust-model/v1",
  "time_unit": "month"

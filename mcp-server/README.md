@@ -170,6 +170,27 @@ The model tools expose immutable typed profiles:
 - `life_world_revision_inspect` reads that receipt by hash, with explicit state
   projection. Empty requested observables return no state values.
 
+### Construction record
+
+The model and its graph are the modeler's understanding; these tools keep what is
+done and why where a later agent can read it.
+
+- `life_understanding_record` records choices, ideas, predictions, questions, voice
+  decisions and reasons as Understanding Nodes held by a named holder, each linked to
+  the model records (`event:`, `cut:`, `process:` and the other kinds) or nodes it
+  concerns, and stamped with the model revision it was written against.
+- `life_review_record` records a review under its actual reviewer, with what it was
+  given, its independence, the exact revision and text hash it read, and its findings.
+- `life_model_outline` reads the present state as an outline: description coverage,
+  the Event tree with descriptions and Cuts, processes, concepts and understanding
+  roots, with linked notes at a chosen depth.
+- `life_construction_replay` replays the graph and model revisions from the first,
+  each step with its reasons, changes and notes, at outline, reasoning or full level.
+- `life_construction_export` writes the whole construction as a portable history, and
+  `life_construction_import` rebuilds it on another engine with the same hashes.
+- `life_model_register` and `life_model_revise` report `descriptionCoverage`: Events
+  that carry a Cut without a description. `requireDescribedNumbers` refuses them.
+
 ## Optional Meaning Model layer
 
 A model may opt in with a nested

@@ -24,7 +24,7 @@ const modelRefKinds = { process: ['processes', 'process'], law: ['laws', 'law'],
 const modelRef = z.string().max(1_024).regex(new RegExp(`^(${Object.keys(modelRefKinds).join('|')}):\\S+$`, 'u'), 'Use kind:id, for example process:<id> or referent:<id>.');
 const sumsToOne = (values) => Math.abs(values.reduce((total, value) => total + value, 0) - 1) <= 1e-9;
 
-export const alienInstructions = `The alien add-on runs world-diversity search from Ontology of the Alien inside Meaning Model. It builds invented worlds, solves the problem inside them, compiles the operative mechanisms back into the problem's domain, and curates what it finds in revisable ontologies that steer the next world.
+export const alienInstructions = `Every role output is a graph record; also record your own curation reasons, plans and doubts with life_understanding_record, linked to the records they concern, and replay a search with life_construction_replay before continuing it. The alien add-on runs world-diversity search from Ontology of the Alien inside Meaning Model. It builds invented worlds, solves the problem inside them, compiles the operative mechanisms back into the problem's domain, and curates what it finds in revisable ontologies that steer the next world.
 Paper first: read ${ALIEN_PAPER_URI} in this MCP process before starting or continuing a search; the write tools refuse until it has been read.
 Roles and what each may see. The server writes and stores every task with life_alien_task; the partition is in the task text itself:
 - builder: a seed word and optional departures or a commission; never the problem

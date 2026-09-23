@@ -1,0 +1,111 @@
+# Facts to check (market example, evidence cutoff 2025-12-31; t=0 is 2026-01-01, time unit month)
+
+## Values at the cutoff (t = 0, i.e. end of December 2025)
+- btc.price_usd = 88000 USD per BTC | meaning: BTC/USD spot price. | frame: Composite spot index, daily close UTC | uncertainty {"kind":"interval","lower":80000,"upper":100000} | evidence estimate
+- etps.us_spot_btc_cum_net_flow_usd_bn = 57 USD billion | meaning: Cumulative net creations minus redemptions in US spot bitcoin ETPs since 2024-01-11, in dollars at flow dates. | frame: Aggregated issuer daily flow reports | uncertainty {"kind":"interval","lower":50,"upper":65} | evidence estimate
+- fed.total_assets_usd_tn = 6.55 USD trillion | meaning: Total assets on the consolidated Federal Reserve balance sheet (H.4.1). | frame: Weekly H.4.1 level nearest the stated time | uncertainty {"kind":"interval","lower":6.4,"upper":6.8} | evidence estimate
+- judgment.monetary_accommodation_for_crypto = 0.99 accommodation level (ordinal, -2..+2) | meaning: Authored ordinal judgment of how accommodative US monetary conditions are for crypto-asset liquidity, combining rate level and direction, balance-sheet direction and reserve plumbing. It is not a meas | frame: Modeler rubric v1 (anchors in the question); ordinal, so equal steps are not claimed to be equal amounts | uncertainty {"kind":"unknown"} | evidence estimate
+- regime.btc_monetary_coupling = "flow_dominated" category | meaning: Authored categorical judgment of which relation dominated BTC's response to US dollar conditions over the recent months. | frame: Modeler rubric v1 | uncertainty {"kind":"unknown"} | evidence estimate
+- regime.crypto_leverage = "deleveraged" category | meaning: Authored categorical judgment of the leverage state in crypto derivatives. | frame: Modeler rubric v1 | uncertainty {"kind":"unknown"} | evidence estimate
+- regime.us_crypto_policy = "accommodative_legislated" category | meaning: Authored categorical judgment of the US federal policy stance toward crypto conduits; it gates whether conduits such as ETPs and regulated stablecoins can exist. | frame: Modeler rubric v1 | uncertainty {"kind":"unknown"} | evidence estimate
+- stablecoins.usd_supply_usd_bn = 270 USD billion | meaning: Aggregate circulating supply of fiat-backed USD stablecoins. | frame: Sum of issuer-reported circulating supply across chains | uncertainty {"kind":"interval","lower":250,"upper":290} | evidence estimate
+- us.fed_funds_upper_pct = 3.75 percent per annum | meaning: Upper bound of the FOMC federal funds target range. | frame: FOMC target range as announced; value in force at the stated time | uncertainty {"kind":"interval","lower":3.75,"upper":4} | evidence report
+- us.real_yield_10y_pct = 1.85 percent per annum | meaning: 10-year TIPS yield, used as a proxy for the real discount rate on long-duration assets. | frame: Constant-maturity 10-year TIPS yield, daily | uncertainty {"kind":"interval","lower":1.5,"upper":2.2} | evidence estimate
+- us.tga_usd_bn = 850 USD billion | meaning: Treasury General Account balance at the Federal Reserve. | frame: Daily Treasury Statement closing balance | uncertainty {"kind":"interval","lower":700,"upper":1000} | evidence estimate
+- usd.dxy_index = 98.5 index points (March 1973 = 100) | meaning: ICE US Dollar Index: value of the dollar against six major currencies. | frame: Daily close | uncertainty {"kind":"interval","lower":96,"upper":101} | evidence estimate
+- stablecoins.usd_pegged_supply_usd_bn = 305 USD billion | meaning: Aggregate circulating supply of all USD-pegged stablecoins as totalled by public data aggregators: fiat-backed USDT and USDC (roughly 85-90% of the total in 2025) plus crypto-collateralised and synthe | frame: Aggregator total of USD-pegged stablecoin circulating supply across chains | uncertainty {"kind":"interval","lower":285,"upper":325} | evidence estimate
+
+## Dated samples (value_time in months before 2026-01-01; -12 = 2025-01-01)
+- hist.sample.h.btc.m12: btc.price_usd at t=-12 = 93500 USD per BTC | BTC/USD daily close near 2025-01-01. | uncertainty {"kind":"interval","lower":92000,"upper":95000} | estimate
+- hist.sample.h.btc.m16_87: btc.price_usd at t=-16.871 = 54000 USD per BTC | BTC/USD daily close near 2024-08-05 (carry unwind). | uncertainty {"kind":"interval","lower":49000,"upper":56000} | estimate
+- hist.sample.h.btc.m1_33: btc.price_usd at t=-1.333 = 84000 USD per BTC | BTC/USD daily close near 2025-11-21 (drawdown low). | uncertainty {"kind":"interval","lower":80500,"upper":87000} | estimate
+- hist.sample.h.btc.m21_58: btc.price_usd at t=-21.581 = 71500 USD per BTC | BTC/USD daily close near 2024-03-14. | uncertainty {"kind":"interval","lower":70000,"upper":73800} | estimate
+- hist.sample.h.btc.m23_68: btc.price_usd at t=-23.677 = 46500 USD per BTC | BTC/USD daily close near 2024-01-11 (ETF launch). | uncertainty {"kind":"interval","lower":45000,"upper":48500} | estimate
+- hist.sample.h.btc.m2_84: btc.price_usd at t=-2.839 = 124500 USD per BTC | BTC/USD daily close near 2025-10-06 (all-time high). | uncertainty {"kind":"interval","lower":123000,"upper":126500} | estimate
+- hist.sample.h.btc.m37_33: btc.price_usd at t=-37.333 = 15800 USD per BTC | BTC/USD daily close near 2022-11-21 (cycle low). | uncertainty {"kind":"interval","lower":15500,"upper":16500} | estimate
+- hist.sample.h.btc.m49_7: btc.price_usd at t=-49.7 = 67500 USD per BTC | BTC/USD daily close near 2021-11-10 (all-time high then). | uncertainty {"kind":"interval","lower":66000,"upper":69000} | estimate
+- hist.sample.h.btc.m8_8: btc.price_usd at t=-8.8 = 78000 USD per BTC | BTC/USD daily close near 2025-04-07 (tariff selloff). | uncertainty {"kind":"interval","lower":74500,"upper":80000} | estimate
+- hist.sample.h.dxy.m12: usd.dxy_index at t=-12 = 108.5 index points | ICE US Dollar Index level near 2025-01-01. | uncertainty {"kind":"interval","lower":107,"upper":110} | estimate
+- hist.sample.h.dxy.m24: usd.dxy_index at t=-24 = 101.5 index points | ICE US Dollar Index level near 2024-01-01. | uncertainty {"kind":"interval","lower":100,"upper":103} | estimate
+- hist.sample.h.dxy.m39: usd.dxy_index at t=-39 = 112 index points | ICE US Dollar Index level near 2022-10-01. | uncertainty {"kind":"interval","lower":110,"upper":115} | estimate
+- hist.sample.h.dxy.m6: usd.dxy_index at t=-6 = 97 index points | ICE US Dollar Index level near 2025-07-01. | uncertainty {"kind":"interval","lower":96,"upper":98.5} | estimate
+- hist.sample.h.etf.m12: etps.us_spot_btc_cum_net_flow_usd_bn at t=-12 = 35.5 USD billion | Cumulative net flow into US spot bitcoin ETPs since launch, near 2025-01-01 in USD billion. | uncertainty {"kind":"interval","lower":33,"upper":38} | estimate
+- hist.sample.h.etf.m2: etps.us_spot_btc_cum_net_flow_usd_bn at t=-2 = 61 USD billion | Cumulative net flow into US spot bitcoin ETPs since launch, near 2025-11-01 in USD billion. | uncertainty {"kind":"interval","lower":56,"upper":65} | estimate
+- hist.sample.h.etf.m3: etps.us_spot_btc_cum_net_flow_usd_bn at t=-3 = 58 USD billion | Cumulative net flow into US spot bitcoin ETPs since launch, near 2025-10-01 in USD billion. | uncertainty {"kind":"interval","lower":55,"upper":62} | estimate
+- hist.sample.h.fed.m12: fed.total_assets_usd_tn at t=-12 = 6.85 USD trillion | Fed total assets (H.4.1) near 2025-01-01 in USD trillion. | uncertainty {"kind":"interval","lower":6.75,"upper":7} | estimate
+- hist.sample.h.fed.m134: fed.total_assets_usd_tn at t=-134 = 4.5 USD trillion | Fed total assets (H.4.1) near 2014-11-01 in USD trillion. | uncertainty {"kind":"interval","lower":4.4,"upper":4.55} | estimate
+- hist.sample.h.fed.m2: fed.total_assets_usd_tn at t=-2 = 6.6 USD trillion | Fed total assets (H.4.1) near 2025-11-01 in USD trillion. | uncertainty {"kind":"interval","lower":6.5,"upper":6.7} | estimate
+- hist.sample.h.fed.m208: fed.total_assets_usd_tn at t=-208 = 0.9 USD trillion | Fed total assets (H.4.1) near 2008-09-01 in USD trillion. | uncertainty {"kind":"interval","lower":0.85,"upper":0.95} | estimate
+- hist.sample.h.fed.m24: fed.total_assets_usd_tn at t=-24 = 7.7 USD trillion | Fed total assets (H.4.1) near 2024-01-01 in USD trillion. | uncertainty {"kind":"interval","lower":7.6,"upper":7.8} | estimate
+- hist.sample.h.fed.m45: fed.total_assets_usd_tn at t=-45 = 8.95 USD trillion | Fed total assets (H.4.1) near 2022-04-01 in USD trillion. | uncertainty {"kind":"interval","lower":8.85,"upper":9} | estimate
+- hist.sample.h.fed.m6: fed.total_assets_usd_tn at t=-6 = 6.7 USD trillion | Fed total assets (H.4.1) near 2025-07-01 in USD trillion. | uncertainty {"kind":"interval","lower":6.6,"upper":6.8} | estimate
+- hist.sample.h.fed.m71: fed.total_assets_usd_tn at t=-71 = 4.2 USD trillion | Fed total assets (H.4.1) near 2020-02-01 in USD trillion. | uncertainty {"kind":"interval","lower":4.1,"upper":4.3} | estimate
+- hist.sample.h.ffr.m12: us.fed_funds_upper_pct at t=-12 = 4.5 percent per annum | Upper bound of the FOMC target range in force on 2025-01-01. | uncertainty {"kind":"exact"} | report
+- hist.sample.h.ffr.m120: us.fed_funds_upper_pct at t=-120 = 0.5 percent per annum | Upper bound of the FOMC target range in force on 2016-01-01. | uncertainty {"kind":"exact"} | report
+- hist.sample.h.ffr.m15: us.fed_funds_upper_pct at t=-15 = 5 percent per annum | Upper bound of the FOMC target range in force on 2024-10-01. | uncertainty {"kind":"exact"} | report
+- hist.sample.h.ffr.m2: us.fed_funds_upper_pct at t=-2 = 4 percent per annum | Upper bound of the FOMC target range in force on 2025-11-01. | uncertainty {"kind":"exact"} | report
+- hist.sample.h.ffr.m204: us.fed_funds_upper_pct at t=-204 = 0.25 percent per annum | Upper bound of the FOMC target range in force on 2009-01-01. | uncertainty {"kind":"exact"} | report
+- hist.sample.h.ffr.m24: us.fed_funds_upper_pct at t=-24 = 5.5 percent per annum | Upper bound of the FOMC target range in force on 2024-01-01. | uncertainty {"kind":"exact"} | report
+- hist.sample.h.ffr.m3: us.fed_funds_upper_pct at t=-3 = 4.25 percent per annum | Upper bound of the FOMC target range in force on 2025-10-01. | uncertainty {"kind":"exact"} | report
+- hist.sample.h.ffr.m36: us.fed_funds_upper_pct at t=-36 = 4.5 percent per annum | Upper bound of the FOMC target range in force on 2023-01-01. | uncertainty {"kind":"exact"} | report
+- hist.sample.h.ffr.m46: us.fed_funds_upper_pct at t=-46 = 0.25 percent per annum | Upper bound of the FOMC target range in force on 2022-03-01. | uncertainty {"kind":"exact"} | report
+- hist.sample.h.ffr.m69: us.fed_funds_upper_pct at t=-69 = 0.25 percent per annum | Upper bound of the FOMC target range in force on 2020-04-01. | uncertainty {"kind":"exact"} | report
+- hist.sample.h.ffr.m72: us.fed_funds_upper_pct at t=-72 = 1.75 percent per annum | Upper bound of the FOMC target range in force on 2020-01-01. | uncertainty {"kind":"exact"} | report
+- hist.sample.h.ffr.m84: us.fed_funds_upper_pct at t=-84 = 2.5 percent per annum | Upper bound of the FOMC target range in force on 2019-01-01. | uncertainty {"kind":"exact"} | report
+- hist.sample.h.pol.m18: regime.us_crypto_policy at t=-18 = "mixed_uncertain" category | US federal policy stance toward crypto conduits near 2024-07-01 (modeler rubric v1). | uncertainty {"kind":"unknown"} | estimate
+- hist.sample.h.pol.m30: regime.us_crypto_policy at t=-30 = "enforcement_hostile" category | US federal policy stance toward crypto conduits near 2023-07-01 (modeler rubric v1). | uncertainty {"kind":"unknown"} | estimate
+- hist.sample.h.pol.m5: regime.us_crypto_policy at t=-5 = "accommodative_legislated" category | US federal policy stance toward crypto conduits near 2025-08-01 (modeler rubric v1). | uncertainty {"kind":"unknown"} | estimate
+- hist.sample.h.ry.m12: us.real_yield_10y_pct at t=-12 = 2.2 percent per annum | 10-year TIPS real yield near 2025-01-01 in percent. | uncertainty {"kind":"interval","lower":2,"upper":2.3} | estimate
+- hist.sample.h.ry.m24: us.real_yield_10y_pct at t=-24 = 1.75 percent per annum | 10-year TIPS real yield near 2024-01-01 in percent. | uncertainty {"kind":"interval","lower":1.6,"upper":1.9} | estimate
+- hist.sample.h.ry.m27: us.real_yield_10y_pct at t=-27 = 2.3 percent per annum | 10-year TIPS real yield near 2023-10-01 in percent. | uncertainty {"kind":"interval","lower":2.1,"upper":2.5} | estimate
+- hist.sample.h.ry.m50: us.real_yield_10y_pct at t=-50 = -1 percent per annum | 10-year TIPS real yield near 2021-11-01 in percent. | uncertainty {"kind":"interval","lower":-1.2,"upper":-0.8} | estimate
+- hist.sample.h.ry.m6: us.real_yield_10y_pct at t=-6 = 2 percent per annum | 10-year TIPS real yield near 2025-07-01 in percent. | uncertainty {"kind":"interval","lower":1.8,"upper":2.1} | estimate
+- hist.sample.h.sc.m12: stablecoins.usd_pegged_supply_usd_bn at t=-12 = 203 USD billion | Aggregate USD-pegged stablecoin supply near 2025-01-01 in USD billion. | uncertainty {"kind":"interval","lower":195,"upper":212} | estimate
+- hist.sample.h.sc.m24: stablecoins.usd_pegged_supply_usd_bn at t=-24 = 135 USD billion | Aggregate USD-pegged stablecoin supply near 2024-01-01 in USD billion. | uncertainty {"kind":"interval","lower":128,"upper":142} | estimate
+- hist.sample.h.sc.m27: stablecoins.usd_pegged_supply_usd_bn at t=-27 = 123 USD billion | Aggregate USD-pegged stablecoin supply near 2023-10-01 in USD billion. | uncertainty {"kind":"interval","lower":118,"upper":130} | estimate
+- hist.sample.h.sc.m3: stablecoins.usd_pegged_supply_usd_bn at t=-3 = 295 USD billion | Aggregate USD-pegged stablecoin supply near 2025-10-01 in USD billion. | uncertainty {"kind":"interval","lower":285,"upper":305} | estimate
+- hist.sample.h.sc.m45: stablecoins.usd_pegged_supply_usd_bn at t=-45 = 185 USD billion | Aggregate USD-pegged stablecoin supply near 2022-04-01 (includes UST) in USD billion. | uncertainty {"kind":"interval","lower":175,"upper":195} | estimate
+- hist.sample.h.sc.m6: stablecoins.usd_pegged_supply_usd_bn at t=-6 = 250 USD billion | Aggregate USD-pegged stablecoin supply near 2025-07-01 in USD billion. | uncertainty {"kind":"interval","lower":240,"upper":262} | estimate
+- hist.sample.h.sc.m72: stablecoins.usd_pegged_supply_usd_bn at t=-72 = 5.5 USD billion | Aggregate USD-pegged stablecoin supply near 2020-01-01 in USD billion. | uncertainty {"kind":"interval","lower":4.5,"upper":7} | estimate
+- hist.sample.h.sc.t0.pegged: stablecoins.usd_pegged_supply_usd_bn at t=0 = 305 USD billion | All-USD-pegged stablecoin supply at the cutoff (revision 1b process; the world head has no claim for it). | uncertainty {"kind":"interval","lower":285,"upper":325} | estimate
+- hist.sample.h.scfiat.t0: stablecoins.usd_supply_usd_bn at t=0 = 270 USD billion | Fiat-backed-only stablecoin supply at the cutoff, revised estimate replacing the misfiled 305. | uncertainty {"kind":"interval","lower":250,"upper":290} | estimate
+- hist.sample.h.tga.m12: us.tga_usd_bn at t=-12 = 720 USD billion | Treasury General Account balance near 2025-01-01 in USD billion. | uncertainty {"kind":"interval","lower":600,"upper":850} | estimate
+- hist.sample.h.tga.m2: us.tga_usd_bn at t=-2 = 950 USD billion | Treasury General Account balance near 2025-11-01 in USD billion. | uncertainty {"kind":"interval","lower":800,"upper":1050} | estimate
+- hist.sample.h.tga.m24: us.tga_usd_bn at t=-24 = 750 USD billion | Treasury General Account balance near 2024-01-01 in USD billion. | uncertainty {"kind":"interval","lower":650,"upper":850} | estimate
+- hist.sample.h.tga.m27: us.tga_usd_bn at t=-27 = 670 USD billion | Treasury General Account balance near 2023-10-01 in USD billion. | uncertainty {"kind":"interval","lower":600,"upper":800} | estimate
+- hist.sample.h.tga.m31: us.tga_usd_bn at t=-31 = 40 USD billion | Treasury General Account balance near 2023-06-01 in USD billion. | uncertainty {"kind":"interval","lower":20,"upper":100} | estimate
+- hist.sample.h.tga.m6: us.tga_usd_bn at t=-6 = 350 USD billion | Treasury General Account balance near 2025-07-01 in USD billion. | uncertainty {"kind":"interval","lower":250,"upper":450} | estimate
+
+## Dated events (interval in months before 2026-01-01)
+- ev.bitcoin_whitepaper {"end":-206,"start":-206.032}: Bitcoin whitepaper released
+- ev.btc_ath_2021 {"end":-49.667,"start":-49.7}: BTC all-time high near $69K
+- ev.btc_ath_oct_2025 {"end":-2.806,"start":-2.839}: BTC all-time high near $126K
+- ev.btc_drawdown_q4_2025 {"end":0,"start":-2.839}: BTC falls about 30-35% from its October high despite rate cuts and the end of runoff — An anomaly for a simple 'easing lifts crypto' account: monetary conditions eased while ETF flows turned negative, leverage was flushed and treasury-company premia compressed.
+- ev.celsius_3ac_2022 {"end":-41.581,"start":-42.6}: Celsius and Three Arrows Capital fail
+- ev.debt_limit_2023_tga_rebuild {"end":-27,"start":-30.933}: Debt limit suspended; TGA rebuilt mostly from bill issuance absorbed by ON RRP
+- ev.debt_limit_2025_tga_drawdown {"end":-5.903,"start":-11.968}: Debt limit reinstated; TGA drawn down under extraordinary measures — The TGA drawdown added reserves, a liquidity-adding plumbing shift independent of the policy rate.
+- ev.fed_cuts_2024 {"end":-12.419,"start":-15.433}: 100bp of cuts from 5.50% to 4.50% upper bound
+- ev.fed_cuts_2025 {"end":-0.677,"start":-3.467}: 75bp of cuts from 4.50% to 3.75% upper bound (September-December 2025)
+- ev.fed_first_hike_2022 {"end":-45.484,"start":-45.516}: First hike of the 2022 cycle
+- ev.fed_qe1_zlb_2008 {"end":-204.484,"start":-205.2}: Fed announces first large-scale asset purchases and cuts to 0-0.25%
+- ev.fed_zlb_qe_2020 {"end":-69.258,"start":-69.935}: Emergency cuts to 0-0.25% and open-ended asset purchases
+- ev.final_hike_2023 {"end":-29.161,"start":-29.194}: Final hike to 5.25-5.50%
+- ev.ftx_collapse {"end":-37.633,"start":-37.833}: FTX collapses and files for bankruptcy
+- ev.genesis_block {"end":-203.903,"start":-203.935}: Bitcoin genesis block mined
+- ev.genius_act {"end":-5.419,"start":-5.452}: GENIUS Act signed (federal payment-stablecoin framework)
+- ev.gov_shutdown_2025 {"end":-1.6,"start":-3}: Federal government shutdown (43 days) — Delayed official data. Its liquidity effect through Treasury cash flows is not modeled.
+- ev.halving_2024 {"end":-20.333,"start":-20.4}: Fourth halving (block subsidy 6.25 to 3.125 BTC) — A crypto-native supply event, not monetary; kept for competing explanations.
+- ev.liquidation_cascade_oct_2025 {"end":-2.645,"start":-2.71}: Largest recorded crypto liquidation cascade (about $19B) after a US-China tariff threat
+- ev.obbba_tga_rebuild_2025 {"end":-2,"start":-5.903}: Debt limit raised by $5T; TGA rebuilt as ON RRP is nearly exhausted — A liquidity-draining plumbing shift: with ON RRP near zero, the rebuild drew down bank reserves.
+- ev.qt_start_2022 {"end":-42.967,"start":-43}: Balance-sheet runoff begins
+- ev.qt_taper_2024 {"end":-18.967,"start":-19}: Runoff slowed (Treasury cap $60B to $25B)
+- ev.qt_taper_2025 {"end":-8.967,"start":-9}: Runoff slowed further (Treasury cap $25B to $5B)
+- ev.repo_pressure_qt_end_2025 {"end":-1,"start":-2.097}: Repo pressure and record Standing Repo Facility use; runoff ends 2025-12-01
+- ev.reserve_mgmt_purchases_2025 {"end":0,"start":-0.645}: Reserve-management purchases of Treasury bills begin (moderate confidence) — The Fed framed these as technical reserve management, not a change in stance. Whether markets read them as easing is a separate question.
+- ev.spot_btc_etf_launch {"end":-23.645,"start":-23.71}: US spot bitcoin ETPs approved and begin trading — A world change: from this date a regulated TradFi conduit into spot BTC exists.
+- ev.strategic_btc_reserve_eo {"end":-9.806,"start":-9.839}: Executive order establishing a US Strategic Bitcoin Reserve
+- ev.svb_usdc_depeg_2023 {"end":-33.581,"start":-33.71}: SVB fails; USDC depegs; federal backstop and BTFP — The backstop reversed the depeg; the stablecoin conduit's dependence on the banking system became visible.
+- ev.tariff_shock_2025 {"end":-8.7,"start":-8.967}: Broad tariff announcement and risk-asset selloff; dollar weakens
+- ev.terra_collapse {"end":-43.516,"start":-43.742}: Terra's UST loses its peg; LUNA collapses
+- ev.us_election_2024 {"end":-13.833,"start":-13.867}: US election won by a crypto-favourable administration — A regulatory-expectations shock, not monetary; a major competing explanation for the late-2024 rally.
+- ev.yen_carry_unwind_2024 {"end":-16.806,"start":-17.032}: Bank of Japan hike and global carry-trade unwind — A non-US monetary shock transmitted through leverage; recorded as context, not modeled as a US process.

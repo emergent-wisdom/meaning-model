@@ -1273,6 +1273,7 @@
   "events": [
    {
     "boundary": "Lifecycle of: The observatory program's governing agency on Earth, which funds the station and decided to end crewed operations.",
+    "description": "The governing agency on Earth runs the observatory program: it funds the Landing and one relief flight about every four years, extended Candelaria's term twice, and in 2229 ordered crewed operations ended. It acts only through messages that take 93 hours each way.",
     "id": "event.agency.life",
     "interval": null,
     "observation_process_ids": [],
@@ -1289,6 +1290,7 @@
    },
    {
     "boundary": "The engineer sends her mother a message saying she is aboard the relief ship, timed two days before launch so that any objection would arrive after departure.",
+    "description": "Two days before the Starling launches, Graciela messages her mother that she will be aboard, timed so that any objection can reach her only after the ship has left. Candelaria answers at once; the reply, which begins \"don't\", reaches Graciela eleven days out.",
     "id": "event.announcement",
     "interval": {
      "end": -337.9,
@@ -1309,6 +1311,7 @@
    },
    {
     "boundary": "The relief ship docks; mother and daughter meet in person for the first time in eleven years.",
+    "description": "The Starling docks at the Landing. Graciela crosses the unlit docking tube, where the point-like Sun casts her first shadow in eleven months, and meets her mother in person for the first time since she was eighteen. Her mother offers tea, and gives it to her anyway.",
     "id": "event.arrival",
     "interval": {
      "end": 0.5,
@@ -1330,6 +1333,7 @@
    },
    {
     "boundary": "Candelaria's attributed attention state across the month before her daughter arrives (days -30 to 0).",
+    "description": "The last month Candelaria keeps the station alone before the Starling docks. The observing windows and the static map of La Mancha take about half of her waking attention; her daughter's coming arrival, her own days, and the unresolved rest share the remainder.",
     "id": "event.astronomer.entry_state",
     "interval": {
      "end": 0,
@@ -1349,6 +1353,7 @@
    },
    {
     "boundary": "The astronomer's inner perspective root; her beliefs, expectations and appraisals are attributed here, never accepted as world fact.",
+    "description": "The inner root under which Candelaria's attributed states are recorded: her attention, her readings of the stripes, her reliance on what keeps, and her day-15 intention. Nothing beneath it is accepted world fact.",
     "id": "event.astronomer.inner",
     "interval": null,
     "observation_process_ids": [],
@@ -1365,6 +1370,7 @@
    },
    {
     "boundary": "Candelaria's attributed intention on day 15: stay at the Landing against the closure order and send her daughter home to Tomas on the Starling; she tells Kaya first; she had wanted to stay before the discovery, and admits it on day 15.",
+    "description": "At five in the morning on day 15, before her daughter is up, Candelaria goes to the Starling and tells Kaya that she is staying and that Graciela is to go home to Tomás, and asks him not to let her argue. She had wanted to stay before the discovery, and says so in the galley later that day.",
     "id": "event.astronomer.intent.d15",
     "interval": {
      "end": 15.2,
@@ -1384,6 +1390,7 @@
    },
    {
     "boundary": "Candelaria's attributed assessment of what the advancing lines are, after the frame test.",
+    "description": "The night of the frame test, having watched the stripes hold still on the ground while their edges advanced, Candelaria weighs what could cut straight advancing swaths: cultivation by some agent seems most likely, a grazing front and a die-back front are weaker rivals, and a fifth of her support stays unresolved.",
     "id": "event.astronomer.interpretation.d09",
     "interval": {
      "end": 9.5,
@@ -1403,6 +1410,7 @@
    },
    {
     "boundary": "Candelaria's attributed assessment of what the advancing lines are while she writes the report on day 10, after ruling out tiger-bush banding and recognizing that a wind-driven die-back wave would look the same from the station.",
+    "description": "On day 10, while writing the report, Candelaria rules out tiger-bush banding, because the swaths are straight, never fork and keep one pace, but sees that a wind-driven die-back wave of the fir-wave kind would look the same from 672 AU on a planet with a steady wind. Her support for cultivation falls a little as that rival rises.",
     "id": "event.astronomer.interpretation.d10",
     "interval": {
      "end": 10.1,
@@ -1422,6 +1430,7 @@
    },
    {
     "boundary": "Lifecycle of: The station's resident astronomer: one human woman, born 2169, 62 at story entry, eleven years in residence at the focal station.",
+    "description": "Candelaria Araya, born 2169, an astronomer who left for the solitary post at the Landing when her daughter was eighteen and arrived in early 2220. She extended the post twice, wrote to Graciela nearly every day, and built the eleven-year integrated map of La Mancha. She is 62 when the story opens.",
     "id": "event.astronomer.life",
     "interval": null,
     "observation_process_ids": [],
@@ -1438,6 +1447,7 @@
    },
    {
     "boundary": "Candelaria's attributed reliance, on arrival day, when she trusts her daughter will keep.",
+    "description": "On arrival day Candelaria trusts that her daughter will keep the way things keep for her at the Landing: in the record of their messages and in the long average, and only in smaller part as the person in front of her, or as a body.",
     "id": "event.astronomer.reliance.d00",
     "interval": {
      "end": 1,
@@ -1457,6 +1467,7 @@
    },
    {
     "boundary": "Candelaria's attributed reliance on decision day, after the discovery.",
+    "description": "On decision day, after her averaged map has been shown to hide a moving field, Candelaria's trust that her daughter will keep has moved from the record and the average toward Graciela as a person to be lived with now. \"That doesn't keep,\" she says of Tomás's two years, and a quarter of her reliance is unresolved.",
     "id": "event.astronomer.reliance.d15",
     "interval": {
      "end": 15.5,
@@ -1476,6 +1487,7 @@
    },
    {
     "boundary": "Candelaria's attributed attention on arrival day.",
+    "description": "Arrival day. Candelaria shows her daughter the Einstein ring and the map of La Mancha, \"the steadiest thing I know\". The field holds almost half of her attention and her daughter nearly a third; the order that ends her post takes a smaller share, and no one yet imagines anyone cutting the field.",
     "id": "event.astronomer.state.d00",
     "interval": {
      "end": 1,
@@ -1495,6 +1507,7 @@
    },
    {
     "boundary": "Candelaria's attributed attention on the day after the frame test.",
+    "description": "The day after the frame test. The discovery that the field was cut while she integrated it away divides Candelaria's attention among the field, the ones who cut it, and a reckoning with her own eleven years; her daughter takes less of it than on arrival. That night she noticed that she had not thought about her daughter at all.",
     "id": "event.astronomer.state.d09",
     "interval": {
      "end": 10,
@@ -1514,6 +1527,7 @@
    },
    {
     "boundary": "Candelaria's attributed attention on decision day.",
+    "description": "Decision day. As the question of who leaves on the Starling becomes a question about Graciela, her daughter takes nearly half of Candelaria's attention; the field still holds a quarter, and leaving a smaller share.",
     "id": "event.astronomer.state.d15",
     "interval": {
      "end": 16,
@@ -1533,6 +1547,7 @@
    },
    {
     "boundary": "Realized continuation of the decision (drawn remainder, new admissible continuation both_stay): both women stay at the Landing; the Starling leaves on day 16 with its two-person crew and leaves behind the 672 person-days it carried for two returning passengers on the voyage home; stores then give two residents about 2.9 years (2,132 person-days) against a relief ship about four years away, or four years on about 73 percent of full rations, so staying costs hunger unless the agency believes the report and sends a ship early.",
+    "description": "Both women stay. At noon on day 16 the Starling leaves with Kaya and Brandt and leaves behind the 672 person-days of stores it carried for two passengers home. The two residents then have nearly three years of stores against a relief ship about four years away: four years on about 73 percent of full rations, unless the agency believes the report and sends a ship early.",
     "id": "event.both_stay",
     "interval": {
      "end": 16.01,
@@ -1555,6 +1570,7 @@
    },
    {
     "boundary": "The agency decides to end crewed operations and replace the resident with autonomous operation delivered by the next relief ship.",
+    "description": "In 2229 the agency orders the Landing's crewed operations to end, to be replaced by autonomous operation installed from the next relief ship, which is also to bring the resident home.",
     "id": "event.closure_decision",
     "interval": {
      "end": -669,
@@ -1575,6 +1591,7 @@
    },
    {
     "boundary": "The two women decide who leaves on the Starling before its day-16 deadline, without any possible answer from Earth.",
+    "description": "On day 15, with no answer from Earth possible before the Starling must leave, the two women decide who goes. Each has already told Kaya that she is staying so that the other can go home; in the galley they settle on both staying.",
     "id": "event.decision",
     "interval": {
      "end": 15.5,
@@ -1596,6 +1613,7 @@
    },
    {
     "boundary": "The latest moment the relief ship can leave and still reach Earth on its consumables and propellant plan.",
+    "description": "Noon on day 16, the last moment the Starling can leave on its food and propellant plan. It carries nothing for a seventeenth day, so it leaves with whoever is aboard.",
     "id": "event.departure_deadline",
     "interval": {
      "end": 16.01,
@@ -1615,6 +1633,7 @@
    },
    {
     "boundary": "Graciela's attributed attention state across the last month of the voyage (days -30 to 0).",
+    "description": "The last month of the voyage out. The installation work ahead takes the largest share of Graciela's attention and her life at home with Tomás nearly as much; her mother takes a smaller share than either.",
     "id": "event.engineer.entry_state",
     "interval": {
      "end": 0,
@@ -1634,6 +1653,7 @@
    },
    {
     "boundary": "Graciela's attributed reading of the stripes the first single-window difference map shows, before the frame test.",
+    "description": "At 03:40 on day 8 the first live difference map shows a dozen parallel stripes across La Mancha. Graciela, who has watched telescope seven drift since the approach, reads them almost entirely as her own alignment fault.",
     "id": "event.engineer.fault_reading.d08",
     "interval": {
      "end": 8.2,
@@ -1653,6 +1673,7 @@
    },
    {
     "boundary": "Graciela's attributed reading of the same stripes after the frame test.",
+    "description": "At 06:12 on day 9 the reprojection shows the stripes fixed to the ground with the coast and their edges advanced 3.1 km. Graciela now reads them almost entirely as a signal from the planet.",
     "id": "event.engineer.fault_reading.d09",
     "interval": {
      "end": 9.1,
@@ -1672,6 +1693,7 @@
    },
    {
     "boundary": "The engineer's inner perspective root; her beliefs, expectations and appraisals are attributed here, never accepted as world fact.",
+    "description": "The inner root under which Graciela's attributed states are recorded: her attention, her readings of the stripes, and her day-15 intention. Nothing beneath it is accepted world fact.",
     "id": "event.engineer.inner",
     "interval": null,
     "observation_process_ids": [],
@@ -1688,6 +1710,7 @@
    },
    {
     "boundary": "Graciela's attributed intention on day 15: stay in her mother's place as the human the decision loop needs and send her mother home after eleven years; she tells Kaya first.",
+    "description": "At six in the morning on day 15 Graciela crosses to the Starling and tells Kaya that she is not coming: she has written to the agency, the station needs a human in the loop, and her mother, after eleven years, goes home. Kaya tells her that her mother was there an hour earlier saying the opposite.",
     "id": "event.engineer.intent.d15",
     "interval": {
      "end": 15.3,
@@ -1707,6 +1730,7 @@
    },
    {
     "boundary": "Lifecycle of: The relief ship's systems engineer: one human woman, born 2200, 30 at story entry; the astronomer's only child.",
+    "description": "Graciela Mardones Araya, called Chela by her father's family, born 2200, a systems engineer who was eighteen when her mother left for the Landing. She answered her mother's daily letters in four lines, days later, and travels eleven months on the Starling to automate her mother's post. She is 30 when the story opens.",
     "id": "event.engineer.life",
     "interval": null,
     "observation_process_ids": [],
@@ -1723,6 +1747,7 @@
    },
    {
     "boundary": "After the report, Graciela writes the agency a long message from the Starling's crew channel asking to stay at the Landing in her mother's place; it reaches Earth about day 14.5, and no answer can arrive before the Starling leaves.",
+    "description": "After her mother sends the report on day 10, Graciela spends more than an hour in the Starling's crew channel writing the agency a long message asking to stay at the Landing in her mother's place. It reaches Earth about day 14.5, too late for any answer before the ship leaves.",
     "id": "event.engineer.request",
     "interval": {
      "end": 10.7,
@@ -1743,6 +1768,7 @@
    },
    {
     "boundary": "Graciela's attributed attention on arrival day.",
+    "description": "Arrival day. Meeting her mother for the first time in eleven years takes most of Graciela's attention, and the installation she wants to start that night most of the rest; home takes a smaller share.",
     "id": "event.engineer.state.d00",
     "interval": {
      "end": 1,
@@ -1762,6 +1788,7 @@
    },
    {
     "boundary": "Graciela's attributed attention on the day after the frame test.",
+    "description": "The day after the frame test. The installation still leads Graciela's attention, but her mother and home share it almost equally, and a small share goes to whoever cut the field.",
     "id": "event.engineer.state.d09",
     "interval": {
      "end": 10,
@@ -1781,6 +1808,7 @@
    },
    {
     "boundary": "Graciela's attributed attention on decision day.",
+    "description": "Decision day. Her mother and home hold almost all of Graciela's attention as she decides to stay and writes to Tomás; the installation has nearly dropped away.",
     "id": "event.engineer.state.d15",
     "interval": {
      "end": 16,
@@ -1800,6 +1828,7 @@
    },
    {
     "boundary": "Candelaria accepts the first extension of her term with the agency, then tells Graciela in a message sent after the acceptance.",
+    "description": "In early 2224 Candelaria accepts the first extension of her four-year term with the agency, and tells Graciela in a message sent afterwards; it reaches Graciela in the middle of her exams.",
     "id": "event.extension_1",
     "interval": {
      "end": -2592,
@@ -1821,6 +1850,7 @@
    },
    {
     "boundary": "Candelaria accepts the second extension the same way: decided with the agency first, told to Graciela afterwards.",
+    "description": "In early 2227 Candelaria accepts the second extension the same way: agreed with the agency first, told to Graciela afterwards.",
     "id": "event.extension_2",
     "interval": {
      "end": -1496,
@@ -1842,6 +1872,7 @@
    },
    {
     "boundary": "Straight parallel swaths are cut across La Mancha in a continuous rotation, the front advancing about 3.1 km per planetary orbit; seen from the station the light is 40.7 years old. The agent doing the cutting is not modeled.",
+    "description": "On TRAPPIST-1e something cuts straight parallel swaths across La Mancha in a continuous rotation: a dozen swaths, about 8 km wide and 75 km apart, advance east 3.1 km per orbit, so each place is cut again about every 148 days and regrows in about 145. The station sees it 40.7 years late. Who or what cuts is not modeled.",
     "id": "event.field.cutting",
     "interval": null,
     "observation_process_ids": [],
@@ -1859,6 +1890,7 @@
    },
    {
     "boundary": "Lifecycle of: La Mancha: the dark vegetated region on TRAPPIST-1e's eastern terminator, a surface region about 900 km across, not an organism.",
+    "description": "La Mancha, a dark photosynthetic mat about 900 km across on TRAPPIST-1e's eastern terminator, black across the visible and near infrared. Candelaria named it as a joke on stain and on the plain of La Mancha, and since 2226 it has been known to be alive.",
     "id": "event.field.life",
     "interval": null,
     "observation_process_ids": [],
@@ -1875,6 +1907,7 @@
    },
    {
     "boundary": "The stripes are reprojected into the planet-fixed frame and compared with the raw window of one orbit earlier (day 1.9): they stay fixed to the ground and the bright edge has advanced 3.1 km. An instrument artifact would stay fixed in the instrument frame. The eleven-year integrated map had averaged the moving swaths into a uniform dark texture. The coast of La Mancha overlays exactly, which shows the overlay is true; only the swath edges have moved.",
+    "description": "Through the night of day 8 the two women reproject that night's window and the one from an orbit earlier onto the planet's own frame. At 06:12 on day 9 the coast overlays exactly, the stripes stay on the ground, and each edge has advanced 3.1 km, which an instrument fault could not do.",
     "id": "event.frame_test",
     "interval": {
      "end": 9,
@@ -1896,6 +1929,7 @@
    },
    {
     "boundary": "Graciela sends her partner on Earth the message that she is staying; it arrives about 93 hours later, after the Starling has gone and nothing can be undone.",
+    "description": "On day 15 Graciela writes to Tomás in Valparaíso that she is staying and asks him to wait. Her mother tells her to send it at once rather than after the ship has gone, so that it leaves while she could still change her mind; it arrives about 93 hours later, after the Starling has left.",
     "id": "event.message_to_partner",
     "interval": {
      "end": 15.9,
@@ -1915,6 +1949,7 @@
    },
    {
     "boundary": "After the Starling leaves on day 16, the two women queue telescopes seven and nine in the near infrared for the next windows; by the second pass a cut edge should show as a step and a dying edge as a slope, the test that can tell cultivation from a wind-driven die-back wave.",
+    "description": "After the Starling leaves on day 16, the two women queue telescopes seven and nine in the near infrared for the next windows. By the second pass a cut edge should show as a step and a dying edge as a slope, which can tell cultivation from a wind-driven die-back wave.",
     "id": "event.nir_plan",
     "interval": {
      "end": 16.3,
@@ -1935,6 +1970,7 @@
    },
    {
     "boundary": "Launch day: Tomas, Graciela's partner, asks her not to go; when she goes he says he will wait the two years.",
+    "description": "On launch day Tomás asks Graciela not to go. When she goes, he says he will wait the two years.",
     "id": "event.parting_tomas",
     "interval": {
      "end": -335.9,
@@ -1955,6 +1991,7 @@
    },
    {
     "boundary": "First live single-window difference map of La Mancha from the autonomy pipeline Graciela installs; its fault detector flags parallel stripes across the field as a calibration fault in telescope alignment.",
+    "description": "At 03:40 on day 8 La Mancha comes into the window and the autonomy pipeline Graciela installed makes its first live single-window difference map. Its fault detector boxes a dozen faint parallel stripes as a telescope-alignment calibration fault.",
     "id": "event.pipeline_first_light",
     "interval": {
      "end": 8.2,
@@ -1976,6 +2013,7 @@
    },
    {
     "boundary": "Lifecycle of: TRAPPIST-1e, fourth planet of the red dwarf TRAPPIST-1, 40.7 light-years from the Sun, tidally locked to its star.",
+    "description": "TRAPPIST-1e, the fourth planet of the red dwarf TRAPPIST-1, 40.7 light-years from the Sun, tidally locked, with a permanent wind that blows east across La Mancha. It brings La Mancha into the Landing's view once an orbit, every 6.1 days.",
     "id": "event.planet.life",
     "interval": null,
     "observation_process_ids": [],
@@ -1992,6 +2030,7 @@
    },
    {
     "boundary": "The astronomer's residency at the station: arrival about day -4018 (early 2220) through the story; the original four-year term was extended twice.",
+    "description": "Candelaria's residency at the Landing from early 2220 through the story: a four-year term extended twice, spent alone observing TRAPPIST-1e and building the integrated map, and ended by the 2229 closure order.",
     "id": "event.posting",
     "interval": {
      "end": 16,
@@ -2012,6 +2051,7 @@
    },
    {
     "boundary": "Candelaria sends the agency a hedged report of advancing straight parallel swaths in La Mancha, with the frame test. Before sending it she rules out self-organised banding by water of the tiger-bush kind (the swaths are straight, never fork and all advance at one rate), but not a wind-driven die-back wave of the fir-wave kind, which would be straight, parallel and in step moving downwind on a planet with a permanent wind; the report names it, with a grazing front, as not excluded. It reaches Earth about day 13.9.",
+    "description": "At 14:20 on day 10 Candelaria sends the agency a hedged report of straight parallel swaths advancing across La Mancha, with the frame test. She has ruled out tiger-bush banding but not a wind-driven die-back wave; the report reaches Earth about day 13.9, and no answer can return before the Starling leaves.",
     "id": "event.report",
     "interval": {
      "end": 10.1,
@@ -2032,6 +2072,7 @@
    },
    {
     "boundary": "Lifecycle of: The relief ship that carried the engineer out and must leave the station by day 16.",
+    "description": "The Starling, a fusion torch crewed by Kaya and Brandt, which averaged 1.2 percent of the speed of light on the eleven-month voyage, carried Graciela and the autonomy installation out, and must leave the Landing by day 16 on its food and propellant plan.",
     "id": "event.ship.life",
     "interval": null,
     "observation_process_ids": [],
@@ -2048,6 +2089,7 @@
    },
    {
     "boundary": "Lifecycle of: The crewed observing station on the solar gravitational focal line of TRAPPIST-1e, about 672 AU from the Sun, with its twelve-telescope image-plane fleet.",
+    "description": "Focal Station T1e, called the Landing, 672 AU from the Sun on the solar gravitational focal line of TRAPPIST-1e: a slowly turning station whose twelve one-metre telescopes fly in formation across a three-kilometre image plane, 93 light-hours from Earth.",
     "id": "event.station.life",
     "interval": null,
     "observation_process_ids": [],
@@ -2064,6 +2106,7 @@
    },
    {
     "boundary": "The observing window on day 14: the swath edges have advanced another 3.1 km; three windows (days 1.9, 8.0, 14.1) now agree on the same steady advance.",
+    "description": "The window at 06:05 on day 14 shows the swath edges advanced another 3.1 km. Three windows one orbit apart, on days 1.9, 8.0 and 14.1, now agree on the same steady advance; Graciela runs the reprojection twice.",
     "id": "event.third_window",
     "interval": {
      "end": 14.3,
@@ -2084,6 +2127,7 @@
    },
    {
     "boundary": "The relief ship's outbound voyage from Earth orbit to the station.",
+    "description": "The Starling's eleven-month outbound voyage from Earth orbit to the Landing, with Graciela aboard; her mother's reply to the launch message reaches her eleven days out.",
     "id": "event.transit",
     "interval": {
      "end": 0,
@@ -2104,6 +2148,7 @@
    },
    {
     "boundary": "The accepted fictional world of the focal-station story, 2169 to 2231 at story resolution, including light-delayed events on TRAPPIST-1e.",
+    "description": "The accepted fictional world of the story from 2169 to 2231: Earth and the agency, the Landing at 672 AU, and the light-delayed surface of TRAPPIST-1e, with its events dated in days from the Starling's arrival.",
     "id": "event.world",
     "interval": null,
     "observation_process_ids": [],
@@ -3613,13 +3658,13 @@
   }
  ],
  "revision": {
-  "number": 9,
-  "previous_model_hash": "597611bf0b514490356cd7af2d693ff7912b5b1382fdb15eb475350d8f15fd1d",
+  "number": 10,
+  "previous_model_hash": "1bbe96f0d7ffdd15b6c4646123464a9ddfe899e07609d524b8260627941fa53d",
   "provenance": [
-   "scifi-run-2026-09-22",
-   "deepening pass 5: corrections from the fifth independent reader"
+   "meaning-model maintainer (Claude Opus 5.5), 2026-09-23, construction-record backfill",
+   "sources: canon.* records and the version-6 story text"
   ],
-  "reason": "Deepening pass 5: state the station's spin about the Sun line (weight in the ring, none at the hub), the consumables budget behind the day-16 deadline, the coastline that makes the frame test true, the exact ration fraction, and Candelaria's wish to stay before the discovery, answering the fifth independent reader."
+  "reason": "Describe every Event, including the fifteen that carry Cuts, so the numbers mean something: each attention and reliance state now says what the woman faces that day. Written after the story by the maintainer (Claude Opus 5.5) from the canon records and the story text; no world fact, weight or boundary changes."
  },
  "schema": "life-sim-rust-model/v1",
  "time_unit": "day"

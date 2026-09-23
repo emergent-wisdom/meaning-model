@@ -65,8 +65,9 @@ The supported anchor kinds cover stable model objects (`model`, `process`,
 `decomposition`, `dependency`, `law`, and `claim`), Meaning Model objects
 (`concept`, `abstract_relation`, `abstract_cut`, `referent`,
 `encapsulation_cut`, `event`, `event_relation`, `event_referent_binding`,
-`physical_cut`, and `realization`), and source-bound runtime objects (`world`,
-`candidate`, and `occurrence`).
+`physical_cut`, `realization`, and `normalized_cut`), and source-bound runtime
+objects (`world`, `candidate`, and `occurrence`). A `normalized_cut` anchor with
+the path `/answers/0` addresses one answer of that Cut.
 
 `anchor_id` identifies the stable object. Optional `path` is an RFC 6901 JSON Pointer relative to that object's serialized representation. Rust resolves the object and pointer against the exact bound model/source snapshot during registration, so an unknown object, stale branch object, or nonexistent nested field rejects the whole batch. Candidate anchor material is frozen because a candidate's retained trajectory can later become richer under the same canonical hash. An edge to a scoped process or claim must carry the required endpoint scopes, and projection checks both the edge and each scoped endpoint; adding a second broad edge scope cannot expose a private anchor.
 
@@ -157,6 +158,55 @@ Training export is a deterministic, read-only projection. It selects explicitly 
 
 `requireAcceptedHistory: true` rejects model-initial and noncommitted candidate sources; world sources and committed candidates satisfy it. Export does not train, fine-tune, evaluate, upload, or write a dataset.
 
+## The construction record
+
+The model and its Understanding Graph are the modeler's understanding, not a report
+about it. What is done and not recorded cannot be picked up by a later agent, and a
+thought that is not linked to what it concerns is lost. The workflows therefore keep
+four practices.
+
+- **Descriptions give numbers meaning.** Every Event that parents a Cut carries a
+  `description` of what happens in it, and most other Events do too. Model
+  registration and revision return `descriptionCoverage`, listing Cut-bearing Events
+  without one; `requireDescribedNumbers` refuses them. The ingest refuses to place a
+  Cut on an undescribed Event before asking for any estimate, the Cut-share tool
+  records the situation text it judged as the description, and story scene
+  preparation blocks commits until the numbers are described.
+- **Thoughts are linked to their subjects.** `life_understanding_record` stores
+  choices, ideas, predictions, questions, voice and phrasing decisions, references
+  and their reasons as Understanding Nodes held by a named holder, each linked to the
+  model records (`event:`, `cut:`, `process:` and the other kinds, optionally with a
+  path) or nodes it concerns. A note must be about something. Each note records the
+  graph revision and model revision it was written against. Story notes use
+  `life_story_author_record`, which takes the same `about` targets.
+- **Reviews are held by their reviewers.** `life_review_record` records a review from
+  another model, a blind reader, an estimator or a person under that reviewer, with
+  what it was given, how independent it was, the exact graph revision and a hash of
+  the text it read, the prompt, its verdict and findings. A later change that answers
+  it links to it with `answers`.
+- **The construction can be read back.** `life_model_outline` shows the present
+  state: description coverage, Things, the Event tree with descriptions and the Cuts
+  under each Event, processes, concepts, understanding roots and documents, with the
+  linked notes at the depth asked for (none, count, first line or full).
+  `life_construction_replay` walks the graph revisions from the first: each step's
+  reason, the model revisions it adopted and what they changed, and the notes,
+  reviews and prose it added. Each note appears beside the records it concerned as
+  they were at that step. It has three levels (outline, reasoning, full), pages with
+  offset and limit, and can focus on records or nodes. An agent continuing existing
+  work replays it first. In both views a review leads with its verdict, and a note
+  linked to several records is shown once and named at the later ones.
+- **The construction travels.** `life_construction_export` writes a portable
+  history of a model-bound graph: every model revision it was bound to with their
+  ancestors, the first graph revision in full and each later revision as its change,
+  with a bundle hash. `life_construction_import` rebuilds it on another engine and
+  checks that every rebuilt model and graph hash equals the exported one, so the
+  replay there is the same replay. A step that only added records goes in as an
+  additive batch and any other as a revision by change, so the import keeps only
+  each change in its receipts.
+
+Batch related notes into one call (up to 32): every recording call creates one graph
+revision, and a session keeps at most 512.
+
 ## MCP tools
 
 | MCP tool | Rust operation | Effect |
@@ -164,15 +214,27 @@ Training export is a deterministic, read-only projection. It selects explicitly 
 | `life_narrative_register` | `register_narrative_graph` | Atomically register a complete revision-zero graph. |
 | `life_narrative_revise` | `revise_narrative_graph` | Atomically register a complete immutable successor. |
 | `life_narrative_batch` | `apply_narrative_batch` | Add one or many connected roots, nodes, and edges as one immutable successor. |
-| `life_narrative_edit` | `query_narrative_graph`, then `revise_narrative_graph` | Apply split, merge, move, reorder, or guarded text replacement as one immutable successor. |
+| `life_narrative_edit` | `query_narrative_graph`, then `revise_narrative_graph` | Apply split, merge, move, reorder, or guarded text replacement as one immutable successor, stored as its change. |
 | `life_narrative_query` | `query_narrative_graph` | Read a full, skeleton, or neighborhood projection; `forRevision` returns a full content projection stripped to the fields revise accepts. |
 | `life_narrative_render` | `render_narrative_graph` | Derive ordered story text from canonical nodes. |
 | `life_narrative_training_export` | `export_narrative_training` | Derive aligned text/state training records. |
-| `life_narrative_rebind` | `query_narrative_graph`, then `revise_narrative_graph` | Rebind a model-bound graph to a successor model as one complete successor, keeping every node and dropping only predecessor model anchors. |
+| `life_narrative_rebind` | `query_narrative_graph`, then `revise_narrative_graph` | Rebind a model-bound graph to a successor model as one complete successor, keeping every node and dropping only predecessor model anchors; stored as its change. |
 | `life_narrative_alignment_audit` | `render_narrative_graph`, then `query_narrative_graph` | Read-only: generate narrated/contradicted/leaked questions from the graph's records for a rendered unit, per passage and whole; optionally scored by the configured external estimator. |
 | `life_direction_draw` | `inspect_model`, then `query_narrative_graph` and `apply_narrative_batch` when recording | Compute a seeded draw over a model's normalized Cut; optionally record it in a graph bound to that model, linking earlier draws over the same Cut as rerolls. |
+| `life_understanding_record` | `query_narrative_graph`, `get_model`, then `apply_narrative_batch` | Record held Understanding Nodes linked to model records and nodes, as one immutable successor. |
+| `life_review_record` | `query_narrative_graph`, `render_narrative_graph`, then `apply_narrative_batch` | Record a review under its actual reviewer, with the revision and text hash it read. |
+| `life_model_outline` | `get_model`, `query_narrative_graph` | Read-only: the present state as an outline, with linked notes at a chosen depth. |
+| `life_construction_replay` | `list_narrative_revisions`, `query_narrative_graph`, `get_model` | Read-only: replay the graph and model revisions from the first, with each step's reasons, changes and notes. |
+| `life_construction_export` | `list_narrative_revisions`, `query_narrative_graph`, `get_model` | Read-only: export the whole construction as a portable history with a bundle hash. |
+| `life_construction_import` | `register_model`, `revise_model`, `register_narrative_graph`, `apply_narrative_batch`, `revise_narrative_graph` | Rebuild an exported history, checking every model and graph hash. |
 
-The five mutations require request IDs and are idempotent. The query and render tools are read-only; the alignment audit is read-only unless `record` is supplied, and it contacts an external service only when `MEANING_MODEL_ESTIMATOR` is set.
+The mutations require request IDs and are idempotent. A rebind or an edit is
+stored as its change: the service reads the complete predecessor, applies the
+change, and validates the successor as a complete revision. Its idempotency receipt
+therefore keeps only the change, not a copy of the whole graph, and the service's
+64 MiB receipt budget lasts through long sessions on large graphs. A caller that
+sends `life_narrative_revise` a complete definition still retains that definition
+in the receipt. The query, render, outline, replay and export tools are read-only; the alignment audit is read-only unless `record` is supplied, and it contacts an external service only when `MEANING_MODEL_ESTIMATOR` is set.
 
 ## Access boundary
 
@@ -182,10 +244,14 @@ Access scopes are projection labels, not authentication or confidentiality. The 
 
 - Additive batches cannot replace or remove existing nodes, edges, or roots.
   Local editing supports the bounded operations above, including node merge;
-  there is no dedicated delete, archive, diff, branch-merge, validate, or
-  implicit-latest MCP tool. Rust's `list_narrative_revisions` operation can
-  enumerate revisions and branches, but is not exposed as an MCP tool.
+  there is no dedicated delete, archive, branch-merge, validate, or
+  implicit-latest MCP tool. `life_construction_replay` reads the revision
+  lineage of one head through Rust's `list_narrative_revisions`, and reports other
+  heads and branch points without replaying them.
   Callers retain exact graph hashes and multiple successor branches are possible.
+- Rust rebuilds a revision by applying every delta from the root, so reading and
+  writing slow as a history grows, and a session keeps at most 512 revisions. Batch
+  related notes into one recording call.
 - Revision validation preserves the graph ID and revision sequence but does not currently require a successor to keep the same source binding.
 - Candidate sources may be pending, rejected, or superseded. Accepted-history enforcement is opt-in on training export and is not applied to registration, query, or rendering.
 - Narrative links do not affect simulation dynamics, and existing writer-planning/story-diagnostic tools are not automatically synchronized with these graphs.

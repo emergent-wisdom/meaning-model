@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { constructionRecordInstructions } from './construction-principles.mjs';
 
 export const modelingPurposes = Object.freeze([
   'creative_story',
@@ -278,6 +279,7 @@ export async function buildModelingContext({
     starterSelection,
     scaleReview,
     conceptualReview,
+    constructionRecord: constructionRecordInstructions,
     paperFirst: true,
     requiresFullTheoryRead,
     theoryDigests,
@@ -305,6 +307,8 @@ export async function buildModelingContext({
       'test causal use, irrelevant-input stability, and coarse-fine conservation',
       'compare alternative decompositions and revise categories when a different account better serves the task',
       'revise explicitly and project only the requested view',
+      'describe every Event that carries a Cut, and most other Events, so their numbers mean something',
+      'record choices, ideas, predictions and reasons as Understanding Nodes linked to what they concern, and outside reviews under their actual reviewers; replay the construction before continuing existing work',
     ],
     valueAndFunctionSupport: {
       sampledValues:
@@ -352,5 +356,7 @@ export async function buildModelingPrompt({ purpose, sessionMode }) {
     ordered,
     '',
     'Only after that reading, declare purpose, interval, scope, resolution, authority, and evidence classes. Preserve alternative interpretations and use sampled trajectories before proposing unsupported functions.',
+    '',
+    constructionRecordInstructions,
   ].join('\n');
 }
