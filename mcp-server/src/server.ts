@@ -30,6 +30,7 @@ import {
   modelingPurposes,
   modelingSessionModes,
   modelingTheoryUris,
+  readingMode,
   readModelingResource,
 } from './modeling-guidance.mjs';
 
@@ -58,6 +59,7 @@ function resetTheoryAccessForNewContext(purpose: string, sessionMode: string) {
 }
 
 function requireTheoryAccessForProfileCompilation() {
+  if (readingMode() === 'guides') return;
   const missing = modelingTheoryUris.filter((uri) => !accessedTheoryResources.has(uri));
   if (missing.length > 0) {
     throw new Error(
@@ -104,9 +106,10 @@ for (const resource of listModelingResources()) {
 server.registerPrompt(
   'life_modeling_start',
   {
-    title: 'Start paper-grounded Meaning Model modeling',
-    description:
-      'Begin with the complete current papers, then use the operational protocol and a purpose-specific profile.',
+    title: readingMode() === 'guides' ? 'Start Meaning Model modeling' : 'Start paper-grounded Meaning Model modeling',
+    description: readingMode() === 'guides'
+      ? 'Begin with the operational protocol, a purpose-specific profile and an example; the papers carry the reasons behind the rules.'
+      : 'Begin with the complete current papers, then use the operational protocol and a purpose-specific profile.',
     argsSchema: z.object({
       purpose: z.enum(modelingPurposes),
       sessionMode: z.enum(modelingSessionModes).default('first_use'),
@@ -123,7 +126,9 @@ server.registerPrompt(
 server.registerTool(
   'life_modeling_context',
   {
-    description: 'Return the paper-first reading order and minimum operational contract for story, person, observation, forecast, reconstruction, or counterfactual modeling. The live MCP process records access to both complete papers; content digests are provenance only and never replace reading. Calling it again for the same purpose keeps that reading record, so it can be used to check theoryAccessGate; a different purpose, sessionMode new_domain, or sessionMode consequential starts a new record.',
+    description: readingMode() === 'guides'
+      ? 'Return the reading order and minimum operational contract for story, person, observation, forecast, reconstruction, or counterfactual modeling: the protocol, the guide or profile, and an example, with the papers as the theory to open where a rule needs its reason.'
+      : 'Return the paper-first reading order and minimum operational contract for story, person, observation, forecast, reconstruction, or counterfactual modeling. The live MCP process records access to both complete papers; content digests are provenance only and never replace reading. Calling it again for the same purpose keeps that reading record, so it can be used to check theoryAccessGate; a different purpose, sessionMode new_domain, or sessionMode consequential starts a new record.',
     inputSchema: z.object({
       purpose: z.enum(modelingPurposes),
       sessionMode: z.enum(modelingSessionModes).default('first_use'),

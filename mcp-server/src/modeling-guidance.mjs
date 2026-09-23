@@ -18,6 +18,46 @@ export const modelingSessionModes = Object.freeze([
   'consequential',
 ]);
 
+// How much theory an agent reads before modeling. "papers" (the default) asks for both complete
+// papers before the first substantive run. "guides" makes the guides and protocol the entry and
+// the papers a reference opened where a rule needs its reason. It exists to test whether the
+// tool's own guidance is enough; the served protocol and storytelling guide change with it.
+export function readingMode(env = process.env) {
+  return env.MEANING_MODEL_READING === 'guides' ? 'guides' : 'papers';
+}
+
+const guidesEntry = `## Entry
+
+The guides and this protocol carry the procedure; the papers carry the reasons. Before a first
+substantive model, read this protocol, the guide or profile for your purpose, and one worked
+example. *The Meaning Model* and *Life Simulation* are the theory behind every rule here. You
+need not read them first: open one, or the section a guide names, when a rule or a distinction
+needs its reason, when the work enters a new domain, or when a result surprises you. The server
+does not record what you read.
+
+`;
+
+// The served text of a resource under the guides reading mode; unchanged under papers.
+export function servedText(uri, text, reading = readingMode()) {
+  if (reading !== 'guides') return text;
+  const replaceOnce = (source, pattern, replacement) => {
+    if (!pattern.test(source)) throw new Error(`Reading mode guides cannot adapt ${uri}: its entry text changed.`);
+    return source.replace(pattern, replacement);
+  };
+  if (uri === 'life-sim://protocol/modeling') {
+    let adapted = replaceOnce(text, /## Paper-first entry contract\n[\s\S]*?(?=## Common procedure)/u, guidesEntry);
+    adapted = replaceOnce(adapted, /The required paper-grounded flow is:/u, 'The flow is:');
+    adapted = replaceOnce(adapted, /2\. Read both complete theory resources, then the protocol, profile, and example\.\n[\s\S]*?check `theoryAccessGate` after reading\.\n/u,
+      '2. Read the protocol, the guide or profile, and the example; open a paper where one of them\n   points for the reason behind a rule.\n');
+    return adapted;
+  }
+  if (uri === 'life-sim://addon/storytelling') {
+    return replaceOnce(text, /Read the required Meaning Model and Life Simulation paper resources and common\nmodeling protocol before authoring a model\./u,
+      'Read the common modeling protocol before authoring a model, and open the Meaning Model\nand Life Simulation papers where it points for the reasons behind a rule.');
+  }
+  return text;
+}
+
 export const modelingTheoryUris = Object.freeze([
   'life-sim://theory/meaning-model',
   'life-sim://theory/life-simulation',
@@ -160,14 +200,14 @@ export async function expandTexInputs(text, file) {
   return text.replace(pattern, (_line, name) => `% ---- Begin included file ${name}.tex, expanded inline for this resource ----\n${included.get(name).replace(/\n$/, '')}\n% ---- End included file ${name}.tex ----`);
 }
 
-async function loadDefinition(definition) {
+async function loadDefinition(definition, reading = readingMode()) {
   const raw = await readFile(definition.file, 'utf8');
-  const text = definition.mimeType === 'text/x-tex' ? await expandTexInputs(raw, definition.file) : raw;
+  const text = servedText(definition.uri, definition.mimeType === 'text/x-tex' ? await expandTexInputs(raw, definition.file) : raw, reading);
   return {
     id: definition.id,
     uri: definition.uri,
     title: definition.title,
-    description: definition.description,
+    description: describedFor(definition, reading),
     mimeType: definition.mimeType,
     category: definition.category,
     sha256: sha256(text),
@@ -176,14 +216,20 @@ async function loadDefinition(definition) {
   };
 }
 
-export function listModelingResources() {
-  return resourceDefinitions.map(({ file: _file, ...definition }) => ({ ...definition }));
+function describedFor(definition, reading) {
+  return reading === 'guides' && definition.id === 'modeling-protocol'
+    ? 'Operational checklist for modeling; the papers carry the reasons behind it.'
+    : definition.description;
 }
 
-export async function readModelingResource(uri) {
+export function listModelingResources(reading = readingMode()) {
+  return resourceDefinitions.map(({ file: _file, ...definition }) => ({ ...definition, description: describedFor(definition, reading) }));
+}
+
+export async function readModelingResource(uri, reading = readingMode()) {
   const definition = byUri.get(uri);
   if (!definition) throw new Error(`Unknown modeling resource ${uri}.`);
-  return loadDefinition(definition);
+  return loadDefinition(definition, reading);
 }
 
 function profileUri(purpose) {
@@ -218,13 +264,14 @@ export async function buildModelingContext({
   purpose,
   sessionMode,
   readTheoryUris = [],
+  reading = readingMode(),
 }) {
   ensurePurpose(purpose);
   ensureMode(sessionMode);
   const [meaning, life, protocol] = await Promise.all([
-    readModelingResource('life-sim://theory/meaning-model'),
-    readModelingResource('life-sim://theory/life-simulation'),
-    readModelingResource('life-sim://protocol/modeling'),
+    readModelingResource('life-sim://theory/meaning-model', reading),
+    readModelingResource('life-sim://theory/life-simulation', reading),
+    readModelingResource('life-sim://protocol/modeling', reading),
   ]);
   const theoryDigests = {
     meaningModel: meaning.sha256,
@@ -232,7 +279,9 @@ export async function buildModelingContext({
   };
   const readTheorySet = new Set(readTheoryUris);
   const accessedCurrentTheory = modelingTheoryUris.every((uri) => readTheorySet.has(uri));
-  const requiresFullTheoryRead = sessionMode !== 'repeat_same_domain' || !accessedCurrentTheory;
+  const guides = reading === 'guides';
+  const requiresFullTheoryRead = !guides && (sessionMode !== 'repeat_same_domain' || !accessedCurrentTheory);
+  const theoryReference = 'The theory behind the guides. You need not read it first: open it, or the section a guide names, when a rule or a distinction needs its reason.';
   const selectedProfile = profileUri(purpose);
   const selectedExample = exampleUri(purpose);
   const orderedResources = [
@@ -240,7 +289,7 @@ export async function buildModelingContext({
       uri: meaning.uri,
       sha256: meaning.sha256,
       required: requiresFullTheoryRead,
-      reason: requiresFullTheoryRead
+      reason: guides ? theoryReference : requiresFullTheoryRead
         ? 'Required before substantive first-use, changed-theory, new-domain, or consequential modeling.'
         : 'Already accessed in this live MCP process for repeat work in the same domain; reread whenever interpretation is uncertain.',
     },
@@ -248,7 +297,7 @@ export async function buildModelingContext({
       uri: life.uri,
       sha256: life.sha256,
       required: requiresFullTheoryRead,
-      reason: requiresFullTheoryRead
+      reason: guides ? theoryReference : requiresFullTheoryRead
         ? 'Required to understand temporal state, inference, candidate authority, and accepted chronology.'
         : 'Already accessed in this live MCP process for repeat work in the same domain; reread whenever interpretation is uncertain.',
     },
@@ -256,7 +305,7 @@ export async function buildModelingContext({
       uri: protocol.uri,
       sha256: protocol.sha256,
       required: true,
-      reason: 'Use as the execution checklist after theory comprehension.',
+      reason: guides ? 'The execution checklist.' : 'Use as the execution checklist after theory comprehension.',
     },
     {
       uri: 'life-sim://protocol/narrative-understanding-graph',
@@ -280,17 +329,19 @@ export async function buildModelingContext({
     scaleReview,
     conceptualReview,
     constructionRecord: constructionRecordInstructions,
-    paperFirst: true,
+    paperFirst: !guides,
+    readingMode: reading,
     requiresFullTheoryRead,
     theoryDigests,
     theoryAccessGate: {
-      requiredUris: modelingTheoryUris,
+      requiredUris: guides ? [] : modelingTheoryUris,
       readUris: modelingTheoryUris.filter((uri) => readTheorySet.has(uri)),
-      satisfied: accessedCurrentTheory,
+      satisfied: guides || accessedCurrentTheory,
       durableAcrossServerRestart: false,
     },
-    comprehensionBoundary:
-      'The live server can verify that both complete resources were accessed, not that an agent understood them. Digests prove byte identity only and never satisfy the access gate.',
+    comprehensionBoundary: guides
+      ? 'The guides carry the procedure and the papers the reasons. The server does not check what was read or understood.'
+      : 'The live server can verify that both complete resources were accessed, not that an agent understood them. Digests prove byte identity only and never satisfy the access gate.',
     orderedResources,
     minimumChecklist: [
       'declare purpose, interval, scope, resolution, and authority',
@@ -332,11 +383,12 @@ export async function buildModelingContext({
   };
 }
 
-export async function buildModelingPrompt({ purpose, sessionMode }) {
+export async function buildModelingPrompt({ purpose, sessionMode, reading = readingMode() }) {
   const context = await buildModelingContext({
     purpose,
     sessionMode,
     readTheoryUris: [],
+    reading,
   });
   const ordered = context.orderedResources
     .map((resource, index) => `${index + 1}. ${resource.uri}${resource.required ? ' (required)' : ''}`)
@@ -352,10 +404,12 @@ export async function buildModelingPrompt({ purpose, sessionMode }) {
     '',
     context.conceptualReview,
     '',
-    'Do not treat the short protocol as a substitute for the theory. Call life_modeling_context, then read the complete current papers and its other required resources in order:',
+    context.readingMode === 'guides'
+      ? 'Call life_modeling_context, then read its required resources in order. The papers are the theory behind the guides: open one, or the section a guide names, when a rule or a distinction needs its reason.'
+      : 'Do not treat the short protocol as a substitute for the theory. Call life_modeling_context, then read the complete current papers and its other required resources in order:',
     ordered,
     '',
-    'Only after that reading, declare purpose, interval, scope, resolution, authority, and evidence classes. Preserve alternative interpretations and use sampled trajectories before proposing unsupported functions.',
+    `${context.readingMode === 'guides' ? 'After that reading' : 'Only after that reading'}, declare purpose, interval, scope, resolution, authority, and evidence classes. Preserve alternative interpretations and use sampled trajectories before proposing unsupported functions.`,
     '',
     constructionRecordInstructions,
   ].join('\n');

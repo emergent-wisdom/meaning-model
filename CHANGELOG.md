@@ -129,6 +129,12 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
 - Keep edge explanations through rebinds, history exports and revision reads.
   The list of revision fields had left out the stored `explanation` of an edge, so
   a rebind silently dropped every explanation in the graph.
+- Add a guides-first reading mode, `MEANING_MODEL_READING=guides`. The start
+  prompts, `life_modeling_context`, the served protocol and the storytelling guide
+  then make the guides, the protocol and an example the entry, and the two papers
+  a reference to open where a rule needs its reason; the paper gate on
+  `life_profile_compile` is lifted. The default stays paper-first. The mode exists
+  to test whether the tool's own guidance is enough.
 - Accept Jev Score answers whose score differs from its two-decimal probabilities
   by rounding, and decline an answer that fails validation on its own coordinate
   in `life_process_estimate` instead of discarding the whole batch. Declined

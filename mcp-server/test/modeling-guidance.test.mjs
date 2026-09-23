@@ -150,3 +150,22 @@ test('application-category example is available as a complete MCP resource', asy
   assert.equal(resource.text, await readFile(new URL('../../docs/examples/APPLICATION-CATEGORIES.md', import.meta.url), 'utf8'));
   assert.ok(resource.text.includes('cargo run --manifest-path rust-engine/Cargo.toml --example category_revision'));
 });
+
+test('the guides reading mode makes the guides the entry and the papers a reference, and papers stays the default', async () => {
+  const { buildModelingContext, buildModelingPrompt, readModelingResource, readingMode, servedText } = await import('../src/modeling-guidance.mjs');
+  assert.equal(readingMode({}), 'papers');
+  assert.equal(readingMode({ MEANING_MODEL_READING: 'guides' }), 'guides');
+  const papers = await buildModelingContext({ purpose: 'observation', sessionMode: 'first_use', reading: 'papers' });
+  assert.equal(papers.paperFirst, true);
+  assert.equal(papers.orderedResources.find((resource) => resource.uri === 'life-sim://theory/meaning-model').required, true);
+  const guides = await buildModelingContext({ purpose: 'observation', sessionMode: 'first_use', reading: 'guides' });
+  assert.deepEqual([guides.paperFirst, guides.requiresFullTheoryRead, guides.theoryAccessGate.satisfied], [false, false, true]);
+  assert.ok(guides.orderedResources.filter((resource) => resource.uri.startsWith('life-sim://theory/')).every((resource) => !resource.required));
+  assert.ok(guides.orderedResources.find((resource) => resource.uri === 'life-sim://guide/general-modeling').required);
+  const protocol = (await readModelingResource('life-sim://protocol/modeling', 'guides')).text;
+  assert.doesNotMatch(protocol, /must read the complete current papers/);
+  assert.match(protocol, /## Entry\n\nThe guides and this protocol carry the procedure; the papers carry the reasons\./);
+  assert.match((await readModelingResource('life-sim://protocol/modeling', 'papers')).text, /## Paper-first entry contract/);
+  assert.match(servedText('life-sim://addon/storytelling', 'Read the required Meaning Model and Life Simulation paper resources and common\nmodeling protocol before authoring a model.', 'guides'), /^Read the common modeling protocol before authoring a model/);
+  assert.doesNotMatch(await buildModelingPrompt({ purpose: 'observation', sessionMode: 'first_use', reading: 'guides' }), /read the complete current papers/);
+});
