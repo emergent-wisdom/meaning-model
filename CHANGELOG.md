@@ -168,6 +168,16 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
     notes answered, contradicted, refined or superseded it; a replay focused on
     a review also finds the steps that responded to it; and model changes now
     include abstract relations and encapsulation cuts.
+  - A distribution the caller supplies to `life_estimate_cut_shares` or
+    `life_model_ingest` is recorded as the caller's (`suppliedBy`, such as the
+    modeler), not labelled as estimator output.
+  - Estimate results carry `estimatorCallsThisRequest`; an apply that adopts a
+    saved proposal reports the estimate's usage but makes no provider call.
+  - The start prompts list their allowed purposes and session modes, and the
+    general guide says what Jev's weights are and are not: uncalibrated on
+    "main driver" questions, led by the supplied text and prior knowledge,
+    anchored by current values in dated estimates, and answered one question at
+    a time.
   - `life_story_release` in the storytelling add-on releases a story's
     committed prose to readers. Prose inherits the author-only scope of the
     records it was built from, so a reader's render showed only the title. The

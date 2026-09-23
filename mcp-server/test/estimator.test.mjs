@@ -189,6 +189,11 @@ test('supplied distributions are placed without an estimator, and rebind moves t
   const result = await proposeCutShares({ question: 'q', answers, modelHash: oldModel, events: [{ eventId: 'event.kaj.state.h6', cutId: 'cut.kaj.h6.attention' }], distributions: [{ situationId: 'event.kaj.state.h6', probabilities: { money: 0.5, grief: 0.4 }, confidence: 0.9 }], apply: true, requestId: 'req-2', rebind: { graphHash, accessScopes: ['s'] } }, null, f.service);
   assert.equal(result.evaluator, 'supplied');
   assert.equal(result.proposals[0].id, 'cut.kaj.h6.attention');
+  // A supplied distribution is recorded as its holder's, not as estimator output (2026-09-23 instruction test).
+  assert.match(result.proposals[0].provenance[0], /^supplied:caller; a distribution supplied by the caller .*not estimator output/);
+  const held = await proposeCutShares({ question: 'q', answers, modelHash: oldModel, events: [{ eventId: 'event.kaj.state.h6', cutId: 'cut.kaj.h6.attention' }],
+    distributions: [{ situationId: 'event.kaj.state.h6', probabilities: { money: 0.5, grief: 0.4 }, suppliedBy: 'modeler' }] }, null, f.service);
+  assert.match(held.proposals[0].provenance[0], /^supplied:modeler; a distribution supplied by modeler/);
   assert.ok(Math.abs(result.proposals[0].answers.find((answer) => answer.key === 'remainder').weight - 0.1) < 1e-9);
   assert.equal(result.applied.cutIds[0], 'cut.kaj.h6.attention');
   assert.equal(result.rebound.modelHash, newModel);

@@ -25,7 +25,8 @@ export const cutSharesSchema = z.object({
   // conditionedOn names a stored Cut and one of its answers: this Cut divides only that part.
   events: z.array(z.object({ eventId: longId, cutId: longId.nullable().default(null), situationText: prose.nullable().default(null),
     conditionedOn: z.object({ cutId: longId, answerKey: id }).strict().nullable().default(null) }).strict()).max(32).default([]),
-  distributions: z.array(z.object({ situationId: longId, probabilities: probabilityMap, confidence: z.number().min(0).max(1).nullable().default(null) }).strict()).max(32).default([]),
+  distributions: z.array(z.object({ situationId: longId, probabilities: probabilityMap, confidence: z.number().min(0).max(1).nullable().default(null),
+    suppliedBy: z.string().trim().min(1).max(256).nullable().default(null).describe('Who holds this distribution, such as the modeler; it is recorded as theirs, not as estimator output.') }).strict()).max(32).default([]),
   idPrefix: id.default('cut.estimated'),
   proposalId: id.nullable().default(null),
   apply: z.boolean().default(false),
@@ -79,7 +80,11 @@ export function proposalFromProbabilities(input, target, probabilities, meta) {
   const named = answers.filter((answer) => answer.key !== REMAINDER_KEY).reduce((sum, answer) => sum + answer.weight, 0);
   answers.find((answer) => answer.key === REMAINDER_KEY).weight = Math.max(0, 1 - named);
   const top = answers.slice().sort((a, b) => b.weight - a.weight)[0].key;
-  return { id: target.cutId ?? `${input.idPrefix}.${target.id}`, parent_event_id: target.parentEventId, question: input.question, unit: input.unit, answers, provenance: [`estimator:${meta.label}; choice probabilities over the answer keys; AI inference, not canon`, `confidence ${meta.confidence === null || meta.confidence === undefined ? 'unknown' : Number(meta.confidence).toFixed(3)}; top ${top}`], confidence: meta.confidence ?? null, top };
+  // A distribution the caller supplied is theirs, not estimator output; say who holds it.
+  const origin = meta.label === 'supplied'
+    ? `supplied:${meta.suppliedBy ?? 'caller'}; a distribution supplied by ${meta.suppliedBy ?? 'the caller'} over the answer keys, recorded as given; not estimator output, not canon`
+    : `estimator:${meta.label}; choice probabilities over the answer keys; AI inference, not canon`;
+  return { id: target.cutId ?? `${input.idPrefix}.${target.id}`, parent_event_id: target.parentEventId, question: input.question, unit: input.unit, answers, provenance: [origin, `confidence ${meta.confidence === null || meta.confidence === undefined ? 'unknown' : Number(meta.confidence).toFixed(3)}; top ${top}`], confidence: meta.confidence ?? null, top };
 }
 
 async function resolveTargets(service, input) {
@@ -144,13 +149,14 @@ async function executeCutShares(input, estimator, service, checkpoint = null) {
     return { ...common, evaluator: 'calling_llm', proposals: null, tasks: needEstimator, graphMutation: false, instructions: 'No external estimator is configured (MEANING_MODEL_ESTIMATOR unset). Answer each task yourself with probabilities over the listed answers including the remainder, then call again with those distributions and apply to place the Cuts, or build the model revision yourself. Estimates are not world facts.' };
   }
   let estimated = checkpoint?.get('estimates') ?? (input.proposalId ? readEstimatorProposal(service ?? estimator, 'cut-shares', proposalBinding(input), input.proposalId) : null);
+  let callsNow = 0;
   if (!estimated) {
     const proposals = []; const usage = { input_tokens: 0, output_tokens: 0 }; let model = estimator?.model ?? null; const sources = new Set();
   for (const request of requests) {
     const target = targets.find((item) => item.id === request.situationId);
     const distribution = supplied.get(request.situationId);
-    if (distribution) { sources.add('supplied'); proposals.push(proposalFromProbabilities(input, target, distribution.probabilities, { label: 'supplied', confidence: distribution.confidence })); continue; }
-    const result = await estimator.estimate(request.state, request.questions);
+    if (distribution) { sources.add('supplied'); proposals.push(proposalFromProbabilities(input, target, distribution.probabilities, { label: 'supplied', suppliedBy: distribution.suppliedBy, confidence: distribution.confidence })); continue; }
+    const result = await estimator.estimate(request.state, request.questions); callsNow += 1;
     const answer = result.answers?.shares;
     if (!answer || answer.type !== 'choice' || !answer.probabilities) throw new Error(`Estimator did not return a choice distribution for target ${request.situationId}.`);
     model = result.model ?? model; sources.add(`${estimator.backend}:${model}`);
@@ -161,6 +167,8 @@ async function executeCutShares(input, estimator, service, checkpoint = null) {
     checkpoint?.set('estimates', estimated);
   }
   const { proposals, usage, evaluator } = estimated;
+  // usage belongs to the estimate, which a saved proposal carries over; estimatorCallsThisRequest counts this request's calls.
+  common.estimatorCallsThisRequest = callsNow;
   if (!input.apply) {
     const proposalId = retainEstimatorProposal(service ?? estimator, 'cut-shares', proposalBinding(input), estimated);
     return { ...common, evaluator, proposals, usage, proposalId, graphMutation: false, nextStep: 'Review the proposals, then repeat the modeling inputs with apply, requestId and this proposalId to adopt these exact estimates without another provider call. Direct apply without proposalId makes a fresh estimate. Proposals are AI inference, not verified facts.' };

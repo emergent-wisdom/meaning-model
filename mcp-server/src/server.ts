@@ -112,8 +112,8 @@ server.registerPrompt(
       ? 'Begin with the operational protocol, a purpose-specific profile and an example; the papers carry the reasons behind the rules.'
       : 'Begin with the complete current papers, then use the operational protocol and a purpose-specific profile.',
     argsSchema: z.object({
-      purpose: z.enum(modelingPurposes),
-      sessionMode: z.enum(modelingSessionModes).default('first_use').describe('continuation when you continue recorded work in this server; new_domain or consequential start a new reading record.'),
+      purpose: z.enum(modelingPurposes).describe(`One of ${modelingPurposes.join(', ')}.`),
+      sessionMode: z.enum(modelingSessionModes).default('first_use').describe('One of first_use, repeat_same_domain, new_domain, consequential or continuation. Use continuation when you continue recorded work in this server; new_domain or consequential start a new reading record.'),
     }),
   },
   async (input) => ({
@@ -131,8 +131,8 @@ server.registerTool(
       ? 'Return the reading order and minimum operational contract for story, person, observation, forecast, reconstruction, or counterfactual modeling: the protocol, the guide or profile, and an example, with the papers as the theory to open where a rule needs its reason.'
       : 'Return the paper-first reading order and minimum operational contract for story, person, observation, forecast, reconstruction, or counterfactual modeling. The live MCP process records access to both complete papers; content digests are provenance only and never replace reading. Calling it again for the same purpose keeps that reading record, so it can be used to check theoryAccessGate; a different purpose, sessionMode new_domain, or sessionMode consequential starts a new record.',
     inputSchema: z.object({
-      purpose: z.enum(modelingPurposes),
-      sessionMode: z.enum(modelingSessionModes).default('first_use').describe('continuation when you continue recorded work in this server; new_domain or consequential start a new reading record.'),
+      purpose: z.enum(modelingPurposes).describe(`One of ${modelingPurposes.join(', ')}.`),
+      sessionMode: z.enum(modelingSessionModes).default('first_use').describe('One of first_use, repeat_same_domain, new_domain, consequential or continuation. Use continuation when you continue recorded work in this server; new_domain or consequential start a new reading record.'),
     }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
@@ -151,8 +151,8 @@ server.registerPrompt('life_general_modeling_start', {
   title: 'Build and revise a general-purpose world model',
   description: 'Model macro context and long-term developments before local processes, with optional Jev estimation and automatic graph ingestion. Storytelling is independent and opt-in.',
   argsSchema: z.object({
-    purpose: z.enum(['observation', 'forecasting', 'counterfactual']).optional().describe('observation also covers explaining why something observed happened; forecasting adds testable values after the evidence cutoff; counterfactual holds an alternative premise apart from the accepted history.'),
-    sessionMode: z.enum(modelingSessionModes).default('first_use').describe('continuation when you continue recorded work in this server: the prompt then starts with reading the construction record.'),
+    purpose: z.enum(['observation', 'forecasting', 'counterfactual']).optional().describe('One of observation, forecasting or counterfactual. observation also covers explaining why something observed happened; forecasting adds testable values after the evidence cutoff; counterfactual holds an alternative premise apart from the accepted history.'),
+    sessionMode: z.enum(modelingSessionModes).default('first_use').describe('One of first_use, repeat_same_domain, new_domain, consequential or continuation. Use continuation when you continue recorded work in this server: the prompt then starts with reading the construction record.'),
     brief: z.string().trim().min(1).max(8_000).optional(),
   }),
 }, async ({ purpose, sessionMode, brief }) => ({

@@ -37,6 +37,8 @@ test('Cut proposal adoption and identical concurrent retries never re-estimate a
   const [first, concurrent] = await Promise.all([proposeCutShares(apply, f.estimator, f.service), proposeCutShares(apply, f.estimator, f.service)]);
   const repeated = await proposeCutShares(apply, f.estimator, f.service);
   assert.deepEqual(first.proposals, proposed.proposals);
+  assert.equal(proposed.estimatorCallsThisRequest, 1);
+  assert.equal(first.estimatorCallsThisRequest, 0, 'adopting a saved proposal makes no provider call, though it reports the estimate\'s usage');
   assert.deepEqual(first, concurrent);
   assert.deepEqual(first, repeated);
   assert.equal(f.calls.estimates, 1);
@@ -51,6 +53,9 @@ test('ingest proposals use their exact reviewed values even with the provider su
   const input = { ...ingestRequest, apply: true, proposalId: preview.proposalId };
   const applied = await ingestSituation(input, null, f.service);
   assert.deepEqual(applied.proposals, preview.proposals);
+  assert.equal(preview.estimatorCallsThisRequest > 0, true);
+  assert.equal(applied.estimatorCallsThisRequest, 0);
+  assert.deepEqual(applied.usage, preview.usage, 'usage belongs to the estimate');
   assert.deepEqual(await ingestSituation(input, null, f.service), applied);
   assert.equal(f.calls.estimates, 1);
   assert.equal(f.calls.revisions, 1);

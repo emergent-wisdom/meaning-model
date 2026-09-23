@@ -321,6 +321,29 @@ The builder preview shows each answer's probabilities and confidence before appl
 Use a normalized Cut only for an explicitly declared comparison/partition, with a
 remainder.
 
+### What Jev's weights are, and are not
+
+Fresh agents using the tool without coaching (2026-09-23) found these patterns;
+plan for them before you rely on an estimate:
+
+- The weights are not calibrated. Asked which cause is the main driver, Jev often
+  puts 0.95 or more on one answer even when the text holds evidence against it.
+  Ask for each cause's share of a change instead, keep your own distribution beside
+  Jev's under your own holder (`suppliedBy` on a supplied distribution), and record
+  which one the model uses.
+- Answers follow the supplied text and Jev's prior knowledge. Removing the key
+  evidence can leave an answer unchanged. A sensitivity test shows which: ask again
+  unchanged, add an irrelevant sentence, then remove or reverse one piece of
+  evidence. A situation text you wrote carries your framing; a text written by a
+  separate context gives a second perspective.
+- A dated estimate sees the current value of the same quantity and can anchor on
+  it. Where the present would dominate, ask for timing as a choice between periods.
+- Each question is answered on its own; there is no joint consistency check.
+  Compare related answers yourself.
+- `usage` belongs to the estimate. An apply that adopts a saved `proposalId`
+  repeats the preview's usage without calling Jev again;
+  `estimatorCallsThisRequest` says how many calls the request itself made.
+
 Distinguish observations, reports, estimates, beliefs, forecasts, counterfactuals
 and fictional premises. Missing evidence means unknown or unmodeled, not zero.
 Public statements can support an attributed account of a person's stated views;

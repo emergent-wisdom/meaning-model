@@ -38,7 +38,8 @@ export const ingestSchema = z.object({
     // This question divides only the part of the same event that another question gave to answerKey.
     conditionedOn: z.object({ questionId: shortId, answerKey: shortId }).strict().nullable().default(null),
   }).strict()).max(16).default([]),
-  distributions: z.array(z.object({ questionId: shortId, eventId: id, probabilities: z.record(shortId, z.number().min(0).max(1)), confidence: z.number().min(0).max(1).nullable().default(null) }).strict()).max(256).default([]),
+  distributions: z.array(z.object({ questionId: shortId, eventId: id, probabilities: z.record(shortId, z.number().min(0).max(1)), confidence: z.number().min(0).max(1).nullable().default(null),
+    suppliedBy: shortId.nullable().default(null).describe('Who holds this distribution, such as the modeler; it is recorded as theirs, not as estimator output.') }).strict()).max(256).default([]),
   proposalId: shortId.nullable().default(null),
   apply: z.boolean().default(false),
   replaceExisting: z.boolean().default(false),
@@ -157,6 +158,7 @@ async function executeIngest(input, estimator, service, checkpoint = null) {
   // estimate every question for its events
   const supplied = new Map(input.distributions.map((distribution) => [JSON.stringify([distribution.questionId, distribution.eventId]), distribution]));
   let estimated = checkpoint?.get('estimates') ?? (input.proposalId ? readEstimatorProposal(service, 'situation-ingest', proposalBinding(input), input.proposalId) : null);
+  let callsNow = 0;
   if (!estimated) {
   const proposals = []; const usage = { input_tokens: 0, output_tokens: 0 }; const sources = new Set(); let model = estimator?.model ?? null; const pending = [];
   for (const question of input.questions) {
@@ -166,9 +168,9 @@ async function executeIngest(input, estimator, service, checkpoint = null) {
     for (const request of buildCutShareQuestions(shaped, targets)) {
       const target = targets.find((item) => item.id === request.situationId);
       const distribution = supplied.get(JSON.stringify([question.id, target.id]));
-      if (distribution) { sources.add('supplied'); proposals.push({ questionId: question.id, eventId: target.id, ...proposalFromProbabilities(shaped, target, distribution.probabilities, { label: 'supplied', confidence: distribution.confidence }) }); continue; }
+      if (distribution) { sources.add('supplied'); proposals.push({ questionId: question.id, eventId: target.id, ...proposalFromProbabilities(shaped, target, distribution.probabilities, { label: 'supplied', suppliedBy: distribution.suppliedBy, confidence: distribution.confidence }) }); continue; }
       if (!estimator) { pending.push({ questionId: question.id, eventId: target.id, ...request }); continue; }
-      const result = await estimator.estimate(request.state, request.questions);
+      const result = await estimator.estimate(request.state, request.questions); callsNow += 1;
       const answer = result.answers?.shares;
       if (!answer || answer.type !== 'choice' || !answer.probabilities) throw new Error(`Estimator did not return a choice distribution for ${question.id} on ${target.id}.`);
       model = result.model ?? model; sources.add(`${estimator.backend}:${model}`);
@@ -183,7 +185,8 @@ async function executeIngest(input, estimator, service, checkpoint = null) {
   const sources = new Set(estimated.sources);
   const evaluator = [...sources].join('+') || 'calling_llm';
   const conditioningWarnings = conditionedWeightWarnings(proposals, conditioning, successor);
-  const common = { schema: 'meaning-model-situation-ingest/v1', modelHash: input.modelHash, eventsAdded: addedEventIds, proposals, pending, usage, evaluator, canonical: false, epistemicStatus: 'ai_inference', evidenceType: 'estimate', requestHash: digest(input),
+  // usage belongs to the estimate, which a saved proposal carries over; estimatorCallsThisRequest counts this request's calls.
+  const common = { schema: 'meaning-model-situation-ingest/v1', modelHash: input.modelHash, eventsAdded: addedEventIds, proposals, pending, usage, estimatorCallsThisRequest: callsNow, evaluator, canonical: false, epistemicStatus: 'ai_inference', evidenceType: 'estimate', requestHash: digest(input),
     ...(conditioning.size ? { conditioning: Object.fromEntries(conditioning) } : {}), ...(conditioningWarnings.length ? { warnings: conditioningWarnings } : {}) };
   if (pending.length) {
     if (input.apply) throw new Error(`apply needs a distribution for every question and event; ${pending.length} pending. Configure an estimator or supply distributions.`);
