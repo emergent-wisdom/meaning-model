@@ -52,6 +52,11 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
   four-world library, the ontologies as Meaning Model fragments and the target
   model, with a test that imports the library into a search on another problem
   and registers the model with the ontologies merged in.
+- Add `examples/integration-time`, a hard science-fiction story written in the
+  storytelling add-on and revised in five passes, each answering a blind reader:
+  the story, its final model and narrative graph with every review and audit,
+  and the readers' reports, with a test that re-registers the model and graph on
+  a fresh engine and renders the story byte for byte.
 - Keep model anchors that name the model by its stable id when
   `life_narrative_rebind` moves a graph to a successor model; only anchors that
   name the predecessor hash are dropped.

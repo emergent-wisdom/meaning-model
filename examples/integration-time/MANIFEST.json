@@ -1,0 +1,22 @@
+{
+ "schema": "meaning-model-example-manifest/v1",
+ "example": "integration-time",
+ "source": {
+  "graphHash": "be6414e9e958c257729022aba3b407fe0f8676462cb9571b16d2ac72e2373b22",
+  "modelHash": "1bbe96f0d7ffdd15b6c4646123464a9ddfe899e07609d524b8260627941fa53d",
+  "modelRevision": 9,
+  "storyTextSha256": "abe38d6c0ce6555894ffee51482e8e89f6fdba17df26ce515c93cf5feb69723c",
+  "words": 3606
+ },
+ "files": {
+  "README.md": "1251b8c7b09eb279b8e6090ea9dc6e2159fd3baf08e1bea89383a41ac5186def",
+  "story.md": "abe38d6c0ce6555894ffee51482e8e89f6fdba17df26ce515c93cf5feb69723c",
+  "model.json": "1ac8582cf0c5894b79c57937b20b6c1c06390d9bc102637ecb2fb93a87daa9c6",
+  "graph.json": "8f8eb74e82f103c4a8bf4a460abd1b63f979be994c41ae6def88d3d70656002a",
+  "readers/1-version-1.md": "29b7245b9cf7760eb02ea53934f6af567acc12426812eea509e95cf749405813",
+  "readers/2-version-2.md": "48e8d4b7c45f3f10a263400c8f39575212f002b772e2fc5bf69664354953d441",
+  "readers/3-version-3.md": "4ea98240bcbcee5e67b4b02fc9c75e1451941ab0a69f476edba254154e4e072e",
+  "readers/4-version-4.md": "9c0152ccd911f5758c67c1cdc9a5d9f5d870cdc23e7a48230e182aed7fe986b4",
+  "readers/5-version-5.md": "a8fd4f95231a20c69e05af1a6ee7fb58e751d044bf0ca95a1b144ee9b1110903"
+ }
+}

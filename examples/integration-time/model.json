@@ -1,0 +1,3626 @@
+{
+ "decomposition": [],
+ "dependencies": [],
+ "id": "focal-line",
+ "initial_claims": [],
+ "laws": [],
+ "meaning_model": {
+  "abstract_cuts": [
+   {
+    "child_concept_ids": [
+     "concept.keeping.average",
+     "concept.keeping.body",
+     "concept.keeping.person",
+     "concept.keeping.record"
+    ],
+    "id": "abstract_cut.keeping.kinds",
+    "lens": "Alternative kinds of persistence an observer may be relying on; overlapping readings, not shares of a physical total.",
+    "parent_concept_id": "concept.keeping",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "category revision 1 (authored)",
+     "Opened from Candelaria's authored scale astronomer.belief_keeps; the flaw is relying on the average and the record as if they were the person."
+    ],
+    "query": "When she says something will keep, which kind of keeping is she relying on, and does it hold for this thing?"
+   }
+  ],
+  "abstract_relations": [],
+  "concepts": [
+   {
+    "boundary": "What remains available while no one attends to it, judged by a stated observer over a stated interval. Used to explain Candelaria's confidence that what she loves will keep.",
+    "differentia": [
+     "What keeps may be a thing, a record of it, or an average over it; these are different claims.",
+     "Keeping is always relative to an interval of inattention."
+    ],
+    "direction_families": [],
+    "id": "concept.keeping",
+    "label": "Keeping",
+    "observation_methods": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "category revision 1 (authored)",
+     "Authored conceptual lens for the story; not a physical law, a universal psychology or an executable model."
+    ],
+    "state_schema": {}
+   },
+   {
+    "boundary": "A long integration stays stable while every part of what it averages changes.",
+    "differentia": [
+     "Stable on the timescale of the average and silent about change faster than it.",
+     "The eleven-year map of La Mancha and eleven years of messages both keep this way."
+    ],
+    "direction_families": [],
+    "id": "concept.keeping.average",
+    "label": "Keeping as an average",
+    "observation_methods": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "category revision 1 (authored)",
+     "Authored conceptual lens for the story; not a physical law, a universal psychology or an executable model."
+    ],
+    "state_schema": {}
+   },
+   {
+    "boundary": "Physical persistence: a star, a planet or a mountain continues whether watched or not.",
+    "differentia": [
+     "Needs no attention and no record."
+    ],
+    "direction_families": [],
+    "id": "concept.keeping.body",
+    "label": "Keeping as a body",
+    "observation_methods": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "category revision 1 (authored)",
+     "Authored conceptual lens for the story; not a physical law, a universal psychology or an executable model."
+    ],
+    "state_schema": {}
+   },
+   {
+    "boundary": "A person continues as the same person but does not wait unchanged; what is kept between people is kept only by continued attention.",
+    "differentia": [
+     "Continuity of identity is not continuity of state."
+    ],
+    "direction_families": [],
+    "id": "concept.keeping.person",
+    "label": "Keeping as a person",
+    "observation_methods": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "category revision 1 (authored)",
+     "Authored conceptual lens for the story; not a physical law, a universal psychology or an executable model."
+    ],
+    "state_schema": {}
+   },
+   {
+    "boundary": "A stored observation or message stays exactly as it was made; it does not change with its subject.",
+    "differentia": [
+     "The record keeps; its subject may not."
+    ],
+    "direction_families": [],
+    "id": "concept.keeping.record",
+    "label": "Keeping as a record",
+    "observation_methods": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "category revision 1 (authored)",
+     "Authored conceptual lens for the story; not a physical law, a universal psychology or an executable model."
+    ],
+    "state_schema": {}
+   }
+  ],
+  "context_roots": [
+   {
+    "event_id": "event.astronomer.inner",
+    "kind": "inner",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ]
+   },
+   {
+    "event_id": "event.engineer.inner",
+    "kind": "inner",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ]
+   },
+   {
+    "event_id": "event.world",
+    "kind": "accepted_world",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ]
+   }
+  ],
+  "encapsulation_cuts": [],
+  "event_referent_bindings": [
+   {
+    "authority": null,
+    "binding_type": "lifecycle_subject",
+    "id": "binding.agency.life.subject",
+    "interval": null,
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "referent_id": "referent.agency",
+    "role": "subject",
+    "target": {
+     "event_id": "event.agency.life",
+     "kind": "event"
+    },
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "binding_type": "lifecycle_subject",
+    "id": "binding.astronomer.life.subject",
+    "interval": null,
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "referent_id": "referent.astronomer",
+    "role": "subject",
+    "target": {
+     "event_id": "event.astronomer.life",
+     "kind": "event"
+    },
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "binding_type": "lifecycle_subject",
+    "id": "binding.engineer.life.subject",
+    "interval": null,
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "referent_id": "referent.engineer",
+    "role": "subject",
+    "target": {
+     "event_id": "event.engineer.life",
+     "kind": "event"
+    },
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "binding_type": "lifecycle_subject",
+    "id": "binding.field.life.subject",
+    "interval": null,
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "referent_id": "referent.field",
+    "role": "subject",
+    "target": {
+     "event_id": "event.field.life",
+     "kind": "event"
+    },
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "binding_type": "lifecycle_subject",
+    "id": "binding.planet.life.subject",
+    "interval": null,
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "referent_id": "referent.planet",
+    "role": "subject",
+    "target": {
+     "event_id": "event.planet.life",
+     "kind": "event"
+    },
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "binding_type": "lifecycle_subject",
+    "id": "binding.ship.life.subject",
+    "interval": null,
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "referent_id": "referent.ship",
+    "role": "subject",
+    "target": {
+     "event_id": "event.ship.life",
+     "kind": "event"
+    },
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "binding_type": "lifecycle_subject",
+    "id": "binding.station.life.subject",
+    "interval": null,
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "referent_id": "referent.station",
+    "role": "subject",
+    "target": {
+     "event_id": "event.station.life",
+     "kind": "event"
+    },
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   }
+  ],
+  "event_relations": [
+   {
+    "authority": null,
+    "description": "Attributed state under the inner root.",
+    "id": "astronomer.inner.contains.astronomer.entry_state",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.astronomer.inner",
+    "target_event_id": "event.astronomer.entry_state",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Attributed state under the inner root.",
+    "id": "astronomer.inner.contains.astronomer.interpretation.d09",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.astronomer.inner",
+    "target_event_id": "event.astronomer.interpretation.d09",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Attributed state under the inner root.",
+    "id": "astronomer.inner.contains.astronomer.interpretation.d10",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "deepening pass 3: corrections from the third independent reader"
+    ],
+    "source_event_id": "event.astronomer.inner",
+    "target_event_id": "event.astronomer.interpretation.d10",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Attributed state under the inner root.",
+    "id": "astronomer.inner.contains.astronomer.state.d00",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.astronomer.inner",
+    "target_event_id": "event.astronomer.state.d00",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Attributed state under the inner root.",
+    "id": "astronomer.inner.contains.astronomer.state.d09",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.astronomer.inner",
+    "target_event_id": "event.astronomer.state.d09",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Attributed state under the inner root.",
+    "id": "astronomer.inner.contains.astronomer.state.d15",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.astronomer.inner",
+    "target_event_id": "event.astronomer.state.d15",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Attributed intention under the inner root.",
+    "id": "astronomer.inner.contains.intent.d15",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "plan revision 2 (authored)"
+    ],
+    "source_event_id": "event.astronomer.inner",
+    "target_event_id": "event.astronomer.intent.d15",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Attributed state under the inner root.",
+    "id": "astronomer.inner.contains.reliance.d00",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "category revision 1 (authored)"
+    ],
+    "source_event_id": "event.astronomer.inner",
+    "target_event_id": "event.astronomer.reliance.d00",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Attributed state under the inner root.",
+    "id": "astronomer.inner.contains.reliance.d15",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "category revision 1 (authored)"
+    ],
+    "source_event_id": "event.astronomer.inner",
+    "target_event_id": "event.astronomer.reliance.d15",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "attempted-continuation: cut.decision.direction/astronomer_stays (her plan sends her daughter home).",
+    "id": "astronomer.intent.attempts.decision",
+    "kind": "other",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "plan revision 2 (authored)"
+    ],
+    "source_event_id": "event.astronomer.intent.d15",
+    "target_event_id": "event.decision",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Staying requires the message.",
+    "id": "both_stay.enables.message",
+    "kind": "enables",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.both_stay",
+    "target_event_id": "event.message_to_partner",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "The test needs someone on site to close the loop from one window to the next; authored dependency.",
+    "id": "both_stay.enables.nir_plan",
+    "kind": "enables",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "deepening pass 3: corrections from the third independent reader"
+    ],
+    "source_event_id": "event.both_stay",
+    "target_event_id": "event.nir_plan",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "The closure order and the ship deadline bound the decision.",
+    "id": "closure.constrains.decision",
+    "kind": "constrains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.closure_decision",
+    "target_event_id": "event.decision",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "The closure decision is why the relief ship carries autonomy equipment and an engineer; authored dependency, not an executed law.",
+    "id": "closure.enables.transit",
+    "kind": "enables",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.closure_decision",
+    "target_event_id": "event.transit",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "No answer from Earth can arrive before the deadline.",
+    "id": "deadline.constrains.decision",
+    "kind": "constrains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.departure_deadline",
+    "target_event_id": "event.decision",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "realizes-forecast: cut.decision.direction/remainder, opened as the new admissible continuation both_stay (graph node direction-continuation). Carried as other because the engine has no realizes-forecast relation (friction G6).",
+    "id": "decision.realizes.both_stay",
+    "kind": "other",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.decision",
+    "target_event_id": "event.both_stay",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Attributed state under the inner root.",
+    "id": "engineer.inner.contains.engineer.entry_state",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.engineer.inner",
+    "target_event_id": "event.engineer.entry_state",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Attributed state under the inner root.",
+    "id": "engineer.inner.contains.engineer.fault_reading.d08",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.engineer.inner",
+    "target_event_id": "event.engineer.fault_reading.d08",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Attributed state under the inner root.",
+    "id": "engineer.inner.contains.engineer.fault_reading.d09",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.engineer.inner",
+    "target_event_id": "event.engineer.fault_reading.d09",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Attributed state under the inner root.",
+    "id": "engineer.inner.contains.engineer.state.d00",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.engineer.inner",
+    "target_event_id": "event.engineer.state.d00",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Attributed state under the inner root.",
+    "id": "engineer.inner.contains.engineer.state.d09",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.engineer.inner",
+    "target_event_id": "event.engineer.state.d09",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Attributed state under the inner root.",
+    "id": "engineer.inner.contains.engineer.state.d15",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.engineer.inner",
+    "target_event_id": "event.engineer.state.d15",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Attributed intention under the inner root.",
+    "id": "engineer.inner.contains.intent.d15",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "plan revision 2 (authored)"
+    ],
+    "source_event_id": "event.engineer.inner",
+    "target_event_id": "event.engineer.intent.d15",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "attempted-continuation: cut.decision.direction/engineer_stays (her plan sends her mother home).",
+    "id": "engineer.intent.attempts.decision",
+    "kind": "other",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "plan revision 2 (authored)"
+    ],
+    "source_event_id": "event.engineer.intent.d15",
+    "target_event_id": "event.decision",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Authored dependency: the timed announcement answers her mother's decide-first-tell-after extensions in kind; not an executed law.",
+    "id": "extensions.enable.announcement",
+    "kind": "enables",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "depth-review-1 repair"
+    ],
+    "source_event_id": "event.extension_2",
+    "target_event_id": "event.announcement",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "The flagged stripes prompt the frame test.",
+    "id": "first_light.enables.frame_test",
+    "kind": "enables",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.pipeline_first_light",
+    "target_event_id": "event.frame_test",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "The frame test is what makes a human in the loop worth asking for; authored dependency.",
+    "id": "frame_test.enables.engineer_request",
+    "kind": "enables",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "deepening pass 2: corrections from the second independent reader"
+    ],
+    "source_event_id": "event.frame_test",
+    "target_event_id": "event.engineer.request",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Authored dependency.",
+    "id": "frame_test.enables.interpretation",
+    "kind": "enables",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.frame_test",
+    "target_event_id": "event.astronomer.interpretation.d09",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Seeing that the field's average kept while the field did not is what moves her reliance; authored dependency.",
+    "id": "frame_test.enables.reliance_change",
+    "kind": "enables",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "category revision 1 (authored)"
+    ],
+    "source_event_id": "event.frame_test",
+    "target_event_id": "event.astronomer.reliance.d15",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "The frame test is the evidence the report rests on.",
+    "id": "frame_test.enables.report",
+    "kind": "enables",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.frame_test",
+    "target_event_id": "event.report",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Her day-10 assessment revises her day-9 one; authored dependency.",
+    "id": "interpretation.d09.enables.interpretation.d10",
+    "kind": "enables",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "deepening pass 3: corrections from the third independent reader"
+    ],
+    "source_event_id": "event.astronomer.interpretation.d09",
+    "target_event_id": "event.astronomer.interpretation.d10",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "The report states the day-10 assessment and its open alternatives.",
+    "id": "interpretation.d10.enables.report",
+    "kind": "enables",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "deepening pass 3: corrections from the third independent reader"
+    ],
+    "source_event_id": "event.astronomer.interpretation.d10",
+    "target_event_id": "event.report",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Staying breaks what she said at launch; the message to Tomas carries that cost.",
+    "id": "parting.constrains.both_stay",
+    "kind": "constrains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "depth-review-1 repair"
+    ],
+    "source_event_id": "event.parting_tomas",
+    "target_event_id": "event.both_stay",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "The extension happens within the residency.",
+    "id": "posting.contains.extension_1",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "depth-review-1 repair"
+    ],
+    "source_event_id": "event.posting",
+    "target_event_id": "event.extension_1",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "The extension happens within the residency.",
+    "id": "posting.contains.extension_2",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "depth-review-1 repair"
+    ],
+    "source_event_id": "event.posting",
+    "target_event_id": "event.extension_2",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "The test answers the alternative the report left open.",
+    "id": "report.enables.nir_plan",
+    "kind": "enables",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "deepening pass 3: corrections from the third independent reader"
+    ],
+    "source_event_id": "event.report",
+    "target_event_id": "event.nir_plan",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "A third agreeing window makes the discovery certain enough that someone must stay; authored dependency.",
+    "id": "third_window.enables.intents",
+    "kind": "enables",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "plan revision 2 (authored)"
+    ],
+    "source_event_id": "event.third_window",
+    "target_event_id": "event.engineer.intent.d15",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Authored dependency.",
+    "id": "transit.enables.arrival",
+    "kind": "enables",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.transit",
+    "target_event_id": "event.arrival",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.agency.life",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.agency.life",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.announcement",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.announcement",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.arrival",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.arrival",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Inner root nested in the accepted world.",
+    "id": "world.contains.astronomer.inner",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.astronomer.inner",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.astronomer.life",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.astronomer.life",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.both_stay",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.both_stay",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.closure_decision",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.closure_decision",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.decision",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.decision",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.departure_deadline",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.departure_deadline",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Inner root nested in the accepted world.",
+    "id": "world.contains.engineer.inner",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.engineer.inner",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.engineer.life",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.engineer.life",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.engineer_request",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "deepening pass 2: corrections from the second independent reader"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.engineer.request",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.extension_1",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "depth-review-1 repair"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.extension_1",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.extension_2",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "depth-review-1 repair"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.extension_2",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.field.cutting",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.field.cutting",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.field.life",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.field.life",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.frame_test",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.frame_test",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.message_to_partner",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.message_to_partner",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.nir_plan",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "deepening pass 3: corrections from the third independent reader"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.nir_plan",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.parting_tomas",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "depth-review-1 repair"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.parting_tomas",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.pipeline_first_light",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.pipeline_first_light",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.planet.life",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.planet.life",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.posting",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.posting",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.report",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.report",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.ship.life",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.ship.life",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.station.life",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.station.life",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.third_window",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "plan revision 2 (authored)"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.third_window",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "description": "Accepted-world containment.",
+    "id": "world.contains.transit",
+    "kind": "contains",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "source_event_id": "event.world",
+    "target_event_id": "event.transit",
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   }
+  ],
+  "events": [
+   {
+    "boundary": "Lifecycle of: The observatory program's governing agency on Earth, which funds the station and decided to end crewed operations.",
+    "id": "event.agency.life",
+    "interval": null,
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.agency"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "The engineer sends her mother a message saying she is aboard the relief ship, timed two days before launch so that any objection would arrive after departure.",
+    "id": "event.announcement",
+    "interval": {
+     "end": -337.9,
+     "start": -338
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "recipient": "referent.astronomer",
+     "sender": "referent.engineer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "The relief ship docks; mother and daughter meet in person for the first time in eleven years.",
+    "id": "event.arrival",
+    "interval": {
+     "end": 0.5,
+     "start": 0
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "arriving": "referent.engineer",
+     "place": "referent.station",
+     "resident": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Candelaria's attributed attention state across the month before her daughter arrives (days -30 to 0).",
+    "id": "event.astronomer.entry_state",
+    "interval": {
+     "end": 0,
+     "start": -30
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "The astronomer's inner perspective root; her beliefs, expectations and appraisals are attributed here, never accepted as world fact.",
+    "id": "event.astronomer.inner",
+    "interval": null,
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Candelaria's attributed intention on day 15: stay at the Landing against the closure order and send her daughter home to Tomas on the Starling; she tells Kaya first; she had wanted to stay before the discovery, and admits it on day 15.",
+    "id": "event.astronomer.intent.d15",
+    "interval": {
+     "end": 15.2,
+     "start": 15
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "plan revision 2 (authored)"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Candelaria's attributed assessment of what the advancing lines are, after the frame test.",
+    "id": "event.astronomer.interpretation.d09",
+    "interval": {
+     "end": 9.5,
+     "start": 9
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Candelaria's attributed assessment of what the advancing lines are while she writes the report on day 10, after ruling out tiger-bush banding and recognizing that a wind-driven die-back wave would look the same from the station.",
+    "id": "event.astronomer.interpretation.d10",
+    "interval": {
+     "end": 10.1,
+     "start": 10
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "deepening pass 3: corrections from the third independent reader"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Lifecycle of: The station's resident astronomer: one human woman, born 2169, 62 at story entry, eleven years in residence at the focal station.",
+    "id": "event.astronomer.life",
+    "interval": null,
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Candelaria's attributed reliance, on arrival day, when she trusts her daughter will keep.",
+    "id": "event.astronomer.reliance.d00",
+    "interval": {
+     "end": 1,
+     "start": 0
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "category revision 1 (authored)"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Candelaria's attributed reliance on decision day, after the discovery.",
+    "id": "event.astronomer.reliance.d15",
+    "interval": {
+     "end": 15.5,
+     "start": 15
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "category revision 1 (authored)"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Candelaria's attributed attention on arrival day.",
+    "id": "event.astronomer.state.d00",
+    "interval": {
+     "end": 1,
+     "start": 0
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Candelaria's attributed attention on the day after the frame test.",
+    "id": "event.astronomer.state.d09",
+    "interval": {
+     "end": 10,
+     "start": 9
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Candelaria's attributed attention on decision day.",
+    "id": "event.astronomer.state.d15",
+    "interval": {
+     "end": 16,
+     "start": 15
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Realized continuation of the decision (drawn remainder, new admissible continuation both_stay): both women stay at the Landing; the Starling leaves on day 16 with its two-person crew and leaves behind the 672 person-days it carried for two returning passengers on the voyage home; stores then give two residents about 2.9 years (2,132 person-days) against a relief ship about four years away, or four years on about 73 percent of full rations, so staying costs hunger unless the agency believes the report and sends a ship early.",
+    "id": "event.both_stay",
+    "interval": {
+     "end": 16.01,
+     "start": 15.5
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "astronomer": "referent.astronomer",
+     "engineer": "referent.engineer",
+     "place": "referent.station",
+     "vessel": "referent.ship"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "The agency decides to end crewed operations and replace the resident with autonomous operation delivered by the next relief ship.",
+    "id": "event.closure_decision",
+    "interval": {
+     "end": -669,
+     "start": -670
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "decider": "referent.agency",
+     "object": "referent.station"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "The two women decide who leaves on the Starling before its day-16 deadline, without any possible answer from Earth.",
+    "id": "event.decision",
+    "interval": {
+     "end": 15.5,
+     "start": 15
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "astronomer": "referent.astronomer",
+     "engineer": "referent.engineer",
+     "place": "referent.station"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "The latest moment the relief ship can leave and still reach Earth on its consumables and propellant plan.",
+    "id": "event.departure_deadline",
+    "interval": {
+     "end": 16.01,
+     "start": 16
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "vessel": "referent.ship"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Graciela's attributed attention state across the last month of the voyage (days -30 to 0).",
+    "id": "event.engineer.entry_state",
+    "interval": {
+     "end": 0,
+     "start": -30
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.engineer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Graciela's attributed reading of the stripes the first single-window difference map shows, before the frame test.",
+    "id": "event.engineer.fault_reading.d08",
+    "interval": {
+     "end": 8.2,
+     "start": 8.1
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.engineer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Graciela's attributed reading of the same stripes after the frame test.",
+    "id": "event.engineer.fault_reading.d09",
+    "interval": {
+     "end": 9.1,
+     "start": 9
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.engineer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "The engineer's inner perspective root; her beliefs, expectations and appraisals are attributed here, never accepted as world fact.",
+    "id": "event.engineer.inner",
+    "interval": null,
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.engineer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Graciela's attributed intention on day 15: stay in her mother's place as the human the decision loop needs and send her mother home after eleven years; she tells Kaya first.",
+    "id": "event.engineer.intent.d15",
+    "interval": {
+     "end": 15.3,
+     "start": 15.1
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.engineer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "plan revision 2 (authored)"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Lifecycle of: The relief ship's systems engineer: one human woman, born 2200, 30 at story entry; the astronomer's only child.",
+    "id": "event.engineer.life",
+    "interval": null,
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.engineer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "After the report, Graciela writes the agency a long message from the Starling's crew channel asking to stay at the Landing in her mother's place; it reaches Earth about day 14.5, and no answer can arrive before the Starling leaves.",
+    "id": "event.engineer.request",
+    "interval": {
+     "end": 10.7,
+     "start": 10.6
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "recipient": "referent.agency",
+     "sender": "referent.engineer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "deepening pass 2: corrections from the second independent reader"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Graciela's attributed attention on arrival day.",
+    "id": "event.engineer.state.d00",
+    "interval": {
+     "end": 1,
+     "start": 0
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.engineer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Graciela's attributed attention on the day after the frame test.",
+    "id": "event.engineer.state.d09",
+    "interval": {
+     "end": 10,
+     "start": 9
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.engineer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Graciela's attributed attention on decision day.",
+    "id": "event.engineer.state.d15",
+    "interval": {
+     "end": 16,
+     "start": 15
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.engineer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Candelaria accepts the first extension of her term with the agency, then tells Graciela in a message sent after the acceptance.",
+    "id": "event.extension_1",
+    "interval": {
+     "end": -2592,
+     "start": -2593
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "agency": "referent.agency",
+     "resident": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "depth-review-1 repair"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Candelaria accepts the second extension the same way: decided with the agency first, told to Graciela afterwards.",
+    "id": "event.extension_2",
+    "interval": {
+     "end": -1496,
+     "start": -1497
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "agency": "referent.agency",
+     "resident": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "depth-review-1 repair"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Straight parallel swaths are cut across La Mancha in a continuous rotation, the front advancing about 3.1 km per planetary orbit; seen from the station the light is 40.7 years old. The agent doing the cutting is not modeled.",
+    "id": "event.field.cutting",
+    "interval": null,
+    "observation_process_ids": [],
+    "participants": {
+     "planet": "referent.planet",
+     "region": "referent.field"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Lifecycle of: La Mancha: the dark vegetated region on TRAPPIST-1e's eastern terminator, a surface region about 900 km across, not an organism.",
+    "id": "event.field.life",
+    "interval": null,
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.field"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "The stripes are reprojected into the planet-fixed frame and compared with the raw window of one orbit earlier (day 1.9): they stay fixed to the ground and the bright edge has advanced 3.1 km. An instrument artifact would stay fixed in the instrument frame. The eleven-year integrated map had averaged the moving swaths into a uniform dark texture. The coast of La Mancha overlays exactly, which shows the overlay is true; only the swath edges have moved.",
+    "id": "event.frame_test",
+    "interval": {
+     "end": 9,
+     "start": 8.2
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "analyst": "referent.astronomer",
+     "engineer": "referent.engineer",
+     "region": "referent.field"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Graciela sends her partner on Earth the message that she is staying; it arrives about 93 hours later, after the Starling has gone and nothing can be undone.",
+    "id": "event.message_to_partner",
+    "interval": {
+     "end": 15.9,
+     "start": 15.8
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "sender": "referent.engineer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "After the Starling leaves on day 16, the two women queue telescopes seven and nine in the near infrared for the next windows; by the second pass a cut edge should show as a step and a dying edge as a slope, the test that can tell cultivation from a wind-driven die-back wave.",
+    "id": "event.nir_plan",
+    "interval": {
+     "end": 16.3,
+     "start": 16.05
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "engineer": "referent.engineer",
+     "observer": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "deepening pass 3: corrections from the third independent reader"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Launch day: Tomas, Graciela's partner, asks her not to go; when she goes he says he will wait the two years.",
+    "id": "event.parting_tomas",
+    "interval": {
+     "end": -335.9,
+     "start": -336
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "traveller": "referent.engineer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "depth-review-1 repair"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "First live single-window difference map of La Mancha from the autonomy pipeline Graciela installs; its fault detector flags parallel stripes across the field as a calibration fault in telescope alignment.",
+    "id": "event.pipeline_first_light",
+    "interval": {
+     "end": 8.2,
+     "start": 8
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "instrument": "referent.station",
+     "operator": "referent.engineer",
+     "region": "referent.field"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Lifecycle of: TRAPPIST-1e, fourth planet of the red dwarf TRAPPIST-1, 40.7 light-years from the Sun, tidally locked to its star.",
+    "id": "event.planet.life",
+    "interval": null,
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.planet"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "The astronomer's residency at the station: arrival about day -4018 (early 2220) through the story; the original four-year term was extended twice.",
+    "id": "event.posting",
+    "interval": {
+     "end": 16,
+     "start": -4018
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "place": "referent.station",
+     "resident": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Candelaria sends the agency a hedged report of advancing straight parallel swaths in La Mancha, with the frame test. Before sending it she rules out self-organised banding by water of the tiger-bush kind (the swaths are straight, never fork and all advance at one rate), but not a wind-driven die-back wave of the fir-wave kind, which would be straight, parallel and in step moving downwind on a planet with a permanent wind; the report names it, with a grazing front, as not excluded. It reaches Earth about day 13.9.",
+    "id": "event.report",
+    "interval": {
+     "end": 10.1,
+     "start": 10
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "recipient": "referent.agency",
+     "sender": "referent.astronomer"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Lifecycle of: The relief ship that carried the engineer out and must leave the station by day 16.",
+    "id": "event.ship.life",
+    "interval": null,
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.ship"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "Lifecycle of: The crewed observing station on the solar gravitational focal line of TRAPPIST-1e, about 672 AU from the Sun, with its twelve-telescope image-plane fleet.",
+    "id": "event.station.life",
+    "interval": null,
+    "observation_process_ids": [],
+    "participants": {
+     "subject": "referent.station"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "The observing window on day 14: the swath edges have advanced another 3.1 km; three windows (days 1.9, 8.0, 14.1) now agree on the same steady advance.",
+    "id": "event.third_window",
+    "interval": {
+     "end": 14.3,
+     "start": 14.1
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "instrument": "referent.station",
+     "region": "referent.field"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "plan revision 2 (authored)"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "The relief ship's outbound voyage from Earth orbit to the station.",
+    "id": "event.transit",
+    "interval": {
+     "end": 0,
+     "start": -336
+    },
+    "observation_process_ids": [],
+    "participants": {
+     "passenger": "referent.engineer",
+     "vessel": "referent.ship"
+    },
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   },
+   {
+    "boundary": "The accepted fictional world of the focal-station story, 2169 to 2231 at story resolution, including light-delayed events on TRAPPIST-1e.",
+    "id": "event.world",
+    "interval": null,
+    "observation_process_ids": [],
+    "participants": {},
+    "process_ids": [],
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "region": null,
+    "substrate": null
+   }
+  ],
+  "normalized_cuts": [
+   {
+    "answers": [
+     {
+      "key": "cultivators",
+      "weight": 0
+     },
+     {
+      "key": "daughter",
+      "weight": 0.303
+     },
+     {
+      "key": "field",
+      "weight": 0.472
+     },
+     {
+      "key": "leaving",
+      "weight": 0.119
+     },
+     {
+      "key": "reckoning",
+      "weight": 0.04
+     },
+     {
+      "key": "remainder",
+      "weight": 0.066
+     }
+    ],
+    "id": "cut.astronomer.d00.attention.v2",
+    "parent_event_id": "event.astronomer.state.d00",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "from selected story-interval candidate 3 point d00 (etraj-candelaria)",
+     "category revision 1: remainder 0.106 opened into cultivators 0, reckoning 0.04; named shares unchanged; supersedes cut.astronomer.d00.attention (model revision 2)"
+    ],
+    "question": "How does Candelaria's waking attention divide among the field, her daughter, leaving, whoever cut the field, a reckoning with her own eleven years, and the remainder?",
+    "unit": "share of waking attention"
+   },
+   {
+    "answers": [
+     {
+      "key": "cultivators",
+      "weight": 0.14
+     },
+     {
+      "key": "daughter",
+      "weight": 0.181
+     },
+     {
+      "key": "field",
+      "weight": 0.355
+     },
+     {
+      "key": "leaving",
+      "weight": 0.152
+     },
+     {
+      "key": "reckoning",
+      "weight": 0.12
+     },
+     {
+      "key": "remainder",
+      "weight": 0.052
+     }
+    ],
+    "id": "cut.astronomer.d09.attention.v2",
+    "parent_event_id": "event.astronomer.state.d09",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "from selected story-interval candidate 3 point d09 (etraj-candelaria)",
+     "category revision 1: remainder 0.312 opened into cultivators 0.14, reckoning 0.12; named shares unchanged; supersedes cut.astronomer.d09.attention (model revision 2)"
+    ],
+    "question": "How does Candelaria's waking attention divide among the field, her daughter, leaving, whoever cut the field, a reckoning with her own eleven years, and the remainder?",
+    "unit": "share of waking attention"
+   },
+   {
+    "answers": [
+     {
+      "key": "cultivation",
+      "weight": 0.52
+     },
+     {
+      "key": "dieback_front",
+      "weight": 0.08
+     },
+     {
+      "key": "grazing_front",
+      "weight": 0.18
+     },
+     {
+      "key": "remainder",
+      "weight": 0.22
+     }
+    ],
+    "id": "cut.astronomer.d09.interpretation",
+    "parent_event_id": "event.astronomer.interpretation.d09",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "authored: straight parallel swaths with sharp edges and a constant advance favour cultivation; a grazing front would be ragged, a die-back front would follow isotherms; a large remainder keeps what she cannot name"
+    ],
+    "question": "After the frame test, how does Candelaria's support divide among cultivation by some agent, a grazing front, a die-back front, and the remainder?",
+    "unit": "share of one unit of attributed support"
+   },
+   {
+    "answers": [
+     {
+      "key": "cultivation",
+      "weight": 0.48
+     },
+     {
+      "key": "grazing_front",
+      "weight": 0.1
+     },
+     {
+      "key": "remainder",
+      "weight": 0.18
+     },
+     {
+      "key": "wind_dieback_wave",
+      "weight": 0.24
+     }
+    ],
+    "id": "cut.astronomer.d10.interpretation",
+    "parent_event_id": "event.astronomer.interpretation.d10",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "deepening pass 3: corrections from the third independent reader",
+     "authored: tiger-bush banding by water leaves the day-9 remainder as disfavoured; a wind-driven die-back wave would be straight, parallel and in step downwind, so die-back support rises from 0.08 to 0.24; a grazing front would not keep one pace across twelve swaths, so it falls from 0.18 to 0.10; cultivation stays the leading reading, which is what the report says; the near-infrared test on the next windows can separate a cut step from a dying slope"
+    ],
+    "question": "While she writes the report on day 10, how does Candelaria's support divide among cultivation by some agent, a wind-driven die-back wave, a grazing front, and the remainder?",
+    "unit": "share of one unit of attributed support"
+   },
+   {
+    "answers": [
+     {
+      "key": "cultivators",
+      "weight": 0.05
+     },
+     {
+      "key": "daughter",
+      "weight": 0.486
+     },
+     {
+      "key": "field",
+      "weight": 0.248
+     },
+     {
+      "key": "leaving",
+      "weight": 0.136
+     },
+     {
+      "key": "reckoning",
+      "weight": 0.05
+     },
+     {
+      "key": "remainder",
+      "weight": 0.03
+     }
+    ],
+    "id": "cut.astronomer.d15.attention.v2",
+    "parent_event_id": "event.astronomer.state.d15",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "from selected story-interval candidate 3 point d15 (etraj-candelaria)",
+     "category revision 1: remainder 0.13 opened into cultivators 0.05, reckoning 0.05; named shares unchanged; supersedes cut.astronomer.d15.attention (model revision 2)"
+    ],
+    "question": "How does Candelaria's waking attention divide among the field, her daughter, leaving, whoever cut the field, a reckoning with her own eleven years, and the remainder?",
+    "unit": "share of waking attention"
+   },
+   {
+    "answers": [
+     {
+      "key": "kin",
+      "weight": 0.178
+     },
+     {
+      "key": "remainder",
+      "weight": 0.155
+     },
+     {
+      "key": "self",
+      "weight": 0.174
+     },
+     {
+      "key": "work",
+      "weight": 0.493
+     }
+    ],
+    "id": "cut.astronomer.entry.attention",
+    "parent_event_id": "event.astronomer.entry_state",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "from selected life candidate 3 point c62 (rev-traj-candelaria)"
+    ],
+    "question": "How does Candelaria's waking attention divide among work, family, herself, and the remainder?",
+    "unit": "share of waking attention"
+   },
+   {
+    "answers": [
+     {
+      "key": "average",
+      "weight": 0.318
+     },
+     {
+      "key": "body",
+      "weight": 0.123
+     },
+     {
+      "key": "person",
+      "weight": 0.161
+     },
+     {
+      "key": "record",
+      "weight": 0.302
+     },
+     {
+      "key": "remainder",
+      "weight": 0.096
+     }
+    ],
+    "id": "cut.astronomer.reliance.d00",
+    "parent_event_id": "event.astronomer.reliance.d00",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "category revision 1 (authored)",
+     "from selected candidate 4 of etraj-reliance, point d00"
+    ],
+    "question": "When Candelaria trusts her daughter will keep, how does her reliance divide among keeping as a body, as a record, as an average, as a person, and the remainder?",
+    "unit": "share of one unit of reliance"
+   },
+   {
+    "answers": [
+     {
+      "key": "average",
+      "weight": 0.147
+     },
+     {
+      "key": "body",
+      "weight": 0.095
+     },
+     {
+      "key": "person",
+      "weight": 0.331
+     },
+     {
+      "key": "record",
+      "weight": 0.173
+     },
+     {
+      "key": "remainder",
+      "weight": 0.254
+     }
+    ],
+    "id": "cut.astronomer.reliance.d15",
+    "parent_event_id": "event.astronomer.reliance.d15",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "category revision 1 (authored)",
+     "from selected candidate 4 of etraj-reliance, point d15"
+    ],
+    "question": "On decision day, how does that reliance divide among body, record, average, person, and the remainder?",
+    "unit": "share of one unit of reliance"
+   },
+   {
+    "answers": [
+     {
+      "key": "astronomer_stays",
+      "weight": 0.47
+     },
+     {
+      "key": "engineer_stays",
+      "weight": 0.22
+     },
+     {
+      "key": "go_together",
+      "weight": 0.05
+     },
+     {
+      "key": "remainder",
+      "weight": 0.26
+     }
+    ],
+    "id": "cut.decision.direction",
+    "parent_event_id": "event.decision",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "proposal weights: Jev estimate adopted under the pre-registered rule (graph nodes direction-prereg, direction-adopt); seeded draw direction-draw-1 realized the remainder"
+    ],
+    "question": "On day 15, which continuation will this decision realize?",
+    "unit": "share of one direction budget over mutually exclusive continuations (proposal weights)"
+   },
+   {
+    "answers": [
+     {
+      "key": "cultivators",
+      "weight": 0
+     },
+     {
+      "key": "home",
+      "weight": 0.129
+     },
+     {
+      "key": "install",
+      "weight": 0.365
+     },
+     {
+      "key": "mother",
+      "weight": 0.444
+     },
+     {
+      "key": "remainder",
+      "weight": 0.062
+     }
+    ],
+    "id": "cut.engineer.d00.attention.v2",
+    "parent_event_id": "event.engineer.state.d00",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "from selected story-interval candidate 3 point d00 (etraj-graciela)",
+     "category revision 1: remainder 0.062 opened into cultivators 0; named shares unchanged; supersedes cut.engineer.d00.attention (model revision 2)"
+    ],
+    "question": "How does Graciela's waking attention divide among the installation, her mother, home, whoever cut the field, and the remainder?",
+    "unit": "share of waking attention"
+   },
+   {
+    "answers": [
+     {
+      "key": "instrument_fault",
+      "weight": 0.82
+     },
+     {
+      "key": "planet_signal",
+      "weight": 0.08
+     },
+     {
+      "key": "remainder",
+      "weight": 0.1
+     }
+    ],
+    "id": "cut.engineer.d08.reading",
+    "parent_event_id": "event.engineer.fault_reading.d08",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "authored: she built the fault detector and its flag says calibration fault"
+    ],
+    "question": "How does Graciela's support divide between reading the stripes as an instrument fault and as a signal from the planet, before the frame test?",
+    "unit": "share of one unit of attributed support"
+   },
+   {
+    "answers": [
+     {
+      "key": "cultivators",
+      "weight": 0.07
+     },
+     {
+      "key": "home",
+      "weight": 0.27
+     },
+     {
+      "key": "install",
+      "weight": 0.319
+     },
+     {
+      "key": "mother",
+      "weight": 0.261
+     },
+     {
+      "key": "remainder",
+      "weight": 0.08
+     }
+    ],
+    "id": "cut.engineer.d09.attention.v2",
+    "parent_event_id": "event.engineer.state.d09",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "from selected story-interval candidate 3 point d09 (etraj-graciela)",
+     "category revision 1: remainder 0.15 opened into cultivators 0.07; named shares unchanged; supersedes cut.engineer.d09.attention (model revision 2)"
+    ],
+    "question": "How does Graciela's waking attention divide among the installation, her mother, home, whoever cut the field, and the remainder?",
+    "unit": "share of waking attention"
+   },
+   {
+    "answers": [
+     {
+      "key": "instrument_fault",
+      "weight": 0.04
+     },
+     {
+      "key": "planet_signal",
+      "weight": 0.86
+     },
+     {
+      "key": "remainder",
+      "weight": 0.1
+     }
+    ],
+    "id": "cut.engineer.d09.reading",
+    "parent_event_id": "event.engineer.fault_reading.d09",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "authored: the stripes stay fixed in the planet frame across one orbit"
+    ],
+    "question": "After the frame test, how does her support divide between an instrument fault and a signal from the planet?",
+    "unit": "share of one unit of attributed support"
+   },
+   {
+    "answers": [
+     {
+      "key": "cultivators",
+      "weight": 0.03
+     },
+     {
+      "key": "home",
+      "weight": 0.391
+     },
+     {
+      "key": "install",
+      "weight": 0.089
+     },
+     {
+      "key": "mother",
+      "weight": 0.452
+     },
+     {
+      "key": "remainder",
+      "weight": 0.038
+     }
+    ],
+    "id": "cut.engineer.d15.attention.v2",
+    "parent_event_id": "event.engineer.state.d15",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "from selected story-interval candidate 3 point d15 (etraj-graciela)",
+     "category revision 1: remainder 0.068 opened into cultivators 0.03; named shares unchanged; supersedes cut.engineer.d15.attention (model revision 2)"
+    ],
+    "question": "How does Graciela's waking attention divide among the installation, her mother, home, whoever cut the field, and the remainder?",
+    "unit": "share of waking attention"
+   },
+   {
+    "answers": [
+     {
+      "key": "home",
+      "weight": 0.285
+     },
+     {
+      "key": "mother",
+      "weight": 0.232
+     },
+     {
+      "key": "remainder",
+      "weight": 0.134
+     },
+     {
+      "key": "work",
+      "weight": 0.349
+     }
+    ],
+    "id": "cut.engineer.entry.attention",
+    "parent_event_id": "event.engineer.entry_state",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon",
+     "from selected life candidate 1 point g30 (rev-traj-graciela)"
+    ],
+    "question": "How does Graciela's waking attention divide among work, her mother, her life at home, and the remainder?",
+    "unit": "share of waking attention"
+   }
+  ],
+  "physical_cuts": [],
+  "realizations": [],
+  "referents": [
+   {
+    "authority": null,
+    "boundary": "The observatory program's governing agency on Earth, which funds the station and decided to end crewed operations.",
+    "continuity_criterion": "Same institution and mandate",
+    "id": "referent.agency",
+    "interval": null,
+    "lifecycle_event_id": "event.agency.life",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "boundary": "The station's resident astronomer: one human woman, born 2169, 62 at story entry, eleven years in residence at the focal station.",
+    "continuity_criterion": "Same living embodied person",
+    "id": "referent.astronomer",
+    "interval": null,
+    "lifecycle_event_id": "event.astronomer.life",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "boundary": "The relief ship's systems engineer: one human woman, born 2200, 30 at story entry; the astronomer's only child.",
+    "continuity_criterion": "Same living embodied person",
+    "id": "referent.engineer",
+    "interval": null,
+    "lifecycle_event_id": "event.engineer.life",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "boundary": "La Mancha: the dark vegetated region on TRAPPIST-1e's eastern terminator, a surface region about 900 km across, not an organism.",
+    "continuity_criterion": "Same surface region, bounded by its mapped outline",
+    "id": "referent.field",
+    "interval": null,
+    "lifecycle_event_id": "event.field.life",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "boundary": "TRAPPIST-1e, fourth planet of the red dwarf TRAPPIST-1, 40.7 light-years from the Sun, tidally locked to its star, with a permanent circulation whose surface wind blows east across La Mancha on the eastern terminator.",
+    "continuity_criterion": "Same planetary body",
+    "id": "referent.planet",
+    "interval": null,
+    "lifecycle_event_id": "event.planet.life",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "boundary": "The relief ship that carried the engineer out and must leave the station by day 16: a fusion torch that crosses the 672 AU in eleven months at about 1.2 percent of light speed on average, on a fixed propellant plan, lighting its drive only when well clear of the station; it carries food and propellant for the voyage out, sixteen days docked and the voyage home, and there is no launch window at 672 AU, only that budget; the agency can afford one such flight about every four years.",
+    "continuity_criterion": "Same vessel",
+    "id": "referent.ship",
+    "interval": null,
+    "lifecycle_event_id": "event.ship.life",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   },
+   {
+    "authority": null,
+    "boundary": "The crewed observing station on the solar gravitational focal line of TRAPPIST-1e, about 672 AU from the Sun, with its twelve-telescope image-plane fleet. It turns slowly about an axis pointed along the focal line at the Sun, so its ring has weight while the hub, the docking tube and a docked ship are nearly weightless; the sunward galley port keeps the pinhole spot of sunlight still.",
+    "continuity_criterion": "Same station hull, fleet and mission identity",
+    "id": "referent.station",
+    "interval": null,
+    "lifecycle_event_id": "event.station.life",
+    "provenance": [
+     "scifi-run-2026-09-22",
+     "authored fictional canon"
+    ],
+    "uncertainty": {
+     "kind": "unknown"
+    }
+   }
+  ],
+  "schema": "life-sim-rust-meaning-model/v1"
+ },
+ "processes": [
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "agency.next_ship_years",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 4
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon"
+   ],
+   "reference_frame": "agency schedule",
+   "scale": {
+    "semantic_role": "years until the next scheduled relief ship"
+   },
+   "support": [
+    "authored-observed-value:agency.next_ship_years"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "year",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 20,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "astronomer.belief_keeps",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 7.05
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon"
+   ],
+   "reference_frame": "attributed: Candelaria inner perspective (authored)",
+   "scale": {
+    "semantic_role": "confidence that what she loves will keep while unattended (0 lost, 5 some things, 10 everything waits)"
+   },
+   "support": [
+    "authored-attribution:life candidate 3 c62"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "authored scale point (0-10)",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 10,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "astronomer.contact_hours_per_month",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 26
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon"
+   ],
+   "reference_frame": "attributed: Candelaria (authored)",
+   "scale": {
+    "semantic_role": "hours a month composing and listening to messages with her daughter"
+   },
+   "support": [
+    "authored-attribution:rev-traj-candelaria c62"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "hours per month",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 300,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "astronomer.wait_horizon_years",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 37.27
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon"
+   ],
+   "reference_frame": "attributed: Candelaria inner perspective (authored)",
+   "scale": {
+    "semantic_role": "longest delay she still finds worth waiting for"
+   },
+   "support": [
+    "authored-attribution:life candidate 3 c62"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "year",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 60,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "comms.one_way_lag_hours",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 93.2
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon"
+   ],
+   "reference_frame": "heliocentric",
+   "scale": {
+    "semantic_role": "one-way light time between the station and Earth"
+   },
+   "support": [
+    "derived:672 AU x 8.317 light-minutes per AU"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "hour",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 1000,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "comms.round_trip_days",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 7.77
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon",
+    "depth-review-1 repair"
+   ],
+   "reference_frame": "heliocentric",
+   "scale": {
+    "semantic_role": "time for a question to Earth and its answer; longer than one orbit"
+   },
+   "support": [
+    "derived:2 x 93.2 hours"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "day",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 100,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "engineer.control_timing",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 6.75
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon"
+   ],
+   "reference_frame": "attributed: Graciela inner perspective (authored)",
+   "scale": {
+    "semantic_role": "how much she arranges when others can respond to her decisions (0 as things happen, 10 objections always too late)"
+   },
+   "support": [
+    "authored-attribution:life candidate 1 g30"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "authored scale point (0-10)",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 10,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "engineer.reply_latency_hours",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 107.67
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon"
+   ],
+   "reference_frame": "attributed: Graciela inner perspective (authored)",
+   "scale": {
+    "semantic_role": "median delay before answering a message that matters"
+   },
+   "support": [
+    "authored-attribution:life candidate 1 g30"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "hour",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 200,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "engineer.trust_returns",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 3.5
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon"
+   ],
+   "reference_frame": "attributed: Graciela inner perspective (authored)",
+   "scale": {
+    "semantic_role": "belief that her mother would come back if asked (0 certain not, 10 certain)"
+   },
+   "support": [
+    "authored-attribution:life candidate 1 g30"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "authored scale point (0-10)",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 10,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "field.front_advance_km_per_orbit",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 3.1
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon"
+   ],
+   "reference_frame": "planet-fixed",
+   "scale": {
+    "semantic_role": "advance of the cutting front across La Mancha"
+   },
+   "support": [
+    "authored-canon:field.front_advance_km_per_orbit"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "km per 6.1-day orbit",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 100,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "field.recut_interval_days",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 148
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "deepening pass 1: corrections from the independent reader"
+   ],
+   "reference_frame": "planet-fixed",
+   "scale": {
+    "semantic_role": "time until a given place is cut again (75 km / 3.1 km per 6.1-day orbit)"
+   },
+   "support": [
+    "derived:75 / 3.1 x 6.1"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "day",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 2000,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "field.regrowth_days",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 145
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon",
+    "depth-review-1 repair",
+    "revised from 190 in deepening pass 1: with 12 swaths 75 km apart advancing 3.1 km per orbit, a place is cut every ~148 days, so regrowth must fit inside that rotation"
+   ],
+   "reference_frame": "planet-fixed",
+   "scale": {
+    "semantic_role": "time for the black mat to regrow over a cut swath"
+   },
+   "support": [
+    "authored-canon:field.regrowth_days"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "day",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 2000,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "field.swath_count",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 12
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "deepening pass 1: corrections from the independent reader"
+   ],
+   "reference_frame": "planet-fixed",
+   "scale": {
+    "semantic_role": "parallel cut swaths across La Mancha at one time"
+   },
+   "support": [
+    "authored-canon:field.swath_count"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "swath",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 100,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "field.swath_spacing_km",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 75
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "deepening pass 1: corrections from the independent reader"
+   ],
+   "reference_frame": "planet-fixed",
+   "scale": {
+    "semantic_role": "distance between adjacent swaths"
+   },
+   "support": [
+    "authored-canon:field.swath_spacing_km"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "km",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 1000,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "field.swath_width_km",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 8
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon",
+    "depth-review-1 repair"
+   ],
+   "reference_frame": "planet-fixed",
+   "scale": {
+    "semantic_role": "width of one cut swath across La Mancha"
+   },
+   "support": [
+    "authored-canon:field.swath_width_km"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "km",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 100,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "map.static_resolution_km",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 3.8
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon"
+   ],
+   "reference_frame": "story-world",
+   "scale": {
+    "semantic_role": "resolution of the eleven-year integrated map of La Mancha"
+   },
+   "support": [
+    "authored-observed-value:map.static_resolution_km"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "km per reconstructed pixel",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 1000,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "pipeline.coarse_check_resolution_km",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 40
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon",
+    "depth-review-1 repair"
+   ],
+   "reference_frame": "station",
+   "scale": {
+    "semantic_role": "resolution of the station's earlier cloud-monitoring difference checks"
+   },
+   "support": [
+    "authored-observed-value:pipeline.coarse_check_resolution_km"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "km per pixel",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 1000,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "planet.light_age_years",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 40.7
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon"
+   ],
+   "reference_frame": "story-world",
+   "scale": {
+    "semantic_role": "age of TRAPPIST-1e light arriving at the station"
+   },
+   "support": [
+    "authored-observed-value:planet.light_age_years"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "year",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 100,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "planet.orbit_days",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 6.1
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon",
+    "depth-review-1 repair"
+   ],
+   "reference_frame": "TRAPPIST-1 system",
+   "scale": {
+    "semantic_role": "orbital period of TRAPPIST-1e; one observing window of the eastern terminator per orbit"
+   },
+   "support": [
+    "authored-observed-value:planet.orbit_days"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "day",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 100,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "ship.crew_count",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 2
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon"
+   ],
+   "reference_frame": "ship",
+   "scale": {
+    "semantic_role": "Starling crew besides the engineer"
+   },
+   "support": [
+    "authored-observed-value:ship.crew_count"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "person",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 10,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "ship.days_to_deadline",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 16
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon"
+   ],
+   "reference_frame": "story-world",
+   "scale": {
+    "semantic_role": "days remaining before the relief ship must leave, at day 0"
+   },
+   "support": [
+    "authored-observed-value:ship.days_to_deadline"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "day",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 400,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "ship.mean_speed_km_s",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 3463
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "deepening pass 3: corrections from the third independent reader"
+   ],
+   "reference_frame": "heliocentric",
+   "scale": {
+    "semantic_role": "average speed of the Starling over the 336-day crossing, about 1.2 percent of light speed; a fusion torch"
+   },
+   "support": [
+    "derived:672 AU / 336 days"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "km/s",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 100000,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "ship.spare_rations_person_days",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 672
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "deepening pass 1: corrections from the independent reader",
+    "revised from 80 in deepening pass 2: two passengers on an eleven-month voyage home need about 670 person-days, and the bunks rule out torpor"
+   ],
+   "reference_frame": "ship",
+   "scale": {
+    "semantic_role": "rations the Starling carried for two returning passengers that it can leave behind"
+   },
+   "support": [
+    "derived:2 passengers x 336-day voyage home"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "person-day",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 1000,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "ship.voyage_days",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 336
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "deepening pass 2: corrections from the second independent reader"
+   ],
+   "reference_frame": "ship",
+   "scale": {
+    "semantic_role": "length of the Starling's voyage between Earth and the Landing, each way"
+   },
+   "support": [
+    "authored-canon:event.transit"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "day",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 2000,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "station.distance_au",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 672
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon"
+   ],
+   "reference_frame": "heliocentric",
+   "scale": {
+    "semantic_role": "station distance from the Sun along the focal line"
+   },
+   "support": [
+    "authored-observed-value:station.distance_au"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "AU",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 2000,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "stores.person_days",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 1460
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "authored fictional canon"
+   ],
+   "reference_frame": "station",
+   "scale": {
+    "semantic_role": "remaining life-support stores at day 0"
+   },
+   "support": [
+    "authored-observed-value:stores.person_days"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "person-day",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 5000,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "stores.ration_fraction_to_next_ship",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 0.73
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "deepening pass 4: corrections from the fourth independent reader"
+   ],
+   "reference_frame": "station",
+   "scale": {
+    "semantic_role": "share of full rations two residents can eat if the stores and the Starling's rations must last until the scheduled ship four years away"
+   },
+   "support": [
+    "derived:2,132 person-days / (2 residents x 1,461 days)"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "fraction of full rations",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 1,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  },
+  {
+   "access_scopes": [],
+   "axes": [],
+   "id": "sun.illuminance_lux",
+   "initial_value": {
+    "kind": "scalar",
+    "value": 0.28
+   },
+   "provenance": [
+    "scifi-run-2026-09-22",
+    "deepening pass 2: corrections from the second independent reader"
+   ],
+   "reference_frame": "station",
+   "scale": {
+    "semantic_role": "illuminance of the Sun at the Landing, about a full Moon's: shadows and the pinhole spot show only where the lights are low"
+   },
+   "support": [
+    "derived:about 128,000 lux at 1 AU / 672^2"
+   ],
+   "uncertainty": {
+    "kind": "unknown"
+   },
+   "unit": "lux",
+   "update_mode": "observed",
+   "value_type": {
+    "bounds": {
+     "maximum": 10,
+     "minimum": 0
+    },
+    "kind": "scalar"
+   }
+  }
+ ],
+ "revision": {
+  "number": 9,
+  "previous_model_hash": "597611bf0b514490356cd7af2d693ff7912b5b1382fdb15eb475350d8f15fd1d",
+  "provenance": [
+   "scifi-run-2026-09-22",
+   "deepening pass 5: corrections from the fifth independent reader"
+  ],
+  "reason": "Deepening pass 5: state the station's spin about the Sun line (weight in the ring, none at the hub), the consumables budget behind the day-16 deadline, the coastline that makes the frame test true, the exact ration fraction, and Candelaria's wish to stay before the discovery, answering the fifth independent reader."
+ },
+ "schema": "life-sim-rust-model/v1",
+ "time_unit": "day"
+}

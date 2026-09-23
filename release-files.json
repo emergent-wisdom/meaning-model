@@ -37,6 +37,7 @@
     "examples/refinement-trial",
     "examples/progressive-authoring",
     "examples/alien-retirement",
+    "examples/integration-time",
     "rust-engine/Cargo.toml",
     "rust-engine/Cargo.lock",
     "rust-engine/README.md",
