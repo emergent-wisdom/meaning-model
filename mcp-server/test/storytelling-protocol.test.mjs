@@ -18,6 +18,7 @@ const storytellingTools = [
   'life_story_model_depth_record',
   'life_story_model_depth_review',
   'life_story_purpose_review',
+  'life_story_release',
   'life_story_scene_commit',
   'life_story_scene_prepare',
   'life_story_scene_review',
@@ -622,6 +623,20 @@ test('storytelling scene round-trip appends reviewed prose through Rust without 
     graphHash: committed.graphHash, rootIds: ['document'], accessScopes: ['editor'],
   });
   assert.equal(rendered.text, text, 'only prose is rendered, not canon or review metadata');
+  // Releasing the prose to readers is a recorded author decision; the review and context keep their scopes.
+  const unreleased = await client.callTool({ name: 'life_narrative_render', arguments: { graphHash: committed.graphHash, rootIds: ['document'], accessScopes: ['reader'] } });
+  assert.ok(unreleased.isError || unreleased.structuredContent?.text !== text, 'before release a reader does not see the prose');
+  const released = await call(client, 'life_story_release', { graphHash: committed.graphHash, requestId: 'release-1', nodeId: 'author.release.1', storyRootId: 'document',
+    authorId: 'author.llm', accessScopes: ['editor'], releaseTo: ['reader'], reason: 'The human approved publishing this scene.' });
+  assert.ok(released.releasedNodeIds.includes(committed.sceneId));
+  const asReader = await call(client, 'life_narrative_render', { graphHash: released.graphHash, rootIds: ['document'], accessScopes: ['reader'] });
+  assert.equal(asReader.text, text, 'after release a reader sees exactly the prose');
+  const releasedGraph = await readGraph(released.graphHash);
+  assert.deepEqual(releasedGraph.nodes.find(({ id }) => id === committed.reviewNodeId).access_scopes, ['editor'], 'the review keeps its scope');
+  assert.deepEqual(releasedGraph.nodes.find(({ id }) => id === committed.sceneId).access_scopes, ['editor', 'reader']);
+  const decision = releasedGraph.nodes.find(({ id }) => id === 'author.release.1');
+  assert.equal(JSON.parse(decision.text).kind, 'decision');
+  assert.deepEqual(decision.access_scopes, ['editor'], 'the decision stays with the author');
   const newGraph = await readGraph(committed.graphHash);
   const storedSceneNode = newGraph.nodes.find(({ id }) => id === committed.sceneId);
   const storedReviewNode = newGraph.nodes.find(({ id }) => id === committed.reviewNodeId);

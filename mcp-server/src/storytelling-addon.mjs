@@ -9,6 +9,7 @@ import { trajectoryGuidance } from './storytelling-trajectories.mjs';
 import { modelDepthPrepareSchema, modelDepthRecordSchema, modelDepthInstructions, modelDepthGuidance, prepareModelDepthReview, recordModelDepthReview, readModelDepthReview } from './storytelling-depth.mjs';
 import { characterConnectionsSchema, lifeTrendsInputSchema, lifeTrendsInstructions, readLifeTrends, verifyLifeTrajectoryRecords } from './storytelling-life-trends.mjs';
 import { deepeningSchema, deepeningInstructions, prepareDeepening } from './storytelling-deepening.mjs';
+import { releaseStory, storyReleaseSchema } from './storytelling-release.mjs';
 
 const id = z.string().trim().min(1).max(256);
 const hash = z.string().regex(/^[a-f0-9]{64}$/u);
@@ -226,6 +227,7 @@ export class StorytellingAddon {
   }
 
   async storeAuthorRecord(raw) { return storeAuthorRecord(this.service, raw); }
+  async release(raw) { return releaseStory(this.service, raw); }
   async prepareModelDepthReview(raw) { return prepareModelDepthReview(this.service, raw); }
   async recordModelDepthReview(raw) { return recordModelDepthReview(this.service, raw); }
   async prepareDeepening(raw) { return prepareDeepening(this.service, raw, (input) => this.preparePurposeReview(input)); }
@@ -806,6 +808,8 @@ export function registerStorytellingAddon(server, service) {
       `Required storytelling workflow: automatically build or reuse overall life trends with life_story_life_trends before drafting; do not ask the user to fill a dossier. Supply its lifeTrendsNodeId and scene characterConnections. Automatically perform model-depth review and record it first; supply the fresh modelDepthReviewNodeId. Review again after consequential model or story-context changes. Missing, incomplete, unrelated, or out-of-interval life models fail preparation. When using an author model, supply authorModelNodeId and scene.authorApplication; author material stays separate from character/reader knowledge. Returns lifetime continuity, cast coverage, author application and disclosure checks alongside explicit character/reader timings. Does not infer knowledge or mutate graphs/worlds. ${authorModelInstructions}`, true],
     ['life_story_scene_review', 'review', sceneReviewSchema,
       'Check an exact draft against a scene packet using complete caller-authored findings and cited read-back uses. First store the draft with life_story_author_record; record failed reviews there too. If selected, review the declared author application and narrator/focal-character boundaries without a stylistic quota. Verifies excerpts and declared knowledge boundaries; does not independently interpret prose or judge literary quality.', true],
+    ['life_story_release', 'release', storyReleaseSchema,
+      'Release a story\'s committed prose to readers. Committed prose inherits the author-only scope of the records it was built from, so a reader\'s render shows only the title. This records the author\'s decision (kind decision, with the reason) and widens the scopes of the prose passages, their scenes and their structural edges to releaseTo, or to every reader when releaseTo is empty; the dossier, drafts, reviews and author model keep their scopes. Release when the human\'s agreement allows publishing, then render with the reader scopes to read it as a reader does.', false],
     ['life_story_scene_commit', 'commit', sceneCommitSchema,
       'Recheck the exact scene packet, draft, and review hash, then atomically append prose and a linked Understanding Node review using the existing Rust narrative graph. Unknown/conflicting findings and declared knowledge leaks block this operation. Does not mutate world/model state or gate other tools.', false],
   ]) {

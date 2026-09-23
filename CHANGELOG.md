@@ -168,6 +168,12 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
     notes answered, contradicted, refined or superseded it; a replay focused on
     a review also finds the steps that responded to it; and model changes now
     include abstract relations and encapsulation cuts.
+  - `life_story_release` in the storytelling add-on releases a story's
+    committed prose to readers. Prose inherits the author-only scope of the
+    records it was built from, so a reader's render showed only the title. The
+    release records the author's decision and widens the scopes of the prose and
+    its structural edges only; the dossier, drafts, reviews and author model keep
+    theirs.
 - Add a guides-first reading mode, `MEANING_MODEL_READING=guides`. The start
   prompts, `life_modeling_context`, the served protocol and the storytelling guide
   then make the guides, the protocol and an example the entry, and the two papers

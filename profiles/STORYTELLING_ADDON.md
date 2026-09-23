@@ -814,6 +814,15 @@ literary quality, or demonstrate improved pacing, voice, or reader engagement.
 Review metadata is kept outside rendered story text, so the manuscript
 contains the prose rather than its review record.
 
+Committed prose inherits the author-only scope of the dossier, drafts and
+reviews it was built from, so a reader's render shows only the title. When the
+human's agreement allows publishing, release it with `life_story_release`: it
+records the decision and its reason as an author record and widens the scopes
+of the prose passages, their scenes and their structural edges to the reader
+scopes you name, or to every reader. The dossier, drafts, reviews and author
+model keep their scopes. Render with the reader scopes afterwards and read what
+a reader sees; the release does not check what the prose itself reveals.
+
 ## Character flaws and independent reviews
 
 Review principal characters for limitations that affect choices and
