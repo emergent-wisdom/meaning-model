@@ -200,7 +200,10 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
     drafts, assessments, revision notes or superseded notes, which quote old text
     as history. A probe had found Events and notes still quoting sentences that
     revisions had cut, with no tool saying so. The match is textual: it finds
-    copied or quoted sentences, not paraphrases.
+    copied or quoted sentences, not paraphrases. `life_narrative_drift_check`
+    finds drift that already exists, from the graph's history: on the
+    45-revision test story it named the plan, a writer's note and an Event that
+    the probe had found by hand, and nothing else.
   - `life_narrative_alignment_audit` takes `unnarratedNodeIds` for records the
     prose leaves out on purpose: they are still checked for contradiction but no
     longer flagged as not narrated. Narration flags are reported for the whole

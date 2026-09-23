@@ -7,6 +7,7 @@ import * as z from 'zod/v4';
 import { assertDescribedEvents, descriptionCoverage } from './description-coverage.mjs';
 import { constructionRecordInstructions } from './construction-principles.mjs';
 import { additiveNarrativeBatch, applyNarrativeDefinitionDelta, definitionFromCompleteView, narrativeDefinitionDelta } from './narrative-delta.mjs';
+import { recordsQuoting, removedFragments, textRecords } from './prose-drift.mjs';
 
 const id = z.string().trim().min(1).max(256);
 const longId = z.string().trim().min(1).max(1_024);
@@ -645,6 +646,24 @@ function describeModelChanges(changes, level) {
   }).join('; ');
 }
 
+// Drift that already exists: sentences some earlier revision's prose had and the current prose lacks, and the
+// present-tense records (Events, plans, writer's notes) that still quote them.
+export const driftCheckSchema = z.object({ graphHash: hash, accessScopes: z.array(id).max(64).default([]) }).strict();
+export async function checkProseDrift(service, raw) {
+  const input = driftCheckSchema.parse(raw);
+  const head = await readGraph(service, input.graphHash, input.accessScopes);
+  const { path } = await graphLineage(service, head);
+  const prose = (view) => view.nodes.filter((node) => node.role === 'story_passage').map((node) => node.text ?? '');
+  const earlier = [];
+  for (const revision of path.slice(0, -1)) earlier.push(...prose(await cachedGraph(service, revision.graph_hash, input.accessScopes)));
+  const removed = removedFragments([...new Set(earlier)], prose(head));
+  const model = await cachedModel(service, boundModelHash(head));
+  const records = recordsQuoting(textRecords(head, model), removed, { limit: 80 });
+  return { schema: 'meaning-model-prose-drift/v1', graphHash: input.graphHash, revisionsRead: path.length, removedFragmentCount: removed.length,
+    recordsQuotingRemovedText: records, textMatchOnly: true,
+    nextStep: records.length ? 'Each record still quotes text the prose no longer has. Update it (a model revision for Events) or supersede it with a note, so a later reader does not take the old wording as current.' : 'No present-tense record quotes removed prose. Paraphrases are not checked.' };
+}
+
 export async function replayConstruction(service, raw) {
   const input = replaySchema.parse(raw);
   const limits = { outline: 160, reasoning: 8_000, full: 40_000 }[input.level];
@@ -916,6 +935,11 @@ export function registerConstructionRecordTools(server, service, { toolResult })
     inputSchema: reviewRecordSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await recordReview(service, input)));
+  server.registerTool('life_narrative_drift_check', {
+    description: 'Find drift between prose and the records about it: sentences that some earlier revision of the prose had and the current prose lacks, and the present-tense records (the bound model\'s Event descriptions, plans, disclosure records, writer\'s notes) that still quote them. Reviews, drafts, assessments, revision notes and superseded notes quote old text as history and are left out. A text match only: it finds copied or quoted sentences, not paraphrases. life_narrative_edit reports the same for the text it removes.',
+    inputSchema: driftCheckSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  }, async (input) => toolResult(await checkProseDrift(service, input)));
   server.registerTool('life_understanding_read', {
     description: 'Read named Understanding Nodes or reviews whole: each one\'s kind, holder, title, full text, data (a review\'s verdict and findings), provenance, and the links into and out of it (what it answers, what answered it). Use it when the replay or the outline shows a note cut short; it reads up to 32 nodes without their neighborhoods.',
     inputSchema: noteReadSchema,

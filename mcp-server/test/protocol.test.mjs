@@ -133,6 +133,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_modeling_context',
       'life_narrative_alignment_audit',
       'life_narrative_batch',
+      'life_narrative_drift_check',
       'life_narrative_edit',
       'life_narrative_query',
       'life_narrative_rebind',

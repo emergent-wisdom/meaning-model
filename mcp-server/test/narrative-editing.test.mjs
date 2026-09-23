@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { LifeSimulationService } from '../src/service.mjs';
 import { editNarrativeGraph, narrativeEditSchema } from '../src/narrative-editing.mjs';
+import { checkProseDrift } from '../src/construction-record.mjs';
 
 const provenance = ['native narrative editing integration test'];
 const endpoint = (nodeId) => ({ kind: 'node', node_id: nodeId });
@@ -334,6 +335,10 @@ test('an edit names the records that still quote the text it removed', async (t)
     { kind: 'replace_text', nodeId: 'p2', expectedText: 'The door was new to him that night.', text: 'He had never had to lock it.' }]));
   assert.deepEqual(result.recordsQuotingRemovedText.map((record) => record.id), ['plan.note']);
   assert.match(result.recordsNextStep, /still quote text the prose no longer has/);
+  // The same drift is found later from the history alone.
+  const drift = await checkProseDrift(f.service, { graphHash: result.graphHash, accessScopes: scopes });
+  assert.deepEqual(drift.recordsQuotingRemovedText.map((record) => record.id), ['plan.note']);
+  assert.equal(drift.revisionsRead, 2);
   const unrelated = await editNarrativeGraph(f.service, f.input([{ kind: 'replace_text', nodeId: 'p3', expectedText: 'Fourth.', text: 'Fourth, again.' }],
     { requestId: 'edit-2', graphHash: result.graphHash }));
   assert.deepEqual(unrelated.recordsQuotingRemovedText, []);
