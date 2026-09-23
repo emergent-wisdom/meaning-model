@@ -85,11 +85,15 @@ test('a thought is recorded against what it concerns, a review under its reviewe
   const outline = await outlineModel(service, { graphHash: answered.graphHash, accessScopes: scopes });
   assert.match(outline.text, /event\.ada\.state\.h06 \[6, 6\.25\]: Ada's attributed attention state/);
   assert.match(outline.text, /thinking first of the loan/);
-  assert.match(outline.text, /cut\.ada\.h06\.attention: .* → continuity 0\.35, money 0\.55, remainder 0\.10/);
+  assert.match(outline.text, /cut\.ada\.h06\.attention \[unit: share of one attention budget\]: .* → continuity 0\.35, money 0\.55, remainder 0\.10/, 'the unit says what the weights are');
   assert.match(outline.text, /✎ note\.attention \[understanding\.decision by modeler:claude-opus-5-5\]: Money leads her attention/);
   assert.match(outline.text, /✎ also note\.attention \(shown above\)/, 'a note linked to a Cut and its Event is shown once');
   assert.match(outline.text, /review\.reader-gpt-6-astra-fresh-1 \(reader:gpt-6-astra:fresh-1\): 1 reflection, 1 record/);
   assert.equal(outline.coverage.undescribedNumbers.length, 0);
+  // Both hashes are accepted when the graph is bound to that model, and refused with a way out when it is not.
+  const both = await outlineModel(service, { graphHash: answered.graphHash, modelHash: revised.modelHash, accessScopes: scopes });
+  assert.equal(both.text, outline.text);
+  await assert.rejects(outlineModel(service, { graphHash: answered.graphHash, modelHash, accessScopes: scopes }), /is bound to model .*pass graphHash alone/);
   const counts = await outlineModel(service, { graphHash: answered.graphHash, accessScopes: scopes, understanding: 'count', sections: ['events'] });
   assert.doesNotMatch(counts.text, /✎/);
 

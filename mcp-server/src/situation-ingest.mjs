@@ -7,7 +7,7 @@ import { REMAINDER_KEY, buildCutShareQuestions, proposalFromProbabilities } from
 import { rebindNarrativeGraph, preflightNarrativeRebind, assertCompleteNarrativeView } from './narrative-rebind.mjs';
 
 import { retainEstimatorProposal, readEstimatorProposal, runEstimatorRequest } from './estimator-receipts.mjs';
-import { assertDescribedEvents } from './construction-record.mjs';
+import { assertDescribedEvents, ensureHolderRoot, holderRootId, nextPlacementOrder, noteKinds } from './construction-record.mjs';
 
 const id = z.string().trim().min(1).max(1_024);
 const shortId = z.string().trim().min(1).max(256);
@@ -47,7 +47,7 @@ export const ingestSchema = z.object({
     graphHash: hash,
     accessScopes: z.array(id).max(32).default([]),
     rebind: z.boolean().default(true),
-    notes: z.array(z.object({ nodeId: id, text: prose, holder: shortId, aboutEventIds: z.array(id).max(32).default([]), links: z.array(z.object({ relation: shortId, targetNodeId: id }).strict()).max(32).default([]) }).strict()).max(32).default([]),
+    notes: z.array(z.object({ nodeId: id, text: prose, holder: shortId, kind: z.enum(noteKinds).nullable().default(null), title: z.string().trim().min(1).max(300).nullable().default(null), aboutEventIds: z.array(id).max(32).default([]), links: z.array(z.object({ relation: shortId, targetNodeId: id }).strict()).max(32).default([]) }).strict()).max(32).default([]),
   }).strict().nullable().default(null),
 }).strict().superRefine((input, context) => {
   const eventIds = input.events.map((event) => event.eventId);
@@ -80,7 +80,7 @@ export const ingestSchema = z.object({
     for (const key of Object.keys(distribution.probabilities)) if (key !== REMAINDER_KEY && !question?.answers.some((answer) => answer.key === key)) context.addIssue({ code: 'custom', path: ['distributions', index], message: `Unknown answer key ${key}.` });
     if (!questionIds.includes(distribution.questionId) || !eventIds.includes(distribution.eventId)) context.addIssue({ code: 'custom', path: ['distributions', index], message: 'Distribution must name a declared question and event.' });
   }
-  if (input.graph && !input.apply) context.addIssue({ code: 'custom', path: ['graph'], message: 'graph operations require apply.' });
+  if (input.graph && !input.apply) context.addIssue({ code: 'custom', path: ['graph'], message: 'graph.notes are recorded only with apply; a preview writes nothing. To put predictions on record before the estimator answers, record them first with life_understanding_record.' });
 });
 
 const proposalBinding = ({ apply, proposalId, requestId, revisionReason, graph, ...binding }) => binding;
@@ -279,11 +279,14 @@ function ingestEvidence(input, situationText, cutIds) {
 
 export async function recordIngestNotes(service, { graphHash, accessScopes, requestId, notes, eventIds, provenance, evidence = null }) {
   const view = await service.queryNarrativeGraph({ graphHash, expectedGraphHash: graphHash, mode: 'full', includeContent: true, accessScopes: [...new Set(accessScopes)].sort() });
-  const { narrativeBatch, rootId, evidenceNodeIds } = buildIngestNotes(view, { graphHash, accessScopes, notes, eventIds, provenance, evidence });
+  const { narrativeBatch, rootId, rootIds, evidenceRootId, evidenceNodeIds } = buildIngestNotes(view, { graphHash, accessScopes, notes, eventIds, provenance, evidence });
   const stored = await service.applyNarrativeBatch({ requestId, previousGraphHash: graphHash, narrativeBatch });
-  return { graphHash: stored.graphHash ?? null, understandingRootId: rootId, nodeIds: notes.map((note) => note.nodeId), evidenceNodeIds, stored };
+  return { graphHash: stored.graphHash ?? null, understandingRootId: rootId, understandingRootIds: rootIds, evidenceRootId, nodeIds: notes.map((note) => note.nodeId), evidenceNodeIds, stored };
 }
 
+// Each note goes under its holder's own understanding root, the one life_understanding_record uses;
+// the ingest's own records (question definitions, situation texts) go under understanding.ingest.
+export const INGEST_RECORDS_ROOT = 'understanding.ingest';
 export function buildIngestNotes(view, { graphHash, accessScopes, notes, eventIds, provenance, evidence = null }) {
   const scopes = [...new Set(accessScopes)].sort();
   if (!scopes.length) throw new Error('Understanding notes require at least one access scope.');
@@ -291,38 +294,54 @@ export function buildIngestNotes(view, { graphHash, accessScopes, notes, eventId
   if (new Set(notes.map((note) => note.nodeId)).size !== notes.length) throw new Error('Note IDs must be unique.');
   const step = view.graph?.revision?.number;
   if (!Number.isSafeInteger(step)) throw new Error('Recording notes requires a graph-revision clock.');
-  let rootId = (view.nodes ?? []).find((node) => node.node_type === 'understanding_process_root' && (view.roots ?? []).includes(node.id))?.id ?? null;
   const addRoots = []; const nodes = []; const edges = [];
   const common = { uncertainty: { kind: 'unknown' }, access_scopes: scopes, render: 'exclude', training: 'exclude', provenance };
-  if (!rootId) { rootId = 'understanding.ingest'; if (view.nodes.some((node) => node.id === rootId)) throw new Error('understanding.ingest exists but is not a declared understanding root.'); addRoots.push(rootId); nodes.push({ ...common, id: rootId, node_type: 'understanding_process_root', role: 'metadata', title: 'Ingest understanding', text: JSON.stringify({ name: 'Ingest understanding', clock: 'authoring_step', purpose: 'Notes recorded alongside situation ingest revisions.' }), epistemic_status: 'authored_process', evidence_type: 'creative_hypothesis', authority: { source: 'situation-ingest', weight: 1 } }); }
   const endpoint = (nodeId) => ({ kind: 'node', node_id: nodeId });
-  for (const [index, note] of notes.entries()) {
-    if (note.nodeId === rootId || view.nodes.some((node) => node.id === note.nodeId)) throw new Error(`Note ${note.nodeId} already exists; use a new node ID.`);
+  const nextOrder = new Map();
+  const placeUnder = (rootId, nodeId) => {
+    const order = nextOrder.get(rootId) ?? nextPlacementOrder(view, rootId);
+    nextOrder.set(rootId, order + 1);
+    edges.push({ id: `${nodeId}.placement`, source: endpoint(rootId), target: endpoint(nodeId), family: 'structural', relation: 'contains', order, access_scopes: scopes, provenance });
+  };
+  const rootIds = [];
+  for (const holder of [...new Set(notes.map((note) => note.holder))]) {
+    const root = ensureHolderRoot(view, { holder, scopes, provenance });
+    addRoots.push(...root.roots); nodes.push(...root.nodes); rootIds.push(root.rootId);
+  }
+  for (const note of notes) {
+    if (rootIds.includes(note.nodeId) || view.nodes.some((node) => node.id === note.nodeId)) throw new Error(`Note ${note.nodeId} already exists; use a new node ID.`);
     for (const eventId of note.aboutEventIds) if (!eventIds.has(eventId)) throw new Error(`Note ${note.nodeId} is about unknown event ${eventId}.`);
     for (const link of note.links) if (!view.nodes.some((node) => node.id === link.targetNodeId) && !notes.some((other) => other.nodeId === link.targetNodeId && other !== note)) throw new Error(`Note ${note.nodeId} links to unknown node ${link.targetNodeId}.`);
-    nodes.push({ ...common, id: note.nodeId, node_type: 'ingest.note', role: 'externalized_reflection', text: note.text, epistemic_status: 'authored_proposal', evidence_type: 'creative_hypothesis', holder: note.holder, authority: { source: note.holder, weight: 1 }, value_time: step });
-    edges.push({ id: `${note.nodeId}.placement`, source: endpoint(rootId), target: endpoint(note.nodeId), family: 'structural', relation: 'contains', order: step * 100 + index, access_scopes: scopes, provenance });
+    // A note with a kind is an ordinary Understanding Node; one without keeps the older ingest.note form.
+    const typed = note.kind ? { node_type: `understanding.${note.kind}`, text: JSON.stringify({ schema: 'meaning-model-understanding-note/v1', kind: note.kind, text: note.text }), epistemic_status: 'externalized_reflection', evidence_type: 'belief' }
+      : { node_type: 'ingest.note', text: note.text, epistemic_status: 'authored_proposal', evidence_type: 'creative_hypothesis' };
+    nodes.push({ ...common, id: note.nodeId, ...typed, ...(note.title ? { title: note.title } : {}), role: 'externalized_reflection', holder: note.holder, authority: { source: note.holder, weight: 1 }, value_time: step });
+    placeUnder(holderRootId(note.holder), note.nodeId);
     for (const eventId of note.aboutEventIds) edges.push({ id: `${note.nodeId}.about.${eventId}`, source: endpoint(note.nodeId), target: { kind: 'anchor', anchor_kind: 'event', anchor_id: eventId }, family: 'grounding', relation: 'about', access_scopes: scopes, provenance });
     for (const [linkIndex, link] of note.links.entries()) edges.push({ id: `${note.nodeId}.link.${linkIndex}`, source: endpoint(note.nodeId), target: endpoint(link.targetNodeId), family: 'semantic', relation: link.relation, access_scopes: scopes, provenance });
   }
   const evidenceNodeIds = [];
-  if (evidence) {
+  let evidenceRootId = null;
+  if (evidence && (evidence.questions.length || evidence.situations.length)) {
+    evidenceRootId = INGEST_RECORDS_ROOT;
+    const existing = view.nodes.find((node) => node.id === evidenceRootId);
+    if (existing && (existing.node_type !== 'understanding_process_root' || !(view.roots ?? []).includes(evidenceRootId))) throw new Error(`${evidenceRootId} exists but is not a declared understanding root.`);
+    if (!existing) { addRoots.push(evidenceRootId); nodes.push({ ...common, id: evidenceRootId, node_type: 'understanding_process_root', role: 'metadata', title: 'Ingest records', text: JSON.stringify({ name: 'Ingest records', clock: 'authoring_step', purpose: 'The question definitions and situation texts each situation ingest judged against.' }), epistemic_status: 'authored_process', evidence_type: 'creative_hypothesis', authority: { source: 'situation-ingest', weight: 1 } }); }
     const record = { ...common, role: 'metadata', epistemic_status: 'source_bound_record', evidence_type: 'report', authority: { source: 'situation-ingest', weight: 1 }, value_time: step };
-    const place = (nodeId, index) => edges.push({ id: `${nodeId}.placement`, source: endpoint(rootId), target: endpoint(nodeId), family: 'structural', relation: 'contains', order: step * 100 + notes.length + index, access_scopes: scopes, provenance });
     const about = (nodeId, eventId, index) => edges.push({ id: `${nodeId}.about.${index}`, source: endpoint(nodeId), target: { kind: 'anchor', anchor_kind: 'event', anchor_id: eventId }, family: 'grounding', relation: 'about', access_scopes: scopes, provenance });
     const questionNodes = new Map();
     for (const [index, question] of evidence.questions.entries()) {
       const nodeId = `${evidence.stem}.question.${index}`;
       questionNodes.set(question.questionId, nodeId); evidenceNodeIds.push(nodeId);
       nodes.push({ ...record, id: nodeId, node_type: 'cut_question_definition', text: JSON.stringify(question.definition) });
-      place(nodeId, evidenceNodeIds.length);
+      placeUnder(evidenceRootId, nodeId);
       for (const [eventIndex, eventId] of question.eventIds.entries()) if (eventIds.has(eventId)) about(nodeId, eventId, eventIndex);
     }
     for (const [index, situation] of evidence.situations.entries()) {
       const nodeId = `${evidence.stem}.situation.${index}`;
       evidenceNodeIds.push(nodeId);
       nodes.push({ ...record, id: nodeId, node_type: 'estimator_situation_text', text: JSON.stringify({ eventId: situation.eventId, text: situation.text, questionIds: situation.questionIds }) });
-      place(nodeId, evidenceNodeIds.length);
+      placeUnder(evidenceRootId, nodeId);
       if (eventIds.has(situation.eventId)) about(nodeId, situation.eventId, 0);
       for (const [linkIndex, questionId] of situation.questionIds.entries()) edges.push({ id: `${nodeId}.judged.${linkIndex}`, source: endpoint(questionNodes.get(questionId)), target: endpoint(nodeId), family: 'semantic', relation: 'judged_against', access_scopes: scopes, provenance });
     }
@@ -330,5 +349,5 @@ export function buildIngestNotes(view, { graphHash, accessScopes, notes, eventId
   }
   const existingEdges = new Set(view.edges.map((edge) => edge.id));
   if (new Set(edges.map((edge) => edge.id)).size !== edges.length || edges.some((edge) => existingEdges.has(edge.id))) throw new Error('Generated note edge IDs conflict; choose distinct note IDs and targets.');
-  return { rootId, evidenceNodeIds, narrativeBatch: { schema: 'life-sim-rust-narrative-batch/v1', previous_graph_hash: graphHash, reason: `Record ${notes.length} understanding note${notes.length === 1 ? '' : 's'}${evidenceNodeIds.length ? ` and ${evidenceNodeIds.length} ingest record${evidenceNodeIds.length === 1 ? '' : 's'}` : ''} from situation ingest.`, provenance, add_roots: addRoots, add_nodes: nodes, add_edges: edges } };
+  return { rootId: rootIds[0] ?? evidenceRootId, rootIds, evidenceRootId, evidenceNodeIds, narrativeBatch: { schema: 'life-sim-rust-narrative-batch/v1', previous_graph_hash: graphHash, reason: `Record ${notes.length} understanding note${notes.length === 1 ? '' : 's'}${evidenceNodeIds.length ? ` and ${evidenceNodeIds.length} ingest record${evidenceNodeIds.length === 1 ? '' : 's'}` : ''} from situation ingest.`, provenance, add_roots: addRoots, add_nodes: nodes, add_edges: edges } };
 }

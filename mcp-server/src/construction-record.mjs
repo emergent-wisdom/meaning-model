@@ -107,6 +107,17 @@ function ensureRoot(view, { rootId, holder, clock, label, purpose, scopes, prove
     authority: { source: holder, weight: 1 }, uncertainty: { kind: 'unknown' }, access_scopes: scopes, render: 'exclude', training: 'exclude', provenance }] };
 }
 
+// A holder's own understanding root: every note a holder records lands here, whichever tool records it.
+export function holderRootId(holder, clock = 'authoring_step') {
+  return `understanding.${slug(holder)}${clock === 'story_time' ? '.story-time' : ''}`;
+}
+export function ensureHolderRoot(view, { holder, clock = 'authoring_step', label = null, scopes, provenance }) {
+  return ensureRoot(view, { rootId: holderRootId(holder, clock), holder, clock, scopes, provenance,
+    label: label ?? `Understanding held by ${holder}`,
+    purpose: clock === 'story_time' ? `What ${holder} thinks within the story, in world time.` : `The reasoning of ${holder} while constructing and revising this model and graph.` });
+}
+export { nextOrder as nextPlacementOrder };
+
 // ---------------------------------------------------------------------------------------------
 // Understanding records: a thought, linked to what it is about.
 
@@ -145,10 +156,8 @@ export async function recordUnderstanding(service, raw) {
   const recordedBy = input.recordedBy ?? input.holder;
   const provenance = ['Meaning Model understanding record v1', `holder:${input.holder}`, `recorded-by:${recordedBy}`, `clock:${input.clock}`,
     ...(modelHash ? [`written-against-model:${modelHash}`] : []), `written-at-graph-revision:${step}`];
-  const rootId = `understanding.${slug(input.holder)}${input.clock === 'story_time' ? '.story-time' : ''}`;
-  const root = ensureRoot(view, { rootId, holder: input.holder, clock: input.clock, scopes, provenance,
-    label: input.rootLabel ?? `Understanding held by ${input.holder}`,
-    purpose: input.clock === 'story_time' ? `What ${input.holder} thinks within the story, in world time.` : `The reasoning of ${input.holder} while constructing and revising this model and graph.` });
+  const rootId = holderRootId(input.holder, input.clock);
+  const root = ensureHolderRoot(view, { holder: input.holder, clock: input.clock, label: input.rootLabel ?? null, scopes, provenance });
   let order = nextOrder(view, rootId);
   const nodes = [...root.nodes]; const edges = [];
   const endpoint = (nodeId) => ({ kind: 'node', node_id: nodeId });
@@ -323,7 +332,7 @@ export const outlineSchema = z.object({
   focusEventId: longId.optional(),
   textLimit: z.number().int().min(40).max(4_000).default(240),
   maxChars: z.number().int().min(2_000).max(400_000).default(60_000),
-}).strict().refine((input) => Boolean(input.graphHash) !== Boolean(input.modelHash), 'Supply exactly one of graphHash or modelHash.');
+}).strict().refine((input) => Boolean(input.graphHash || input.modelHash), 'Supply graphHash (the graph and its bound model, with notes) or modelHash (a model alone); both only when the graph is bound to that model.');
 
 function anchoredNotes(view) {
   const nodes = new Map(view.nodes.map((node) => [node.id, node]));
@@ -348,6 +357,9 @@ function noteLine(node, level, limit) {
 export async function outlineModel(service, raw) {
   const input = outlineSchema.parse(raw);
   const view = input.graphHash ? await readGraph(service, input.graphHash, input.accessScopes) : null;
+  if (view && input.modelHash && boundModelHash(view) !== input.modelHash) {
+    throw new Error(`Graph ${input.graphHash.slice(0, 12)} is bound to model ${String(boundModelHash(view)).slice(0, 12)}, not ${input.modelHash.slice(0, 12)}; pass graphHash alone to outline its bound model with its notes, or modelHash alone.`);
+  }
   const modelHash = input.modelHash ?? boundModelHash(view);
   if (!modelHash) throw new Error('The graph is not bound to a model; outline a model by modelHash instead.');
   const { model } = await service.inspectModel({ modelHash, includeDefinition: true });
@@ -406,7 +418,9 @@ export async function outlineModel(service, raw) {
       if (nonblank(event.description)) lines.push(`${indent}  ${clip(oneLine(event.description), input.textLimit * 3)}`);
       else if (cutsByEvent.has(eventId)) lines.push(`${indent}  (no description, although this Event carries numbers)`);
       for (const cut of cutsByEvent.get(eventId) ?? []) {
-        lines.push(`${indent}  · ${cut.id}: ${clip(oneLine(cut.question), input.textLimit)} ${cutAnswers(cut)}`);
+        // The unit says what the weights are (credence, share of a change, allocation), which the numbers alone do not.
+        const unit = nonblank(cut.unit) ? ` [unit: ${clip(oneLine(cut.unit), 80)}]` : '';
+        lines.push(`${indent}  · ${cut.id}${unit}: ${clip(oneLine(cut.question), input.textLimit)} ${cutAnswers(cut)}`);
         attach('normalized_cut', cut.id, `${indent}  `);
       }
       attach('event', eventId, indent);
@@ -473,7 +487,7 @@ export const replaySchema = z.object({
   focus: z.array(targetSchema).max(16).default([]),
   format: z.enum(['text', 'json']).default('text'),
   maxChars: z.number().int().min(2_000).max(400_000).default(60_000),
-}).strict().refine((input) => Boolean(input.graphHash) !== Boolean(input.modelHash), 'Supply exactly one of graphHash or modelHash.');
+}).strict().refine((input) => Boolean(input.graphHash) !== Boolean(input.modelHash), 'Supply exactly one: graphHash replays the graph with the model revisions it was bound to; modelHash replays a model lineage alone.');
 
 const graphCaches = new WeakMap();
 async function cachedGraph(service, graphHash, accessScopes) {

@@ -32,7 +32,8 @@ export function drawFromAnswers(answers, u) {
     const from = upper; upper += weight;
     return { key, weight, from, to: upper };
   });
-  // Answers are taken in model order; the last interval absorbs floating-point shortfall.
+  // Answers are taken in the registered model's order (the engine sorts a Cut's answers by key);
+  // the last interval absorbs floating-point shortfall.
   const hit = cumulative.find((interval) => u < interval.to) ?? cumulative[cumulative.length - 1];
   return { cumulative, realized: hit.key };
 }

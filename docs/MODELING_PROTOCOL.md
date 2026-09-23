@@ -321,8 +321,10 @@ separate governance and validated domain practice beyond this protocol.
 
 The required paper-grounded flow is:
 
-0. When continuing existing work, `life_construction_replay` and
-   `life_model_outline` on the graph you are given.
+0. When continuing existing work, use `sessionMode` `continuation`, then read
+   `life_construction_replay` from the start at outline level and
+   `life_model_outline` on the graph you are given, and record your reading and
+   plan as notes before your first change.
 1. `life_modeling_context` for ordered, version-bound reading.
 2. Read both complete theory resources, then the protocol, profile, and example.
    The server refuses `life_profile_compile` until both paper resources have

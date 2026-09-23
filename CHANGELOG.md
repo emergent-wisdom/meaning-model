@@ -129,6 +129,24 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
 - Keep edge explanations through rebinds, history exports and revision reads.
   The list of revision fields had left out the stored `explanation` of an edge, so
   a rebind silently dropped every explanation in the graph.
+- Fix friction found when fresh agents used the tool with no coaching
+  (2026-09-23):
+  - `life_model_ingest` files each note under its holder's own understanding
+    root, the one `life_understanding_record` uses. It used to take the first
+    root in the graph, so a modeler's notes could land under an estimator
+    review. The ingest's question definitions and situation texts go under
+    `understanding.ingest`, and notes may carry a kind and a title.
+  - A `continuation` session mode for continuing recorded work. Its prompt starts
+    with the construction replay and the outline, and asks for the reading and
+    the plan as notes before the first change.
+  - The recording instruction shared by prompts and tools asks the agent to put
+    every reason it gives the user into the graph before replying. A later agent
+    reads the graph, not the reply.
+  - `life_model_outline` shows each Cut's unit, so a share of a change and a
+    credence no longer look alike, and accepts a graph and a model hash together
+    when the graph is bound to that model.
+  - `life_direction_draw` now says that its intervals run in the stored order,
+    which sorts a Cut's answers by key.
 - Add a guides-first reading mode, `MEANING_MODEL_READING=guides`. The start
   prompts, `life_modeling_context`, the served protocol and the storytelling guide
   then make the guides, the protocol and an example the entry, and the two papers

@@ -53,7 +53,7 @@ let theoryAccessPurpose: string | null = null;
 // starts a new record.
 function resetTheoryAccessForNewContext(purpose: string, sessionMode: string) {
   const keep = sessionMode === 'repeat_same_domain'
-    || (sessionMode === 'first_use' && theoryAccessPurpose === purpose);
+    || ((sessionMode === 'first_use' || sessionMode === 'continuation') && theoryAccessPurpose === purpose);
   if (!keep) accessedTheoryResources.clear();
   theoryAccessPurpose = purpose;
 }
@@ -112,7 +112,7 @@ server.registerPrompt(
       : 'Begin with the complete current papers, then use the operational protocol and a purpose-specific profile.',
     argsSchema: z.object({
       purpose: z.enum(modelingPurposes),
-      sessionMode: z.enum(modelingSessionModes).default('first_use'),
+      sessionMode: z.enum(modelingSessionModes).default('first_use').describe('continuation when you continue recorded work in this server; new_domain or consequential start a new reading record.'),
     }),
   },
   async (input) => ({
@@ -131,7 +131,7 @@ server.registerTool(
       : 'Return the paper-first reading order and minimum operational contract for story, person, observation, forecast, reconstruction, or counterfactual modeling. The live MCP process records access to both complete papers; content digests are provenance only and never replace reading. Calling it again for the same purpose keeps that reading record, so it can be used to check theoryAccessGate; a different purpose, sessionMode new_domain, or sessionMode consequential starts a new record.',
     inputSchema: z.object({
       purpose: z.enum(modelingPurposes),
-      sessionMode: z.enum(modelingSessionModes).default('first_use'),
+      sessionMode: z.enum(modelingSessionModes).default('first_use').describe('continuation when you continue recorded work in this server; new_domain or consequential start a new reading record.'),
     }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
@@ -150,8 +150,8 @@ server.registerPrompt('life_general_modeling_start', {
   title: 'Build and revise a general-purpose world model',
   description: 'Model macro context and long-term developments before local processes, with optional Jev estimation and automatic graph ingestion. Storytelling is independent and opt-in.',
   argsSchema: z.object({
-    purpose: z.enum(['observation', 'forecasting', 'counterfactual']).optional(),
-    sessionMode: z.enum(modelingSessionModes).default('first_use'),
+    purpose: z.enum(['observation', 'forecasting', 'counterfactual']).optional().describe('observation also covers explaining why something observed happened; forecasting adds testable values after the evidence cutoff; counterfactual holds an alternative premise apart from the accepted history.'),
+    sessionMode: z.enum(modelingSessionModes).default('first_use').describe('continuation when you continue recorded work in this server: the prompt then starts with reading the construction record.'),
     brief: z.string().trim().min(1).max(8_000).optional(),
   }),
 }, async ({ purpose, sessionMode, brief }) => ({
@@ -898,7 +898,7 @@ registerEstimatorTools(server, service, estimator, { toolResult });
 server.registerTool(
   'life_direction_draw',
   {
-    description: 'Draw one answer from a registered model\'s normalized Cut, typically a direction Cut over mutually exclusive continuations, with a recorded seed. The server computes u as the first 32 bits of SHA-256(seed) divided by 2^32 and takes the answer whose cumulative interval, in model order, contains u. With record, the draw is stored in a graph bound to that model, and any earlier draw over the same Cut is reported and linked, so a second draw is visible as a reroll rather than a silent replacement. A drawn remainder calls for a new admissible continuation, not renormalization of the named answers. The draw decides nothing by itself: build and accept the realized continuation through the ordinary model and narrative tools.',
+    description: 'Draw one answer from a registered model\'s normalized Cut, typically a direction Cut over mutually exclusive continuations, with a recorded seed. The server computes u as the first 32 bits of SHA-256(seed) divided by 2^32 and takes the answer whose cumulative interval contains u, in the registered model\'s order: the engine stores a Cut\'s answers sorted by key, so the intervals run alphabetically, not in the order you wrote them (the result lists every interval). With record, the draw is stored in a graph bound to that model, and any earlier draw over the same Cut is reported and linked, so a second draw is visible as a reroll rather than a silent replacement. A drawn remainder calls for a new admissible continuation, not renormalization of the named answers. The draw decides nothing by itself: build and accept the realized continuation through the ordinary model and narrative tools.',
     inputSchema: directionDrawSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   },

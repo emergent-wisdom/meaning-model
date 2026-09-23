@@ -16,6 +16,15 @@ export const modelingSessionModes = Object.freeze([
   'repeat_same_domain',
   'new_domain',
   'consequential',
+  'continuation',
+]);
+
+// Continuing someone's recorded work: read the record before changing it, then keep recording.
+export const continuationSteps = Object.freeze([
+  'Read life_construction_replay on the graph you were given, from the start at outline level: every model and graph revision with the first line of each note.',
+  'Read life_model_outline on the same graph: the current Events, Cuts, concepts and the notes attached to them.',
+  'Open reasoning or full detail, life_narrative_query or life_model_inspect only where you need it, before your first change.',
+  'Record your reading and your plan as notes under your own holder before changing anything; link notes that build on, answer or replace earlier ones with refines, answers or supersedes.',
 ]);
 
 // How much theory an agent reads before modeling. "papers" (the default) asks for both complete
@@ -329,6 +338,7 @@ export async function buildModelingContext({
     scaleReview,
     conceptualReview,
     constructionRecord: constructionRecordInstructions,
+    ...(sessionMode === 'continuation' ? { continuation: { steps: continuationSteps, note: 'The record is the earlier agent\'s understanding. Build on it; where you disagree, record why and link it with contradicts or supersedes rather than silently replacing it.' } } : {}),
     paperFirst: !guides,
     readingMode: reading,
     requiresFullTheoryRead,
@@ -396,6 +406,7 @@ export async function buildModelingPrompt({ purpose, sessionMode, reading = read
   return [
     `Begin a Meaning Model modeling session. Purpose: ${purpose}. Session mode: ${sessionMode}.`,
     '',
+    ...(context.continuation ? ['You are continuing recorded work. Before any change:', ...context.continuation.steps.map((step, index) => `${index + 1}. ${step}`), context.continuation.note, ''] : []),
     context.modelingFreedom,
     '',
     context.starterSelection,

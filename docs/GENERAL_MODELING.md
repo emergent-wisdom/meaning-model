@@ -39,8 +39,12 @@ what was recorded, and a thought helps only when it is linked to what it concern
   `process:` and the other kinds) or to graph nodes. Batch related notes.
 - Record outside reviews with `life_review_record` under their actual reviewer, with
   the revision and text they saw, and link the changes that answer them.
-- To continue someone's model, read `life_construction_replay` from the start at
-  outline level, then `life_model_outline`, and open detail where you need it.
+- Put every reason you give the user into the graph before you reply; a later agent
+  reads the graph, not your reply.
+- To continue someone's model, start with `sessionMode` `continuation`, read
+  `life_construction_replay` from the start at outline level, then
+  `life_model_outline`, and open detail where you need it. Record what you read and
+  what you plan before your first change.
 
 ## Review broader context and longer-term developments
 

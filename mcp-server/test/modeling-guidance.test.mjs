@@ -169,3 +169,17 @@ test('the guides reading mode makes the guides the entry and the papers a refere
   assert.match(servedText('life-sim://addon/storytelling', 'Read the required Meaning Model and Life Simulation paper resources and common\nmodeling protocol before authoring a model.', 'guides'), /^Read the common modeling protocol before authoring a model/);
   assert.doesNotMatch(await buildModelingPrompt({ purpose: 'observation', sessionMode: 'first_use', reading: 'guides' }), /read the complete current papers/);
 });
+
+test('continuation is a session mode whose prompt starts with reading the construction record', async () => {
+  // Found by the 2026-09-23 instruction test: an agent told to continue recorded work had no honest session mode.
+  const { buildModelingContext, buildModelingPrompt, modelingSessionModes, continuationSteps } = await import('../src/modeling-guidance.mjs');
+  assert.ok(modelingSessionModes.includes('continuation'));
+  const context = await buildModelingContext({ purpose: 'observation', sessionMode: 'continuation', reading: 'papers' });
+  assert.deepEqual(context.continuation.steps, continuationSteps);
+  assert.equal(context.requiresFullTheoryRead, true, 'a fresh agent still reads the papers in the paper-first mode');
+  assert.equal((await buildModelingContext({ purpose: 'observation', sessionMode: 'first_use' })).continuation, undefined);
+  const prompt = await buildModelingPrompt({ purpose: 'observation', sessionMode: 'continuation', reading: 'guides' });
+  assert.match(prompt, /You are continuing recorded work\. Before any change:\n1\. Read life_construction_replay/);
+  assert.ok(prompt.indexOf('life_construction_replay') < prompt.indexOf('life_modeling_context'), 'the record comes before the reading order');
+  assert.match(prompt, /put every reason you give there into the graph/);
+});

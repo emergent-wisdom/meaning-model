@@ -248,7 +248,7 @@ test('alignment audit can skip contradiction checks for knowledge-state records 
   await assert.rejects(prepareAlignmentAudit(f.service, { graphHash, rootId: 'story', knowledgeStateNodeIds: ['nope'] }, fake), /not among the audited records/);
 });
 
-import { ingestSituation } from '../src/situation-ingest.mjs';
+import { buildIngestNotes, ingestSituation } from '../src/situation-ingest.mjs';
 
 test('ingest creates described events under a parent, asks every question per event, applies one revision, rebinds and records notes', async () => {
   const f = modelFixture();
@@ -272,10 +272,15 @@ test('ingest creates described events under a parent, asks every question per ev
   assert.equal(result.rebound.modelHash, newModel);
   assert.equal(result.notes.nodeIds[0], 'note.halving');
   const batch = batches[0].narrativeBatch;
-  assert.deepEqual(batch.add_roots, ['understanding.ingest']);
+  // The note goes under its holder's own root; the ingest's own records under understanding.ingest.
+  assert.deepEqual(batch.add_roots, ['understanding.author.llm', 'understanding.ingest']);
   const note = batch.add_nodes.find((node) => node.id === 'note.halving');
   assert.equal(note.role, 'externalized_reflection');
   assert.equal(note.holder, 'author.llm');
+  assert.ok(batch.add_edges.some((edge) => edge.relation === 'contains' && edge.source.node_id === 'understanding.author.llm' && edge.target.node_id === 'note.halving'));
+  assert.ok(batch.add_edges.filter((edge) => edge.relation === 'contains' && edge.source.node_id === 'understanding.ingest').length === 3);
+  assert.equal(result.notes.understandingRootId, 'understanding.author.llm');
+  assert.equal(result.notes.evidenceRootId, 'understanding.ingest');
   assert.ok(batch.add_edges.some((edge) => edge.target.kind === 'anchor' && edge.target.anchor_id === 'event.btc.halving-2028'));
   // What the estimator judged stays in the graph: both question definitions and the exact situation text.
   const definitions = batch.add_nodes.filter((node) => node.node_type === 'cut_question_definition').map((node) => JSON.parse(node.text));
@@ -327,6 +332,37 @@ test('ingest notes can link to each other, and a conditioned question divides on
   await assert.rejects(ingestSituation({ requestId: 'ing-5', modelHash: oldModel, events: [{ eventId: 'event.2025', boundary: 'Bitcoin in 2025.', parentEventId: 'event.world' }],
     questions: [{ id: 'driver', question: 'What moved the price?', answers: [{ key: 'monetary', meaning: 'M.' }] }] }, counting, f.service), /Placing Cuts needs a description on Event event\.2025/);
   assert.equal(calls, 0);
+});
+
+test('ingest notes land under their holder\'s own root, never under whichever root came first', () => {
+  // Found by the 2026-09-23 instruction test: notes were filed under an estimation's review root.
+  const view = { graph_hash: graphHash, content_included: true, graph: { id: 'g', node_count: 4, edge_count: 1, root_count: 2, revision: { number: 9 }, source: { kind: 'model', model_hash: oldModel } },
+    roots: ['estimation.abc.review', 'understanding.modeler'],
+    nodes: [
+      { id: 'estimation.abc.review', node_type: 'understanding_process_root', role: 'metadata', text: JSON.stringify({ clock: 'graph_revision', purpose: 'Attributed review of provider process estimates.' }), access_scopes: ['research'] },
+      { id: 'understanding.modeler', node_type: 'understanding_process_root', role: 'metadata', text: JSON.stringify({ name: 'Understanding held by modeler', holder: 'modeler', clock: 'authoring_step' }), access_scopes: ['research'] },
+      { id: 'note.old', node_type: 'understanding.decision', role: 'externalized_reflection', text: '{}', holder: 'modeler', access_scopes: ['research'] },
+      { id: 'event-note-target', node_type: 'understanding.question', role: 'externalized_reflection', text: '{}', holder: 'modeler', access_scopes: ['research'] },
+    ],
+    edges: [{ id: 'note.old.placement', source: { kind: 'node', node_id: 'understanding.modeler' }, target: { kind: 'node', node_id: 'note.old' }, family: 'structural', relation: 'contains', order: 3 }] };
+  const { narrativeBatch, rootIds, evidenceRootId } = buildIngestNotes(view, { graphHash, accessScopes: ['research'], eventIds: new Set(['event.teen']), provenance: ['p'],
+    notes: [
+      { nodeId: 'note.prereg', text: 'Predicted before the estimator: screens 3.', holder: 'modeler', kind: 'prediction', title: 'Pre-registered prediction', aboutEventIds: ['event.teen'], links: [] },
+      { nodeId: 'note.jev', text: 'Plain note held by the estimator.', holder: 'typesafe:jev-1.13.0', kind: null, title: null, aboutEventIds: [], links: [{ relation: 'answers', targetNodeId: 'event-note-target' }] },
+    ] });
+  assert.deepEqual(rootIds, ['understanding.modeler', 'understanding.typesafe-jev-1.13.0']);
+  assert.equal(evidenceRootId, null, 'no ingest records, so no ingest root');
+  assert.deepEqual(narrativeBatch.add_roots, ['understanding.typesafe-jev-1.13.0'], 'the modeler root is reused, the estimator gets its own');
+  const placement = (nodeId) => narrativeBatch.add_edges.find((edge) => edge.id === `${nodeId}.placement`);
+  assert.equal(placement('note.prereg').source.node_id, 'understanding.modeler');
+  assert.equal(placement('note.prereg').order, 4, 'placed after the holder\'s existing notes');
+  assert.equal(placement('note.jev').source.node_id, 'understanding.typesafe-jev-1.13.0');
+  assert.ok(!narrativeBatch.add_edges.some((edge) => edge.source.node_id === 'estimation.abc.review'));
+  const prereg = narrativeBatch.add_nodes.find((node) => node.id === 'note.prereg');
+  assert.equal(prereg.node_type, 'understanding.prediction');
+  assert.equal(prereg.title, 'Pre-registered prediction');
+  assert.deepEqual(JSON.parse(prereg.text), { schema: 'meaning-model-understanding-note/v1', kind: 'prediction', text: 'Predicted before the estimator: screens 3.' });
+  assert.equal(narrativeBatch.add_nodes.find((node) => node.id === 'note.jev').node_type, 'ingest.note');
 });
 
 test('ingest validates parents, participants, duplicates and pending estimates', async () => {
