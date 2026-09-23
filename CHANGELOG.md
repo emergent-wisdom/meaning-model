@@ -194,6 +194,13 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
   - `life_understanding_record` asks for one holder id per agent for the whole
     session, with roles named in the note; a continuation had written under three
     spellings of itself.
+  - `life_narrative_edit` lists the records that still quote text the edit
+    removed from the prose (`recordsQuotingRemovedText`): the model's Event
+    descriptions, plans, disclosure records and writer's notes, but not reviews,
+    drafts, assessments, revision notes or superseded notes, which quote old text
+    as history. A probe had found Events and notes still quoting sentences that
+    revisions had cut, with no tool saying so. The match is textual: it finds
+    copied or quoted sentences, not paraphrases.
   - `life_story_life_trends` takes `links`, so a revised dossier can supersede
     the one it replaces.
   - `life_story_release` in the storytelling add-on releases a story's

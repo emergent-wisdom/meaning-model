@@ -321,3 +321,20 @@ test('editing only the document root lists whole-document reviews as ancestor re
   assert.ok(result.ancestorReviewNodeIds.includes('review.about'), 'reviewed_by from the root needs the lighter check');
   assert.ok(result.ancestorReviewNodeIds.includes('review.scene'), 'about the root needs the lighter check');
 });
+
+test('an edit names the records that still quote the text it removed', async (t) => {
+  // Found by the 2026-09-23 instruction test: notes and plans kept quoting sentences a revision had cut.
+  const f = await fixture(t, (graph) => {
+    byId(graph.nodes, 'p2').text = 'The door was new to him that night.';
+    graph.nodes.push({ ...container('plan.note', 'externalized_reflection'), node_type: 'understanding.plan', holder: 'author', access_scopes: ['author'],
+      authority: { source: 'author', weight: 1 }, text: 'The turn rests on "The door was new to him that night."' });
+    graph.edges.push(edge('plan.about', 'plan.note', 'p2', 'about', undefined, ['author']));
+  });
+  const result = await editNarrativeGraph(f.service, f.input([
+    { kind: 'replace_text', nodeId: 'p2', expectedText: 'The door was new to him that night.', text: 'He had never had to lock it.' }]));
+  assert.deepEqual(result.recordsQuotingRemovedText.map((record) => record.id), ['plan.note']);
+  assert.match(result.recordsNextStep, /still quote text the prose no longer has/);
+  const unrelated = await editNarrativeGraph(f.service, f.input([{ kind: 'replace_text', nodeId: 'p3', expectedText: 'Fourth.', text: 'Fourth, again.' }],
+    { requestId: 'edit-2', graphHash: result.graphHash }));
+  assert.deepEqual(unrelated.recordsQuotingRemovedText, []);
+});

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import * as z from 'zod/v4';
 import { narrativeDefinitionDelta } from './narrative-delta.mjs';
+import { recordsQuoting, removedFragments, textRecords } from './prose-drift.mjs';
 
 const id = z.string().trim().min(1).max(256);
 const text = z.string().max(1_048_576);
@@ -296,7 +297,18 @@ export async function editNarrativeGraph(service, raw) {
   const stored = await service.reviseNarrativeGraphByDelta({ requestId: input.requestId, previousGraphHash: input.graphHash,
     delta: narrativeDefinitionDelta(before, graph), accessScopes: input.accessScopes, preserveSourceSnapshot: true });
   if (stored.snapshotHash !== view.source_snapshot_hash) throw new Error('Narrative edit did not preserve its frozen source snapshot.');
+  // Records that still quote what this edit removed from the prose: the model's Events, plans, writer's notes.
+  const proseOf = (definition) => definition.nodes.filter((item) => item.role === 'story_passage').map((item) => item.text ?? '');
+  const removed = removedFragments(proseOf(before), proseOf(graph));
+  let staleRecords = [];
+  if (removed.length) {
+    const modelHash = graph.source?.kind === 'model' ? graph.source.model_hash : null;
+    const model = modelHash ? (await service.inspectModel({ modelHash, includeDefinition: true }).catch(() => null))?.model ?? null : null;
+    staleRecords = recordsQuoting(textRecords({ nodes: graph.nodes, edges: graph.edges }, model), removed);
+  }
   return { ...stored, operation: 'edit-narrative-graph', requestHash,
+    recordsQuotingRemovedText: staleRecords,
+    ...(staleRecords.length ? { recordsNextStep: 'These records still quote text the prose no longer has. Update each (a model revision for Events) or supersede it with a note, so a later reader does not take the old wording as current.' } : {}),
     changedNodeIds, changedEdgeIds, affectedNodeIds: [...affected].sort(),
     affectedReviewNodeIds: [...reviewIds].sort(),
     directlyAffectedReviewNodeIds: [...directReviewIds].sort(),
