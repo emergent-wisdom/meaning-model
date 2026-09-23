@@ -13,12 +13,13 @@ Usage:
   meaning-model-mcp --build-engine  Build the bundled Rust engine with Cargo
 
 Optional addons are disabled by default. Set MEANING_MODEL_ADDONS to a
-comma-separated list to enable bundled addons. Available: storytelling.
-Example: MEANING_MODEL_ADDONS=storytelling meaning-model-mcp
+comma-separated list to enable bundled addons. Available: storytelling, alien.
+Example: MEANING_MODEL_ADDONS=storytelling,alien meaning-model-mcp
 
 An external estimator is off by default. Set MEANING_MODEL_ESTIMATOR=typesafe and
-TYPESAFE_API_KEY to let TypeSafe's Jev score the two estimator tools; only the text
-given to those tools is sent to that service.
+TYPESAFE_API_KEY to let TypeSafe's Jev answer the estimator tools' questions (Cut
+shares, ingest, alignment audits and process estimates); only the text given to
+those tools is sent to that service.
 
 Install the engine once before first use. --install-engine explicitly downloads
 this package version's engine from the official GitHub release and verifies its

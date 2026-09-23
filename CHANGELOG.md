@@ -6,6 +6,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+Together these changes make one server cover three kinds of work: general-purpose
+modeling with an optional Jev estimator, narration through the storytelling
+add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
+`MEANING_MODEL_ADDONS`; without it the server exposes the base tools only.
+
 - Add the opt-in alien add-on (`MEANING_MODEL_ADDONS=alien`), following *Ontology
   of the Alien*, whose paper is bundled and must be read before a search. The
   add-on:
@@ -248,6 +253,15 @@ unpublished work stays under Unreleased. This is not a development transcript.
   `life_story_scene_start` prompt for the scene workflow. Default tools,
   shared record schemas, executable laws, and general-purpose modeling remain
   unchanged; existing low-level tools remain available.
+
+Install or build the matching engine when upgrading the MCP package.
+The engine gains the `realizes_forecast` event relation and a source-preserving
+narrative revision flag. Both are optional: models without the new field
+serialize and hash as before, and models and graphs written by 0.2.x load
+unchanged, so no data migration is required. The alien add-on is a first
+release with one live search behind it; its worlds are textual thought
+experiments and its transfers are ideas, not evidence. Jev estimates remain AI
+inference and never enter a model or graph without an explicit apply or record.
 
 ## 0.2.1 — 2026-09-12
 

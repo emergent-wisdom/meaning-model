@@ -75,6 +75,8 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
   assert.match(help.stdout, /--build-engine/);
   assert.match(help.stdout, /--install-engine/);
   assert.match(help.stdout, /MEANING_MODEL_ADDONS=storytelling/);
+  const { availableAddons } = await import('../src/addon-config.mjs');
+  assert.ok(help.stdout.includes(`Available: ${availableAddons.join(', ')}.`), 'the help lists every bundled add-on');
   assert.match(metadata.scripts['install:engine'], /--install-engine/);
   const sources = await readdir(join(packageDirectory, 'mcp-server', 'src'));
   assert.ok(sources.includes('server.mjs'));
