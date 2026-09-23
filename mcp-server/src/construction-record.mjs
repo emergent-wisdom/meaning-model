@@ -273,9 +273,14 @@ export async function recordReview(service, raw) {
     if (!nodesById.has(link.targetNodeId)) throw new Error(`Review ${input.nodeId} links to unknown node ${link.targetNodeId}.`);
     edge(`link.${index}`, endpoint(link.targetNodeId), 'semantic', link.relation);
   }
+  // A first review by a new reviewer connects to the graph only through what it is about.
+  if (root.nodes.length && edges.length === 1) throw new Error(`Review ${input.nodeId} is about nothing in the graph; give about (model records or nodes), links, or reviewed.rootId or nodeIds, so it is linked to what it reviews.`);
   const stored = await service.applyNarrativeBatch({ requestId: input.requestId, previousGraphHash: input.graphHash, narrativeBatch: {
     schema: 'life-sim-rust-narrative-batch/v1', previous_graph_hash: input.graphHash,
-    reason: `Record a review by ${input.reviewer.id} of graph revision ${reviewedView.graph.revision.number}.`, provenance,
+    // A review of material outside the graph (an evidence packet, a file) names what it read, not a graph revision it never saw.
+    reason: input.reviewed.materials === 'external'
+      ? `Record a review by ${input.reviewer.id} of external material${input.reviewed.description ? ` (${clip(oneLine(input.reviewed.description), 160)})` : ''}, recorded at graph revision ${view.graph.revision.number}.`
+      : `Record a review by ${input.reviewer.id} of graph revision ${reviewedView.graph.revision.number}.`, provenance,
     add_roots: root.roots, add_nodes: nodes, add_edges: edges } });
   return { schema: 'meaning-model-review-record/v1', graphHash: stored.graphHash, previousGraphHash: input.graphHash, reviewNodeId: input.nodeId,
     reviewerRootId: rootId, reviewedGraphHash, reviewedRevision: reviewedView.graph.revision.number, render, textMatchesRender,
@@ -902,7 +907,7 @@ export async function importConstructionHistory(service, raw) {
 
 export function registerConstructionRecordTools(server, service, { toolResult }) {
   server.registerTool('life_understanding_record', {
-    description: `Record one or more Understanding Nodes held by a named holder (the modeler, a writer, a character in story time), each linked to what it concerns: model records by kind:id (event, cut, process, claim, concept, referent and the other record kinds, optionally with a JSON Pointer path) or graph nodes. Kinds: ${noteKinds.join(', ')}. Notes are placed under the holder's understanding root with the graph-revision clock (or world time for story_time) and stamped with the model revision they were written against. A note must be about something. ${constructionRecordInstructions}`,
+    description: `Record one or more Understanding Nodes held by a named holder (the modeler, a writer, a character in story time), each linked to what it concerns: model records by kind:id (event, cut, process, claim, concept, referent and the other record kinds, optionally with a JSON Pointer path) or graph nodes. Kinds: ${noteKinds.join(', ')}. Notes are placed under the holder's understanding root with the graph-revision clock (or world time for story_time) and stamped with the model revision they were written against. Keep one holder id for yourself for the whole session, and a new one only for a different mind (a continuing agent, a character); say a role such as writer or self-review in the note, not in the holder. A note must be about something. ${constructionRecordInstructions}`,
     inputSchema: understandingRecordSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await recordUnderstanding(service, input)));

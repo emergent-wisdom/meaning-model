@@ -165,6 +165,15 @@ test('a thought is recorded against what it concerns, a review under its reviewe
   assert.match(afterWithdrawal.text, /✎ note\.attention \[understanding\.decision/, 'the note keeps its link to the withdrawn Cut');
   const withdrawalStep = await replayConstruction(service, { modelHash: withdrawnModel.modelHash, level: 'reasoning' });
   assert.match(withdrawalStep.text, /cuts ~1 \(cut\.ada\.h06\.attention: withdrawn\)/, 'the replay names the withdrawal as a change');
+
+  // A review of material outside the graph says so, instead of claiming the reviewer read a graph revision.
+  const externalReview = { graphHash: kept.graphHash, requestId: 'review-external', accessScopes: scopes, nodeId: 'review.packet.1',
+    reviewer: { id: 'typesafe:jev-1.13.0', kind: 'estimator' }, recordedBy: 'modeler:claude-opus-5-5', independence: 'blind',
+    reviewed: { materials: 'external', description: 'a balanced evidence packet written by a separate context' }, review: { text: 'Pattern shares over the packet.', verdict: 'recorded' } };
+  await assert.rejects(recordReview(service, externalReview), /is about nothing in the graph; give about/);
+  const external = await recordReview(service, { ...externalReview, about: [{ record: 'event:event.ada.state.h06' }] });
+  const externalView = await service.queryNarrativeGraph({ graphHash: external.graphHash, mode: 'full', includeContent: false, accessScopes: scopes });
+  assert.match(externalView.graph.revision.reason, /of external material \(a balanced evidence packet written by a separate context\), recorded at graph revision \d+\./);
 });
 
 test('a long history travels as changes: each revision by change keeps only its change in the receipt', async (t) => {

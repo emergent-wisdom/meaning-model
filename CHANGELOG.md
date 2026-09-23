@@ -187,6 +187,13 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
     registration, revision, revision by change and batches drop the fields a
     query adds for display (`boundary`, `content_included`), which batches had
     refused.
+  - A review of material outside the graph names it in its revision reason
+    instead of claiming a graph revision the reviewer never saw, and a first
+    review that is about nothing in the graph is refused with the fields that
+    would link it.
+  - `life_understanding_record` asks for one holder id per agent for the whole
+    session, with roles named in the note; a continuation had written under three
+    spellings of itself.
   - `life_story_release` in the storytelling add-on releases a story's
     committed prose to readers. Prose inherits the author-only scope of the
     records it was built from, so a reader's render showed only the title. The
