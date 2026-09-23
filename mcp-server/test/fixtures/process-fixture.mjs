@@ -25,6 +25,7 @@ const operations = [
   'commit_candidate',
   'register_narrative_graph',
   'revise_narrative_graph',
+  'revise_narrative_graph_by_change',
   'apply_narrative_batch',
   'query_narrative_graph',
   'render_narrative_graph',

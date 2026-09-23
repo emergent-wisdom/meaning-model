@@ -2850,3 +2850,115 @@ fn understanding_nodes_anchor_to_a_normalized_cut_and_one_of_its_answers() {
     assert!(!bad_path.ok);
     assert!(format!("{:?}", bad_path.error).contains("unresolved subpath"), "{:?}", bad_path.error);
 }
+
+#[test]
+fn a_revision_by_change_equals_the_complete_revision_refuses_hidden_or_unknown_records_and_survives_restart() {
+    let state_file = state_path("narrative-change");
+    let mut session = MachineSession::with_state_file(&state_file).unwrap();
+    let model_hash = register_test_model(&mut session, "change-model");
+    let mut private = story_node("private", "Only the author sees this.".to_owned());
+    private["access_scopes"] = json!(["author"]);
+    let mut private_edge = story_edge("private-edge", "private", 2);
+    private_edge["access_scopes"] = json!(["author"]);
+    let registered = execute(
+        &mut session,
+        json!({
+            "schema": "life-sim-rust-command/v1",
+            "operation": "register_narrative_graph",
+            "narrative_graph": root_story_graph(
+                &model_hash,
+                "change-story",
+                vec![
+                    story_node("first", "The first passage.".to_owned()),
+                    story_node("second", "The second passage.".to_owned()),
+                    private.clone(),
+                ],
+                vec![
+                    story_edge("first-edge", "first", 0),
+                    story_edge("second-edge", "second", 1),
+                    private_edge.clone(),
+                ],
+            )
+        }),
+    );
+    let parent = registered["summary"]["graph_hash"].as_str().unwrap().to_owned();
+    let revision = json!({
+        "number": 1,
+        "previous_graph_hash": parent,
+        "reason": "Rewrite one passage, drop one and add one.",
+        "provenance": ["narrative change test"]
+    });
+    let change = |access_scopes: Value, removed_node: &str| {
+        json!({
+            "schema": "life-sim-rust-command/v1",
+            "operation": "revise_narrative_graph_by_change",
+            "narrative_change": {
+                "schema": "life-sim-rust-narrative-change/v1",
+                "previous_graph_hash": parent,
+                "revision": revision,
+                "upsert_nodes": [
+                    story_node("first", "The first passage, rewritten.".to_owned()),
+                    story_node("third", "A new last passage.".to_owned())
+                ],
+                "remove_node_ids": [removed_node],
+                "upsert_edges": [story_edge("third-edge", "third", 3)],
+                "remove_edge_ids": ["second-edge"],
+                "access_scopes": access_scopes
+            }
+        })
+    };
+    let refused = |response: life_sim_engine::ResponseEnvelope, expected: &str| {
+        assert!(!response.ok, "the change should be refused");
+        let message = response.error.expect("a refusal carries an error").message;
+        assert!(message.contains(expected), "{message}");
+    };
+    // A caller who cannot see the whole predecessor may not change it, and a
+    // removal must name a record the predecessor has.
+    refused(session.parse_and_execute(&change(json!([]), "second").to_string()), "these accessScopes hide some of them");
+    refused(
+        session.parse_and_execute(&change(json!(["author"]), "missing").to_string()),
+        "The change removes node missing, which the predecessor does not have.",
+    );
+    let changed = execute(&mut session, change(json!(["author"]), "second"));
+    let changed_hash = changed["summary"]["graph_hash"].as_str().unwrap().to_owned();
+    assert_eq!(changed["reused_existing"], json!(false));
+
+    // The same successor written out in full is the same revision.
+    let mut complete = root_story_graph(
+        &model_hash,
+        "change-story",
+        vec![
+            story_node("first", "The first passage, rewritten.".to_owned()),
+            private,
+            story_node("third", "A new last passage.".to_owned()),
+        ],
+        vec![story_edge("first-edge", "first", 0), private_edge, story_edge("third-edge", "third", 3)],
+    );
+    complete["revision"] = revision.clone();
+    let rewritten = execute(
+        &mut session,
+        json!({
+            "schema": "life-sim-rust-command/v1",
+            "operation": "revise_narrative_graph",
+            "narrative_graph": complete
+        }),
+    );
+    assert_eq!(rewritten["summary"]["graph_hash"], json!(changed_hash));
+    assert_eq!(rewritten["reused_existing"], json!(true));
+
+    // After a restart the revision is rebuilt from its stored change.
+    drop(session);
+    let mut restarted = MachineSession::with_state_file(&state_file).unwrap();
+    let rendered = execute(
+        &mut restarted,
+        json!({
+            "schema": "life-sim-rust-command/v1",
+            "operation": "render_narrative_graph",
+            "narrative_graph_hash": changed_hash,
+            "narrative_render": {"access_scopes": ["author"]}
+        }),
+    );
+    let text = rendered["text"].as_str().unwrap();
+    assert!(text.contains("rewritten") && text.contains("A new last passage.") && !text.contains("The second passage."), "{text}");
+    let _ = fs::remove_file(&state_file);
+}

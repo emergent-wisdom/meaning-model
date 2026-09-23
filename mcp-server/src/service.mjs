@@ -1,6 +1,6 @@
 import { stripEdgeForRevision, stripNodeForRevision } from './narrative-fields.mjs';
 import { descriptionCoverage } from './description-coverage.mjs';
-import { applyNarrativeDefinitionDelta, definitionFromCompleteView, validateNarrativeDelta } from './narrative-delta.mjs';
+import { validateNarrativeDelta } from './narrative-delta.mjs';
 import { createHash, randomUUID } from 'node:crypto';
 
 import {
@@ -2140,9 +2140,9 @@ export class LifeSimulationService {
   }
 
   // A complete revision written as its change from the predecessor, the form a portable history
-  // stores. The service reads the complete predecessor, applies the change and stores the successor
-  // through the same validation as reviseNarrativeGraph. The receipt keeps only the change, so long
-  // sessions and imported histories do not retain a copy of the whole graph for every revision.
+  // stores. The engine applies the change to the stored predecessor, refuses a caller whose scopes
+  // hide any of it, and validates the successor as a complete revision. Neither the call nor the
+  // receipt carries the whole graph, so long sessions and imported histories stay small.
   async reviseNarrativeGraphByDelta({ requestId, previousGraphHash, delta, accessScopes = [], preserveSourceSnapshot = false }) {
     ensureHash(previousGraphHash, 'previousGraphHash');
     if (typeof preserveSourceSnapshot !== 'boolean') throw new Error('preserveSourceSnapshot must be a boolean.');
@@ -2158,12 +2158,19 @@ export class LifeSimulationService {
       requestId,
       { previousGraphHash, delta, accessScopes: scopes, ...(preserveSourceSnapshot ? { preserveSourceSnapshot } : {}) },
       async () => {
-        const view = await this.queryNarrativeGraph({ graphHash: previousGraphHash, expectedGraphHash: previousGraphHash,
-          mode: 'full', includeContent: true, accessScopes: scopes, forRevision: true });
-        const narrativeGraph = applyNarrativeDefinitionDelta(definitionFromCompleteView(view, 'A revision by change'), delta);
-        validateNarrativeGraphInput(narrativeGraph);
-        const result = await this.backend.call('revise_narrative_graph', {
-          narrative_graph: narrativeGraph,
+        const result = await this.backend.call('revise_narrative_graph_by_change', {
+          narrative_change: {
+            schema: 'life-sim-rust-narrative-change/v1',
+            previous_graph_hash: previousGraphHash,
+            revision: delta.revision,
+            ...(delta.source === undefined ? {} : { source: delta.source }),
+            ...(delta.roots === undefined ? {} : { roots: delta.roots }),
+            upsert_nodes: delta.upsertNodes ?? [],
+            remove_node_ids: delta.removeNodeIds ?? [],
+            upsert_edges: delta.upsertEdges ?? [],
+            remove_edge_ids: delta.removeEdgeIds ?? [],
+            access_scopes: scopes,
+          },
           ...(preserveSourceSnapshot ? { preserve_narrative_source_snapshot: true } : {}),
         });
         return {

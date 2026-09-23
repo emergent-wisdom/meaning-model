@@ -66,7 +66,9 @@ const MAX_SESSION_WORLDS: usize = 64;
 const MAX_SESSION_CANDIDATES: usize = 2_048;
 const MAX_SESSION_WORLD_REVISIONS: usize = 2_048;
 const MAX_SESSION_WORLD_REVISION_BYTES: usize = 64 * 1024 * 1024;
-const MAX_SESSION_NARRATIVE_GRAPHS: usize = 512;
+// Revisions are kept materialized with every unchanged record shared with the
+// parent, so this count bounds restart validation, which is linear in it.
+const MAX_SESSION_NARRATIVE_GRAPHS: usize = 4_096;
 const MAX_SESSION_MODEL_BYTES: usize = 64 * 1024 * 1024;
 const MAX_SESSION_WORLD_BYTES: usize = 64 * 1024 * 1024;
 const MAX_SESSION_CANDIDATE_BYTES: usize = 128 * 1024 * 1024;
@@ -1261,8 +1263,6 @@ fn validate_decomposition(
     processes: &BTreeMap<String, ProcessDefinition>,
 ) -> EngineResult<()> {
     let mut ids = BTreeSet::new();
-    let mut adjacency: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
-    let mut indegree: BTreeMap<&str, usize> = processes.keys().map(|id| (id.as_str(), 0)).collect();
     for edge in edges {
         if edge.id.trim().is_empty() || !ids.insert(edge.id.as_str()) {
             return Err(error("decomposition edge ids must be unique and nonempty"));
@@ -1273,37 +1273,12 @@ fn validate_decomposition(
         {
             return Err(error(format!("decomposition edge {} is invalid", edge.id)));
         }
-        adjacency
-            .entry(edge.parent.as_str())
-            .or_default()
-            .push(edge.child.as_str());
-        *indegree
-            .get_mut(edge.child.as_str())
-            .expect("decomposition child was validated") += 1;
     }
-    let mut ready: VecDeque<&str> = indegree
-        .iter()
-        .filter_map(|(node, degree)| (*degree == 0).then_some(*node))
-        .collect();
-    let mut visited = 0usize;
-    while let Some(node) = ready.pop_front() {
-        visited += 1;
-        if let Some(children) = adjacency.get(node) {
-            for child in children {
-                let degree = indegree
-                    .get_mut(child)
-                    .expect("decomposition child was validated");
-                *degree -= 1;
-                if *degree == 0 {
-                    ready.push_back(child);
-                }
-            }
-        }
-    }
-    if visited != processes.len() {
-        return Err(error("decomposition graph must be acyclic"));
-    }
-    Ok(())
+    crate::ensure_acyclic(
+        processes.keys().map(String::as_str),
+        edges.iter().map(|edge| (edge.parent.as_str(), edge.child.as_str())),
+        "decomposition graph",
+    )
 }
 
 fn validate_dependencies(
@@ -1803,6 +1778,9 @@ fn expression_references(expression: &ScalarExpression, output: &mut BTreeSet<St
     }
 }
 
+// Kahn's algorithm with the lowest ready index first. The order is part of the
+// compiled model (relations and resolutions are evaluated in it), so it stays
+// here rather than taking a library sort whose tie-breaking could differ.
 fn derived_topological_order(
     laws: &[LawDefinition],
     targets: &BTreeMap<&str, usize>,
@@ -6119,6 +6097,8 @@ struct MachineCommand {
     #[serde(default)]
     narrative_batch: Option<NarrativeGraphBatch>,
     #[serde(default)]
+    narrative_change: Option<NarrativeGraphChange>,
+    #[serde(default)]
     narrative_graph_hash: Option<String>,
     #[serde(default)]
     narrative_query: Option<NarrativeGraphQuery>,
@@ -6238,6 +6218,10 @@ pub struct MachineSession {
     candidates: BTreeMap<String, StoredCandidate>,
     narrative_source_snapshots: BTreeMap<String, NarrativeSourceSnapshot>,
     narrative_revisions: BTreeMap<String, StoredNarrativeRevision>,
+    // Every stored revision materialized, sharing unchanged records with its
+    // parent. Rebuilt on restore and extended by insert_narrative_revision;
+    // never persisted, because the revision records are the durable form.
+    narrative_materialized: BTreeMap<String, MaterializedNarrative>,
     project_documents: BTreeMap<String, StoredProjectDocument>,
     project_model_snapshots: BTreeMap<String, CompiledModel>,
     project_world_snapshots: BTreeMap<String, WorldHead>,
@@ -6801,8 +6785,23 @@ impl MachineSession {
         &mut self,
         revision: StoredNarrativeRevision,
         snapshot: NarrativeSourceSnapshot,
+        definition: &NarrativeGraphDefinition,
     ) -> EngineResult<()> {
         validate_narrative_revision_record_hash(&revision)?;
+        let parent = match revision.revision.previous_graph_hash.as_deref() {
+            Some(previous_hash) => Some(
+                self.narrative_materialized
+                    .get(previous_hash)
+                    .ok_or_else(|| error("narrative revision parent is not materialized"))?,
+            ),
+            None => None,
+        };
+        let materialized = MaterializedNarrative::apply(parent, &revision)?;
+        if !materialized.matches(definition) {
+            return Err(error(
+                "narrative revision record does not reconstruct its compiled graph",
+            ));
+        }
         if revision.operation_sequence != self.next_narrative_operation_sequence {
             return Err(error(
                 "narrative operation sequence is not the next append position",
@@ -6838,6 +6837,7 @@ impl MachineSession {
         {
             return Err(error("narrative graph hash insertion collided"));
         }
+        self.narrative_materialized.insert(graph_hash.clone(), materialized);
         self.next_narrative_operation_sequence = next;
         self.narrative_storage_bytes = self
             .narrative_storage_bytes
@@ -6852,57 +6852,190 @@ impl MachineSession {
         Ok(())
     }
 
+    /// Registers or revises a narrative graph from its complete definition:
+    /// the one path through which a complete revision is compiled, validated
+    /// against its predecessor, source and anchors, and stored.
+    fn store_complete_narrative_graph(
+        &mut self,
+        operation: &str,
+        definition: NarrativeGraphDefinition,
+        preserve_snapshot: bool,
+    ) -> Result<serde_json::Value, MachineError> {
+        let insertion_order = NarrativeInsertionOrder {
+            scope: NarrativeInsertionScope::FullDefinition,
+            root_ids: definition.roots.clone(),
+            node_ids: definition
+                .nodes
+                .iter()
+                .map(|node| node.id.clone())
+                .collect(),
+            edge_ids: definition
+                .edges
+                .iter()
+                .map(|edge| edge.id.clone())
+                .collect(),
+        };
+        let compiled = compile_narrative_graph(definition)?;
+        if operation == "register_narrative_graph"
+            && compiled.definition.revision.number != 0
+        {
+            return Err(machine_error(
+                "invalid_request",
+                "register_narrative_graph requires revision 0; use revise_narrative_graph",
+            ));
+        }
+        if operation == "revise_narrative_graph" && compiled.definition.revision.number == 0
+        {
+            return Err(machine_error(
+                "invalid_request",
+                "revise_narrative_graph requires a nonzero revision",
+            ));
+        }
+        let preserved_snapshot = if preserve_snapshot {
+            if operation != "revise_narrative_graph" {
+                return Err(machine_error(
+                    "invalid_request",
+                    "Source preservation requires a narrative revision.",
+                ));
+            }
+            let previous_hash = compiled
+                .definition
+                .revision
+                .previous_graph_hash
+                .as_deref()
+                .ok_or_else(|| {
+                    machine_error(
+                        "invalid_request",
+                        "Source preservation requires a predecessor graph.",
+                    )
+                })?;
+            let previous = self.materialize_narrative_graph(previous_hash)?;
+            if previous.definition.source != compiled.definition.source {
+                return Err(machine_error(
+                    "conflict",
+                    "A source-preserving narrative edit cannot change its source binding.",
+                ));
+            }
+            Some(previous.snapshot)
+        } else {
+            None
+        };
+        if self.narrative_revisions.contains_key(&compiled.graph_hash) {
+            let existing = self.materialize_narrative_graph(&compiled.graph_hash)?;
+            if existing.definition != compiled.definition {
+                return Err(machine_error(
+                    "conflict",
+                    "narrative graph hash is already bound to different content",
+                ));
+            }
+            if preserved_snapshot
+                .as_ref()
+                .is_some_and(|snapshot| snapshot != &existing.snapshot)
+            {
+                return Err(machine_error(
+                    "conflict",
+                    "Existing narrative revision has a different frozen source snapshot.",
+                ));
+            }
+            return encode(serde_json::json!({
+                "summary": narrative_graph_summary(&compiled, &existing.snapshot),
+                "snapshot_hash": existing.snapshot_hash,
+                "stored": true,
+                "reused_existing": true,
+            }));
+        }
+        self.validate_narrative_revision_link(&compiled)?;
+        let snapshot = match preserved_snapshot {
+            Some(snapshot) => snapshot,
+            None => self.capture_narrative_source(&compiled.definition.source)?,
+        };
+        self.validate_narrative_snapshot_binding(&compiled, &snapshot)?;
+        self.validate_narrative_anchors(&compiled, &snapshot)?;
+        let snapshot_hash = hash_serializable(&snapshot)?;
+        let revision = match compiled.definition.revision.previous_graph_hash.as_deref() {
+            None => self.narrative_root_revision(
+                &compiled,
+                snapshot_hash.clone(),
+                insertion_order.clone(),
+            )?,
+            Some(previous_hash) => {
+                let previous = self.materialize_narrative_graph(previous_hash)?;
+                self.narrative_delta_revision(
+                    &previous.definition,
+                    &compiled,
+                    snapshot_hash.clone(),
+                    insertion_order.clone(),
+                )?
+            }
+        };
+        let result = serde_json::json!({
+            "summary": narrative_graph_summary(&compiled, &snapshot),
+            "snapshot_hash": snapshot_hash,
+            "operation_sequence": revision.operation_sequence,
+            "stored": true,
+            "reused_existing": false,
+        });
+        self.insert_narrative_revision(revision, snapshot, &compiled.definition)?;
+        encode(result)
+    }
+
+    /// A revision by change is written only by a caller who sees the whole
+    /// predecessor, so no hidden record is changed or dropped unseen.
+    fn ensure_narrative_fully_visible(
+        &self,
+        stored: &StoredNarrativeGraph,
+        access_scopes: &[String],
+    ) -> Result<(), MachineError> {
+        let model = self
+            .models
+            .get(&stored.snapshot.model_hash)
+            .or_else(|| self.project_model_snapshots.get(&stored.snapshot.model_hash))
+            .ok_or_else(|| machine_error("not_found", "narrative source model is unavailable"))?;
+        let visible: BTreeSet<String> = stored
+            .definition
+            .nodes
+            .iter()
+            .filter(|node| node_is_visible(node, access_scopes))
+            .map(|node| node.id.clone())
+            .collect();
+        if visible.len() != stored.definition.nodes.len()
+            || !stored.definition.edges.iter().all(|edge| {
+                narrative_edge_is_visible(edge, &visible, access_scopes, model, &stored.snapshot)
+            })
+        {
+            return Err(machine_error(
+                "invalid_request",
+                format!(
+                    "A revision by change needs every node, edge and root of graph revision {}; these accessScopes hide some of them.",
+                    stored.definition.revision.number
+                ),
+            ));
+        }
+        Ok(())
+    }
+
+    /// A stored revision. Each record was validated, and its hash and snapshot
+    /// checked, when it was inserted or restored, so a read neither replays
+    /// the history nor revalidates it.
     fn materialize_narrative_graph(&self, graph_hash: &str) -> EngineResult<StoredNarrativeGraph> {
         let target = self
             .narrative_revisions
             .get(graph_hash)
             .ok_or_else(|| error(format!("unknown narrative graph {graph_hash}")))?;
-        let mut chain = Vec::new();
-        let mut cursor = target;
-        let mut visited = BTreeSet::new();
-        loop {
-            if !visited.insert(cursor.graph_hash.as_str()) {
-                return Err(error("narrative revision chain contains a cycle"));
-            }
-            chain.push(cursor);
-            let Some(previous_hash) = cursor.revision.previous_graph_hash.as_deref() else {
-                break;
-            };
-            cursor = self.narrative_revisions.get(previous_hash).ok_or_else(|| {
-                error(format!(
-                    "narrative graph {} lacks previous revision {previous_hash}",
-                    cursor.graph_hash
-                ))
-            })?;
-        }
-        chain.reverse();
-        let mut definition: Option<NarrativeGraphDefinition> = None;
-        for record in chain {
-            validate_narrative_revision_record_hash(record)?;
-            let next_definition = apply_narrative_revision_record(definition.as_ref(), record)?;
-            validate_narrative_insertion_order(record, &next_definition)?;
-            definition = Some(next_definition);
-        }
-        let compiled = compile_narrative_graph(
-            definition.ok_or_else(|| error("narrative revision chain is empty"))?,
-        )?;
-        if compiled.graph_hash != target.graph_hash {
-            return Err(error(
-                "narrative revision chain does not reconstruct its target hash",
-            ));
-        }
+        let materialized = self.narrative_materialized.get(graph_hash).ok_or_else(|| {
+            error(format!(
+                "narrative graph {graph_hash} is stored without its materialization"
+            ))
+        })?;
         let snapshot = self
             .narrative_source_snapshots
             .get(&target.snapshot_hash)
             .ok_or_else(|| error("narrative revision names an unknown source snapshot"))?
             .clone();
-        if hash_serializable(&snapshot)? != target.snapshot_hash {
-            return Err(error("narrative source snapshot hash is invalid"));
-        }
         Ok(StoredNarrativeGraph {
             graph_hash: target.graph_hash.clone(),
             snapshot_hash: target.snapshot_hash.clone(),
-            definition: compiled.definition,
+            definition: materialized.definition(target),
             snapshot,
         })
     }
@@ -7968,11 +8101,27 @@ impl MachineSession {
                     })
                 })
                 .transpose()?;
-            let definition = apply_narrative_revision_record(previous, &record)?;
-            let compiled = compile_narrative_graph(definition)?;
+            let parent_materialized = record
+                .revision
+                .previous_graph_hash
+                .as_ref()
+                .map(|hash| {
+                    session.narrative_materialized.get(hash).ok_or_else(|| {
+                        error("narrative revision parent was not materialized before its child")
+                    })
+                })
+                .transpose()?;
+            let materialized = MaterializedNarrative::apply(parent_materialized, &record)?;
+            let compiled = compile_narrative_graph(materialized.definition(&record))?;
             if compiled.graph_hash != record.graph_hash {
                 return Err(error(format!(
                     "narrative revision {} does not reconstruct its graph hash",
+                    record.operation_sequence
+                )));
+            }
+            if !materialized.matches(&compiled.definition) {
+                return Err(error(format!(
+                    "narrative revision {} is not stored in compiled form",
                     record.operation_sequence
                 )));
             }
@@ -7994,6 +8143,9 @@ impl MachineSession {
             session.validate_narrative_snapshot_binding(&compiled, snapshot)?;
             session.validate_narrative_anchors(&compiled, snapshot)?;
             referenced_snapshots.insert(record.snapshot_hash.clone());
+            session
+                .narrative_materialized
+                .insert(record.graph_hash.clone(), materialized);
             if let Some(previous_hash) = &record.revision.previous_graph_hash {
                 let remaining = remaining_children
                     .get_mut(previous_hash)
@@ -9149,127 +9301,40 @@ impl MachineSession {
                 self.commit_candidate(&hash, command.view.unwrap_or_default())
             }
             "register_narrative_graph" | "revise_narrative_graph" => {
-                let operation = command.operation;
                 let definition = required(
                     command.narrative_graph,
                     "narrative graph operation requires narrative_graph",
                 )?;
-                let insertion_order = NarrativeInsertionOrder {
-                    scope: NarrativeInsertionScope::FullDefinition,
-                    root_ids: definition.roots.clone(),
-                    node_ids: definition
-                        .nodes
-                        .iter()
-                        .map(|node| node.id.clone())
-                        .collect(),
-                    edge_ids: definition
-                        .edges
-                        .iter()
-                        .map(|edge| edge.id.clone())
-                        .collect(),
-                };
-                let compiled = compile_narrative_graph(definition)?;
-                if operation == "register_narrative_graph"
-                    && compiled.definition.revision.number != 0
-                {
-                    return Err(machine_error(
-                        "invalid_request",
-                        "register_narrative_graph requires revision 0; use revise_narrative_graph",
-                    ));
-                }
-                if operation == "revise_narrative_graph" && compiled.definition.revision.number == 0
-                {
-                    return Err(machine_error(
-                        "invalid_request",
-                        "revise_narrative_graph requires a nonzero revision",
-                    ));
-                }
-                let preserved_snapshot = if command.preserve_narrative_source_snapshot {
-                    if operation != "revise_narrative_graph" {
-                        return Err(machine_error(
-                            "invalid_request",
-                            "Source preservation requires a narrative revision.",
-                        ));
-                    }
-                    let previous_hash = compiled
-                        .definition
-                        .revision
-                        .previous_graph_hash
-                        .as_deref()
-                        .ok_or_else(|| {
-                            machine_error(
-                                "invalid_request",
-                                "Source preservation requires a predecessor graph.",
-                            )
-                        })?;
-                    let previous = self.materialize_narrative_graph(previous_hash)?;
-                    if previous.definition.source != compiled.definition.source {
-                        return Err(machine_error(
-                            "conflict",
-                            "A source-preserving narrative edit cannot change its source binding.",
-                        ));
-                    }
-                    Some(previous.snapshot)
-                } else {
-                    None
-                };
-                if self.narrative_revisions.contains_key(&compiled.graph_hash) {
-                    let existing = self.materialize_narrative_graph(&compiled.graph_hash)?;
-                    if existing.definition != compiled.definition {
-                        return Err(machine_error(
-                            "conflict",
-                            "narrative graph hash is already bound to different content",
-                        ));
-                    }
-                    if preserved_snapshot
-                        .as_ref()
-                        .is_some_and(|snapshot| snapshot != &existing.snapshot)
-                    {
-                        return Err(machine_error(
-                            "conflict",
-                            "Existing narrative revision has a different frozen source snapshot.",
-                        ));
-                    }
-                    return encode(serde_json::json!({
-                        "summary": narrative_graph_summary(&compiled, &existing.snapshot),
-                        "snapshot_hash": existing.snapshot_hash,
-                        "stored": true,
-                        "reused_existing": true,
-                    }));
-                }
-                self.validate_narrative_revision_link(&compiled)?;
-                let snapshot = match preserved_snapshot {
-                    Some(snapshot) => snapshot,
-                    None => self.capture_narrative_source(&compiled.definition.source)?,
-                };
-                self.validate_narrative_snapshot_binding(&compiled, &snapshot)?;
-                self.validate_narrative_anchors(&compiled, &snapshot)?;
-                let snapshot_hash = hash_serializable(&snapshot)?;
-                let revision = match compiled.definition.revision.previous_graph_hash.as_deref() {
-                    None => self.narrative_root_revision(
-                        &compiled,
-                        snapshot_hash.clone(),
-                        insertion_order.clone(),
-                    )?,
-                    Some(previous_hash) => {
-                        let previous = self.materialize_narrative_graph(previous_hash)?;
-                        self.narrative_delta_revision(
-                            &previous.definition,
-                            &compiled,
-                            snapshot_hash.clone(),
-                            insertion_order.clone(),
-                        )?
-                    }
-                };
-                let result = serde_json::json!({
-                    "summary": narrative_graph_summary(&compiled, &snapshot),
-                    "snapshot_hash": snapshot_hash,
-                    "operation_sequence": revision.operation_sequence,
-                    "stored": true,
-                    "reused_existing": false,
-                });
-                self.insert_narrative_revision(revision, snapshot)?;
-                encode(result)
+                self.store_complete_narrative_graph(
+                    &command.operation,
+                    definition,
+                    command.preserve_narrative_source_snapshot,
+                )
+            }
+            "revise_narrative_graph_by_change" => {
+                let mut change = required(
+                    command.narrative_change,
+                    "revise_narrative_graph_by_change requires narrative_change",
+                )?;
+                validate_narrative_access_scopes(&mut change.access_scopes)?;
+                let previous = self
+                    .materialize_narrative_graph(&change.previous_graph_hash)
+                    .map_err(|_| {
+                        machine_error(
+                            "not_found",
+                            format!(
+                                "unknown previous narrative graph {}",
+                                change.previous_graph_hash
+                            ),
+                        )
+                    })?;
+                self.ensure_narrative_fully_visible(&previous, &change.access_scopes)?;
+                let definition = apply_narrative_change(&previous.definition, &change)?;
+                self.store_complete_narrative_graph(
+                    "revise_narrative_graph",
+                    definition,
+                    command.preserve_narrative_source_snapshot,
+                )
             }
             "apply_narrative_batch" => {
                 let mut batch = required(
@@ -9355,7 +9420,7 @@ impl MachineSession {
                         "added_edge_count": batch.add_edges.len(),
                     }
                 });
-                self.insert_narrative_revision(revision, previous.snapshot)?;
+                self.insert_narrative_revision(revision, previous.snapshot, &compiled.definition)?;
                 encode(result)
             }
             "list_narrative_revisions" => {
@@ -9637,7 +9702,7 @@ impl MachineSession {
         stored: StoredNarrativeGraph,
         query: NarrativeGraphQuery,
     ) -> Result<serde_json::Value, MachineError> {
-        let graph = compile_narrative_graph(stored.definition.clone())?;
+        let graph = compiled_stored_narrative(&stored.graph_hash, stored.definition.clone());
         let model = self
             .models
             .get(&stored.snapshot.model_hash)
@@ -10164,7 +10229,7 @@ impl MachineSession {
         stored: StoredNarrativeGraph,
         mut spec: NarrativeRenderSpec,
     ) -> Result<serde_json::Value, MachineError> {
-        let graph = compile_narrative_graph(stored.definition.clone())?;
+        let graph = compiled_stored_narrative(&stored.graph_hash, stored.definition.clone());
         validate_narrative_access_scopes(&mut spec.access_scopes)?;
         validate_expected_graph_hash(&spec.expected_graph_hash, &graph.graph_hash)?;
         let roots = if spec.root_ids.is_empty() {
@@ -10262,7 +10327,7 @@ impl MachineSession {
             machine_error("not_found", format!("unknown narrative graph {graph_hash}"))
         })?;
         self.ensure_portable_source_history(&stored.snapshot)?;
-        let graph = compile_narrative_graph(stored.definition.clone())?;
+        let graph = compiled_stored_narrative(&stored.graph_hash, stored.definition.clone());
         validate_narrative_access_scopes(&mut spec.access_scopes)?;
         validate_expected_graph_hash(&spec.expected_graph_hash, &graph.graph_hash)?;
         if spec.require_accepted_history
@@ -12298,6 +12363,7 @@ fn is_mutating_operation(operation: &str) -> bool {
             | "commit_candidate"
             | "register_narrative_graph"
             | "revise_narrative_graph"
+            | "revise_narrative_graph_by_change"
             | "apply_narrative_batch"
             | "register_project_checkpoint"
     )
@@ -12320,6 +12386,7 @@ pub fn is_machine_operation(operation: &str) -> bool {
             | "query_view"
             | "register_narrative_graph"
             | "revise_narrative_graph"
+            | "revise_narrative_graph_by_change"
             | "apply_narrative_batch"
             | "list_narrative_revisions"
             | "query_narrative_graph"
@@ -12378,7 +12445,7 @@ pub fn machine_description() -> serde_json::Value {
             "create_world", "get_world", "refine_genesis_world", "revise_world", "get_world_revision", "roll_world", "inspect_candidate",
             "summarize_trajectory", "reroll_candidate", "reject_candidate", "commit_candidate",
             "query_graph", "query_view", "register_narrative_graph", "revise_narrative_graph",
-            "apply_narrative_batch", "list_narrative_revisions", "query_narrative_graph",
+            "revise_narrative_graph_by_change", "apply_narrative_batch", "list_narrative_revisions", "query_narrative_graph",
             "render_narrative_graph", "export_narrative_training"
         ],
         "value_kinds": [
@@ -12574,6 +12641,7 @@ pub fn machine_description() -> serde_json::Value {
     description["authority"]["narrative_graphs"] =
         serde_json::json!("rust_process_memory_or_optional_transactional_sqlite_state_file");
     description["schemas"]["narrative_batch"] = serde_json::json!(NARRATIVE_BATCH_SCHEMA);
+    description["schemas"]["narrative_change"] = serde_json::json!(NARRATIVE_CHANGE_SCHEMA);
     description["schemas"]["project_document"] = serde_json::json!(PROJECT_DOCUMENT_SCHEMA);
     description["schemas"]["project_checkpoint"] = serde_json::json!(PROJECT_CHECKPOINT_SCHEMA);
     description["schemas"]["project_checkpoint_list"] =

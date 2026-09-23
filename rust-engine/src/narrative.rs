@@ -3,11 +3,14 @@ use super::{
     OccurrenceMark, ProcessValue, MAX_MODEL_IDENTIFIER_BYTES,
 };
 use crate::{error, hash_serializable, EngineResult};
+use rpds::{RedBlackTreeMap, RedBlackTreeMapSync};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::sync::Arc;
 
 pub const NARRATIVE_GRAPH_SCHEMA: &str = "life-sim-rust-narrative-graph/v1";
 pub const NARRATIVE_BATCH_SCHEMA: &str = "life-sim-rust-narrative-batch/v1";
+pub const NARRATIVE_CHANGE_SCHEMA: &str = "life-sim-rust-narrative-change/v1";
 pub const NARRATIVE_GRAPH_VIEW_SCHEMA: &str = "life-sim-rust-narrative-graph-view/v1";
 pub const NARRATIVE_RENDER_SCHEMA: &str = "life-sim-rust-narrative-render/v1";
 pub const NARRATIVE_TRAINING_SCHEMA: &str = "life-sim-rust-narrative-training/v1";
@@ -212,6 +215,33 @@ pub struct NarrativeGraphBatch {
     pub add_nodes: Vec<NarrativeNode>,
     #[serde(default)]
     pub add_edges: Vec<NarrativeEdge>,
+}
+
+/// A complete revision written as its change from the predecessor. The Rust
+/// session applies it to the stored predecessor, so a caller sends only what
+/// changes; the successor passes the same validation as a complete revision.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct NarrativeGraphChange {
+    pub schema: String,
+    pub previous_graph_hash: String,
+    pub revision: NarrativeGraphRevision,
+    #[serde(default)]
+    pub source: Option<NarrativeGraphSource>,
+    #[serde(default)]
+    pub roots: Option<Vec<String>>,
+    #[serde(default)]
+    pub upsert_nodes: Vec<NarrativeNode>,
+    #[serde(default)]
+    pub remove_node_ids: Vec<String>,
+    #[serde(default)]
+    pub upsert_edges: Vec<NarrativeEdge>,
+    #[serde(default)]
+    pub remove_edge_ids: Vec<String>,
+    /// A change may be written only by a caller whose scopes reveal the whole
+    /// predecessor, so no hidden record is changed or dropped unseen.
+    #[serde(default)]
+    pub access_scopes: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -761,23 +791,117 @@ pub fn compile_narrative_graph(
     })
 }
 
+/// A node or an edge, identified by its id.
+trait KeyedRecord: Clone + PartialEq {
+    fn key(&self) -> &str;
+}
+
+impl KeyedRecord for NarrativeNode {
+    fn key(&self) -> &str {
+        &self.id
+    }
+}
+
+impl KeyedRecord for NarrativeEdge {
+    fn key(&self) -> &str {
+        &self.id
+    }
+}
+
+fn strictly_sorted<T: KeyedRecord>(records: &[T]) -> bool {
+    records.windows(2).all(|pair| pair[0].key() < pair[1].key())
+}
+
+/// The positional change from one definition to its successor. Compiled
+/// definitions keep nodes and edges sorted by id; for those a linear merge
+/// gives exactly the operations of the general construction (removals, then
+/// insertions and replacements in successor order, never a move).
 pub(crate) fn build_narrative_graph_delta(
     previous: &NarrativeGraphDefinition,
     successor: &NarrativeGraphDefinition,
 ) -> NarrativeGraphDelta {
-    let mut root_operations = Vec::new();
-    let mut roots = previous.roots.clone();
-    for node_id in previous
-        .roots
-        .iter()
-        .filter(|node_id| !successor.roots.contains(node_id))
+    if !(strictly_sorted(&previous.nodes)
+        && strictly_sorted(&successor.nodes)
+        && strictly_sorted(&previous.edges)
+        && strictly_sorted(&successor.edges))
     {
+        return build_narrative_graph_delta_general(previous, successor);
+    }
+    NarrativeGraphDelta {
+        root_operations: root_patch_operations(&previous.roots, &successor.roots),
+        node_operations: sorted_patch_operations(
+            &previous.nodes,
+            &successor.nodes,
+            |node| NarrativeNodePatchOperation::Remove {
+                node_id: node.id.clone(),
+            },
+            |index, node| NarrativeNodePatchOperation::Insert {
+                index,
+                node: node.clone(),
+            },
+            |node| NarrativeNodePatchOperation::Replace { node: node.clone() },
+        ),
+        edge_operations: sorted_patch_operations(
+            &previous.edges,
+            &successor.edges,
+            |edge| NarrativeEdgePatchOperation::Remove {
+                edge_id: edge.id.clone(),
+            },
+            |index, edge| NarrativeEdgePatchOperation::Insert {
+                index,
+                edge: edge.clone(),
+            },
+            |edge| NarrativeEdgePatchOperation::Replace { edge: edge.clone() },
+        ),
+    }
+}
+
+fn sorted_patch_operations<T: KeyedRecord, Operation>(
+    previous: &[T],
+    successor: &[T],
+    remove: impl Fn(&T) -> Operation,
+    insert: impl Fn(usize, &T) -> Operation,
+    replace: impl Fn(&T) -> Operation,
+) -> Vec<Operation> {
+    let mut operations = Vec::new();
+    let mut cursor = 0;
+    for record in previous {
+        while cursor < successor.len() && successor[cursor].key() < record.key() {
+            cursor += 1;
+        }
+        if cursor < successor.len() && successor[cursor].key() == record.key() {
+            cursor += 1;
+        } else {
+            operations.push(remove(record));
+        }
+    }
+    let mut cursor = 0;
+    for (index, target) in successor.iter().enumerate() {
+        while cursor < previous.len() && previous[cursor].key() < target.key() {
+            cursor += 1;
+        }
+        if cursor < previous.len() && previous[cursor].key() == target.key() {
+            if previous[cursor] != *target {
+                operations.push(replace(target));
+            }
+            cursor += 1;
+        } else {
+            operations.push(insert(index, target));
+        }
+    }
+    operations
+}
+
+fn root_patch_operations(previous: &[String], successor: &[String]) -> Vec<NarrativeRootPatchOperation> {
+    let mut root_operations = Vec::new();
+    let mut roots = previous.to_vec();
+    for node_id in previous.iter().filter(|node_id| !successor.contains(node_id)) {
         root_operations.push(NarrativeRootPatchOperation::Remove {
             node_id: node_id.clone(),
         });
         roots.retain(|existing| existing != node_id);
     }
-    for (index, node_id) in successor.roots.iter().enumerate() {
+    for (index, node_id) in successor.iter().enumerate() {
         match roots.iter().position(|existing| existing == node_id) {
             None => {
                 root_operations.push(NarrativeRootPatchOperation::Insert {
@@ -797,6 +921,16 @@ pub(crate) fn build_narrative_graph_delta(
             Some(_) => {}
         }
     }
+    debug_assert_eq!(roots, successor);
+    root_operations
+}
+
+/// The general construction, for definitions whose records are not sorted.
+pub(crate) fn build_narrative_graph_delta_general(
+    previous: &NarrativeGraphDefinition,
+    successor: &NarrativeGraphDefinition,
+) -> NarrativeGraphDelta {
+    let root_operations = root_patch_operations(&previous.roots, &successor.roots);
 
     let mut node_operations = Vec::new();
     let successor_node_ids: BTreeSet<&str> = successor
@@ -890,7 +1024,6 @@ pub(crate) fn build_narrative_graph_delta(
         }
     }
 
-    debug_assert_eq!(roots, successor.roots);
     debug_assert_eq!(nodes, successor.nodes);
     debug_assert_eq!(edges, successor.edges);
     NarrativeGraphDelta {
@@ -909,6 +1042,43 @@ fn checked_insert_index(index: usize, len: usize, label: &str) -> EngineResult<(
     Ok(())
 }
 
+fn apply_root_operations(
+    roots: &mut Vec<String>,
+    operations: &[NarrativeRootPatchOperation],
+) -> EngineResult<()> {
+    for operation in operations {
+        match operation {
+            NarrativeRootPatchOperation::Insert { index, node_id } => {
+                checked_insert_index(*index, roots.len(), "root")?;
+                if roots.contains(node_id) {
+                    return Err(error("narrative root patch inserts an existing root"));
+                }
+                roots.insert(*index, node_id.clone());
+            }
+            NarrativeRootPatchOperation::Remove { node_id } => {
+                let index = roots
+                    .iter()
+                    .position(|existing| existing == node_id)
+                    .ok_or_else(|| error("narrative root patch removes an unknown root"))?;
+                roots.remove(index);
+            }
+            NarrativeRootPatchOperation::Move { node_id, index } => {
+                let current = roots
+                    .iter()
+                    .position(|existing| existing == node_id)
+                    .ok_or_else(|| error("narrative root patch moves an unknown root"))?;
+                let moved = roots.remove(current);
+                checked_insert_index(*index, roots.len(), "root move")?;
+                roots.insert(*index, moved);
+            }
+        }
+    }
+    Ok(())
+}
+
+/// The positional reference applier. The session keeps revisions as
+/// [`MaterializedNarrative`] instead; tests check that both agree.
+#[cfg(test)]
 pub(crate) fn apply_narrative_revision_record(
     previous: Option<&NarrativeGraphDefinition>,
     record: &StoredNarrativeRevision,
@@ -942,33 +1112,7 @@ pub(crate) fn apply_narrative_revision_record(
             let mut roots = previous.roots.clone();
             let mut nodes = previous.nodes.clone();
             let mut edges = previous.edges.clone();
-            for operation in &delta.root_operations {
-                match operation {
-                    NarrativeRootPatchOperation::Insert { index, node_id } => {
-                        checked_insert_index(*index, roots.len(), "root")?;
-                        if roots.contains(node_id) {
-                            return Err(error("narrative root patch inserts an existing root"));
-                        }
-                        roots.insert(*index, node_id.clone());
-                    }
-                    NarrativeRootPatchOperation::Remove { node_id } => {
-                        let index = roots
-                            .iter()
-                            .position(|existing| existing == node_id)
-                            .ok_or_else(|| error("narrative root patch removes an unknown root"))?;
-                        roots.remove(index);
-                    }
-                    NarrativeRootPatchOperation::Move { node_id, index } => {
-                        let current = roots
-                            .iter()
-                            .position(|existing| existing == node_id)
-                            .ok_or_else(|| error("narrative root patch moves an unknown root"))?;
-                        let moved = roots.remove(current);
-                        checked_insert_index(*index, roots.len(), "root move")?;
-                        roots.insert(*index, moved);
-                    }
-                }
-            }
+            apply_root_operations(&mut roots, &delta.root_operations)?;
             for operation in &delta.node_operations {
                 match operation {
                     NarrativeNodePatchOperation::Insert { index, node } => {
@@ -1059,6 +1203,236 @@ pub(crate) fn apply_narrative_revision_record(
         nodes: std::mem::take(&mut nodes),
         edges: std::mem::take(&mut edges),
     })
+}
+
+/// One stored revision's roots, nodes and edges. Nodes and edges are persistent
+/// maps keyed by id: a revision shares every unchanged record with its parent,
+/// so the session keeps every revision materialized, a read never replays the
+/// history, and a new revision costs about the size of its change. Iteration
+/// is in id order, the order a compiled definition keeps.
+#[derive(Debug, Clone)]
+pub(crate) struct MaterializedNarrative {
+    roots: Vec<String>,
+    nodes: RedBlackTreeMapSync<String, Arc<NarrativeNode>>,
+    edges: RedBlackTreeMapSync<String, Arc<NarrativeEdge>>,
+}
+
+impl MaterializedNarrative {
+    /// Applies one stored revision to its parent's materialization; a root
+    /// record has no parent. Rejects exactly what the positional applier rejects.
+    pub(crate) fn apply(previous: Option<&Self>, record: &StoredNarrativeRevision) -> EngineResult<Self> {
+        if record.schema != NARRATIVE_REVISION_STORE_SCHEMA {
+            return Err(error(format!(
+                "unsupported narrative revision record schema {}; expected {NARRATIVE_REVISION_STORE_SCHEMA}",
+                record.schema
+            )));
+        }
+        match (&record.payload, previous) {
+            (NarrativeRevisionPayload::Root { roots, nodes, edges }, None) => {
+                if record.revision.number != 0 || record.revision.previous_graph_hash.is_some() {
+                    return Err(error("narrative root record has invalid revision metadata"));
+                }
+                let mut materialized = Self {
+                    roots: roots.clone(),
+                    nodes: RedBlackTreeMap::new_sync(),
+                    edges: RedBlackTreeMap::new_sync(),
+                };
+                for node in nodes {
+                    if materialized.nodes.contains_key(&node.id) {
+                        return Err(error(format!("narrative root record repeats node {}", node.id)));
+                    }
+                    materialized.nodes.insert_mut(node.id.clone(), Arc::new(node.clone()));
+                }
+                for edge in edges {
+                    if materialized.edges.contains_key(&edge.id) {
+                        return Err(error(format!("narrative root record repeats edge {}", edge.id)));
+                    }
+                    materialized.edges.insert_mut(edge.id.clone(), Arc::new(edge.clone()));
+                }
+                Ok(materialized)
+            }
+            (NarrativeRevisionPayload::Delta { delta }, Some(previous)) => {
+                if record.revision.number == 0 || record.revision.previous_graph_hash.is_none() {
+                    return Err(error(
+                        "narrative delta record has invalid revision metadata",
+                    ));
+                }
+                let mut next = previous.clone();
+                apply_root_operations(&mut next.roots, &delta.root_operations)?;
+                // Ids fix the order of nodes and edges, so a move changes
+                // nothing here; its target must still exist and fit.
+                for operation in &delta.node_operations {
+                    match operation {
+                        NarrativeNodePatchOperation::Insert { index, node } => {
+                            checked_insert_index(*index, next.nodes.size(), "node")?;
+                            if next.nodes.contains_key(&node.id) {
+                                return Err(error("narrative node patch inserts an existing node"));
+                            }
+                            next.nodes.insert_mut(node.id.clone(), Arc::new(node.clone()));
+                        }
+                        NarrativeNodePatchOperation::Replace { node } => {
+                            if !next.nodes.contains_key(&node.id) {
+                                return Err(error("narrative node patch replaces an unknown node"));
+                            }
+                            next.nodes.insert_mut(node.id.clone(), Arc::new(node.clone()));
+                        }
+                        NarrativeNodePatchOperation::Remove { node_id } => {
+                            if !next.nodes.remove_mut(node_id) {
+                                return Err(error("narrative node patch removes an unknown node"));
+                            }
+                        }
+                        NarrativeNodePatchOperation::Move { node_id, index } => {
+                            if !next.nodes.contains_key(node_id) {
+                                return Err(error("narrative node patch moves an unknown node"));
+                            }
+                            checked_insert_index(*index, next.nodes.size() - 1, "node move")?;
+                        }
+                    }
+                }
+                for operation in &delta.edge_operations {
+                    match operation {
+                        NarrativeEdgePatchOperation::Insert { index, edge } => {
+                            checked_insert_index(*index, next.edges.size(), "edge")?;
+                            if next.edges.contains_key(&edge.id) {
+                                return Err(error("narrative edge patch inserts an existing edge"));
+                            }
+                            next.edges.insert_mut(edge.id.clone(), Arc::new(edge.clone()));
+                        }
+                        NarrativeEdgePatchOperation::Replace { edge } => {
+                            if !next.edges.contains_key(&edge.id) {
+                                return Err(error("narrative edge patch replaces an unknown edge"));
+                            }
+                            next.edges.insert_mut(edge.id.clone(), Arc::new(edge.clone()));
+                        }
+                        NarrativeEdgePatchOperation::Remove { edge_id } => {
+                            if !next.edges.remove_mut(edge_id) {
+                                return Err(error("narrative edge patch removes an unknown edge"));
+                            }
+                        }
+                        NarrativeEdgePatchOperation::Move { edge_id, index } => {
+                            if !next.edges.contains_key(edge_id) {
+                                return Err(error("narrative edge patch moves an unknown edge"));
+                            }
+                            checked_insert_index(*index, next.edges.size() - 1, "edge move")?;
+                        }
+                    }
+                }
+                Ok(next)
+            }
+            (NarrativeRevisionPayload::Root { .. }, Some(_)) => {
+                Err(error("non-root narrative revision stores a root payload"))
+            }
+            (NarrativeRevisionPayload::Delta { .. }, None) => {
+                Err(error("narrative root revision stores a delta payload"))
+            }
+        }
+    }
+
+    /// The definition this revision holds, with nodes and edges in id order.
+    pub(crate) fn definition(&self, record: &StoredNarrativeRevision) -> NarrativeGraphDefinition {
+        NarrativeGraphDefinition {
+            schema: record.graph_schema.clone(),
+            id: record.graph_id.clone(),
+            revision: record.revision.clone(),
+            source: record.source.clone(),
+            roots: self.roots.clone(),
+            nodes: self.nodes.values().map(|node| node.as_ref().clone()).collect(),
+            edges: self.edges.values().map(|edge| edge.as_ref().clone()).collect(),
+        }
+    }
+
+    /// Whether this holds exactly the records of a compiled definition.
+    pub(crate) fn matches(&self, definition: &NarrativeGraphDefinition) -> bool {
+        self.roots == definition.roots
+            && self.nodes.size() == definition.nodes.len()
+            && self.edges.size() == definition.edges.len()
+            && self.nodes.values().zip(&definition.nodes).all(|(held, node)| held.as_ref() == node)
+            && self.edges.values().zip(&definition.edges).all(|(held, edge)| held.as_ref() == edge)
+    }
+}
+
+/// The compiled view of a stored revision. It was validated and hashed when it
+/// was stored, so a read builds the view without validating or hashing again.
+pub(crate) fn compiled_stored_narrative(
+    graph_hash: &str,
+    definition: NarrativeGraphDefinition,
+) -> CompiledNarrativeGraph {
+    let nodes = definition
+        .nodes
+        .iter()
+        .map(|node| (node.id.clone(), node.clone()))
+        .collect();
+    CompiledNarrativeGraph {
+        graph_hash: graph_hash.to_owned(),
+        definition,
+        nodes,
+    }
+}
+
+/// The successor of a revision by change: the predecessor with the upserts
+/// and removals applied strictly. A removal must name a record the
+/// predecessor has, and no record may be named twice or both removed and
+/// replaced. Replacements keep their place and new records follow.
+pub(crate) fn apply_narrative_change(
+    previous: &NarrativeGraphDefinition,
+    change: &NarrativeGraphChange,
+) -> EngineResult<NarrativeGraphDefinition> {
+    if change.schema != NARRATIVE_CHANGE_SCHEMA {
+        return Err(error(format!(
+            "unsupported narrative change schema {}; expected {NARRATIVE_CHANGE_SCHEMA}",
+            change.schema
+        )));
+    }
+    if change.revision.previous_graph_hash.as_deref() != Some(change.previous_graph_hash.as_str()) {
+        return Err(error(
+            "A revision by change must link revision.previous_graph_hash to previous_graph_hash.",
+        ));
+    }
+    Ok(NarrativeGraphDefinition {
+        schema: previous.schema.clone(),
+        id: previous.id.clone(),
+        revision: change.revision.clone(),
+        source: change.source.clone().unwrap_or_else(|| previous.source.clone()),
+        roots: change.roots.clone().unwrap_or_else(|| previous.roots.clone()),
+        nodes: apply_record_change(&previous.nodes, &change.upsert_nodes, &change.remove_node_ids, "node")?,
+        edges: apply_record_change(&previous.edges, &change.upsert_edges, &change.remove_edge_ids, "edge")?,
+    })
+}
+
+fn apply_record_change<T: KeyedRecord>(
+    previous: &[T],
+    upserts: &[T],
+    removals: &[String],
+    label: &str,
+) -> EngineResult<Vec<T>> {
+    let mut named = BTreeSet::new();
+    for record in upserts {
+        if !named.insert(record.key()) {
+            return Err(error(format!("The change names {label} {} twice.", record.key())));
+        }
+    }
+    let existing: BTreeSet<&str> = previous.iter().map(KeyedRecord::key).collect();
+    let mut removed = BTreeSet::new();
+    for record_id in removals {
+        if named.contains(record_id.as_str()) || !removed.insert(record_id.as_str()) {
+            return Err(error(format!(
+                "The change both removes and replaces {label} {record_id}, or removes it twice."
+            )));
+        }
+        if !existing.contains(record_id.as_str()) {
+            return Err(error(format!(
+                "The change removes {label} {record_id}, which the predecessor does not have."
+            )));
+        }
+    }
+    let replacements: BTreeMap<&str, &T> = upserts.iter().map(|record| (record.key(), record)).collect();
+    let mut records: Vec<T> = previous
+        .iter()
+        .filter(|record| !removed.contains(record.key()))
+        .map(|record| replacements.get(record.key()).map_or_else(|| record.clone(), |replacement| (*replacement).clone()))
+        .collect();
+    records.extend(upserts.iter().filter(|record| !existing.contains(record.key())).cloned());
+    Ok(records)
 }
 
 pub(crate) fn validate_narrative_insertion_order(
@@ -1376,39 +1750,13 @@ fn validate_component_grounding<'a>(
 
 fn validate_structural_acyclicity<'a>(
     node_ids: impl Iterator<Item = &'a String>,
-    edges: &[(String, String, String)],
+    edges: &'a [(String, String, String)],
 ) -> EngineResult<()> {
-    let mut indegree: BTreeMap<String, usize> = node_ids.map(|id| (id.clone(), 0)).collect();
-    let mut outgoing: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for (source, target, _) in edges {
-        *indegree
-            .get_mut(target)
-            .expect("structural target was validated") += 1;
-        outgoing
-            .entry(source.clone())
-            .or_default()
-            .push(target.clone());
-    }
-    let mut queue: VecDeque<String> = indegree
-        .iter()
-        .filter(|(_, degree)| **degree == 0)
-        .map(|(id, _)| id.clone())
-        .collect();
-    let mut visited = 0usize;
-    while let Some(id) = queue.pop_front() {
-        visited += 1;
-        for target in outgoing.get(&id).into_iter().flatten() {
-            let degree = indegree.get_mut(target).expect("known structural target");
-            *degree -= 1;
-            if *degree == 0 {
-                queue.push_back(target.clone());
-            }
-        }
-    }
-    if visited != indegree.len() {
-        return Err(error("narrative contains/next structure must be acyclic"));
-    }
-    Ok(())
+    crate::ensure_acyclic(
+        node_ids.map(String::as_str),
+        edges.iter().map(|(source, target, _)| (source.as_str(), target.as_str())),
+        "narrative contains/next structure",
+    )
 }
 
 pub fn node_is_visible(node: &NarrativeNode, access_scopes: &[String]) -> bool {
@@ -1471,4 +1819,162 @@ pub fn narrative_graph_summary(
         "edge_count": graph.definition.edges.len(),
         "roles": roles,
     })
+}
+
+#[cfg(test)]
+mod materialization_tests {
+    use super::*;
+    use serde_json::json;
+
+    /// A small deterministic generator, so the cases are the same on every run.
+    struct Cases(u64);
+    impl Cases {
+        fn next(&mut self) -> u64 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            self.0
+        }
+        fn below(&mut self, bound: u64) -> u64 {
+            self.next() % bound
+        }
+    }
+
+    fn node(id: &str, text: &str) -> NarrativeNode {
+        serde_json::from_value(json!({
+            "id": id, "node_type": "paragraph", "role": "story_passage", "text": text,
+            "epistemic_status": "fictional_canon", "evidence_type": "fictional_canon",
+            "authority": {"source": "author", "weight": 1.0}, "provenance": ["materialization test"]
+        }))
+        .unwrap()
+    }
+
+    fn edge(id: &str, target: &str, order: u64) -> NarrativeEdge {
+        serde_json::from_value(json!({
+            "id": id, "source": {"kind": "node", "node_id": "root"}, "target": {"kind": "node", "node_id": target},
+            "family": "structural", "relation": "contains", "order": order, "provenance": ["materialization test"]
+        }))
+        .unwrap()
+    }
+
+    fn definition(roots: Vec<String>, mut nodes: Vec<NarrativeNode>, mut edges: Vec<NarrativeEdge>) -> NarrativeGraphDefinition {
+        nodes.sort_by(|a, b| a.id.cmp(&b.id));
+        edges.sort_by(|a, b| a.id.cmp(&b.id));
+        serde_json::from_value::<NarrativeGraphDefinition>(json!({
+            "schema": NARRATIVE_GRAPH_SCHEMA, "id": "cases",
+            "revision": {"number": 0, "reason": "case", "provenance": ["materialization test"]},
+            "source": {"kind": "model", "model_hash": "m"}, "roots": roots, "nodes": [], "edges": []
+        }))
+        .map(|mut base| {
+            base.nodes = nodes;
+            base.edges = edges;
+            base
+        })
+        .unwrap()
+    }
+
+    fn record(revision: u64, payload: NarrativeRevisionPayload) -> StoredNarrativeRevision {
+        StoredNarrativeRevision {
+            schema: NARRATIVE_REVISION_STORE_SCHEMA.to_owned(),
+            operation_sequence: revision,
+            record_hash: String::new(),
+            graph_hash: String::new(),
+            snapshot_hash: String::new(),
+            graph_schema: NARRATIVE_GRAPH_SCHEMA.to_owned(),
+            graph_id: "cases".to_owned(),
+            revision: NarrativeGraphRevision {
+                number: revision,
+                previous_graph_hash: (revision > 0).then(|| "parent".to_owned()),
+                reason: "case".to_owned(),
+                provenance: vec!["materialization test".to_owned()],
+            },
+            source: NarrativeGraphSource::Model { model_hash: "m".to_owned() },
+            insertion_order: NarrativeInsertionOrder::default(),
+            payload,
+        }
+    }
+
+    fn random_definition(cases: &mut Cases) -> NarrativeGraphDefinition {
+        let count = 1 + cases.below(40);
+        let (mut nodes, mut edges, mut roots) = (Vec::new(), Vec::new(), Vec::new());
+        for index in 0..count {
+            if cases.below(4) == 0 {
+                continue;
+            }
+            let id = format!("n{index:03}");
+            nodes.push(node(&id, &format!("text {}", cases.below(3))));
+            if cases.below(3) != 0 {
+                edges.push(edge(&format!("e-{id}"), &id, cases.below(5)));
+            }
+            if cases.below(6) == 0 {
+                roots.push(id);
+            }
+        }
+        // Roots keep an arbitrary order, as real roots do.
+        if roots.len() > 1 && cases.below(2) == 0 {
+            roots.rotate_left(1);
+        }
+        definition(roots, nodes, edges)
+    }
+
+    #[test]
+    fn the_linear_delta_builder_agrees_with_the_general_one_and_both_appliers_agree() {
+        let mut cases = Cases(0x9e37_79b9_7f4a_7c15);
+        for _ in 0..500 {
+            let previous = random_definition(&mut cases);
+            let successor = random_definition(&mut cases);
+            let delta = build_narrative_graph_delta(&previous, &successor);
+            assert_eq!(delta, build_narrative_graph_delta_general(&previous, &successor));
+            let root = MaterializedNarrative::apply(
+                None,
+                &record(0, NarrativeRevisionPayload::Root {
+                    roots: previous.roots.clone(),
+                    nodes: previous.nodes.clone(),
+                    edges: previous.edges.clone(),
+                }),
+            )
+            .unwrap();
+            assert!(root.matches(&previous));
+            let step = record(1, NarrativeRevisionPayload::Delta { delta });
+            let positional = apply_narrative_revision_record(Some(&previous), &step).unwrap();
+            let materialized = MaterializedNarrative::apply(Some(&root), &step).unwrap();
+            assert_eq!(materialized.definition(&step), positional);
+            assert!(materialized.matches(&successor));
+            assert!(root.matches(&previous), "applying a revision leaves its parent unchanged");
+        }
+    }
+
+    #[test]
+    fn unsorted_definitions_use_the_general_builder() {
+        let mut previous = definition(vec![], vec![node("a", "x"), node("b", "y")], vec![]);
+        previous.nodes.reverse();
+        let successor = definition(vec![], vec![node("a", "x"), node("c", "z")], vec![]);
+        assert_eq!(
+            build_narrative_graph_delta(&previous, &successor),
+            build_narrative_graph_delta_general(&previous, &successor)
+        );
+    }
+
+    #[test]
+    fn the_persistent_applier_rejects_what_the_positional_one_rejects() {
+        let previous = definition(vec![], vec![node("a", "x")], vec![]);
+        let root = MaterializedNarrative::apply(
+            None,
+            &record(0, NarrativeRevisionPayload::Root { roots: vec![], nodes: previous.nodes.clone(), edges: vec![] }),
+        )
+        .unwrap();
+        for (operation, message) in [
+            (NarrativeNodePatchOperation::Insert { index: 0, node: node("a", "again") }, "inserts an existing node"),
+            (NarrativeNodePatchOperation::Insert { index: 5, node: node("b", "far") }, "insertion index 5 exceeds length 1"),
+            (NarrativeNodePatchOperation::Replace { node: node("z", "none") }, "replaces an unknown node"),
+            (NarrativeNodePatchOperation::Remove { node_id: "z".to_owned() }, "removes an unknown node"),
+            (NarrativeNodePatchOperation::Move { node_id: "z".to_owned(), index: 0 }, "moves an unknown node"),
+        ] {
+            let step = record(1, NarrativeRevisionPayload::Delta { delta: NarrativeGraphDelta { node_operations: vec![operation], ..Default::default() } });
+            let positional = apply_narrative_revision_record(Some(&previous), &step).unwrap_err().to_string();
+            let persistent = MaterializedNarrative::apply(Some(&root), &step).unwrap_err().to_string();
+            assert!(positional.contains(message), "{positional}");
+            assert_eq!(positional, persistent);
+        }
+    }
 }

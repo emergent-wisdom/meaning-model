@@ -405,12 +405,17 @@ can be listed, queried, rendered, or used as the parent of a new branch. Portabl
 exports retain the world-revision boundary restriction described above.
 Startup checks SQLite integrity and relational shadow columns, content and
 record hashes, canonical deltas, source anchors, complete lineages, storage
-bounds, and deterministic candidate replay. Cold narrative lookup replays one
-selected chain and compiles only its final graph; restart validation reuses each
-materialized parent and retains only the live branch frontier. No destructive
-pruning or durable materialization cache exists yet. Export results and begin a
-new bounded session before configured limits are reached. Treat the state file
-as sensitive complete-world data.
+bounds, and deterministic candidate replay. Every stored revision is kept
+materialized in memory as persistent maps (the `rpds` crate) that share each
+unchanged node and edge with the parent revision, so a lookup neither replays the
+chain nor recompiles the graph: a revision is validated once, when it is stored or
+restored, and restart rebuilds each revision from its parent. A revision can be
+written as its change (`revise_narrative_graph_by_change`): the session applies
+the upserts and removals to the stored predecessor, refuses a caller whose scopes
+hide any of it, and validates the successor as a complete revision. No destructive
+pruning exists yet. Export results and begin a new bounded session before
+configured limits are reached. Treat the state file as sensitive complete-world
+data.
 
 ### Narrative checkpoints and projections
 

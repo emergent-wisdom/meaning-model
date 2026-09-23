@@ -4,6 +4,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Formatter};
 use std::time::Instant;
 
+mod graph_algorithms;
+pub(crate) use graph_algorithms::ensure_acyclic;
+
 mod model;
 pub use model::*;
 

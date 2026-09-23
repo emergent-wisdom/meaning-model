@@ -205,7 +205,7 @@ four practices.
   each change in its receipts.
 
 Batch related notes into one call (up to 32): every recording call creates one graph
-revision, and a session keeps at most 512.
+revision, and a session keeps at most 4,096.
 
 ## MCP tools
 
@@ -214,11 +214,11 @@ revision, and a session keeps at most 512.
 | `life_narrative_register` | `register_narrative_graph` | Atomically register a complete revision-zero graph. |
 | `life_narrative_revise` | `revise_narrative_graph` | Atomically register a complete immutable successor. |
 | `life_narrative_batch` | `apply_narrative_batch` | Add one or many connected roots, nodes, and edges as one immutable successor. |
-| `life_narrative_edit` | `query_narrative_graph`, then `revise_narrative_graph` | Apply split, merge, move, reorder, or guarded text replacement as one immutable successor, stored as its change. |
+| `life_narrative_edit` | `query_narrative_graph`, then `revise_narrative_graph_by_change` | Apply split, merge, move, reorder, or guarded text replacement as one immutable successor, sent and stored as its change. |
 | `life_narrative_query` | `query_narrative_graph` | Read a full, skeleton, or neighborhood projection; `forRevision` returns a full content projection stripped to the fields revise accepts. |
 | `life_narrative_render` | `render_narrative_graph` | Derive ordered story text from canonical nodes. |
 | `life_narrative_training_export` | `export_narrative_training` | Derive aligned text/state training records. |
-| `life_narrative_rebind` | `query_narrative_graph`, then `revise_narrative_graph` | Rebind a model-bound graph to a successor model as one complete successor, keeping every node and dropping only predecessor model anchors; stored as its change. |
+| `life_narrative_rebind` | `query_narrative_graph`, then `revise_narrative_graph_by_change` | Rebind a model-bound graph to a successor model as one complete successor, keeping every node and dropping only predecessor model anchors; sent and stored as its change. |
 | `life_narrative_alignment_audit` | `render_narrative_graph`, then `query_narrative_graph` | Read-only: generate narrated/contradicted/leaked questions from the graph's records for a rendered unit, per passage and whole; optionally scored by the configured external estimator. |
 | `life_direction_draw` | `inspect_model`, then `query_narrative_graph` and `apply_narrative_batch` when recording | Compute a seeded draw over a model's normalized Cut; optionally record it in a graph bound to that model, linking earlier draws over the same Cut as rerolls. |
 | `life_understanding_record` | `query_narrative_graph`, `get_model`, then `apply_narrative_batch` | Record held Understanding Nodes linked to model records and nodes, as one immutable successor. |
@@ -226,12 +226,13 @@ revision, and a session keeps at most 512.
 | `life_model_outline` | `get_model`, `query_narrative_graph` | Read-only: the present state as an outline, with linked notes at a chosen depth. |
 | `life_construction_replay` | `list_narrative_revisions`, `query_narrative_graph`, `get_model` | Read-only: replay the graph and model revisions from the first, with each step's reasons, changes and notes. |
 | `life_construction_export` | `list_narrative_revisions`, `query_narrative_graph`, `get_model` | Read-only: export the whole construction as a portable history with a bundle hash. |
-| `life_construction_import` | `register_model`, `revise_model`, `register_narrative_graph`, `apply_narrative_batch`, `revise_narrative_graph` | Rebuild an exported history, checking every model and graph hash. |
+| `life_construction_import` | `register_model`, `revise_model`, `register_narrative_graph`, `apply_narrative_batch`, `revise_narrative_graph_by_change` | Rebuild an exported history, checking every model and graph hash. |
 
-The mutations require request IDs and are idempotent. A rebind or an edit is
-stored as its change: the service reads the complete predecessor, applies the
-change, and validates the successor as a complete revision. Its idempotency receipt
-therefore keeps only the change, not a copy of the whole graph, and the service's
+The mutations require request IDs and are idempotent. A rebind, an edit and an
+imported revision are sent as their change: Rust's `revise_narrative_graph_by_change`
+applies the upserts and removals to the stored predecessor, refuses a caller whose
+scopes hide any of it, and validates the successor as a complete revision. Neither
+the call nor the idempotency receipt carries the whole graph, so the service's
 64 MiB receipt budget lasts through long sessions on large graphs. A caller that
 sends `life_narrative_revise` a complete definition still retains that definition
 in the receipt. The query, render, outline, replay and export tools are read-only; the alignment audit is read-only unless `record` is supplied, and it contacts an external service only when `MEANING_MODEL_ESTIMATOR` is set.
@@ -249,9 +250,11 @@ Access scopes are projection labels, not authentication or confidentiality. The 
   lineage of one head through Rust's `list_narrative_revisions`, and reports other
   heads and branch points without replaying them.
   Callers retain exact graph hashes and multiple successor branches are possible.
-- Rust rebuilds a revision by applying every delta from the root, so reading and
-  writing slow as a history grows, and a session keeps at most 512 revisions. Batch
-  related notes into one recording call.
+- Rust keeps every revision materialized with unchanged records shared with its
+  parent, so reading any revision takes about a millisecond on a 1.8 MB graph and
+  writing costs about the size of the change plus one compile of the successor.
+  Restart validates every revision, which is linear in their number (about 0.7 s
+  for a 147-revision story). A session keeps at most 4,096 revisions.
 - Revision validation preserves the graph ID and revision sequence but does not currently require a successor to keep the same source binding.
 - Candidate sources may be pending, rejected, or superseded. Accepted-history enforcement is opt-in on training export and is not applied to registration, query, or rendering.
 - Narrative links do not affect simulation dynamics, and existing writer-planning/story-diagnostic tools are not automatically synchronized with these graphs.
@@ -262,4 +265,4 @@ Access scopes are projection labels, not authentication or confidentiality. The 
 - The engine does not infer a graph, generate prose, establish that a model understands it, or evaluate literary quality. It exports aligned records but performs no model training or dataset management.
 - MCP currently exposes `narrativeGraph` as an opaque object rather than a fully expanded discoverable input schema; callers need this contract or the Rust schema when constructing a batch.
 - Durability requires the optional Rust state file. Persistence is single-writer; there is no multi-process coordination or at-rest encryption.
-- MCP limits one submitted graph to 8 MiB. Rust additionally limits a graph to 50,000 nodes, 200,000 edges, 1,024 roots, and 1 MiB of text per node, with at most 512 stored narrative graph revisions and 64 MiB of narrative data per session.
+- MCP limits one submitted graph to 8 MiB. Rust additionally limits a graph to 50,000 nodes, 200,000 edges, 1,024 roots, and 1 MiB of text per node, with at most 4,096 stored narrative graph revisions and 64 MiB of narrative data per session.

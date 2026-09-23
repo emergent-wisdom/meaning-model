@@ -24,6 +24,7 @@ const MUTATING_OPERATIONS = new Set([
   'commit_candidate',
   'register_narrative_graph',
   'revise_narrative_graph',
+  'revise_narrative_graph_by_change',
   'apply_narrative_batch',
 ]);
 const REQUIRED_OPERATIONS = Object.freeze([
@@ -47,6 +48,7 @@ const REQUIRED_OPERATIONS = Object.freeze([
   'commit_candidate',
   'register_narrative_graph',
   'revise_narrative_graph',
+  'revise_narrative_graph_by_change',
   'apply_narrative_batch',
   'query_narrative_graph',
   'render_narrative_graph',

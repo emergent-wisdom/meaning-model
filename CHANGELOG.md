@@ -108,14 +108,23 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
   preparation reports an `undescribed-numbers` blocker.
 - Let narrative graph edges anchor to a normalized Cut (`normalized_cut`), and with
   a path to one of its answers.
-- Store a narrative revision as its change. The service accepts a revision
-  written as its change from the predecessor, reads the complete predecessor,
-  applies the change strictly and validates the successor as a complete revision.
-  Its idempotency receipt keeps only the change. `life_narrative_rebind` and
-  `life_narrative_edit` use it, so a long session on a large graph no longer
-  retains a copy of the whole graph for every rebind or edit. A 147-revision story
-  now imports with about 3 MB of retained receipts instead of exceeding the 64 MiB
-  budget.
+- Revise a narrative graph by its change. The engine operation
+  `revise_narrative_graph_by_change` applies upserts and removals to the stored
+  predecessor, refuses a caller whose scopes hide any of it, and validates the
+  successor as a complete revision. `life_narrative_rebind`, `life_narrative_edit`
+  and `life_construction_import` use it, so neither the call nor the idempotency
+  receipt carries the whole graph. A 147-revision story now imports with about
+  3 MB of retained receipts instead of exceeding the 64 MiB budget.
+- Keep every narrative revision materialized in the engine as persistent maps
+  (the `rpds` crate) that share each unchanged node and edge with the parent
+  revision. A read no longer replays the history from the first revision or
+  recompiles the graph, and change records are built by a linear merge instead
+  of a quadratic search. On the 147-revision story, reading the newest revision
+  takes 1 ms instead of 57 ms and importing the history 0.9 s instead of 7.3 s.
+  A session may now keep 4,096 revisions instead of 512.
+- Check structural acyclicity with `petgraph` instead of three hand-written
+  copies, and name one cycle in the error, for example
+  `decomposition graph must be acyclic; this cycle must be broken: a -> b -> a`.
 - Keep edge explanations through rebinds, history exports and revision reads.
   The list of revision fields had left out the stored `explanation` of an edge, so
   a rebind silently dropped every explanation in the graph.

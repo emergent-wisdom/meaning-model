@@ -828,37 +828,7 @@ fn validate_dag<'a>(
     edges: &[(&'a str, &'a str)],
     label: &str,
 ) -> EngineResult<()> {
-    let mut adjacency: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
-    let mut indegree: BTreeMap<&str, usize> = nodes.iter().map(|node| (*node, 0)).collect();
-    for (parent, child) in edges {
-        adjacency.entry(parent).or_default().push(child);
-        *indegree
-            .get_mut(child)
-            .expect("meaning graph references were validated") += 1;
-    }
-    let mut ready: VecDeque<&str> = indegree
-        .iter()
-        .filter_map(|(node, degree)| (*degree == 0).then_some(*node))
-        .collect();
-    let mut visited = 0usize;
-    while let Some(node) = ready.pop_front() {
-        visited += 1;
-        if let Some(children) = adjacency.get(node) {
-            for child in children {
-                let degree = indegree
-                    .get_mut(child)
-                    .expect("meaning graph references were validated");
-                *degree -= 1;
-                if *degree == 0 {
-                    ready.push_back(child);
-                }
-            }
-        }
-    }
-    if visited != nodes.len() {
-        return Err(error(format!("{label} must be acyclic")));
-    }
-    Ok(())
+    crate::ensure_acyclic(nodes.iter().copied(), edges.iter().copied(), label)
 }
 
 fn validate_event_contexts<'a>(
@@ -909,6 +879,8 @@ fn validate_event_contexts<'a>(
     }
     // Root declarations stop context lookup, but may not hide containment cycles.
     validate_dag(&nodes, &edges, "context containment graph")?;
+    // Contexts propagate in Kahn order, lowest id first. The order decides which
+    // event an ancestry error names, so it stays rather than a library sort.
     let mut ready: VecDeque<&str> = indegree.iter()
         .filter_map(|(node, degree)| (*degree == 0).then_some(*node)).collect();
     let mut contexts = BTreeMap::new();

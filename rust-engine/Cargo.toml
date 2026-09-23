@@ -18,6 +18,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["float_roundtrip"] }
 sha2 = "0.10"
 rusqlite = { version = "0.40.2", default-features = false, features = ["bundled"] }
+# Persistent sorted maps: each stored narrative revision shares its unchanged records with its parent.
+rpds = "1.2"
+# Graph algorithms (cycle detection with a named cycle) instead of hand-written copies.
+petgraph = { version = "0.8", default-features = false, features = ["std", "graphmap"] }
 
 [profile.release]
 lto = "thin"
