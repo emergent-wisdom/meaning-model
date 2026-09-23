@@ -1017,7 +1017,7 @@ test('MCP service can roll, observe, reroll, compare, annotate, and atomically a
     }),
     /requestId writer-contract-graph is already bound to a different create-writer-contract payload/,
   );
-  const retainedWorld = service.getWorld(created.worldId);
+  const retainedWorld = await service.getWorld(created.worldId);
   const contractCountBeforeOversize = retainedWorld.writerContracts.size;
   await assert.rejects(
     service.createWriterContract({

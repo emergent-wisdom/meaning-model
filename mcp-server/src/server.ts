@@ -1,3 +1,4 @@
+import { applyModelChange } from './model-change.mjs';
 import { McpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
@@ -223,17 +224,28 @@ server.registerTool(
 server.registerTool(
   'life_model_revise',
   {
-    description: 'Register a complete immutable successor model revision. Added dimensions and laws are schema changes, never in-place patches. The result\'s worldAdoption lists changes that a world on the parent revision cannot adopt through life_world_revise: a removed process, or a changed value type, axes, unit, reference frame or scale (the scale holds the process meaning). requireWorldAdoptable refuses such a revision before registering it. descriptionCoverage lists Events that carry a Cut without a description, and requireDescribedNumbers refuses them.',
+    description: 'Register an immutable successor model revision, from either its complete definition (model) or its change from the predecessor (change): {reason, provenance?, upsert: {collection: [records]}, remove: {collection: [ids]}}, where collections are processes, laws, initial_claims, decomposition, dependencies and the Meaning Model collections (concepts, abstract_relations, abstract_cuts, referents, encapsulation_cuts, events, event_relations, event_referent_bindings, physical_cuts, realizations, normalized_cuts). An upserted record replaces the record with its id or is added; the server applies the change to the stored predecessor, sets the next revision number, and the engine validates the complete successor. Send the change for small edits to a large model. To retire a Cut, concept or abstract cut that notes are anchored to, upsert it with withdrawn: {reason, superseded_by?} instead of removing it. Added dimensions and laws are schema changes, never in-place patches. The result\'s worldAdoption lists changes that a world on the parent revision cannot adopt through life_world_revise: a removed process, or a changed value type, axes, unit, reference frame or scale (the scale holds the process meaning). requireWorldAdoptable refuses such a revision before registering it. descriptionCoverage lists Events that carry a Cut without a description, and requireDescribedNumbers refuses them.',
     inputSchema: z.object({
       requestId: requestIdSchema,
       previousModelHash: z.string().length(64),
-      model: z.record(z.string(), z.unknown()),
+      model: z.record(z.string(), z.unknown()).optional().describe('The complete successor definition.'),
+      change: z.object({
+        reason: z.string().trim().min(1).max(4_000),
+        provenance: z.array(z.string().trim().min(1)).min(1).optional(),
+        upsert: z.record(z.string(), z.array(z.record(z.string(), z.unknown()))).optional(),
+        remove: z.record(z.string(), z.array(z.string().min(1))).optional(),
+      }).strict().optional().describe('The successor as its change from the predecessor, instead of model.'),
       requireWorldAdoptable: z.boolean().default(false),
       requireDescribedNumbers: z.boolean().default(false),
-    }),
+    }).refine((input) => Boolean(input.model) !== Boolean(input.change), 'Send exactly one of model or change.'),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
-  async (input) => toolResult(await service.reviseModel(input)),
+  async ({ change, ...input }) => {
+    if (!change) return toolResult(await service.reviseModel(input));
+    const { model: previous } = await service.inspectModel({ modelHash: input.previousModelHash, includeDefinition: true });
+    const { successor, summary } = applyModelChange(previous, input.previousModelHash, change);
+    return toolResult({ ...(await service.reviseModel({ ...input, model: successor })), revisedByChange: true, change: summary });
+  },
 );
 
 server.registerTool(

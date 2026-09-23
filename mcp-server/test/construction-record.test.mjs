@@ -88,6 +88,7 @@ test('a thought is recorded against what it concerns, a review under its reviewe
   assert.match(outline.text, /cut\.ada\.h06\.attention \[unit: share of one attention budget\]: .* → continuity 0\.35, money 0\.55, remainder 0\.10/, 'the unit says what the weights are');
   assert.match(outline.text, /✎ note\.attention \[understanding\.decision by modeler:claude-opus-5-5\]: Money leads her attention/);
   assert.match(outline.text, /✎ also note\.attention \(shown above\)/, 'a note linked to a Cut and its Event is shown once');
+  assert.match(outline.text, /✎ review\.reader\.1 \[review by reader:gpt-6-astra:fresh-1\]: Verdict: revise\..* \[1 finding; later: 1 answers\]/, 'a review names its findings and what answered it');
   assert.match(outline.text, /review\.reader-gpt-6-astra-fresh-1 \(reader:gpt-6-astra:fresh-1\): 1 reflection, 1 record/);
   assert.equal(outline.coverage.undescribedNumbers.length, 0);
   // Both hashes are accepted when the graph is bound to that model, and refused with a way out when it is not.
@@ -107,6 +108,13 @@ test('a thought is recorded against what it concerns, a review under its reviewe
   assert.match(replay.text, /model → r1 \([0-9a-f]{12}\): r1 Describe the attention state the reader could not explain\./);
   assert.match(replay.text, /model changes: events ~1 \(event\.ada\.state\.h06: description\)/);
   assert.match(replay.text, /answers review\.reader\.1/);
+  // A review is shown with its findings and, where it first appears, the notes that later answered it.
+  assert.match(replay.text, /✎ review\.reader\.1 \[review by reader:gpt-6-astra:fresh-1\]: .*\[1 finding; later: 1 answers\]/);
+  assert.match(replay.text, /   finding 1 \[major\]: Motive for the attention split is missing\./);
+  assert.match(replay.text, /   later responses: note\.answer answers/);
+  const onReview = await replayConstruction(service, { graphHash: answered.graphHash, accessScopes: scopes, focus: [{ nodeId: 'review.reader.1' }] });
+  assert.match(onReview.text, /## r2 · Record a review/, 'the step that added the review');
+  assert.match(onReview.text, /✎ note\.answer /, 'and the later step whose note answers it');
   const focused = await replayConstruction(service, { graphHash: answered.graphHash, accessScopes: scopes, focus: [{ record: 'event:event.offer' }] });
   assert.match(focused.text, /note\.later/);
   assert.doesNotMatch(focused.text, /review\.reader\.1/);
@@ -131,6 +139,24 @@ test('a thought is recorded against what it concerns, a review under its reviewe
   assert.equal(replayedThere.text, replay.text, 'the imported history replays exactly as the original');
   const tampered = structuredClone(history); tampered.revisions[1].delta.upsertNodes[0].text = 'changed';
   await assert.rejects(importConstructionHistory(elsewhere, { requestId: 'tampered', history: tampered }), /does not match its bundleSha256/);
+
+  // Withdraw rather than remove: a successor that drops a Cut the notes are anchored to is refused with the way out,
+  // and one that marks the Cut withdrawn keeps every link and shows the withdrawal (found by the 2026-09-23 instruction test).
+  const next = (reason) => { const definition = structuredClone(successor); definition.revision = { number: 2, previous_model_hash: revised.modelHash, reason, provenance: ['test'] }; return definition; };
+  const dropped = next('Drop the attention Cut.');
+  dropped.meaning_model.normalized_cuts = dropped.meaning_model.normalized_cuts.filter((cut) => cut.id !== 'cut.ada.h06.attention');
+  const droppedModel = await service.reviseModel({ requestId: 'revise-drop', previousModelHash: revised.modelHash, model: dropped });
+  await assert.rejects(rebindNarrativeGraph(service, { requestId: 'rebind-drop', graphHash: answered.graphHash, modelHash: droppedModel.modelHash, accessScopes: scopes }),
+    /removes 1 record\(s\) that \d+ graph link\(s\) are anchored to: .*normalized_cut:cut\.ada\.h06\.attention.*marked withdrawn instead of removed/);
+  const withdrawing = next('Withdraw the attention Cut.');
+  withdrawing.meaning_model.normalized_cuts.find((cut) => cut.id === 'cut.ada.h06.attention').withdrawn = { reason: 'The split was a guess, not a reading of her.' };
+  const withdrawnModel = await service.reviseModel({ requestId: 'revise-withdraw', previousModelHash: revised.modelHash, model: withdrawing });
+  const kept = await rebindNarrativeGraph(service, { requestId: 'rebind-withdraw', graphHash: answered.graphHash, modelHash: withdrawnModel.modelHash, accessScopes: scopes });
+  const afterWithdrawal = await outlineModel(service, { graphHash: kept.graphHash, accessScopes: scopes });
+  assert.match(afterWithdrawal.text, /· cut\.ada\.h06\.attention \[unit: share of one attention budget\] \[withdrawn: The split was a guess, not a reading of her\.\]: /);
+  assert.match(afterWithdrawal.text, /✎ note\.attention \[understanding\.decision/, 'the note keeps its link to the withdrawn Cut');
+  const withdrawalStep = await replayConstruction(service, { modelHash: withdrawnModel.modelHash, level: 'reasoning' });
+  assert.match(withdrawalStep.text, /cuts ~1 \(cut\.ada\.h06\.attention: withdrawn\)/, 'the replay names the withdrawal as a change');
 });
 
 test('a long history travels as changes: each revision by change keeps only its change in the receipt', async (t) => {

@@ -49,6 +49,7 @@ export async function drawDirection(service, raw) {
   if (!inspected?.model || inspected.modelHash !== input.modelHash) throw new Error('Direction draws require the exact registered model.');
   const cut = (inspected.model.meaning_model?.normalized_cuts ?? []).find((item) => item.id === input.cutId);
   if (!cut) throw new Error(`Unknown normalized Cut ${input.cutId} in model ${input.modelHash.slice(0, 12)}.`);
+  if (cut.withdrawn) throw new Error(`Cut ${cut.id} was withdrawn (${cut.withdrawn.reason}); draw from a current Cut${(cut.withdrawn.superseded_by ?? []).length ? ` such as ${cut.withdrawn.superseded_by.join(', ')}` : ''}.`);
   const u = drawUniform(input.seed);
   const { cumulative, realized } = drawFromAnswers(cut.answers, u);
   const draw = { schema: 'meaning-model-direction-draw/v1', modelHash: input.modelHash, cutId: cut.id,

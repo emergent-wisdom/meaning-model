@@ -94,6 +94,7 @@ pub fn run_example() -> Value {
         answers: answers(&[("not_attempted", 5), ("attempted", 4), ("remainder", 1)]),
         conditioning: None,
         provenance: provenance.clone(),
+        withdrawn: None,
     });
 
     let mut session = MachineSession::default();

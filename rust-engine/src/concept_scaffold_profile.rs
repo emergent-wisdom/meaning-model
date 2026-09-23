@@ -151,6 +151,7 @@ impl OptionalModelProfile for ConceptScaffoldProfile {
                     direction_families: self.direction_families.clone(),
                     observation_methods: self.observation_methods.clone(),
                     provenance,
+                    withdrawn: None,
                 }],
                 abstract_relations: vec![],
                 abstract_cuts: vec![],

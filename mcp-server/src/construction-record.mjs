@@ -61,6 +61,12 @@ function findRecord(model, kind, recordId, modelHash = null) {
   return (recordCollections[kind]?.(model) ?? []).find((record) => record.id === recordId) ?? null;
 }
 export function recordAnchorEndpoint(model, target, label, modelHash = null) { return recordEndpoint(model, target, label, modelHash); }
+// The model record an anchor names, or null; undefined when the anchor kind is not a model record (worlds, candidates).
+export function anchoredModelRecord(model, anchorKind, anchorId, modelHash = null) {
+  const kind = Object.entries(recordKinds).find(([, value]) => value === anchorKind)?.[0];
+  if (!kind) return undefined;
+  return findRecord(model, kind, anchorId, modelHash);
+}
 function recordEndpoint(model, target, label, modelHash = null) {
   const { kind, recordId } = splitRecord(target.record);
   if (!findRecord(model, kind, recordId, modelHash)) throw new Error(`${label} names ${target.record}, which is not a record of the bound model.`);
@@ -347,11 +353,33 @@ function anchoredNotes(view) {
   }
   return byRecord;
 }
-function noteLine(node, level, limit) {
-  const text = noteGist(notePayload(node));
+// A withdrawn record stays in the model as history; the outline says so where it lists it.
+function withdrawnMark(record, limit) {
+  if (!record?.withdrawn) return '';
+  const replaced = (record.withdrawn.superseded_by ?? []).length ? `; superseded by ${record.withdrawn.superseded_by.join(', ')}` : '';
+  return ` [withdrawn: ${clip(oneLine(record.withdrawn.reason ?? ''), limit)}${replaced}]`;
+}
+
+// Links from later notes to a note or review, by relation, counted from one graph revision.
+function responsesTo(view) {
+  const responses = new Map();
+  for (const edge of view?.edges ?? []) if (edge.source?.kind === 'node' && edge.target?.kind === 'node' && ['answers', 'contradicts', 'supersedes', 'refines'].includes(edge.relation)) {
+    if (!responses.has(edge.target.node_id)) responses.set(edge.target.node_id, {});
+    const counts = responses.get(edge.target.node_id); counts[edge.relation] = (counts[edge.relation] ?? 0) + 1;
+  }
+  return responses;
+}
+function noteLine(node, level, limit, responses = null) {
+  const payload = notePayload(node);
+  const text = noteGist(payload);
   const label = `${node.node_type}${node.holder ? ` by ${node.holder}` : ''}`;
-  if (level === 'full') return `${node.id} [${label}]: ${text}`;
-  return `${node.id} [${label}]: ${clip(oneLine(text), limit)}`;
+  const findings = payload.kind === 'review' && Array.isArray(payload.data?.findings) ? payload.data.findings.length : 0;
+  const counts = responses?.get(node.id);
+  const extra = [findings ? `${findings} finding${findings === 1 ? '' : 's'}` : null,
+    counts ? `later: ${Object.entries(counts).map(([relation, count]) => `${count} ${relation}`).join(', ')}` : null].filter(Boolean);
+  const suffix = extra.length ? ` [${extra.join('; ')}]` : '';
+  if (level === 'full') return `${node.id} [${label}]: ${text}${suffix}`;
+  return `${node.id} [${label}]: ${clip(oneLine(text), limit)}${suffix}`;
 }
 
 export async function outlineModel(service, raw) {
@@ -367,6 +395,7 @@ export async function outlineModel(service, raw) {
   const want = new Set(input.sections);
   const lines = [];
   const notes = view && input.understanding !== 'none' ? anchoredNotes(view) : new Map();
+  const responses = responsesTo(view);
   // A note linked to several records is shown once; the later records name it.
   const shown = new Set();
   const noteLines = (list, indent) => {
@@ -374,7 +403,7 @@ export async function outlineModel(service, raw) {
     for (const node of list) {
       if (shown.has(node.id)) { again.push(node.id); continue; }
       shown.add(node.id);
-      lines.push(`${indent}✎ ${noteLine(node, input.understanding, input.textLimit)}`);
+      lines.push(`${indent}✎ ${noteLine(node, input.understanding, input.textLimit, responses)}`);
     }
     if (again.length) lines.push(`${indent}✎ also ${again.join(', ')} (shown above)`);
   };
@@ -420,7 +449,7 @@ export async function outlineModel(service, raw) {
       for (const cut of cutsByEvent.get(eventId) ?? []) {
         // The unit says what the weights are (credence, share of a change, allocation), which the numbers alone do not.
         const unit = nonblank(cut.unit) ? ` [unit: ${clip(oneLine(cut.unit), 80)}]` : '';
-        lines.push(`${indent}  · ${cut.id}${unit}: ${clip(oneLine(cut.question), input.textLimit)} ${cutAnswers(cut)}`);
+        lines.push(`${indent}  · ${cut.id}${unit}${withdrawnMark(cut, input.textLimit)}: ${clip(oneLine(cut.question), input.textLimit)} ${cutAnswers(cut)}`);
         attach('normalized_cut', cut.id, `${indent}  `);
       }
       attach('event', eventId, indent);
@@ -440,8 +469,8 @@ export async function outlineModel(service, raw) {
   }
   if (want.has('concepts') && ((layer.concepts ?? []).length || (layer.abstract_cuts ?? []).length)) {
     lines.push('', '## Concepts');
-    for (const concept of layer.concepts ?? []) { lines.push(`- ${concept.id}${concept.label ? ` (${concept.label})` : ''}: ${clip(oneLine(concept.boundary ?? ''), input.textLimit)}`); attach('concept', concept.id, ''); }
-    for (const cut of layer.abstract_cuts ?? []) lines.push(`- opening ${cut.id}: ${cut.parent_concept_id} → ${(cut.child_concept_ids ?? []).join(', ')} (${clip(oneLine(cut.lens ?? ''), input.textLimit)})`);
+    for (const concept of layer.concepts ?? []) { lines.push(`- ${concept.id}${concept.label ? ` (${concept.label})` : ''}${withdrawnMark(concept, input.textLimit)}: ${clip(oneLine(concept.boundary ?? ''), input.textLimit)}`); attach('concept', concept.id, ''); }
+    for (const cut of layer.abstract_cuts ?? []) lines.push(`- opening ${cut.id}${withdrawnMark(cut, input.textLimit)}: ${cut.parent_concept_id} → ${(cut.child_concept_ids ?? []).join(', ')} (${clip(oneLine(cut.lens ?? ''), input.textLimit)})`);
   }
   if (view && want.has('understanding')) {
     const roots = view.nodes.filter((node) => node.node_type === 'understanding_process_root');
@@ -515,7 +544,9 @@ async function cachedModel(service, modelHash) {
 const modelCollections = [
   ['processes', (model) => model.processes], ['initial claims', (model) => model.initial_claims], ['laws', (model) => model.laws],
   ['concepts', (model) => model.meaning_model?.concepts], ['abstract cuts', (model) => model.meaning_model?.abstract_cuts],
-  ['referents', (model) => model.meaning_model?.referents], ['events', (model) => model.meaning_model?.events],
+  ['abstract relations', (model) => model.meaning_model?.abstract_relations],
+  ['referents', (model) => model.meaning_model?.referents], ['encapsulation cuts', (model) => model.meaning_model?.encapsulation_cuts],
+  ['events', (model) => model.meaning_model?.events],
   ['event relations', (model) => model.meaning_model?.event_relations], ['bindings', (model) => model.meaning_model?.event_referent_bindings],
   ['physical cuts', (model) => model.meaning_model?.physical_cuts], ['realizations', (model) => model.meaning_model?.realizations],
   ['cuts', (model) => model.meaning_model?.normalized_cuts],
@@ -615,6 +646,18 @@ export async function replayConstruction(service, raw) {
   const path = lineage.path;
   const page = path.slice(input.offset, input.offset + input.limit);
   emit(`# Construction of ${head.graph.id}: ${path.length} graph revisions${lineage.otherHeads.length ? `, ${lineage.otherHeads.length} other heads` : ''}${lineage.branchPoints.length ? `, ${lineage.branchPoints.length} branch points` : ''}`);
+  // What later answered each review or note, read from the head, so a review shows its responses where it appears.
+  const responses = new Map();
+  for (const edge of head.edges) if (edge.source?.kind === 'node' && edge.target?.kind === 'node' && ['answers', 'contradicts', 'supersedes', 'refines'].includes(edge.relation)) {
+    if (!responses.has(edge.target.node_id)) responses.set(edge.target.node_id, []);
+    responses.get(edge.target.node_id).push({ relation: edge.relation, nodeId: edge.source.node_id });
+  }
+  const responseSummary = (nodeId) => {
+    const list = responses.get(nodeId) ?? [];
+    if (!list.length) return null;
+    const counts = {}; for (const item of list) counts[item.relation] = (counts[item.relation] ?? 0) + 1;
+    return Object.entries(counts).map(([relation, count]) => `${count} ${relation}`).join(', ');
+  };
   const steps = []; let lastCompleted = input.offset - 1;
   for (const [index, revision] of page.entries()) {
     const position = input.offset + index;
@@ -651,7 +694,8 @@ export async function replayConstruction(service, raw) {
     const step = { revision: revision.revision_number, graphHash: revision.graph_hash, reason: view.graph.revision.reason ?? null, provenance: view.graph.revision.provenance ?? [],
       model: modelStep, counts: { nodesAdded: diff.added.length, nodesChanged: diff.changed.length, nodesRemoved: diff.removed.length, edgesAdded: diff.edgesAdded.length, edgesRemoved: diff.edgesRemoved },
       notes, prose, records: other.map((node) => ({ id: node.id, type: node.node_type, change: diff.before.has(node.id) ? 'changed' : 'added', holder: node.holder ?? null })),
-      nodeIds: new Set([...diff.added, ...diff.changed, ...diff.removed].map((node) => node.id)), recordKeys };
+      nodeIds: new Set([...[...diff.added, ...diff.changed, ...diff.removed].map((node) => node.id),
+        ...diff.edgesAdded.filter((edge) => edge.target?.kind === 'node' && edge.relation !== 'contains').map((edge) => edge.target.node_id)]), recordKeys };
     if (!touches(step, input.focus)) { lastCompleted = position; continue; }
     const lines = [`\n## r${step.revision} · ${clip(oneLine(step.reason ?? '(no reason recorded)'), input.level === 'outline' ? 140 : 1_000)}`];
     if (modelStep) {
@@ -664,8 +708,19 @@ export async function replayConstruction(service, raw) {
     for (const note of notes) {
       const answers = input.level === 'outline' ? note.about.filter((item) => /^(answers|supersedes) /u.test(item)) : [];
       const gist = noteGist(note);
-      lines.push(`✎ ${note.id} [${note.type}${note.holder ? ` by ${note.holder}` : ''}${note.change === 'changed' ? ', changed' : ''}]: ${input.level === 'outline' ? clip(oneLine(gist), limits) : clip(gist, limits)}${answers.length ? ` (${answers.join('; ')})` : ''}`);
+      const isReview = note.kind === 'review';
+      const findings = isReview && Array.isArray(note.data?.findings) ? note.data.findings : [];
+      const later = responseSummary(note.id);
+      const extra = [isReview && findings.length ? `${findings.length} finding${findings.length === 1 ? '' : 's'}` : null, later ? `later: ${later}` : null].filter(Boolean);
+      // A review is read whole at the deeper levels: its text is what the answers refer to.
+      const limit = isReview ? limits * 4 : limits;
+      lines.push(`✎ ${note.id} [${note.type}${note.holder ? ` by ${note.holder}` : ''}${note.change === 'changed' ? ', changed' : ''}]: ${input.level === 'outline' ? clip(oneLine(gist), limits) : clip(gist, limit)}${answers.length ? ` (${answers.join('; ')})` : ''}${extra.length ? ` [${extra.join('; ')}]` : ''}`);
       if (input.level !== 'outline' && note.about.length) lines.push(`   ${clip(note.about.join('; '), 1_200)}`);
+      if (input.level !== 'outline') for (const [findingIndex, finding] of findings.entries()) {
+        const text = typeof finding === 'string' ? finding : finding?.text ?? JSON.stringify(finding);
+        lines.push(`   finding ${findingIndex + 1}${finding?.severity ? ` [${finding.severity}]` : ''}: ${clip(oneLine(text), input.level === 'full' ? 2_000 : 400)}`);
+      }
+      if (input.level !== 'outline' && later) lines.push(`   later responses: ${clip((responses.get(note.id) ?? []).map((item) => `${item.nodeId} ${item.relation}`).join('; '), 1_500)}`);
       if (input.level === 'full' && note.data !== undefined) lines.push(`   data: ${clip(JSON.stringify(note.data), 4_000)}`);
     }
     // Links added between records that already existed, such as a plan that answers a review.

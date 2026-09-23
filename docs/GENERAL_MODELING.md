@@ -41,6 +41,11 @@ what was recorded, and a thought helps only when it is linked to what it concern
   the revision and text they saw, and link the changes that answer them.
 - Put every reason you give the user into the graph before you reply; a later agent
   reads the graph, not your reply.
+- When a Cut, concept or opening no longer holds, mark it withdrawn in the next model
+  revision (`withdrawn: {reason, superseded_by}`) instead of deleting it. It stays as
+  history, the notes about it keep their links, and the outline shows it as withdrawn.
+  `life_narrative_rebind` refuses a successor that removes a record notes are anchored
+  to, and names them.
 - To continue someone's model, start with `sessionMode` `continuation`, read
   `life_construction_replay` from the start at outline level, then
   `life_model_outline`, and open detail where you need it. Record what you read and

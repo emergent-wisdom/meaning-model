@@ -146,7 +146,28 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
     credence no longer look alike, and accepts a graph and a model hash together
     when the graph is bound to that model.
   - `life_direction_draw` now says that its intervals run in the stored order,
-    which sorts a Cut's answers by key.
+    which sorts a Cut's answers by key, and refuses a withdrawn Cut.
+  - Withdraw a Cut, a concept or an abstract cut instead of deleting it:
+    `withdrawn: {reason, superseded_by?}` keeps the record as history, so the
+    notes anchored to it keep their links, and the outline marks it withdrawn.
+    The engine refuses a current Cut conditioned on a withdrawn one and a
+    current abstract cut that names a withdrawn concept; existing model hashes
+    are unchanged. `life_narrative_rebind` now refuses a successor that removes
+    a record notes are anchored to, names the links, and points to withdrawal,
+    instead of failing inside the engine.
+  - `life_model_revise` takes a `change` instead of the whole model: records to
+    add or replace and ids to remove, per collection. The server applies it to
+    the stored predecessor and the engine validates the complete successor.
+    Agents had fetched, scripted and resent definitions of 170 to 321 KB to
+    change a few records.
+  - A world outlives the server process that created it. The engine kept world
+    heads in its state file, but the server held world handles only in memory,
+    so after a restart the world a graph named was "unknown". The server now
+    reopens a persisted world by its id.
+  - The replay and the outline show each review's findings and which later
+    notes answered, contradicted, refined or superseded it; a replay focused on
+    a review also finds the steps that responded to it; and model changes now
+    include abstract relations and encapsulation cuts.
 - Add a guides-first reading mode, `MEANING_MODEL_READING=guides`. The start
   prompts, `life_modeling_context`, the served protocol and the storytelling guide
   then make the guides, the protocol and an example the entry, and the two papers

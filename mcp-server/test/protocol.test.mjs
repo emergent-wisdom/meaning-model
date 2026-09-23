@@ -635,6 +635,19 @@ test('official MCP client discovers and calls the local stdio server', async () 
     assert.equal(refinedWorld.structuredContent.modelHash, revised.structuredContent.modelHash);
     assert.equal(refinedWorld.structuredContent.headVersion, 0);
 
+    // A revision sent as its change: the server applies it to the stored predecessor.
+    const inspectedRevised = await client.callTool({ name: 'life_model_inspect', arguments: { modelHash: revised.structuredContent.modelHash, includeDefinition: true } });
+    const firstProcess = inspectedRevised.structuredContent.model.processes[0];
+    const byChange = await client.callTool({ name: 'life_model_revise', arguments: { requestId: 'protocol-revise-by-change', previousModelHash: revised.structuredContent.modelHash,
+      change: { reason: 'Restate one process to test the change form.', upsert: { processes: [firstProcess] } } } });
+    assert.equal(byChange.isError, undefined, JSON.stringify(byChange));
+    assert.equal(byChange.structuredContent.revisedByChange, true);
+    assert.deepEqual(byChange.structuredContent.change, { processes: { added: 0, replaced: 1, removed: 0 } });
+    const bothForms = await client.callTool({ name: 'life_model_revise', arguments: { requestId: 'protocol-revise-both', previousModelHash: revised.structuredContent.modelHash,
+      model: proposedModel, change: { reason: 'Both forms at once.', upsert: { processes: [firstProcess] } } } });
+    assert.equal(bothForms.isError, true);
+    assert.match(bothForms.content[0].text, /Send exactly one of model or change/);
+
     const narrativeGraph = {
       schema: 'life-sim-rust-narrative-graph/v1',
       id: 'protocol-graph-native-story',

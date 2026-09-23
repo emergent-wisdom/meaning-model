@@ -6,6 +6,7 @@ const id = z.string().trim().min(1).max(1_024);
 const hash = z.string().length(64);
 import { stripEdgeForRevision, stripNodeForRevision } from './narrative-fields.mjs';
 import { definitionFromCompleteView, narrativeDefinitionDelta } from './narrative-delta.mjs';
+import { anchoredModelRecord } from './construction-record.mjs';
 export { NODE_FIELDS, EDGE_FIELDS, stripNodeForRevision, stripEdgeForRevision } from './narrative-fields.mjs';
 const MAX_LINEAGE_STEPS = 256;
 
@@ -79,6 +80,13 @@ export async function rebindNarrativeGraph(service, raw) {
   const modelId = typeof successorModel?.model?.id === 'string' ? successorModel.model.id : null;
   const { successor, droppedModelAnchorEdgeIds, previousModelHash } = buildRebindSuccessor(view, { graphHash: input.graphHash, modelHash: input.modelHash, modelId, reason: input.reason, provenance });
   if (previousModelHash === input.modelHash) throw new Error('The graph is already bound to this model.');
+  // A successor that removes a record the graph anchors to would orphan those notes; say which, and what to do instead.
+  const orphaned = successor.edges.filter((edge) => edge.target?.kind === 'anchor' && edge.target.anchor_kind !== 'model'
+    && successorModel?.model && anchoredModelRecord(successorModel.model, edge.target.anchor_kind, edge.target.anchor_id, input.modelHash) === null);
+  if (orphaned.length) {
+    const listed = orphaned.slice(0, 10).map((edge) => `${edge.source?.node_id ?? edge.id} → ${edge.target.anchor_kind}:${edge.target.anchor_id}`).join('; ');
+    throw new Error(`The successor model removes ${new Set(orphaned.map((edge) => `${edge.target.anchor_kind}:${edge.target.anchor_id}`)).size} record(s) that ${orphaned.length} graph link(s) are anchored to: ${listed}${orphaned.length > 10 ? '; …' : ''}. Keep those records in the successor so the notes keep their links; a Cut, concept or abstract cut that no longer holds can be marked withdrawn instead of removed ({"withdrawn": {"reason": "…", "superseded_by": ["…"]}}). Nothing was written.`);
+  }
   const lineageSteps = await assertModelSuccessor(service, previousModelHash, input.modelHash);
   // Stored as its change (the new source and the dropped anchors), so the receipt keeps no copy of the graph.
   const stored = await service.reviseNarrativeGraphByDelta({ requestId: input.requestId, previousGraphHash: input.graphHash,

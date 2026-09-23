@@ -51,6 +51,10 @@ record:
   target continuation realized, at most one per Cut;
 - normalized question/unit allocations with stable answer keys, explicit
   remainder, optional component conditioning, and provenance;
+- withdrawal of a normalized Cut, concept or abstract cut as a recorded status
+  with a reason and optional same-kind replacements, which keeps the record and
+  every anchor to it, with no current Cut conditioned on and no current abstract
+  cut naming a withdrawn record;
 - optional temporal Cut contracts that check declared answer projections and
   duration mixtures against a committed parent, including partial residual feasibility;
 - optional typed context roots over Events, with nearest-root ancestry derived

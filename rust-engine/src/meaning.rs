@@ -37,6 +37,41 @@ pub struct ConceptDefinition {
     #[serde(default)]
     pub observation_methods: Vec<String>,
     pub provenance: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub withdrawn: Option<RecordWithdrawal>,
+}
+
+/// A record that a later model revision withdrew. It stays in the model as
+/// history, with the reason and its replacements, so every note anchored to it
+/// keeps its link; it is no longer part of the current account. The first
+/// revision that carries the withdrawal is the one that made it.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct RecordWithdrawal {
+    pub reason: String,
+    /// Records of the same kind that replace this one, if any.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub superseded_by: Vec<String>,
+}
+
+impl RecordWithdrawal {
+    fn validate<'a>(&self, label: &str, own_id: &str, same_kind: &BTreeSet<&'a str>) -> EngineResult<()> {
+        validate_text(&self.reason, &format!("{label} withdrawal reason"))?;
+        if self.superseded_by.len() > MAX_MEANING_CUT_CHILDREN {
+            return Err(error(format!(
+                "{label} withdrawal names more than {MAX_MEANING_CUT_CHILDREN} replacements"
+            )));
+        }
+        let mut seen = BTreeSet::new();
+        for replacement in &self.superseded_by {
+            if replacement == own_id || !same_kind.contains(replacement.as_str()) || !seen.insert(replacement.as_str()) {
+                return Err(error(format!(
+                    "{label} withdrawal names invalid replacement {replacement}; name other records of the same kind once each"
+                )));
+            }
+        }
+        Ok(())
+    }
 }
 
 /// A typed edge in the abstract concept graph. For specialization, `source`
@@ -74,6 +109,8 @@ pub struct AbstractCutDefinition {
     #[serde(default)]
     pub query: Option<String>,
     pub provenance: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub withdrawn: Option<RecordWithdrawal>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -376,6 +413,9 @@ pub struct NormalizedCutDefinition {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub conditioning: Option<NormalizedCutCondition>,
     pub provenance: Vec<String>,
+    /// A withdrawn Cut keeps its weights as history; it is not a current allocation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub withdrawn: Option<RecordWithdrawal>,
 }
 
 /// An explicitly declared projection from a child Cut's answers to its parent.
@@ -960,6 +1000,12 @@ fn validate_normalized_cuts<'a>(
             )));
         }
     }
+    let cut_ids: BTreeSet<&str> = cuts.keys().copied().collect();
+    for cut in &meaning_model.normalized_cuts {
+        if let Some(withdrawal) = &cut.withdrawn {
+            withdrawal.validate(&format!("normalized cut {}", cut.id), &cut.id, &cut_ids)?;
+        }
+    }
     let mut edges = Vec::new();
     for cut in &meaning_model.normalized_cuts {
         if let Some(condition) = &cut.conditioning {
@@ -971,6 +1017,12 @@ fn validate_normalized_cuts<'a>(
             if !enclosing.answers.iter().any(|answer| answer.key == condition.answer_key) {
                 return Err(error(format!(
                     "normalized cut {} conditions on unknown answer {} in cut {}", cut.id, condition.answer_key, condition.cut_id
+                )));
+            }
+            if cut.withdrawn.is_none() && enclosing.withdrawn.is_some() {
+                return Err(error(format!(
+                    "normalized cut {} conditions on withdrawn cut {}; withdraw it too or condition it on a current Cut",
+                    cut.id, condition.cut_id
                 )));
             }
             if !event_contexts.is_empty()
@@ -1227,6 +1279,13 @@ pub(super) fn validate_meaning_model(
         }
         validate_provenance(&concept.provenance, &format!("concept {}", concept.id))?;
     }
+    for concept in &meaning_model.concepts {
+        if let Some(withdrawal) = &concept.withdrawn {
+            withdrawal.validate(&format!("concept {}", concept.id), &concept.id, &concept_ids)?;
+        }
+    }
+    let withdrawn_concepts: BTreeSet<&str> = meaning_model.concepts.iter()
+        .filter(|concept| concept.withdrawn.is_some()).map(|concept| concept.id.as_str()).collect();
 
     let mut referent_ids = BTreeSet::new();
     let mut referents = BTreeMap::new();
@@ -1560,7 +1619,22 @@ pub(super) fn validate_meaning_model(
             &format!("abstract cut {} query", cut.id),
         )?;
         validate_provenance(&cut.provenance, &format!("abstract cut {}", cut.id))?;
+        if cut.withdrawn.is_none() {
+            if let Some(concept) = std::iter::once(&cut.parent_concept_id).chain(cut.child_concept_ids.iter())
+                .find(|concept| withdrawn_concepts.contains(concept.as_str()))
+            {
+                return Err(error(format!(
+                    "abstract cut {} names withdrawn concept {concept}; withdraw the cut too or use the concepts that replace it",
+                    cut.id
+                )));
+            }
+        }
         abstract_cuts.insert(cut.id.as_str(), cut);
+    }
+    for cut in &meaning_model.abstract_cuts {
+        if let Some(withdrawal) = &cut.withdrawn {
+            withdrawal.validate(&format!("abstract cut {}", cut.id), &cut.id, &abstract_cut_ids)?;
+        }
     }
     validate_dag(&concept_ids, &abstract_edges, "abstract structural graph")?;
 
@@ -2080,6 +2154,7 @@ pub(super) fn test_meaning_model_fixture() -> MeaningModelDefinition {
             direction_families: vec![],
             observation_methods: vec![],
             provenance: vec!["unit-test".to_owned()],
+            withdrawn: None,
         }
     }
     fn event(id: &str, boundary: &str, process_id: &str) -> MeaningEventDefinition {
@@ -2157,6 +2232,7 @@ pub(super) fn test_meaning_model_fixture() -> MeaningModelDefinition {
             lens: "relationship dynamics".to_owned(),
             query: Some("what sustains this relationship?".to_owned()),
             provenance: vec!["unit-test".to_owned()],
+            withdrawn: None,
         }],
         referents: vec![
             referent("bob", "the fixture person Bob"),
@@ -2557,6 +2633,7 @@ mod tests {
             ],
             conditioning: None,
             provenance: vec!["unit-test".to_owned()],
+            withdrawn: None,
         });
         meaning_model
     }
@@ -2593,6 +2670,50 @@ mod tests {
         assert_eq!(json["forecast_answer"]["cut_id"], "care-direction");
         let plain = serde_json::to_value(&named.event_relations[0]).unwrap();
         assert!(plain.get("forecast_answer").is_none(), "absent references stay out of existing model hashes");
+    }
+
+    #[test]
+    fn withdrawn_records_stay_as_history_and_current_records_cannot_depend_on_them() {
+        let withdrawal = |replacements: &[&str]| Some(RecordWithdrawal {
+            reason: "The reviewer showed this question mixed a change with a level.".to_owned(),
+            superseded_by: replacements.iter().map(|id| (*id).to_owned()).collect(),
+        });
+        // A withdrawn Cut keeps its weights and may name its replacement.
+        let mut model = with_direction_cut(test_meaning_model_fixture());
+        let mut replacement = model.normalized_cuts[0].clone();
+        replacement.id = "care-direction-v2".to_owned();
+        model.normalized_cuts.push(replacement);
+        model.normalized_cuts[0].withdrawn = withdrawal(&["care-direction-v2"]);
+        validate_meaning_model(&model, &test_processes()).unwrap();
+        let json = serde_json::to_value(&model.normalized_cuts[0]).unwrap();
+        assert_eq!(json["withdrawn"]["superseded_by"][0], "care-direction-v2");
+        let current = serde_json::to_value(&model.normalized_cuts[1]).unwrap();
+        assert!(current.get("withdrawn").is_none(), "absent withdrawals stay out of existing model hashes");
+
+        let mut unknown = model.clone();
+        unknown.normalized_cuts[0].withdrawn = withdrawal(&["nope"]);
+        assert!(failure(unknown).contains("withdrawal names invalid replacement nope"));
+        let mut own = model.clone();
+        own.normalized_cuts[0].withdrawn = withdrawal(&["care-direction"]);
+        assert!(failure(own).contains("invalid replacement care-direction"));
+        let mut blank = model.clone();
+        blank.normalized_cuts[0].withdrawn.as_mut().unwrap().reason = " ".to_owned();
+        assert!(failure(blank).contains("withdrawal reason must be nonempty and bounded"));
+
+        // A current Cut may not divide an answer of a withdrawn one.
+        let mut conditioned = model.clone();
+        conditioned.normalized_cuts[1].conditioning = Some(NormalizedCutCondition {
+            cut_id: "care-direction".to_owned(), answer_key: "repair".to_owned() });
+        assert!(failure(conditioned).contains("conditions on withdrawn cut care-direction"));
+
+        // A withdrawn concept stays; a current opening may not divide it or into it.
+        let mut concepts = test_meaning_model_fixture();
+        concepts.concepts.push(ConceptDefinition { id: "attentive-care".to_owned(), ..concepts.concepts[2].clone() });
+        let care = concepts.concepts.iter_mut().find(|concept| concept.id == "care").unwrap();
+        care.withdrawn = withdrawal(&["attentive-care"]);
+        assert!(failure(concepts.clone()).contains("abstract cut love-components names withdrawn concept care"));
+        concepts.abstract_cuts[0].withdrawn = withdrawal(&[]);
+        validate_meaning_model(&concepts, &test_processes()).unwrap();
     }
 
     #[test]

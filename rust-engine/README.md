@@ -144,7 +144,16 @@ whose reserved key is `remainder` is required even at zero weight. The sum must
 be one within the fixed `1e-9` tolerance. Optional conditioning is
 `{cut_id, answer_key}`; it resolves within the same immutable model and must be
 acyclic. Cut and answer order is canonicalized for hashing; zero-weight keys
-remain addressable. This collection does not change the older unweighted
+remain addressable.
+
+A Cut, a concept or an abstract cut that a later revision no longer holds may
+carry `withdrawn: {reason, superseded_by?}` instead of being removed. It stays
+in the model as history, so graph notes anchored to it keep their links; the
+first revision that carries the withdrawal is the one that made it.
+`superseded_by` names records of the same kind. A current Cut may not be
+conditioned on a withdrawn one, and a current abstract cut may not divide or
+yield a withdrawn concept. The field is omitted when absent, so existing hashes
+are unchanged. This collection does not change the older unweighted
 physical/abstract Cut schemas or migrate legacy Realization degrees.
 An unweighted `define` Realization (`degree: 1`) may omit the legacy
 `abstract_cut_id` when one of its role-bound Events parents a normalized Cut;

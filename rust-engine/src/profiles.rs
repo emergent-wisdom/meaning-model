@@ -2594,6 +2594,7 @@ impl OptionalModelProfile for PersonProfile {
                 direction_families: vec!["reported or estimated revision".to_owned()],
                 observation_methods: vec!["shared evidence event".to_owned()],
                 provenance: provenance.clone(),
+                withdrawn: None,
             });
         }
 

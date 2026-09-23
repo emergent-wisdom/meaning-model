@@ -1320,7 +1320,7 @@ export class LifeSimulationService {
     accessScopes = [],
     context = '',
   }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     return this.#withIdempotentReceipt(
       this.estimationReceipts,
       'create-estimation-request',
@@ -1785,7 +1785,7 @@ export class LifeSimulationService {
     accessScopes = [],
     includePath = false,
   }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     ensureHash(targetModelHash, 'targetModelHash');
     ensureBoundedStringArray(requestedObservables, 'requestedObservables', MAX_VIEW_FIELDS);
     ensureBoundedStringArray(accessScopes, 'accessScopes', MAX_VIEW_ACCESS_SCOPES);
@@ -1849,7 +1849,7 @@ export class LifeSimulationService {
     requestedObservables = [],
     accessScopes = [],
   }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     ensureHash(expectedWorldHash, 'expectedWorldHash');
     ensureHash(targetModelHash, 'targetModelHash');
     if (!['refine', 'revise'].includes(mode)) throw new Error('mode must be refine or revise.');
@@ -1948,15 +1948,29 @@ export class LifeSimulationService {
     });
   }
 
-  getWorld(worldId) {
+  // World heads persist in the engine's state file, but this map lives only as long as the process. A world
+  // the engine still holds is recovered after a restart; its in-process candidates and receipts are not.
+  async getWorld(worldId) {
     ensureHandle(worldId, 'worldId');
-    const world = this.worlds.get(worldId);
-    if (!world) throw new Error('Unknown or inaccessible worldId.');
+    const known = this.worlds.get(worldId);
+    if (known) return known;
+    let head = null;
+    try { head = await this.backend.call('get_world', { world_id: worldId }); } catch { head = null; }
+    if (!head?.model_hash) throw new Error('Unknown or inaccessible worldId.');
+    const model = await this.backend.call('get_model', { model_hash: head.model_hash });
+    if (this.worlds.has(worldId)) return this.worlds.get(worldId);
+    if (this.worlds.size + this.pendingWorlds >= MAX_WORLDS) throw new Error(`World limit reached (${MAX_WORLDS}); the persisted world ${worldId} cannot be reopened in this process.`);
+    const world = {
+      id: worldId, presetId: null, modelHash: head.model_hash, processIds: processIdsFromModelResult(model), recovered: true,
+      candidateIds: new Map(), pendingCandidates: 0, candidateViews: new Map(), evaluations: [], pendingEvaluations: 0,
+      receipts: new Map(), writerContracts: new Map(), pendingWriterContracts: 0, writerPlans: new Map(), pendingWriterPlans: 0,
+    };
+    this.worlds.set(worldId, world);
     return world;
   }
 
   async inspectWorld({ worldId }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     const [head, model] = await Promise.all([
       this.backend.call('get_world', { world_id: worldId }),
       this.backend.call('get_model', { model_hash: world.modelHash }),
@@ -1987,7 +2001,7 @@ export class LifeSimulationService {
     accessScopes = [],
     includePath = false,
   }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     ensureBoundedStringArray(requestedObservables, 'requestedObservables', MAX_VIEW_FIELDS);
     ensureBoundedStringArray(accessScopes, 'accessScopes', MAX_VIEW_ACCESS_SCOPES);
     const source = id === null
@@ -2336,7 +2350,7 @@ export class LifeSimulationService {
     forcingEnabled = true,
     query = null,
   }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     validatePositiveBoundedNumber(deltaTime, 'deltaTime', MAX_QUERY_DELTA_TIME);
     validatePositiveBoundedNumber(stepSize, 'stepSize', MAX_QUERY_STEP_SIZE);
     ensureBoundedNonemptyString(seed, 'seed');
@@ -2422,7 +2436,7 @@ export class LifeSimulationService {
   }
 
   async rerollCandidate({ worldId, candidateId: sourceId, requestId }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     ensureHandle(sourceId, 'candidateId');
     return this.#withIdempotentReceipt(
       world.receipts,
@@ -2467,7 +2481,7 @@ export class LifeSimulationService {
   }
 
   async rejectCandidate({ worldId, candidateId: id, requestId }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     ensureHandle(id, 'candidateId');
     return this.#withIdempotentReceipt(
       world.receipts,
@@ -2500,7 +2514,7 @@ export class LifeSimulationService {
   }
 
   async observeCandidate({ worldId, candidateId: id, fieldPrefixes = [] }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     validatePrefixes(fieldPrefixes);
     const record = await this.getCandidate(world, id);
     const candidate = record.candidate;
@@ -2534,7 +2548,7 @@ export class LifeSimulationService {
   }
 
   async compareCandidates({ worldId, firstCandidateId, secondCandidateId }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     const [first, second] = await Promise.all([
       this.getCandidate(world, firstCandidateId),
       this.getCandidate(world, secondCandidateId),
@@ -2553,7 +2567,7 @@ export class LifeSimulationService {
     sampleEvery = 1,
     maxFields = 25,
   }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     validatePrefixes(fieldPrefixes);
     const record = await this.getCandidate(world, id);
     if (!Number.isInteger(sampleEvery) || sampleEvery < 1) {
@@ -2603,7 +2617,7 @@ export class LifeSimulationService {
     fields,
     accessScopes = [],
   }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     ensureHandle(id, 'candidateId');
     if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime <= startTime) {
       throw new Error('startTime and endTime must be finite with endTime after startTime.');
@@ -2632,7 +2646,7 @@ export class LifeSimulationService {
   }
 
   async acceptCandidate({ worldId, candidateId: id, requestId, expectedParentHash }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     ensureHandle(id, 'candidateId');
     ensureHash(expectedParentHash, 'expectedParentHash');
     return this.#withIdempotentReceipt(
@@ -2675,7 +2689,7 @@ export class LifeSimulationService {
   }
 
   async annotateCandidate({ worldId, candidateId: id, requestId, verdict, issues = [] }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     this.candidateHash(world, id);
     validateAnnotation({ verdict, issues });
     return this.#withIdempotentReceipt(
@@ -2718,7 +2732,7 @@ export class LifeSimulationService {
     fields,
     graph = null,
   }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     this.candidateHash(world, id);
     ensureBoundedNonemptyString(brief, 'brief', MAX_WRITER_BRIEF_LENGTH);
     if (!Array.isArray(fields) || fields.length < 1 || fields.length > MAX_WRITER_FIELDS) {
@@ -2873,7 +2887,7 @@ export class LifeSimulationService {
   }
 
   async evaluateWriterPlan({ worldId, contractId, requestId, dispositions }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     ensureHandle(contractId, 'contractId');
     if (
       !Array.isArray(dispositions) ||
@@ -2943,7 +2957,7 @@ export class LifeSimulationService {
     terms,
     accessScopes = [],
   }) {
-    const world = this.getWorld(worldId);
+    const world = await this.getWorld(worldId);
     ensureRequestId(requestId);
     ensureBoundedStringArray(candidateIds, 'candidateIds', MAX_ROUTE_CANDIDATES);
     ensureBoundedStringArray(accessScopes, 'accessScopes', MAX_VIEW_ACCESS_SCOPES);

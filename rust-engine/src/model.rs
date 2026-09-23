@@ -16413,6 +16413,7 @@ mod tests {
             ],
             conditioning: None,
             provenance: vec!["genesis refinement fixture".to_owned()],
+            withdrawn: None,
         });
         meaning.context_roots.push(MeaningContextRootDefinition {
             event_id: "relationship-event".to_owned(),
