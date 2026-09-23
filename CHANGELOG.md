@@ -201,6 +201,10 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
     as history. A probe had found Events and notes still quoting sentences that
     revisions had cut, with no tool saying so. The match is textual: it finds
     copied or quoted sentences, not paraphrases.
+  - `life_narrative_alignment_audit` takes `unnarratedNodeIds` for records the
+    prose leaves out on purpose: they are still checked for contradiction but no
+    longer flagged as not narrated. Narration flags are reported for the whole
+    unit only, not for every passage that does not carry the fact.
   - `life_story_life_trends` takes `links`, so a revised dossier can supersede
     the one it replaces.
   - `life_story_release` in the storytelling add-on releases a story's

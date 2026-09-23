@@ -20,6 +20,8 @@ export const alignmentAuditSchema = z.object({
   withheld: z.array(z.object({ nodeId: id, audience: z.enum(['viewpoint', 'reader']), viewpoint: z.string().trim().min(1).max(256).nullable().default(null) }).strict()).max(64).default([]),
   chunk: z.enum(['passage', 'whole', 'both']).default('both'),
   knowledgeStateNodeIds: z.array(id).max(MAX_AUDIT_RECORDS).default([]),
+  // Records the prose leaves unnarrated on purpose: still checked for contradictions, never flagged as not narrated.
+  unnarratedNodeIds: z.array(id).max(MAX_AUDIT_RECORDS).default([]),
   record: z.object({ requestId: z.string().trim().min(1).max(256), nodeId: id, accessScopes: z.array(id).max(32).default([]) }).strict().nullable().default(null),
 }).strict();
 
@@ -43,11 +45,11 @@ export function selectRecords(view, rendered, input) {
   return ids.map((nodeId) => { const node = nodes.get(nodeId); return { id: nodeId, text: node.text, evidenceCutoff: node.evidence_cutoff ?? null, textHash: digest(node.text) }; });
 }
 
-export function buildAlignmentQuestions(records, withheld, viewpointLabel, knowledgeState = new Set()) {
+export function buildAlignmentQuestions(records, withheld, viewpointLabel, knowledgeState = new Set(), unnarrated = new Set()) {
   const questions = {};
   for (const record of records) {
     const label = `${record.id}${record.evidenceCutoff !== null && record.evidenceCutoff !== undefined ? ` (recorded as of time ${record.evidenceCutoff})` : ''}: ${record.text}`;
-    questions[`narrates_${record.id}`] = { type: 'noul', instructions: `The passage narrates, or clearly presupposes as already having happened, this record: ${label}` };
+    if (!unnarrated.has(record.id)) questions[`narrates_${record.id}`] = { type: 'noul', instructions: `The passage narrates, or clearly presupposes as already having happened, this record: ${label}` };
     if (knowledgeState.has(record.id)) continue;
     questions[`contradicts_${record.id}`] = { type: 'noul', instructions: `The passage contradicts this record in some particular, such as who acted, what happened, when it happened, an amount, or the outcome. A proposal, hypothesis or reported speech inside the passage is not a contradiction of an outcome. Record: ${label}` };
   }
@@ -91,7 +93,9 @@ async function executeAlignmentAudit(service, input, estimator, checkpoint = nul
   const viewpointLabel = null;
   const knowledgeState = new Set(input.knowledgeStateNodeIds);
   for (const nodeId of knowledgeState) if (!records.some((record) => record.id === nodeId)) throw new Error(`knowledgeStateNodeIds entry ${nodeId} is not among the audited records.`);
-  const questions = buildAlignmentQuestions(records, withheld, viewpointLabel, knowledgeState);
+  const unnarrated = new Set(input.unnarratedNodeIds);
+  for (const nodeId of unnarrated) if (!records.some((record) => record.id === nodeId)) throw new Error(`unnarratedNodeIds entry ${nodeId} is not among the audited records.`);
+  const questions = buildAlignmentQuestions(records, withheld, viewpointLabel, knowledgeState, unnarrated);
   if (input.record) {
     if (nodes.has(input.record.nodeId)) throw new Error(`Audit record ${input.record.nodeId} already exists; use a new node ID.`);
     if (!Number.isSafeInteger(view.graph?.revision?.number) || view.graph.revision.number < 0) throw new Error('Recording requires a safe graph-revision clock.');
@@ -103,7 +107,7 @@ async function executeAlignmentAudit(service, input, estimator, checkpoint = nul
     const size = JSON.stringify({ records: recordsText, passage_under_review: chunk.text }).length + JSON.stringify(questions).length;
     if (size > MAX_AUDIT_STATE_CHARS) throw new Error(`Audit state for ${chunk.id} is ${size} characters; the limit is ${MAX_AUDIT_STATE_CHARS}. Select fewer records or audit a smaller unit.`);
   }
-  const base = { schema: 'meaning-model-narrative-alignment-audit/v1', graphHash: input.graphHash, sourceSnapshotHash: rendered.source_snapshot_hash, projectionHash: rendered.projection_hash, rootId: input.rootId, accessScopes: input.accessScopes, units: units.map(({ id: unitId, textHash, words: count }) => ({ id: unitId, textHash, words: count })), records: records.map(({ id: recordId, textHash, evidenceCutoff }) => ({ id: recordId, textHash, evidenceCutoff })), withheld: input.withheld, questionCount: Object.keys(questions).length, chunk: input.chunk, knowledgeStateNodeIds: input.knowledgeStateNodeIds, threshold: FLAG_THRESHOLD, guidance: 'Passage-level contradiction and leak scores are the actionable signal; whole-unit scores arbitrate proposals, hypotheticals and reported speech, which score high at passage scope. Each passage contradiction flag carries the whole-unit score for the same record and an arbitration: upheld (at or above the threshold), cleared (more than 0.1 below it) or close; treat close as unresolved and check the passage against the record directly. Records phrased as transient knowledge states belong in withheld leak checks, not contradiction checks. Nothing here verifies meaning or literary quality.', semanticVerification: false, advisoryOnly: true, worldMutation: false, graphMutation: false };
+  const base = { schema: 'meaning-model-narrative-alignment-audit/v1', graphHash: input.graphHash, sourceSnapshotHash: rendered.source_snapshot_hash, projectionHash: rendered.projection_hash, rootId: input.rootId, accessScopes: input.accessScopes, units: units.map(({ id: unitId, textHash, words: count }) => ({ id: unitId, textHash, words: count })), records: records.map(({ id: recordId, textHash, evidenceCutoff }) => ({ id: recordId, textHash, evidenceCutoff })), withheld: input.withheld, questionCount: Object.keys(questions).length, chunk: input.chunk, knowledgeStateNodeIds: input.knowledgeStateNodeIds, unnarratedNodeIds: input.unnarratedNodeIds, threshold: FLAG_THRESHOLD, guidance: 'Passage-level contradiction and leak scores are the actionable signal; whole-unit scores arbitrate proposals, hypotheticals and reported speech, which score high at passage scope. Each passage contradiction flag carries the whole-unit score for the same record and an arbitration: upheld (at or above the threshold), cleared (more than 0.1 below it) or close; treat close as unresolved and check the passage against the record directly. Records phrased as transient knowledge states belong in withheld leak checks, not contradiction checks. Nothing here verifies meaning or literary quality.', semanticVerification: false, advisoryOnly: true, worldMutation: false, graphMutation: false };
   if (!estimator) {
     return { ...base, evaluator: 'calling_llm', questions, chunks: chunks.map((chunk) => ({ id: chunk.id, text: chunk.text })), recordsText, results: null, instructions: 'No external estimator is configured (MEANING_MODEL_ESTIMATOR unset). Answer each question for each chunk yourself with a 0 to 1 truth value, then record flagged contradictions, leaks and omissions as an Understanding Node with exact citations.' };
   }
@@ -117,7 +121,7 @@ async function executeAlignmentAudit(service, input, estimator, checkpoint = nul
     const scores = validatedAuditScores(result.answers, questions, chunk.id);
     const flags = flagScores(scores, chunk.id, withheld);
     if (chunk.kind === 'whole') { results.whole = { scores, flags }; results.flags.notNarrated = flags.notNarrated; }
-    else { results.passages.push({ id: chunk.id, scores, flags }); results.flags.contradictions.push(...flags.contradictions); results.flags.leaks.push(...flags.leaks); }
+    else { const { notNarrated, ...passageFlags } = flags; results.passages.push({ id: chunk.id, scores, flags: passageFlags }); results.flags.contradictions.push(...flags.contradictions); results.flags.leaks.push(...flags.leaks); }
   }
   if (input.chunk === 'whole' && results.whole) { results.flags.contradictions = results.whole.flags.contradictions; results.flags.leaks = results.whole.flags.leaks; }
   // Report the whole-unit arbiter beside each passage flag, with its margin, rather than a bare threshold.
@@ -191,7 +195,7 @@ export async function recordAuditFindings(service, view, input, audit) {
   if (!Number.isSafeInteger(step) || step < 0) throw new Error('Recording requires a safe graph-revision clock.');
   const scopes = [...new Set(input.record.accessScopes.length ? input.record.accessScopes : input.accessScopes)].sort();
   const provenance = ['Meaning Model narrative alignment audit v1', `evaluator:${audit.evaluator}`, 'Derived diagnostic scores, not authored testimony and not verification.'];
-  const payload = { schema: 'meaning-model-narrative-alignment-audit-record/v1', graphHash: audit.graphHash, sourceSnapshotHash: audit.sourceSnapshotHash, projectionHash: audit.projectionHash, rootId: input.rootId, evaluator: audit.evaluator, threshold: audit.threshold, units: audit.units, records: audit.records, withheld: audit.withheld, knowledgeStateNodeIds: input.knowledgeStateNodeIds, flags: audit.results.flags, whole: audit.results.whole?.scores ?? null, passages: audit.results.passages.map((passage) => ({ id: passage.id, scores: passage.scores })), usage: audit.results.usage };
+  const payload = { schema: 'meaning-model-narrative-alignment-audit-record/v1', graphHash: audit.graphHash, sourceSnapshotHash: audit.sourceSnapshotHash, projectionHash: audit.projectionHash, rootId: input.rootId, evaluator: audit.evaluator, threshold: audit.threshold, units: audit.units, records: audit.records, withheld: audit.withheld, knowledgeStateNodeIds: input.knowledgeStateNodeIds, unnarratedNodeIds: input.unnarratedNodeIds, flags: audit.results.flags, whole: audit.results.whole?.scores ?? null, passages: audit.results.passages.map((passage) => ({ id: passage.id, scores: passage.scores })), usage: audit.results.usage };
   const common = { authority: { source: audit.evaluator, weight: 1 }, uncertainty: { kind: 'unknown' }, access_scopes: scopes, render: 'exclude', training: 'exclude', provenance };
   const node = { ...common, id: input.record.nodeId, node_type: 'alignment_audit', role: 'metadata', text: JSON.stringify(payload), epistemic_status: 'derived_diagnostic', evidence_type: 'estimate', holder: audit.evaluator, subject: input.rootId, value_time: step };
   const endpoint = (nodeId) => ({ kind: 'node', node_id: nodeId });

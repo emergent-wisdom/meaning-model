@@ -135,6 +135,9 @@ test('alignment audit rejects unknown record nodes, missing prose, and mismatche
   assert.deepEqual(flags.notNarrated.map((flag) => flag.recordId), ['d']);
   assert.equal(selectRecords(f.view, f.rendered, { recordNodeIds: [] }).length, 2);
   assert.equal(Object.keys(buildAlignmentQuestions([], [], null)).length, 1);
+  // A record left out on purpose is still checked for contradiction but not asked about narration.
+  const omitted = buildAlignmentQuestions([{ id: 'canon.signature', text: 'Nothing leaves the pharmacy without a second signature.', evidenceCutoff: null }], [], null, new Set(), new Set(['canon.signature']));
+  assert.deepEqual(Object.keys(omitted).sort(), ['contradicts_canon.signature', 'unsupported_new_fact']);
 });
 
 import { assertModelSuccessor, buildRebindSuccessor, rebindNarrativeGraph } from '../src/narrative-rebind.mjs';
