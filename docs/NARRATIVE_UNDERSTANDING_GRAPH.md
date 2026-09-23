@@ -225,6 +225,7 @@ revision, and a session keeps at most 4,096.
 | `life_review_record` | `query_narrative_graph`, `render_narrative_graph`, then `apply_narrative_batch` | Record a review under its actual reviewer, with the revision and text hash it read. |
 | `life_model_outline` | `get_model`, `query_narrative_graph` | Read-only: the present state as an outline, with linked notes at a chosen depth. |
 | `life_construction_replay` | `list_narrative_revisions`, `query_narrative_graph`, `get_model` | Read-only: replay the graph and model revisions from the first, with each step's reasons, changes and notes. |
+| `life_understanding_read` | `query_narrative_graph` | Read-only: named notes or reviews whole, with their data and the links into and out of them. |
 | `life_construction_export` | `list_narrative_revisions`, `query_narrative_graph`, `get_model` | Read-only: export the whole construction as a portable history with a bundle hash. |
 | `life_construction_import` | `register_model`, `revise_model`, `register_narrative_graph`, `apply_narrative_batch`, `revise_narrative_graph_by_change` | Rebuild an exported history, checking every model and graph hash. |
 

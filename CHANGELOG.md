@@ -178,6 +178,11 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
     "main driver" questions, led by the supplied text and prior knowledge,
     anchored by current values in dated estimates, and answered one question at
     a time.
+  - `life_understanding_read` reads named notes or reviews whole, with their
+    data and the links into and out of them. The replay now cuts reasoning-level
+    notes at 8,000 characters instead of 4,000 and says where it cut and how to
+    read the rest; probes had pulled graph neighborhoods of 231 KB and 809 KB to
+    read one review.
   - `life_story_release` in the storytelling add-on releases a story's
     committed prose to readers. Prose inherits the author-only scope of the
     records it was built from, so a reader's render showed only the title. The

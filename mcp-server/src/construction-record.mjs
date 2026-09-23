@@ -382,6 +382,30 @@ function noteLine(node, level, limit, responses = null) {
   return `${node.id} [${label}]: ${clip(oneLine(text), limit)}${suffix}`;
 }
 
+// Reading notes whole: each named note or review with its parsed payload and the links into and out of it,
+// without the neighborhood around it.
+export const noteReadSchema = z.object({
+  graphHash: hash, accessScopes: z.array(id).max(64).default([]),
+  nodeIds: z.array(z.string().trim().min(1).max(1_024)).min(1).max(32),
+}).strict();
+export async function readNotes(service, raw) {
+  const input = noteReadSchema.parse(raw);
+  const view = await readGraph(service, input.graphHash, input.accessScopes);
+  const nodes = new Map(view.nodes.map((node) => [node.id, node]));
+  const describe = (endpoint) => (endpoint?.kind === 'node' ? endpoint.node_id : `${endpoint?.anchor_kind}:${endpoint?.anchor_id}${endpoint?.path ?? ''}`);
+  const notes = input.nodeIds.map((nodeId) => {
+    const node = nodes.get(nodeId);
+    if (!node) return { id: nodeId, found: false, reason: 'unknown, or hidden by these access scopes' };
+    const payload = notePayload(node);
+    return { id: node.id, found: true, nodeType: node.node_type, role: node.role, holder: node.holder ?? null, title: node.title ?? null,
+      kind: payload.kind, text: payload.text, data: payload.data?.data ?? payload.data ?? null, valueTime: node.value_time ?? null,
+      provenance: node.provenance ?? [], accessScopes: node.access_scopes ?? [],
+      linksOut: view.edges.filter((edge) => edge.source?.kind === 'node' && edge.source.node_id === nodeId && edge.relation !== 'contains').map((edge) => ({ relation: edge.relation, target: describe(edge.target) })),
+      linksIn: view.edges.filter((edge) => edge.target?.kind === 'node' && edge.target.node_id === nodeId && edge.relation !== 'contains').map((edge) => ({ relation: edge.relation, source: describe(edge.source) })) };
+  });
+  return { schema: 'meaning-model-note-read/v1', graphHash: input.graphHash, notes };
+}
+
 export async function outlineModel(service, raw) {
   const input = outlineSchema.parse(raw);
   const view = input.graphHash ? await readGraph(service, input.graphHash, input.accessScopes) : null;
@@ -618,7 +642,7 @@ function describeModelChanges(changes, level) {
 
 export async function replayConstruction(service, raw) {
   const input = replaySchema.parse(raw);
-  const limits = { outline: 160, reasoning: 4_000, full: 40_000 }[input.level];
+  const limits = { outline: 160, reasoning: 8_000, full: 40_000 }[input.level];
   const out = []; let used = 0; let truncated = false;
   const emit = (line) => { if (truncated) return false; if (used + line.length + 1 > input.maxChars) { truncated = true; return false; } out.push(line); used += line.length + 1; return true; };
   if (input.modelHash) {
@@ -714,7 +738,9 @@ export async function replayConstruction(service, raw) {
       const extra = [isReview && findings.length ? `${findings.length} finding${findings.length === 1 ? '' : 's'}` : null, later ? `later: ${later}` : null].filter(Boolean);
       // A review is read whole at the deeper levels: its text is what the answers refer to.
       const limit = isReview ? limits * 4 : limits;
-      lines.push(`✎ ${note.id} [${note.type}${note.holder ? ` by ${note.holder}` : ''}${note.change === 'changed' ? ', changed' : ''}]: ${input.level === 'outline' ? clip(oneLine(gist), limits) : clip(gist, limit)}${answers.length ? ` (${answers.join('; ')})` : ''}${extra.length ? ` [${extra.join('; ')}]` : ''}`);
+      const shown = input.level === 'outline' ? clip(oneLine(gist), limits) : clip(gist, limit);
+      const cut = input.level !== 'outline' && gist.length > limit ? ` [cut at ${limit} of ${gist.length} characters; read it whole with life_understanding_read]` : '';
+      lines.push(`✎ ${note.id} [${note.type}${note.holder ? ` by ${note.holder}` : ''}${note.change === 'changed' ? ', changed' : ''}]: ${shown}${answers.length ? ` (${answers.join('; ')})` : ''}${extra.length ? ` [${extra.join('; ')}]` : ''}${cut}`);
       if (input.level !== 'outline' && note.about.length) lines.push(`   ${clip(note.about.join('; '), 1_200)}`);
       if (input.level !== 'outline') for (const [findingIndex, finding] of findings.entries()) {
         const text = typeof finding === 'string' ? finding : finding?.text ?? JSON.stringify(finding);
@@ -885,6 +911,11 @@ export function registerConstructionRecordTools(server, service, { toolResult })
     inputSchema: reviewRecordSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await recordReview(service, input)));
+  server.registerTool('life_understanding_read', {
+    description: 'Read named Understanding Nodes or reviews whole: each one\'s kind, holder, title, full text, data (a review\'s verdict and findings), provenance, and the links into and out of it (what it answers, what answered it). Use it when the replay or the outline shows a note cut short; it reads up to 32 nodes without their neighborhoods.',
+    inputSchema: noteReadSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  }, async (input) => toolResult(await readNotes(service, input)));
   server.registerTool('life_model_outline', {
     description: 'Read the present state as a readable outline: description coverage (which Events carry numbers without a description), Things, the Event tree with descriptions and the Cuts under each Event, processes, concepts, understanding roots and documents. With a graphHash it overlays the Understanding Nodes linked to each record, at the chosen depth: none, count, first_line or full. Narrow it with sections or focusEventId.',
     inputSchema: outlineSchema,

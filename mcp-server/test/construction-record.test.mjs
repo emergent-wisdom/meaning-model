@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { LifeSimulationService } from '../src/service.mjs';
-import { exportConstructionHistory, importConstructionHistory, outlineModel, recordReview, recordUnderstanding, replayConstruction, understandingRecordSchema } from '../src/construction-record.mjs';
+import { exportConstructionHistory, importConstructionHistory, outlineModel, readNotes, recordReview, recordUnderstanding, replayConstruction, understandingRecordSchema } from '../src/construction-record.mjs';
 import { rebindNarrativeGraph } from '../src/narrative-rebind.mjs';
 import { applyNarrativeDefinitionDelta } from '../src/narrative-delta.mjs';
 
@@ -112,6 +112,14 @@ test('a thought is recorded against what it concerns, a review under its reviewe
   assert.match(replay.text, /✎ review\.reader\.1 \[review by reader:gpt-6-astra:fresh-1\]: .*\[1 finding; later: 1 answers\]/);
   assert.match(replay.text, /   finding 1 \[major\]: Motive for the attention split is missing\./);
   assert.match(replay.text, /   later responses: note\.answer answers/);
+  // A note or review is read whole, with the links into and out of it, without its neighborhood.
+  const read = await readNotes(service, { graphHash: answered.graphHash, accessScopes: scopes, nodeIds: ['review.reader.1', 'note.nope'] });
+  assert.equal(read.notes[0].kind, 'review');
+  assert.equal(read.notes[0].data.verdict, 'revise');
+  assert.equal(read.notes[0].data.findings[0].text, 'Motive for the attention split is missing.');
+  assert.ok(read.notes[0].linksIn.some((link) => link.relation === 'answers' && link.source === 'note.answer'));
+  assert.ok(read.notes[0].linksOut.some((link) => link.relation === 'about' && link.target === 'event:event.ada.state.h06'));
+  assert.equal(read.notes[1].found, false);
   const onReview = await replayConstruction(service, { graphHash: answered.graphHash, accessScopes: scopes, focus: [{ nodeId: 'review.reader.1' }] });
   assert.match(onReview.text, /## r2 · Record a review/, 'the step that added the review');
   assert.match(onReview.text, /✎ note\.answer /, 'and the later step whose note answers it');
