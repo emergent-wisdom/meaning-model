@@ -10,7 +10,8 @@ ontologies:
 - claimed outcomes;
 - causal world regimes.
 
-Diagnosing those ontologies decides which world to commission next. Mechanisms
+Diagnosing those ontologies informs which world to commission next; the choice
+stays with the caller. Mechanisms
 worth developing are then transferred onto a target model, with every role mapped
 and every disanalogy stated. The mode is for ideation. A world is a textual
 thought experiment, not a simulation, and a transfer records an idea and its

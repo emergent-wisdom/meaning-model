@@ -320,8 +320,8 @@ curated map to map-conditioned compilation.
 Curators keep three revisable ontologies: mechanism families, claimed outcomes
 and causal world regimes. A new family is admitted only when the recorded
 equivalence test says the primary causal operator changed. Diagnosis of those
-ontologies decides which world to commission next, including family and outcome
-combinations no candidate has yet. Promising mechanisms are transferred onto a
+ontologies informs which world to commission next, including family and outcome
+combinations no candidate has yet; the choice stays with the caller. Promising mechanisms are transferred onto a
 target model, with every role mapped and every disanalogy stated.
 
 Everything lives in the narrative graph as Understanding Nodes. Every task text
@@ -338,8 +338,8 @@ textual thought experiments and transfers are ideas, not evidence. See the
 - `life_alien_search_diagnose`
 - `life_alien_atlas`
 
-It also adds the `life-sim://addon/alien` resource and the `life_alien_start`
-prompt.
+It also adds the `life-sim://addon/alien` guide, the bundled paper as
+`life-sim://theory/ontology-of-the-alien`, and the `life_alien_start` prompt.
 
 ### Registry clients using npx
 

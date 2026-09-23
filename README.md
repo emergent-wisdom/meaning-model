@@ -166,8 +166,8 @@ curated map to map-conditioned compilation.
 Curators keep three revisable ontologies: mechanism families, claimed outcomes
 and causal world regimes. A new family is admitted only when the recorded
 equivalence test says the primary causal operator changed. Diagnosis of those
-ontologies decides which world to commission next, including family and outcome
-combinations no candidate has yet. Promising mechanisms are transferred onto a
+ontologies informs which world to commission next, including family and outcome
+combinations no candidate has yet; the choice stays with the caller. Promising mechanisms are transferred onto a
 target model, with every role mapped and every disanalogy stated.
 
 Everything lives in the narrative graph as Understanding Nodes. Every task text

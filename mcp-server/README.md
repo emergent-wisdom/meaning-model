@@ -854,8 +854,8 @@ curated map to map-conditioned compilation.
 Curators keep three revisable ontologies: mechanism families, claimed outcomes
 and causal world regimes. A new family is admitted only when the recorded
 equivalence test says the primary causal operator changed. Diagnosis of those
-ontologies decides which world to commission next, including family and outcome
-combinations no candidate has yet. Promising mechanisms are transferred onto a
+ontologies informs which world to commission next, including family and outcome
+combinations no candidate has yet; the choice stays with the caller. Promising mechanisms are transferred onto a
 target model, with every role mapped and every disanalogy stated.
 
 Everything lives in the narrative graph as Understanding Nodes. Every task text
@@ -868,21 +868,25 @@ textual thought experiments and transfers are ideas, not evidence. See the
 Start the server with `MEANING_MODEL_ADDONS=alien` to enable six tools:
 
 - `life_alien_search_start`
-- `life_alien_task`, which is read-only
+- `life_alien_task`, which stores each task it writes
 - `life_alien_record`
 - `life_alien_ontology_revise`
 - `life_alien_search_diagnose`, which is read-only
 - `life_alien_atlas`, which is read-only
 
-It also enables the `life-sim://addon/alien` resource and the
-`life_alien_start` prompt.
+It also enables the `life-sim://addon/alien` guide, the bundled paper as
+`life-sim://theory/ontology-of-the-alien`, and the `life_alien_start` prompt.
+The write tools refuse until that paper has been read in the MCP process.
 
-The server re-derives every recorded output's task from its `taskRef`. It
-binds each world's seed and target blindness from that task, and checks:
+Each recorded output cites the stored task it answers (`taskNodeId`); the
+server checks that task's role and text hash and binds each world's seed and
+target blindness from it. Records made before tasks were stored cite a
+`taskRef`, which is still verified by recomputation. The server also checks:
 
 - rule and role bindings;
 - ontology structure and the admission guard;
 - model refs in transfers;
+- Cut sums in fit Cuts and weighted allocations, and candidate field limits;
 - diagnosis hashes;
 - target terms in target-blind tasks.
 
