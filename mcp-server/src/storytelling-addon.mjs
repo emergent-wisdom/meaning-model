@@ -261,6 +261,7 @@ export class StorytellingAddon {
       accessScopes = accessScopes.length ? accessScopes.filter((scope) => record.access_scopes.includes(scope)) : [...record.access_scopes];
       if (!accessScopes.length) throw new Error('Life dossier and numerical records require a common access scope.');
     }
+    for (const link of input.links) if (!view.nodes.some((node) => node.id === link.targetNodeId)) throw new Error(`Life-trends link names unknown or inaccessible node ${link.targetNodeId}.`);
     const provenance = ['Meaning Model storytelling add-on v1', 'Caller-authored longitudinal character model; future is author-only outlook.'];
     const endpoint = (nodeId) => ({ kind: 'node', node_id: nodeId });
     const stored = await this.service.applyNarrativeBatch({
@@ -286,6 +287,9 @@ export class StorytellingAddon {
           id: `${input.nodeId}.character.${index}`, source: endpoint(input.nodeId),
           target: { kind: 'anchor', anchor_kind: 'referent', anchor_id: character.characterId },
           family: 'grounding', relation: 'models_life_of', access_scopes: accessScopes, provenance,
+        })), ...input.links.map((link, index) => ({
+          id: `${input.nodeId}.link.${index}`, source: endpoint(input.nodeId), target: endpoint(link.targetNodeId),
+          family: 'semantic', relation: link.relation, access_scopes: accessScopes, provenance,
         }))],
       },
     });

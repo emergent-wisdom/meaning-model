@@ -438,6 +438,11 @@ test('storytelling scene round-trip appends reviewed prose through Rust without 
   assert.notEqual(storedLife.graphHash, registeredGraph.graphHash);
   assert.deepEqual(await call(client, 'life_story_life_trends', lifeInput), storedLife,
     'a retried dossier write returns the same graph receipt');
+  // A later dossier supersedes the earlier one, as other records do (a branch off this head, not used below).
+  const secondLife = await call(client, 'life_story_life_trends', { ...lifeInput, graphHash: storedLife.graphHash, requestId: 'mira-life-v2', nodeId: 'life.mira.v2',
+    links: [{ relation: 'supersedes', targetNodeId: 'life.mira' }] });
+  const secondGraph = await readGraph(secondLife.graphHash);
+  assert.ok(secondGraph.edges.some((edge) => edge.relation === 'supersedes' && edge.source.node_id === 'life.mira.v2' && edge.target.node_id === 'life.mira'));
   const authorProfileInput = {
     graphHash: storedLife.graphHash, requestId: 'save-author-model', nodeId: 'author.model',
     storyRootId: 'document', authorId: 'protocol-recorder', accessScopes: ['editor'],

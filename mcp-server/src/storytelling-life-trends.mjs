@@ -77,6 +77,11 @@ export const lifeTrendsInputSchema = z.object({
   nodeId: id,
   accessScopes: z.array(id).max(64).default([]),
   dossier: lifeTrendsSchema,
+  // A later dossier names the one it replaces, as other records do.
+  links: z.array(z.object({
+    relation: z.enum(['supersedes', 'refines', 'answers', 'learned_from', 'shaped_by', 'about']),
+    targetNodeId: id,
+  }).strict()).max(16).default([]),
 }).strict();
 
 export const characterConnectionsSchema = z.array(z.object({

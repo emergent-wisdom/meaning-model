@@ -194,6 +194,8 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
   - `life_understanding_record` asks for one holder id per agent for the whole
     session, with roles named in the note; a continuation had written under three
     spellings of itself.
+  - `life_story_life_trends` takes `links`, so a revised dossier can supersede
+    the one it replaces.
   - `life_story_release` in the storytelling add-on releases a story's
     committed prose to readers. Prose inherits the author-only scope of the
     records it was built from, so a reader's render showed only the title. The
