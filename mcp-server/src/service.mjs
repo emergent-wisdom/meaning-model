@@ -2252,6 +2252,13 @@ export class LifeSimulationService {
     );
   }
 
+  // The revision an additive batch with this request id was written against, if it already succeeded here.
+  narrativeBatchReceipt(requestId) {
+    const existing = this.narrativeReceipts.get(`apply-narrative-batch:${requestId}`);
+    if (!existing) return null;
+    try { return { previousGraphHash: JSON.parse(existing.canonicalPayload).previousGraphHash }; } catch { return null; }
+  }
+
   // Every revision of one graph (or of all graphs) in operation order, with branch points and heads.
   // Reasons and provenance are read from each revision itself, within the caller's access scopes.
   async listNarrativeRevisions({ graphId = null } = {}) {

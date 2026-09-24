@@ -179,6 +179,15 @@ four practices.
   path) or nodes it concerns. A note must be about something. Each note records the
   graph revision and model revision it was written against. Story notes use
   `life_story_author_record`, which takes the same `about` targets.
+- **Add-only records find the newest revision themselves.** A note, review,
+  author record, world stage, direction or life dossier only adds records. Its
+  `graphHash` may be any earlier revision of the graph: the record goes to the
+  graph's newest head, and the result's `advancedFrom` says so. A retry of a
+  request that already succeeded returns its first receipt. If the graph has
+  branched after the named revision, the tool names the heads instead of
+  guessing. `exactRevision: true` writes against the named revision on purpose,
+  creating a branch. Edits, revisions and scene preparation keep exact hashes,
+  because they depend on what was read.
 - **Notes can hold records of several models.** Models can be started and
   referenced however the work needs: an author's life, a concept definition or
   another world can each be a model of its own. An `about` target with a

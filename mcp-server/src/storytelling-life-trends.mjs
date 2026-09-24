@@ -72,7 +72,7 @@ export const lifeTrendsSchema = z.object({
 });
 
 export const lifeTrendsInputSchema = z.object({
-  graphHash: z.string().regex(/^[a-f0-9]{64}$/u),
+  graphHash: z.string().regex(/^[a-f0-9]{64}$/u), exactRevision: z.boolean().default(false).describe('Write against graphHash exactly, creating a branch if it is not the newest revision. By default an add-only record goes to the newest head.'),
   requestId: id,
   nodeId: id,
   accessScopes: z.array(id).max(64).default([]),

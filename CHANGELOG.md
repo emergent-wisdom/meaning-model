@@ -50,6 +50,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
   stages, the route part and the director's findings as questions, not
   blockers. Only correctness checks block a scene, and release still waits for
   an answered draft direction.
+- Stop chaining graph hashes by hand for add-only records. Notes, reviews,
+  author records, world stages, directions and life dossiers may name any
+  earlier revision and go to the graph's newest head. A retry keeps its
+  receipt, a branched graph names its heads, and `exactRevision` branches on
+  purpose. Before this, a stale hash silently forked the graph.
 - Let notes and reviews be about records of any stored model. An `about`
   target with a `modelHash` names a record of another model: an author's life,
   a concept definition, another world. The tool checks it and keeps a reference

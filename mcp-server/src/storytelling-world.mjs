@@ -6,6 +6,7 @@
 // built with, preceded by the author, made into five recorded stages that scene preparation requires: the
 // author and reader; candidate worlds tested for dramatic pressure and one chosen by argument; the chosen world
 // opened in successive expansions; the implications of each commitment traced into the model; a route of parts.
+import { resolveAppendHead } from './graph-head.mjs';
 import * as z from 'zod/v4';
 import { prepareAuthorRecord } from './storytelling-authoring.mjs';
 import { anchoredModelRecord } from './construction-record.mjs';
@@ -145,7 +146,7 @@ const routeStage = z.object({
 }).strict();
 
 export const worldRecordSchema = z.object({
-  graphHash: z.string().regex(/^[a-f0-9]{64}$/u), requestId: id, nodeId: id, storyRootId: id, authorId: id,
+  graphHash: z.string().regex(/^[a-f0-9]{64}$/u), requestId: id, nodeId: id, storyRootId: id, authorId: id, exactRevision: z.boolean().default(false).describe('Write against graphHash exactly, creating a branch if it is not the newest revision. By default an add-only record goes to the newest head.'),
   accessScopes: z.array(id).min(1).max(64),
   summary: text(10, 4_000).describe('A few sentences a later reader sees first.'),
   world: z.discriminatedUnion('stage', [authorReaderStage, candidatesStage, openingStage, aspectsStage, implicationsStage, routeStage]),
@@ -341,12 +342,14 @@ async function validateStage(service, world, view, input, model, modelHash) {
 
 export async function storeWorldRecord(service, raw) {
   const input = worldRecordSchema.parse(raw);
+  const head = await resolveAppendHead(service, input.graphHash, input.requestId, input.exactRevision);
+  input.graphHash = head.graphHash;
   const view = await service.queryNarrativeGraph({ graphHash: input.graphHash, expectedGraphHash: input.graphHash, mode: 'full', includeContent: true, accessScopes: [...new Set(input.accessScopes)].sort() });
   const modelHash = view.graph?.source?.model_hash ?? view.graph?.source_snapshot?.model_hash ?? null;
   const model = modelHash ? (await service.inspectModel({ modelHash, includeDefinition: true })).model : null;
   const { links, extra } = await validateStage(service, input.world, view, input, model, modelHash);
   const routeEvents = input.world.stage === 'route' ? [...new Set(input.world.parts.flatMap((part) => part.eventIds))].slice(0, 32) : [];
-  const record = await prepareAuthorRecord(service, { graphHash: input.graphHash, requestId: input.requestId, nodeId: input.nodeId,
+  const record = await prepareAuthorRecord(service, { graphHash: input.graphHash, requestId: input.requestId, nodeId: input.nodeId, exactRevision: true,
     storyRootId: input.storyRootId, authorId: input.authorId, accessScopes: input.accessScopes, kind: 'world', text: input.summary,
     data: { schema: WORLD_SCHEMA, ...input.world }, links, about: routeEvents.map((eventId) => ({ record: `event:${eventId}` })) });
   const stored = await service.applyNarrativeBatch({ requestId: input.requestId, previousGraphHash: input.graphHash, narrativeBatch: record.narrativeBatch });
@@ -360,7 +363,7 @@ export async function storeWorldRecord(service, raw) {
   const authorRecord = state.authorReader?.data.author ?? null;
   const author = authorRecord ? { id: authorRecord.personId, name: authorRecord.name, lifeModelHash: authorRecord.lifeModelHash } : null;
   const openQuestions = modelHash ? await readOpenQuestions(service, { modelHash, graphHash: stored.graphHash, accessScopes: input.accessScopes, limit: 6, author }).catch(() => null) : null;
-  return { ...stored, ...record.receipt, schema: 'meaning-model-story-world-record/v1', stage: input.world.stage, worldNodeId: input.nodeId,
+  return { ...stored, ...record.receipt, ...(head.advancedFrom ? { advancedFrom: head.advancedFrom } : {}), schema: 'meaning-model-story-world-record/v1', stage: input.world.stage, worldNodeId: input.nodeId,
     openImplications: state.openImplications, ...extra, openQuestions: openQuestions && { total: openQuestions.total, questions: openQuestions.questions, jumps: openQuestions.jumps.slice(0, 5), alwaysAsk: openQuestions.alwaysAsk },
     nextStep: next, semanticVerification: false };
 }

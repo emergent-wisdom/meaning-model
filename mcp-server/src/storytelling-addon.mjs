@@ -1,3 +1,4 @@
+import { resolveAppendHead } from './graph-head.mjs';
 import { descriptionCoverage } from './construction-record.mjs';
 import { createHash, randomInt } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -243,6 +244,7 @@ export class StorytellingAddon {
   async storeLifeTrends(raw) {
     bounded(raw, MAX_INPUT_BYTES, 'Life-trends request');
     const input = lifeTrendsInputSchema.parse(raw);
+    input.graphHash = (await resolveAppendHead(this.service, input.graphHash, input.requestId, input.exactRevision)).graphHash;
     const view = await this.service.queryNarrativeGraph({
       graphHash: input.graphHash, expectedGraphHash: input.graphHash,
       mode: 'full', includeContent: true, accessScopes: [...new Set(input.accessScopes)].sort(),
@@ -896,7 +898,9 @@ export function registerStorytellingAddon(server, service) {
       'Recheck the exact scene packet, draft, and review hash, then atomically append prose and a linked Understanding Node review using the existing Rust narrative graph. Unknown/conflicting findings and declared knowledge leaks block this operation. Does not mutate world/model state or gate other tools.', false],
   ]) {
     // Lead with what the tool does, so a truncated listing still tells the tools apart; the intake rule follows once.
-    server.registerTool(name, { description: `${description}\n\n${name.startsWith('life_story_scene_') ? `${passageInstructions}\n\n` : ''}${storyScopeInstructions}`, inputSchema: schema,
+    const appendOnly = ['life_story_author_record', 'life_story_world_record', 'life_story_direct', 'life_story_life_trends'].includes(name)
+      ? ' Add-only: graphHash may be any earlier revision of the story graph; the record goes to its newest head, and advancedFrom says so.' : '';
+    server.registerTool(name, { description: `${description}${appendOnly}\n\n${name.startsWith('life_story_scene_') ? `${passageInstructions}\n\n` : ''}${storyScopeInstructions}`, inputSchema: schema,
       annotations: { readOnlyHint: readOnly, destructiveHint: false, idempotentHint: idempotent, openWorldHint: false } },
     async (input) => result(await addon[method](input)));
   }

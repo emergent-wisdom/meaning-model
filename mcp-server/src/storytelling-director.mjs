@@ -3,6 +3,7 @@
 // rebuilt from the deeper model. The human never read the book. This module is that human's side of the loop,
 // written down so any agent can run it: principles for the world and for the draft, each failure answered in the
 // model first, and scene preparation and release blocked until the model has actually changed in answer.
+import { resolveAppendHead } from './graph-head.mjs';
 import * as z from 'zod/v4';
 import { prepareAuthorRecord } from './storytelling-authoring.mjs';
 import { readOpenQuestions } from './model-questions.mjs';
@@ -49,7 +50,7 @@ export const directorPrinciples = Object.freeze([
 const principlesFor = (stage) => directorPrinciples.filter((item) => item.stage === stage);
 
 export const directionSchema = z.object({
-  graphHash: z.string().regex(/^[a-f0-9]{64}$/u), requestId: id, storyRootId: id,
+  graphHash: z.string().regex(/^[a-f0-9]{64}$/u), requestId: id, storyRootId: id, exactRevision: z.boolean().default(false).describe('Write against graphHash exactly, creating a branch if it is not the newest revision. By default an add-only record goes to the newest head.'),
   accessScopes: z.array(id).min(1).max(64),
   stage: z.enum(['world', 'draft']).describe('world before the first scene, after the route; draft after a completed part and before release.'),
   directorId: id.describe('Who directs: a fresh reviewer who has not written the work where one is available, otherwise the writing agent itself, which then says so in independent.'),
@@ -94,6 +95,8 @@ export function directionState(view, storyRootId, boundModelHash) {
 
 export async function direct(service, raw) {
   const input = directionSchema.parse(raw);
+  const head = await resolveAppendHead(service, input.graphHash, input.requestId, input.exactRevision);
+  input.graphHash = head.graphHash;
   const accessScopes = [...new Set(input.accessScopes)].sort();
   const view = await service.queryNarrativeGraph({ graphHash: input.graphHash, expectedGraphHash: input.graphHash, mode: 'full', includeContent: true, accessScopes });
   const modelHash = view.graph?.source?.model_hash ?? view.graph?.source_snapshot?.model_hash ?? null;
@@ -117,13 +120,13 @@ export async function direct(service, raw) {
   const unplanned = [...input.findings, ...input.ownFindings.map((item) => ({ ...item, principleId: `own:${item.name}` }))].filter((item) => item.verdict === 'fails' && !item.modelChange);
   if (unplanned.length) throw new Error(`Say what must change in the model first for each failure: ${unplanned.map((item) => item.principleId).join(', ')}.`);
   if (!input.nodeId || !input.summary) throw new Error('Recording a direction needs nodeId and summary.');
-  const record = await prepareAuthorRecord(service, { graphHash: input.graphHash, requestId: input.requestId, nodeId: input.nodeId, storyRootId: input.storyRootId,
+  const record = await prepareAuthorRecord(service, { graphHash: input.graphHash, requestId: input.requestId, nodeId: input.nodeId, storyRootId: input.storyRootId, exactRevision: true,
     authorId: input.directorId, accessScopes, kind: 'direction', text: input.summary,
     data: { schema: DIRECTION_SCHEMA, stage: input.stage, directorId: input.directorId, independent: input.independent, modelHash,
       findings: [...input.findings, ...input.ownFindings.map((item) => ({ principleId: `own:${item.name}`, verdict: item.verdict, evidence: item.evidence, modelChange: item.modelChange }))] } });
   const stored = await service.applyNarrativeBatch({ requestId: input.requestId, previousGraphHash: input.graphHash, narrativeBatch: record.narrativeBatch });
   const failing = [...input.findings, ...input.ownFindings.map((item) => ({ ...item, principleId: `own:${item.name}` }))].filter((item) => item.verdict === 'fails');
-  return { ...stored, ...record.receipt, schema: 'meaning-model-story-direction-record/v1', directionNodeId: input.nodeId, stage: input.stage, failing: failing.map((item) => item.principleId),
+  return { ...stored, ...record.receipt, ...(head.advancedFrom ? { advancedFrom: head.advancedFrom } : {}), schema: 'meaning-model-story-direction-record/v1', directionNodeId: input.nodeId, stage: input.stage, failing: failing.map((item) => item.principleId),
     nextStep: failing.length
       ? `Answer each failure in the model first: revise it (life_model_revise), rebind the story graph, and record what you changed with answers pointing to ${input.nodeId}; then revise the prose from the deeper model. Scene preparation and release stop until the bound model has changed and a record answers this direction.`
       : 'Nothing failed. A direction that finds nothing to change is suspect: if it was a self-direction, give the task to a fresh reviewer.' };

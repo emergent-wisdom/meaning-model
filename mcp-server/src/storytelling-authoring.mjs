@@ -1,3 +1,4 @@
+import { resolveAppendHead } from './graph-head.mjs';
 import { createHash } from 'node:crypto';
 import * as z from 'zod/v4';
 import { authorModelSchema, authorModelSourceIds, validateAuthorModelSources } from './storytelling-author-model.mjs';
@@ -8,6 +9,7 @@ import { constructionRecordInstructions } from './construction-principles.mjs';
 const id = z.string().trim().min(1).max(256);
 const prose = z.string().min(1).max(64_000).refine((text) => text.trim().length > 0, 'Authored text must not be blank.');
 export const authorRecordContextSchema = z.object({
+  exactRevision: z.boolean().default(false).describe('Write against graphHash exactly, creating a branch if it is not the newest revision. By default an add-only record goes to the newest head.'),
   graphHash: z.string().regex(/^[a-f0-9]{64}$/u), requestId: id, nodeId: id,
   storyRootId: id, authorId: id,
   accessScopes: z.array(id).min(1).max(64),
@@ -148,10 +150,11 @@ export async function prepareAuthorRecord(service, raw) {
 }
 
 export async function storeAuthorRecord(service, raw) {
-  const { input, narrativeBatch, receipt } = await prepareAuthorRecord(service, raw);
+  const head = await resolveAppendHead(service, raw?.graphHash, raw?.requestId, raw?.exactRevision === true);
+  const { input, narrativeBatch, receipt } = await prepareAuthorRecord(service, { ...raw, graphHash: head.graphHash });
   const stored = await service.applyNarrativeBatch({ requestId: input.requestId,
     previousGraphHash: input.graphHash, narrativeBatch });
-  return { ...stored, ...receipt };
+  return { ...stored, ...receipt, ...(head.advancedFrom ? { advancedFrom: head.advancedFrom } : {}) };
 }
 
 export async function exploreStoredTrajectory(service, raw) {

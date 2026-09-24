@@ -459,8 +459,9 @@ test('storytelling scene round-trip appends reviewed prose through Rust without 
     links: [{ relation: 'supersedes', targetNodeId: 'life.mira' }] });
   const secondGraph = await readGraph(secondLife.graphHash);
   assert.ok(secondGraph.edges.some((edge) => edge.relation === 'supersedes' && edge.source.node_id === 'life.mira.v2' && edge.target.node_id === 'life.mira'));
+  // The author model deliberately branches from the first dossier, beside the second one.
   const authorProfileInput = {
-    graphHash: storedLife.graphHash, requestId: 'save-author-model', nodeId: 'author.model',
+    graphHash: storedLife.graphHash, exactRevision: true, requestId: 'save-author-model', nodeId: 'author.model',
     storyRootId: 'document', authorId: 'protocol-recorder', accessScopes: ['editor'],
     kind: 'author_model', text: 'An invented author perspective for this story, kept distinct from the narrator and Mira.',
     data: fictionalAuthorModel(),
@@ -838,8 +839,9 @@ test('storytelling scene round-trip appends reviewed prose through Rust without 
   // Use existing public revision tools to retire a committed passage, then
   // prepare/review/commit its replacement. The retained baseline and the final
   // graph must remain separately readable; appending a second story is not a revision.
+  // This assessment deliberately continues from the committed graph, before the release above.
   const authorVoice = await call(client, 'life_story_author_record', {
-    graphHash: committed.graphHash, requestId: 'record-author-voice-before', nodeId: 'voice.author.before',
+    graphHash: committed.graphHash, exactRevision: true, requestId: 'record-author-voice-before', nodeId: 'voice.author.before',
     storyRootId: 'document', authorId: 'protocol-reviewer', accessScopes: ['editor'], kind: 'assessment',
     text: 'The passage uses the modeled author’s preference for a concrete action and leaves emotional interpretation unstated; one line cannot establish a distinctive overall authorial voice.',
     data: { reviewedGraphHash: committed.graphHash, subject: { kind: 'author', nodeId: 'author.model', dispositionId: 'restraint' },
@@ -980,7 +982,7 @@ test('storytelling scene round-trip appends reviewed prose through Rust without 
   // through the same general graph tool available without this add-on.
   const passageText = `${text}\n\nMira kept watching the needle.`;
   const passageDraft = await call(client, 'life_story_author_record', {
-    ...draftInput, graphHash, requestId: 'save-passage-draft', nodeId: 'draft.passages', text: passageText,
+    ...draftInput, graphHash, exactRevision: true, requestId: 'save-passage-draft', nodeId: 'draft.passages', text: passageText,
   });
   const passagePreparation = { ...preparation, graphHash: passageDraft.graphHash,
     scene: { ...preparation.scene, id: 'scene.passages' } };

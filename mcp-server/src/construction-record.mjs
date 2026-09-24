@@ -2,6 +2,7 @@
 // so what is done and why must be recorded where a later agent can read it: descriptions give an
 // Event's numbers their meaning, notes are linked to the records they concern, reviews are held by
 // their actual reviewers, and the whole development can be read back as an outline or replayed.
+import { resolveAppendHead } from './graph-head.mjs';
 import { createHash } from 'node:crypto';
 import * as z from 'zod/v4';
 import { assertDescribedEvents, descriptionCoverage } from './description-coverage.mjs';
@@ -157,7 +158,7 @@ export { nextOrder as nextPlacementOrder };
 export const noteKinds = Object.freeze(['question', 'hypothesis', 'prediction', 'interpretation', 'reason', 'criticism', 'revision',
   'decision', 'idea', 'reference', 'voice', 'plan', 'observation', 'estimate']);
 export const understandingRecordSchema = z.object({
-  graphHash: hash, requestId: id, accessScopes: scopeList,
+  graphHash: hash, requestId: id, accessScopes: scopeList, exactRevision: z.boolean().default(false).describe('Write against graphHash exactly, creating a branch if it is not the newest revision. By default an add-only record goes to the newest head.'),
   holder: id, recordedBy: id.optional(),
   clock: z.enum(['authoring_step', 'story_time']).default('authoring_step'),
   rootLabel: z.string().trim().min(1).max(200).optional(),
@@ -180,6 +181,8 @@ export const understandingRecordSchema = z.object({
 export async function recordUnderstanding(service, raw) {
   bounded(raw, 'An understanding record');
   const input = understandingRecordSchema.parse(raw);
+  const head = await resolveAppendHead(service, input.graphHash, input.requestId, input.exactRevision);
+  input.graphHash = head.graphHash;
   const scopes = [...new Set(input.accessScopes)].sort();
   const view = await readGraph(service, input.graphHash, scopes);
   const nodesById = new Map(view.nodes.map((node) => [node.id, node]));
@@ -226,7 +229,7 @@ export async function recordUnderstanding(service, raw) {
     schema: 'life-sim-rust-narrative-batch/v1', previous_graph_hash: input.graphHash,
     reason: `Record ${input.notes.length} understanding note${input.notes.length === 1 ? '' : 's'} held by ${input.holder}.`, provenance,
     add_roots: root.roots, add_nodes: nodes, add_edges: edges } });
-  return { schema: 'meaning-model-understanding-record/v1', graphHash: stored.graphHash, previousGraphHash: input.graphHash,
+  return { schema: 'meaning-model-understanding-record/v1', graphHash: stored.graphHash, previousGraphHash: input.graphHash, ...(head.advancedFrom ? { advancedFrom: head.advancedFrom } : {}),
     understandingRootId: rootId, nodeIds: input.notes.map((note) => note.nodeId), authoringStep: step, writtenAgainstModel: modelHash,
     graphMutation: true, worldMutation: false, semanticVerification: false,
     nextStep: 'Keep recording as you work: choices, ideas, predictions and their reasons, linked to what they concern. A later agent reads them through life_construction_replay and life_model_outline.' };
@@ -236,6 +239,7 @@ export async function recordUnderstanding(service, raw) {
 // Reviews, held by the actual reviewer.
 
 export const reviewRecordSchema = z.object({
+  exactRevision: z.boolean().default(false).describe('Write against graphHash exactly, creating a branch if it is not the newest revision. By default an add-only record goes to the newest head.'),
   graphHash: hash, requestId: id, accessScopes: scopeList, nodeId: longId,
   reviewer: z.object({ id, kind: z.enum(['model', 'human', 'estimator', 'tool']), model: id.optional(), family: id.optional(), label: z.string().trim().min(1).max(300).optional() }).strict(),
   recordedBy: id,
@@ -262,6 +266,8 @@ export const reviewRecordSchema = z.object({
 export async function recordReview(service, raw) {
   bounded(raw, 'A review record');
   const input = reviewRecordSchema.parse(raw);
+  const head = await resolveAppendHead(service, input.graphHash, input.requestId, input.exactRevision);
+  input.graphHash = head.graphHash;
   const scopes = [...new Set(input.accessScopes)].sort();
   const view = await readGraph(service, input.graphHash, scopes);
   const nodesById = new Map(view.nodes.map((node) => [node.id, node]));
@@ -325,7 +331,7 @@ export async function recordReview(service, raw) {
       ? `Record a review by ${input.reviewer.id} of external material${input.reviewed.description ? ` (${clip(oneLine(input.reviewed.description), 160)})` : ''}, recorded at graph revision ${view.graph.revision.number}.`
       : `Record a review by ${input.reviewer.id} of graph revision ${reviewedView.graph.revision.number}.`, provenance,
     add_roots: root.roots, add_nodes: nodes, add_edges: edges } });
-  return { schema: 'meaning-model-review-record/v1', graphHash: stored.graphHash, previousGraphHash: input.graphHash, reviewNodeId: input.nodeId,
+  return { ...(head.advancedFrom ? { advancedFrom: head.advancedFrom } : {}), schema: 'meaning-model-review-record/v1', graphHash: stored.graphHash, previousGraphHash: input.graphHash, reviewNodeId: input.nodeId,
     reviewerRootId: rootId, reviewedGraphHash: external ? null : reviewedGraphHash, reviewedRevision: external ? null : reviewedView.graph.revision.number, render, textMatchesRender,
     graphMutation: true, worldMutation: false,
     nextStep: 'When a later change answers this review, record the reason with a note that links to it with answers, so the replay shows what the review changed.' };
@@ -968,12 +974,12 @@ export async function importConstructionHistory(service, raw) {
 
 export function registerConstructionRecordTools(server, service, { toolResult }) {
   server.registerTool('life_understanding_record', {
-    description: `Record one or more Understanding Nodes held by a named holder (the modeler, a writer, a character in story time), each linked to what it concerns: model records by kind:id (event, cut, process, claim, concept, referent and the other record kinds, optionally with a JSON Pointer path) or graph nodes. Kinds: ${noteKinds.join(', ')}. Notes are placed under the holder's understanding root with the graph-revision clock (or world time for story_time) and stamped with the model revision they were written against. Keep one holder id for yourself for the whole session, and a new one only for a different mind (a continuing agent, a character); say a role such as writer or self-review in the note, not in the holder. A note must be about something. ${constructionRecordInstructions}`,
+    description: `Record one or more Understanding Nodes held by a named holder (the modeler, a writer, a character in story time), each linked to what it concerns: model records by kind:id (event, cut, process, claim, concept, referent and the other record kinds, optionally with a JSON Pointer path) or graph nodes. Kinds: ${noteKinds.join(', ')}. Notes are placed under the holder's understanding root with the graph-revision clock (or world time for story_time) and stamped with the model revision they were written against. Keep one holder id for yourself for the whole session, and a new one only for a different mind (a continuing agent, a character); say a role such as writer or self-review in the note, not in the holder. A note must be about something. ${constructionRecordInstructions} Add-only: graphHash may be any earlier revision of the graph; the record goes to its newest head, and advancedFrom says so.`,
     inputSchema: understandingRecordSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await recordUnderstanding(service, input)));
   server.registerTool('life_review_record', {
-    description: 'Record a review as an Understanding Node held by its actual reviewer (another model, a blind reader, an estimator, a person or a tool), with what the reviewer was given, how independent it was, the exact graph revision it read, the prompt, a hash of the rendered text it reviewed (checked against a supplied text hash), its verdict and findings, and links to what it concerns. Later changes that answer the review link to it with answers.',
+    description: 'Record a review as an Understanding Node held by its actual reviewer (another model, a blind reader, an estimator, a person or a tool), with what the reviewer was given, how independent it was, the exact graph revision it read, the prompt, a hash of the rendered text it reviewed (checked against a supplied text hash), its verdict and findings, and links to what it concerns. Later changes that answer the review link to it with answers. Add-only: graphHash may be any earlier revision of the graph; the record goes to its newest head, and advancedFrom says so.',
     inputSchema: reviewRecordSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await recordReview(service, input)));
