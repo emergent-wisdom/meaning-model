@@ -469,17 +469,20 @@ export class StorytellingAddon {
     }
     const depthReview = readModelDepthReview(view, input, lifeTrends);
     const blockers = [];
-    // The author and the world come first: the author's life and the reader's buttons, candidate worlds, their
-    // opening and implications, and a route, before any scene.
+    // The world as it stands: which stages exist, what is open, and where this scene sits in the route. It is not a
+    // strict workflow, so these are context and questions for the scene, not gates.
     const world = readWorldState(view, lifeTrends.dossier.storyRootId);
     const routePart = world.route?.data.parts.find((part) => part.id === scene.routePartId) ?? null;
+    if (scene.routePartId && world.route && !routePart) blockers.push({ code: 'route-part-unknown',
+      explanation: `The scene names route part ${scene.routePartId}, which the route does not have (${world.route.data.parts.map((part) => part.id).join(', ')}).` });
+    const worldQuestions = [];
     const missingStages = worldStages.filter(([key]) => !world[key]).map(([, stage]) => stage);
-    if (missingStages.length) blockers.push({ code: 'world-not-modeled',
-      explanation: `Model the author and the world before the story with life_story_world_record (stages author_reader, candidates, opening, aspects, implications, route): ${missingStages.join(', ')} still missing.` });
-    else if (world.openImplications.length) blockers.push({ code: 'world-implications-open',
-      explanation: `Open implications remain: ${world.openImplications.map((item) => `${item.commitmentId} (${item.about})`).join('; ')}. Represent them in the model or leave them as reasoned remainder.` });
-    if (!world.route) blockers.push({ code: 'route-missing', explanation: 'Choose the route of parts through the world (life_story_world_record, stage route) before preparing scenes.' });
-    else if (!routePart) blockers.push({ code: 'route-part-missing', explanation: `Name the route part this scene renders in scene.routePartId; the route has ${world.route.data.parts.map((part) => part.id).join(', ')}.` });
+    if (missingStages.length) worldQuestions.push({ kind: 'world-stage-missing', tool: 'life_story_world_record',
+      question: `The world has no ${missingStages.join(', ')} record yet. Who is the author, which world, what makes this story interesting, what do its commitments imply? Investigate whichever the model leads you to, in any order, and record it when the understanding happens.` });
+    if (world.openImplications.length) worldQuestions.push({ kind: 'implications-open', tool: 'life_model_revise',
+      question: `Implications still open: ${world.openImplications.map((item) => `${item.commitmentId} (${item.about})`).join('; ')}. What do they imply for this scene?` });
+    if (!routePart && world.route) worldQuestions.push({ kind: 'route-part-unnamed', tool: 'life_story_scene_prepare',
+      question: `Which part of the route (${world.route.data.parts.map((part) => part.id).join(', ')}) does this scene render? Naming it adds a check that the scene makes that part's change.` });
     if (!depthReview.readyForScene) blockers.push({ code: 'model-depth-unresolved',
       explanation: 'The saved depth review identifies missing explanation or evidence. Repair it in the model and reassess before committing prose.' });
     // Numbers mean something only against a description of the Event they divide.
@@ -508,11 +511,14 @@ export class StorytellingAddon {
             question: `This scene renders "${cut.question}", which the model has not drawn. Draw it with a recorded seed and let the story follow the draw; what happens should come from the model, not from the writer's preference.` });
         }
       }
-      // The director's loop: a world direction before the first scene, and every failure answered in the model.
+      // The director's loop, as questions: has anyone held the world to what makes a story good, and are its
+      // findings answered in the model?
       const direction = directionState(view, lifeTrends.dossier.storyRootId, boundModelHash);
-      if (world.route && !direction.world) blockers.push({ code: 'direction-missing', explanation: 'Run the director on the world before the first scene (life_story_direct, stage world), and answer its failures in the model.' });
-      for (const item of direction.unanswered) blockers.push({ code: 'direction-unanswered', nodeId: item.nodeId,
-        explanation: `The director's ${item.stage} findings ${item.failing.join(', ')} are not yet answered in the model${item.modelUnchanged ? ': the bound model has not changed since' : ''}${item.answered ? '' : '; no record answers the direction'}. Revise the model, rebind, link the answering record to ${item.nodeId} with answers, then prepare again.` });
+      if (!direction.world) forThisScene.unshift({ kind: 'direction-missing', tool: 'life_story_direct',
+        question: 'Nobody has held the world to what makes a story good yet. A fresh director (life_story_direct, stage world) may find what this scene needs.' });
+      for (const item of direction.unanswered) forThisScene.unshift({ kind: 'direction-unanswered', subject: item.nodeId, tool: 'life_model_revise',
+        question: `The director found ${item.failing.join(', ')} failing${item.modelUnchanged ? ', and the model has not changed since' : ''}. What does the model need, and what does this scene need from it?` });
+      forThisScene.unshift(...worldQuestions);
       modelContext = {
         states: present.map((person) => ({ name: person.name, ...personStateAt(model, person.id, scene.worldTime, { draws }) })),
         forThisScene: forThisScene.slice(0, 12), openQuestions: everything.questions.slice(0, 10), totalOpenQuestions: everything.total, alwaysAsk: everything.alwaysAsk,
@@ -583,7 +589,7 @@ export class StorytellingAddon {
       authorLifeTrends: { nodeId: lifeTrends.node.id, dossier: lifeTrends.dossier, characterConnections: lifeTrends.characterConnections },
       model: modelContext,
       world: { authorReaderNodeId: world.authorReader?.node.id ?? null, figuringOut: world.authorReader?.data.author.figuringOut ?? null,
-        buttons: (world.authorReader?.data.buttons ?? []).map((item) => ({ id: item.id, button: item.button })), openAspects: world.openAspects,
+        buttons: (world.authorReader?.data.buttons ?? []).map((item) => ({ id: item.id, button: item.button })), openAspects: world.openAspects, questions: worldQuestions,
         candidatesNodeId: world.candidates?.node.id ?? null, openingNodeId: world.opening?.node.id ?? null, implicationsNodeId: world.implications?.node.id ?? null,
         routeNodeId: world.route?.node.id ?? null, routePart },
       authorModelDepthReview: depthReview,
@@ -876,7 +882,7 @@ export function registerStorytellingAddon(server, service) {
     ['life_story_scene_review', 'review', sceneReviewSchema,
       'Check an exact draft against a scene packet using complete caller-authored findings and cited read-back uses. First store the draft with life_story_author_record; record failed reviews there too. If selected, review the declared author application and narrator/focal-character boundaries without a stylistic quota. Verifies excerpts and declared knowledge boundaries; does not independently interpret prose or judge literary quality.', true],
     ['life_story_world_record', 'recordWorld', worldRecordSchema,
-      `Record the author and the world before the story, one stage at a time: author_reader (the author's life as its own life model, in whatever structure understands them best, whose open questions this stage returns; the voice; why they write this story, what they want to teach and what they are figuring out, citing the life records; optionally an example reader's life the same way; and the buttons the story presses in its reader), candidates (at least three candidate worlds that come out of the author's life and press those buttons, with premise, emotional core, long-term processes, principals and pressure tests, and a selection with reasons), opening (successive expansions of the chosen world), aspects (every aspect of the story one could understand better, from the characters' choices and the author's style to the technology and the period, each investigated by modeling), implications (each commitment's consequences traced to model records or reasoned remainder) and route (the parts to render, each with Events, focal route and change, found where the model jumps). Each stage is validated against the earlier ones, the life models it cites and the bound model, stored as an author record, and returns the model's open questions; scene preparation blocks commitment until all six exist. ${worldInstructions}`, false],
+      `Record the author and the world before the story, one stage at a time: author_reader (the author's life as its own life model, in whatever structure understands them best, whose open questions this stage returns; the voice; why they write this story, what they want to teach and what they are figuring out, citing the life records; optionally an example reader's life the same way; and the buttons the story presses in its reader), candidates (at least three candidate worlds that come out of the author's life and press those buttons, with premise, emotional core, long-term processes, principals and pressure tests, and a selection with reasons), opening (successive expansions of the chosen world), aspects (every aspect of the story one could understand better, from the characters' choices and the author's style to the technology and the period, each investigated by modeling), implications (each commitment's consequences traced to model records or reasoned remainder) and route (the parts to render, each with Events, focal route and change, found where the model jumps). Record them in any order, whenever the understanding happens, and revise any of them when the model leads back; each is validated against the life models and the bound model and against whichever related stages exist, stored as an author record, and returns the model's open questions. Scene preparation shows what the world holds and what is still open. ${worldInstructions}`, false],
     ['life_story_direct', 'direct', directionSchema,
       `The director: principles of what makes a good story, for the world (after the route, before the first scene) and for the draft (after a completed part, and before release). Without findings it returns the task: the principles, the model's open questions and jumps, and for a draft the rendered text. With findings it records the direction; each failure must say what changes in the model first. Scene preparation and release stop until the bound model has changed and a record answers the direction. ${directionInstructions}`, false],
     ['life_story_release', 'release', storyReleaseSchema,

@@ -87,7 +87,7 @@ const pressure = z.object({
 }).strict();
 const candidatesStage = z.object({
   stage: z.literal('candidates'),
-  authorReaderNodeId: id,
+  authorReaderNodeId: id.nullable().default(null).describe('Optional: a record this one builds on. Stages can be recorded in any order and revised whenever the model leads back to them.'),
   form: z.object({ targetWords: z.number().int().min(300).max(300_000), parts: z.number().int().min(1).max(80) }).strict(),
   candidates: z.array(candidate).min(3).max(8),
   pressure: z.array(pressure).min(3).max(8),
@@ -95,7 +95,7 @@ const candidatesStage = z.object({
 }).strict();
 const openingStage = z.object({
   stage: z.literal('opening'),
-  candidatesNodeId: id,
+  candidatesNodeId: id.nullable().default(null).describe('Optional: a record this one builds on. Stages can be recorded in any order and revised whenever the model leads back to them.'),
   accounts: z.array(text(100, 30_000)).min(2).max(6)
     .describe('Successive expansions of the same history: the first in one paragraph, the next in two, and so on; each keeps or explicitly revises the claims above it.'),
   closedQuestions: z.array(text(10, 2_000)).min(3).max(80).describe('Commitments the opening settles: who, what, where, the quantities that must reconcile.'),
@@ -106,7 +106,7 @@ const openingStage = z.object({
 // later aspects record supersedes the earlier one.
 const aspectsStage = z.object({
   stage: z.literal('aspects'),
-  openingNodeId: id,
+  openingNodeId: id.nullable().default(null).describe('Optional: a record this one builds on. Stages can be recorded in any order and revised whenever the model leads back to them.'),
   aspects: z.array(z.object({
     id, kind: z.enum([...storyInterestIds, 'other']).describe('The element of the catalog of what makes a story interesting this aspect investigates.'),
     aspect: text(10, 2_000).describe('Where the element lives in this story: whose flaw, which choice, which object, which institution.'),
@@ -126,12 +126,12 @@ const implication = z.object({
 }).strict();
 const implicationsStage = z.object({
   stage: z.literal('implications'),
-  openingNodeId: id,
+  openingNodeId: id.nullable().default(null).describe('Optional: a record this one builds on. Stages can be recorded in any order and revised whenever the model leads back to them.'),
   commitments: z.array(z.object({ id, commitment: text(10, 4_000), implications: z.array(implication).min(1).max(24) }).strict()).min(3).max(80),
 }).strict();
 const routeStage = z.object({
   stage: z.literal('route'),
-  implicationsNodeId: id,
+  implicationsNodeId: id.nullable().default(null).describe('Optional: a record this one builds on. Stages can be recorded in any order and revised whenever the model leads back to them.'),
   parts: z.array(z.object({
     id, title: text(1, 300), eventIds: z.array(id).min(1).max(24),
     focal: text(3, 2_000).describe('Whose route through the Events the part follows.'),
@@ -172,6 +172,14 @@ export const worldStages = Object.freeze([['authorReader', 'author_reader'], ['c
 const paragraphs = (value) => value.split(/\n\s*\n/u).map((item) => item.trim()).filter(Boolean).length;
 // Longer works need more successive openings before their route: two up to 2,500 words, three to 7,500, then four.
 export const requiredOpenings = (targetWords) => (targetWords <= 2_500 ? 2 : targetWords <= 7_500 ? 3 : 4);
+
+// The record a stage builds on: the one it names, or the latest of that stage if any exists. Stages are recorded
+// in any order, so a missing one is not an error; checks that need it wait until it exists.
+function relatedStage(view, nodeId, storyRootId, stage) {
+  if (nodeId) return stageNode(view, nodeId, storyRootId, stage);
+  const latest = readWorldState(view, storyRootId)[{ author_reader: 'authorReader' }[stage] ?? stage];
+  return latest ? { node: latest.node, data: latest.data } : { node: null, data: null };
+}
 
 function stageNode(view, nodeId, storyRootId, stage) {
   const node = view.nodes.find((item) => item.id === nodeId);
@@ -221,13 +229,15 @@ async function validateStage(service, world, view, input, model, modelHash) {
       reader: readerQuestions ? { total: readerQuestions.total, questions: readerQuestions.questions.slice(0, 4) } : null };
   }
   if (world.stage === 'candidates') {
-    const { node: authorNode, data: authorReader } = stageNode(view, world.authorReaderNodeId, input.storyRootId, 'author_reader');
-    links.push({ relation: 'refines', targetNodeId: authorNode.id });
+    const { node: authorNode, data: authorReader } = relatedStage(view, world.authorReaderNodeId, input.storyRootId, 'author_reader');
+    if (authorNode) links.push({ relation: 'refines', targetNodeId: authorNode.id });
     const ids = world.candidates.map((item) => item.id);
     if (new Set(ids).size !== ids.length) throw new Error('Candidate world ids must be unique.');
-    const buttonIds = new Set(authorReader.buttons.map((item) => item.id));
-    for (const item of world.candidates) for (const press of item.presses) {
-      if (!buttonIds.has(press.buttonId)) throw new Error(`Candidate ${item.id} presses ${press.buttonId}, which is not a button of the author_reader record (${[...buttonIds].join(', ')}).`);
+    if (authorReader) {
+      const buttonIds = new Set(authorReader.buttons.map((item) => item.id));
+      for (const item of world.candidates) for (const press of item.presses) {
+        if (!buttonIds.has(press.buttonId)) throw new Error(`Candidate ${item.id} presses ${press.buttonId}, which is not a button of the author_reader record (${[...buttonIds].join(', ')}).`);
+      }
     }
     const assessed = world.pressure.map((item) => item.candidateId);
     if (new Set(assessed).size !== assessed.length || ids.some((candidateId) => !assessed.includes(candidateId)) || assessed.some((candidateId) => !ids.includes(candidateId))) {
@@ -246,18 +256,18 @@ async function validateStage(service, world, view, input, model, modelHash) {
     }
   }
   if (world.stage === 'opening') {
-    const { node, data } = stageNode(view, world.candidatesNodeId, input.storyRootId, 'candidates');
-    links.push({ relation: 'refines', targetNodeId: node.id });
+    const { node, data } = relatedStage(view, world.candidatesNodeId, input.storyRootId, 'candidates');
+    if (node) links.push({ relation: 'refines', targetNodeId: node.id });
     world.accounts.forEach((account, index) => {
       if (paragraphs(account) < index + 1) throw new Error(`Opening ${index + 1} has ${paragraphs(account)} paragraph(s); each expansion adds a paragraph (${index + 1} expected), with blank lines between paragraphs.`);
     });
-    const needed = requiredOpenings(data.form.targetWords);
-    if (world.accounts.length < needed) throw new Error(`A work of about ${data.form.targetWords} words needs at least ${needed} successive openings of its world before a route; this has ${world.accounts.length}.`);
+    const needed = requiredOpenings(data?.form.targetWords ?? 0);
+    if (world.accounts.length < needed) throw new Error(`A work of about ${data?.form.targetWords ?? 'this'} words needs at least ${needed} successive openings of its world; this has ${world.accounts.length}.`);
     extra.interestCatalog = storyInterest;
   }
   if (world.stage === 'aspects') {
-    const { node } = stageNode(view, world.openingNodeId, input.storyRootId, 'opening');
-    links.push({ relation: 'refines', targetNodeId: node.id });
+    const { node } = relatedStage(view, world.openingNodeId, input.storyRootId, 'opening');
+    if (node) links.push({ relation: 'refines', targetNodeId: node.id });
     const aspectIds = world.aspects.map((item) => item.id);
     if (new Set(aspectIds).size !== aspectIds.length) throw new Error('Aspect ids must be unique.');
     const missing = storyInterest.filter((element) => !world.aspects.some((item) => item.kind === element.id));
@@ -266,9 +276,9 @@ async function validateStage(service, world, view, input, model, modelHash) {
     if (!own.length) throw new Error('The catalog is a beginning, not a boundary: add at least one aspect of kind other, an element that makes this story interesting that no list names, with its category and why.');
     const unnamed = own.filter((item) => !item.category || !item.why);
     if (unnamed.length) throw new Error(`Give each element of your own its category and why: ${unnamed.map((item) => item.id).join(', ')}.`);
-    const { data: opening } = stageNode(view, world.openingNodeId, input.storyRootId, 'opening');
-    const { data: chosen } = stageNode(view, opening.candidatesNodeId, input.storyRootId, 'candidates');
-    const principals = chosen.candidates.find((item) => item.id === chosen.selection.chosenId)?.principals ?? [];
+    const { data: opening } = relatedStage(view, world.openingNodeId, input.storyRootId, 'opening');
+    const { data: chosen } = relatedStage(view, opening?.candidatesNodeId ?? null, input.storyRootId, 'candidates');
+    const principals = chosen?.candidates.find((item) => item.id === chosen.selection.chosenId)?.principals ?? [];
     const withoutFlaw = principals.filter((principal) => !world.aspects.some((item) => item.kind === 'flaws' && item.aspect.toLowerCase().includes(principal.name.toLowerCase())));
     if (withoutFlaw.length) throw new Error(`Investigate each principal's flaw as a process over their life: ${withoutFlaw.map((principal) => principal.name).join(', ')} ${withoutFlaw.length === 1 ? 'has' : 'have'} no flaws aspect naming them.`);
     for (const item of world.aspects) {
@@ -284,8 +294,8 @@ async function validateStage(service, world, view, input, model, modelHash) {
     extra.openAspects = world.aspects.filter((item) => item.status !== 'modeled').map((item) => item.id);
   }
   if (world.stage === 'implications') {
-    const { node } = stageNode(view, world.openingNodeId, input.storyRootId, 'opening');
-    links.push({ relation: 'refines', targetNodeId: node.id });
+    const { node } = relatedStage(view, world.openingNodeId, input.storyRootId, 'opening');
+    if (node) links.push({ relation: 'refines', targetNodeId: node.id });
     const commitmentIds = world.commitments.map((item) => item.id);
     if (new Set(commitmentIds).size !== commitmentIds.length) throw new Error('Commitment ids must be unique.');
     for (const commitment of world.commitments) for (const item of commitment.implications) {
@@ -301,10 +311,10 @@ async function validateStage(service, world, view, input, model, modelHash) {
     }
   }
   if (world.stage === 'route') {
-    const { node, data } = stageNode(view, world.implicationsNodeId, input.storyRootId, 'implications');
-    links.push({ relation: 'refines', targetNodeId: node.id });
-    const open = data.commitments.flatMap((commitment) => commitment.implications.filter((item) => item.status === 'open').map(() => commitment.id));
-    if (open.length) throw new Error(`Resolve the open implications of ${[...new Set(open)].join(', ')} (represent them in the model or leave them as reasoned remainder) before choosing a route.`);
+    const { node, data } = relatedStage(view, world.implicationsNodeId, input.storyRootId, 'implications');
+    if (node) links.push({ relation: 'refines', targetNodeId: node.id });
+    const open = (data?.commitments ?? []).flatMap((commitment) => commitment.implications.filter((item) => item.status === 'open').map(() => commitment.id));
+    if (open.length) extra.openImplicationsAtRoute = [...new Set(open)];
     const partIds = world.parts.map((item) => item.id);
     if (new Set(partIds).size !== partIds.length) throw new Error('Route part ids must be unique.');
     if (!model) throw new Error('A route names Events of the bound model; the story graph must be model-bound.');
@@ -338,7 +348,8 @@ export async function storeWorldRecord(service, raw) {
     data: { schema: WORLD_SCHEMA, ...input.world }, links, about: routeEvents.map((eventId) => ({ record: `event:${eventId}` })) });
   const stored = await service.applyNarrativeBatch({ requestId: input.requestId, previousGraphHash: input.graphHash, narrativeBatch: record.narrativeBatch });
   const state = readWorldState(await service.queryNarrativeGraph({ graphHash: stored.graphHash, expectedGraphHash: stored.graphHash, mode: 'full', includeContent: true, accessScopes: [...new Set(input.accessScopes)].sort() }), input.storyRootId);
-  const next = { author_reader: 'Propose candidate worlds that come out of this author\'s life and press these buttons (stage candidates).',
+  // Suggestions, not a sequence: any stage can come next, and the model's questions may lead elsewhere.
+  const next = { author_reader: 'Perhaps candidate worlds that come out of this author\'s life and press these buttons (stage candidates), or wherever the model\'s questions lead.',
     candidates: 'Open the chosen world in successive expansions (stage opening).', opening: 'List every aspect of the story you could understand better, then investigate each by modeling (stage aspects).',
     aspects: 'Investigate the open aspects by modeling, recording a revised aspects list as they deepen, and trace the implications of each commitment into the model (stage implications).',
     implications: state.openImplications.length ? 'Resolve the open implications, then choose the route (stage route).' : 'Choose the route of parts through the world (stage route).',
@@ -349,4 +360,4 @@ export async function storeWorldRecord(service, raw) {
     nextStep: next, semanticVerification: false };
 }
 
-export const worldInstructions = `Use the model for all of it. Investigate who the author is, and who the book is for (stage author_reader). Investigate which worlds this author could write, and choose one by argument (candidates). Investigate the chosen world, opening it in successive accounts (opening). Investigate everything that makes this story interesting, the returned catalog as a start (aspects). Investigate what each commitment implies (implications). Investigate where in the model the story is (route). Record each with life_story_world_record, let the director (life_story_direct) hold the world and the draft to what makes a story good, and write each scene from the model's state at its moment.`;
+export const worldInstructions = `Use the model for all of it. Investigate who the author is, and who the book is for (stage author_reader). Investigate which worlds this author could write, and choose one by argument (candidates). Investigate the chosen world, opening it in successive accounts (opening). Investigate everything that makes this story interesting, the returned catalog as a start (aspects). Investigate what each commitment implies (implications). Investigate where in the model the story is (route). These come in any order and again whenever the model leads back to them; record each with life_story_world_record when the understanding happens, let the director (life_story_direct) hold the world and the draft to what makes a story good, and write each scene from the model's state at its moment.`;

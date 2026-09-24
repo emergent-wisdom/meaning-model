@@ -35,7 +35,8 @@ unpublished work stays under Unreleased. This is not a development transcript.
   All six stages are recorded with `life_story_world_record`. Scene
   preparation gives each present person's state at that moment from the
   model, together with the model's questions for the scene, and every scene
-  commit returns the open questions before the next scene.
+  commit returns the open questions before the next scene. The stages are
+  investigations in any order, not a sequence.
 - Add a catalog of what makes a story interesting, from flaws, conflicting
   wants and choices to the era, mechanisms, objects that return, theme and the
   ending. Each element says why it makes a story interesting and how to
@@ -43,6 +44,12 @@ unpublished work stays under Unreleased. This is not a development transcript.
   flaw for each principal, modeled as a process over the life. It also records
   at least one element of the agent's own: the catalog is a beginning, not a
   boundary.
+- It is not a strict workflow. The world stages can be recorded in any order
+  and revised whenever the model leads back to them, and each checks only
+  against whichever related stages exist. Scene preparation reports missing
+  stages, the route part and the director's findings as questions, not
+  blockers. Only correctness checks block a scene, and release still waits for
+  an answered draft direction.
 - Keep instructions short and open-ended. The specifics reach the agent where
   they are used: in the model's questions, its jumps, each person's state at a
   moment, the schema descriptions and the validation messages.

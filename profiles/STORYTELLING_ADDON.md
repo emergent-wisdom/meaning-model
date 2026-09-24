@@ -173,8 +173,11 @@ finished, and there is no depth at which the tool stops asking.
 writing model what makes a good story, and each principle sent the model back
 into the world model to make it deeper; the prose was then rebuilt from the
 deeper model. The director never read the book. This process writes that loop
-down so any agent can follow it without a human in the room. Scene
-preparation blocks until its steps exist.
+down so any agent can follow it without a human in the room. It is not a strict
+workflow: the steps come in any order and recur whenever the model leads back
+to them, understanding is recorded when it happens, and processes are modeled
+whenever they are needed. Scene preparation shows what the world holds and
+what is still open; it does not wait for the steps.
 
 **1. The author, and optionally a reader.** A book comes out of a life. *The
 Gulag Archipelago* could not have been written without Solzhenitsyn's arrest,
@@ -294,8 +297,9 @@ Examples:
 - the long developments and background processes are modeled;
 - the Things the causality runs through are modeled as they work.
 
-Each failure says what must change in the model first. Scene preparation stops
-until the bound model has changed and a record answers the direction with
+Each failure says what must change in the model first. Unanswered findings
+come back as questions in every scene's preparation, and release waits until
+the bound model has changed and a record answers the direction with
 `answers`. Give the director's task to a fresh reviewer who has not written
 the work where you can.
 

@@ -268,3 +268,12 @@ test('scene interval validation rejects a reversed end even when context is empt
   assert.equal(f.calls.length, 0, 'invalid scene intervals cannot mutate the graph');
   assert.equal(scenePrepareSchema.parse({ ...preparation, scene: { ...preparation.scene, worldTimeEnd: 4 } }).scene.worldTimeEnd, 4, 'an instantaneous scene remains valid');
 });
+
+test('it is not a strict workflow: a scene can be prepared before any world stage, with the missing stages as questions', async () => {
+  const f = fixture();
+  f.view.withoutWorld = true;
+  const packet = await f.addon.prepare(f.preparation);
+  assert.deepEqual(packet.blockers, []);
+  assert.ok(packet.world.questions.some((item) => item.kind === 'world-stage-missing' && /in any order/.test(item.question)));
+  assert.ok(packet.model.forThisScene.some((item) => item.kind === 'direction-missing'));
+});

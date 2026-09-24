@@ -4,7 +4,7 @@ import { modelDepthBasis } from '../src/storytelling-depth.mjs';
 // service supplies a matching depth assessment; stale-depth behavior has its
 // own tests and a real MCP round trip.
 export function refreshDepthFixture(view, preparation) {
-  addWorldProcess(view, 'book', { scopes: [] });
+  if (!view.withoutWorld) addWorldProcess(view, 'book', { scopes: [] });
   if (preparation.scene && preparation.scene.routePartId === undefined) preparation.scene.routePartId = 'part.1';
   const life = view.nodes.find((node) => node.id === preparation.lifeTrendsNodeId);
   if (!life) return;
