@@ -65,9 +65,10 @@ export function indexModel(model) {
   for (const binding of mm.event_referent_bindings ?? []) {
     if (binding.binding_type === 'change_arc_subject' && binding.target?.event_id) push(arcsOf, binding.referent_id, binding.target.event_id);
   }
+  const relations = mm.event_relations ?? [];
   const abstractions = { concepts: (mm.concepts ?? []).length, abstractRelations: (mm.abstract_relations ?? []).length, abstractCuts: (mm.abstract_cuts ?? []).length,
     laws: (model?.laws ?? []).length, claims: (model?.initial_claims ?? []).length, realizations: (mm.realizations ?? []).length };
-  return { events, children, parents, cuts, cutsByEvent, referents, eventsOf, arcsOf, abstractions, processes: (model?.processes ?? []).length };
+  return { events, children, parents, cuts, cutsByEvent, referents, eventsOf, arcsOf, abstractions, relations, processes: (model?.processes ?? []).length };
 }
 
 function walk(map, eventId) {
@@ -277,16 +278,33 @@ function worldQuestions(index, lives, draws) {
   return questions;
 }
 
-const ORDER = ['life-missing', 'life-untimed', 'time-missing', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'macro-missing', 'period-gap',
+const ORDER = ['author-separate', 'author-unlinked', 'life-missing', 'life-untimed', 'time-missing', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'macro-missing', 'period-gap',
   'moment-unmodeled', 'decision-undrawn', 'shift-uncaused', 'adaptation-open', 'wants-generic', 'why-local', 'concepts-thin', 'laws-missing', 'recurring-question',
   'period-uncut', 'process-empty', 'secondary-without-life', 'place-missing', 'event-undescribed', 'weights-unestimated'];
 
+// The author's life and the story in one model: what the author lived should be linked to what it shapes in the
+// story, by relations between their Events (authorial shaping, distinct from causation inside the story world).
+export function authorLinks(index, authorId) {
+  const author = readPerson(index, authorId);
+  if (!author.life) return null;
+  const authorEvents = author.own;
+  const storyEvents = new Set([...index.events.keys()].filter((eventId) => !authorEvents.has(eventId)));
+  const relations = (index.relations ?? []).filter((relation) => relation.kind !== 'contains'
+    && ((authorEvents.has(relation.source_event_id) && storyEvents.has(relation.target_event_id)) || (storyEvents.has(relation.source_event_id) && authorEvents.has(relation.target_event_id))));
+  return { authorEvents, storyEvents, relations };
+}
+
 // The open questions of a model: for the named people (or every person the model scaffolds), then the world.
-export function modelQuestions(model, { people = null, draws = [], limit = 12, focus = {} } = {}) {
+export function modelQuestions(model, { people = null, draws = [], limit = 12, focus = {}, author = null } = {}) {
   const index = indexModel(model);
   const named = people ?? modeledPeople(index);
   const lives = named.map((item) => ({ ...item, name: item.name ?? displayName(item.id), read: readPerson(index, item.id) }));
   const own = lives.flatMap((item) => personQuestions(index, item.read, item.name, item.principal !== false));
+  if (author && author.sameModel !== false) {
+    const links = authorLinks(index, author.id);
+    if (links && links.storyEvents.size && !links.relations.length) own.unshift({ kind: 'author-unlinked', subject: author.id, principal: true, tool: 'life_model_revise',
+      question: `${author.name ?? displayName(author.id)}'s life and the story share this model, and nothing links them. What in the author's life shapes what in the story: which experience became which shock, which person became which character, which question became the book's? Link them with relations between their Events (authorial shaping, described as such, distinct from causation inside the story world), and put what you understand about both into Understanding Nodes linked to each.` });
+  }
   // Secondary people's questions of one kind become one question naming them all, so the principals come first.
   const grouped = new Map();
   for (const item of own.filter((entry) => !entry.principal)) push(grouped, item.kind, item);
@@ -422,7 +440,7 @@ export function readDraws(view) {
 
 // Everything a caller needs to keep thinking in the model: its open questions, its jumps, and, at a moment, the
 // state of each person.
-export async function readOpenQuestions(service, { modelHash, people = null, at = null, focus = {}, graphHash = null, accessScopes = [], limit = 16 }) {
+export async function readOpenQuestions(service, { modelHash, people = null, at = null, focus = {}, graphHash = null, accessScopes = [], limit = 16, author = null }) {
   const { model } = await service.inspectModel({ modelHash, includeDefinition: true });
   let draws = [];
   let view = null;
@@ -431,7 +449,33 @@ export async function readOpenQuestions(service, { modelHash, people = null, at 
     draws = readDraws(view);
   }
   const named = people ?? modeledPeople(indexModel(model));
-  const questions = modelQuestions(model, { people: named, draws, limit, focus });
+  const questions = modelQuestions(model, { people: named, draws, limit, focus, author });
+  // Understanding that holds the author and the story together: nodes linked to records of both, whether the author's
+  // life shares this model or is a model of its own reached through reference nodes.
+  if (view && author) {
+    const separate = author.lifeModelHash && author.lifeModelHash !== modelHash;
+    const links = separate ? null : authorLinks(indexModel(model), author.id);
+    const authorReferenceIds = new Set(separate ? (view.nodes ?? []).filter((node) => node.node_type === 'model_reference' && (() => {
+      try { return JSON.parse(node.text).modelHash === author.lifeModelHash; } catch { return false; } })()).map((node) => node.id) : []);
+    const storyEvents = separate ? new Set((model.meaning_model?.events ?? []).map((event) => event.id)) : links?.storyEvents ?? new Set();
+    if (storyEvents.size && (separate || links)) {
+      const anchored = new Map();
+      const mark = (nodeId, side) => anchored.set(nodeId, new Set([...(anchored.get(nodeId) ?? []), side]));
+      for (const edge of view.edges ?? []) {
+        if (edge.source?.kind !== 'node') continue;
+        if (edge.target?.kind === 'node' && authorReferenceIds.has(edge.target.node_id)) { mark(edge.source.node_id, 'author'); continue; }
+        if (edge.target?.kind !== 'anchor' || edge.target.anchor_kind !== 'event') continue;
+        const side = !separate && links.authorEvents.has(edge.target.anchor_id) ? 'author' : storyEvents.has(edge.target.anchor_id) ? 'story' : null;
+        if (side) mark(edge.source.node_id, side);
+      }
+      if (![...anchored.values()].some((sides) => sides.size === 2)) {
+        questions.questions.unshift({ kind: 'understanding-unjoined', subject: author.id, principal: true, tool: 'life_understanding_record, life_story_author_record',
+          question: `No Understanding Node holds the author and the story together. Where does the author's life meet the story? Record what you understand there as notes about both the author's records${separate ? ' (about targets with the author\'s modelHash)' : ''} and the story's.` });
+        questions.total += 1;
+        questions.questions.length = Math.min(questions.questions.length, limit);
+      }
+    }
+  }
   // The model as the agent's mind: a model that keeps changing while its record holds few thoughts means the thinking
   // is happening somewhere else.
   if (view) {

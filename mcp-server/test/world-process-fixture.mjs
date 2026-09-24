@@ -20,6 +20,7 @@ export function worldStagesFor({ authorReaderNodeId = 'world.author', routeEvent
     removableEpisode: 'None.', principalsPartlyRight: 'Both are partly right.', premiseInterest: 'A reader who checks would want it.', readerPull: 'They would keep reading to learn whether he trusts.', verdict: index === 0 ? 'strong' : 'workable' }));
   return [
     { stage: 'author_reader', author: { personId: authorPersonId, name: 'The station archivist', mode: 'invented', lifeModelHash, authorModelNodeId,
+      livesIn: 'this_world', writing: 'Years after the winter the door stuck, when the archivist knows how it ended and has left the station.',
       whyThisStory: 'After leaving maintenance work the archivist is writing about the habit of checking that shaped his working life.', teach: 'Nothing settled.',
       figuringOut: 'Whether a life spent checking other people\'s work left room to trust anyone.', lifeRecords: [`referent:${authorPersonId}`, `event:${routeEventId}`] },
       reader: null, buttons: [{ id: 'button.trust', button: 'The fear that checking everything means trusting no one.', presses: 'A careful man meets a silence he cannot check.', learns: 'That their own care may be a way of keeping people out.' }] },

@@ -70,6 +70,20 @@ function requireTheoryAccessForProfileCompilation() {
   }
 }
 
+// What an engine refusal expects, for the refusals agents meet most while modeling lives.
+const refusalHints: Array<[RegExp, string]> = [
+  [/unknown field `subject_id`.*affected_referent_id/su, 'change_arc_scaffold names the Thing it changes with affected_referent_id, not subject_id.'],
+  [/expected struct ChangeArcPhaseProfile/u, 'Each change-arc phase (anticipation, focal_change, adaptation) is an object: { "description": "...", "interval": { "start": ..., "end": ... } }, with the interval optional.'],
+  [/interval must lie within the parent interval/u, 'Give the change arc an interval that contains each phase interval, or leave the phase intervals out.'],
+  [/names unknown referent/u, 'A referent must exist in the same request or model. person_scaffold names its person referent.profile.<profile id>.person.<subject_id>, so a change arc about that person uses that id.'],
+  [/model must contain at least one process/u, 'A model needs at least one process. A first model can hold one for the story\'s clock or setting and grow as the world opens.'],
+];
+function withRefusalHint(error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  const hints = refusalHints.filter(([pattern]) => pattern.test(message)).map(([, hint]) => hint);
+  return hints.length ? Object.assign(new Error(`${message} ${hints.join(' ')}`), { cause: error }) : (error instanceof Error ? error : new Error(message));
+}
+
 function toolResult(value: Record<string, unknown>) {
   return {
     content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }],
@@ -182,7 +196,7 @@ server.registerTool(
   },
   async (input) => {
     requireTheoryAccessForProfileCompilation();
-    return toolResult(await service.compileProfiles(input));
+    try { return toolResult(await service.compileProfiles(input)); } catch (error) { throw withRefusalHint(error); }
   },
 );
 
@@ -205,7 +219,7 @@ server.registerTool(
     }),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
-  async (input) => toolResult(await service.validateModel(input)),
+  async (input) => { try { return toolResult(await service.validateModel(input)); } catch (error) { throw withRefusalHint(error); } },
 );
 
 server.registerTool(
@@ -219,7 +233,7 @@ server.registerTool(
     }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
-  async (input) => toolResult(await withOpenQuestions(service, await service.registerModel(input))),
+  async (input) => { try { return toolResult(await withOpenQuestions(service, await service.registerModel(input))); } catch (error) { throw withRefusalHint(error); } },
 );
 
 server.registerTool(

@@ -50,9 +50,35 @@ export const targetSchema = z.union([
   z.object({
     record: z.string().trim().regex(new RegExp(`^(${Object.keys(recordKinds).join('|')}):.+$`, 'u'), 'A record target is kind:id, for example event:ev.launch or cut:cut.q1.'),
     path: z.string().max(1_024).regex(/^\//u, 'A path is a JSON Pointer into the record.').optional(),
+    modelHash: z.string().regex(/^[a-f0-9]{64}$/u).optional().describe('A record of another stored model (an author\'s life, a concept definition, another world); omit for the graph\'s own model.'),
   }).strict(),
   z.object({ nodeId: longId }).strict(),
 ]);
+// A record of another stored model, held in this graph by a reference node, so a note can be about records of several
+// models together: an author's life, a concept definition and the story world. Models can be started and referenced
+// however the work needs.
+export const MODEL_REFERENCE_SCHEMA = 'meaning-model-model-reference/v1';
+export const isExternalTarget = (target, boundHash) => Boolean(target?.record && target.modelHash && target.modelHash !== boundHash);
+export const modelReferenceNodeId = (modelHash, record) => `ref.${modelHash.slice(0, 16)}.${record.replace(/[^A-Za-z0-9._-]/gu, '_')}`.slice(0, 250);
+export async function externalRecordNode(service, target, { scopes, provenance, placeUnder = null, order = 0, known }) {
+  const inspected = await service.inspectModel({ modelHash: target.modelHash, includeDefinition: true }).catch(() => null);
+  if (!inspected?.model) throw new Error(`Model ${target.modelHash.slice(0, 12)} is not a stored model; register it before referencing its records.`);
+  const { kind, recordId } = splitRecord(target.record);
+  const found = findRecord(inspected.model, kind, recordId, target.modelHash);
+  if (!found) throw new Error(`${target.record} is not a record of model ${target.modelHash.slice(0, 12)}.`);
+  const nodeId = modelReferenceNodeId(target.modelHash, target.record);
+  if (known.has(nodeId)) return { nodeId, nodes: [], edges: [] };
+  known.add(nodeId);
+  const summary = String(found.description ?? found.boundary ?? found.question ?? found.id ?? '').slice(0, 400);
+  const node = { id: nodeId, node_type: 'model_reference', role: 'metadata', title: `${target.record} in model ${inspected.model.id ?? target.modelHash.slice(0, 12)}`,
+    text: JSON.stringify({ schema: MODEL_REFERENCE_SCHEMA, modelHash: target.modelHash, modelId: inspected.model.id ?? null, record: target.record, ...(target.path ? { path: target.path } : {}), summary }),
+    epistemic_status: 'model_reference', evidence_type: 'report', authority: { source: `model:${target.modelHash}`, weight: 1 }, uncertainty: { kind: 'unknown' },
+    access_scopes: scopes, render: 'exclude', training: 'exclude', provenance };
+  const edges = placeUnder ? [{ id: `${nodeId}.placement`, source: { kind: 'node', node_id: placeUnder }, target: { kind: 'node', node_id: nodeId },
+    family: 'structural', relation: 'contains', order, access_scopes: scopes, provenance }] : [];
+  return { nodeId, nodes: [node], edges };
+}
+
 function splitRecord(record) {
   const index = record.indexOf(':');
   return { kind: record.slice(0, index), recordId: record.slice(index + 1) };
@@ -157,8 +183,10 @@ export async function recordUnderstanding(service, raw) {
   const scopes = [...new Set(input.accessScopes)].sort();
   const view = await readGraph(service, input.graphHash, scopes);
   const nodesById = new Map(view.nodes.map((node) => [node.id, node]));
-  const needsModel = input.notes.some((note) => note.about.some((target) => target.record));
-  const { modelHash, model } = needsModel ? await boundModel(service, view) : { modelHash: boundModelHash(view), model: null };
+  const graphModelHash = boundModelHash(view);
+  const needsModel = input.notes.some((note) => note.about.some((target) => target.record && !isExternalTarget(target, graphModelHash)));
+  const { modelHash, model } = needsModel ? await boundModel(service, view) : { modelHash: graphModelHash, model: null };
+  const knownReferences = new Set(view.nodes.filter((node) => node.node_type === 'model_reference').map((node) => node.id));
   const step = view.graph.revision.number;
   const recordedBy = input.recordedBy ?? input.holder;
   const provenance = ['Meaning Model understanding record v1', `holder:${input.holder}`, `recorded-by:${recordedBy}`, `clock:${input.clock}`,
@@ -185,7 +213,11 @@ export async function recordUnderstanding(service, raw) {
     const edge = (suffix, target, family, relation, extra = {}) => edges.push({ id: `${note.nodeId}.${suffix}`, source: endpoint(note.nodeId), target, family, relation, access_scopes: noteScopes, provenance, ...extra });
     edges.push({ id: `${note.nodeId}.placement`, source: endpoint(rootId), target: endpoint(note.nodeId), family: 'structural', relation: 'contains', order: order++, access_scopes: noteScopes, provenance });
     for (const [index, target] of note.about.entries()) {
-      if (target.record) edge(`about.${index}`, recordEndpoint(model, target, `Note ${note.nodeId}`, modelHash), 'grounding', 'about');
+      if (isExternalTarget(target, modelHash)) {
+        const reference = await externalRecordNode(service, target, { scopes: noteScopes, provenance, placeUnder: rootId, order: order++, known: knownReferences });
+        nodes.push(...reference.nodes); edges.push(...reference.edges);
+        edge(`about.${index}`, endpoint(reference.nodeId), 'semantic', 'about');
+      } else if (target.record) edge(`about.${index}`, recordEndpoint(model, target, `Note ${note.nodeId}`, modelHash), 'grounding', 'about');
       else edge(`about.${index}`, endpoint(target.nodeId), 'semantic', 'about');
     }
     for (const [index, link] of note.links.entries()) edge(`link.${index}`, endpoint(link.targetNodeId), 'semantic', link.relation);
@@ -243,8 +275,10 @@ export async function recordReview(service, raw) {
     render = { sha256: sha256(rendered.text), words: rendered.text.split(/\s+/u).filter(Boolean).length };
   }
   const textMatchesRender = render && input.reviewed.textSha256 ? render.sha256 === input.reviewed.textSha256 : null;
-  const bound = input.about.some((target) => target.record) ? await boundModel(service, view) : { model: null, modelHash: null };
+  const graphModelHash = boundModelHash(view);
+  const bound = input.about.some((target) => target.record && !isExternalTarget(target, graphModelHash)) ? await boundModel(service, view) : { model: null, modelHash: graphModelHash };
   const model = bound.model;
+  const knownReferences = new Set(view.nodes.filter((node) => node.node_type === 'model_reference').map((node) => node.id));
   const step = view.graph.revision.number;
   // A review of material outside the graph read no graph revision; it only was recorded at one.
   const external = input.reviewed.materials === 'external';
@@ -270,7 +304,11 @@ export async function recordReview(service, raw) {
   const reviewedNodes = [...new Set([input.reviewed.rootId, ...input.reviewed.nodeIds].filter(Boolean))];
   for (const [index, nodeId] of reviewedNodes.entries()) if (nodesById.has(nodeId)) edge(`reviews.${index}`, endpoint(nodeId), 'semantic', 'about');
   for (const [index, target] of input.about.entries()) {
-    if (target.record) edge(`about.${index}`, recordEndpoint(model, target, `Review ${input.nodeId}`, bound.modelHash), 'grounding', 'about');
+    if (isExternalTarget(target, bound.modelHash)) {
+      const reference = await externalRecordNode(service, target, { scopes, provenance, placeUnder: rootId, order: nextOrder(view, rootId) + 1 + index, known: knownReferences });
+      nodes.push(...reference.nodes); edges.push(...reference.edges);
+      edge(`about.${index}`, endpoint(reference.nodeId), 'semantic', 'about');
+    } else if (target.record) edge(`about.${index}`, recordEndpoint(model, target, `Review ${input.nodeId}`, bound.modelHash), 'grounding', 'about');
     else if (nodesById.has(target.nodeId)) edge(`about.${index}`, endpoint(target.nodeId), 'semantic', 'about');
     else throw new Error(`Review ${input.nodeId} is about unknown node ${target.nodeId}.`);
   }

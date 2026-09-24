@@ -50,6 +50,17 @@ unpublished work stays under Unreleased. This is not a development transcript.
   stages, the route part and the director's findings as questions, not
   blockers. Only correctness checks block a scene, and release still waits for
   an answered draft direction.
+- Let notes and reviews be about records of any stored model. An `about`
+  target with a `modelHash` names a record of another model: an author's life,
+  a concept definition, another world. The tool checks it and keeps a reference
+  node showing the record's description, so one note can hold the author's life
+  and the story together.
+- Ask whether the author lives in the story's world or a separate one. If this
+  one, the author stage records when they write the book and what they know
+  then. The questions ask for understanding that joins the author and the
+  story, in either layout.
+- Engine refusals from the person and change-arc templates, and an empty first
+  model, now say what they expect.
 - Keep instructions short and open-ended. The specifics reach the agent where
   they are used: in the model's questions, its jumps, each person's state at a
   moment, the schema descriptions and the validation messages.

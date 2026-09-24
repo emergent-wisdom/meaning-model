@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import * as z from 'zod/v4';
 import { authorModelSchema, authorModelSourceIds, validateAuthorModelSources } from './storytelling-author-model.mjs';
 import { trajectoryExploreSchema, trajectoryReviseSchema, prepareTrajectoryExplore, reviseTrajectory } from './storytelling-trajectories.mjs';
-import { recordAnchorEndpoint, targetSchema } from './construction-record.mjs';
+import { externalRecordNode, isExternalTarget, recordAnchorEndpoint, targetSchema } from './construction-record.mjs';
 import { constructionRecordInstructions } from './construction-principles.mjs';
 
 const id = z.string().trim().min(1).max(256);
@@ -101,15 +101,24 @@ export async function prepareAuthorRecord(service, raw) {
     text: input.text, ...(input.data === undefined ? {} : { data: input.data }),
     authoringClock: { rootId, unit: 'authoring_step', at: step } };
   const reflection = reflectionKinds.includes(input.kind);
-  const recordTargets = input.about.filter((target) => target.record);
+  const graphModelHash = view.graph.source?.model_hash ?? view.graph.source_snapshot?.model_hash ?? null;
+  const recordTargets = input.about.filter((target) => target.record && !isExternalTarget(target, graphModelHash));
   let bound = null;
   if (recordTargets.length) {
-    const modelHash = view.graph.source?.model_hash ?? view.graph.source_snapshot?.model_hash ?? null;
+    const modelHash = graphModelHash;
     if (!modelHash) throw new Error('Author record model targets need a model-bound story graph.');
     bound = { modelHash, model: (await service.inspectModel({ modelHash, includeDefinition: true })).model };
     provenance.push(`written-against-model:${modelHash}`);
   }
 
+  // Records of other models (an author's life, a concept definition) are held by reference nodes under this root.
+  const knownReferences = new Set(view.nodes.filter((node) => node.node_type === 'model_reference').map((node) => node.id));
+  const externalIds = {}; const externalNodes = []; const externalEdges = [];
+  for (const [index, target] of input.about.entries()) {
+    if (!isExternalTarget(target, graphModelHash)) continue;
+    const reference = await externalRecordNode(service, target, { scopes, provenance, placeUnder: rootId, order: step, known: knownReferences });
+    externalIds[index] = reference.nodeId; externalNodes.push(...reference.nodes); externalEdges.push(...reference.edges);
+  }
   const nodes = [{ ...common, id: input.nodeId, node_type: `storytelling.${input.kind}`,
     role: reflection ? 'externalized_reflection' : 'metadata', text: JSON.stringify(payload),
     epistemic_status: 'authored_proposal', evidence_type: 'creative_hypothesis',
@@ -126,12 +135,14 @@ export async function prepareAuthorRecord(service, raw) {
   const edges = [edge('placement', rootId, input.nodeId, 'structural', 'contains', { order: step }),
     edge('story', input.nodeId, input.storyRootId, 'semantic', 'about'),
     ...input.links.map((link, index) => edge(`link.${index}`, input.nodeId, link.targetNodeId, 'semantic', link.relation)),
-    ...input.about.map((target, index) => (target.record
+    ...input.about.map((target, index) => (isExternalTarget(target, graphModelHash)
+      ? edge(`about.${index}`, input.nodeId, externalIds[index], 'semantic', 'about')
+      : target.record
       ? { id: `${input.nodeId}.about.${index}`, source: endpoint(input.nodeId), target: recordAnchorEndpoint(bound.model, target, `Author record ${input.nodeId}`, bound.modelHash), family: 'grounding', relation: 'about', access_scopes: scopes, provenance }
       : edge(`about.${index}`, input.nodeId, target.nodeId, 'semantic', 'about')))];
   return { input, narrativeBatch: { schema: 'life-sim-rust-narrative-batch/v1', previous_graph_hash: input.graphHash,
       reason: `Record ${input.kind} ${input.nodeId}.`, provenance,
-      add_roots: root ? [] : [rootId], add_nodes: nodes, add_edges: edges },
+      add_roots: root ? [] : [rootId], add_nodes: [...nodes, ...externalNodes], add_edges: [...edges, ...externalEdges] },
     receipt: { recordNodeId: input.nodeId, ...(authorModel ? { authorModelNodeId: input.nodeId } : {}), understandingRootId: rootId, authoringStep: step,
       understandingNode: reflection, graphMutation: true, worldMutation: false, semanticVerification: false } };
 }

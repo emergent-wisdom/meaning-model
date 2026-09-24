@@ -206,6 +206,16 @@ radicals of his day. So model the author's life first, as its own life model:
   be a process over time (love, self-worth, grief, faith, a self-image), and
   meaning is temporal: one state must be consistent with the next.
 
+Ask whether the author lives in this world or a separate one. A memoir or a
+story among the author's own people lives in this world; Middle-earth does not
+live in Tolkien's. If the author lives in this world, when they write the book
+matters: what they know then, and how far they stand from what they tell, shape
+what can be documented. The author stage records both (`livesIn`, `writing`).
+The author's life can be a model of its own or a realm of the story's model.
+Either way, notes and reviews can be about records of both at once: an `about`
+target with a `modelHash` reaches any stored model. So record what the author
+lived together with what it shapes in the story.
+
 Record the author's voice as the author model, derived from this life. Then
 record the stage `author_reader` with `life_story_world_record`. It holds why
 this author writes this story now, what they want to teach, and what they are

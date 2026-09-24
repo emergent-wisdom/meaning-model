@@ -179,6 +179,13 @@ four practices.
   path) or nodes it concerns. A note must be about something. Each note records the
   graph revision and model revision it was written against. Story notes use
   `life_story_author_record`, which takes the same `about` targets.
+- **Notes can hold records of several models.** Models can be started and
+  referenced however the work needs: an author's life, a concept definition or
+  another world can each be a model of its own. An `about` target with a
+  `modelHash` names a record of any stored model. The tool checks that the record
+  exists, keeps a reference node in the graph showing the record's own
+  description, and links the note to it. One note can then be about the author's
+  life and the story world together; reviews take the same targets.
 - **Reviews are held by their reviewers.** `life_review_record` records a review from
   another model, a blind reader, an estimator or a person under that reviewer, with
   what it was given, how independent it was, the exact graph revision and a hash of

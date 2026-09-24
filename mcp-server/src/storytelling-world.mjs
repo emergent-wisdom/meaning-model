@@ -32,13 +32,15 @@ const life = {
   personId: id.describe('The referent of this person in their life model, compiled from the person template (person_scaffold).'),
   name: text(1, 200),
   mode: z.enum(['real', 'invented']).describe('A real person modeled from supplied or known evidence, or an invented person labelled as invented.'),
-  lifeModelHash: hash.describe('The person\'s life, modeled as its own Meaning Model: the person template over the whole life, opened with periods, shocks and adaptations, and Cuts for what they want, expect and feel.'),
+  lifeModelHash: hash.describe('The model holding the person\'s life: its own model, or the story\'s model with the person\'s reality as a realm of its own (a context root). Either way notes can link to its records: about targets may name records of any stored model.'),
 };
 const authorReaderStage = z.object({
   stage: z.literal('author_reader'),
   author: z.object({
     ...life,
     authorModelNodeId: id.describe('The stored author model (life_story_author_record, kind author_model): the voice this life produces. Its modeledAuthorId is personId.'),
+    livesIn: z.enum(['this_world', 'separate_world']).describe('Does the author live in this story\'s world, or a separate one? A memoir or a story among the author\'s own people lives in this world; Middle-earth does not live in Tolkien\'s.'),
+    writing: text(10, 4_000).nullable().default(null).describe('If the author lives in this world: when they write the book relative to the story\'s events, what they know then, and how far they stand from what they tell. It shapes what can be documented.'),
     whyThisStory: text(20, 4_000).describe('Why this person writes this story now, read from their modeled life.'),
     teach: text(3, 4_000).describe('What they want to teach or show; say so when nothing is settled.'),
     figuringOut: text(20, 4_000).describe('What they are figuring out by writing it: the question their own conflicting wants leave open.'),
@@ -210,6 +212,7 @@ async function validateStage(service, world, view, input, model, modelHash) {
   const links = [];
   const extra = {};
   if (world.stage === 'author_reader') {
+    if (world.author.livesIn === 'this_world' && !world.author.writing) throw new Error('The author lives in this world, so when they write the book matters: say when, relative to the story\'s events, what they know then, and how far they stand from what they tell (author.writing).');
     const authorQuestions = await readLife(service, 'author', world.author, world.author.lifeRecords);
     let readerQuestions = null;
     if (world.reader) readerQuestions = await readLife(service, 'reader', world.reader, world.buttons.flatMap((item) => item.readerRecords));
@@ -354,10 +357,12 @@ export async function storeWorldRecord(service, raw) {
     aspects: 'Investigate the open aspects by modeling, recording a revised aspects list as they deepen, and trace the implications of each commitment into the model (stage implications).',
     implications: state.openImplications.length ? 'Resolve the open implications, then choose the route (stage route).' : 'Choose the route of parts through the world (stage route).',
     route: 'Prepare scenes for the route parts; name each scene\'s routePartId.' }[input.world.stage];
-  const openQuestions = modelHash ? await readOpenQuestions(service, { modelHash, graphHash: stored.graphHash, accessScopes: input.accessScopes, limit: 6 }).catch(() => null) : null;
+  const authorRecord = state.authorReader?.data.author ?? null;
+  const author = authorRecord ? { id: authorRecord.personId, name: authorRecord.name, lifeModelHash: authorRecord.lifeModelHash } : null;
+  const openQuestions = modelHash ? await readOpenQuestions(service, { modelHash, graphHash: stored.graphHash, accessScopes: input.accessScopes, limit: 6, author }).catch(() => null) : null;
   return { ...stored, ...record.receipt, schema: 'meaning-model-story-world-record/v1', stage: input.world.stage, worldNodeId: input.nodeId,
     openImplications: state.openImplications, ...extra, openQuestions: openQuestions && { total: openQuestions.total, questions: openQuestions.questions, jumps: openQuestions.jumps.slice(0, 5), alwaysAsk: openQuestions.alwaysAsk },
     nextStep: next, semanticVerification: false };
 }
 
-export const worldInstructions = `Use the model for all of it. Investigate who the author is, and who the book is for (stage author_reader). Investigate which worlds this author could write, and choose one by argument (candidates). Investigate the chosen world, opening it in successive accounts (opening). Investigate everything that makes this story interesting, the returned catalog as a start (aspects). Investigate what each commitment implies (implications). Investigate where in the model the story is (route). These come in any order and again whenever the model leads back to them; record each with life_story_world_record when the understanding happens, let the director (life_story_direct) hold the world and the draft to what makes a story good, and write each scene from the model's state at its moment.`;
+export const worldInstructions = `Use the model for all of it. Investigate who the author is, and who the book is for (stage author_reader). Investigate which worlds this author could write, and choose one by argument (candidates). Investigate the chosen world, opening it in successive accounts (opening). Investigate everything that makes this story interesting, the returned catalog as a start (aspects). Investigate what each commitment implies (implications). Investigate where in the model the story is (route). Ask whether the author lives in this world or a separate one; if in this one, when they write the book matters. Their life can be a model of its own or a realm of the story's, and notes can link records of any stored model, so hold what the author lived together with what it shapes. These come in any order and again whenever the model leads back to them; record each with life_story_world_record when the understanding happens, let the director (life_story_direct) hold the world and the draft to what makes a story good, and write each scene from the model's state at its moment.`;

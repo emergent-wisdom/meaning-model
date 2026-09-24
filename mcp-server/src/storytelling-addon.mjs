@@ -500,7 +500,9 @@ export class StorytellingAddon {
       const inScene = new Set([...lifeTrends.characterConnections.map((item) => item.characterId), scene.viewpoint]);
       const present = cast.filter((person) => inScene.has(person.id));
       // The model is a language, so nothing here dictates how a life is expressed: these are questions, not gates.
-      const everything = modelQuestions(model, { people: cast, draws, limit: 500, focus: { scene: scene.id, people: present.map((person) => person.name) } });
+      const authorRecord = world.authorReader?.data.author ?? null;
+      const author = authorRecord ? { id: authorRecord.personId, name: authorRecord.name, lifeModelHash: authorRecord.lifeModelHash } : null;
+      const everything = modelQuestions(model, { people: cast, draws, limit: 500, focus: { scene: scene.id, people: present.map((person) => person.name) }, author });
       const forThisScene = everything.questions.filter((question) => present.some((person) => question.subject === person.id));
       if (routePart) {
         const index = indexModel(model);
@@ -589,6 +591,8 @@ export class StorytellingAddon {
       authorLifeTrends: { nodeId: lifeTrends.node.id, dossier: lifeTrends.dossier, characterConnections: lifeTrends.characterConnections },
       model: modelContext,
       world: { authorReaderNodeId: world.authorReader?.node.id ?? null, figuringOut: world.authorReader?.data.author.figuringOut ?? null,
+        author: world.authorReader ? { personId: world.authorReader.data.author.personId ?? null, name: world.authorReader.data.author.name ?? null, lifeModelHash: world.authorReader.data.author.lifeModelHash ?? null,
+          livesIn: world.authorReader.data.author.livesIn ?? null } : null,
         buttons: (world.authorReader?.data.buttons ?? []).map((item) => ({ id: item.id, button: item.button })), openAspects: world.openAspects, questions: worldQuestions,
         candidatesNodeId: world.candidates?.node.id ?? null, openingNodeId: world.opening?.node.id ?? null, implicationsNodeId: world.implications?.node.id ?? null,
         routeNodeId: world.route?.node.id ?? null, routePart },
@@ -788,8 +792,9 @@ export class StorytellingAddon {
     if (boundModelHash) {
       try {
         const cast = packet.authorLifeTrends.dossier.characters.map((character) => ({ id: character.characterId, name: character.name, principal: true }));
+        const author = packet.world?.author ? { id: packet.world.author.personId, name: packet.world.author.name, lifeModelHash: packet.world.author.lifeModelHash } : null;
         const { total, counts, questions, jumps, alwaysAsk } = await readOpenQuestions(this.service, { modelHash: boundModelHash, people: cast, graphHash: stored.graphHash,
-          accessScopes: packet.outputScopes ?? [], limit: 8, focus: { scene: scene.id } });
+          accessScopes: packet.outputScopes ?? [], limit: 8, focus: { scene: scene.id }, author });
         openQuestions = { total, counts, questions, jumps: jumps.slice(0, 5), alwaysAsk };
       } catch { openQuestions = null; }
     }

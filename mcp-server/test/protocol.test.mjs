@@ -979,3 +979,13 @@ test('approved observation fragment is separately rolled and committed by real R
     await client.close();
   }
 });
+
+test('an engine refusal says what it expects: a first model needs a process', async (t) => {
+  const client = new Client({ name: 'life-simulation-hint-client', version: '0.1.0' });
+  await client.connect(new StdioClientTransport({ command: process.execPath, args: [serverPath], env: { ...process.env } }));
+  t.after(() => client.close());
+  const result = await client.callTool({ name: 'life_model_validate', arguments: { model: { schema: 'life-sim-rust-model/v1', id: 'empty', time_unit: 'hour',
+    revision: { number: 0, reason: 'An empty first model.', provenance: ['hint test'] }, processes: [], decomposition: [], dependencies: [], laws: [], initial_claims: [] } } });
+  assert.equal(result.isError, true);
+  assert.match(result.content[0].text, /at least one process.*A first model can hold one for the story's clock or setting/su);
+});
