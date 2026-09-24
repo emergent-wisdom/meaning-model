@@ -1,0 +1,344 @@
+// Model the author before the world, and the world before the story. A book comes out of a life: the author's,
+// modeled first with the wants that life taught them and the question they are working out by writing, and
+// optionally an example reader's, modeled the same way. The world is chosen for what it lets that author figure
+// out and what it presses in a reader, then modeled with the implications of its commitments followed through,
+// and only then is a route chosen through a small part of it. This is the method the Book of Conditions was
+// built with, preceded by the author, made into five recorded stages that scene preparation requires: the
+// author and reader; candidate worlds tested for dramatic pressure and one chosen by argument; the chosen world
+// opened in successive expansions; the implications of each commitment traced into the model; a route of parts.
+import * as z from 'zod/v4';
+import { prepareAuthorRecord } from './storytelling-authoring.mjs';
+import { anchoredModelRecord } from './construction-record.mjs';
+import { readAuthorModel } from './storytelling-author-model.mjs';
+import { eventDescendants, indexModel, modelJumps, modelQuestions, readOpenQuestions } from './model-questions.mjs';
+
+export const WORLD_SCHEMA = 'meaning-model-story-world/v1';
+const id = z.string().trim().min(1).max(256);
+const text = (min = 1, max = 16_000) => z.string().trim().min(min).max(max);
+const time = z.number().finite();
+const hash = z.string().regex(/^[a-f0-9]{64}$/u);
+const reference = z.string().trim().min(3).max(1_024).describe('A model record as kind:id (event:ev.x, process:p.x, cut:c.x, referent:r.x, concept:c.x) or a graph node id.');
+const anchorKinds = { event: 'event', process: 'process', cut: 'normalized_cut', referent: 'referent', concept: 'concept', abstract_cut: 'abstract_cut', event_relation: 'event_relation', law: 'law', claim: 'claim' };
+const modelReference = (ref) => {
+  const colon = ref.indexOf(':');
+  return colon > 0 ? { anchorKind: anchorKinds[ref.slice(0, colon)] ?? null, recordId: ref.slice(colon + 1) } : { anchorKind: null, recordId: ref };
+};
+
+// The author, and optionally a reader, are lives in their own models: the person template opened with periods,
+// shocks and wants, as the characters' lives are. This record holds only what the lives do not: why this author
+// writes this story, what they want to teach and figure out, and which buttons the story presses in its reader.
+const life = {
+  personId: id.describe('The referent of this person in their life model, compiled from the person template (person_scaffold).'),
+  name: text(1, 200),
+  mode: z.enum(['real', 'invented']).describe('A real person modeled from supplied or known evidence, or an invented person labelled as invented.'),
+  lifeModelHash: hash.describe('The person\'s life, modeled as its own Meaning Model: the person template over the whole life, opened with periods, shocks and adaptations, and Cuts for what they want, expect and feel.'),
+};
+const authorReaderStage = z.object({
+  stage: z.literal('author_reader'),
+  author: z.object({
+    ...life,
+    authorModelNodeId: id.describe('The stored author model (life_story_author_record, kind author_model): the voice this life produces. Its modeledAuthorId is personId.'),
+    whyThisStory: text(20, 4_000).describe('Why this person writes this story now, read from their modeled life.'),
+    teach: text(3, 4_000).describe('What they want to teach or show; say so when nothing is settled.'),
+    figuringOut: text(20, 4_000).describe('What they are figuring out by writing it: the question their own conflicting wants leave open.'),
+    lifeRecords: z.array(reference).min(2).max(24).describe('The records of the author\'s life model this reasoning rests on (event:, cut:, process:).'),
+  }).strict(),
+  reader: z.object({
+    ...life,
+    situation: text(10, 4_000).describe('What is happening in their life when they read this book.'),
+  }).strict().nullable().default(null).describe('An optional example reader, modeled as a life in the same way.'),
+  buttons: z.array(z.object({
+    id,
+    button: text(5, 2_000).describe('The fear, longing, shame or hope the story presses, in words the reader might use.'),
+    presses: text(10, 2_000).describe('How a story can press it.'),
+    learns: text(10, 2_000).describe('What the reader could learn about their own life.'),
+    readerRecords: z.array(reference).max(8).default([]).describe('The modeled reader\'s records it presses (cut:, event:, process:); required when a reader is modeled.'),
+  }).strict()).min(1).max(8).describe('What this story attempts to press in its reader.'),
+}).strict();
+
+const principal = z.object({
+  name: text(1, 200), wants: text(3, 2_000).describe('What they want, and where two of their wants conflict.'),
+  interest: text(10, 2_000).describe('What makes this person interesting in this event: a contradiction, a want at odds with a need, a strength that becomes the flaw.'),
+  readingOfShock: text(3, 2_000).describe('How this principal reads the central shock; a strong world has principals who read it differently.'),
+}).strict();
+const candidate = z.object({
+  id, title: text(1, 300),
+  world: text(10, 2_000).describe('The invented world, or the event in our world, the story lives in.'),
+  account: text(200, 8_000).describe('One paragraph: the enclosing situation, what the principals want, the central shock, what it costs and how it ends.'),
+  premise: text(10, 2_000).describe('The premise in a sentence or two: the situation that makes the story worth telling.'),
+  emotionalCore: text(10, 2_000).describe('The human truth the premise touches and why a reader would feel it.'),
+  question: text(10, 2_000).describe('What the history is about: the question it answers or the idea it tests.'),
+  presses: z.array(z.object({ buttonId: id, how: text(10, 2_000) }).strict()).min(1).max(8).describe('Which buttons of the author_reader record this world presses, and how.'),
+  authorStake: text(20, 4_000).describe('Where this world comes from in the author\'s life, and what writing it lets them figure out.'),
+  longTermProcesses: z.array(text(10, 1_000)).min(2).max(12).describe('The most interesting processes of this world, often long-term (a career, an institution, a technology, a marriage, a decline), which the model will represent.'),
+  centralShock: text(10, 2_000), principals: z.array(principal).min(2).max(8),
+  costs: text(10, 4_000).describe('What each consequential choice costs, and who pays.'), outcome: text(10, 2_000),
+}).strict();
+const pressure = z.object({
+  candidateId: id,
+  choicesCost: text(3, 2_000), divergentReadings: text(3, 2_000),
+  shockChanges: text(3, 2_000).describe('Whether the shock changes what principals want or believe, rather than confirming it.'),
+  removableEpisode: text(3, 2_000).describe('Which episode could be removed without changing anything later, if any; removable episodes are weak.'),
+  principalsPartlyRight: text(3, 2_000),
+  premiseInterest: text(3, 2_000).describe('Would a reader want this story for its premise and emotional core alone? Compare it honestly with the other candidates.'),
+  readerPull: text(3, 2_000).describe('Would the reader pick it up, keep reading, and learn something about their own life? Where would they put it down?'),
+  verdict: z.enum(['strong', 'workable', 'weak']),
+}).strict();
+const candidatesStage = z.object({
+  stage: z.literal('candidates'),
+  authorReaderNodeId: id,
+  form: z.object({ targetWords: z.number().int().min(300).max(300_000), parts: z.number().int().min(1).max(80) }).strict(),
+  candidates: z.array(candidate).min(3).max(8),
+  pressure: z.array(pressure).min(3).max(8),
+  selection: z.object({ chosenId: id, reasons: text(20, 4_000), rejected: z.array(z.object({ candidateId: id, reason: text(10, 2_000) }).strict()).min(2).max(7) }).strict(),
+}).strict();
+const openingStage = z.object({
+  stage: z.literal('opening'),
+  candidatesNodeId: id,
+  accounts: z.array(text(100, 30_000)).min(2).max(6)
+    .describe('Successive expansions of the same history: the first in one paragraph, the next in two, and so on; each keeps or explicitly revises the claims above it.'),
+  closedQuestions: z.array(text(10, 2_000)).min(3).max(80).describe('Commitments the opening settles: who, what, where, the quantities that must reconcile.'),
+  revisions: z.array(z.object({ claim: text(3, 2_000), revisedTo: text(3, 2_000), reason: text(3, 2_000) }).strict()).max(40).default([]),
+}).strict();
+// Every aspect of the story one could understand better, each then investigated by modeling. The list is revised
+// as the model deepens: a later aspects record supersedes the earlier one.
+const aspectKinds = ['choices', 'author', 'style', 'voice', 'technology', 'period', 'place', 'institution', 'relationship', 'money', 'body', 'belief', 'emotion', 'history', 'other'];
+const aspectsStage = z.object({
+  stage: z.literal('aspects'),
+  openingNodeId: id,
+  aspects: z.array(z.object({
+    id, kind: z.enum(aspectKinds), aspect: text(10, 2_000).describe('What could be understood better: a character\'s choices, the author\'s style, a voice, the technology, the period, a place, an institution.'),
+    how: text(10, 4_000).describe('How to investigate it by modeling: create new processes, refine existing ones, open sub-processes, add earlier Events that explain or later Events that follow (a childhood, a war a century back, a consequence years on), add Cuts and estimate them, draw decisions, name the concepts and laws things instantiate, model how Things work and where everything is, try another decomposition, sample trajectories.'),
+    status: z.enum(['modeled', 'opening', 'open']),
+    records: z.array(reference).max(32).default([]).describe('The model records that answer it so far.'),
+  }).strict()).min(8).max(120),
+}).strict();
+const implication = z.object({
+  about: text(1, 300).describe('Whom or what it affects: a principal, a relationship, an institution, money, time, a later Event.'),
+  consequence: text(10, 4_000),
+  status: z.enum(['represented', 'remainder', 'open']),
+  representedBy: z.array(reference).max(16).default([]),
+  reason: text(3, 2_000).nullable().default(null).describe('For remainder: why it may stay unrepresented.'),
+}).strict();
+const implicationsStage = z.object({
+  stage: z.literal('implications'),
+  openingNodeId: id,
+  commitments: z.array(z.object({ id, commitment: text(10, 4_000), implications: z.array(implication).min(1).max(24) }).strict()).min(3).max(80),
+}).strict();
+const routeStage = z.object({
+  stage: z.literal('route'),
+  implicationsNodeId: id,
+  parts: z.array(z.object({
+    id, title: text(1, 300), eventIds: z.array(id).min(1).max(24),
+    focal: text(3, 2_000).describe('Whose route through the Events the part follows.'),
+    change: text(10, 4_000).describe('What is different at the end of the part.'), ends: text(3, 2_000),
+  }).strict()).min(1).max(80),
+  renderedOrder: text(10, 4_000).describe('Why the parts come in this order, which need not be the chronology.'),
+  whyNotJumps: text(20, 4_000).nullable().default(null).describe('Required only when the route renders none of the model\'s largest jumps: why the story is elsewhere.'),
+  risks: z.array(z.object({ risk: text(10, 2_000), repair: text(10, 2_000) }).strict()).min(1).max(20),
+}).strict();
+
+export const worldRecordSchema = z.object({
+  graphHash: z.string().regex(/^[a-f0-9]{64}$/u), requestId: id, nodeId: id, storyRootId: id, authorId: id,
+  accessScopes: z.array(id).min(1).max(64),
+  summary: text(10, 4_000).describe('A few sentences a later reader sees first.'),
+  world: z.discriminatedUnion('stage', [authorReaderStage, candidatesStage, openingStage, aspectsStage, implicationsStage, routeStage]),
+}).strict();
+
+// Stored world records of a story, the latest of each stage that no later record supersedes.
+export function readWorldState(view, storyRootId) {
+  const superseded = new Set((view.edges ?? []).filter((edge) => edge.relation === 'supersedes' && edge.target?.kind === 'node').map((edge) => edge.target.node_id));
+  const latest = {};
+  for (const node of view.nodes ?? []) {
+    if (node.node_type !== 'storytelling.world' || node.subject !== storyRootId || superseded.has(node.id)) continue;
+    let payload; try { payload = JSON.parse(node.text); } catch { continue; }
+    const data = payload?.data;
+    if (data?.schema !== WORLD_SCHEMA) continue;
+    const current = latest[data.stage];
+    if (!current || (node.value_time ?? 0) >= (current.node.value_time ?? 0)) latest[data.stage] = { node, data };
+  }
+  const openImplications = (latest.implications?.data.commitments ?? []).flatMap((commitment) => commitment.implications
+    .filter((item) => item.status === 'open').map((item) => ({ commitmentId: commitment.id, about: item.about })));
+  const openAspects = (latest.aspects?.data.aspects ?? []).filter((item) => item.status !== 'modeled').map((item) => ({ id: item.id, kind: item.kind, aspect: item.aspect, status: item.status }));
+  return { authorReader: latest.author_reader ?? null, candidates: latest.candidates ?? null, opening: latest.opening ?? null, aspects: latest.aspects ?? null,
+    implications: latest.implications ?? null, route: latest.route ?? null, openImplications, openAspects };
+}
+export const worldStages = Object.freeze([['authorReader', 'author_reader'], ['candidates', 'candidates'], ['opening', 'opening'], ['aspects', 'aspects'], ['implications', 'implications']]);
+
+const paragraphs = (value) => value.split(/\n\s*\n/u).map((item) => item.trim()).filter(Boolean).length;
+// Longer works need more successive openings before their route: two up to 2,500 words, three to 7,500, then four.
+export const requiredOpenings = (targetWords) => (targetWords <= 2_500 ? 2 : targetWords <= 7_500 ? 3 : 4);
+
+function stageNode(view, nodeId, storyRootId, stage) {
+  const node = view.nodes.find((item) => item.id === nodeId);
+  let data = null; try { data = JSON.parse(node?.text ?? '').data; } catch { data = null; }
+  if (!node || node.node_type !== 'storytelling.world' || node.subject !== storyRootId || data?.schema !== WORLD_SCHEMA || data.stage !== stage) {
+    throw new Error(`${nodeId} is not a stored ${stage} world record of this story.`);
+  }
+  return { node, data };
+}
+
+// A person's life must be a stored model that holds them. How the life is expressed is the modeler's choice, since
+// the model is a language; its open questions come back with the record.
+async function readLife(service, who, person, records = []) {
+  const inspected = await service.inspectModel({ modelHash: person.lifeModelHash, includeDefinition: true }).catch(() => null);
+  const model = inspected?.model;
+  if (!model) throw new Error(`The ${who}'s life model ${person.lifeModelHash} is not a stored model; model the life first (life_model_register, then life_model_revise as it deepens).`);
+  if (!anchoredModelRecord(model, 'referent', person.personId, person.lifeModelHash)) throw new Error(`${person.personId} is not a referent of the ${who}'s life model.`);
+  const questions = modelQuestions(model, { people: [{ id: person.personId, name: person.name, principal: true }], limit: 500 });
+  for (const ref of records) {
+    const { anchorKind, recordId } = modelReference(ref);
+    if (!anchorKind || !anchoredModelRecord(model, anchorKind, recordId, person.lifeModelHash)) throw new Error(`The ${who} cites ${ref}, which is not a record (kind:id) of their life model.`);
+  }
+  return questions;
+}
+
+// Validates a stage against the records before it; returns the links to them.
+async function validateStage(service, world, view, input, model, modelHash) {
+  const links = [];
+  const extra = {};
+  if (world.stage === 'author_reader') {
+    const authorQuestions = await readLife(service, 'author', world.author, world.author.lifeRecords);
+    let readerQuestions = null;
+    if (world.reader) readerQuestions = await readLife(service, 'reader', world.reader, world.buttons.flatMap((item) => item.readerRecords));
+    const { model: voice } = readAuthorModel(view, { nodeId: world.author.authorModelNodeId, storyRootId: input.storyRootId });
+    if (voice.modeledAuthorId !== world.author.personId) {
+      throw new Error(`The author model ${world.author.authorModelNodeId} models ${voice.modeledAuthorId}, not ${world.author.personId}; the voice must be the voice of this life.`);
+    }
+    if ((voice.mode === 'real_author') !== (world.author.mode === 'real')) throw new Error('The author model and the author\'s life must agree on whether the author is real or invented.');
+    const buttonIds = world.buttons.map((item) => item.id);
+    if (new Set(buttonIds).size !== buttonIds.length) throw new Error('Button ids must be unique.');
+    for (const button of world.buttons) {
+      if (world.reader && !button.readerRecords.length) throw new Error(`Button ${button.id} must name the records of the modeled reader's life it presses.`);
+      if (!world.reader && button.readerRecords.length) throw new Error(`Button ${button.id} names reader records, but no reader is modeled.`);
+    }
+    links.push({ relation: 'about', targetNodeId: world.author.authorModelNodeId });
+    extra.lives = { author: { total: authorQuestions.total, questions: authorQuestions.questions.slice(0, 6) },
+      reader: readerQuestions ? { total: readerQuestions.total, questions: readerQuestions.questions.slice(0, 4) } : null };
+  }
+  if (world.stage === 'candidates') {
+    const { node: authorNode, data: authorReader } = stageNode(view, world.authorReaderNodeId, input.storyRootId, 'author_reader');
+    links.push({ relation: 'refines', targetNodeId: authorNode.id });
+    const ids = world.candidates.map((item) => item.id);
+    if (new Set(ids).size !== ids.length) throw new Error('Candidate world ids must be unique.');
+    const buttonIds = new Set(authorReader.buttons.map((item) => item.id));
+    for (const item of world.candidates) for (const press of item.presses) {
+      if (!buttonIds.has(press.buttonId)) throw new Error(`Candidate ${item.id} presses ${press.buttonId}, which is not a button of the author_reader record (${[...buttonIds].join(', ')}).`);
+    }
+    const assessed = world.pressure.map((item) => item.candidateId);
+    if (new Set(assessed).size !== assessed.length || ids.some((candidateId) => !assessed.includes(candidateId)) || assessed.some((candidateId) => !ids.includes(candidateId))) {
+      throw new Error('Give exactly one pressure test for every candidate world.');
+    }
+    if (!ids.includes(world.selection.chosenId)) throw new Error(`The chosen world ${world.selection.chosenId} is not among the candidates.`);
+    const rejected = world.selection.rejected.map((item) => item.candidateId);
+    const others = ids.filter((candidateId) => candidateId !== world.selection.chosenId);
+    if (rejected.length !== others.length || others.some((candidateId) => !rejected.includes(candidateId))) throw new Error('Give a reason for rejecting every other candidate world.');
+    if (world.pressure.find((item) => item.candidateId === world.selection.chosenId).verdict === 'weak') {
+      throw new Error('The chosen world failed its own pressure test; revise it into a stronger candidate or choose another.');
+    }
+    const chosen = world.candidates.find((item) => item.id === world.selection.chosenId);
+    if (new Set(chosen.principals.map((item) => item.readingOfShock.toLowerCase())).size < 2) {
+      throw new Error('In the chosen world every principal reads the central shock the same way; a world with pressure needs divergent readings.');
+    }
+  }
+  if (world.stage === 'opening') {
+    const { node, data } = stageNode(view, world.candidatesNodeId, input.storyRootId, 'candidates');
+    links.push({ relation: 'refines', targetNodeId: node.id });
+    world.accounts.forEach((account, index) => {
+      if (paragraphs(account) < index + 1) throw new Error(`Opening ${index + 1} has ${paragraphs(account)} paragraph(s); each expansion adds a paragraph (${index + 1} expected), with blank lines between paragraphs.`);
+    });
+    const needed = requiredOpenings(data.form.targetWords);
+    if (world.accounts.length < needed) throw new Error(`A work of about ${data.form.targetWords} words needs at least ${needed} successive openings of its world before a route; this has ${world.accounts.length}.`);
+  }
+  if (world.stage === 'aspects') {
+    const { node } = stageNode(view, world.openingNodeId, input.storyRootId, 'opening');
+    links.push({ relation: 'refines', targetNodeId: node.id });
+    const aspectIds = world.aspects.map((item) => item.id);
+    if (new Set(aspectIds).size !== aspectIds.length) throw new Error('Aspect ids must be unique.');
+    if (new Set(world.aspects.map((item) => item.kind)).size < 5) throw new Error('List the aspects across the story, not one kind of thing: its choices, author and style, voices, technology, period, places, institutions, relationships, money, bodies, beliefs.');
+    for (const item of world.aspects) {
+      if (item.status === 'modeled' && !item.records.length) throw new Error(`Aspect ${item.id} is marked modeled but names no model record that answers it.`);
+      for (const ref of item.records) {
+        const { anchorKind, recordId } = modelReference(ref);
+        if (anchorKind) {
+          if (!model) throw new Error('Aspects that cite model records need a model-bound story graph.');
+          if (!anchoredModelRecord(model, anchorKind, recordId, modelHash)) throw new Error(`Aspect ${item.id} cites ${ref}, which is not a record of the bound model.`);
+        } else if (!view.nodes.some((graphNode) => graphNode.id === ref)) throw new Error(`Aspect ${item.id} cites ${ref}, which is neither a model record (kind:id) nor a graph node.`);
+      }
+    }
+    extra.openAspects = world.aspects.filter((item) => item.status !== 'modeled').map((item) => item.id);
+  }
+  if (world.stage === 'implications') {
+    const { node } = stageNode(view, world.openingNodeId, input.storyRootId, 'opening');
+    links.push({ relation: 'refines', targetNodeId: node.id });
+    const commitmentIds = world.commitments.map((item) => item.id);
+    if (new Set(commitmentIds).size !== commitmentIds.length) throw new Error('Commitment ids must be unique.');
+    for (const commitment of world.commitments) for (const item of commitment.implications) {
+      if (item.status === 'represented' && !item.representedBy.length) throw new Error(`An implication of ${commitment.id} is marked represented but names no record that represents it.`);
+      if (item.status === 'remainder' && !item.reason) throw new Error(`An implication of ${commitment.id} left as remainder needs the reason it may stay unrepresented.`);
+      for (const ref of item.representedBy) {
+        const { anchorKind, recordId } = modelReference(ref);
+        if (anchorKind) {
+          if (!model) throw new Error('Implications that cite model records need a model-bound story graph.');
+          if (!anchoredModelRecord(model, anchorKind, recordId, modelHash)) throw new Error(`Implication of ${commitment.id} cites ${ref}, which is not a record of the bound model.`);
+        } else if (!view.nodes.some((graphNode) => graphNode.id === ref)) throw new Error(`Implication of ${commitment.id} cites ${ref}, which is neither a model record (kind:id) nor a graph node.`);
+      }
+    }
+  }
+  if (world.stage === 'route') {
+    const { node, data } = stageNode(view, world.implicationsNodeId, input.storyRootId, 'implications');
+    links.push({ relation: 'refines', targetNodeId: node.id });
+    const open = data.commitments.flatMap((commitment) => commitment.implications.filter((item) => item.status === 'open').map(() => commitment.id));
+    if (open.length) throw new Error(`Resolve the open implications of ${[...new Set(open)].join(', ')} (represent them in the model or leave them as reasoned remainder) before choosing a route.`);
+    const partIds = world.parts.map((item) => item.id);
+    if (new Set(partIds).size !== partIds.length) throw new Error('Route part ids must be unique.');
+    if (!model) throw new Error('A route names Events of the bound model; the story graph must be model-bound.');
+    for (const part of world.parts) for (const eventId of part.eventIds) {
+      const event = (model.meaning_model?.events ?? []).find((item) => item.id === eventId);
+      if (!event) throw new Error(`Route part ${part.id} names ${eventId}, which is not an Event of the bound model.`);
+      if (!String(event.description ?? '').trim()) throw new Error(`Route part ${part.id} renders Event ${eventId}, which has no description; describe what happens in it first.`);
+    }
+    // The story is where the model jumps: a route that renders none of the largest jumps must say why.
+    const { jumps } = modelJumps(model, { limit: 5 });
+    const index = indexModel(model);
+    const rendered = new Set(world.parts.flatMap((part) => part.eventIds.flatMap((eventId) => [eventId, ...eventDescendants(index, eventId)])));
+    const renderedJumps = jumps.filter((jump) => jump.eventIds.some((eventId) => rendered.has(eventId)));
+    if (jumps.length && !renderedJumps.length && !world.whyNotJumps) {
+      throw new Error(`The route renders none of the model's largest jumps (${jumps.slice(0, 3).map((jump) => jump.what).join(' ')}). The story is a consequence of the model: route through them, or say in whyNotJumps why the story is elsewhere.`);
+    }
+    extra.jumps = { largest: jumps, rendered: renderedJumps.length };
+  }
+  return { links, extra };
+}
+
+export async function storeWorldRecord(service, raw) {
+  const input = worldRecordSchema.parse(raw);
+  const view = await service.queryNarrativeGraph({ graphHash: input.graphHash, expectedGraphHash: input.graphHash, mode: 'full', includeContent: true, accessScopes: [...new Set(input.accessScopes)].sort() });
+  const modelHash = view.graph?.source?.model_hash ?? view.graph?.source_snapshot?.model_hash ?? null;
+  const model = modelHash ? (await service.inspectModel({ modelHash, includeDefinition: true })).model : null;
+  const { links, extra } = await validateStage(service, input.world, view, input, model, modelHash);
+  const routeEvents = input.world.stage === 'route' ? [...new Set(input.world.parts.flatMap((part) => part.eventIds))].slice(0, 32) : [];
+  const record = await prepareAuthorRecord(service, { graphHash: input.graphHash, requestId: input.requestId, nodeId: input.nodeId,
+    storyRootId: input.storyRootId, authorId: input.authorId, accessScopes: input.accessScopes, kind: 'world', text: input.summary,
+    data: { schema: WORLD_SCHEMA, ...input.world }, links, about: routeEvents.map((eventId) => ({ record: `event:${eventId}` })) });
+  const stored = await service.applyNarrativeBatch({ requestId: input.requestId, previousGraphHash: input.graphHash, narrativeBatch: record.narrativeBatch });
+  const state = readWorldState(await service.queryNarrativeGraph({ graphHash: stored.graphHash, expectedGraphHash: stored.graphHash, mode: 'full', includeContent: true, accessScopes: [...new Set(input.accessScopes)].sort() }), input.storyRootId);
+  const next = { author_reader: 'Propose candidate worlds that come out of this author\'s life and press these buttons (stage candidates).',
+    candidates: 'Open the chosen world in successive expansions (stage opening).', opening: 'List every aspect of the story you could understand better, then investigate each by modeling (stage aspects).',
+    aspects: 'Investigate the open aspects by modeling, recording a revised aspects list as they deepen, and trace the implications of each commitment into the model (stage implications).',
+    implications: state.openImplications.length ? 'Resolve the open implications, then choose the route (stage route).' : 'Choose the route of parts through the world (stage route).',
+    route: 'Prepare scenes for the route parts; name each scene\'s routePartId.' }[input.world.stage];
+  const openQuestions = modelHash ? await readOpenQuestions(service, { modelHash, graphHash: stored.graphHash, accessScopes: input.accessScopes, limit: 6 }).catch(() => null) : null;
+  return { ...stored, ...record.receipt, schema: 'meaning-model-story-world-record/v1', stage: input.world.stage, worldNodeId: input.nodeId,
+    openImplications: state.openImplications, ...extra, openQuestions: openQuestions && { total: openQuestions.total, questions: openQuestions.questions, jumps: openQuestions.jumps.slice(0, 5), alwaysAsk: openQuestions.alwaysAsk },
+    nextStep: next, semanticVerification: false };
+}
+
+export const worldInstructions = `The process, written down so any agent can follow it without a human in the room. The model drives the story, and the story is a consequence of the model. A book comes out of a life: The Gulag Archipelago could not have been written without Solzhenitsyn's arrest, camps and exile, nor Crime and Punishment without Dostoevsky's mock execution, penal servitude, debts and quarrel with the radicals of his day. So the author comes first, then the world, then the lives inside it, and only then the scenes, each rendered from the model's state at its moment. Model far more than the story will show: the background processes of reality run in the model whether or not a scene touches them. Record the five stages with life_story_world_record; scene preparation blocks commitment until they exist. The story graph needs its own model from the start (register the story world's first model, even if it holds little more than the setting, and the story graph on it, then revise the model as the world opens); the author's and reader's lives are separate models cited by hash, and for a memoir the author's life may be the story's own model.
+1. author_reader: model the author's life as its own life model first: a lifecycle Event over the whole life holding the processes the life runs through. Look at the person template (person_scaffold) and ask whether this person is understood better through it, through processes invented for them, or through subcategories of either; the template is a suggestion. Register the life and open it with the model's questions (life_model_questions): periods with intervals covering the life, shocks as change arcs with their anticipation and adaptation, the adaptations changing the slow processes, and Cuts at the moments that matter for what the author wants, expects and feels. A life is learning, over its whole length, how to satisfy the deepest wants (to be safe, loved, known, free, to matter); the wants a life teaches are ways of getting them, several live in one person, activate in different situations and bargain, and one can become a proxy that displaces what it served. Model those as the author's own wants, not a shared vocabulary. Record the voice as the author model (life_story_author_record, kind author_model, modeledAuthorId the author's referent), derived from this life. Then read the life for why this author writes this story now, what they want to teach, and what they are figuring out by writing it, citing the life records it rests on. Name the buttons the story presses in its reader: the fear, longing, shame or hope it touches and what the reader could learn about their own life. The premise of a sitcom cast who believe they are the real people, until they see the show and recognize themselves as caricatures of real human life, presses a common fear: what if we are all just characters in a show, and everything is fake? An example reader, optional, is modeled as a life the same way, and each button then names the reader's records it presses. When the human names the author or reader, model them from what was supplied; otherwise invent them and label them invented. Do not silently build a profile of the real user.
+2. candidates: at least three candidate worlds that come out of the author's life and press the buttons. Each needs an interesting world, or an interesting event in our world, with its most interesting processes, often long ones (a career, an institution, a technology, a marriage, a decline, a war a century back), and interesting people inside it. The Book of Conditions sets a correct calculating machine inside an office that cannot check its own work, in a real history. For each give its world, premise, emotional core, question, the buttons it presses and how, where it comes from in the author's life, its long processes, a one-paragraph account and what makes each principal interesting, and test it for pressure: do choices cost something, do the principals read the central shock differently, does it change what they want rather than confirm it, could an episode be removed without consequence, is each principal partly right, would this reader keep reading and learn something about their own life? Choose by argument, rejecting each other candidate with a reason. A seed word can start a candidate; it does not choose one.
+3. opening: expand the chosen world in successive accounts of the same history, one paragraph, then two, then three (at least three for 2,500 to 7,500 words, four above that), keeping or explicitly revising what the account above committed to, and build what each account commits to into the model: the macro processes first (life_general_modeling_start models long developments before local ones), then the institutions, places and people inside them. Backtrack when the parent could not have happened (a transition with no cause, an Event needing unavailable knowledge, money, labor, place or time, quantities that cannot reconcile, a person who exists only to supply the plot) or is dramatically inert.
+3b. aspects: list every aspect of the story you could understand better, then investigate each by modeling: the characters' choices, the author's writing and style, each voice, the technology, the time period, the places, institutions, relationships, money, bodies, beliefs, and whatever else this story is about. Investigating can take many forms: create new processes, refine existing ones, open sub-processes, add earlier Events that explain or later Events that follow (a childhood, a war a century back, a consequence years on), add Cuts and estimate them, draw decisions, name the concepts and laws things instantiate, model how Things work and where everything is, try another decomposition, sample trajectories. Record how each will be modeled and, as it is, the model records that answer it; record a revised list as the model deepens and new aspects appear.
+4. implications: for each consequential commitment, follow what it implies for each principal, each relationship, the institutions, money and time and later Events, and represent it in the model (Events with descriptions, processes with units, decision Cuts, relationship processes) or leave it as reasoned remainder; none may stay open. Give every principal a whole life in the story model the way the author's was modeled: a lifecycle Event over the whole life with the processes it runs through (from the template, invented for them, or subcategories of either, whichever understands them better), periods, shocks and adaptations, their own deepest and learned wants, and Cuts at the moments that matter. Estimate weights with the estimator where you can, and draw decisions (life_direction_draw) rather than choosing them: what happens is the model's answer.
+5. route: find where in the model the story is. The model's jumps (life_model_questions returns them) show where it changes most: the largest shifts in what a person wants, expects or feels, the shocks that reach furthest, the closest-run decisions, the moments two people read most differently. Choose the small part of the world to render as parts, each naming its Events, whose route it follows, what changes by its end and where it ends; the rendered order need not be the chronology. A route that renders none of the largest jumps must say why the story is elsewhere. Name the route's risks and how it avoids them.
+Then prepare each scene with its routePartId. Preparation gives each present person's state at that moment from the model (their period, latest Cuts, the shock they are adapting to, what they decided and what is undecided), and the model's questions for this scene, including any decision it renders that the model has not drawn. Write each person from that state. After every model change and every scene, the tool returns the model's open questions: take them. Ask at every step: is there a macro aspect I must model to truly understand what is going on here, something from a childhood or a war a hundred years ago? What can be richer about this event, this scene, this character? What is it an instance of? Run the director (life_story_direct) on the world after the route and before the first scene, and on the draft after each completed part and before release: it holds the work to what makes a good story, and each failure is answered in the model first, then in the prose. That loop, not the first draft, is what made the Book of Conditions good. When a reader is modeled, give an independent reviewer the reader's record and the manuscript at milestones and ask them to read as that person; record it under that reviewer as a simulated reader. After a complete draft, deepen the whole work through the model: let objects return with a changed use, give secondary people lives with consequences, let competence and discovery be felt, derive each voice from the person's modeled life, render sensory detail from the Things taking part, have a fresh reader read the whole manuscript for causal gaps, and make sure every principal pays for the ending.`;

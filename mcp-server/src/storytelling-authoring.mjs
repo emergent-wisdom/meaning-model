@@ -14,7 +14,7 @@ export const authorRecordContextSchema = z.object({
 }).strict();
 const reflectionKinds = ['assessment', 'selection', 'revision', 'disclosure', 'idea', 'prediction', 'question', 'voice', 'decision', 'reference'];
 export const authorRecordSchema = authorRecordContextSchema.extend({
-  kind: z.enum(['candidate', 'draft', 'context', 'author_model', ...reflectionKinds]),
+  kind: z.enum(['candidate', 'draft', 'context', 'author_model', 'world', 'direction', ...reflectionKinds]),
   text: prose,
   data: z.json().optional(),
   links: z.array(z.object({

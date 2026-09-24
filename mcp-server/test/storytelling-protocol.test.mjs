@@ -8,12 +8,21 @@ import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { lifeConnections, lifeTrendsDossier } from './storytelling-life-fixture.mjs';
 import { authorApplication, fictionalAuthorModel } from './storytelling-author-model-fixture.mjs';
+import { recordWorldProcess } from './world-process-fixture.mjs';
+
+// The add-on's loop over MCP: the same records the fixture writes through the add-on, through its tools.
+const overMcp = (client) => ({
+  storeAuthorRecord: (args) => call(client, 'life_story_author_record', args),
+  recordWorld: (args) => call(client, 'life_story_world_record', args),
+  direct: (args) => call(client, 'life_story_direct', args),
+});
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serverPath = join(here, '..', 'src', 'server.ts');
 const storytellingTools = [
   'life_story_author_record',
   'life_story_deepen',
+  'life_story_direct',
   'life_story_life_trends',
   'life_story_model_depth_record',
   'life_story_model_depth_review',
@@ -25,6 +34,7 @@ const storytellingTools = [
   'life_story_structure_explore',
   'life_story_trajectory_explore',
   'life_story_trajectory_revise',
+  'life_story_world_record',
 ];
 const storytellingPrompts = [
   'life_story_deepen',
@@ -370,8 +380,14 @@ test('storytelling scene round-trip appends reviewed prose through Rust without 
       id: 'mira', boundary: 'Mira, the technician who reads the gauge.',
       continuity_criterion: 'The same person throughout her modeled life.',
       provenance: ['storytelling scene protocol test'],
+    }, {
+      id: 'author', boundary: 'The invented archivist who writes the story.',
+      continuity_criterion: 'The same person.', provenance: ['storytelling scene protocol test'],
     }],
-    events: [], event_referent_bindings: [],
+    events: [{ id: 'ev.gauge', boundary: 'Mira reads the gauge.', description: 'Mira reads the vessel temperature gauge at the start of her shift.',
+      interval: { start: 0, end: 1 }, process_ids: [], observation_process_ids: [], participants: { subject: 'mira' }, substrate: null, region: null,
+      provenance: ['storytelling scene protocol test'] }],
+    event_referent_bindings: [],
   };
   const registeredModel = await call(client, 'life_model_register', {
     requestId: 'scene-model-register', model,
@@ -458,8 +474,10 @@ test('storytelling scene round-trip appends reviewed prose through Rust without 
     'the modeled author is distinct from the record’s recorder identity');
   assert.equal(authorModelNode.render, 'exclude');
   assert.equal(authorModelNode.training, 'exclude');
+  const worldHash = await recordWorldProcess(overMcp(client), { graphHash: authorProfile.graphHash, storyRootId: 'document', accessScopes: ['editor'],
+    lifeModelHash: registeredModel.modelHash, routeEventId: 'ev.gauge' });
   const focus = await call(client, 'life_story_author_record', {
-    graphHash: authorProfile.graphHash, requestId: 'save-focus', nodeId: 'story.plan',
+    graphHash: worldHash, requestId: 'save-focus', nodeId: 'story.plan',
     storyRootId: 'document', authorId: 'protocol-author', accessScopes: ['editor'], kind: 'context',
     text: 'Mira quietly checks a vessel gauge at the initial instant. The eighty-degree reading continues her practiced attention; this scene makes no claim about later cooling or an institutional decision.',
   });
@@ -498,7 +516,7 @@ test('storytelling scene round-trip appends reviewed prose through Rust without 
     authorModelNodeId: 'author.model',
     accessScopes: ['editor', 'book-only', 'source-only', 'irrelevant'],
     scene: {
-      id: 'scene.gauge', parentNodeId: 'document', order: 1,
+      id: 'scene.gauge', parentNodeId: 'document', order: 1, routePartId: 'part.1',
       worldTime: 0, readerOrder: 0, viewpoint: 'mira',
       brief: 'Mira reads the temperature gauge.',
       characterConnections: lifeConnections('mira'),
@@ -631,7 +649,16 @@ test('storytelling scene round-trip appends reviewed prose through Rust without 
   // Releasing the prose to readers is a recorded author decision; the review and context keep their scopes.
   const unreleased = await client.callTool({ name: 'life_narrative_render', arguments: { graphHash: committed.graphHash, rootIds: ['document'], accessScopes: ['reader'] } });
   assert.ok(unreleased.isError || unreleased.structuredContent?.text !== text, 'before release a reader does not see the prose');
-  const released = await call(client, 'life_story_release', { graphHash: committed.graphHash, requestId: 'release-1', nodeId: 'author.release.1', storyRootId: 'document',
+  // Release waits for the director to read the draft; the task it returns carries the draft principles and the model's questions.
+  const directionTask = await call(client, 'life_story_direct', { graphHash: committed.graphHash, requestId: 'direct-draft-task', storyRootId: 'document',
+    accessScopes: ['editor'], stage: 'draft', directorId: 'fresh-reader', independent: true });
+  assert.ok(directionTask.principles.some((item) => item.id === 'draft.character-test'), 'the draft task carries the Book\'s character test');
+  await assert.rejects(call(client, 'life_story_release', { graphHash: committed.graphHash, requestId: 'release-0', nodeId: 'author.release.0', storyRootId: 'document',
+    authorId: 'author.llm', accessScopes: ['editor'], releaseTo: ['reader'], reason: 'Too early.' }), /Run the director on the draft before release/);
+  const directed = await call(client, 'life_story_direct', { graphHash: committed.graphHash, requestId: 'direct-draft', storyRootId: 'document',
+    accessScopes: ['editor'], stage: 'draft', directorId: 'fresh-reader', independent: true, nodeId: 'direction.draft', summary: 'The draft holds.',
+    findings: directionTask.principles.map((item) => ({ principleId: item.id, verdict: 'holds', evidence: 'The one-line scene was read against this principle.', modelChange: null })) });
+  const released = await call(client, 'life_story_release', { graphHash: directed.graphHash, requestId: 'release-1', nodeId: 'author.release.1', storyRootId: 'document',
     authorId: 'author.llm', accessScopes: ['editor'], releaseTo: ['reader'], reason: 'The human approved publishing this scene.' });
   assert.ok(released.releasedNodeIds.includes(committed.sceneId));
   const asReader = await call(client, 'life_narrative_render', { graphHash: released.graphHash, rootIds: ['document'], accessScopes: ['reader'] });

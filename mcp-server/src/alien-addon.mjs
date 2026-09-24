@@ -1,3 +1,4 @@
+import { thinkInTheModelInstructions } from './model-questions.mjs';
 import { readFile } from 'node:fs/promises';
 import * as z from 'zod/v4';
 import { applyOperations, equivalenceSchema, FIT_LABELS, meaningModelFragment, normalizeOntology, ONTOLOGY_KINDS, operationSchema, renderOntologyTree, validateOntology } from './alien-ontology.mjs';
@@ -799,7 +800,7 @@ export function registerAlienAddon(server, service, { estimator = null } = {}) {
     title: 'Search for mechanisms through invented worlds',
     description: 'Read the paper, settle the problem, the target model and the human role, then build target-blind worlds, solve and compile them, curate the mechanisms and outcomes found, commission the next world from the gaps, and transfer promising mechanisms onto the target model.',
     argsSchema: z.object({}),
-  }, async () => ({ messages: [{ role: 'user', content: { type: 'text', text: `First read ${ALIEN_PAPER_URI} completely; the alien write tools refuse until it has been read in this MCP process. Then settle with the user: the problem statement and any context; the target model the ideas should land in (build it with the general modeling workflow if none exists, after reading the modeling papers); terms that would disclose the target; how many worlds to try; and who curates, the user or you under delegation. Record the problem with life_alien_search_start.\n\nRead ${RESOURCE_URI}.\n\n${alienInstructions}` } }] }));
+  }, async () => ({ messages: [{ role: 'user', content: { type: 'text', text: `${thinkInTheModelInstructions}\n\nFirst read ${ALIEN_PAPER_URI} completely; the alien write tools refuse until it has been read in this MCP process. Then settle with the user: the problem statement and any context; the target model the ideas should land in (build it with the general modeling workflow if none exists, after reading the modeling papers); terms that would disclose the target; how many worlds to try; and who curates, the user or you under delegation. Record the problem with life_alien_search_start.\n\nRead ${RESOURCE_URI}.\n\n${alienInstructions}` } }] }));
   const gated = new Set(['life_alien_search_start', 'life_alien_task', 'life_alien_record', 'life_alien_ontology_revise', 'life_alien_decision_check', 'life_alien_worlds_import']);
   for (const [name, method, schema, description, readOnly, idempotent] of [
     ['life_alien_search_start', 'startSearch', searchStartSchema,

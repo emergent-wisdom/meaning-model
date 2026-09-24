@@ -6,6 +6,43 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Make the model the place where the work is thought, in every mode. Every model
+  registration and revision now returns the model's own open questions, and the
+  new `life_model_questions` tool returns all of them. They are read from its
+  structure, and each names the tool that answers it:
+  - a person with a name and no life, or a life with no periods;
+  - a shift in a Cut with nothing modeled between to cause it;
+  - a shock whose adaptation was never opened;
+  - a decision nobody drew, or weights nobody estimated;
+  - a world in which nothing lasts longer than one life;
+  - Events that instantiate no concept, and no law linking what recurs.
+
+  The same tool returns the model's jumps, where it changes most, and each
+  person's state at a moment: their period, latest Cuts, the shock they are
+  adapting to, and what is decided and undecided. Standing questions ask at
+  every step how the thing in focus could be understood better, which macro
+  aspect is missing, what could be richer and what it is an instance of. The
+  modeling prompts no longer say "model only what the application needs" or
+  that a person model is optional. Templates are presented as suggestions: the
+  model is a language and none of its constructs is mandatory.
+- Storytelling now follows a written-down process before any scene:
+  - the author's life as its own life model, then why they write this story,
+    what they are figuring out, and the buttons it presses in a reader;
+  - candidate worlds, an opening in successive accounts, and a list of every
+    aspect of the story to understand better, each investigated by modeling;
+  - implications traced into the model, and a route through the model's jumps.
+
+  All six stages are recorded with `life_story_world_record`. Scene
+  preparation gives each present person's state at that moment from the
+  model, together with the model's questions for the scene, and every scene
+  commit returns the open questions before the next scene.
+- Add the director, `life_story_direct`. It holds the world, before the first
+  scene, and the draft, after each part and before release, to principles of a
+  good story. The principles come from the Book of Conditions' own record of
+  how it was made. Each failure must be answered in the model first: scene
+  preparation and `life_story_release` stop until the bound model has changed
+  and a record answers the direction.
+
 Together these changes make one server cover three kinds of work: general-purpose
 modeling with an optional Jev estimator, narration through the storytelling
 add-on, and ideation through the new alien add-on. Both add-ons are opt-in with

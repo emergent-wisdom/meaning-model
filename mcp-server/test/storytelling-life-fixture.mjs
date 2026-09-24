@@ -4,6 +4,8 @@ import { modelDepthBasis } from '../src/storytelling-depth.mjs';
 // service supplies a matching depth assessment; stale-depth behavior has its
 // own tests and a real MCP round trip.
 export function refreshDepthFixture(view, preparation) {
+  addWorldProcess(view, 'book', { scopes: [] });
+  if (preparation.scene && preparation.scene.routePartId === undefined) preparation.scene.routePartId = 'part.1';
   const life = view.nodes.find((node) => node.id === preparation.lifeTrendsNodeId);
   if (!life) return;
   let dossier;
@@ -107,4 +109,57 @@ export function lifeTrendsEdges(storyRootId = 'book', characterId = 'Leo', nodeI
     target: { kind: 'anchor', anchor_kind: 'referent', anchor_id: characterId },
     family: 'grounding', relation: 'models_life_of', access_scopes: [],
   }];
+}
+
+// The process the add-on requires before a scene, as fixture records: the five world stages, a world direction with
+// no failures, and each principal's whole life in the bound model (the person template's slow processes, periods
+// covering the life, and two shocks). Tests of those requirements build their own records.
+const SLOW = ['body', 'kin', 'partnership', 'work', 'place', 'means', 'knowledge', 'standing', 'meaning'];
+export function withLives(model, people = ['Leo'], interval = { start: -40, end: 40 }) {
+  const copy = structuredClone(model ?? { id: 'fixture-model' });
+  const mm = copy.meaning_model ??= {};
+  for (const key of ['events', 'event_relations', 'referents', 'event_referent_bindings', 'normalized_cuts']) mm[key] ??= [];
+  const middle = (interval.start + interval.end) / 2;
+  for (const person of people) {
+    if (mm.referents.some((referent) => referent.id === person)) continue;
+    const life = `event.life.${person}`;
+    const contain = (target) => mm.event_relations.push({ id: `rel.${target}`, kind: 'contains', source_event_id: life, target_event_id: target });
+    mm.referents.push({ id: person, boundary: `${person}, a person`, continuity_criterion: 'One continuous life.', interval, lifecycle_event_id: life });
+    mm.events.push({ id: life, boundary: `${person}'s life`, description: `${person}'s whole life.`, interval, participants: { subject: person } });
+    for (const key of SLOW) { mm.events.push({ id: `${life}.is.${key}`, boundary: key, interval }); contain(`${life}.is.${key}`); }
+    for (const [index, period] of [[0, { start: interval.start, end: middle }], [1, { start: middle, end: interval.end }]]) {
+      mm.events.push({ id: `${life}.period.${index}`, boundary: `Period ${index + 1}`, description: `${person}'s period ${index + 1}.`, interval: period });
+      contain(`${life}.period.${index}`);
+    }
+    for (const index of [0, 1]) {
+      const arc = `event.arc.${person}.${index}`;
+      const at = interval.start + (interval.end - interval.start) * (index + 1) / 3;
+      mm.events.push({ id: arc, boundary: `${person}'s shock ${index + 1}`, interval: { start: at, end: at + 1 } });
+      for (const phase of ['anticipation', 'focal_change', 'adaptation']) mm.events.push({ id: `${arc}.${phase}`, boundary: phase, interval: { start: at, end: at + 1 } });
+      mm.event_referent_bindings.push({ id: `binding.${arc}`, target: { event_id: arc }, role: 'affected', referent_id: person, binding_type: 'change_arc_subject' });
+    }
+  }
+  return copy;
+}
+
+const WORLD = 'meaning-model-story-world/v1';
+export function worldProcessNodes(storyRootId = 'book', { routeEventIds = ['ev.route'], scopes = [] } = {}) {
+  const record = (id, data, time) => ({ id, node_type: 'storytelling.world', role: 'externalized_reflection', subject: storyRootId, holder: 'fixture-author',
+    render: 'exclude', training: 'exclude', access_scopes: scopes, value_time: time, text: JSON.stringify({ data: { schema: WORLD, ...data } }) });
+  return [
+    record('world.author', { stage: 'author_reader', author: { personId: 'author', name: 'Author', figuringOut: 'Whether care that checks evidence can also trust.' },
+      reader: null, buttons: [{ id: 'button.trust', button: 'The fear that checking everything means trusting no one.' }] }, 1),
+    record('world.candidates', { stage: 'candidates', form: { targetWords: 1200, parts: 1 } }, 2),
+    record('world.opening', { stage: 'opening' }, 3),
+    record('world.aspects', { stage: 'aspects', aspects: [{ id: 'a.choices', kind: 'choices', aspect: 'Why Leo checks the key.', how: 'Model his checking habit.', status: 'modeled', records: ['event:ev.route'] }] }, 3.5),
+    record('world.implications', { stage: 'implications', commitments: [{ id: 'c.1', implications: [{ about: 'Leo', status: 'represented' }] }] }, 4),
+    record('world.route', { stage: 'route', parts: [{ id: 'part.1', title: 'The key', eventIds: routeEventIds, focal: 'Leo', change: 'Leo trusts the evidence he checked.', ends: 'With the key hidden.' }] }, 5),
+    { id: 'world.direction', node_type: 'storytelling.direction', role: 'externalized_reflection', subject: storyRootId, holder: 'fixture-director',
+      render: 'exclude', training: 'exclude', access_scopes: scopes, value_time: 6,
+      text: JSON.stringify({ data: { schema: 'meaning-model-story-direction/v1', stage: 'world', directorId: 'fixture-director', independent: true, modelHash: 'f'.repeat(64),
+        findings: [{ principleId: 'world.author', verdict: 'holds', evidence: 'Fixture direction without failures.', modelChange: null }] } }) },
+  ];
+}
+export function addWorldProcess(view, storyRootId = 'book', options = {}) {
+  for (const node of worldProcessNodes(storyRootId, options)) if (!view.nodes.some((item) => item.id === node.id)) view.nodes.push(node);
 }

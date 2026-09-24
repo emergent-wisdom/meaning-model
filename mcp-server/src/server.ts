@@ -1,4 +1,5 @@
 import { applyModelChange } from './model-change.mjs';
+import { readOpenQuestions, thinkInTheModelInstructions, withOpenQuestions } from './model-questions.mjs';
 import { McpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
@@ -218,7 +219,7 @@ server.registerTool(
     }),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
-  async (input) => toolResult(await service.registerModel(input)),
+  async (input) => toolResult(await withOpenQuestions(service, await service.registerModel(input))),
 );
 
 server.registerTool(
@@ -241,11 +242,31 @@ server.registerTool(
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   async ({ change, ...input }) => {
-    if (!change) return toolResult(await service.reviseModel(input));
+    if (!change) return toolResult(await withOpenQuestions(service, await service.reviseModel(input)));
     const { model: previous } = await service.inspectModel({ modelHash: input.previousModelHash, includeDefinition: true });
     const { successor, summary } = applyModelChange(previous, input.previousModelHash, change);
-    return toolResult({ ...(await service.reviseModel({ ...input, model: successor })), revisedByChange: true, change: summary });
+    return toolResult(await withOpenQuestions(service, { ...(await service.reviseModel({ ...input, model: successor })), revisedByChange: true, change: summary }));
   },
+);
+
+server.registerTool(
+  'life_model_questions',
+  {
+    description: `Read a model's own open questions, in any mode: what its structure shows is missing, inconsistent in time, undecided or unexplained, each as a question to answer by adding structure, with the tool to use. They go down the ladder (open what is coarse, give people whole lives, follow shocks into adaptations) and up it (the longer developments behind a moment, the concepts and laws Events instantiate). Also returns the model's jumps, where it changes most (the largest shifts, shocks, closest decisions and divergent readings), which is where a story or an explanation should look; and, with at, the state of each person at that moment: their period, latest Cuts, the shock they are adapting to and what is undecided. Supply graphHash to count recorded draws. Every model registration and revision returns the first of these questions; this returns them all. ${thinkInTheModelInstructions}`,
+    inputSchema: z.object({
+      modelHash: z.string().length(64),
+      people: z.array(z.object({ id: z.string().trim().min(1).max(512), name: z.string().trim().min(1).max(200).optional(), principal: z.boolean().optional() }).strict()).max(64).optional()
+        .describe('The people to read as lives, by referent id; defaults to every person the model scaffolds, those it says most about first.'),
+      at: z.number().finite().optional().describe('A model time: returns each principal person\'s state at that moment.'),
+      focus: z.object({ event: z.string().max(300).optional(), scene: z.string().max(300).optional(), people: z.array(z.string().max(200)).max(16).optional() }).strict().optional()
+        .describe('What you are working on, so the standing questions are asked about it.'),
+      graphHash: z.string().length(64).optional(),
+      accessScopes: z.array(z.string().trim().min(1).max(1024)).max(64).default([]),
+      limit: z.number().int().min(1).max(80).default(24),
+    }).strict(),
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  async (input) => toolResult(await readOpenQuestions(service, input)),
 );
 
 server.registerTool(

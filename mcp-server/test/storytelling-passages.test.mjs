@@ -4,6 +4,7 @@ import { LifeSimulationService } from '../src/service.mjs';
 import { StorytellingAddon } from '../src/storytelling-addon.mjs';
 import { editNarrativeGraph } from '../src/narrative-editing.mjs';
 import { lifeConnections, lifeTrendsDossier } from './storytelling-life-fixture.mjs';
+import { recordWorldProcess } from './world-process-fixture.mjs';
 
 const passages = [
   { id: 'scene.arrival', text: 'Leo stopped by the door.\nThe rain followed him inside.' },
@@ -27,7 +28,11 @@ async function fixture(t) {
     decomposition: [], dependencies: [], laws: [], initial_claims: [],
     meaning_model: { schema: 'life-sim-rust-meaning-model/v1', concepts: [],
       referents: [{ id: 'Leo', boundary: 'Leo throughout his life.',
-        continuity_criterion: 'The same person.', provenance }], events: [], event_referent_bindings: [] },
+        continuity_criterion: 'The same person.', provenance }, { id: 'author', boundary: 'The invented archivist who writes the story.',
+        continuity_criterion: 'The same person.', provenance }],
+      events: [{ id: 'ev.arrival', boundary: 'Leo comes home in the rain.', description: 'Leo comes home in the rain, forces the stuck door and asks whether anyone is still there.',
+        interval: { start: 3, end: 4 }, process_ids: [], observation_process_ids: [], participants: { subject: 'Leo' }, substrate: null, region: null, provenance }],
+      event_referent_bindings: [] },
   } });
   const graph = await service.registerNarrativeGraph({ requestId: 'graph', narrativeGraph: {
     schema: 'life-sim-rust-narrative-graph/v1', id: 'passage-story-graph',
@@ -45,7 +50,8 @@ async function fixture(t) {
   } });
   const life = await addon.storeLifeTrends({ graphHash: graph.graphHash,
     requestId: 'life', nodeId: 'life.trends', accessScopes: ['author'], dossier: lifeTrendsDossier() });
-  const focus = await addon.storeAuthorRecord({ graphHash: life.graphHash,
+  const worldHash = await recordWorldProcess(addon, { graphHash: life.graphHash, accessScopes: ['author'], lifeModelHash: model.modelHash, routeEventId: 'ev.arrival' });
+  const focus = await addon.storeAuthorRecord({ graphHash: worldHash,
     requestId: 'focus', nodeId: 'outline', storyRootId: 'book', authorId: 'editor', accessScopes: ['author'],
     kind: 'context', text: 'Leo returns and asks whether anyone is still there; the scene leaves the answer open.' });
   const depthPreparation = { graphHash: focus.graphHash, storyRootId: 'book', lifeTrendsNodeId: 'life.trends',
@@ -64,7 +70,7 @@ async function fixture(t) {
     kind: 'draft', text: draftText });
   const preparation = { graphHash: draft.graphHash, lifeTrendsNodeId: 'life.trends',
     modelDepthReviewNodeId: depth.modelDepthReviewNodeId, accessScopes: ['author'],
-    scene: { id: 'scene', parentNodeId: 'book', order: 1, worldTime: 4, readerOrder: 1,
+    scene: { id: 'scene', parentNodeId: 'book', order: 1, worldTime: 4, readerOrder: 1, routePartId: 'part.1',
       viewpoint: 'Leo', brief: 'An unanswered question after returning.', characterConnections: lifeConnections(),
       context: [], requirements: [] } };
   const packet = await addon.prepare(preparation);

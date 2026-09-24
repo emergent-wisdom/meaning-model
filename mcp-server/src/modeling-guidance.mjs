@@ -1,3 +1,4 @@
+import { thinkInTheModelInstructions } from './model-questions.mjs';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { constructionRecordInstructions } from './construction-principles.mjs';
@@ -73,10 +74,10 @@ export const modelingTheoryUris = Object.freeze([
 ]);
 
 export const modelingFreedom =
-  'Model only what the application needs. The modeler chooses processes, categories, relationships, and depth: begin with one process, adapt a supplied template, or author a model directly. A complete person model, the Book vocabulary, and optional semantic, narrative, or decision layers are not required for every task. Use the account to compare explanations, explore developments, and guide inquiry; develop and revise its categories as part of that work, preserving earlier versions and the applicable validation and authority rules.';
+  `The modeler chooses the form: processes, categories, relationships and vocabulary fitted to the application, whether adapted from a template or authored directly. The freedom is over form, not over depth. ${thinkInTheModelInstructions} Use the account to compare explanations, explore developments and guide inquiry; develop and revise its categories as part of that work, preserving earlier versions and the applicable validation and authority rules.`;
 
 export const starterSelection =
-  'Structural starters load identities and Events without default semantic scores. person_scaffold offers lifecycle alone or the Book-style processes level; omitting the level retains processes. Story and Decision compilers add particular authored numerical meanings and behavioural laws, so inspect and choose those assumptions explicitly. Reading a profile guide does not require compiling its template or adopting its vocabulary.';
+  'Give every person who matters to the work a whole life: a lifecycle Event over their full interval holding the processes their life runs through, opened with periods with intervals, shocks as change arcs (change_arc_scaffold) with their adaptations, and Cuts for what they want, expect and feel at the moments that matter. Templates are suggestions. Look at person_scaffold (the Book\'s nine slow processes: body, kin, partnership, work, place, means, knowledge, standing, meaning) and ask: would this person be understood better through it, through processes invented for them, or through subcategories of either? Choose what explains them most deeply, and ask again as the life deepens. A market, an institution or a technology is modeled the same way, as processes over their own long time. Structural starters load identities and Events without default semantic scores, so the numbers are yours to estimate. Story and Decision compilers add particular authored numerical meanings and behavioural laws; inspect and choose those assumptions explicitly.';
 
 export const scaleReview =
   'Start macro to micro: assess the enclosing system and its longer-term developments before selecting local detail. State the focal interval and a useful broader horizon; connect large-scale processes and enduring events to the focal processes through evidenced relationships or explicit hypotheses. Record the assessment in Understanding Nodes, with missing evidence and deliberate scope exclusions. Choose depth and timescales for the question, without a fixed ontology or horizon. A long event alone is not a numerical trend: retain dated process values, their evidence cutoffs and uncertainty. Revisit the broader account when local findings change it.';

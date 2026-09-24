@@ -17,8 +17,9 @@ including emotional ones. It does not prescribe a fixed psychology, the
 experimental numerical `story` profile, or a universal story-quality score.
 The existing low-level narrative and writer tools remain available.
 
-The calling LLM must develop or reuse the author model and overall life trends
-automatically before drafting scenes. The user need not request the step, remember its tool
+The calling LLM must model the author's life and the world first, with the
+lives of the principals inside it, and let the model drive the story; the
+process below is required before drafting scenes. The user need not request the step, remember its tool
 name, or fill in a dossier. Within the human author's delegated scope, the LLM
 authors needed details and identifies them as authored additions. Respect the
 agreed decision checkpoints before adopting those details. For existing canon,
@@ -46,7 +47,7 @@ modeling protocol before authoring a model. With the add-on enabled, read
 [Story Modeling Profile](STORY_MODELING.md) describes the broader authoring
 convention; this add-on makes life-trend modeling, numerical exploration,
 local revision, model-depth review, preparation, review, and prose commitment explicit. It exposes
-twelve tools and the four prompts listed above.
+fifteen tools and the four prompts listed above.
 
 ## Initial settings and ongoing involvement
 
@@ -116,6 +117,195 @@ with `about`: `event:`, `cut:`, `process:`, `referent:` and the other kinds, wit
 optional JSON Pointer `path`. A later agent then reads the thought beside its subject.
 Every Event that carries a Cut needs a description of what happens in it; scene
 preparation reports an `undescribed-numbers` blocker until it has one.
+
+## Think in the model
+
+The Meaning Model is where the story is thought. A language model has not
+lived in the world it writes about. It knows people from text, not from a
+life, and it has no sense of time of its own: it cannot tell what is true of
+a person at a given moment, or what must follow from it. The model gives it
+that. People are whole lives over time, with the wants their lives taught
+them and the deepest wants underneath. The world has long developments that
+explain why something happens today, and every person has a state at every
+moment. The model drives the story, and the story is a consequence of the
+model.
+
+Anyone can get a small story from a language model alone. The reason to use
+this tool is the depth only a model gives, so the tool keeps asking for more:
+
+- **Open questions.** Every model registration and revision, in every mode,
+  returns the model's own open questions (`openQuestions`), and
+  `life_model_questions` returns all of them. Each question is read from the
+  model's structure and names the tool that answers it. Typical ones: a person
+  with a name and no life; a life with no periods; an outlook that drops from
+  .78 to .22 with nothing between to cause it; a shock whose adaptation was
+  never opened; a decision nobody drew; a world in which nothing lasts longer
+  than one life; Events that instantiate no concept.
+- **Standing questions,** asked at every step about whatever is being worked
+  on. Is there a macro aspect I must model to truly understand what is going
+  on here? It could be something from a character's childhood or a war a
+  hundred years ago, and you will not know unless you model it. What can be
+  richer about this event, this scene, this character? What is it an instance
+  of? Climb up to the concept or regularity that explains it together with
+  other things.
+- **Background reality.** Model far more than the story will show: the
+  economy, seasons, bodies, institutions, other families, the technology of
+  the day, the long histories. They run in the model whether or not a scene
+  touches them. What the story shows is real because of what it does not show.
+- **Jumps.** `life_model_questions` also returns the model's jumps, the places
+  where it changes most: the largest shifts in what a person wants, expects or
+  feels, the shocks that reach furthest, the closest-run decisions, and the
+  moments two people read most differently. That is where the story should
+  look.
+
+The model is a language, not a form. Nothing in it is mandatory, and it can
+express the same understanding in many ways, as a programming language can.
+Templates and conventions such as the person template, periods and change
+arcs are suggestions: look at them and ask whether this person, thing or era
+is understood better through them, through processes of your own, or through
+subcategories. The questions read common constructs; where you expressed the
+same understanding your own way, a question may not see it. The model is never
+finished, and there is no depth at which the tool stops asking.
+
+## The process, from author to release
+
+*The Book of Conditions* was made by a loop. Its human director told the
+writing model what makes a good story, and each principle sent the model back
+into the world model to make it deeper; the prose was then rebuilt from the
+deeper model. The director never read the book. This process writes that loop
+down so any agent can follow it without a human in the room. Scene
+preparation blocks until its steps exist.
+
+**1. The author, and optionally a reader.** A book comes out of a life. *The
+Gulag Archipelago* could not have been written without Solzhenitsyn's arrest,
+camps and exile. *Crime and Punishment* could not have been written without
+Dostoevsky's mock execution, penal servitude, debts and quarrel with the
+radicals of his day. So model the author's life first, as its own life model:
+
+- Give the author a lifecycle Event over the whole life, holding the
+  processes the life runs through. Templates are suggestions: look at the
+  person template (`person_scaffold`, the Book's nine slow processes) and ask
+  whether this person is understood better through it, through processes
+  invented for them, or through subcategories of either. Register the life and
+  open it with the model's questions.
+- Give it periods with intervals, shocks as change arcs with their
+  anticipation and adaptation, and Cuts at the moments that matter for what
+  the author wants, expects and feels.
+- Model the author as an authentic person with conflicting wants. A life is
+  learning, over its whole length, how to satisfy the deepest wants: to be
+  safe, loved, known, free, to matter. The wants a life teaches are ways of
+  getting them. Several live in one person, take over in different
+  situations and bargain, and one can become a proxy that displaces the aim
+  it served. This follows shard theory ([Udell, "Shard Theory: An
+  Overview"](https://www.lesswrong.com/posts/xqkGmfikqapbJ2YMj/shard-theory-an-overview)).
+- A shock changes many of a person's functions at once: what they want and
+  believe, their habits, relationships, body, work and voice. Any concept can
+  be a process over time (love, self-worth, grief, faith, a self-image), and
+  meaning is temporal: one state must be consistent with the next.
+
+Record the author's voice as the author model, derived from this life. Then
+record the stage `author_reader` with `life_story_world_record`. It holds why
+this author writes this story now, what they want to teach, and what they are
+figuring out by writing it, citing the life records it rests on. It also names
+the buttons the story presses in its reader: the fear, longing, shame or hope
+it touches, and what the reader could learn about their own life. A sitcom
+cast who believe they are the real people see the show and recognize
+themselves as caricatures. That premise presses a common fear: what if we are
+all just characters in a show, and everything is fake? An example reader is
+optional, and is modeled as a life the same way. The stage checks that each
+life model exists and holds its person, and returns the model's open
+questions about them.
+
+**2. Candidate worlds** that come out of the author's life and press the
+buttons (stage `candidates`). Propose at least three. Each needs an
+interesting world, or an interesting event in our world, with its most
+interesting processes, which are often long ones. Each needs interesting people
+inside it and a premise with an emotional core. Test each for pressure: do
+choices cost something, do the principals read the central shock differently,
+does it change what they want rather than confirm it, would this reader keep
+reading? Choose by argument.
+
+**3. Opening** (stage `opening`). Expand the chosen world in successive
+accounts of the same history: one paragraph, then two, then three. Build what
+each account commits to into the model, macro processes first
+(`life_general_modeling_start` models long developments before local ones).
+Backtrack when the parent history could not have happened, or when it is
+dramatically inert.
+
+**3b. Aspects** (stage `aspects`). List every aspect of the story you could
+understand better, then investigate each by modeling:
+- the characters' choices, and why each makes them;
+- the author's writing and style;
+- each character's voice;
+- the technology of the story;
+- the time period and its long history;
+- the places, institutions and relationships;
+- money, bodies and beliefs;
+- whatever else this story is about.
+
+Investigating can take many forms, and so much can be done:
+- create new processes, or refine existing ones;
+- open sub-processes;
+- add earlier Events that explain (a childhood, a war a century back) or later
+  Events that follow;
+- add Cuts and estimate them, and draw decisions;
+- name the concepts and laws things instantiate;
+- model how Things work and where everything is;
+- try another decomposition, or sample trajectories.
+
+For each aspect, record how it will be modeled and, as it is, the model
+records that answer it. Record a revised list as the model deepens and new aspects
+appear. Scene preparation shows the aspects still open.
+
+**4. Implications and lives** (stage `implications`). Follow each consequential
+commitment into the model, and give every principal a whole life in the story
+model, the way the author's was modeled. Estimate weights with the estimator
+where you can. Draw decisions with `life_direction_draw` rather than choosing
+them: what happens is the model's answer.
+
+**5. Route** (stage `route`). Find where in the model the story is. Choose the
+parts to render through the model's jumps; a route that renders none of the
+largest jumps must say why the story is elsewhere.
+
+**6. The director on the world** (`life_story_direct`, stage `world`). Before
+the first scene, the director holds the world to what makes a good story.
+Examples:
+- the story comes out of what the author is figuring out;
+- every principal is necessary to the causality;
+- the central shock changes wants in different directions;
+- no death or accident does the plot's work;
+- the long developments and background processes are modeled;
+- the Things the causality runs through are modeled as they work.
+
+Each failure says what must change in the model first. Scene preparation stops
+until the bound model has changed and a record answers the direction with
+`answers`. Give the director's task to a fresh reviewer who has not written
+the work where you can.
+
+**7. Scenes from the model's state.** Prepare each scene with its
+`routePartId`. The packet gives each present person's state at that moment,
+from the model: their period, the latest Cuts about them, the shock they are
+still adapting to, what they decided and what is still undecided. It also
+returns the model's questions for this scene, including any decision the scene
+renders that the model has not drawn. Write each person from that state. After every commit, go back to the model's open questions
+before the next scene.
+
+**8. The director on the draft** (`life_story_direct`, stage `draft`), after
+each completed part. The draft principles come from the Book's own passes:
+- every scene passes the Book's character test;
+- adaptation shows through objects that return with a changed use;
+- principals are fallible and secondary people have lives;
+- nobody delivers balanced, thesis-bearing speech;
+- joy and discovery are felt;
+- voices come from the modeled lives;
+- sensory detail comes from the Things taking part;
+- a fresh reader finds no causal gap;
+- each person matches the model's state at each moment;
+- every principal pays for the ending.
+
+What is interesting differs between stories, but that decides what the story
+shows, never how much is modeled. `life_story_release` refuses until a draft
+direction exists and its failures have been answered in the model.
 
 ## Model the author and its effect on prose
 
@@ -561,8 +751,11 @@ the task; the calling LLM performs the judgment.
 
 ## Model, prepare, review, commit
 
-1. Automatically construct or reuse the author model and the principal cast's
-   overall life trends. Keep the author's basis and writing dispositions
+1. Follow the process above: the author's life, candidate worlds, opening,
+   implications with every principal's life in the model, a route through the
+   model's jumps, and the director on the world. Then automatically construct
+   or reuse the author model and the principal cast's overall life trends,
+   which summarize the modeled lives. Keep the author's basis and writing dispositions
    separate from the characters' histories.
    For new trajectories, explore numerical candidate points, assess their
    coherence and storytelling potential, and repair promising candidates

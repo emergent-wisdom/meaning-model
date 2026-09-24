@@ -319,8 +319,9 @@ revisions, review whether the model is deep enough to explain the story. Choose
 subjects from the actual dependency: life trends and flaws, concepts,
 physical constraints, institutional rules or incentives, causal events, and
 author disclosure processes may matter. No story needs a fixed taxonomy or a
-quota of decompositions. Preserve an adequate abstraction and explain why it
-is enough; otherwise identify the smallest useful opening and its evidence.
+quota of decompositions. An abstraction is never final: record what it
+explains now, open it where the causality runs through it, and take the
+model's open questions (`life_model_questions`) for what to open next.
 
 With the add-on, `life_story_model_depth_review` reads the bound model and
 selected graph records. `life_story_model_depth_record` saves the coverage

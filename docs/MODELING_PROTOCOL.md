@@ -92,10 +92,14 @@ Meaning Model records, Decision profiles, graph projections, reader models,
 and writer contracts are added only when they serve the declared purpose.
 Adding a view or analysis layer must not silently add canonical world state.
 
-Choose the application's own processes, categories, and depth. A browser's
-task history, a learner's changing understanding, and a relationship account
-need not share one person template. Supplied profiles are examples of how to
-use the language; use, adapt, or omit them. Structural starters and experimental
+Choose the application's own processes and categories, and go deep: a person
+who matters gets a whole life from the person template, opened with periods,
+shocks and wants; a market, an institution or a technology is modeled as
+processes over its own long time; and much is modeled that the final work never
+shows, as the background processes of reality. A browser's task history, a
+learner's changing understanding, and a relationship account may adapt the
+template's categories to what they explain. Every model change returns the
+model's open questions; take them. Structural starters and experimental
 Story/Decision models serve different purposes: inspect the latter's authored
 numerical meanings and behavioural laws before choosing them. Reading a profile
 does not require compiling it or adopting its vocabulary.

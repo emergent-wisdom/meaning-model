@@ -127,6 +127,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_model_ingest',
       'life_model_inspect',
       'life_model_outline',
+      'life_model_questions',
       'life_model_register',
       'life_model_revise',
       'life_model_validate',

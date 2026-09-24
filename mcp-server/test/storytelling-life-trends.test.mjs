@@ -4,6 +4,7 @@ import { StorytellingAddon } from '../src/storytelling-addon.mjs';
 import { lifeTrendsSchema, verifyLifeTrajectoryRecords } from '../src/storytelling-life-trends.mjs';
 import { prepareTrajectoryExplore } from '../src/storytelling-trajectories.mjs';
 import { refreshDepthFixture, lifeConnections, lifeTrendsDossier, lifeTrendsEdges, lifeTrendsNode } from './storytelling-life-fixture.mjs';
+import { withLives } from './storytelling-life-fixture.mjs';
 
 const graphHash = 'a'.repeat(64);
 const snapshotHash = 'b'.repeat(64);
@@ -67,12 +68,12 @@ function fixture() {
     },
     // The bound model: its Cut-bearing Events are described unless a test says otherwise.
     model: { id: 'fixture-model', meaning_model: { events: [], normalized_cuts: [] } },
-    async inspectModel() { return { modelHash: 'f'.repeat(64), model: structuredClone(this.model) }; },
+    async inspectModel() { return { modelHash: 'f'.repeat(64), model: withLives(this.model, this.people ?? ['Leo']) }; },
   };
   const preparation = {
     graphHash, lifeTrendsNodeId: 'life.trends', modelDepthReviewNodeId: 'depth.review', accessScopes: [],
     scene: {
-      id: 'scene.quiet', parentNodeId: 'chapter', order: 0, worldTime: 4,
+      id: 'scene.quiet', parentNodeId: 'chapter', order: 0, worldTime: 4, routePartId: 'part.1',
       readerOrder: 0, viewpoint: 'Leo', brief: 'A quiet act of practiced care.',
       context: [], requirements: [], characterConnections: lifeConnections(),
     },

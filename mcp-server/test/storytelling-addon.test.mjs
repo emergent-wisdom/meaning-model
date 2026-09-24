@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { StorytellingAddon, scenePrepareSchema } from '../src/storytelling-addon.mjs';
 import { refreshDepthFixture, lifeConnections, lifeTrendsEdges, lifeTrendsNode } from './storytelling-life-fixture.mjs';
+import { withLives } from './storytelling-life-fixture.mjs';
 
 const graphHash = 'a'.repeat(64);
 const snapshotHash = 'b'.repeat(64);
@@ -34,11 +35,11 @@ function fixture() {
     },
     // The bound model: its Cut-bearing Events are described unless a test says otherwise.
     model: { id: 'fixture-model', meaning_model: { events: [], normalized_cuts: [] } },
-    async inspectModel() { return { modelHash: 'f'.repeat(64), model: structuredClone(this.model) }; },
+    async inspectModel() { return { modelHash: 'f'.repeat(64), model: withLives(this.model, this.people ?? ['Leo']) }; },
   };
   const preparation = {
     graphHash, lifeTrendsNodeId: 'life.trends', modelDepthReviewNodeId: 'depth.review', accessScopes: [], scene: {
-      id: 'scene-3', parentNodeId: 'book', order: 2, worldTime: 4,
+      id: 'scene-3', parentNodeId: 'book', order: 2, worldTime: 4, routePartId: 'part.1',
       readerOrder: 3, viewpoint: 'Leo', brief: 'Leo finds the key without learning about Ada.',
       characterConnections: lifeConnections(),
       context: [

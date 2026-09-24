@@ -20,11 +20,39 @@ it still records its evidence, assumptions, review findings, and uncertainties.
 
 Begin with the enclosing system and its longer history, then work through the
 relevant sector to the focal actors and processes. Examine how local developments
-can feed back into that broader context. Choose the smallest useful account at
-each level and deepen it when it cannot answer a question or explain a transition.
+can feed back into that broader context. Deepen every level the question's
+causality runs through, and keep deepening: an account that answers the first
+question is where the modeling starts, not where it ends.
 Preserve competing explanations instead of assigning unsupported causal laws.
 Connect models through explicit referents and supported relationships; the tool
 does not automatically reconcile separately modeled systems.
+
+## Think in the model
+
+The model is where the account is thought, and the forecast or explanation is
+a consequence of it. A language model has no sense of time of its own and has
+not lived in the system it describes; the model gives it one.
+
+- **Open questions.** Every model registration and revision returns the model's
+  own open questions (`openQuestions`); `life_model_questions` returns all of
+  them. Examples: a process with nothing longer behind it; a decision nobody
+  drew; weights nobody estimated; a series that shifts with nothing modeled to
+  cause the shift; Events that instantiate no concept; no regularity linking
+  Events that recur. Take them between every step.
+- **Standing questions.** Ask them all the time. Is there a macro aspect I must
+  model to truly understand what is going on here, a regime change, an
+  institution's history, a war decades back? What can be richer about this
+  process? What is it an instance of? Climb up to the concept or law that
+  explains it together with other things, and test what that abstraction
+  predicts elsewhere.
+- **Background processes.** Model far more than the question shows: the
+  surrounding economy, institutions, technology, people and their incentives,
+  and long histories run in the model whether or not the answer mentions them.
+- **Jumps.** `life_model_questions` also returns where the model changes most:
+  the largest shifts, the closest-run decisions and the moments actors read
+  most differently. They are where an explanation or a forecast should look.
+
+The model is never finished. There is no depth at which the questions stop.
 
 ## Record what you do
 
