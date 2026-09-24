@@ -306,9 +306,11 @@ export function buildIngestNotes(view, { graphHash, accessScopes, notes, eventId
     nextOrder.set(rootId, order + 1);
     edges.push({ id: `${nodeId}.placement`, source: endpoint(rootId), target: endpoint(nodeId), family: 'structural', relation: 'contains', order, access_scopes: scopes, provenance });
   };
+  // One root per holder root id: two spellings with the same slug share a root, as they do in life_understanding_record.
   const rootIds = [];
-  for (const holder of [...new Set(notes.map((note) => note.holder))]) {
-    const root = ensureHolderRoot(view, { holder, scopes, provenance });
+  for (const note of notes) {
+    if (rootIds.includes(holderRootId(note.holder))) continue;
+    const root = ensureHolderRoot(view, { holder: note.holder, scopes, provenance });
     addRoots.push(...root.roots); nodes.push(...root.nodes); rootIds.push(root.rootId);
   }
   for (const note of notes) {

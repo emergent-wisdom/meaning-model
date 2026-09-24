@@ -343,3 +343,19 @@ test('an edit names the records that still quote the text it removed', async (t)
     { requestId: 'edit-2', graphHash: result.graphHash }));
   assert.deepEqual(unrelated.recordsQuotingRemovedText, []);
 });
+
+test('drift is found after a split too: split containers keep old text that is not prose', async (t) => {
+  // From the branch review: containers left by a split still held the cut sentence, so the cut went unseen.
+  const f = await fixture(t, (graph) => {
+    byId(graph.nodes, 'p2').text = 'The door was new to him that night.\n\nHe had never had to lock it before.';
+    graph.nodes.push({ ...container('plan.note', 'externalized_reflection'), node_type: 'understanding.plan', holder: 'author', access_scopes: ['author'],
+      authority: { source: 'author', weight: 1 }, text: 'The turn rests on "He had never had to lock it before."' });
+    graph.edges.push(edge('plan.about', 'plan.note', 'p2', 'about', undefined, ['author']));
+  });
+  const split = await editNarrativeGraph(f.service, f.input([{ kind: 'split', nodeId: 'p2', parts: [{ id: 'p2.a', text: 'The door was new to him that night.' }, { id: 'p2.b', text: 'He had never had to lock it before.' }] }]));
+  const cut = await editNarrativeGraph(f.service, f.input([{ kind: 'replace_text', nodeId: 'p2.b', expectedText: 'He had never had to lock it before.', text: 'He stood there.' }],
+    { requestId: 'cut', graphHash: split.graphHash }));
+  assert.deepEqual(cut.recordsQuotingRemovedText.map((record) => record.id), ['plan.note']);
+  const drift = await checkProseDrift(f.service, { graphHash: cut.graphHash, accessScopes: scopes });
+  assert.deepEqual(drift.recordsQuotingRemovedText.map((record) => record.id), ['plan.note']);
+});

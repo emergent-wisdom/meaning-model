@@ -371,6 +371,12 @@ test('ingest notes land under their holder\'s own root, never under whichever ro
   assert.equal(prereg.title, 'Pre-registered prediction');
   assert.deepEqual(JSON.parse(prereg.text), { schema: 'meaning-model-understanding-note/v1', kind: 'prediction', text: 'Predicted before the estimator: screens 3.' });
   assert.equal(narrativeBatch.add_nodes.find((node) => node.id === 'note.jev').node_type, 'ingest.note');
+  // Two spellings with the same slug share one root instead of creating it twice.
+  const twin = buildIngestNotes(view, { graphHash, accessScopes: ['research'], eventIds: new Set(['event.teen']), provenance: ['p'], notes: [
+    { nodeId: 'note.a', text: 'One.', holder: 'Ada (modeler)', kind: null, title: null, aboutEventIds: ['event.teen'], links: [] },
+    { nodeId: 'note.b', text: 'Two.', holder: 'Ada [modeler]', kind: null, title: null, aboutEventIds: ['event.teen'], links: [] }] });
+  assert.equal(twin.narrativeBatch.add_roots.length, 1);
+  assert.equal(new Set(twin.narrativeBatch.add_nodes.filter((node) => node.node_type === 'understanding_process_root').map((node) => node.id)).size, 1);
 });
 
 test('ingest validates parents, participants, duplicates and pending estimates', async () => {

@@ -224,6 +224,7 @@ export const reviewRecordSchema = z.object({
 }).strict().superRefine((input, context) => {
   if (input.prompt?.text && input.prompt.sha256 && sha256(input.prompt.text) !== input.prompt.sha256) context.addIssue({ code: 'custom', path: ['prompt'], message: 'prompt.sha256 does not match prompt.text.' });
   if (input.independence === 'blind' && !['rendered_text', 'external'].includes(input.reviewed.materials)) context.addIssue({ code: 'custom', path: ['independence'], message: 'A blind review sees only the text; its materials are rendered_text or external.' });
+  if (input.reviewed.materials === 'external' && (input.reviewed.graphHash || input.reviewed.rootId)) context.addIssue({ code: 'custom', path: ['reviewed'], message: 'A review of external material read no graph revision or root; describe the material in reviewed.description instead.' });
 });
 
 export async function recordReview(service, raw) {
@@ -245,14 +246,17 @@ export async function recordReview(service, raw) {
   const bound = input.about.some((target) => target.record) ? await boundModel(service, view) : { model: null, modelHash: null };
   const model = bound.model;
   const step = view.graph.revision.number;
+  // A review of material outside the graph read no graph revision; it only was recorded at one.
+  const external = input.reviewed.materials === 'external';
   const provenance = ['Meaning Model review record v1', `reviewer:${input.reviewer.id}`, `recorded-by:${input.recordedBy}`,
-    `independence:${input.independence}`, `reviewed-graph:${reviewedGraphHash}`, `written-at-graph-revision:${step}`];
+    `independence:${input.independence}`, external ? 'reviewed-material:external' : `reviewed-graph:${reviewedGraphHash}`, `written-at-graph-revision:${step}`];
   const rootId = `review.${slug(input.reviewer.id)}`;
   const root = ensureRoot(view, { rootId, holder: input.reviewer.id, clock: 'authoring_step', scopes, provenance,
     label: `Reviews by ${input.reviewer.label ?? input.reviewer.id}`, purpose: `Reviews held by ${input.reviewer.id}, recorded with what it was given and which revision it read.` });
   const payload = { schema: 'meaning-model-review/v1', kind: 'review', text: input.review.text,
     data: { reviewer: input.reviewer, recordedBy: input.recordedBy, independence: input.independence,
-      reviewed: { ...input.reviewed, graphHash: reviewedGraphHash, revision: reviewedView.graph.revision.number, ...(render ? { renderSha256: render.sha256, renderWords: render.words } : {}), textMatchesRender },
+      reviewed: external ? { ...input.reviewed, recordedAtGraphHash: input.graphHash, recordedAtRevision: step }
+        : { ...input.reviewed, graphHash: reviewedGraphHash, revision: reviewedView.graph.revision.number, ...(render ? { renderSha256: render.sha256, renderWords: render.words } : {}), textMatchesRender },
       prompt: input.prompt ? { sha256: input.prompt.sha256 ?? (input.prompt.text ? sha256(input.prompt.text) : null), ...(input.prompt.text ? { text: input.prompt.text } : {}) } : null,
       verdict: input.review.verdict ?? null, findings: input.review.findings } };
   const endpoint = (nodeId) => ({ kind: 'node', node_id: nodeId });
@@ -284,7 +288,7 @@ export async function recordReview(service, raw) {
       : `Record a review by ${input.reviewer.id} of graph revision ${reviewedView.graph.revision.number}.`, provenance,
     add_roots: root.roots, add_nodes: nodes, add_edges: edges } });
   return { schema: 'meaning-model-review-record/v1', graphHash: stored.graphHash, previousGraphHash: input.graphHash, reviewNodeId: input.nodeId,
-    reviewerRootId: rootId, reviewedGraphHash, reviewedRevision: reviewedView.graph.revision.number, render, textMatchesRender,
+    reviewerRootId: rootId, reviewedGraphHash: external ? null : reviewedGraphHash, reviewedRevision: external ? null : reviewedView.graph.revision.number, render, textMatchesRender,
     graphMutation: true, worldMutation: false,
     nextStep: 'When a later change answers this review, record the reason with a note that links to it with answers, so the replay shows what the review changed.' };
 }
@@ -653,7 +657,7 @@ export async function checkProseDrift(service, raw) {
   const input = driftCheckSchema.parse(raw);
   const head = await readGraph(service, input.graphHash, input.accessScopes);
   const { path } = await graphLineage(service, head);
-  const prose = (view) => view.nodes.filter((node) => node.role === 'story_passage').map((node) => node.text ?? '');
+  const prose = (view) => view.nodes.filter((node) => node.role === 'story_passage' && node.render !== 'exclude').map((node) => node.text ?? '');
   const earlier = [];
   for (const revision of path.slice(0, -1)) earlier.push(...prose(await cachedGraph(service, revision.graph_hash, input.accessScopes)));
   const removed = removedFragments([...new Set(earlier)], prose(head));

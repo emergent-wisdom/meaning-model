@@ -7,6 +7,7 @@ import {
   forcingTargets,
   hasNorthHarborPreset,
   loadNorthHarborModel,
+  northHarborPresetIds,
 } from './north-harbor-presets.mjs';
 import { RustEngineProcess } from './rust-engine-process.mjs';
 import {
@@ -1686,6 +1687,15 @@ export class LifeSimulationService {
     );
   }
 
+  async #presetForModel(modelHash) {
+    for (const [presetId, hash] of this.presetModels) if (hash === modelHash) return presetId;
+    for (const presetId of northHarborPresetIds) {
+      const result = await this.backend.call('validate_model', { model: loadNorthHarborModel(presetId) });
+      if (modelHashFromResult(result) === modelHash) return presetId;
+    }
+    return null;
+  }
+
   async #ensurePresetModel(presetId) {
     if (this.presetModels.has(presetId)) return this.presetModels.get(presetId);
     if (!hasNorthHarborPreset(presetId)) throw new Error(`Unsupported presetId ${presetId}.`);
@@ -1955,13 +1965,16 @@ export class LifeSimulationService {
     const known = this.worlds.get(worldId);
     if (known) return known;
     let head = null;
-    try { head = await this.backend.call('get_world', { world_id: worldId }); } catch { head = null; }
+    try { head = await this.backend.call('get_world', { world_id: worldId }); } catch (error) {
+      // Only an unknown world is unknown; an engine or transport failure is reported as what it is.
+      if (error?.code !== 'not_found') throw error;
+    }
     if (!head?.model_hash) throw new Error('Unknown or inaccessible worldId.');
     const model = await this.backend.call('get_model', { model_hash: head.model_hash });
     if (this.worlds.has(worldId)) return this.worlds.get(worldId);
     if (this.worlds.size + this.pendingWorlds >= MAX_WORLDS) throw new Error(`World limit reached (${MAX_WORLDS}); the persisted world ${worldId} cannot be reopened in this process.`);
     const world = {
-      id: worldId, presetId: null, modelHash: head.model_hash, processIds: processIdsFromModelResult(model), recovered: true,
+      id: worldId, presetId: await this.#presetForModel(head.model_hash), modelHash: head.model_hash, processIds: processIdsFromModelResult(model), recovered: true,
       candidateIds: new Map(), pendingCandidates: 0, candidateViews: new Map(), evaluations: [], pendingEvaluations: 0,
       receipts: new Map(), writerContracts: new Map(), pendingWriterContracts: 0, writerPlans: new Map(), pendingWriterPlans: 0,
     };

@@ -174,6 +174,10 @@ test('a thought is recorded against what it concerns, a review under its reviewe
   const external = await recordReview(service, { ...externalReview, about: [{ record: 'event:event.ada.state.h06' }] });
   const externalView = await service.queryNarrativeGraph({ graphHash: external.graphHash, mode: 'full', includeContent: false, accessScopes: scopes });
   assert.match(externalView.graph.revision.reason, /of external material \(a balanced evidence packet written by a separate context\), recorded at graph revision \d+\./);
+  const externalNode = (await service.queryNarrativeGraph({ graphHash: external.graphHash, mode: 'full', includeContent: true, accessScopes: scopes })).nodes.find((node) => node.id === 'review.packet.1');
+  assert.ok(externalNode.provenance.includes('reviewed-material:external') && !externalNode.provenance.some((entry) => entry.startsWith('reviewed-graph:')));
+  assert.equal(JSON.parse(externalNode.text).data.reviewed.graphHash, undefined, 'no claim that the reviewer read a graph revision');
+  assert.equal(external.reviewedGraphHash, null);
 });
 
 test('a long history travels as changes: each revision by change keeps only its change in the receipt', async (t) => {

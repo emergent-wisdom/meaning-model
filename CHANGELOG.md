@@ -186,11 +186,12 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
   - A node read back from a query can be written again as it came. Narrative
     registration, revision, revision by change and batches drop the fields a
     query adds for display (`boundary`, `content_included`), which batches had
-    refused.
-  - A review of material outside the graph names it in its revision reason
-    instead of claiming a graph revision the reviewer never saw, and a first
-    review that is about nothing in the graph is refused with the fields that
-    would link it.
+    refused; a node read without its content is refused, because writing it
+    back would blank its text.
+  - A review of material outside the graph names it in its revision reason,
+    provenance and data instead of claiming a graph revision the reviewer never
+    saw, and a first review that is about nothing in the graph is refused with
+    the fields that would link it.
   - `life_understanding_record` asks for one holder id per agent for the whole
     session, with roles named in the note; a continuation had written under three
     spellings of itself.
@@ -213,9 +214,14 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
   - `life_story_release` in the storytelling add-on releases a story's
     committed prose to readers. Prose inherits the author-only scope of the
     records it was built from, so a reader's render showed only the title. The
-    release records the author's decision and widens the scopes of the prose and
-    its structural edges only; the dossier, drafts, reviews and author model keep
-    theirs.
+    release records the author's decision and widens the scopes of the rendered
+    passages and the containers on their way from the root, with their
+    structural edges; excluded passages, canon, the dossier, drafts, reviews and
+    the author model keep theirs, and prose that is already public stays public.
+    A container the render does not show but that still holds text, such as a
+    passage later split into parts, stops the release unless `clearHiddenText`
+    clears it in the released revision. `releaseTo` is required, so publishing
+    to everyone is always explicit.
 - Add a guides-first reading mode, `MEANING_MODEL_READING=guides`. The start
   prompts, `life_modeling_context`, the served protocol and the storytelling guide
   then make the guides, the protocol and an example the entry, and the two papers

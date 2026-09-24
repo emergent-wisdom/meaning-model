@@ -27,4 +27,12 @@ test('a node copied from a query view is accepted by a batch, a revision by chan
     revision: { number: 2, previous_graph_hash: batch.graphHash, reason: 'Retitle the copy.', provenance: ['test'] },
     upsertNodes: [{ ...copy, title: 'A copied fact' }] } });
   assert.ok(revised.graphHash);
+  // A node read without its content has no text to keep, so writing it back is refused rather than blanking it.
+  const bare = (await service.queryNarrativeGraph({ graphHash: revised.graphHash, mode: 'full', includeContent: false, accessScopes: [] })).nodes.find((node) => node.id === 'canon.offer');
+  assert.equal(bare.content_included, false);
+  await assert.rejects(service.reviseNarrativeGraphByDelta({ requestId: 'blank', previousGraphHash: revised.graphHash, delta: {
+    revision: { number: 3, previous_graph_hash: revised.graphHash, reason: 'Retitle without content.', provenance: ['test'] },
+    upsertNodes: [{ ...bare, title: 'Retitled' }] } }), /read without its content/);
+  const keptText = (await service.queryNarrativeGraph({ graphHash: revised.graphHash, mode: 'full', includeContent: true, accessScopes: [] })).nodes.find((node) => node.id === 'canon.offer').text;
+  assert.equal(keptText, fact.text);
 });

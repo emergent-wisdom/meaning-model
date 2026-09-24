@@ -298,7 +298,8 @@ export async function editNarrativeGraph(service, raw) {
     delta: narrativeDefinitionDelta(before, graph), accessScopes: input.accessScopes, preserveSourceSnapshot: true });
   if (stored.snapshotHash !== view.source_snapshot_hash) throw new Error('Narrative edit did not preserve its frozen source snapshot.');
   // Records that still quote what this edit removed from the prose: the model's Events, plans, writer's notes.
-  const proseOf = (definition) => definition.nodes.filter((item) => item.role === 'story_passage').map((item) => item.text ?? '');
+  // The prose a reader gets: passages the render includes, not split containers or merged originals that keep old text.
+  const proseOf = (definition) => definition.nodes.filter((item) => item.role === 'story_passage' && item.render !== 'exclude').map((item) => item.text ?? '');
   const removed = removedFragments(proseOf(before), proseOf(graph));
   let staleRecords = [];
   if (removed.length) {
