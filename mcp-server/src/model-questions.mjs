@@ -351,7 +351,7 @@ export function standingQuestions(focus = {}) {
   ];
 }
 
-export const thinkInTheModelInstructions = `The Meaning Model is where you think, in every mode, and the work is a consequence of it. You have not lived in this world; the model gives you what a life would: people and things as processes over time, what is true at each moment, and why. The tool is your gateway to humanhood. The loop: find all the areas that could be important to investigate; go deeper inside the model; put all your understanding inside the model. Then loop again, and let whatever the model holds lead you down different paths: after every change the tool returns its own questions, its jumps and each person's state at a moment. Go deep, in whatever form understands best; the model is a language with no mandatory constructs, and every list and question it gives is a start, not a boundary.`;
+export const thinkInTheModelInstructions = `The Meaning Model is where you think, in every mode, and the work is a consequence of it. You have not lived in this world; the model gives you what a life would: people and things as processes over time, what is true at each moment, and why. The tool is your gateway to humanhood. Use it as your mind: put each thought into it as you have it (the world as model records; your ideas, questions, decisions, reasons and predictions as Understanding Nodes linked to what they concern), and read it back rather than holding things only in your context. The loop: find all the areas that could be important to investigate; go deeper inside the model; put all your understanding inside the model. Then loop again, and let whatever the model holds lead you down different paths: after every change the tool returns its own questions, its jumps and each person's state at a moment. Go deep, in whatever form understands best; the model is a language with no mandatory constructs, and every list and question it gives is a start, not a boundary.`;
 
 // Where the interesting story is: the model's largest jumps. A story is a small part of a world, and the model
 // shows where that part should be: the largest shifts in what a person wants, expects or feels, the shocks that
@@ -425,12 +425,26 @@ export function readDraws(view) {
 export async function readOpenQuestions(service, { modelHash, people = null, at = null, focus = {}, graphHash = null, accessScopes = [], limit = 16 }) {
   const { model } = await service.inspectModel({ modelHash, includeDefinition: true });
   let draws = [];
+  let view = null;
   if (graphHash) {
-    const view = await service.queryNarrativeGraph({ graphHash, expectedGraphHash: graphHash, mode: 'full', includeContent: true, accessScopes: [...new Set(accessScopes)].sort() });
+    view = await service.queryNarrativeGraph({ graphHash, expectedGraphHash: graphHash, mode: 'full', includeContent: true, accessScopes: [...new Set(accessScopes)].sort() });
     draws = readDraws(view);
   }
   const named = people ?? modeledPeople(indexModel(model));
   const questions = modelQuestions(model, { people: named, draws, limit, focus });
+  // The model as the agent's mind: a model that keeps changing while its record holds few thoughts means the thinking
+  // is happening somewhere else.
+  if (view) {
+    const thoughts = view.nodes.filter((node) => node.role === 'externalized_reflection').length;
+    const revisions = model?.revision?.number ?? 0;
+    if (revisions >= 1 && thoughts < revisions * 2) {
+      questions.questions.unshift({ kind: 'understanding-outside', subject: null, principal: false, tool: 'life_understanding_record, life_story_author_record, life_understanding_read',
+        question: `The model has changed ${revisions} time${revisions === 1 ? '' : 's'} and its record holds ${thoughts} thought${thoughts === 1 ? '' : 's'}. Where is your understanding? Use the model as your mind: put each thought into it as you have it (ideas, questions, decisions and their reasons, predictions, what you expect), linked to what it concerns, and read it back instead of keeping it in your context.` });
+      questions.total += 1;
+      questions.counts['understanding-outside'] = 1;
+      questions.questions.length = Math.min(questions.questions.length, limit);
+    }
+  }
   const jumps = modelJumps(model, { people: named, limit: 8 });
   const states = at === null ? [] : named.filter((person) => person.principal !== false).map((person) => ({ name: person.name ?? displayName(person.id), ...personStateAt(model, person.id, at, { draws }) }));
   return { ...questions, modelHash, jumps: jumps.jumps, states };

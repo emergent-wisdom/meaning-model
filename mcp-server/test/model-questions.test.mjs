@@ -70,3 +70,12 @@ test('standing questions are asked about the focus', () => {
   assert.ok(questions.some((item) => /Can you understand Halden better by inventing processes or subcategories/u.test(item)));
   assert.ok(questions.some((item) => /List all the aspects .* then investigate each by modeling: create new processes/u.test(item)));
 });
+
+test('a model that keeps changing while its record holds few thoughts is asked where the understanding is', async () => {
+  const { readOpenQuestions } = await import('../src/model-questions.mjs');
+  const model = { ...lived(), revision: { number: 4 } };
+  const service = { inspectModel: async () => ({ model }), queryNarrativeGraph: async () => ({ nodes: [{ id: 'n', role: 'externalized_reflection' }], edges: [] }) };
+  const open = await readOpenQuestions(service, { modelHash: 'f'.repeat(64), graphHash: 'a'.repeat(64), limit: 5 });
+  assert.equal(open.questions[0].kind, 'understanding-outside');
+  assert.match(open.questions[0].question, /changed 4 times and its record holds 1 thought\. Where is your understanding\? Use the model as your mind/);
+});
