@@ -232,16 +232,34 @@ each account commits to into the model, macro processes first
 Backtrack when the parent history could not have happened, or when it is
 dramatically inert.
 
-**3b. Aspects** (stage `aspects`). List every aspect of the story you could
-understand better, then investigate each by modeling:
-- the characters' choices, and why each makes them;
-- the author's writing and style;
-- each character's voice;
-- the technology of the story;
-- the time period and its long history;
-- the places, institutions and relationships;
-- money, bodies and beliefs;
-- whatever else this story is about.
+**3b. Aspects** (stage `aspects`). Find all the things that make this story
+interesting, and investigate each in the model. The opening stage returns a
+catalog (`interestCatalog`) of elements that often make a story interesting,
+each with why it does and how to investigate it by modeling:
+- people: flaws, conflicting wants, choices, change, relationships,
+  self-image, voices and secondary lives;
+- events: the central shock, stakes and costs, causality, surprise with
+  inevitability, tension, secrets and knowledge, open questions, reversals;
+- the world: the era and its long history, place, mechanisms and technology,
+  institutions and money, objects that return, the senses;
+- meaning: the author, style, theme, what it presses in the reader, moral
+  weight, joy and competence, humor, the ending.
+
+The catalog is a beginning, not a boundary. The aspects stage records every
+element, a flaw for each principal of the chosen world, and at least one
+element of your own that no list names, with its category and why it makes
+this story interesting. An element that turns out absent is still
+investigated: say what the model showed.
+
+A flaw is a process over a life, not a label. Model:
+- the event that taught it, often a strategy that once served a deep want;
+- the situations in which it takes over;
+- where the same trait is a strength and where it does harm;
+- what it costs in the story's choices;
+- whether the person sees it, and whether it changes.
+
+Babbage turns every threatened dependence into more control: brilliant for
+architecture, and damaging for shared authority.
 
 Investigating can take many forms, and so much can be done:
 - create new processes, or refine existing ones;
@@ -253,9 +271,8 @@ Investigating can take many forms, and so much can be done:
 - model how Things work and where everything is;
 - try another decomposition, or sample trajectories.
 
-For each aspect, record how it will be modeled and, as it is, the model
-records that answer it. Record a revised list as the model deepens and new aspects
-appear. Scene preparation shows the aspects still open.
+Record a revised list as the model deepens and new aspects appear. Scene
+preparation shows the aspects still open.
 
 **4. Implications and lives** (stage `implications`). Follow each consequential
 commitment into the model, and give every principal a whole life in the story
@@ -303,8 +320,10 @@ each completed part. The draft principles come from the Book's own passes:
 - each person matches the model's state at each moment;
 - every principal pays for the ending.
 
-What is interesting differs between stories, but that decides what the story
-shows, never how much is modeled. `life_story_release` refuses until a draft
+The principles are a start, not a boundary: every direction also records at
+least one finding of the director's own, about what the work needs that no
+principle names. What is interesting differs between stories, but that
+decides what the story shows, never how much is modeled. `life_story_release` refuses until a draft
 direction exists and its failures have been answered in the model.
 
 ## Model the author and its effect on prose

@@ -5,7 +5,8 @@ import { direct, directionState, directorPrinciples, DIRECTION_SCHEMA } from '..
 const graphHash = 'a'.repeat(64);
 const service = { async queryNarrativeGraph() { return { graph_hash: graphHash, content_included: true, nodes: [], edges: [], graph: { source: { kind: 'model', model_hash: 'f'.repeat(64) } } }; } };
 const findings = (stage, change = {}) => directorPrinciples.filter((item) => item.stage === stage).map((item) => ({ principleId: item.id, verdict: 'holds', evidence: 'Read against the principle.', modelChange: null, ...(change[item.id] ?? {}) }));
-const input = (extra) => ({ graphHash, requestId: 'r', storyRootId: 'book', accessScopes: ['author'], stage: 'world', directorId: 'fresh', independent: true, nodeId: 'direction', summary: 'A direction.', ...extra });
+const own = [{ name: 'Something no principle names', verdict: 'holds', evidence: 'Read beyond the principles.', modelChange: null }];
+const input = (extra) => ({ graphHash, requestId: 'r', storyRootId: 'book', accessScopes: ['author'], stage: 'world', directorId: 'fresh', independent: true, nodeId: 'direction', summary: 'A direction.', ownFindings: own, ...extra });
 
 test('a direction answers every principle of its stage, and a failure says what changes in the model first', async () => {
   await assert.rejects(direct(service, input({ findings: findings('world').slice(1) })), /exactly one finding for each of its principles/);
@@ -21,7 +22,8 @@ test('only a principle that cannot apply may be marked not-this-story; what is i
 test('without findings the director returns its task: the principles of the stage', async () => {
   const task = await direct({ ...service, inspectModel: async () => ({ model: { meaning_model: {} } }) }, input({ nodeId: undefined, summary: undefined }));
   assert.deepEqual(task.principles.map((item) => item.id), directorPrinciples.filter((item) => item.stage === 'world').map((item) => item.id));
-  assert.match(task.instructions, /always go deeper and model more/);
+  assert.match(task.instructions, /a start, not a boundary/);
+  assert.match(task.instructions, /Encourage depth/);
 });
 
 test('a failing direction stays open until the model changed and a record answers it', () => {
@@ -32,4 +34,8 @@ test('a failing direction stays open until the model changed and a record answer
   assert.equal(directionState(view([]), 'book', 'new').unanswered.length, 1, 'no record answers it');
   assert.equal(directionState(view([answers]), 'book', 'old').unanswered[0].modelUnchanged, true, 'answered in words but not in the model');
   assert.equal(directionState(view([answers]), 'book', 'new').unanswered.length, 0, 'answered in the model and in the record');
+});
+
+test('the principles are a start, not a boundary: a direction adds a finding of its own', async () => {
+  await assert.rejects(direct(service, input({ findings: findings('world'), ownFindings: [] })), /at least one finding of your own/);
 });

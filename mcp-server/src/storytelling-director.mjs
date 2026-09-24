@@ -29,7 +29,8 @@ export const directorPrinciples = Object.freeze([
   { id: 'world.macro', stage: 'world', source: 'director', principle: 'The long developments behind the world are modeled, over decades or centuries (a war a hundred years back, an institution, a technology, a family line), and each principal\'s childhood is modeled where it explains what they do.' },
   { id: 'world.lives', stage: 'world', source: 'director', principle: 'Every principal is an authentic person in the model: a whole life, the deepest wants underneath and the learned wants that serve them, the proxy that displaces a deep aim, shocks and adaptations that change many functions, conflicting wants that bargain.' },
   { id: 'world.mechanisms', stage: 'world', source: 'director', principle: 'The Things this story\'s causality runs through, whatever they are here (a machine, an institution, a house, a body, a document, a market), are modeled as they work: their parts, capacities, limits, failure modes and quantities, and how these constrain what people can do. None of those is only a name.' },
-  { id: 'world.aspects', stage: 'world', source: 'director', principle: 'Every aspect of the story that could be understood better has been listed (its choices, author and style, voices, technology, period, places, institutions, relationships, money, bodies, beliefs) and investigated by modeling; the list is current.' },
+  { id: 'world.aspects', stage: 'world', source: 'director', principle: 'Every element of what makes a story interesting (the catalog: people, events, the world, meaning) has been found where it lives in this story and investigated by modeling; the list is current.' },
+  { id: 'world.flaws', stage: 'world', source: 'director', principle: 'Each principal\'s flaw is modeled as a process over their life: the event that taught it, the situations in which it takes over, where the same trait is a strength and where it does harm, what it costs in the story\'s choices, and whether they see it.' },
   { id: 'world.background', stage: 'world', source: 'director', principle: 'The world is modeled far beyond what the story shows: the background processes of reality (the economy and prices, seasons and weather, bodies and illness, institutions and their routines, other families and neighbors, the technology of the day, the long histories) run in the model whether or not a scene ever touches them. The story is a small window onto them, and what it shows is real because of what it does not show.' },
   { id: 'world.jumps', stage: 'world', source: 'director', principle: 'The route runs through the model\'s largest jumps, and each part tests something different; if the story is elsewhere, the route says why.' },
   { id: 'draft.character-test', stage: 'draft', source: 'PERSON-MODELS', principle: 'Every scene does at least one of these: exposes a difference between kinds of intelligence; makes one person\'s reliance on another consequential; shows the same Event producing different anticipation, appraisal or adaptation; changes a slow life process or reveals that an apparent change did not consolidate; forces a choice between a deep aim and the proxy that once served it. A scene that does none belongs in the world, not the book.' },
@@ -60,10 +61,16 @@ export const directionSchema = z.object({
     evidence: text(10, 4_000).describe('Where in the text and the model it holds or fails, citing passages, Events, Cuts and lives; for not-this-story, why the principle cannot apply here.'),
     modelChange: text(10, 4_000).nullable().default(null).describe('For fails: what must change in the model first, before the prose.'),
   }).strict()).max(40).optional().describe('Omit to receive the direction task; supply to record it.'),
+  ownFindings: z.array(z.object({
+    name: text(2, 200).describe('What this work needs that no principle names.'),
+    verdict: z.enum(['holds', 'fails']),
+    evidence: text(10, 4_000),
+    modelChange: text(10, 4_000).nullable().default(null),
+  }).strict()).max(20).default([]).describe('The principles are a start, not a boundary: at least one finding of your own about what this work needs that no principle names.'),
   summary: text(10, 4_000).optional(),
 }).strict();
 
-export const directionInstructions = `The director is the other half of the loop that made the Book of Conditions good: someone who knows what makes a good story holds the work to it, and every failure sends the writer back into the model. Run it at the world stage, after the route and before the first scene, and at the draft stage, after each completed part and before release. Give the task to a fresh reviewer who has not written the work where you can, and record its findings under that director; otherwise direct yourself and say so. Assume each principle fails until the text and the model show it holds, and cite both. What is interesting differs between stories, and that decides what the story shows, never how much is modeled: always go deeper and model more, including much that never appears in the story, as the background processes of reality. Only a principle that cannot apply (no real people, no departure from history) may be marked not-this-story, with the reason. Then look for what this story needs that no principle names. A direction that finds nothing to change is suspect; look again. Every failure is answered in the model first (Events and their descriptions, lives, Cuts, mechanisms, long developments), then in the prose; link each answering record to the direction with answers. Scene preparation and release stop until the bound model has changed and a record answers the direction.`;
+export const directionInstructions = `The director is the other half of the loop that made the Book of Conditions good: someone holds the work to what makes a good story, and every failure sends the writer back into the model. Read the world before the first scene and the draft before release, as a fresh reviewer where you can. The principles are a start, not a boundary: judge each for this story, add what it needs that none names, and answer every failure in the model before the prose. Encourage depth: every aspect of the story, the world and what makes the story good can be investigated further.`;
 
 function readDirections(view, storyRootId) {
   const answered = new Set((view.edges ?? []).filter((edge) => edge.relation === 'answers' && edge.target?.kind === 'node').map((edge) => edge.target.node_id));
@@ -106,14 +113,16 @@ export async function direct(service, raw) {
   }
   const inapplicable = input.findings.filter((item) => item.verdict === 'not-this-story' && !directorPrinciples.find((principle) => principle.id === item.principleId)?.canBeInapplicable);
   if (inapplicable.length) throw new Error(`Only a principle that cannot apply may be marked not-this-story; ${inapplicable.map((item) => item.principleId).join(', ')} always apply. What is interesting decides what the story shows, never how much the world is modeled.`);
-  const unplanned = input.findings.filter((item) => item.verdict === 'fails' && !item.modelChange);
+  if (!input.ownFindings.length) throw new Error('The principles are a start, not a boundary: add at least one finding of your own (ownFindings) about what this work needs that no principle names.');
+  const unplanned = [...input.findings, ...input.ownFindings.map((item) => ({ ...item, principleId: `own:${item.name}` }))].filter((item) => item.verdict === 'fails' && !item.modelChange);
   if (unplanned.length) throw new Error(`Say what must change in the model first for each failure: ${unplanned.map((item) => item.principleId).join(', ')}.`);
   if (!input.nodeId || !input.summary) throw new Error('Recording a direction needs nodeId and summary.');
   const record = await prepareAuthorRecord(service, { graphHash: input.graphHash, requestId: input.requestId, nodeId: input.nodeId, storyRootId: input.storyRootId,
     authorId: input.directorId, accessScopes, kind: 'direction', text: input.summary,
-    data: { schema: DIRECTION_SCHEMA, stage: input.stage, directorId: input.directorId, independent: input.independent, modelHash, findings: input.findings } });
+    data: { schema: DIRECTION_SCHEMA, stage: input.stage, directorId: input.directorId, independent: input.independent, modelHash,
+      findings: [...input.findings, ...input.ownFindings.map((item) => ({ principleId: `own:${item.name}`, verdict: item.verdict, evidence: item.evidence, modelChange: item.modelChange }))] } });
   const stored = await service.applyNarrativeBatch({ requestId: input.requestId, previousGraphHash: input.graphHash, narrativeBatch: record.narrativeBatch });
-  const failing = input.findings.filter((item) => item.verdict === 'fails');
+  const failing = [...input.findings, ...input.ownFindings.map((item) => ({ ...item, principleId: `own:${item.name}` }))].filter((item) => item.verdict === 'fails');
   return { ...stored, ...record.receipt, schema: 'meaning-model-story-direction-record/v1', directionNodeId: input.nodeId, stage: input.stage, failing: failing.map((item) => item.principleId),
     nextStep: failing.length
       ? `Answer each failure in the model first: revise it (life_model_revise), rebind the story graph, and record what you changed with answers pointing to ${input.nodeId}; then revise the prose from the deeper model. Scene preparation and release stop until the bound model has changed and a record answers this direction.`

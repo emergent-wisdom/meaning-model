@@ -4,6 +4,7 @@
 // a memoir) and the route Event with a description.
 import { fictionalAuthorModel } from './storytelling-author-model-fixture.mjs';
 import { directorPrinciples } from '../src/storytelling-director.mjs';
+import { storyInterest } from '../src/storytelling-interest.mjs';
 
 const long = (text) => `${text} ${'It is modeled in the world before any scene is written, and its consequences are followed through.'.repeat(2)}`;
 
@@ -42,11 +43,11 @@ export async function recordWorldProcess(addon, { graphHash, storyRootId = 'book
   await record(`${prefix}.opening`, 'The chosen world opened in successive accounts.', { stage: 'opening', candidatesNodeId: `${prefix}.candidates`,
     accounts: [long('Leo comes home to a house he checks every night.'), `${long('Leo comes home to a house he checks every night.')}\n\n${long('This night the door sticks, and nobody answers when he asks.')}`],
     closedQuestions: ['Leo lives alone in the house.', 'The door has stuck since the winter.', 'Nobody has a key but Leo.'] });
-  await record(`${prefix}.aspects`, 'Every aspect of the story to understand better.', { stage: 'aspects', openingNodeId: `${prefix}.opening`, aspects: [
-    ['choices', 'Why Leo asks aloud instead of checking.'], ['author', 'Why the archivist writes about checking.'], ['style', 'How the archivist\'s restraint shapes sentences.'],
-    ['voice', 'How Leo speaks when he is unsure.'], ['technology', 'How the stiff door and its lock work.'], ['period', 'The town in the years the street emptied.'],
-    ['place', 'The house and the rainy street.'], ['relationship', 'Leo and the neighbor who helps unasked.']].map(([kind, aspect], index) => ({ id: `a.${index}`, kind, aspect,
-      how: 'Model it as processes over time in the story model.', status: index === 0 ? 'modeled' : 'open', records: index === 0 ? [`event:${routeEventId}`] : [] })) });
+  await record(`${prefix}.aspects`, 'What makes this story interesting, found and investigated.', { stage: 'aspects', openingNodeId: `${prefix}.opening`, aspects: [
+    ...storyInterest.map((element, index) => ({ id: `a.${element.id}`, kind: element.id, aspect: element.id === 'flaws' ? 'Leo checks everything so he never has to trust.' : `Where ${element.element.toLowerCase()} lives in this story.`,
+      how: 'Model it as processes over time in the story model.', status: index === 0 ? 'modeled' : 'open', records: index === 0 ? [`event:${routeEventId}`] : [] })),
+    { id: 'a.flaws.neighbor', kind: 'flaws', aspect: 'The neighbor helps only when nobody asks, so help is never owed.', how: 'Model where her help came from and what it costs.', status: 'open', records: [] },
+    { id: 'a.own', kind: 'other', category: 'Unanswered knocking', why: 'The silence after a question is this story\'s own element.', aspect: 'What Leo hears when nobody answers.', how: 'Model the sounds of the house at night.', status: 'open', records: [] }] });
   await record(`${prefix}.implications`, 'What each commitment implies.', { stage: 'implications', openingNodeId: `${prefix}.opening`, commitments: [
     { id: 'c.alone', commitment: 'Leo lives alone in the house.', implications: [{ about: 'Leo', consequence: 'Nobody else can answer his question.', status: 'remainder', reason: 'Only the scene tests it.' }] },
     { id: 'c.door', commitment: 'The door has stuck since the winter.', implications: [{ about: 'the house', consequence: 'Entering takes force and makes noise.', status: 'represented', representedBy: [`event:${routeEventId}`] }] },
@@ -56,6 +57,7 @@ export async function recordWorldProcess(addon, { graphHash, storyRootId = 'book
     renderedOrder: 'One part, in order.', whyNotJumps: 'The fixture world has no modeled jumps outside its one arrival.', risks: [{ risk: 'The silence could read as a trick.', repair: 'Keep the house physical and ordinary.' }] });
   const direction = await addon.direct({ graphHash: hash, requestId: `${prefix}.direction`, storyRootId, accessScopes, stage: 'world', directorId: 'fixture-director', independent: true,
     nodeId: `${prefix}.direction`, summary: 'The world holds for this fixture.',
-    findings: directorPrinciples.filter((item) => item.stage === 'world').map((item) => ({ principleId: item.principleId ?? item.id, verdict: 'holds', evidence: 'The fixture world was built to hold this principle.', modelChange: null })) });
+    findings: directorPrinciples.filter((item) => item.stage === 'world').map((item) => ({ principleId: item.principleId ?? item.id, verdict: 'holds', evidence: 'The fixture world was built to hold this principle.', modelChange: null })),
+    ownFindings: [{ name: 'The house as a character', verdict: 'holds', evidence: 'The fixture house is modeled through its door.', modelChange: null }] });
   return direction.graphHash;
 }

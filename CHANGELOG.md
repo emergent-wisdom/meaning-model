@@ -36,12 +36,23 @@ unpublished work stays under Unreleased. This is not a development transcript.
   preparation gives each present person's state at that moment from the
   model, together with the model's questions for the scene, and every scene
   commit returns the open questions before the next scene.
+- Add a catalog of what makes a story interesting, from flaws, conflicting
+  wants and choices to the era, mechanisms, objects that return, theme and the
+  ending. Each element says why it makes a story interesting and how to
+  investigate it by modeling. The aspects stage records every element and a
+  flaw for each principal, modeled as a process over the life. It also records
+  at least one element of the agent's own: the catalog is a beginning, not a
+  boundary.
+- Keep instructions short and open-ended. The specifics reach the agent where
+  they are used: in the model's questions, its jumps, each person's state at a
+  moment, the schema descriptions and the validation messages.
 - Add the director, `life_story_direct`. It holds the world, before the first
   scene, and the draft, after each part and before release, to principles of a
   good story. The principles come from the Book of Conditions' own record of
   how it was made. Each failure must be answered in the model first: scene
   preparation and `life_story_release` stop until the bound model has changed
-  and a record answers the direction.
+  and a record answers the direction. Every direction also records at least one
+  finding of the director's own.
 
 Together these changes make one server cover three kinds of work: general-purpose
 modeling with an optional Jev estimator, narration through the storytelling

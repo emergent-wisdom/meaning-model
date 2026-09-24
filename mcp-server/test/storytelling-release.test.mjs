@@ -21,7 +21,8 @@ const directed = async (service, graphHash, { failing = false } = {}) => (await 
   storyRootId: 'story', accessScopes: author, stage: 'draft', directorId: 'fresh-reader', independent: true, nodeId: `direction.${Math.random().toString(36).slice(2, 8)}`,
   summary: 'The director read the draft.', findings: directorPrinciples.filter((item) => item.stage === 'draft').map((item) => ({ principleId: item.id,
     verdict: failing && item.id === 'draft.ending' ? 'fails' : 'holds', evidence: 'The test draft was read against this principle.',
-    modelChange: failing && item.id === 'draft.ending' ? 'Model what each principal pays for the ending.' : null })) })).graphHash;
+    modelChange: failing && item.id === 'draft.ending' ? 'Model what each principal pays for the ending.' : null })),
+  ownFindings: [{ name: 'The door as witness', verdict: 'holds', evidence: 'The test draft keeps the door present.', modelChange: null }] })).graphHash;
 
 async function setup(t, nodes, edges) {
   const markdown = await readFile(new URL('../../docs/examples/MINIMAL-MODEL-AND-GRAPH.md', import.meta.url), 'utf8');

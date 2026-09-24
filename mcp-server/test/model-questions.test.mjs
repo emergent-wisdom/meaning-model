@@ -50,7 +50,8 @@ test('templates are suggestions: a life of the modeler\'s own processes is read 
   const few = questions.questions.find((item) => item.kind === 'processes-few');
   assert.match(few.question, /suggests nine slow processes .* processes invented for Ada, or subcategories/);
   assert.match(questions.guidance, /none of its constructs is mandatory/);
-  assert.match(thinkInTheModelInstructions, /The model is a language, not a form/);
+  assert.match(thinkInTheModelInstructions, /the model is a language with no mandatory constructs/);
+  assert.match(thinkInTheModelInstructions, /Go deep, and investigate every aspect/);
 });
 
 test('the jumps of the Book of Conditions are where its story is', async () => {

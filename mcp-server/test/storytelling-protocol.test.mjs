@@ -657,7 +657,8 @@ test('storytelling scene round-trip appends reviewed prose through Rust without 
     authorId: 'author.llm', accessScopes: ['editor'], releaseTo: ['reader'], reason: 'Too early.' }), /Run the director on the draft before release/);
   const directed = await call(client, 'life_story_direct', { graphHash: committed.graphHash, requestId: 'direct-draft', storyRootId: 'document',
     accessScopes: ['editor'], stage: 'draft', directorId: 'fresh-reader', independent: true, nodeId: 'direction.draft', summary: 'The draft holds.',
-    findings: directionTask.principles.map((item) => ({ principleId: item.id, verdict: 'holds', evidence: 'The one-line scene was read against this principle.', modelChange: null })) });
+    findings: directionTask.principles.map((item) => ({ principleId: item.id, verdict: 'holds', evidence: 'The one-line scene was read against this principle.', modelChange: null })),
+    ownFindings: [{ name: 'The gauge as the scene\'s clock', verdict: 'holds', evidence: 'The reading marks the time of the shift.', modelChange: null }] });
   const released = await call(client, 'life_story_release', { graphHash: directed.graphHash, requestId: 'release-1', nodeId: 'author.release.1', storyRootId: 'document',
     authorId: 'author.llm', accessScopes: ['editor'], releaseTo: ['reader'], reason: 'The human approved publishing this scene.' });
   assert.ok(released.releasedNodeIds.includes(committed.sceneId));
