@@ -40,7 +40,7 @@ const authorReaderStage = z.object({
   author: z.object({
     ...life,
     authorModelNodeId: id.describe('The stored author model (life_story_author_record, kind author_model): the voice this life produces. Its modeledAuthorId is personId.'),
-    livesIn: z.enum(['this_world', 'separate_world']).describe('Does the author live in this story\'s world, or a separate one? A memoir or a story among the author\'s own people lives in this world; Middle-earth does not live in Tolkien\'s.'),
+    livesIn: z.enum(['this_world', 'separate_world']).describe('Does the author live in this story\'s world, or a separate one? A memoir or a story among the author\'s own people lives in this world; an invented world usually does not.'),
     writing: text(10, 4_000).nullable().default(null).describe('If the author lives in this world: when they write the book relative to the story\'s events, what they know then, and how far they stand from what they tell. It shapes what can be documented.'),
     whyThisStory: text(20, 4_000).describe('Why this person writes this story now, read from their modeled life.'),
     teach: text(3, 4_000).describe('What they want to teach or show; say so when nothing is settled.'),

@@ -179,11 +179,9 @@ to them, understanding is recorded when it happens, and processes are modeled
 whenever they are needed. Scene preparation shows what the world holds and
 what is still open; it does not wait for the steps.
 
-**1. The author, and optionally a reader.** A book comes out of a life. *The
-Gulag Archipelago* could not have been written without Solzhenitsyn's arrest,
-camps and exile. *Crime and Punishment* could not have been written without
-Dostoevsky's mock execution, penal servitude, debts and quarrel with the
-radicals of his day. So model the author's life first, as its own life model:
+**1. The author, and optionally a reader.** A book comes out of a life: what
+its author lived through, what they could not settle, and why they write this
+now. So model the author's life first, as its own life model:
 
 - Give the author a lifecycle Event over the whole life, holding the
   processes the life runs through. Templates are suggestions: look at the
@@ -207,8 +205,8 @@ radicals of his day. So model the author's life first, as its own life model:
   meaning is temporal: one state must be consistent with the next.
 
 Ask whether the author lives in this world or a separate one. A memoir or a
-story among the author's own people lives in this world; Middle-earth does not
-live in Tolkien's. If the author lives in this world, when they write the book
+story among the author's own people lives in this world; an invented world
+usually does not. If the author lives in this world, when they write the book
 matters: what they know then, and how far they stand from what they tell, shape
 what can be documented. The author stage records both (`livesIn`, `writing`).
 The author's life can be a model of its own or a realm of the story's model.
