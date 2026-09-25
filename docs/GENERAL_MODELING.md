@@ -41,7 +41,9 @@ not lived in the system it describes; the model gives it one.
   Events that recur. Take them between every step.
 - **Standing questions.** Ask them all the time. Is there a macro aspect I must
   model to truly understand what is going on here, a regime change, an
-  institution's history, a war decades back? What can be richer about this
+  institution's history, a war decades back? What kinds of reasons lie behind
+  what the actors here do, are they primarily out of fear or out of love, and
+  what does that fear or love ask of them? What can be richer about this
   process? What is it an instance of? Climb up to the concept or law that
   explains it together with other things, and test what that abstraction
   predicts elsewhere.

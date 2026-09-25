@@ -69,6 +69,17 @@ test('standing questions are asked about the focus', () => {
   assert.ok(questions.some((item) => /macro aspect .* childhood or a war a hundred years ago/u.test(item)));
   assert.ok(questions.some((item) => /Can you understand Halden better by inventing processes or subcategories/u.test(item)));
   assert.ok(questions.some((item) => /List all the aspects .* then investigate each by modeling: create new processes/u.test(item)));
+  assert.ok(questions.some((item) => /^What kinds of reasons lie behind what Halden does, are they primarily out of fear or out of love, and what does that fear or love ask of them\?/u.test(item)));
+  assert.ok(standingQuestions({ people: ['Brita', 'Johan'] }).some((item) => /behind what Brita, Johan do, are they primarily out of fear or out of love/u.test(item)));
+  assert.ok(standingQuestions({}).some((item) => /behind what the people acting in what you are working on do, are they primarily out of fear or out of love/u.test(item)), 'asked in every mode, even with no one in focus');
+});
+
+test('the story catalog asks where acts come from', async () => {
+  const { storyInterest } = await import('../src/storytelling-interest.mjs');
+  const element = storyInterest.find((item) => item.id === 'fear-love');
+  assert.equal(element?.group, 'people');
+  assert.match(element.investigate, /primarily out of fear or out of love, and what that fear or love asks of the person/);
+  assert.match(storyInterest.find((item) => item.id === 'choices').investigate, /the reasons behind the choice \(primarily out of fear or out of love/);
 });
 
 test('a model that keeps changing while its record holds few thoughts is asked where the understanding is', async () => {

@@ -6,6 +6,15 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Ask where acts come from. A standing question, asked at every step in every
+  mode, asks what kinds of reasons lie behind what the people in focus do,
+  whether they are primarily out of fear or out of love, and what that fear or
+  love asks of them. The same act can come from either, and what it does to
+  the person depends on which. The story catalog gains the element *Fear or
+  love*: the reasons as Cuts whose shares shift over a life with shocks and
+  with being seen, what the person believes the reason is against what others
+  read, and what the act does afterwards. A choice and the author's reason for
+  writing are asked the same.
 - Make the model the place where the work is thought, in every mode. Every model
   registration and revision now returns the model's own open questions, and the
   new `life_model_questions` tool returns all of them. They are read from its

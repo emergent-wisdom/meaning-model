@@ -144,7 +144,9 @@ this tool is the depth only a model gives, so the tool keeps asking for more:
 - **Standing questions,** asked at every step about whatever is being worked
   on. Is there a macro aspect I must model to truly understand what is going
   on here? It could be something from a character's childhood or a war a
-  hundred years ago, and you will not know unless you model it. What can be
+  hundred years ago, and you will not know unless you model it. What kinds of
+  reasons lie behind what each person does, are they primarily out of fear or
+  out of love, and what does that fear or love ask of them? What can be
   richer about this event, this scene, this character? What is it an instance
   of? Climb up to the concept or regularity that explains it together with
   other things.
@@ -248,8 +250,8 @@ dramatically inert.
 interesting, and investigate each in the model. The opening stage returns a
 catalog (`interestCatalog`) of elements that often make a story interesting,
 each with why it does and how to investigate it by modeling:
-- people: flaws, conflicting wants, choices, change, relationships,
-  self-image, voices and secondary lives;
+- people: flaws, conflicting wants, fear or love, choices, change,
+  relationships, self-image, voices and secondary lives;
 - events: the central shock, stakes and costs, causality, surprise with
   inevitability, tension, secrets and knowledge, open questions, reversals;
 - the world: the era and its long history, place, mechanisms and technology,
@@ -273,6 +275,21 @@ A flaw is a process over a life, not a label. Model:
 For example, someone who turns every threatened dependence into more
 control: brilliant when the problem is design, damaging when authority has to
 be shared.
+
+The same act can come from fear or from love, and what it does to the person
+depends on which. Someone can defend themselves, train, or write a book out of
+fear of losing their place, of being excluded or of not being accepted, or out
+of love: of themselves, expressed and given to others, and of the people and
+work they care for. Ask of every consequential act what kinds of reasons lie
+behind it, whether they are primarily fear or love, and what that fear or
+love asks of the person. Most acts mix both, so model:
+- the shares, and how they shift over the life with shocks and with being seen;
+- what the person believes the reason is, and what others read;
+- what the act does afterwards: to their well-being, to what they need from
+  others, and to their relationships.
+
+In a relationship, love is each person's self-expression reaching the other and
+being returned.
 
 Investigating can take many forms, and so much can be done:
 - create new processes, or refine existing ones;
