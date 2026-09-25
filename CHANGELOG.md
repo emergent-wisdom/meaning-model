@@ -6,6 +6,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## 0.3.0 — 2026-09-25
 
+- A refused `life_profile_compile` request returns a complete valid example of
+  the scaffold kind it asked for, from the engine's own example command, rather
+  than one missing field at a time. The tool presents the scaffolds as starting
+  structures to adapt: a whole life, a shock with its anticipation and
+  adaptation, a Thing, a relationship or a concept.
 - Learn from the novel run of 2026-09-24:
   - The questions shown after a model change cover as many kinds as they can,
     the principals taking at most half, and eight are shown instead of six.

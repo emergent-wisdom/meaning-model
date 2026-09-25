@@ -304,6 +304,16 @@ test('official MCP client discovers and calls the local stdio server', async () 
       operation: 'registerModel',
       explicit: true,
     });
+    // The examples a refusal shows are the engine's own, and they compile.
+    const { scaffoldExampleRequest } = await import('../src/scaffold-examples.mjs');
+    const examples = await client.callTool({ name: 'life_profile_compile', arguments: { profileRequest: scaffoldExampleRequest() } });
+    assert.equal(examples.isError, undefined, 'every scaffold example compiles');
+    const brokenArc = await client.callTool({ name: 'life_profile_compile',
+      arguments: { profileRequest: { ...personProfileCompilationRequest(), profiles: [{ kind: 'change_arc_scaffold', profile: { id: 'broken' } }] } } });
+    assert.equal(brokenArc.isError, true);
+    assert.match(brokenArc.content[0].text, /missing field .*A complete valid change_arc_scaffold entry, from the engine's own example: \{"kind":"change_arc_scaffold".*"affected_referent_id"/su,
+      'one refusal shows the whole shape');
+    assert.match(profileTool.description, /A refused request returns a complete valid example of its kind/);
     const contextTool = tools.find(({ name }) => name === 'life_modeling_context');
     assert.equal(contextTool.annotations.readOnlyHint, false, 'a call that can begin a new access record is not read-only');
     assert.match(contextTool.description, /same purpose keeps that reading record/);

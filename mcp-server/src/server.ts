@@ -1,5 +1,6 @@
 import { applyModelChange } from './model-change.mjs';
 import { readOpenQuestions, thinkInTheModelInstructions, VISIBLE_QUESTIONS, withOpenQuestions } from './model-questions.mjs';
+import { scaffoldHint } from './scaffold-examples.mjs';
 import { McpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
@@ -78,9 +79,9 @@ const refusalHints: Array<[RegExp, string]> = [
   [/names unknown referent/u, 'A referent must exist in the same request or model. person_scaffold names its person referent.profile.<profile id>.person.<subject_id>, so a change arc about that person uses that id.'],
   [/model must contain at least one process/u, 'A model needs at least one process. A first model can hold one for the story\'s clock or setting and grow as the world opens.'],
 ];
-function withRefusalHint(error: unknown): Error {
+function withRefusalHint(error: unknown, extra: string | null = null): Error {
   const message = error instanceof Error ? error.message : String(error);
-  const hints = refusalHints.filter(([pattern]) => pattern.test(message)).map(([, hint]) => hint);
+  const hints = [...refusalHints.filter(([pattern]) => pattern.test(message)).map(([, hint]) => hint), ...(extra && /compile_profiles failed/u.test(message) ? [extra] : [])];
   return hints.length ? Object.assign(new Error(`${message} ${hints.join(' ')}`), { cause: error }) : (error instanceof Error ? error : new Error(message));
 }
 
@@ -188,7 +189,7 @@ server.registerPrompt('life_general_modeling_start', {
 server.registerTool(
   'life_profile_compile',
   {
-    description: 'Optional shortcut after both complete theory resources have been read in this live MCP process: compile Story, Person, Decision, concept_scaffold, change_arc_scaffold, person_scaffold, thing_scaffold, or relationship_scaffold profiles in Rust into an ordinary revision-0 ModelDefinition. The modeler may instead author a model directly with application-specific categories. Structural starters are unweighted by default; person_scaffold offers lifecycle alone or Book-style processes (the existing default). Story and Decision add experimental numerical meanings and behavioural laws, not universal rules; inspect these assumptions before choosing them. This read-only operation never registers or persists the result. Adapt it before life_model_register, or use an explicit successor revision for later category changes. A complete valid request, model and graph are shown in life-sim://example/minimal-model-and-graph.',
+    description: 'Compile scaffold profiles in Rust into an ordinary revision-0 ModelDefinition: person_scaffold for a whole life, change_arc_scaffold for a shock with its anticipation, focal change and adaptation, thing_scaffold for a machine, document or institution, relationship_scaffold, concept_scaffold, and the experimental Story, Person and Decision profiles. A scaffold is a starting structure to adapt, extend or replace with processes of your own; the modeler may also author a model directly with application-specific categories. It needs both complete theory resources read in this live MCP process. A refused request returns a complete valid example of its kind, and rust-engine/examples/construction-scaffolds-command.json holds one of each. Structural starters are unweighted by default; person_scaffold offers lifecycle alone or Book-style processes (the existing default). Story and Decision add experimental numerical meanings and behavioural laws, not universal rules; inspect these assumptions before choosing them. This read-only operation never registers or persists the result. Adapt it before life_model_register, or use an explicit successor revision for later category changes. A complete valid request, model and graph are shown in life-sim://example/minimal-model-and-graph.',
     inputSchema: z.object({
       profileRequest: z.record(z.string(), z.unknown()),
     }),
@@ -196,7 +197,7 @@ server.registerTool(
   },
   async (input) => {
     requireTheoryAccessForProfileCompilation();
-    try { return toolResult(await service.compileProfiles(input)); } catch (error) { throw withRefusalHint(error); }
+    try { return toolResult(await service.compileProfiles(input)); } catch (error) { throw withRefusalHint(error, scaffoldHint(input.profileRequest)); }
   },
 );
 
