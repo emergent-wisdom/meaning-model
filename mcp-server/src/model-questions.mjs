@@ -94,6 +94,12 @@ export function displayName(referentId) {
 // Modeled people: referents with a lifecycle Event that holds the processes of a life, from the person template or
 // the modeler's own, or whose moments carry what they want or feel. Those the model says most about come first and
 // count as principals.
+// Events with no place of their own or from an Event that contains them.
+export function unplacedEvents(index, eventIds) {
+  return eventIds.map((eventId) => index.events.get(eventId)).filter((event) => event && !event.region && !event.substrate
+    && ![...ancestors(index, event.id)].some((eventId) => index.events.get(eventId)?.region || index.events.get(eventId)?.substrate));
+}
+
 export function modeledPeople(index) {
   const feelsOrWants = (referentId) => (index.eventsOf.get(referentId) ?? []).some((eventId) => (index.cutsByEvent.get(eventId) ?? []).some((cut) => ['wants', 'feels'].includes(cutKind(cut))));
   return [...index.referents.values()].filter((referent) => referent.lifecycle_event_id
@@ -218,6 +224,10 @@ function personQuestions(index, person, name, principal) {
     const outside = [...ancestors(index, item.event.id)].filter((eventId) => !person.own.has(eventId));
     if (!outside.length) ask('why-local', `Why does "${item.cut.question}" arise for ${name} at all? Nothing longer than their own life leads to it in the model. Which developments beyond one life (institutions, money, technology, family history, a place, a war long ago) press on this moment? Model them as processes over their own long time.`, 'life_general_modeling_start or life_model_revise', { cuts: [item.cut.id] });
   }
+  // A principal who never chooses is only acted upon: what the work does to them, not what they do.
+  if (principal && !person.cuts.some((entry) => cutKind(entry.cut) === 'decision')) {
+    ask('choices-missing', `${name} makes no choice the model decides. What does ${name} choose, when, between which options, and why, and what does each option serve among what they want and fear? Model the moment and the choice as a decision Cut from their state, and draw it.`, 'life_model_revise or life_estimate_cut_shares, then life_direction_draw (record)');
+  }
   return questions;
 }
 
@@ -256,12 +266,18 @@ function worldQuestions(index, lives, draws) {
     if (list.length >= 3 && concepts < 3) ask('recurring-question', `"${list[0].question}" is asked at ${list.length} moments. What general pattern do the answers show across them, and which concept or law is it? Climb up.`, 'life_model_revise', { cuts: list.slice(0, 8).map((cut) => cut.id), key: question });
   }
   // Where things happen: the physical coordinates of the moments that carry the work.
-  const unplaced = [...index.cutsByEvent.keys()].map((eventId) => index.events.get(eventId)).filter((event) => event && !event.region && !event.substrate
-    && ![...ancestors(index, event.id)].some((eventId) => index.events.get(eventId)?.region || index.events.get(eventId)?.substrate));
+  const unplaced = unplacedEvents(index, [...index.cutsByEvent.keys()]);
   if (unplaced.length) ask('place-missing', `${unplaced.length} moment${unplaced.length === 1 ? '' : 's'} carrying Cuts ${unplaced.length === 1 ? 'has' : 'have'} no place (for example ${unplaced.slice(0, 3).map((event) => event.id).join(', ')}). Where does each happen, where is each person and Thing in it, and in what physical state? Give each its region, or contain it in an Event that has one, and model the physical processes of the Things taking part.`, 'life_model_revise');
-  const drawn = new Set(draws.map((item) => item.cutId));
-  for (const cut of index.cuts.filter((item) => cutKind(item) === 'decision' && !drawn.has(item.id))) {
-    ask('decision-undrawn', `"${cut.question}" has not been drawn. Draw it with a recorded seed: the model decides what happens, and the work follows the draw.`, 'life_direction_draw (record)', { cuts: [cut.id] });
+  // Draws are recorded in the story graph, not the model. Without the graph the tool cannot tell which decisions are
+  // drawn, so it names them together rather than claiming each is undrawn.
+  if (draws === null) {
+    const decisions = index.cuts.filter((item) => cutKind(item) === 'decision');
+    if (decisions.length) ask('decision-undrawn', `The model holds ${decisions.length} decision Cut${decisions.length === 1 ? '' : 's'} (${decisions.slice(0, 4).map((cut) => cut.id).join(', ')}${decisions.length > 4 ? ', and more' : ''}). Which are drawn is recorded in the story graph, not the model: life_model_questions with graphHash, or the questions a rebind returns, name the ones still undrawn. Draw each with a recorded seed; the work follows the draw.`, 'life_model_questions (graphHash) or life_direction_draw (record)', { cuts: decisions.map((cut) => cut.id) });
+  } else {
+    const drawn = new Set(draws.map((item) => item.cutId));
+    for (const cut of index.cuts.filter((item) => cutKind(item) === 'decision' && !drawn.has(item.id))) {
+      ask('decision-undrawn', `"${cut.question}" has not been drawn. Draw it with a recorded seed: the model decides what happens, and the work follows the draw.`, 'life_direction_draw (record)', { cuts: [cut.id] });
+    }
   }
   const unestimated = index.cuts.filter((cut) => !estimated(cut) && cutKind(cut) !== 'other');
   if (unestimated.length) ask('weights-unestimated', `${unestimated.length} Cut${unestimated.length === 1 ? '' : 's'} carry weights nobody estimated (for example ${unestimated.slice(0, 3).map((cut) => cut.id).join(', ')}). Estimate them from their described situations, or record whose distribution they are.`, 'life_estimate_cut_shares or life_process_estimate', { cuts: unestimated.slice(0, 12).map((cut) => cut.id) });
@@ -278,9 +294,11 @@ function worldQuestions(index, lives, draws) {
   return questions;
 }
 
-const ORDER = ['author-separate', 'author-unlinked', 'life-missing', 'life-untimed', 'time-missing', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'macro-missing', 'period-gap',
-  'moment-unmodeled', 'decision-undrawn', 'shift-uncaused', 'adaptation-open', 'wants-generic', 'why-local', 'concepts-thin', 'laws-missing', 'recurring-question',
-  'period-uncut', 'process-empty', 'secondary-without-life', 'place-missing', 'event-undescribed', 'weights-unestimated'];
+const ORDER = ['author-separate', 'author-unlinked', 'life-missing', 'life-untimed', 'time-missing', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'choices-missing', 'macro-missing', 'period-gap',
+  'moment-unmodeled', 'decision-undrawn', 'shift-uncaused', 'adaptation-open', 'laws-missing', 'place-missing', 'wants-generic', 'why-local', 'concepts-thin', 'recurring-question',
+  'period-uncut', 'process-empty', 'secondary-without-life', 'event-undescribed', 'weights-unestimated'];
+// How many open questions come back with each model change, rebind and world record; life_model_questions gives all.
+export const VISIBLE_QUESTIONS = 8;
 
 // The author's life and the story in one model: what the author lived should be linked to what it shapes in the
 // story, by relations between their Events (authorial shaping, distinct from causation inside the story world).
@@ -295,7 +313,29 @@ export function authorLinks(index, authorId) {
 }
 
 // The open questions of a model: for the named people (or every person the model scaffolds), then the world.
-export function modelQuestions(model, { people = null, draws = [], limit = 12, focus = {}, author = null } = {}) {
+// What the agent sees first covers as many kinds as the limit allows, in priority order: the principals' different
+// questions take at most half, then the world's, so nine questions of one kind cannot crowd out a world with no laws or
+// no places. The counts, and life_model_questions, give all of them.
+function visible(questions, limit) {
+  const target = Math.min(limit, questions.length);
+  const shown = []; const taken = new Set();
+  const pass = (items, cap, repeat = false) => {
+    const kinds = new Set(shown.map((item) => item.kind)); let added = 0;
+    for (const item of items) {
+      if (shown.length >= target || added >= cap) break;
+      if (taken.has(item) || (!repeat && kinds.has(item.kind))) continue;
+      kinds.add(item.kind); taken.add(item); shown.push(item); added += 1;
+    }
+    return added;
+  };
+  pass(questions.filter((item) => item.principal), Math.ceil(limit / 2));
+  pass(questions.filter((item) => !item.principal), limit);
+  pass(questions, limit);
+  pass(questions, limit, true);
+  return shown;
+}
+
+export function modelQuestions(model, { people = null, draws = null, limit = 12, focus = {}, author = null } = {}) {
   const index = indexModel(model);
   const named = people ?? modeledPeople(index);
   const lives = named.map((item) => ({ ...item, name: item.name ?? displayName(item.id), read: readPerson(index, item.id) }));
@@ -317,7 +357,7 @@ export function modelQuestions(model, { people = null, draws = [], limit = 12, f
     people: lives.map((item) => ({ id: item.id, name: item.name ?? item.id, life: Boolean(item.read.life), processes: item.read.processes.length,
       processesOpened: item.read.processes.filter((process) => process.opened > 0).length, periods: item.read.periods.length,
       shocks: item.read.arcs.length, cuts: item.read.cuts.length })) };
-  return { schema: 'meaning-model-open-questions/v1', total: questions.length, counts, depth, questions: questions.slice(0, limit), alwaysAsk: standingQuestions(focus),
+  return { schema: 'meaning-model-open-questions/v1', total: questions.length, counts, depth, questions: visible(questions, limit), alwaysAsk: standingQuestions(focus),
     guidance: 'The loop: find the areas worth investigating, go deeper inside the model, put your understanding inside the model, then loop again and let what the model holds lead you down different paths. These are the model\'s own open questions, read from its structure. The model is a language and none of its constructs is mandatory: the questions read common ones (a lifecycle Event, periods, change arcs, Cut units), so where you expressed the same understanding your own way a question may not see it; say so in the record and move on. Answer the rest by adding structure, in whatever form understands best, then ask again: every answer raises new questions, and there is no depth at which the model is finished. Take at least one between every step of the work.' };
 }
 
@@ -443,7 +483,7 @@ export function readDraws(view) {
 // state of each person.
 export async function readOpenQuestions(service, { modelHash, people = null, at = null, focus = {}, graphHash = null, accessScopes = [], limit = 16, author = null }) {
   const { model } = await service.inspectModel({ modelHash, includeDefinition: true });
-  let draws = [];
+  let draws = null;
   let view = null;
   if (graphHash) {
     view = await service.queryNarrativeGraph({ graphHash, expectedGraphHash: graphHash, mode: 'full', includeContent: true, accessScopes: [...new Set(accessScopes)].sort() });
@@ -496,7 +536,7 @@ export async function readOpenQuestions(service, { modelHash, people = null, at 
 }
 
 // A compact copy of the open questions for the result of any tool that changed a model.
-export async function withOpenQuestions(service, result, { modelHash = result?.modelHash ?? null, limit = 6, focus = {} } = {}) {
+export async function withOpenQuestions(service, result, { modelHash = result?.modelHash ?? null, limit = VISIBLE_QUESTIONS, focus = {} } = {}) {
   if (!modelHash) return result;
   try {
     const { total, counts, depth, questions, alwaysAsk, guidance } = await readOpenQuestions(service, { modelHash, limit, focus });

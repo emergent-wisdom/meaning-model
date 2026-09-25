@@ -6,6 +6,7 @@ import * as z from 'zod/v4';
 import { rebindNarrativeGraph, preflightNarrativeRebind } from './narrative-rebind.mjs';
 
 import { retainEstimatorProposal, readEstimatorProposal, runEstimatorRequest } from './estimator-receipts.mjs';
+import { displayName, indexModel, modeledPeople, personStateAt, readPerson } from './model-questions.mjs';
 
 const id = z.string().trim().min(1).max(256);
 const longId = z.string().trim().min(1).max(1_024);
@@ -60,7 +61,7 @@ const digest = (value) => createHash('sha256').update(JSON.stringify(value)).dig
 export function buildCutShareQuestions(input, targets) {
   const criteria = Object.fromEntries([...input.answers.map((answer) => [answer.key, answer.meaning]), [REMAINDER_KEY, input.remainderMeaning]]);
   const instructions = `${input.question} Answer with the distribution over the listed answers that best describes the situation${input.subject ? ` for ${input.subject}` : ''}; put mass on ${REMAINDER_KEY} when no named answer applies or attention is elsewhere.`;
-  return targets.map((target) => ({ situationId: target.id, state: { ...(input.subject ? { subject: input.subject } : {}), situation: target.text, question: input.question }, questions: { shares: { type: 'choice', instructions, criteria } } }));
+  return targets.map((target) => ({ situationId: target.id, state: { ...(input.subject ? { subject: input.subject } : {}), situation: target.text, ...(target.modeled ? { modeledState: target.modeled } : {}), question: input.question }, questions: { shares: { type: 'choice', instructions, criteria } } }));
 }
 
 export function proposalFromProbabilities(input, target, probabilities, meta) {
@@ -87,6 +88,30 @@ export function proposalFromProbabilities(input, target, probabilities, meta) {
   return { id: target.cutId ?? `${input.idPrefix}.${target.id}`, parent_event_id: target.parentEventId, question: input.question, unit: input.unit, answers, provenance: [origin, `confidence ${meta.confidence === null || meta.confidence === undefined ? 'unknown' : Number(meta.confidence).toFixed(3)}; top ${top}`], confidence: meta.confidence ?? null, top };
 }
 
+// The estimator reads the model, not only the words written for it: each person taking part in the Event, as the model
+// holds them at its start (their period, latest Cuts and the shock they are adapting to).
+export function modeledStateText(definition, event) {
+  const t = event?.interval?.start;
+  if (typeof t !== 'number') return null;
+  try {
+    const index = indexModel(definition);
+    const lines = [];
+    for (const person of modeledPeople(index)) {
+      const read = readPerson(index, person.id);
+      if (!read.own?.has?.(event.id) && !(index.eventsOf.get(person.id) ?? []).includes(event.id)) continue;
+      const state = personStateAt(definition, person.id, t);
+      const period = state.periods.at(-1)?.what;
+      const latest = state.latest.slice(0, 6).map((item) => `${item.question}: ${item.answers.slice(0, 3).map((answer) => `${answer.key} ${answer.weight.toFixed(2)}`).join(', ')}`);
+      const adapting = state.adapting.map((item) => item.shock).filter(Boolean);
+      lines.push(`${person.name ?? displayName(person.id)}${period ? `, in ${period}` : ''}${latest.length ? `; ${latest.join('; ')}` : ''}${adapting.length ? `; adapting to ${adapting.join('; ')}` : ''}.`);
+      if (lines.length >= 4) break;
+    }
+    return lines.length ? `What the model holds at this moment: ${lines.join(' ')}`.slice(0, 3_000) : null;
+  } catch {
+    return null;
+  }
+}
+
 async function resolveTargets(service, input) {
   const targets = input.situations.map((situation) => ({ id: situation.id, parentEventId: situation.parentEventId, cutId: null, text: situation.text }));
   let definition = null;
@@ -103,7 +128,8 @@ async function resolveTargets(service, input) {
       // A Cut needs its Event described; the situation text judged becomes the description when there is none.
       const described = typeof event.description === 'string' && event.description.trim();
       if (!described && !target.situationText) throw new Error(`Event ${target.eventId} has no description to judge or to give its Cut meaning; describe what happens in it, or pass situationText, which becomes its description.`);
-      targets.push({ id: target.eventId, parentEventId: target.eventId, cutId: target.cutId, text, conditionedOn: target.conditionedOn, describeWith: described ? null : target.situationText });
+      targets.push({ id: target.eventId, parentEventId: target.eventId, cutId: target.cutId, text, conditionedOn: target.conditionedOn, describeWith: described ? null : target.situationText,
+        modeled: modeledStateText(definition, event) });
     }
   }
   return { targets, definition };
@@ -171,6 +197,15 @@ async function executeCutShares(input, estimator, service, checkpoint = null) {
   common.estimatorCallsThisRequest = callsNow;
   // A share this lopsided is often the situation text answering its own question.
   const lopsided = (proposals ?? []).filter((item) => item?.answers?.some((answer) => answer.key !== REMAINDER_KEY && answer.weight > 0.9));
+  // Much mass on none of the answers means the options miss what the person would do.
+  const remainderOf = (item) => item?.answers?.find((answer) => answer.key === REMAINDER_KEY)?.weight ?? 0;
+  const missing = (proposals ?? []).filter((item) => remainderOf(item) >= 0.3);
+  if (missing.length) common.warnings = [...(common.warnings ?? []), ...missing.map((item) => `${item.id} puts ${remainderOf(item).toFixed(2)} on none of your answers. The options miss what this person would most plausibly do: before drawing, ask what else they could do, including what the institutions, rules and roles around them allow or require, and add those answers.`)];
+  // Regularities stated only in situation text cannot be tested; they belong in the model.
+  if (definition && targets.some((target) => target.parentEventId)) {
+    const { laws, claims, abstractRelations } = indexModel(definition).abstractions;
+    if (laws + claims + abstractRelations === 0) common.warnings = [...(common.warnings ?? []), 'The model holds no laws, claims or abstract relations, so this estimate reads only the situation text and the modeled state. Any regularity the text states (how someone always behaves, what they will or will not do) belongs in the model as a law or claim with its scope, where it can be tested against the Events; leave outcomes and directives out of situations.'];
+  }
   if (lopsided.length) common.warnings = [...(common.warnings ?? []), ...lopsided.map((item) => `${item.id} puts over 0.9 on ${item.top}. A share this lopsided often means the situation text already states the answer: describe the modeled state (what each person wants, fears, knows and can do), not the outcome, and put the regularities you rely on into the model as laws, where they can be tested.`)];
   if (!input.apply) {
     const proposalId = retainEstimatorProposal(service ?? estimator, 'cut-shares', proposalBinding(input), estimated);

@@ -139,8 +139,15 @@ this tool is the depth only a model gives, so the tool keeps asking for more:
   model's structure and names the tool that answers it. Typical ones: a person
   with a name and no life; a life with no periods; an outlook that drops from
   .78 to .22 with nothing between to cause it; a shock whose adaptation was
-  never opened; a decision nobody drew; a world in which nothing lasts longer
-  than one life; Events that instantiate no concept.
+  never opened; a decision nobody drew; a principal who never chooses; a
+  world in which nothing lasts longer than one life; Events that instantiate
+  no concept; no laws; moments with no place. The questions shown cover as
+  many kinds as they can, and a rebind returns them read with the story graph,
+  which knows which decisions are drawn. When a character decides, the
+  estimator reads the model's state of the people taking part, and warns when
+  much of the share falls on none of the options (the options miss what the
+  person would do) or when the model holds no laws (the situation text is
+  carrying rules that belong in the model).
 - **Standing questions,** asked at every step about whatever is being worked
   on. Is there a macro aspect I must model to truly understand what is going
   on here? It could be something from a character's childhood or a war a

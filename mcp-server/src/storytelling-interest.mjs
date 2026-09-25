@@ -36,7 +36,7 @@ export const storyInterest = Object.freeze([
   { id: 'tension', group: 'events', element: 'Tension', why: 'Anticipation, what people expect and fear, holds the reader across a scene and a book.',
     investigate: 'Model what each person expects and fears (outlook and threat Cuts), the constraints that close in (deadlines, capacities, money running out), and when they bind.' },
   { id: 'secrets', group: 'events', element: 'Secrets and knowledge', why: 'Who knows what, and when the reader learns it, creates irony, suspense and revelation.',
-    investigate: 'Model what each person knows and believes at each moment, what is hidden from whom and why, and when each thing is disclosed to them and to the reader.' },
+    investigate: 'Model what each person knows and believes at each moment, what is hidden from whom and why, and when each thing is disclosed to them and to the reader. A secret has a social life: model a knowledge or belief process for everyone who could know or suspect it (neighbors, colleagues, officials, the people it is kept for), since when, and what each does with it. Their silence or speech is part of the world, and may show that the secret could not have held.' },
   { id: 'mystery', group: 'events', element: 'Open questions', why: 'A question the reader wants answered pulls them forward.',
     investigate: 'Model the questions the story raises for the reader, when each is raised, and what in the world answers it and when.' },
   { id: 'reversals', group: 'events', element: 'Reversals', why: 'A turn of fortune or understanding reorganizes everything before it.',

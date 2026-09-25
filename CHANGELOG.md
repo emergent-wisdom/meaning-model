@@ -6,6 +6,30 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Learn from the novel run of 2026-09-24:
+  - The questions shown after a model change cover as many kinds as they can,
+    the principals taking at most half, and eight are shown instead of six.
+    In that run four undrawn decisions filled the list for over an hour while
+    the missing laws and places were counted but never shown. Missing laws and
+    places now rank before thin concepts.
+  - Draws live in the story graph, not the model, so a model change names its
+    decision Cuts together instead of claiming each is undrawn; every drawn
+    decision had been asked about again. A rebind returns the questions read
+    with the graph, which names the ones truly undrawn.
+  - A principal who never chooses is asked what they choose. A route part
+    whose Events hold no decision is asked who chooses in it, when the route
+    is recorded and in each scene's preparation, and a scene's unplaced Events
+    are asked where they happen.
+  - The estimator reads the model: for an Event target it sends the modeled
+    state of the people taking part (their period, latest Cuts and the shock
+    they are adapting to). It warns when 0.3 or more falls on none of the
+    options, which means the options miss what the person would do, and when
+    the model holds no laws, claims or abstract relations, which means the
+    situation text is carrying rules that belong in the model.
+  - Decisions drawn after the author and the buttons were recorded, or after
+    the director last held the world, bring both back as questions.
+  - The catalog's secrets element asks for the secret's social life: a
+    knowledge or belief process for everyone who could know or suspect it.
 - Hold a real era to its sources. The opening stage takes an optional `era`:
   real, alternate or invented, with a documentary cutoff, where the modeler's
   own knowledge ends, and the invented people and companies that take the

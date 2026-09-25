@@ -1,5 +1,5 @@
 import { applyModelChange } from './model-change.mjs';
-import { readOpenQuestions, thinkInTheModelInstructions, withOpenQuestions } from './model-questions.mjs';
+import { readOpenQuestions, thinkInTheModelInstructions, VISIBLE_QUESTIONS, withOpenQuestions } from './model-questions.mjs';
 import { McpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
@@ -937,7 +937,14 @@ server.registerTool(
     inputSchema: narrativeRebindSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
-  async (input) => toolResult(await rebindNarrativeGraph(service, input)),
+  async (input) => {
+    const result = await rebindNarrativeGraph(service, input);
+    // The graph knows what the model cannot, such as which decisions are drawn, so the rebind that follows a model change
+    // returns the model's questions read with it.
+    const open = await readOpenQuestions(service, { modelHash: result.modelHash, graphHash: result.graphHash, accessScopes: input.accessScopes ?? [], limit: VISIBLE_QUESTIONS }).catch(() => null);
+    return toolResult(open ? { ...result, openQuestions: { total: open.total, counts: open.counts, questions: open.questions, alwaysAsk: open.alwaysAsk,
+      more: 'life_model_questions returns all of them, the model\'s jumps, and each person\'s state at a moment.' } } : result);
+  },
 );
 
 registerEstimatorTools(server, service, estimator, { toolResult });

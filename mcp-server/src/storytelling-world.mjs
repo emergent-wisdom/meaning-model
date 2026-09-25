@@ -11,7 +11,7 @@ import * as z from 'zod/v4';
 import { prepareAuthorRecord } from './storytelling-authoring.mjs';
 import { anchoredModelRecord } from './construction-record.mjs';
 import { readAuthorModel } from './storytelling-author-model.mjs';
-import { eventDescendants, indexModel, modelJumps, modelQuestions, readOpenQuestions } from './model-questions.mjs';
+import { cutKind, eventDescendants, indexModel, modelJumps, modelQuestions, readOpenQuestions, VISIBLE_QUESTIONS } from './model-questions.mjs';
 import { interestInstructions, storyInterest, storyInterestIds } from './storytelling-interest.mjs';
 
 export const WORLD_SCHEMA = 'meaning-model-story-world/v1';
@@ -110,6 +110,23 @@ const openingStage = z.object({
     livingPeople: text(4, 4_000).nullable().default(null).describe('The living people and real organizations the story would otherwise touch, and the invented people and companies that take their place; the real world stays in the background.'),
   }).strict().nullable().default(null).describe('Optional: the era, whether it is real, and if so what is documented and what is invented.'),
 }).strict();
+export const partsWithoutChoiceQuestion = (parts, total) => `${parts.length} of ${total} parts hold no decision the model draws (${parts.join(', ')}). Who chooses in each, between what, and why? Model the choices from the people's state at those moments, contain them in the part's Events, and draw them, so each part is caused by a choice as well as by what happens.`;
+
+// Decisions drawn after the world was recorded may have changed what it teaches, and the director held an earlier
+// world: both are asked again rather than assumed to still hold.
+export function drawnSinceQuestions(view, world) {
+  const draws = (view?.nodes ?? []).filter((node) => node.node_type === 'direction_draw');
+  const since = (node) => (node ? draws.filter((draw) => (draw.value_time ?? 0) > (node.value_time ?? Infinity)).length : 0);
+  const questions = [];
+  const meaning = since(world.authorReader?.node);
+  if (meaning) questions.push({ kind: 'world-after-draws', tool: 'life_story_world_record', question: `${meaning} decision${meaning === 1 ? ' was' : 's were'} drawn after the author and the buttons were recorded. Does what the story teaches and presses in its reader still hold? Re-read the author, the buttons and the aspects against what the model now holds, and record revised stages where they changed.` });
+  const directed = (view?.nodes ?? []).filter((node) => node.node_type === 'storytelling.direction' && (() => { try { return JSON.parse(node.text)?.data?.stage === 'world'; } catch { return false; } })())
+    .sort((a, b) => (b.value_time ?? 0) - (a.value_time ?? 0))[0];
+  const after = since(directed);
+  if (after) questions.push({ kind: 'direction-after-draws', tool: 'life_story_direct', question: `${after} decision${after === 1 ? ' was' : 's were'} drawn after the director last held the world. The world it judged has changed: hold it again before the scenes those draws shape.` });
+  return questions;
+}
+
 // A real era is documented up to a cutoff and invented after it. These ask for what the opening has not stated;
 // they are questions, not gates.
 export function eraQuestions(opening) {
@@ -356,6 +373,12 @@ async function validateStage(service, world, view, input, model, modelHash) {
       throw new Error(`The route renders none of the model's largest jumps (${jumps.slice(0, 3).map((jump) => jump.what).join(' ')}). The story is a consequence of the model: route through them, or say in whyNotJumps why the story is elsewhere.`);
     }
     extra.jumps = { largest: jumps, rendered: renderedJumps.length };
+    // A part in which nobody chooses is one where things only happen to people.
+    const withoutChoice = world.parts.filter((part) => {
+      const inside = new Set(part.eventIds.flatMap((eventId) => [eventId, ...eventDescendants(index, eventId)]));
+      return !index.cuts.some((cut) => cutKind(cut) === 'decision' && inside.has(cut.parent_event_id));
+    }).map((part) => part.id);
+    if (withoutChoice.length) extra.partsWithoutChoice = { parts: withoutChoice, question: partsWithoutChoiceQuestion(withoutChoice, world.parts.length) };
   }
   return { links, extra };
 }
@@ -373,7 +396,8 @@ export async function storeWorldRecord(service, raw) {
     storyRootId: input.storyRootId, authorId: input.authorId, accessScopes: input.accessScopes, kind: 'world', text: input.summary,
     data: { schema: WORLD_SCHEMA, ...input.world }, links, about: routeEvents.map((eventId) => ({ record: `event:${eventId}` })) });
   const stored = await service.applyNarrativeBatch({ requestId: input.requestId, previousGraphHash: input.graphHash, narrativeBatch: record.narrativeBatch });
-  const state = readWorldState(await service.queryNarrativeGraph({ graphHash: stored.graphHash, expectedGraphHash: stored.graphHash, mode: 'full', includeContent: true, accessScopes: [...new Set(input.accessScopes)].sort() }), input.storyRootId);
+  const after = await service.queryNarrativeGraph({ graphHash: stored.graphHash, expectedGraphHash: stored.graphHash, mode: 'full', includeContent: true, accessScopes: [...new Set(input.accessScopes)].sort() });
+  const state = readWorldState(after, input.storyRootId);
   // Suggestions, not a sequence: any stage can come next, and the model's questions may lead elsewhere.
   const next = { author_reader: 'Perhaps candidate worlds that come out of this author\'s life and press these buttons (stage candidates), or wherever the model\'s questions lead.',
     candidates: 'Open the chosen world in successive expansions (stage opening).', opening: 'List every aspect of the story you could understand better, then investigate each by modeling (stage aspects).',
@@ -382,9 +406,9 @@ export async function storeWorldRecord(service, raw) {
     route: 'Prepare scenes for the route parts; name each scene\'s routePartId.' }[input.world.stage];
   const authorRecord = state.authorReader?.data.author ?? null;
   const author = authorRecord ? { id: authorRecord.personId, name: authorRecord.name, lifeModelHash: authorRecord.lifeModelHash } : null;
-  const openQuestions = modelHash ? await readOpenQuestions(service, { modelHash, graphHash: stored.graphHash, accessScopes: input.accessScopes, limit: 6, author }).catch(() => null) : null;
+  const openQuestions = modelHash ? await readOpenQuestions(service, { modelHash, graphHash: stored.graphHash, accessScopes: input.accessScopes, limit: VISIBLE_QUESTIONS, author }).catch(() => null) : null;
   return { ...stored, ...record.receipt, ...(head.advancedFrom ? { advancedFrom: head.advancedFrom } : {}), schema: 'meaning-model-story-world-record/v1', stage: input.world.stage, worldNodeId: input.nodeId,
-    openImplications: state.openImplications, ...extra, openQuestions: openQuestions && { total: openQuestions.total, questions: openQuestions.questions, jumps: openQuestions.jumps.slice(0, 5), alwaysAsk: openQuestions.alwaysAsk },
+    openImplications: state.openImplications, ...extra, worldQuestions: drawnSinceQuestions(after, state), openQuestions: openQuestions && { total: openQuestions.total, questions: openQuestions.questions, jumps: openQuestions.jumps.slice(0, 5), alwaysAsk: openQuestions.alwaysAsk },
     nextStep: next, semanticVerification: false };
 }
 

@@ -11,8 +11,8 @@ import { modelDepthPrepareSchema, modelDepthRecordSchema, modelDepthInstructions
 import { characterConnectionsSchema, lifeTrendsInputSchema, lifeTrendsInstructions, readLifeTrends, verifyLifeTrajectoryRecords } from './storytelling-life-trends.mjs';
 import { deepeningSchema, deepeningInstructions, prepareDeepening } from './storytelling-deepening.mjs';
 import { releaseStory, storyReleaseSchema } from './storytelling-release.mjs';
-import { readWorldState, storeWorldRecord, worldInstructions, worldRecordSchema, worldStages, eraQuestions } from './storytelling-world.mjs';
-import { cutKind, eventDescendants, indexModel, modelQuestions, personStateAt, readDraws, readOpenQuestions, thinkInTheModelInstructions } from './model-questions.mjs';
+import { readWorldState, storeWorldRecord, worldInstructions, worldRecordSchema, worldStages, eraQuestions, drawnSinceQuestions } from './storytelling-world.mjs';
+import { cutKind, eventDescendants, indexModel, modelQuestions, personStateAt, readDraws, readOpenQuestions, thinkInTheModelInstructions, unplacedEvents } from './model-questions.mjs';
 import { direct as directStory, directionInstructions, directionSchema, directionState } from './storytelling-director.mjs';
 
 const id = z.string().trim().min(1).max(256);
@@ -481,7 +481,7 @@ export class StorytellingAddon {
     const missingStages = worldStages.filter(([key]) => !world[key]).map(([, stage]) => stage);
     if (missingStages.length) worldQuestions.push({ kind: 'world-stage-missing', tool: 'life_story_world_record',
       question: `The world has no ${missingStages.join(', ')} record yet. Who is the author, which world, what makes this story interesting, what do its commitments imply? Investigate whichever the model leads you to, in any order, and record it when the understanding happens.` });
-    worldQuestions.push(...eraQuestions(world.opening?.data ?? null));
+    worldQuestions.push(...eraQuestions(world.opening?.data ?? null), ...drawnSinceQuestions(view, world));
     if (world.openImplications.length) worldQuestions.push({ kind: 'implications-open', tool: 'life_model_revise',
       question: `Implications still open: ${world.openImplications.map((item) => `${item.commitmentId} (${item.about})`).join('; ')}. What do they imply for this scene?` });
     if (!routePart && world.route) worldQuestions.push({ kind: 'route-part-unnamed', tool: 'life_story_scene_prepare',
@@ -515,6 +515,11 @@ export class StorytellingAddon {
           forThisScene.unshift({ kind: 'decision-undrawn', subject: cut.id, tool: 'life_direction_draw (record)',
             question: `This scene renders "${cut.question}", which the model has not drawn. Draw it with a recorded seed and let the story follow the draw; what happens should come from the model, not from the writer's preference.` });
         }
+        if (!index.cuts.some((cut) => cutKind(cut) === 'decision' && rendered.has(cut.parent_event_id))) forThisScene.push({ kind: 'part-without-choice', subject: routePart.id, tool: 'life_model_revise, then life_direction_draw (record)',
+          question: `Route part ${routePart.id} holds no decision the model draws. Who chooses in it, between what, and why? Model the choice from the person's state at that moment, contain it in the part's Events and draw it, so the part is caused by a choice as well as by what happens.` });
+        const unplaced = unplacedEvents(index, [...rendered]);
+        if (unplaced.length) forThisScene.push({ kind: 'scene-unplaced', subject: routePart.id, tool: 'life_model_revise',
+          question: `${unplaced.length} of this part's Events ${unplaced.length === 1 ? 'has' : 'have'} no place (for example ${unplaced.slice(0, 3).map((event) => event.id).join(', ')}). Where does each happen, where is each person and Thing in it, and in what physical state? Give each its region, or contain it in an Event that has one.` });
       }
       // The director's loop, as questions: has anyone held the world to what makes a story good, and are its
       // findings answered in the model?
