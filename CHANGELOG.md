@@ -179,23 +179,6 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
 - Split long concept operators, boundaries and lenses in the alien atlas's Meaning
   Model fragments into several entries within the engine's 1,024-byte bound per
   text, instead of exporting concepts the engine refuses to register.
-- Add `examples/alien-retirement`, the first live alien search: its atlas, a
-  four-world library, the ontologies as Meaning Model fragments, the target model
-  and the search's construction history (53 graph revisions) with the replay and
-  the outline. Revision 2 of the target model describes its five Events. Its test
-  rebuilds the history, imports the library into a search on another problem and
-  registers the model with the ontologies merged in.
-- Add `examples/integration-time`, a hard science-fiction story written by
-  Claude Opus 5.5 in the storytelling add-on, with Jev estimating the ending's
-  direction weights and auditing the prose, and revised in five passes, each
-  answering a blind reader:
-  the story, its final model and narrative graph with every review and audit,
-  the readers' reports, and its whole construction history (11 model and 147
-  graph revisions) with the replay and the outline. Its test rebuilds the
-  history on a fresh engine, checks every hash, renders the story byte for byte
-  and regenerates the replay and the outline. After the writing, model revision
-  10 described every Event, and each reader's report was recorded as a review
-  held by that reader.
 - Keep model anchors that name the model by its stable id when
   `life_narrative_rebind` moves a graph to a successor model; only anchors that
   name the predecessor hash are dropped.
@@ -390,14 +373,6 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
   name the owning tool when an estimator preview id is passed to the estimation
   inspector. The general modeling guide gains a worked recipe for recording dated
   history.
-- Add `examples/crypto-market`, a general-modeling run on how US monetary
-  conditions reach the crypto market, built from recalled public records and
-  checked against retrieved sources, with its construction history (7 model and
-  17 graph revisions), the replay and the outline. Model revision 6 describes all
-  50 Events, and the retrieval check is recorded as a review held by its checker.
-  Its test rebuilds the history on a fresh engine, checks every hash, regenerates
-  the replay and the outline, and runs a world from the model.
-
 - Add the `realizes_forecast` event relation. Its `forecast_answer` names a
   normalized Cut on the source event and the answer key, remainder included, that
   the target continuation realized; the engine checks the Cut, its parent event and

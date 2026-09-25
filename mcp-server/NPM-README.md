@@ -15,17 +15,12 @@ One MCP server covers three kinds of work over the same engine and graph:
   to model, such as a market, an institution or a technology, with an optional
   Jev estimator for cheap first estimates. See
   [general-purpose modeling](#general-purpose-modeling-and-optional-jev-estimation).
-  Worked example: [how US monetary conditions reach the crypto market](https://github.com/emergent-wisdom/meaning-model/tree/main/examples/crypto-market).
 - **Narration.** The storytelling add-on writes fiction from a model, with an
   author model, whole-life character trends, scene review, alignment audits and
   deepening passes. See the [storytelling add-on guide](profiles/STORYTELLING_ADDON.md).
-  Worked example: [*Integration Time*](https://github.com/emergent-wisdom/meaning-model/tree/main/examples/integration-time), a science-fiction
-  story revised in five passes against blind readers.
 - **Ideation.** The alien add-on searches for solution mechanisms through
   invented worlds, following *Ontology of the Alien*, and curates them into a
   revisable map of idea families. See the [alien add-on guide](profiles/ALIEN_ADDON.md).
-  Worked example: [retirement without steady income](https://github.com/emergent-wisdom/meaning-model/tree/main/examples/alien-retirement), a
-  search with its atlas and a reusable world library.
 
 Modeling is always available; the two add-ons are opt-in with
 `MEANING_MODEL_ADDONS`. Each workflow keeps what it does as revisable,

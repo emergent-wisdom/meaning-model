@@ -952,8 +952,7 @@ invalid answer on its own coordinate; `life_process_estimation_record` saves the
 exact proposal, process records and review in the graph, including a caller's own
 dated history submitted through the estimation exchange. `validateOnly` checks a
 scaffold without an estimator call. Estimates retain their status and evidence,
-and do not silently become observations in accepted runtime history. The
-[crypto-market example](../examples/crypto-market/) shows the whole loop.
+and do not silently become observations in accepted runtime history.
 
 Set `MEANING_MODEL_ESTIMATOR=typesafe` and `TYPESAFE_API_KEY` to use Jev for
 batched structured judgments. This is independent of the storytelling add-on

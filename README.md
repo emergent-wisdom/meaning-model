@@ -20,17 +20,12 @@ One MCP server covers three kinds of work over the same engine and graph:
   to model, such as a market, an institution or a technology, with an optional
   Jev estimator for cheap first estimates. See
   [general-purpose modeling](#general-purpose-modeling-and-optional-jev-estimation).
-  Worked example: [how US monetary conditions reach the crypto market](examples/crypto-market/).
 - **Narration.** The storytelling add-on writes fiction from a model, with an
   author model, whole-life character trends, scene review, alignment audits and
   deepening passes. See the [storytelling add-on guide](profiles/STORYTELLING_ADDON.md).
-  Worked example: [*Integration Time*](examples/integration-time/), a science-fiction
-  story revised in five passes against blind readers.
 - **Ideation.** The alien add-on searches for solution mechanisms through
   invented worlds, following *Ontology of the Alien*, and curates them into a
   revisable map of idea families. See the [alien add-on guide](profiles/ALIEN_ADDON.md).
-  Worked example: [retirement without steady income](examples/alien-retirement/), a search with its
-  atlas and a reusable world library.
 
 Modeling is always available; the two add-ons are opt-in with
 `MEANING_MODEL_ADDONS`. Each workflow keeps what it does as revisable,
@@ -333,9 +328,6 @@ truth, psychological validity, or an advantage over ordinary writing.
 | `examples/refinement-trial/` | Small standalone construction example |
 | `examples/progressive-authoring/` | Native temporal refinement, explicit revision, and continued world history |
 | `examples/book-of-conditions/` | Accepted Book, model sources, rationale nodes, and reproducible export |
-| `examples/crypto-market/` | General modeling: dollar liquidity and the crypto market, with dated history, Cuts and reviews |
-| `examples/integration-time/` | Storytelling: a story, its model and graph, and five blind readers' reports |
-| `examples/alien-retirement/` | Ideation: an alien search's atlas, world library and ontologies |
 | `output/pdf/` | Ready-to-read paper, grammar appendix, and Book PDFs |
 
 Meaning Model owns the representation and joint construction method. The
