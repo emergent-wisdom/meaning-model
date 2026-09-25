@@ -40,7 +40,7 @@ const enabledAddons = parseEnabledAddons(process.env.MEANING_MODEL_ADDONS);
 const estimator = createEstimator(parseEstimatorConfig(process.env));
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.2.1',
+  version: '0.3.0',
 });
 const service = new LifeSimulationService();
 const requestIdSchema = z.string().min(1).max(256);

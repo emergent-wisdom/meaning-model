@@ -37,3 +37,11 @@
 /paper/PLAN-*.md
 /paper/MEANING-MODEL-STRUCTURE.md
 /paper/meaning-model-structure.test.mjs
+# Local secrets, editor and agent settings, engine databases and release by-products never belong here.
+.env
+.env.*
+/.claude/
+/.vscode/
+/.idea/
+*.sqlite
+*.tgz

@@ -4,7 +4,7 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
-## Unreleased
+## 0.3.0 — 2026-09-25
 
 - Learn from the novel run of 2026-09-24:
   - The questions shown after a model change cover as many kinds as they can,
@@ -595,14 +595,20 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
   shared record schemas, executable laws, and general-purpose modeling remain
   unchanged; existing low-level tools remain available.
 
-Install or build the matching engine when upgrading the MCP package.
-The engine gains the `realizes_forecast` event relation and a source-preserving
-narrative revision flag. Both are optional: models without the new field
-serialize and hash as before, and models and graphs written by 0.2.x load
-unchanged, so no data migration is required. The alien add-on is a first
-release with one live search behind it; its worlds are textual thought
-experiments and its transfers are ideas, not evidence. Jev estimates remain AI
-inference and never enter a model or graph without an explicit apply or record.
+Install or build the matching 0.3.0 engine when upgrading the MCP package.
+The engine gains the `realizes_forecast` event relation, a source-preserving
+narrative revision flag, withdrawn Cuts and native narrative revision by
+change, and keeps narrative revisions materialized, holding at most 4,096
+graph revisions in a session. The new fields are optional: models without
+them serialize and hash as before, and models and graphs written by 0.2.x load
+unchanged, so no data migration is required. A storytelling project begun on
+0.2.x needs the director's draft review (`life_story_direct`, stage `draft`),
+with every failure answered in the model, before `life_story_release`. The
+alien add-on is a first release; its worlds are textual thought experiments and
+its transfers are ideas, not evidence. Jev estimates remain AI inference and
+never enter a model or graph without an explicit apply or record. The matched
+comparison with ordinary writing and the independent read-back study remain
+prospective.
 
 ## 0.2.1 — 2026-09-12
 
