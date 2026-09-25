@@ -30,6 +30,23 @@ unpublished work stays under Unreleased. This is not a development transcript.
     the director last held the world, bring both back as questions.
   - The catalog's secrets element asks for the secret's social life: a
     knowledge or belief process for everyone who could know or suspect it.
+  - A decision's moment is its own time. A motive Cut counts for it within
+    the decision Event, give or take the longest of its own length, a
+    twentieth of the Event containing it, or a thousandth of the life. Before,
+    one unit of the model's clock counted, which is a year in a model counted
+    in years, so the question never fired.
+  - A drawn remainder that nothing opens, a process with only a starting value
+    that no Event observes, and a life that is one Event with nothing inside
+    are asked about.
+  - The route's record returns the route's questions:
+    - parts with no decision;
+    - decisions it renders that the model has since withdrawn;
+    - principals with no shock inside the story's present, which runs from the
+      first part's moment to the last one's;
+    - the largest jumps it leaves out without saying why;
+    - aspects still open.
+
+    Scene preparation asks the story-wide ones.
 - Hold a real era to its sources. The opening stage takes an optional `era`:
   real, alternate or invented, with a documentary cutoff, where the modeler's
   own knowledge ends, and the invented people and companies that take the

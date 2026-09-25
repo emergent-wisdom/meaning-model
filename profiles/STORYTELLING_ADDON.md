@@ -141,7 +141,9 @@ this tool is the depth only a model gives, so the tool keeps asking for more:
   .78 to .22 with nothing between to cause it; a shock whose adaptation was
   never opened; a decision nobody drew; a principal who never chooses; a
   world in which nothing lasts longer than one life; Events that instantiate
-  no concept; no laws; moments with no place. The questions shown cover as
+  no concept; no laws; moments with no place; a drawn remainder nobody opened;
+  a quantity no Event observes; a life that is one Event with nothing inside.
+  The questions shown cover as
   many kinds as they can, and a rebind returns them read with the story graph,
   which knows which decisions are drawn. When a character decides, the
   estimator reads the model's state of the people taking part, and warns when
@@ -330,7 +332,13 @@ them: what happens is the model's answer.
 
 **5. Route** (stage `route`). Find where in the model the story is. Choose the
 parts to render through the model's jumps; a route that renders none of the
-largest jumps must say why the story is elsewhere.
+largest jumps must say why the story is elsewhere. The route's record returns
+its questions:
+- parts in which nobody chooses;
+- decisions it renders that the model has since withdrawn;
+- principals with no shock inside the story's present;
+- the largest jumps it leaves out without saying why;
+- aspects still open.
 
 **6. The director on the world** (`life_story_direct`, stage `world`). Before
 the first scene, the director holds the world to what makes a good story.

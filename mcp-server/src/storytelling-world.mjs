@@ -11,7 +11,7 @@ import * as z from 'zod/v4';
 import { prepareAuthorRecord } from './storytelling-authoring.mjs';
 import { anchoredModelRecord } from './construction-record.mjs';
 import { readAuthorModel } from './storytelling-author-model.mjs';
-import { cutKind, eventDescendants, indexModel, modelJumps, modelQuestions, readOpenQuestions, VISIBLE_QUESTIONS } from './model-questions.mjs';
+import { cutKind, eventDescendants, indexModel, modeledPeople, modelJumps, modelQuestions, readOpenQuestions, readPerson, VISIBLE_QUESTIONS } from './model-questions.mjs';
 import { interestInstructions, storyInterest, storyInterestIds } from './storytelling-interest.mjs';
 
 export const WORLD_SCHEMA = 'meaning-model-story-world/v1';
@@ -111,6 +111,47 @@ const openingStage = z.object({
   }).strict().nullable().default(null).describe('Optional: the era, whether it is real, and if so what is documented and what is invented.'),
 }).strict();
 export const partsWithoutChoiceQuestion = (parts, total) => `${parts.length} of ${total} parts hold no decision the model draws (${parts.join(', ')}). Who chooses in each, between what, and why? Model the choices from the people's state at those moments, contain them in the part's Events, and draw them, so each part is caused by a choice as well as by what happens.`;
+
+// The route as the model sees it: parts in which nobody chooses, principals with no shock inside the story's time, the
+// largest jumps it leaves out without saying why, and aspects still open. Questions, not gates.
+export function routeQuestions(model, route, { openAspects = [] } = {}) {
+  if (!model || !route?.parts?.length) return [];
+  const index = indexModel(model);
+  const questions = [];
+  const inside = (part) => new Set(part.eventIds.flatMap((eventId) => [eventId, ...eventDescendants(index, eventId)]));
+  const withoutChoice = route.parts.filter((part) => {
+    const events = inside(part);
+    return !index.cuts.some((cut) => cutKind(cut) === 'decision' && events.has(cut.parent_event_id));
+  }).map((part) => part.id);
+  if (withoutChoice.length) questions.push({ kind: 'parts-without-choice', parts: withoutChoice, tool: 'life_model_revise, then life_direction_draw (record)', question: partsWithoutChoiceQuestion(withoutChoice, route.parts.length) });
+  // Decisions withdrawn after the route was recorded leave it rendering a chain the model no longer holds.
+  const rendered = new Set(route.parts.flatMap((part) => [...inside(part)]));
+  const withdrawn = (model.meaning_model?.normalized_cuts ?? []).filter((cut) => cut.withdrawn && rendered.has(cut.parent_event_id));
+  if (withdrawn.length) questions.push({ kind: 'route-withdrawn', cuts: withdrawn.map((cut) => cut.id), tool: 'life_story_world_record (stage route)',
+    question: `The route renders ${withdrawn.length} decision${withdrawn.length === 1 ? '' : 's'} the model has since withdrawn (${withdrawn.slice(0, 4).map((cut) => cut.id).join(', ')}${withdrawn[0].withdrawn?.reason ? `: ${String(withdrawn[0].withdrawn.reason).slice(0, 200)}` : ''}). Record a route through what the model now holds.` });
+  // The story's present runs from the first part's moment to the last one's: each part's shortest Event, leaving out
+  // the backstory shocks and the whole lives and periods it also renders.
+  const backstory = new Set([...index.arcsOf.values()].flat().flatMap((eventId) => [eventId, ...eventDescendants(index, eventId)]));
+  const intervals = route.parts.map((part) => part.eventIds.filter((eventId) => !backstory.has(eventId)).map((eventId) => index.events.get(eventId)?.interval)
+    .filter((interval) => typeof interval?.start === 'number').sort((a, b) => ((a.end ?? a.start) - a.start) - ((b.end ?? b.start) - b.start))[0]).filter(Boolean);
+  if (intervals.length) {
+    const first = Math.min(...intervals.map((interval) => interval.start));
+    const last = Math.max(...intervals.map((interval) => interval.end ?? interval.start));
+    const unshocked = modeledPeople(index).filter((person) => person.principal && !readPerson(index, person.id).arcs.some((item) => {
+      const at = (item.focal ?? item.arc)?.interval?.start;
+      return typeof at === 'number' && at >= first && at <= last;
+    }));
+    if (unshocked.length) questions.push({ kind: 'story-shock-missing', subjects: unshocked.map((person) => person.id), tool: 'life_profile_compile (change_arc_scaffold) or life_model_revise',
+      question: `${unshocked.map((person) => person.name).join(', ')} ${unshocked.length === 1 ? 'has' : 'have'} no shock inside the story's time (${+first.toFixed(4)} to ${+last.toFixed(4)}); the model's shocks for ${unshocked.length === 1 ? 'them' : 'each'} are all earlier. Which Event in the story changes what each wants, how do they anticipate it, and how do they adapt? Open a change arc for it, with Cuts of what they want and feel after it.` });
+  }
+  const { jumps } = modelJumps(model, { limit: 5 });
+  const missed = jumps.filter((jump) => !jump.eventIds.some((eventId) => rendered.has(eventId)));
+  if (missed.length && !route.whyNotJumps) questions.push({ kind: 'jumps-unrendered', tool: 'life_story_world_record (stage route)',
+    question: `The route leaves out ${missed.length} of the model's ${jumps.length} largest jumps (${missed.slice(0, 3).map((jump) => jump.what).join(' ')}) and does not say why. Route through them, or record in whyNotJumps why the story is elsewhere.` });
+  if (openAspects.length) questions.push({ kind: 'aspects-open', tool: 'life_model_revise, then life_story_world_record (stage aspects)',
+    question: `${openAspects.length} aspect${openAspects.length === 1 ? ' is' : 's are'} still open (${openAspects.slice(0, 8).map((item) => item.id ?? item).join(', ')}${openAspects.length > 8 ? ', and more' : ''}). Investigate them by modeling before the scenes that need them, and record a revised aspects list.` });
+  return questions;
+}
 
 // Decisions drawn after the world was recorded may have changed what it teaches, and the director held an earlier
 // world: both are asked again rather than assumed to still hold.
@@ -373,12 +414,7 @@ async function validateStage(service, world, view, input, model, modelHash) {
       throw new Error(`The route renders none of the model's largest jumps (${jumps.slice(0, 3).map((jump) => jump.what).join(' ')}). The story is a consequence of the model: route through them, or say in whyNotJumps why the story is elsewhere.`);
     }
     extra.jumps = { largest: jumps, rendered: renderedJumps.length };
-    // A part in which nobody chooses is one where things only happen to people.
-    const withoutChoice = world.parts.filter((part) => {
-      const inside = new Set(part.eventIds.flatMap((eventId) => [eventId, ...eventDescendants(index, eventId)]));
-      return !index.cuts.some((cut) => cutKind(cut) === 'decision' && inside.has(cut.parent_event_id));
-    }).map((part) => part.id);
-    if (withoutChoice.length) extra.partsWithoutChoice = { parts: withoutChoice, question: partsWithoutChoiceQuestion(withoutChoice, world.parts.length) };
+    extra.routeQuestions = routeQuestions(model, world, { openAspects: readWorldState(view, input.storyRootId).openAspects });
   }
   return { links, extra };
 }

@@ -68,7 +68,7 @@ export function indexModel(model) {
   const relations = mm.event_relations ?? [];
   const abstractions = { concepts: (mm.concepts ?? []).length, abstractRelations: (mm.abstract_relations ?? []).length, abstractCuts: (mm.abstract_cuts ?? []).length,
     laws: (model?.laws ?? []).length, claims: (model?.initial_claims ?? []).length, realizations: (mm.realizations ?? []).length };
-  return { events, children, parents, cuts, cutsByEvent, referents, eventsOf, arcsOf, abstractions, relations, processes: (model?.processes ?? []).length };
+  return { events, children, parents, cuts, cutsByEvent, referents, eventsOf, arcsOf, abstractions, relations, processes: (model?.processes ?? []).length, processList: model?.processes ?? [] };
 }
 
 function walk(map, eventId) {
@@ -215,11 +215,16 @@ function personQuestions(index, person, name, principal) {
   }
   const shocksAt = person.arcs.map((item) => start(item.focal ?? item.arc)).filter((value) => value !== null);
   for (const shift of uncausedShifts(series, shocksAt, `${name}'s `)) ask('shift-uncaused', shift.question, 'life_model_revise', { at: shift.at, cuts: shift.cuts });
-  // A decision is a moment: what the person wants, feels and how they decide should be modeled there first.
+  // A decision is a moment: what the person wants, feels and how they decide should be modeled there first. The moment
+  // is the decision Event, give or take its own length, a twentieth of the Event that contains it or a thousandth of
+  // the life, whichever is longest; a fixed unit would be a year in a model counted in years.
   for (const item of person.cuts.filter((entry) => cutKind(entry.cut) === 'decision')) {
     const t = start(item.event);
+    const length = t === null ? 0 : Math.max(0, (end(item.event) ?? t) - t);
+    const container = Math.max(0, ...[...(index.parents.get(item.event.id) ?? [])].map((eventId) => span(index.events.get(eventId)) ?? 0));
+    const tolerance = Math.max(length, container / 20, (person.lifeLength ?? 0) / 1_000);
     const around = person.cuts.filter((entry) => entry !== item && ['wants', 'feels', 'how'].includes(cutKind(entry.cut))
-      && start(entry.event) !== null && t !== null && Math.abs(start(entry.event) - t) <= Math.max(1, (end(item.event) ?? t) - t));
+      && start(entry.event) !== null && t !== null && start(entry.event) >= t - tolerance && start(entry.event) <= (end(item.event) ?? t) + tolerance);
     if (!around.length) ask('moment-unmodeled', `At "${describe(item.event)}" (${when(item.event)}), before ${name} decides "${item.cut.question}": what do they want, what do they feel, and how do they decide? Give the moment those Cuts, so the decision's weights come from them.`, 'life_model_revise or life_estimate_cut_shares', { at: [t, end(item.event)], cuts: [item.cut.id] });
     const outside = [...ancestors(index, item.event.id)].filter((eventId) => !person.own.has(eventId));
     if (!outside.length) ask('why-local', `Why does "${item.cut.question}" arise for ${name} at all? Nothing longer than their own life leads to it in the model. Which developments beyond one life (institutions, money, technology, family history, a place, a war long ago) press on this moment? Model them as processes over their own long time.`, 'life_general_modeling_start or life_model_revise', { cuts: [item.cut.id] });
@@ -279,6 +284,21 @@ function worldQuestions(index, lives, draws) {
       ask('decision-undrawn', `"${cut.question}" has not been drawn. Draw it with a recorded seed: the model decides what happens, and the work follows the draw.`, 'life_direction_draw (record)', { cuts: [cut.id] });
     }
   }
+  // A drawn remainder is an open question about what else happens; writing the continuation by hand skips the model.
+  for (const draw of (draws ?? []).filter((item) => item.realized === 'remainder')) {
+    const cut = index.cuts.find((item) => item.id === draw.cutId);
+    if (!cut || index.cuts.some((item) => item.conditioning?.cut_id === draw.cutId && item.conditioning?.answer_key === 'remainder')) continue;
+    ask('remainder-unopened', `The draw on "${cut.question}" landed on the remainder, and nothing in the model opens it. Name the admissible continuations inside it, estimate them from the modeled state and draw among them (a Cut conditioned on this Cut's remainder), rather than writing what happens yourself.`, 'life_estimate_cut_shares (conditionedOn remainder), then life_direction_draw (record)', { cuts: [cut.id] });
+  }
+  // A quantity with only a starting value, which no Event observes, has no trajectory: nothing can cross a threshold.
+  const observed = new Set([...index.events.values()].flatMap((event) => [...(event.process_ids ?? []), ...(event.observation_process_ids ?? [])]));
+  const still = (index.processList ?? []).filter((process) => !observed.has(process.id) && !String(process.id).startsWith('concept-index.'));
+  if (still.length) ask('process-unobserved', `${still.length} process${still.length === 1 ? ' holds' : 'es hold'} only a starting value, and no Event observes ${still.length === 1 ? 'it' : 'them'} (for example ${still.slice(0, 4).map((process) => `${process.id}${typeof process.initial_value?.value === 'number' ? ` ${process.initial_value.value}` : ''}`).join(', ')}). Give each a dated trajectory, observed at the Events where it matters, and the thresholds at which what depends on it fails.`, 'life_model_revise', { processes: still.map((process) => process.id) });
+  // A life that is one Event with nothing inside is a name with dates.
+  const principalIds = new Set(lives.filter((item) => item.principal !== false).map((item) => item.id));
+  const thin = [...index.referents.values()].filter((referent) => referent.lifecycle_event_id && !principalIds.has(referent.id)
+    && !(index.children.get(referent.lifecycle_event_id) ?? []).length && !(index.cutsByEvent.get(referent.lifecycle_event_id) ?? []).length);
+  if (thin.length) ask('life-thin', `${thin.length} li${thin.length === 1 ? 'fe is' : 'ves are'} one Event with nothing inside (${thin.slice(0, 8).map((referent) => displayName(referent.id)).join(', ')}${thin.length > 8 ? ', and more' : ''}). For a person: a want, a shock and the periods their part in the world needs. For a Thing (a machine, a document, an institution): its parts, capacities, limits and failure modes, and its history.`, 'life_profile_compile (person_scaffold or thing_scaffold) or life_model_revise', { referents: thin.map((referent) => referent.id) });
   const unestimated = index.cuts.filter((cut) => !estimated(cut) && cutKind(cut) !== 'other');
   if (unestimated.length) ask('weights-unestimated', `${unestimated.length} Cut${unestimated.length === 1 ? '' : 's'} carry weights nobody estimated (for example ${unestimated.slice(0, 3).map((cut) => cut.id).join(', ')}). Estimate them from their described situations, or record whose distribution they are.`, 'life_estimate_cut_shares or life_process_estimate', { cuts: unestimated.slice(0, 12).map((cut) => cut.id) });
   const undescribed = [...index.cutsByEvent.keys()].map((eventId) => index.events.get(eventId)).filter((event) => event && !String(event.description ?? '').trim());
@@ -295,8 +315,8 @@ function worldQuestions(index, lives, draws) {
 }
 
 const ORDER = ['author-separate', 'author-unlinked', 'life-missing', 'life-untimed', 'time-missing', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'choices-missing', 'macro-missing', 'period-gap',
-  'moment-unmodeled', 'decision-undrawn', 'shift-uncaused', 'adaptation-open', 'laws-missing', 'place-missing', 'wants-generic', 'why-local', 'concepts-thin', 'recurring-question',
-  'period-uncut', 'process-empty', 'secondary-without-life', 'event-undescribed', 'weights-unestimated'];
+  'moment-unmodeled', 'decision-undrawn', 'remainder-unopened', 'shift-uncaused', 'adaptation-open', 'laws-missing', 'place-missing', 'process-unobserved', 'wants-generic', 'why-local',
+  'concepts-thin', 'recurring-question', 'period-uncut', 'process-empty', 'secondary-without-life', 'life-thin', 'event-undescribed', 'weights-unestimated'];
 // How many open questions come back with each model change, rebind and world record; life_model_questions gives all.
 export const VISIBLE_QUESTIONS = 8;
 

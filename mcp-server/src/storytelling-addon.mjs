@@ -11,7 +11,7 @@ import { modelDepthPrepareSchema, modelDepthRecordSchema, modelDepthInstructions
 import { characterConnectionsSchema, lifeTrendsInputSchema, lifeTrendsInstructions, readLifeTrends, verifyLifeTrajectoryRecords } from './storytelling-life-trends.mjs';
 import { deepeningSchema, deepeningInstructions, prepareDeepening } from './storytelling-deepening.mjs';
 import { releaseStory, storyReleaseSchema } from './storytelling-release.mjs';
-import { readWorldState, storeWorldRecord, worldInstructions, worldRecordSchema, worldStages, eraQuestions, drawnSinceQuestions } from './storytelling-world.mjs';
+import { readWorldState, storeWorldRecord, worldInstructions, worldRecordSchema, worldStages, eraQuestions, drawnSinceQuestions, routeQuestions } from './storytelling-world.mjs';
 import { cutKind, eventDescendants, indexModel, modelQuestions, personStateAt, readDraws, readOpenQuestions, thinkInTheModelInstructions, unplacedEvents } from './model-questions.mjs';
 import { direct as directStory, directionInstructions, directionSchema, directionState } from './storytelling-director.mjs';
 
@@ -528,6 +528,9 @@ export class StorytellingAddon {
         question: 'Nobody has held the world to what makes a story good yet. A fresh director (life_story_direct, stage world) may find what this scene needs.' });
       for (const item of direction.unanswered) forThisScene.unshift({ kind: 'direction-unanswered', subject: item.nodeId, tool: 'life_model_revise',
         question: `The director found ${item.failing.join(', ')} failing${item.modelUnchanged ? ', and the model has not changed since' : ''}. What does the model need, and what does this scene need from it?` });
+      // The route's story-wide questions (a principal with no shock in the story, jumps left out); a part without a
+      // choice is asked about for this scene's own part above.
+      worldQuestions.push(...routeQuestions(model, world.route?.data ?? null).filter((item) => ['story-shock-missing', 'jumps-unrendered'].includes(item.kind)));
       forThisScene.unshift(...worldQuestions);
       modelContext = {
         states: present.map((person) => ({ name: person.name, ...personStateAt(model, person.id, scene.worldTime, { draws }) })),

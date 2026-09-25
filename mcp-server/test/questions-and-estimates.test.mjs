@@ -91,3 +91,39 @@ test('route parts without a choice, unplaced Events and the social life of a sec
   assert.deepEqual(unplacedEvents(index, ['ev.town', 'ev.inside', 'ev.nowhere']).map((item) => item.id), ['ev.nowhere'], 'a place is inherited from an enclosing Event');
   assert.match(storyInterest.find((item) => item.id === 'secrets').investigate, /A secret has a social life: model a knowledge or belief process for everyone who could know or suspect it/);
 });
+
+test('a decision moment is its own time, not one unit of the model\'s clock', () => {
+  const model = lived({ decisions: 1 });
+  const questions = (m) => modelQuestions(m, { people: leo, draws: [], limit: 100 }).questions.filter((item) => item.kind === 'moment-unmodeled');
+  assert.equal(questions(model).length, 1, 'the nearest motive Cut, a year and more away, does not model the moment');
+  model.meaning_model.events.push(event('ev.choice.0.state', 20.2, 20.3, { participants: { subject: 'leo' } }));
+  model.meaning_model.normalized_cuts.push(cut('cut.choice.0.wants', 'ev.choice.0.state', 'What does Leo want most here?', 'motivational attention over wants', { belonging: 0.6, competence: 0.3, remainder: 0.1 }));
+  assert.equal(questions(model).length, 0, 'a motive Cut inside the decision Event does');
+});
+
+test('drawn remainders nobody opened, quantities nobody observes and lives with nothing inside are asked about', () => {
+  const model = lived({ decisions: 2 });
+  model.processes = [...(model.processes ?? []), { id: 'hand.function', initial_value: { kind: 'scalar', value: 0.45 } }];
+  model.meaning_model.referents.push({ id: 'referent.gunnar', boundary: 'Gunnar, the relief skipper.', continuity_criterion: 'The same person.', lifecycle_event_id: 'ev.gunnar.life' });
+  model.meaning_model.events.push(event('ev.gunnar.life', -40, 30));
+  model.meaning_model.normalized_cuts.push({ ...cut('cut.choice.1.rem', 'ev.choice.1', 'Within the remainder, what follows?', 'decision allocation', { wait: 0.5, remainder: 0.5 }), conditioning: { cut_id: 'cut.choice.1', answer_key: 'remainder' } });
+  const open = modelQuestions(model, { people: leo, draws: [{ cutId: 'cut.choice.0', realized: 'remainder' }, { cutId: 'cut.choice.1', realized: 'remainder' }], limit: 100 });
+  assert.deepEqual(open.questions.filter((item) => item.kind === 'remainder-unopened').map((item) => item.cuts[0]), ['cut.choice.0'], 'an opened remainder is not asked about');
+  assert.match(open.questions.find((item) => item.kind === 'process-unobserved').question, /hand\.function 0\.45/);
+  assert.match(open.questions.find((item) => item.kind === 'life-thin').question, /^1 life is one Event with nothing inside \(Gunnar\)/);
+});
+
+test('the route is asked where its choices, its present shocks, its largest jumps and its open aspects are', async () => {
+  const { routeQuestions } = await import('../src/storytelling-world.mjs');
+  const model = lived({ decisions: 2 });
+  model.meaning_model.normalized_cuts.push({ ...cut('cut.gone', 'ev.late', 'Which way does the old chain go?', 'decision allocation', { on: 0.5, off: 0.4, remainder: 0.1 }), withdrawn: { reason: 'The chain it rested on could not have happened.' } });
+  const route = { parts: [{ id: 'part.1', eventIds: ['ev.late'] }, { id: 'part.2', eventIds: ['ev.choice.0'] }], whyNotJumps: null };
+  const kinds = (items) => items.map((item) => item.kind);
+  const questions = routeQuestions(model, route, { openAspects: [{ id: 'a.place' }] });
+  assert.deepEqual(kinds(questions).filter((kind) => kind !== 'jumps-unrendered'), ['parts-without-choice', 'route-withdrawn', 'aspects-open'], 'Leo\'s shock at 13.3 lies inside this route\'s present');
+  assert.match(questions[0].question, /^1 of 2 parts hold no decision the model draws \(part\.1\)/);
+  assert.match(questions[1].question, /withdrawn \(cut\.gone: The chain it rested on could not have happened\.\)/);
+  const later = routeQuestions(model, { parts: [{ id: 'part.1', eventIds: ['ev.choice.0'] }, { id: 'part.2', eventIds: ['ev.choice.1'] }], whyNotJumps: null });
+  assert.match(later.find((item) => item.kind === 'story-shock-missing')?.question ?? '', /^Leo has no shock inside the story's time \(20 to 22\); the model's shocks for them are all earlier/);
+  assert.ok(!later.some((item) => item.kind === 'parts-without-choice'), 'both parts hold a decision');
+});
