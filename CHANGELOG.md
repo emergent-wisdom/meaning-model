@@ -234,7 +234,7 @@ add-on, and ideation through the new alien add-on. Both add-ons are opt-in with
   (the `rpds` crate) that share each unchanged node and edge with the parent
   revision. A read no longer replays the history from the first revision or
   recompiles the graph, and change records are built by a linear merge instead
-  of a quadratic search. On the 147-revision story, reading the newest revision
+  of a quadratic search. On a 147-revision story, reading the newest revision
   takes 1 ms instead of 57 ms and importing the history 0.9 s instead of 7.3 s.
   A session may now keep 4,096 revisions instead of 512.
 - Check structural acyclicity with `petgraph` instead of three hand-written
