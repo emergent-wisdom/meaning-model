@@ -7,7 +7,7 @@
 export const storyInterest = Object.freeze([
   // People
   { id: 'flaws', group: 'people', element: 'Flaws', why: 'A flaw makes a person fallible in a way the reader recognizes, and makes their choices costly.',
-    investigate: 'Model each principal\'s flaw as a process over their life: the event that taught it (often a strategy that once served a deep want), the situations in which it takes over, where the same trait is a strength and where it does harm, what it costs in the story\'s choices, whether they see it, and whether it changes. The Book: Babbage turns every threatened dependence into more control, brilliant for architecture and damaging for shared authority.' },
+    investigate: 'Model each principal\'s flaw as a process over their life: the event that taught it (often a strategy that once served a deep want), the situations in which it takes over, where the same trait is a strength and where it does harm, what it costs in the story\'s choices, whether they see it, and whether it changes. For example, someone who turns every threatened dependence into more control: brilliant when the problem is design, damaging when authority has to be shared.' },
   { id: 'wants', group: 'people', element: 'Conflicting wants', why: 'People who want incompatible things, or one thing in incompatible ways, have to choose.',
     investigate: 'Model the deepest wants and the learned wants that serve them, where two conflict, and the proxy that displaces a deep aim; Cuts of motivational attention at the moments that matter.' },
   { id: 'choices', group: 'people', element: 'Choices', why: 'A choice with a cost, made by a person the reader understands, is where a story happens.',

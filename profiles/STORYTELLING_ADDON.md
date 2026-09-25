@@ -219,10 +219,11 @@ record the stage `author_reader` with `life_story_world_record`. It holds why
 this author writes this story now, what they want to teach, and what they are
 figuring out by writing it, citing the life records it rests on. It also names
 the buttons the story presses in its reader: the fear, longing, shame or hope
-it touches, and what the reader could learn about their own life. A sitcom
-cast who believe they are the real people see the show and recognize
-themselves as caricatures. That premise presses a common fear: what if we are
-all just characters in a show, and everything is fake? An example reader is
+it touches, and what the reader could learn about their own life. Just one
+example: the cast of a sitcom, or something similar, who believe they are real
+people until they see the show and recognize themselves as caricatures. That
+premise presses a common fear: what if we are all just characters in a show,
+and everything is fake? An example reader is
 optional, and is modeled as a life the same way. The stage checks that each
 life model exists and holds its person, and returns the model's open
 questions about them.
@@ -269,8 +270,9 @@ A flaw is a process over a life, not a label. Model:
 - what it costs in the story's choices;
 - whether the person sees it, and whether it changes.
 
-Babbage turns every threatened dependence into more control: brilliant for
-architecture, and damaging for shared authority.
+For example, someone who turns every threatened dependence into more
+control: brilliant when the problem is design, damaging when authority has to
+be shared.
 
 Investigating can take many forms, and so much can be done:
 - create new processes, or refine existing ones;
