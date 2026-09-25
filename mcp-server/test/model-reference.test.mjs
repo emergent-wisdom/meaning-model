@@ -3,6 +3,7 @@ import test from 'node:test';
 import { LifeSimulationService } from '../src/service.mjs';
 import { recordUnderstanding } from '../src/construction-record.mjs';
 import { readOpenQuestions } from '../src/model-questions.mjs';
+import { storeAuthorRecord } from '../src/storytelling-authoring.mjs';
 
 const provenance = ['model reference test'];
 const model = (id, events, referents = []) => ({ schema: 'life-sim-rust-model/v1', id, time_unit: 'year', revision: { number: 0, reason: 'Reference test.', provenance },
@@ -40,4 +41,27 @@ test('a note can be about records of several models: the author\'s life and the 
   assert.ok(about.some((edge) => edge.target.kind === 'anchor' && edge.target.anchor_id === 'ev.crack'), 'and the story world directly');
   const after = await readOpenQuestions(service, { modelHash: story.modelHash, graphHash: noted.graphHash, accessScopes: ['author'], author, limit: 20 });
   assert.ok(!after.questions.some((item) => item.kind === 'understanding-unjoined'), 'the note holds them together');
+});
+
+test('author records can name records of another model, again and again, without order clashes', async (t) => {
+  const service = new LifeSimulationService();
+  t.after(() => service.close());
+  await service.initialize();
+  const life = await service.registerModel({ requestId: 'life', model: model('asa-life', [['ev.bridge-condemned', 'The bridge she helped design is condemned.']],
+    [{ id: 'asa', boundary: 'Åsa Kvarnström, the invented author.', continuity_criterion: 'The same person.', provenance }]) });
+  const story = await service.registerModel({ requestId: 'story', model: model('ferry-world', [['ev.last-crossing', 'The ferry makes its last crossing.']]) });
+  const graph = await service.registerNarrativeGraph({ requestId: 'graph', narrativeGraph: { schema: 'life-sim-rust-narrative-graph/v1', id: 'ferry-graph',
+    revision: { number: 0, reason: 'Reference test.', provenance }, source: { kind: 'model', model_hash: story.modelHash }, roots: ['story'],
+    nodes: [{ id: 'story', node_type: 'story', role: 'document_root', epistemic_status: 'fictional_artifact', evidence_type: 'fictional_canon', access_scopes: [], provenance }], edges: [] } });
+  const record = (graphHash, nodeId, text) => storeAuthorRecord(service, { graphHash, requestId: nodeId, nodeId, storyRootId: 'story', authorId: 'writer', accessScopes: ['author'],
+    kind: 'idea', text, about: [{ record: 'event:ev.bridge-condemned', modelHash: life.modelHash }, { record: 'event:ev.last-crossing' }] });
+  const first = await record(graph.graphHash, 'idea.origin', 'The condemned bridge is why the last crossing matters to her.');
+  const second = await record(first.graphHash, 'idea.echo', 'The ferry closes the way her bridge will: someone signs that it is safe.');
+  const view = await service.queryNarrativeGraph({ graphHash: second.graphHash, mode: 'full', includeContent: true, accessScopes: ['author'] });
+  assert.equal(view.nodes.filter((node) => node.node_type === 'model_reference').length, 1, 'the second record reuses the first reference');
+  for (const nodeId of ['idea.origin', 'idea.echo']) {
+    const about = view.edges.filter((edge) => edge.source.node_id === nodeId && edge.relation === 'about');
+    assert.ok(about.some((edge) => edge.target.kind === 'node' && edge.target.node_id.startsWith('ref.')), `${nodeId} reaches the author's life`);
+    assert.ok(about.some((edge) => edge.target.kind === 'anchor' && edge.target.anchor_id === 'ev.last-crossing'), `${nodeId} reaches the story`);
+  }
 });

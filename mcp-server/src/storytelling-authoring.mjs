@@ -118,7 +118,8 @@ export async function prepareAuthorRecord(service, raw) {
   const externalIds = {}; const externalNodes = []; const externalEdges = [];
   for (const [index, target] of input.about.entries()) {
     if (!isExternalTarget(target, graphModelHash)) continue;
-    const reference = await externalRecordNode(service, target, { scopes, provenance, placeUnder: rootId, order: step, known: knownReferences });
+    // Held under the record that first names it, so its order never meets the root's own records.
+    const reference = await externalRecordNode(service, target, { scopes, provenance, placeUnder: input.nodeId, order: index, known: knownReferences });
     externalIds[index] = reference.nodeId; externalNodes.push(...reference.nodes); externalEdges.push(...reference.edges);
   }
   const nodes = [{ ...common, id: input.nodeId, node_type: `storytelling.${input.kind}`,
