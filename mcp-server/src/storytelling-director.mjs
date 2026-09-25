@@ -128,6 +128,6 @@ export async function direct(service, raw) {
   const failing = [...input.findings, ...input.ownFindings.map((item) => ({ ...item, principleId: `own:${item.name}` }))].filter((item) => item.verdict === 'fails');
   return { ...stored, ...record.receipt, ...(head.advancedFrom ? { advancedFrom: head.advancedFrom } : {}), schema: 'meaning-model-story-direction-record/v1', directionNodeId: input.nodeId, stage: input.stage, failing: failing.map((item) => item.principleId),
     nextStep: failing.length
-      ? `Answer each failure in the model first: revise it (life_model_revise), rebind the story graph, and record what you changed with answers pointing to ${input.nodeId}; then revise the prose from the deeper model. Scene preparation and release stop until the bound model has changed and a record answers this direction.`
+      ? `Answer each failure in the model first: revise it (life_model_revise), rebind the story graph, and record what you changed with answers pointing to ${input.nodeId}; then revise the prose from the deeper model. Until then the failures come back as questions in every scene's preparation, and release waits for the bound model to change and a record to answer this direction.`
       : 'Nothing failed. A direction that finds nothing to change is suspect: if it was a self-direction, give the task to a fresh reviewer.' };
 }

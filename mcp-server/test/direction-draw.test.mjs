@@ -103,3 +103,20 @@ test('a successor model links the drawn answer to its continuation with realizes
   assert.deepEqual(relation.forecast_answer, { cut_id: 'cut.ada.h06.attention', answer_key: 'money' });
   await assert.rejects(service.registerModel(successor('savings', 'realized-unknown')), /names unknown answer savings of Cut cut\.ada\.h06\.attention/);
 });
+
+test('a draw that lands in the remainder asks for the remainder to be opened and drawn, not written by hand', async (t) => {
+  const markdown = await readFile(new URL('../../docs/examples/MINIMAL-MODEL-AND-GRAPH.md', import.meta.url), 'utf8');
+  const [, registerRequest] = jsonBlocks(markdown);
+  const service = new LifeSimulationService();
+  t.after(() => service.close());
+  await service.initialize();
+  const { modelHash } = await service.registerModel(registerRequest);
+  const cutId = 'cut.ada.h06.attention';
+  const probe = await drawDirection(service, { modelHash, cutId, seed: 'probe' });
+  const remainder = probe.answers.find((answer) => answer.key === 'remainder')?.weight ?? 0;
+  if (remainder <= 0) return t.skip('the example Cut has no remainder');
+  const seed = Array.from({ length: 5000 }, (_, index) => `remainder/${index}`).find((candidate) => drawFromAnswers(probe.answers, drawUniform(candidate)).realized === 'remainder');
+  const draw = await drawDirection(service, { modelHash, cutId, seed });
+  assert.equal(draw.realized, 'remainder');
+  assert.match(draw.nextStep, /Open the remainder rather than writing the continuation yourself: add a Cut .* conditioned on this Cut's remainder \(conditioning: \{ cut_id: 'cut\.ada\.h06\.attention', answer_key: 'remainder' \}\)/);
+});

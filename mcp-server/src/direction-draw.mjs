@@ -94,6 +94,6 @@ export async function drawDirection(service, raw) {
     graphHash: recorded?.graphHash ?? input.record?.graphHash ?? null, previousGraphHash: input.record?.graphHash ?? null,
     graphMutation: Boolean(recorded), worldMutation: false,
     nextStep: draw.realizedIsRemainder
-      ? `The remainder was drawn: model a new admissible continuation under its meaning and link its Event from ${cut.parent_event_id} with a realizes_forecast relation naming this Cut and the remainder. Do not renormalize the named answers or draw again to avoid it; a further draw is recorded as a reroll.`
+      ? `The remainder was drawn: the model holds more possibilities here than the named answers. Open the remainder rather than writing the continuation yourself: add a Cut on ${cut.parent_event_id} conditioned on this Cut's remainder (conditioning: { cut_id: '${cut.id}', answer_key: 'remainder' }) whose answers name the continuations the remainder holds, estimate it from the modeled state, and draw it; link the realized Event with a realizes_forecast relation. Do not renormalize the named answers or draw this Cut again; a further draw over it is recorded as a reroll.`
       : `Build ${realized} as the realized continuation and link its Event from ${cut.parent_event_id} with a realizes_forecast relation naming this Cut and ${realized}. A further draw over this Cut is recorded as a reroll.` };
 }

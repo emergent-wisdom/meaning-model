@@ -169,6 +169,9 @@ async function executeCutShares(input, estimator, service, checkpoint = null) {
   const { proposals, usage, evaluator } = estimated;
   // usage belongs to the estimate, which a saved proposal carries over; estimatorCallsThisRequest counts this request's calls.
   common.estimatorCallsThisRequest = callsNow;
+  // A share this lopsided is often the situation text answering its own question.
+  const lopsided = (proposals ?? []).filter((item) => item?.answers?.some((answer) => answer.key !== REMAINDER_KEY && answer.weight > 0.9));
+  if (lopsided.length) common.warnings = [...(common.warnings ?? []), ...lopsided.map((item) => `${item.id} puts over 0.9 on ${item.top}. A share this lopsided often means the situation text already states the answer: describe the modeled state (what each person wants, fears, knows and can do), not the outcome, and put the regularities you rely on into the model as laws, where they can be tested.`)];
   if (!input.apply) {
     const proposalId = retainEstimatorProposal(service ?? estimator, 'cut-shares', proposalBinding(input), estimated);
     return { ...common, evaluator, proposals, usage, proposalId, graphMutation: false, nextStep: 'Review the proposals, then repeat the modeling inputs with apply, requestId and this proposalId to adopt these exact estimates without another provider call. Direct apply without proposalId makes a fresh estimate. Proposals are AI inference, not verified facts.' };
