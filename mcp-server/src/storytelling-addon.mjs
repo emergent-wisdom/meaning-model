@@ -11,7 +11,7 @@ import { modelDepthPrepareSchema, modelDepthRecordSchema, modelDepthInstructions
 import { characterConnectionsSchema, lifeTrendsInputSchema, lifeTrendsInstructions, readLifeTrends, verifyLifeTrajectoryRecords } from './storytelling-life-trends.mjs';
 import { deepeningSchema, deepeningInstructions, prepareDeepening } from './storytelling-deepening.mjs';
 import { releaseStory, storyReleaseSchema } from './storytelling-release.mjs';
-import { readWorldState, storeWorldRecord, worldInstructions, worldRecordSchema, worldStages } from './storytelling-world.mjs';
+import { readWorldState, storeWorldRecord, worldInstructions, worldRecordSchema, worldStages, eraQuestions } from './storytelling-world.mjs';
 import { cutKind, eventDescendants, indexModel, modelQuestions, personStateAt, readDraws, readOpenQuestions, thinkInTheModelInstructions } from './model-questions.mjs';
 import { direct as directStory, directionInstructions, directionSchema, directionState } from './storytelling-director.mjs';
 
@@ -481,6 +481,7 @@ export class StorytellingAddon {
     const missingStages = worldStages.filter(([key]) => !world[key]).map(([, stage]) => stage);
     if (missingStages.length) worldQuestions.push({ kind: 'world-stage-missing', tool: 'life_story_world_record',
       question: `The world has no ${missingStages.join(', ')} record yet. Who is the author, which world, what makes this story interesting, what do its commitments imply? Investigate whichever the model leads you to, in any order, and record it when the understanding happens.` });
+    worldQuestions.push(...eraQuestions(world.opening?.data ?? null));
     if (world.openImplications.length) worldQuestions.push({ kind: 'implications-open', tool: 'life_model_revise',
       question: `Implications still open: ${world.openImplications.map((item) => `${item.commitmentId} (${item.about})`).join('; ')}. What do they imply for this scene?` });
     if (!routePart && world.route) worldQuestions.push({ kind: 'route-part-unnamed', tool: 'life_story_scene_prepare',

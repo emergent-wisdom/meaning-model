@@ -43,7 +43,7 @@ export const storyInterest = Object.freeze([
     investigate: 'Model the moments where outcome or understanding turns, what each person believed just before, and what the turn changes in them.' },
   // World
   { id: 'era', group: 'world', element: 'The era and its long history', why: 'A story in a real or fully imagined time carries the weight of what came before it.',
-    investigate: 'Model the long developments over decades or centuries (wars, institutions, technologies, beliefs, family lines) that explain why things are as they are, and let the lives sit inside them.' },
+    investigate: 'Model the long developments over decades or centuries (wars, institutions, technologies, beliefs, family lines) that explain why things are as they are, and let the lives sit inside them. If the era is real, fix a documentary cutoff: up to it the world is what the sources document, recorded as reports with their sources; after it the story invents. Your own knowledge ends where your training does, often before the story\'s time, so find out what happened since, and leave open what you cannot find. Where living people and real organizations would appear, invent the people and companies that take their place and keep the real world in the background.' },
   { id: 'place', group: 'world', element: 'Place', why: 'Where things happen, and the physical state of the people and things there, grounds every scene.',
     investigate: 'Model places and their conditions (weather, traffic, work, crowds) as processes, the positions of people and Things at each moment, and how place constrains access and timing.' },
   { id: 'mechanisms', group: 'world', element: 'Mechanisms and technology', why: 'How the things in a story actually work gives its turns their precision.',

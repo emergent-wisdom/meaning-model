@@ -103,7 +103,26 @@ const openingStage = z.object({
     .describe('Successive expansions of the same history: the first in one paragraph, the next in two, and so on; each keeps or explicitly revises the claims above it.'),
   closedQuestions: z.array(text(10, 2_000)).min(3).max(80).describe('Commitments the opening settles: who, what, where, the quantities that must reconcile.'),
   revisions: z.array(z.object({ claim: text(3, 2_000), revisedTo: text(3, 2_000), reason: text(3, 2_000) }).strict()).max(40).default([]),
+  era: z.object({
+    kind: z.enum(['real', 'alternate', 'invented']).describe('Is the story set at a real time in the real world, in a history that departs from the real one at some point, or in an invented world?'),
+    documentaryCutoff: text(4, 200).nullable().default(null).describe('For a real or alternate era: the date up to which the world is what the sources document. After it, the story invents.'),
+    knowledgeLimit: text(4, 2_000).nullable().default(null).describe('Where your own knowledge of the era ends (training often stops before the story\'s time), and how you found out what happened since.'),
+    livingPeople: text(4, 4_000).nullable().default(null).describe('The living people and real organizations the story would otherwise touch, and the invented people and companies that take their place; the real world stays in the background.'),
+  }).strict().nullable().default(null).describe('Optional: the era, whether it is real, and if so what is documented and what is invented.'),
 }).strict();
+// A real era is documented up to a cutoff and invented after it. These ask for what the opening has not stated;
+// they are questions, not gates.
+export function eraQuestions(opening) {
+  if (!opening) return [];
+  const era = opening.era ?? null;
+  if (!era) return [{ kind: 'era-unstated', tool: 'life_story_world_record', question: 'Is this story set at a real time in the real world, in a history that departs from the real one, or in an invented world? Record it as the opening\'s era.' }];
+  if (era.kind === 'invented') return [];
+  return [
+    ...(era.documentaryCutoff ? [] : [{ kind: 'era-cutoff', tool: 'life_story_world_record', question: 'The era is real: up to which date is the world what the sources document, and after which does the story invent? Record the documentary cutoff.' }]),
+    ...(era.knowledgeLimit ? [] : [{ kind: 'era-knowledge', tool: 'life_understanding_record', question: 'Where does your own knowledge of this era end? Training often stops before the story\'s time. Find out what happened since with whatever research tools you have, record each documented fact as a report with its source (life_understanding_record, kind report) linked to the model records it grounds, and leave open what you cannot find rather than guessing it.' }]),
+    ...(era.livingPeople ? [] : [{ kind: 'era-living-people', tool: 'life_story_world_record', question: 'Which living people and real organizations would this story touch? Invent the people and companies that take their place, and keep the real world in the background.' }]),
+  ];
+}
 // Every element of what makes a story interesting (storytelling-interest.mjs), found where it lives in this story
 // and investigated by modeling, with each principal's flaw among them. The list is revised as the model deepens: a
 // later aspects record supersedes the earlier one.
@@ -268,6 +287,7 @@ async function validateStage(service, world, view, input, model, modelHash) {
     const needed = requiredOpenings(data?.form.targetWords ?? 0);
     if (world.accounts.length < needed) throw new Error(`A work of about ${data?.form.targetWords ?? 'this'} words needs at least ${needed} successive openings of its world; this has ${world.accounts.length}.`);
     extra.interestCatalog = storyInterest;
+    extra.eraQuestions = eraQuestions(world);
   }
   if (world.stage === 'aspects') {
     const { node } = relatedStage(view, world.openingNodeId, input.storyRootId, 'opening');

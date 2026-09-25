@@ -156,7 +156,15 @@ export { nextOrder as nextPlacementOrder };
 // Understanding records: a thought, linked to what it is about.
 
 export const noteKinds = Object.freeze(['question', 'hypothesis', 'prediction', 'interpretation', 'reason', 'criticism', 'revision',
-  'decision', 'idea', 'reference', 'voice', 'plan', 'observation', 'estimate']);
+  'decision', 'idea', 'reference', 'voice', 'plan', 'observation', 'estimate', 'report']);
+// What a report rests on. A documented fact is recorded as a report of its source, dated, so the world up to a
+// documentary cutoff stays distinguishable from what the modeler supposed or invented.
+const sourceSchema = z.object({
+  citation: z.string().trim().min(3).max(1_000).describe('Who published what: author or organization, title, outlet.'),
+  url: z.string().trim().url().max(2_000).optional(),
+  published: z.string().trim().min(4).max(40).optional().describe('When the source was published, as a date.'),
+  reportsOn: z.string().trim().min(4).max(80).optional().describe('The date or period the reported fact holds for.'),
+}).strict();
 export const understandingRecordSchema = z.object({
   graphHash: hash, requestId: id, accessScopes: scopeList, exactRevision: z.boolean().default(false).describe('Write against graphHash exactly, creating a branch if it is not the newest revision. By default an add-only record goes to the newest head.'),
   holder: id, recordedBy: id.optional(),
@@ -167,6 +175,7 @@ export const understandingRecordSchema = z.object({
     about: z.array(targetSchema).max(32).default([]),
     links: z.array(z.object({ relation: z.enum(linkRelations), targetNodeId: longId }).strict()).max(64).default([]),
     valueTime: z.number().finite().optional(),
+    source: sourceSchema.optional().describe('For a report: the source it rests on. A report records what a source documents, not what you suppose.'),
     data: z.json().optional(),
   }).strict()).min(1).max(32),
 }).strict().superRefine((input, context) => {
@@ -175,6 +184,8 @@ export const understandingRecordSchema = z.object({
   for (const [index, note] of input.notes.entries()) {
     if (!note.about.length && !note.links.length) context.addIssue({ code: 'custom', path: ['notes', index], message: 'A note must be about something: give at least one about target or link.' });
     if (input.clock === 'story_time' && note.valueTime === undefined) context.addIssue({ code: 'custom', path: ['notes', index, 'valueTime'], message: 'A story-time note needs its valueTime in world time.' });
+    if (note.kind === 'report' && !note.source) context.addIssue({ code: 'custom', path: ['notes', index, 'source'], message: 'A report needs the source it rests on (source.citation, and a url and dates where there are any).' });
+    if (note.source && note.kind !== 'report') context.addIssue({ code: 'custom', path: ['notes', index, 'source'], message: 'Only a report carries a source; use kind report for what a source documents.' });
   }
 });
 
@@ -208,11 +219,13 @@ export async function recordUnderstanding(service, raw) {
       if (target.access_scopes?.length) noteScopes = noteScopes.filter((scope) => target.access_scopes.includes(scope));
     }
     if (!noteScopes.length) throw new Error(`Note ${note.nodeId} and its targets share no access scope.`);
-    const payload = { schema: 'meaning-model-understanding-note/v1', kind: note.kind, text: note.text, ...(note.data === undefined ? {} : { data: note.data }) };
+    const payload = { schema: 'meaning-model-understanding-note/v1', kind: note.kind, text: note.text, ...(note.source ? { source: note.source } : {}), ...(note.data === undefined ? {} : { data: note.data }) };
+    const reported = note.kind === 'report';
     nodes.push({ id: note.nodeId, node_type: `understanding.${note.kind}`, role: 'externalized_reflection', ...(note.title ? { title: note.title } : {}),
-      text: JSON.stringify(payload), holder: input.holder, epistemic_status: 'externalized_reflection', evidence_type: 'belief',
-      authority: { source: input.holder, weight: 1 }, uncertainty: { kind: 'unknown' }, access_scopes: noteScopes,
-      render: 'exclude', training: 'exclude', value_time: note.valueTime ?? step, provenance });
+      text: JSON.stringify(payload), holder: input.holder, epistemic_status: 'externalized_reflection', evidence_type: reported ? 'report' : 'belief',
+      authority: { source: reported ? note.source.citation : input.holder, weight: 1 }, uncertainty: { kind: 'unknown' }, access_scopes: noteScopes,
+      render: 'exclude', training: 'exclude', value_time: note.valueTime ?? step,
+      provenance: reported ? [...provenance, `source:${note.source.citation}`, ...(note.source.url ? [`source-url:${note.source.url}`] : []), ...(note.source.published ? [`source-published:${note.source.published}`] : [])] : provenance });
     const edge = (suffix, target, family, relation, extra = {}) => edges.push({ id: `${note.nodeId}.${suffix}`, source: endpoint(note.nodeId), target, family, relation, access_scopes: noteScopes, provenance, ...extra });
     edges.push({ id: `${note.nodeId}.placement`, source: endpoint(rootId), target: endpoint(note.nodeId), family: 'structural', relation: 'contains', order: order++, access_scopes: noteScopes, provenance });
     for (const [index, target] of note.about.entries()) {
@@ -974,7 +987,7 @@ export async function importConstructionHistory(service, raw) {
 
 export function registerConstructionRecordTools(server, service, { toolResult }) {
   server.registerTool('life_understanding_record', {
-    description: `Record one or more Understanding Nodes held by a named holder (the modeler, a writer, a character in story time), each linked to what it concerns: model records by kind:id (event, cut, process, claim, concept, referent and the other record kinds, optionally with a JSON Pointer path) or graph nodes. Kinds: ${noteKinds.join(', ')}. Notes are placed under the holder's understanding root with the graph-revision clock (or world time for story_time) and stamped with the model revision they were written against. Keep one holder id for yourself for the whole session, and a new one only for a different mind (a continuing agent, a character); say a role such as writer or self-review in the note, not in the holder. A note must be about something. ${constructionRecordInstructions} Add-only: graphHash may be any earlier revision of the graph; the record goes to its newest head, and advancedFrom says so.`,
+    description: `Record one or more Understanding Nodes held by a named holder (the modeler, a writer, a character in story time), each linked to what it concerns: model records by kind:id (event, cut, process, claim, concept, referent and the other record kinds, optionally with a JSON Pointer path) or graph nodes. Kinds: ${noteKinds.join(', ')}. A report records what a source documents, with the source (citation, and url, published and reportsOn where known), so a documented fact stays distinct from what you believe or invent. Notes are placed under the holder's understanding root with the graph-revision clock (or world time for story_time) and stamped with the model revision they were written against. Keep one holder id for yourself for the whole session, and a new one only for a different mind (a continuing agent, a character); say a role such as writer or self-review in the note, not in the holder. A note must be about something. ${constructionRecordInstructions} Add-only: graphHash may be any earlier revision of the graph; the record goes to its newest head, and advancedFrom says so.`,
     inputSchema: understandingRecordSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await recordUnderstanding(service, input)));

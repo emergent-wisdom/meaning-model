@@ -246,6 +246,17 @@ each account commits to into the model, macro processes first
 Backtrack when the parent history could not have happened, or when it is
 dramatically inert.
 
+When the era is real, say so in the opening's `era`, with a documentary
+cutoff: up to that date the world is what the sources document, and after it
+the story invents. Your own knowledge ends where your training does, often
+before the story's time, so find out what happened since with whatever
+research tools you have. Record each documented fact as a report with its
+source (`life_understanding_record`, kind `report`), linked to the model
+records it grounds, and leave open what you cannot find rather than guessing
+it. Where living people and real organizations would appear, invent the people
+and companies that take their place, and keep the real world in the
+background: its events, technology, prices and laws.
+
 **3b. Aspects** (stage `aspects`). Find all the things that make this story
 interesting, and investigate each in the model. The opening stage returns a
 catalog (`interestCatalog`) of elements that often make a story interesting,
@@ -322,7 +333,9 @@ Examples:
 - the central shock changes wants in different directions;
 - no death or accident does the plot's work;
 - the long developments and background processes are modeled;
-- the Things the causality runs through are modeled as they work.
+- the Things the causality runs through are modeled as they work;
+- a real era holds to its sources up to a stated cutoff, and living people
+  are replaced by invented ones.
 
 Each failure says what must change in the model first. Unanswered findings
 come back as questions in every scene's preparation, and release waits until

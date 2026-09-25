@@ -6,6 +6,16 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Hold a real era to its sources. The opening stage takes an optional `era`:
+  real, alternate or invented, with a documentary cutoff, where the modeler's
+  own knowledge ends, and the invented people and companies that take the
+  place of living ones. What it leaves unstated comes back as questions when
+  the opening is recorded and in every scene's preparation. Understanding
+  notes gain the kind `report`, which carries its source (citation, url,
+  published, reportsOn) and is stored as a report rather than a belief, so a
+  documented fact stays distinct from what the modeler supposed or invented.
+  The director gains `world.documented`, and `draft.documented` keeps living
+  people and real organizations out of the story.
 - Ask where acts come from. A standing question, asked at every step in every
   mode, asks what kinds of reasons lie behind what the people in focus do,
   whether they are primarily out of fear or out of love, and what that fear or
