@@ -450,30 +450,30 @@ export async function readOpenQuestions(service, { modelHash, people = null, at 
   }
   const named = people ?? modeledPeople(indexModel(model));
   const questions = modelQuestions(model, { people: named, draws, limit, focus, author });
-  // Understanding that holds the author and the story together: nodes linked to records of both, whether the author's
-  // life shares this model or is a model of its own reached through reference nodes.
+  // Understanding that holds the author and the story together: a note linked to a record of the author's life and to
+  // a record of the story. The author's life may share this model or be a model of its own, reached through reference
+  // nodes to any revision of it (matched by model id, since the life keeps being revised).
   if (view && author) {
     const separate = author.lifeModelHash && author.lifeModelHash !== modelHash;
-    const links = separate ? null : authorLinks(indexModel(model), author.id);
+    const authorEvents = separate ? new Set() : (authorLinks(indexModel(model), author.id)?.authorEvents ?? new Set());
+    let authorModelId = null;
+    if (separate) authorModelId = (await service.inspectModel({ modelHash: author.lifeModelHash }).catch(() => null))?.summary?.model_id
+      ?? (await service.inspectModel({ modelHash: author.lifeModelHash, includeDefinition: true }).catch(() => null))?.model?.id ?? null;
     const authorReferenceIds = new Set(separate ? (view.nodes ?? []).filter((node) => node.node_type === 'model_reference' && (() => {
-      try { return JSON.parse(node.text).modelHash === author.lifeModelHash; } catch { return false; } })()).map((node) => node.id) : []);
-    const storyEvents = separate ? new Set((model.meaning_model?.events ?? []).map((event) => event.id)) : links?.storyEvents ?? new Set();
-    if (storyEvents.size && (separate || links)) {
-      const anchored = new Map();
-      const mark = (nodeId, side) => anchored.set(nodeId, new Set([...(anchored.get(nodeId) ?? []), side]));
-      for (const edge of view.edges ?? []) {
-        if (edge.source?.kind !== 'node') continue;
-        if (edge.target?.kind === 'node' && authorReferenceIds.has(edge.target.node_id)) { mark(edge.source.node_id, 'author'); continue; }
-        if (edge.target?.kind !== 'anchor' || edge.target.anchor_kind !== 'event') continue;
-        const side = !separate && links.authorEvents.has(edge.target.anchor_id) ? 'author' : storyEvents.has(edge.target.anchor_id) ? 'story' : null;
-        if (side) mark(edge.source.node_id, side);
-      }
-      if (![...anchored.values()].some((sides) => sides.size === 2)) {
-        questions.questions.unshift({ kind: 'understanding-unjoined', subject: author.id, principal: true, tool: 'life_understanding_record, life_story_author_record',
-          question: `No Understanding Node holds the author and the story together. Where does the author's life meet the story? Record what you understand there as notes about both the author's records${separate ? ' (about targets with the author\'s modelHash)' : ''} and the story's.` });
-        questions.total += 1;
-        questions.questions.length = Math.min(questions.questions.length, limit);
-      }
+      try { const data = JSON.parse(node.text); return data.modelHash === author.lifeModelHash || (authorModelId && data.modelId === authorModelId); } catch { return false; } })()).map((node) => node.id) : []);
+    const isAuthorAnchor = (target) => !separate && ((target.anchor_kind === 'event' && authorEvents.has(target.anchor_id)) || (target.anchor_kind === 'referent' && target.anchor_id === author.id));
+    const anchored = new Map();
+    const mark = (nodeId, side) => anchored.set(nodeId, new Set([...(anchored.get(nodeId) ?? []), side]));
+    for (const edge of view.edges ?? []) {
+      if (edge.source?.kind !== 'node') continue;
+      if (edge.target?.kind === 'node' && authorReferenceIds.has(edge.target.node_id)) mark(edge.source.node_id, 'author');
+      else if (edge.target?.kind === 'anchor') mark(edge.source.node_id, isAuthorAnchor(edge.target) ? 'author' : 'story');
+    }
+    if (![...anchored.values()].some((sides) => sides.size === 2)) {
+      questions.questions.unshift({ kind: 'understanding-unjoined', subject: author.id, principal: true, tool: 'life_understanding_record, life_story_author_record',
+        question: `No note yet holds the author and the story together. Where does the author's life meet the story? A note does when it is about a record of the author's life${separate ? ' (an about target with the life model\'s modelHash)' : ''} and a record of the story: a character, an Event, a process or a Cut.` });
+      questions.total += 1;
+      questions.questions.length = Math.min(questions.questions.length, limit);
     }
   }
   // The model as the agent's mind: a model that keeps changing while its record holds few thoughts means the thinking

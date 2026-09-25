@@ -65,3 +65,21 @@ test('author records can name records of another model, again and again, without
     assert.ok(about.some((edge) => edge.target.kind === 'anchor' && edge.target.anchor_id === 'ev.last-crossing'), `${nodeId} reaches the story`);
   }
 });
+
+test('a note about the author\'s life and the story\'s characters joins them, no Event needed', async (t) => {
+  const service = new LifeSimulationService();
+  t.after(() => service.close());
+  await service.initialize();
+  const life = await service.registerModel({ requestId: 'life', model: model('asa-life', [['ev.wheel', 'She first steers her father\'s ferry.']],
+    [{ id: 'asa', boundary: 'Åsa, the invented author.', continuity_criterion: 'The same person.', provenance }]) });
+  const story = await service.registerModel({ requestId: 'story', model: model('ferry-world', [['ev.season', 'The last ferry season.']],
+    [{ id: 'skipper', boundary: 'Brita, the skipper.', continuity_criterion: 'The same person.', provenance }]) });
+  const graph = await service.registerNarrativeGraph({ requestId: 'graph', narrativeGraph: { schema: 'life-sim-rust-narrative-graph/v1', id: 'ferry-graph',
+    revision: { number: 0, reason: 'Join test.', provenance }, source: { kind: 'model', model_hash: story.modelHash }, roots: ['story'],
+    nodes: [{ id: 'story', node_type: 'story', role: 'document_root', epistemic_status: 'fictional_artifact', evidence_type: 'fictional_canon', access_scopes: [], provenance }], edges: [] } });
+  const author = { id: 'asa', name: 'Åsa', lifeModelHash: life.modelHash };
+  const noted = await storeAuthorRecord(service, { graphHash: graph.graphHash, requestId: 'join', nodeId: 'note.join', storyRootId: 'story', authorId: 'writer', accessScopes: ['author'],
+    kind: 'idea', text: 'Brita stands where Åsa\'s father stood.', about: [{ record: 'referent:asa', modelHash: life.modelHash }, { record: 'referent:skipper' }] });
+  const open = await readOpenQuestions(service, { modelHash: story.modelHash, graphHash: noted.graphHash, accessScopes: ['author'], author, limit: 30 });
+  assert.ok(!open.questions.some((item) => item.kind === 'understanding-unjoined'), 'the author\'s referent and a character are enough');
+});
