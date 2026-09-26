@@ -39,8 +39,8 @@ const chapterId = (number) => `${DOCUMENT_ROOT_ID}.chapter.${String(number).padS
 const understandingSource = readFileSync(new URL("UNDERSTANDING-NOTES.md", import.meta.url), "utf8");
 const expectedNoteIds = [...understandingSource.matchAll(/^## (U\d{2})\s+[—–-]\s+.+$/gmu)]
   .map((match) => `${UNDERSTANDING_ROOT_ID}.${match[1]}`);
-const chapterEvents = (graph, number) => graph.edges.filter((edge) =>
-  edge.source.node_id === chapterId(number) && edge.relation === "expresses"
+const chapterEvents = (graph, number, relation = "expresses") => graph.edges.filter((edge) =>
+  edge.source.node_id === chapterId(number) && edge.relation === relation
 ).map((edge) => edge.target.anchor_id.replace("event.book.07r2.", ""));
 
 test("preserves twelve Roman chapters and every separate source-authored note", () => {
@@ -90,6 +90,37 @@ test("rejects missing or mismatched native Event anchors", () => {
   assert.throws(() => build({ events: events.filter((event) => event.sourceId !== "E30") }), /Unresolved source Event E30/u);
   assert.throws(() => build({ events: [{ id: "absent", sourceId: "E01" }] }), /absent from the source model/u);
   assert.throws(() => build({ events: [...events, events[0]] }), /Duplicate Event/u);
+});
+
+test("adds reviewed depiction links without promoting retrospective route associations", () => {
+  // A newly opened Event can inherit a route association, but requires its own
+  // manuscript review before being declared depicted.
+  const extra = { sourceId: "E03d", id: "event.book.07r2.E03d" };
+  const graph = build({
+    events: [...events, extra],
+    modelDefinition: {
+      ...modelDefinition,
+      meaning_model: {
+        ...modelDefinition.meaning_model,
+        events: [...modelDefinition.meaning_model.events, { id: extra.id }],
+      },
+    },
+  });
+  const renders = graph.edges.filter((edge) => edge.relation === "renders");
+  assert.equal(renders.length, sourceIds.length);
+  assert.deepEqual(renders.map((edge) => edge.target.anchor_id.replace("event.book.07r2.", "")).sort(), sourceIds);
+  assert(renders.every((edge) => edge.family === "grounding" && edge.target.anchor_kind === "event"
+    && graph.nodes.find((node) => node.id === edge.source.node_id)?.role === "story_passage"
+    && edge.provenance.some((entry) => entry.includes("BOOK-DRAFT.md;sha256:"))));
+  assert(chapterEvents(graph, 3).includes("E03d"));
+  assert(!chapterEvents(graph, 3, "renders").includes("E03d"));
+  assert(chapterEvents(graph, 8).includes("E15"));
+  assert.deepEqual(chapterEvents(graph, 8, "renders"), ["E12", "E13", "E14", "E14a", "E14b", "E14c"]);
+  assert.deepEqual(chapterEvents(graph, 9, "renders"), ["E15", "E16", "E17", "E18", "E19"]);
+  assert.match(graph.nodes.find((node) => node.id === chapterId(9)).text,
+    /In July the signed sentence was published without the larger conclusions\s+Babbage had proposed for it\./u);
+  assert(graph.edges.some((edge) => edge.source.node_id === DOCUMENT_ROOT_ID
+    && edge.relation === "expresses" && edge.target.anchor_kind === "model"));
 });
 
 const binary = defaultEngine;

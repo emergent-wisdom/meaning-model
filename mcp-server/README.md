@@ -1,5 +1,35 @@
 # Meaning Model MCP server
 
+## Browser viewer
+
+With version 0.4.0, ask the connected assistant to **“Open this model.”**
+The core `life_model_viewer_open` tool accepts exactly one `modelHash` or
+`graphHash`, optional `title`, and `accessScopes`. It returns a local browser URL
+for an immutable, read-only snapshot. The viewer is bundled with the MCP package;
+it needs no separate download, web hosting, call transcript or storytelling add-on.
+
+Use a graph hash to include its prose and construction record, or a model hash for
+the model alone. The graph must be model-bound. This complete author view refuses
+access unless all exported scoped records are accessible; it is not a filtered
+model projection. Reopen after a revision to inspect the new state. The browser
+must be on the MCP server's computer, and links expire when that process stops or
+when they fall outside its sixteen most recent snapshots.
+
+Calendar-based stories with numeric paths use the existing visual viewer. Other
+models use a record inspector that preserves their units and does not invent a
+story, calendar or numeric trajectory.
+
+The reading-position track follows document order, with segment widths based on
+prose words. Click a part or use Previous/Next to highlight its document node and
+linked Events without moving world time. Open **Read this part** separately, or
+**Read full story** from the beginning. The reader always contains the complete
+selected manuscript. Linked date ranges remain separate and may have gaps.
+
+Optional **Document spans** show authored passage-boundary attachments using their
+own UTF-8 byte coordinate. `life_document_project` resolves those positions from an
+exact render after edits; missing or reversed endpoints remain unresolved. See
+[document coordinates](../docs/NARRATIVE_UNDERSTANDING_GRAPH.md#document-coordinates-and-optional-spans).
+
 `@emergent-wisdom/meaning-model-mcp` is the stdio interface and control plane for the
 authoritative Rust machine in the Meaning Model repository. It is not a second simulation
 engine. A single long-lived `life-sim-engine --ndjson` process validates and
@@ -646,8 +676,10 @@ bundled tools, the `life-sim://addon/storytelling` resource, and the
   caller-provided findings and exact supporting excerpts for each check. It
   requires `draftNodeId` matching a stored draft exactly; save the draft first
   and re-prepare using the returned graph revision. Optional `passages` supplies
-  ordered `{id, text}` leaves whose text joined with `"\n\n"` must exactly match
-  that draft. The segmentation is bound to the review hash.
+  ordered `{id, text, renders?}` leaves whose text joined with `"\n\n"` must exactly match
+  that draft. Segmentation and each leaf's explicit `renders` Event IDs are bound
+  to the review hash. Unmapped leaves remain unchecked; scene-wide Event lists
+  are not copied onto every passage.
 - `life_story_scene_commit` reruns the same checks and uses Rust's narrative
   batch operation to atomically append canonical story text and nonrendered
   Understanding Node reviews. It preserves previous graph revisions and leaves the world

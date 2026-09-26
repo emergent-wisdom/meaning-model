@@ -2,7 +2,7 @@
 // built from, so a reader's render shows only the title. A release is the author's explicit, recorded decision
 // to let readers see the prose: it widens the scopes of the prose nodes and their structural edges only, and
 // never those of the dossier, drafts, reviews or author model.
-import { directionState } from './storytelling-director.mjs';
+import { directionState, proseSignature } from './storytelling-director.mjs';
 import * as z from 'zod/v4';
 import { definitionFromCompleteView, narrativeDefinitionDelta } from './narrative-delta.mjs';
 import { assertCompleteNarrativeView } from './narrative-rebind.mjs';
@@ -26,11 +26,17 @@ export async function releaseStory(service, raw) {
   const nodes = new Map(view.nodes.map((node) => [node.id, node]));
   const root = nodes.get(input.storyRootId);
   if (!root || root.role !== 'document_root') throw new Error(`${input.storyRootId} is not a story document root in this graph.`);
-  // A story is released only after the director has read the draft and its failures were answered in the model.
+  // The director must read the draft, with explicit answers and the required model/prose repair evidence.
   const boundModelHash = view.graph?.source?.model_hash ?? view.graph?.source_snapshot?.model_hash ?? null;
   const direction = directionState(view, input.storyRootId, boundModelHash);
-  if (!direction.draft) throw new Error('Run the director on the draft before release (life_story_direct, stage draft): the loop of principle, model change and revision is what makes the work good.');
-  if (direction.unanswered.length) throw new Error(`The director's failures are not yet answered in the model: ${direction.unanswered.map((item) => `${item.nodeId} (${item.failing.join(', ')}${item.modelUnchanged ? '; the bound model has not changed since' : ''}${item.answered ? '' : '; no record answers it'})`).join('; ')}.`);
+  if (!direction.draft) throw new Error('Run the director on the draft before release (life_story_direct, stage draft), applying its challenges to this work and recording the judgment.');
+  if (direction.unanswered.length) throw new Error(`The director's failures are not yet answered: ${direction.unanswered.map((item) => `${item.nodeId} (${item.failing.join(', ')}${item.modelChangeRequired && item.modelUnchanged ? '; the bound model has not changed since' : ''}${item.proseChangeRequired && !item.proseReviewed ? '; changed prose needs a fresh passing draft direction' : ''}${item.answered ? '' : '; no record answers it'})`).join('; ')}.`);
+  // The direction must have read this prose: a rewrite after it is unread, however the model changed since.
+  const read = direction.draft.data.proseSignature;
+  if (!read) throw new Error(`The draft direction ${direction.draft.node.id} does not record which prose it read (it was recorded before directions did); run the director on the current draft (life_story_direct, stage draft).`);
+  if (read !== await proseSignature(service, input.graphHash, input.storyRootId, direction.draft.data.proseScopes ?? scopes)) {
+    throw new Error(`The prose has changed since the director read it (${direction.draft.node.id}); run the director on the current draft (life_story_direct, stage draft) before release.`);
+  }
   // Readers get what the render shows: the passages it includes, and the containers on their way from the root
   // (scenes, chapters), since the render reaches a passage only through visible containers. Excluded passages,
   // canon and other records under the root stay as they are.

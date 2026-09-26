@@ -209,9 +209,11 @@ pub struct MeaningEventDefinition {
 }
 
 /// The semantic direction of one authored event-to-event relation. `contains`
-/// gives unweighted parent-to-child process topology; the other built-in kinds
-/// describe causal world structure. None schedules either event or adds an
-/// executable law to the physical process substrate.
+/// gives unweighted parent-to-child process topology; `about` is reference
+/// without participation, state change or causation, as from a reading Event to
+/// the record it reads; the other built-in kinds describe causal world
+/// structure. None schedules either event or adds an executable law to the
+/// physical process substrate.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum EventRelationKind {
@@ -223,6 +225,9 @@ pub enum EventRelationKind {
     /// The target event is the continuation a direction Cut on the source event
     /// realized; `forecast_answer` names the Cut and its answer slot.
     RealizesForecast,
+    /// The source event is about the target: a reading, an assessment or a note-like Event that refers to the target
+    /// without taking part in it. It carries no causal meaning and no context.
+    About,
     Other,
 }
 
@@ -586,9 +591,16 @@ fn classify_semantic_coverage(
         .collect::<BTreeMap<_, _>>();
     let mut direct = BTreeSet::new();
     let mut cut_members = BTreeSet::new();
+    // Coverage describes the current account: a realization of a withdrawn concept is history and covers nothing.
+    let withdrawn_concepts = meaning_model
+        .concepts
+        .iter()
+        .filter(|concept| concept.withdrawn.is_some())
+        .map(|concept| concept.id.as_str())
+        .collect::<BTreeSet<_>>();
 
     for realization in &meaning_model.realizations {
-        if realization.degree <= 0.0 {
+        if realization.degree <= 0.0 || withdrawn_concepts.contains(realization.concept_id.as_str()) {
             continue;
         }
         direct.extend(realization.roles.values().cloned());
@@ -1611,7 +1623,11 @@ pub(super) fn validate_meaning_model(
                     cut.id
                 )));
             }
-            abstract_edges.push((cut.parent_concept_id.as_str(), child.as_str()));
+            // A withdrawn cut stays as history and keeps its checks, but the current hierarchy is made of current cuts:
+            // a withdrawn account must not stop its replacement from reversing it.
+            if cut.withdrawn.is_none() {
+                abstract_edges.push((cut.parent_concept_id.as_str(), child.as_str()));
+            }
         }
         validate_text(&cut.lens, &format!("abstract cut {} lens", cut.id))?;
         validate_optional_text(

@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Explorer</title>
+<script>
+// The explorer is one way of showing the one view: the camera locked, the tree in layers from its top with the named
+// processes, the glare toned down and the display panel open. A link to the explorer keeps what it showed.
+const from = new URLSearchParams(location.search); const to = new URLSearchParams();
+for (const key of ['data', 'title', 'live', 'zoom', 'life', 't0', 't1', 'focus', 'depth', 'lenses']) if (from.has(key)) to.set(key, from.get(key));
+to.set('camera', 'locked'); to.set('glare', 'soft'); if (from.get('view') !== 'together') to.set('view', 'layers');
+to.set('show', from.get('show') ?? 'processes'); if (from.has('fold')) to.set('panel', 'off');
+location.replace(`./?${to.toString().replace(/%2C/g, ',').replace(/=(&|$)/g, '$1')}`);
+</script>
+</head>
+<body style="background:#050608"></body>
+</html>

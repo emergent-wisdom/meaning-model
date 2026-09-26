@@ -352,11 +352,13 @@ Examples:
 - a real era holds to its sources up to a stated cutoff, and living people
   are replaced by invented ones.
 
-Each failure says what must change in the model first. Unanswered findings
-come back as questions in every scene's preparation, and release waits until
-the bound model has changed and a record answers the direction with
-`answers`. Give the director's task to a fresh reviewer who has not written
-the work where you can.
+Each failure says whether the model, the prose, or both need to change. Any
+principle may be inapplicable to this story when the review gives contextual
+evidence; shared voices, quiet scenes, and restraint can be intentional.
+Unanswered findings come back as questions in scene preparation. Model repairs
+require a changed model and an `answers` record; prose-only repairs require an
+answer and a fresh passing review of the exact changed prose. Give the director's
+task to a fresh reviewer who has not written the work where you can.
 
 **7. Scenes from the model's state.** Prepare each scene with its
 `routePartId`. The packet gives each present person's state at that moment,
@@ -982,7 +984,7 @@ state automatically to later scenes.
 - `expectedPacketHash`: the hash returned by preparation;
 - `draftNodeId`: a draft record already stored in this graph for this story;
 - `text`: exactly the text saved in that draft record;
-- optional `passages`: ordered `{id, text}` units whose text joined with
+- optional `passages`: ordered `{id, text, renders?}` units whose text joined with
   `"\n\n"` exactly equals `text`;
 - `reviewer`: the authored reviewer identity;
 - `findings`: one result for every check in the packet; and
@@ -1007,10 +1009,19 @@ any blockers. Commitment requires `readyToCommit: true` and the matching hash.
 Use `passages` when parts of the scene need to be linked, revised, or moved
 independently. Choose useful units rather than meeting a subdivision or word
 quota. Passage IDs must be fresh, and each text must be nonblank. The ordered
-IDs, texts, and boundaries enter the review hash; changing or removing that
+IDs, texts, boundaries, and `renders` selections enter the review hash; changing or removing that
 segmentation requires a new review even when the full draft text is unchanged.
 The whole-scene review and citation offsets still refer to the complete `text`.
 Omitting `passages` preserves the single-passage scene form.
+
+Each passage's optional `renders` array names the Events it actually depicts in
+the bound model. The tool validates the identities and creates `grounding` /
+`renders` Event anchors. It does not copy the whole scene's or route part's Events
+onto every passage. An omitted or empty array leaves that passage without declared
+depiction dependencies and the review reports it as unchecked. Such a link says
+what the prose depicts; it does not give the viewpoint or reader every fact in
+the Event. Without segmented passages, the single scene leaf uses the route
+part's Events together with any explicit `scene.renders` selection.
 
 The declarations need to be complete and accurate. The tool can reject a
 declared leak, but it cannot discover an undeclared implication simply by

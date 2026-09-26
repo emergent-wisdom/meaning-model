@@ -10,6 +10,9 @@ import { drawnSinceQuestions, partsWithoutChoiceQuestion } from '../src/storytel
 import { storyInterest } from '../src/storytelling-interest.mjs';
 import { withLives } from './storytelling-life-fixture.mjs';
 
+// Fear or love, whole lives and drawn decisions belong to the storytelling profile, which these tests adopt.
+process.env.MEANING_MODEL_ADDONS = 'storytelling';
+
 const cut = (id, parent, question, unit, answers) => ({ id, parent_event_id: parent, question, unit, answers: Object.entries(answers).map(([key, weight]) => ({ key, weight })), provenance: ['authored'] });
 const event = (id, start, end, extra = {}) => ({ id, boundary: id, description: `What happens in ${id}.`, interval: { start, end }, ...extra });
 

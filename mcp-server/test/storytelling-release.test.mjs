@@ -7,6 +7,7 @@ import { LifeSimulationService } from '../src/service.mjs';
 import { releaseStory } from '../src/storytelling-release.mjs';
 import { direct, directorPrinciples } from '../src/storytelling-director.mjs';
 import { editNarrativeGraph } from '../src/narrative-editing.mjs';
+import { storeAuthorRecord } from '../src/storytelling-authoring.mjs';
 
 const provenance = ['release test'];
 const author = ['story-author'];
@@ -17,11 +18,12 @@ const release = (service, graphHash, extra = {}) => releaseStory(service, { grap
   storyRootId: 'story', authorId: 'author', accessScopes: author, releaseTo: ['reader'], reason: 'The human approved publishing.', ...extra });
 
 // A release needs a draft direction first; this one finds the ending failing unless told otherwise.
-const directed = async (service, graphHash, { failing = false } = {}) => (await direct(service, { graphHash, requestId: `direct-${Math.random()}`,
-  storyRootId: 'story', accessScopes: author, stage: 'draft', directorId: 'fresh-reader', independent: true, nodeId: `direction.${Math.random().toString(36).slice(2, 8)}`,
+const directed = async (service, graphHash, { failing = false, proseOnly = false, changes = {}, nodeId = `direction.${Math.random().toString(36).slice(2, 8)}` } = {}) => (await direct(service, { graphHash, requestId: `direct-${Math.random()}`,
+  storyRootId: 'story', accessScopes: author, stage: 'draft', directorId: 'fresh-reader', independent: true, nodeId,
   summary: 'The director read the draft.', findings: directorPrinciples.filter((item) => item.stage === 'draft').map((item) => ({ principleId: item.id,
     verdict: failing && item.id === 'draft.ending' ? 'fails' : 'holds', evidence: 'The test draft was read against this principle.',
-    modelChange: failing && item.id === 'draft.ending' ? 'Model what each principal pays for the ending.' : null })),
+    modelChange: failing && !proseOnly && item.id === 'draft.ending' ? 'Model what each principal pays for the ending.' : null,
+    proseChange: failing && proseOnly && item.id === 'draft.ending' ? 'Remove the redundant explanation after the action.' : null, ...(changes[item.id] ?? {}) })),
   ownFindings: [{ name: 'The door as witness', verdict: 'holds', evidence: 'The test draft keeps the door present.', modelChange: null }] })).graphHash;
 
 async function setup(t, nodes, edges) {
@@ -79,7 +81,53 @@ test('a story is released only after the director has read the draft and its fai
   const f = await setup(t, [scene('scene.1', 'She reached the door.', author)], [contains('story.s1', 'story', 'scene.1', 0, author)]);
   await assert.rejects(release(f.service, f.graphHash), /Run the director on the draft before release/);
   const failing = await directed(f.service, f.graphHash, { failing: true });
-  await assert.rejects(release(f.service, failing), /not yet answered in the model: .*draft\.ending.*the bound model has not changed since/);
+  await assert.rejects(release(f.service, failing), /not yet answered: .*draft\.ending.*the bound model has not changed since/);
   const passing = await directed(f.service, failing);
   await assert.rejects(release(f.service, passing), /draft\.ending/, 'a later passing direction does not answer the earlier failure');
+});
+
+test('a prose-only repair releases without changing the world only after an answer and a fresh review of the exact prose', async (t) => {
+  const original = 'She closed the door. This meant she wanted it closed.';
+  const repaired = 'She closed the door.';
+  const f = await setup(t, [scene('scene.1', original, author)], [contains('story.s1', 'story', 'scene.1', 0, author)]);
+  const modelHash = (await f.read(f.graphHash, author)).graph.source.model_hash;
+  const failing = await directed(f.service, f.graphHash, { failing: true, proseOnly: true, nodeId: 'direction.prose' });
+  await assert.rejects(release(f.service, failing), /changed prose needs a fresh passing draft direction/);
+  const answer = await storeAuthorRecord(f.service, { graphHash: failing, requestId: 'repair-answer', nodeId: 'repair.answer',
+    storyRootId: 'story', authorId: 'author', accessScopes: author, kind: 'revision',
+    text: 'The repetitive explanation is to be removed; the action and modeled facts remain unchanged.',
+    links: [{ relation: 'answers', targetNodeId: 'direction.prose' }] });
+  await assert.rejects(release(f.service, answer.graphHash), /changed prose needs a fresh passing draft direction/, 'the answer alone cannot approve an unchanged failed draft');
+  const unchanged = await directed(f.service, answer.graphHash);
+  await assert.rejects(release(f.service, unchanged), /changed prose needs a fresh passing draft direction/, 'a new passing verdict on unchanged prose does not perform the planned repair');
+  const edited = await editNarrativeGraph(f.service, { requestId: 'prose-repair', graphHash: unchanged, accessScopes: author,
+    reason: 'Remove repeated explanation.', operations: [{ kind: 'replace_text', nodeId: 'scene.1', expectedText: original, text: repaired }] });
+  await assert.rejects(release(f.service, edited.graphHash), /changed prose needs a fresh passing draft direction/, 'the edit also needs a fresh read');
+  const reviewed = await directed(f.service, edited.graphHash);
+  const afterReview = await editNarrativeGraph(f.service, { requestId: 'unread-repair', graphHash: reviewed, accessScopes: author,
+    reason: 'Make one more wording change.', operations: [{ kind: 'replace_text', nodeId: 'scene.1', expectedText: repaired, text: 'She quietly closed the door.' }] });
+  await assert.rejects(release(f.service, afterReview.graphHash), /prose has changed since the director read it/, 'approval stays bound to the exact text and sequence');
+  const current = await directed(f.service, afterReview.graphHash);
+  const released = await release(f.service, current);
+  const final = await f.read(released.graphHash, author);
+  assert.equal(final.graph.source.model_hash, modelHash, 'no artificial world revision was needed');
+  assert.equal(await f.render(released.graphHash, ['reader']), '# Title\n\nShe quietly closed the door.');
+  assert.equal(JSON.parse(final.nodes.find((node) => node.id === 'direction.prose').text).data.findings.find((finding) => finding.principleId === 'draft.ending').verdict, 'fails', 'the original finding remains as evidence');
+  assert.ok(final.edges.some((edge) => edge.relation === 'answers' && edge.source.node_id === 'repair.answer' && edge.target.node_id === 'direction.prose'));
+});
+
+test('shared voices and a quiet scene can be explicitly assessed and kept without a fabricated defect', async (t) => {
+  const f = await setup(t, [scene('scene.1', 'Together they said good night. The room became still.', author)], [contains('story.s1', 'story', 'scene.1', 0, author)]);
+  const changes = {
+    'draft.voice': { verdict: 'holds', evidence: 'Their shared ritual language expresses a long common history; forcing a contrast would weaken it.' },
+    'draft.character-test': { verdict: 'not-this-story', evidence: 'This quiet coda supplies breathing room after the prior turn; it does not need an additional character test.' },
+  };
+  const reviewed = await directed(f.service, f.graphHash, { nodeId: 'direction.keep', changes });
+  const released = await release(f.service, reviewed);
+  assert.match(await f.render(released.graphHash, ['reader']), /Together they said good night/);
+  const record = JSON.parse((await f.read(released.graphHash, author)).nodes.find((node) => node.id === 'direction.keep').text).data;
+  for (const [principleId, finding] of Object.entries(changes)) {
+    assert.equal(record.findings.find((item) => item.principleId === principleId).verdict, finding.verdict);
+    assert.equal(record.findings.find((item) => item.principleId === principleId).evidence, finding.evidence);
+  }
 });

@@ -6,7 +6,7 @@ import * as z from 'zod/v4';
 import { rebindNarrativeGraph, preflightNarrativeRebind } from './narrative-rebind.mjs';
 
 import { retainEstimatorProposal, readEstimatorProposal, runEstimatorRequest } from './estimator-receipts.mjs';
-import { displayName, indexModel, modeledPeople, personStateAt, readPerson } from './model-questions.mjs';
+import { contextKindOf, displayName, indexModel, modeledPeople, personStateAt, readDraws, readPerson } from './model-questions.mjs';
 
 const id = z.string().trim().min(1).max(256);
 const longId = z.string().trim().min(1).max(1_024);
@@ -60,8 +60,12 @@ const digest = (value) => createHash('sha256').update(JSON.stringify(value)).dig
 
 export function buildCutShareQuestions(input, targets) {
   const criteria = Object.fromEntries([...input.answers.map((answer) => [answer.key, answer.meaning]), [REMAINDER_KEY, input.remainderMeaning]]);
-  const instructions = `${input.question} Answer with the distribution over the listed answers that best describes the situation${input.subject ? ` for ${input.subject}` : ''}; put mass on ${REMAINDER_KEY} when no named answer applies or attention is elsewhere.`;
-  return targets.map((target) => ({ situationId: target.id, state: { ...(input.subject ? { subject: input.subject } : {}), situation: target.text, ...(target.modeled ? { modeledState: target.modeled } : {}), question: input.question }, questions: { shares: { type: 'choice', instructions, criteria } } }));
+  // Whose act or moment is judged: the caller's subject, else the Event's own subject, so a situation that centres
+  // someone else is still read as the subject's.
+  const instructionsFor = (subject) => `${input.question} Answer with the distribution over the listed answers that best describes the situation${subject ? ` for ${subject}` : ''}; put mass on ${REMAINDER_KEY} when no named answer applies or attention is elsewhere.${subject ? ` Judge ${subject}: others in the situation are context.` : ''}`;
+  return targets.map((target) => { const subject = input.subject ?? target.subject ?? null;
+    return { situationId: target.id, state: { ...(subject ? { subject } : {}), situation: target.text, ...(target.modeled ? { modeledState: target.modeled } : {}),
+      ...(target.within ? { within: `This divides only the part of the reading that is "${target.within.answerKey}", in answer to: ${target.within.question}` } : {}), question: input.question }, questions: { shares: { type: 'choice', instructions: instructionsFor(subject), criteria } } }; });
 }
 
 export function proposalFromProbabilities(input, target, probabilities, meta) {
@@ -73,10 +77,14 @@ export function proposalFromProbabilities(input, target, probabilities, meta) {
   if (meta.confidence != null && (typeof meta.confidence !== 'number' || !Number.isFinite(meta.confidence) || meta.confidence < 0 || meta.confidence > 1)) throw new Error(`Confidence must be finite and in [0,1] for target ${target.id}.`);
   const weights = keys.map((key) => probabilities[key] ?? 0);
   const providedTotal = weights.reduce((sum, weight) => sum + weight, 0);
-  if (providedTotal > 1 + 1e-6 || (meta.requireComplete && Math.abs(providedTotal - 1) > 1e-6)) throw new Error(`Probability distribution must sum to one for target ${target.id} (supplied distributions may leave remainder mass unassigned).`);
-  // Supplied missing mass belongs to the remainder; tolerate only numerical rounding above one.
+  // A distribution the caller supplies must sum to one exactly (or leave mass to the remainder); an estimator's shares
+  // may drift by rounding, and a drift within two hundredths is normalized and recorded rather than refused.
+  const drift = meta.label === 'supplied' ? 1e-6 : 0.02;
+  if (providedTotal > 1 + drift || (meta.requireComplete && Math.abs(providedTotal - 1) > drift)) throw new Error(`Probability distribution must sum to one for target ${target.id} (supplied distributions may leave remainder mass unassigned; it summed to ${providedTotal.toFixed(4)}).`);
+  // Supplied missing mass belongs to the remainder. A complete estimator distribution that drifts is scaled to one in
+  // either direction, so no answer's share is changed relative to the others and the remainder gains nothing by rounding.
   const total = weights.reduce((sum, weight) => sum + weight, 0);
-  const scale = total > 1 + 1e-9 ? 1 / total : 1;
+  const scale = total > 1 + 1e-9 || (meta.requireComplete && meta.label !== 'supplied' && total > 0 && total < 1 - 1e-9) ? 1 / total : 1;
   const answers = keys.map((key, index) => ({ key, weight: weights[index] * scale }));
   const named = answers.filter((answer) => answer.key !== REMAINDER_KEY).reduce((sum, answer) => sum + answer.weight, 0);
   answers.find((answer) => answer.key === REMAINDER_KEY).weight = Math.max(0, 1 - named);
@@ -85,25 +93,47 @@ export function proposalFromProbabilities(input, target, probabilities, meta) {
   const origin = meta.label === 'supplied'
     ? `supplied:${meta.suppliedBy ?? 'caller'}; a distribution supplied by ${meta.suppliedBy ?? 'the caller'} over the answer keys, recorded as given; not estimator output, not canon`
     : `estimator:${meta.label}; choice probabilities over the answer keys; AI inference, not canon`;
-  return { id: target.cutId ?? `${input.idPrefix}.${target.id}`, parent_event_id: target.parentEventId, question: input.question, unit: input.unit, answers, provenance: [origin, `confidence ${meta.confidence === null || meta.confidence === undefined ? 'unknown' : Number(meta.confidence).toFixed(3)}; top ${top}`], confidence: meta.confidence ?? null, top };
+  const rounding = Math.abs(providedTotal - 1) > 1e-6 && meta.label !== 'supplied' && meta.requireComplete ? [`the shares summed to ${providedTotal.toFixed(4)} and were normalized`] : [];
+  return { id: target.cutId ?? `${input.idPrefix}.${target.id}`, parent_event_id: target.parentEventId, question: input.question, unit: input.unit, answers, provenance: [origin, `confidence ${meta.confidence === null || meta.confidence === undefined ? 'unknown' : Number(meta.confidence).toFixed(3)}; top ${top}`, ...rounding, ...(target.eventText ? [`event-text:${target.eventText}`] : []),
+    ...(target.text ? [`situation:${stateSignature(target.text)}`] : [])], confidence: meta.confidence ?? null, top };
 }
+
+// The Event's subject by the name the model gives them (the lead of the referent's boundary), when it names one.
+function subjectName(definition, event) {
+  const id = [event?.participants?.subject].flat().find(Boolean); if (!id) return null;
+  return personName(definition, id) ?? displayName(id);
+}
+// A person by the name the model gives them: the lead of the referent's boundary, when it reads as a name.
+function personName(definition, id) {
+  const referent = (definition?.meaning_model?.referents ?? []).find((item) => item.id === id);
+  const lead = String(referent?.boundary ?? '').split(/[,;(]| - | — /u)[0].trim();
+  return lead && lead.split(/\s+/u).length <= 4 && /^\p{Lu}/u.test(lead) ? lead.replace(/^(the|a) /iu, '') : null;
+}
+const isReading = (item) => String(item.cutId ?? '').startsWith('lens.') || /\bfear\b[^?]*\blove\b|\blove\b[^?]*\bfear\b/iu.test(String(item.question ?? ''));
+// Text that reads like a note to the modeler rather than what happens in the world: record ids, draws, revisions.
+const NOTE_LIKE = /\b(?:cut|draw|lens)\.[a-z0-9_-]+\.[a-z0-9_.-]+|\bdrawn from\b|\brevision \d+\b|\bunderstanding node\b|\bTODO\b|\bsee (?:the )?note\b/iu;
+// The text of an Event as an estimate reads it, signed, so a reading can tell when its Event has been rewritten since.
+export const eventTextSignature = (event) => createHash('sha256').update(JSON.stringify([event?.boundary ?? '', event?.description ?? ''])).digest('hex').slice(0, 16);
+export const constructionNoteIn = (text) => String(text ?? '').match(NOTE_LIKE)?.[0] ?? null;
 
 // The estimator reads the model, not only the words written for it: each person taking part in the Event, as the model
 // holds them at its start (their period, latest Cuts and the shock they are adapting to).
-export function modeledStateText(definition, event) {
+export function modeledStateText(definition, event, prebuilt = null, exclude = []) {
   const t = event?.interval?.start;
   if (typeof t !== 'number') return null;
   try {
-    const index = indexModel(definition);
+    const index = prebuilt ?? indexModel(definition);
     const lines = [];
     for (const person of modeledPeople(index)) {
       const read = readPerson(index, person.id);
       if (!read.own?.has?.(event.id) && !(index.eventsOf.get(person.id) ?? []).includes(event.id)) continue;
       const state = personStateAt(definition, person.id, t);
       const period = state.periods.at(-1)?.what;
-      const latest = state.latest.slice(0, 6).map((item) => `${item.question}: ${item.answers.slice(0, 3).map((answer) => `${answer.key} ${answer.weight.toFixed(2)}`).join(', ')}`);
+      // Lens answers are readings of the person, not their state: a moment's estimate must not read its own lens's answer
+      // for the period around it, nor any other reading, so they stay out of what the estimator is told.
+      const latest = state.latest.filter((item) => !isReading(item) && !exclude.includes(item.cutId)).slice(0, 6).map((item) => `${item.question}: ${item.answers.slice(0, 3).map((answer) => `${answer.key} ${answer.weight.toFixed(2)}`).join(', ')}`);
       const adapting = state.adapting.map((item) => item.shock).filter(Boolean);
-      lines.push(`${person.name ?? displayName(person.id)}${period ? `, in ${period}` : ''}${latest.length ? `; ${latest.join('; ')}` : ''}${adapting.length ? `; adapting to ${adapting.join('; ')}` : ''}.`);
+      lines.push(`${personName(definition, person.id) ?? person.name ?? displayName(person.id)}${period ? `, in ${period.replace(/^in\s+/iu, '')}` : ''}${latest.length ? `; ${latest.join('; ')}` : ''}${adapting.length ? `; adapting to ${adapting.join('; ')}` : ''}.`);
       if (lines.length >= 4) break;
     }
     return lines.length ? `What the model holds at this moment: ${lines.join(' ')}`.slice(0, 3_000) : null;
@@ -112,7 +142,37 @@ export function modeledStateText(definition, event) {
   }
 }
 
-async function resolveTargets(service, input) {
+// A signature of a text an estimate read: the situation it was made from.
+export const stateSignature = (text) => createHash('sha256').update(String(text ?? '')).digest('hex').slice(0, 16);
+const isAboutRelation = (relation) => relation.kind === 'about' || (relation.kind === 'other' && /^about\b/iu.test(String(relation.description ?? '')));
+
+// How an estimate reads an Event. A world Event is read as it is, with the model's state of the people in it. A reading
+// is read through the record it is about, with the model's state of it; an actor's own reasons as canon from the
+// decision's text and the actor's state at the decision.
+export function readingOf(definition, event, index = indexModel(definition), exclude = []) {
+  if (!index.readings?.has(event.id)) return { reading: false, record: null, read: event, modeled: modeledStateText(definition, event, index, exclude) };
+  const about = (index.relations ?? []).find((relation) => relation.source_event_id === event.id && isAboutRelation(relation))?.target_event_id;
+  const record = about ? index.events.get(about) ?? null : null;
+  const facts = {};
+  for (const item of event.provenance ?? []) { const match = /^(perspective|decided-at):(.+)$/u.exec(String(item)); if (match) facts[match[1]] = match[2]; }
+  const actor = (facts.perspective ?? 'modeler') === 'actor';
+  const decided = facts['decided-at'] ? index.events.get(facts['decided-at']) ?? null : null;
+  const read = actor ? decided ?? record ?? event : record ?? event;
+  return { reading: true, record, read, modeled: modeledStateText(definition, actor ? event : record ?? event, index, exclude) };
+}
+
+// A deeper level of a reading divides one answer of the level above. The estimator is told which answer it divides and
+// the question that answer answers, never its weight, which would anchor the estimate. A lens reading's levels stay on
+// one reading Event, in its holder's context.
+function withinOf(definition, target) {
+  if (!target.conditionedOn) return null;
+  const enclosing = (definition.meaning_model?.normalized_cuts ?? []).find((cut) => cut.id === target.conditionedOn.cutId);
+  if (!enclosing) return null;
+  if (String(target.cutId ?? '').startsWith('lens.') && enclosing.parent_event_id !== target.eventId) throw new Error(`Cut ${target.cutId} opens an answer of ${enclosing.id}, which sits on ${enclosing.parent_event_id}: a deeper level of a reading stays on the same reading Event.`);
+  return { answerKey: target.conditionedOn.answerKey, question: enclosing.question };
+}
+
+export async function resolveTargets(service, input) {
   const targets = input.situations.map((situation) => ({ id: situation.id, parentEventId: situation.parentEventId, cutId: null, text: situation.text }));
   let definition = null;
   if (input.modelHash) {
@@ -120,16 +180,23 @@ async function resolveTargets(service, input) {
     definition = inspected?.model;
     if (!definition || typeof definition !== 'object') throw new Error('The bound model definition could not be read.');
     const events = new Map((definition.meaning_model?.events ?? []).map((event) => [event.id, event]));
+    const index = indexModel(definition);
     for (const target of input.events) {
       const event = events.get(target.eventId);
-      if (!event) throw new Error(`Event ${target.eventId} does not exist in model ${input.modelHash}.`);
-      const text = target.situationText ?? [event.boundary, event.description].filter((part) => typeof part === 'string' && part.trim()).join(' ');
+      if (!event) throw new Error(`Event ${target.eventId} does not exist in model ${input.modelHash}.${/^(reading|inner)\./u.test(target.eventId) ? ' A reading Event is made by life_lens_place: run it first, with eventIds for candidates, and estimate on the model it returns.' : ''}`);
+      // A reading Event is judged by the record it is about.
+      // An estimate is not told the answer it is estimating: a Cut being estimated again is left out of the state.
+      const how = readingOf(definition, event, index, target.cutId ? [target.cutId] : []);
+      const read = how.read;
+      const text = target.situationText ?? [read.boundary, read.description].filter((part) => typeof part === 'string' && part.trim()).join(' ');
       if (!text.trim()) throw new Error(`Event ${target.eventId} has no boundary or description text to estimate from; supply situationText.`);
       // A Cut needs its Event described; the situation text judged becomes the description when there is none.
       const described = typeof event.description === 'string' && event.description.trim();
       if (!described && !target.situationText) throw new Error(`Event ${target.eventId} has no description to judge or to give its Cut meaning; describe what happens in it, or pass situationText, which becomes its description.`);
       targets.push({ id: target.eventId, parentEventId: target.eventId, cutId: target.cutId, text, conditionedOn: target.conditionedOn, describeWith: described ? null : target.situationText,
-        modeled: modeledStateText(definition, event) });
+        modeled: how.modeled, subject: subjectName(definition, read) ?? (how.record ? subjectName(definition, how.record) : null),
+        eventText: eventTextSignature(read),
+        within: withinOf(definition, target) });
     }
   }
   return { targets, definition };
@@ -158,6 +225,9 @@ async function executeCutShares(input, estimator, service, checkpoint = null) {
       if (generatedIds.has(cutId)) throw new Error(`Duplicate generated Cut ID ${cutId}.`);
       generatedIds.add(cutId);
       if (cutIds.has(cutId) && !input.replaceExisting) throw new Error(`Cut ${cutId} already exists; set replaceExisting to supersede it.`);
+      // Refused before any estimate is paid for: a realized forecast keeps the weights it was drawn from.
+      if (cutIds.has(cutId) && (definition.meaning_model?.event_relations ?? []).some((relation) => relation.kind === 'realizes_forecast' && relation.forecast_answer?.cut_id === cutId))
+        throw new Error(`Cut ${cutId} was drawn, so its weights stay as drawn. Record the new estimate as its own assessment under a new cutId (for example ${cutId}.recheck), or revise the history explicitly, keeping the draw.`);
       if (target.conditionedOn) {
         const enclosing = (definition.meaning_model?.normalized_cuts ?? []).find((cut) => cut.id === target.conditionedOn.cutId);
         if (!enclosing) throw new Error(`Cut ${cutId} is conditioned on unknown Cut ${target.conditionedOn.cutId}.`);
@@ -196,16 +266,22 @@ async function executeCutShares(input, estimator, service, checkpoint = null) {
   // usage belongs to the estimate, which a saved proposal carries over; estimatorCallsThisRequest counts this request's calls.
   common.estimatorCallsThisRequest = callsNow;
   // A share this lopsided is often the situation text answering its own question.
-  const lopsided = (proposals ?? []).filter((item) => item?.answers?.some((answer) => answer.key !== REMAINDER_KEY && answer.weight > 0.9));
+  // A lens reads an act that has happened, where stating the outcome is right, so its readings are not warned about.
+  const lopsided = (proposals ?? []).filter((item) => !String(item?.id ?? '').startsWith('lens.') && item?.answers?.some((answer) => answer.key !== REMAINDER_KEY && answer.weight > 0.9));
   // Much mass on none of the answers means the options miss what the person would do.
   const remainderOf = (item) => item?.answers?.find((answer) => answer.key === REMAINDER_KEY)?.weight ?? 0;
   const missing = (proposals ?? []).filter((item) => remainderOf(item) >= 0.3);
-  if (missing.length) common.warnings = [...(common.warnings ?? []), ...missing.map((item) => `${item.id} puts ${remainderOf(item).toFixed(2)} on none of your answers. The options miss what this person would most plausibly do: before drawing, ask what else they could do, including what the institutions, rules and roles around them allow or require, and add those answers.`)];
+  if (missing.length) common.warnings = [...(common.warnings ?? []), ...missing.map((item) => String(item.id).startsWith('lens.') ? `${item.id} puts ${remainderOf(item).toFixed(2)} on none of the lens's answers: the lens may not fit this record, or its answers miss a reading. Answer it not_applicable, or revise the lens with the answer it lacks.` : `${item.id} puts ${remainderOf(item).toFixed(2)} on none of your answers. The options miss what this person would most plausibly do: before drawing, ask what else they could do, including what the institutions, rules and roles around them allow or require, and add those answers.`)];
   // Regularities stated only in situation text cannot be tested; they belong in the model.
   if (definition && targets.some((target) => target.parentEventId)) {
     const { laws, claims, abstractRelations } = indexModel(definition).abstractions;
     if (laws + claims + abstractRelations === 0) common.warnings = [...(common.warnings ?? []), 'The model holds no laws, claims or abstract relations, so this estimate reads only the situation text and the modeled state. Any regularity the text states (how someone always behaves, what they will or will not do) belongs in the model as a law or claim with its scope, where it can be tested against the Events; leave outcomes and directives out of situations.'];
   }
+  // A situation of a few words gives the estimator almost nothing to judge: a decision Event's description that defers to its Cut.
+  const thin = targets.filter((target) => String(target.text ?? '').trim().length < 80);
+  if (thin.length) common.warnings = [...(common.warnings ?? []), ...thin.map((target) => `${target.id}: the estimator reads a situation of ${String(target.text ?? '').trim().length} characters, so it judges almost nothing. Pass the situation this estimate is about as situationText, or describe the Event.`)];
+  const noted = targets.map((target) => [target, constructionNoteIn(target.text)]).filter(([, note]) => note);
+  if (noted.length) common.warnings = [...(common.warnings ?? []), ...noted.map(([target, note]) => `${target.id}: the situation text reads like a note to the modeler ("${note}"), and the estimator judges it as what happens. Keep Event descriptions to the world and put notes in Understanding Nodes.`)];
   if (lopsided.length) common.warnings = [...(common.warnings ?? []), ...lopsided.map((item) => `${item.id} puts over 0.9 on ${item.top}. A share this lopsided often means the situation text already states the answer: describe the modeled state (what each person wants, fears, knows and can do), not the outcome, and put the regularities you rely on into the model as laws, where they can be tested.`)];
   if (!input.apply) {
     const proposalId = retainEstimatorProposal(service ?? estimator, 'cut-shares', proposalBinding(input), estimated);
@@ -221,6 +297,16 @@ async function executeCutShares(input, estimator, service, checkpoint = null) {
     if (event && text && !(typeof event.description === 'string' && event.description.trim())) { event.description = text; descriptionsAdded.push(event.id); }
   }
   const existing = new Map(successor.meaning_model.normalized_cuts.map((cut, index) => [cut.id, index]));
+  // A drawn Cut keeps the weights it was drawn from: the forecast, the draw and its alternatives survive selection.
+  // A new estimate of it is its own assessment, under a new id; a changed history is revised explicitly, keeping the draw.
+  const forecastNamed = new Set((successor.meaning_model.event_relations ?? []).filter((relation) => relation.kind === 'realizes_forecast' && relation.forecast_answer?.cut_id).map((relation) => relation.forecast_answer.cut_id));
+  let drawnInGraph = new Set();
+  if (input.rebind?.graphHash && service?.queryNarrativeGraph) {
+    const view = await service.queryNarrativeGraph({ graphHash: input.rebind.graphHash, expectedGraphHash: input.rebind.graphHash, mode: 'full', includeContent: true, accessScopes: [...new Set(input.rebind.accessScopes ?? [])].sort() }).catch(() => null);
+    drawnInGraph = new Set(readDraws(view).map((draw) => draw.cutId));
+  }
+  const drawnReplaced = proposals.filter((proposal) => existing.has(proposal.id) && (forecastNamed.has(proposal.id) || drawnInGraph.has(proposal.id))).map((proposal) => proposal.id);
+  if (drawnReplaced.length) throw new Error(`${drawnReplaced.join(', ')} ${drawnReplaced.length === 1 ? 'was' : 'were'} drawn, so ${drawnReplaced.length === 1 ? 'its weights stay' : 'their weights stay'} as drawn. Record the new estimate as its own assessment under a new cutId (for example ${drawnReplaced[0]}.recheck), or revise the history explicitly, keeping the draw.`);
   const conditions = new Map(targets.filter((target) => target.conditionedOn).map((target) => [target.cutId ?? `${input.idPrefix}.${target.id}`, { cut_id: target.conditionedOn.cutId, answer_key: target.conditionedOn.answerKey }]));
   for (const proposal of proposals) {
     const condition = conditions.get(proposal.id);

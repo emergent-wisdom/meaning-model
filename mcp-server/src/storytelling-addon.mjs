@@ -30,7 +30,7 @@ const MAX_PACKET_BYTES = 256 * 1024;
 import { servedText } from './modeling-guidance.mjs';
 
 const RESOURCE_URI = 'life-sim://addon/storytelling';
-const passageInstructions = 'Choose independently revisable prose units when drafting: a beat, exchange, image, turn, paragraph, or coherent cluster may be a passage. Keep material together when one revision would naturally change it together; do not split to meet a paragraph or node quota. Supply optional passages [{id,text}] to scene review and commit when a scene contains several such units. Their ordered texts joined with one blank line must exactly equal the stored draft. The reviewed scene becomes a nonrendered container and the passages become addressable prose leaves. Re-review whenever passage identities or boundaries change.';
+const passageInstructions = 'Choose independently revisable prose units when drafting: a beat, exchange, image, turn, paragraph, or coherent cluster may be a passage. Keep material together when one revision would naturally change it together; do not split to meet a paragraph or node quota. Supply optional passages [{id,text,renders?}] to scene review and commit when a scene contains several such units. Their ordered texts joined with one blank line must exactly equal the stored draft. Select each passage\'s renders Event IDs explicitly; scene and route Events are not automatically assigned to every leaf. Omitted mappings remain unlinked and are reported as unchecked; an explicit empty array declares no Event link. These links declare depiction/dependency, not what a reader or viewpoint knows. The reviewed scene becomes a nonrendered container and the passages become addressable prose leaves. Re-review whenever passage identities, boundaries or Event mappings change.';
 
 export const scenePrepareSchema = z.object({
   graphHash: hash,
@@ -48,6 +48,7 @@ export const scenePrepareSchema = z.object({
     viewpoint: id,
     brief: z.string().trim().min(1).max(10_000),
     routePartId: id.nullable().default(null).describe('The part of the recorded route this scene renders (life_story_world_record, stage route).'),
+    renders: z.array(id).max(200).default([]).describe('Additional Events this scene tells. With a single scene leaf these and the route part\'s Events become renders links. With passages, select each leaf\'s renders explicitly; scene Events are not copied to every passage. Links declare depiction/dependency, not reader knowledge.'),
     characterConnections: characterConnectionsSchema,
     authorApplication: z.object({
       dispositionIds: z.array(id).max(32).default([]),
@@ -85,7 +86,8 @@ export const sceneReviewSchema = z.object({
   passages: z.array(z.object({
     id,
     text: z.string().min(1).max(64_000).refine((text) => text.trim().length > 0, 'Passage text must not be blank.'),
-  }).strict()).min(1).max(100).optional().describe('Optional ordered independently revisable passage leaves; join their text with one blank line to reproduce the exact draft. Choose semantic units, not a paragraph quota. Segmentation is bound to the review.'),
+    renders: z.array(id).max(200).optional().describe('Exact bound-model Events depicted by this passage. Omit to leave its grounding unchecked; [] explicitly declares no Event link. Does not inherit the scene or route Event list or assert reader knowledge.'),
+  }).strict()).min(1).max(100).optional().describe('Optional ordered independently revisable passage leaves; join their text with one blank line to reproduce the exact draft. Choose semantic units, not a paragraph quota. Segmentation and explicit Event mappings are bound to the review.'),
   reviewer: id,
   findings: z.array(z.object({
     checkId: z.string().min(1).max(512),
@@ -422,6 +424,7 @@ export class StorytellingAddon {
     const { scene } = input;
     unique(scene.context.map((item) => item.nodeId), 'Scene context node IDs');
     unique(scene.requirements.map((item) => item.id), 'Scene requirement IDs');
+    unique(scene.renders, 'Scene renders Event IDs');
     const view = await this.service.queryNarrativeGraph({
       graphHash: input.graphHash,
       expectedGraphHash: input.graphHash,
@@ -522,12 +525,12 @@ export class StorytellingAddon {
           question: `${unplaced.length} of this part's Events ${unplaced.length === 1 ? 'has' : 'have'} no place (for example ${unplaced.slice(0, 3).map((event) => event.id).join(', ')}). Where does each happen, where is each person and Thing in it, and in what physical state? Give each its region, or contain it in an Event that has one.` });
       }
       // The director's loop, as questions: has anyone held the world to what makes a story good, and are its
-      // findings answered in the model?
+      // findings answered with the relevant model or prose repair?
       const direction = directionState(view, lifeTrends.dossier.storyRootId, boundModelHash);
       if (!direction.world) forThisScene.unshift({ kind: 'direction-missing', tool: 'life_story_direct',
         question: 'Nobody has held the world to what makes a story good yet. A fresh director (life_story_direct, stage world) may find what this scene needs.' });
-      for (const item of direction.unanswered) forThisScene.unshift({ kind: 'direction-unanswered', subject: item.nodeId, tool: 'life_model_revise',
-        question: `The director found ${item.failing.join(', ')} failing${item.modelUnchanged ? ', and the model has not changed since' : ''}. What does the model need, and what does this scene need from it?` });
+      for (const item of direction.unanswered) forThisScene.unshift({ kind: 'direction-unanswered', subject: item.nodeId, tool: item.modelChangeRequired ? 'life_model_revise' : 'life_narrative_edit',
+        question: `The director found ${item.failing.join(', ')} failing${item.modelChangeRequired && item.modelUnchanged ? ', and the model has not changed since' : ''}. ${item.proseChangeRequired ? 'Repair the prose and obtain a fresh draft direction. ' : ''}Record how the relevant repairs answer ${item.nodeId}; do not change the world for a prose-only defect.` });
       // The route's story-wide questions (a principal with no shock in the story, jumps left out); a part without a
       // choice is asked about for this scene's own part above.
       worldQuestions.push(...routeQuestions(model, world.route?.data ?? null).filter((item) => ['story-shock-missing', 'jumps-unrendered'].includes(item.kind)));
@@ -669,12 +672,32 @@ export class StorytellingAddon {
       }
       let start = 0;
       passages = input.passages.map((passage) => {
+        if (passage.renders) unique(passage.renders, `Passage ${passage.id} renders Event IDs`);
         const entry = { id: passage.id, start, end: start + passage.text.length,
-          textHash: createHash('sha256').update(passage.text).digest('hex') };
+          textHash: createHash('sha256').update(passage.text).digest('hex'),
+          ...(passage.renders ? { renders: [...passage.renders].sort() } : {}) };
         start = entry.end + 2;
         return entry;
       });
     }
+    // A scene-level declaration grounds the single scene leaf. Segmented prose needs its own selections;
+    // neither a route nor a scene list establishes which of several passages depicts an Event.
+    const sceneEvents = [...new Set([...(packet.world?.routePart?.eventIds ?? []), ...packet.preparation.scene.renders])].sort();
+    const mappings = input.passages
+      ? input.passages.map((passage) => ({ id: passage.id, eventIds: [...(passage.renders ?? [])].sort() }))
+      : [{ id: packet.preparation.scene.id, eventIds: sceneEvents }];
+    const selectedEvents = [...new Set([...packet.preparation.scene.renders, ...mappings.flatMap((mapping) => mapping.eventIds)])];
+    if (selectedEvents.length) {
+      const modelHash = draftView.graph.source?.model_hash ?? packet.source?.model_hash;
+      if (!modelHash) throw new Error('Scene renders mappings require a bound model.');
+      const { model } = await this.service.inspectModel({ modelHash, includeDefinition: true });
+      const eventIds = new Set((model.meaning_model?.events ?? []).map((event) => event.id));
+      const unknown = selectedEvents.filter((eventId) => !eventIds.has(eventId));
+      if (unknown.length) throw new Error(`Scene renders mappings name unknown Events in the bound model: ${unknown.join(', ')}.`);
+    }
+    const grounding = { passages: mappings,
+      uncheckedPassageIds: mappings.filter((mapping) => !mapping.eventIds.length).map((mapping) => mapping.id),
+      semanticVerification: false };
     let outputScopes = [...packet.outputScopes];
     if (draft.access_scopes?.length) {
       outputScopes = outputScopes.length ? outputScopes.filter((scope) => draft.access_scopes.includes(scope)) : [...draft.access_scopes];
@@ -717,6 +740,7 @@ export class StorytellingAddon {
       reviewer: input.reviewer,
       draftNodeId: input.draftNodeId,
       ...(passages ? { passages } : {}),
+      grounding,
       outputScopes,
       findings: input.findings,
       uses: input.uses,
@@ -763,7 +787,7 @@ export class StorytellingAddon {
       holder: scene.viewpoint, value_time: scene.worldTime, render: input.passages ? 'exclude' : 'include',
     };
     const passageNodes = (input.passages ?? []).map((passage) => ({
-      ...common, ...passage, node_type: 'storytelling.passage', role: 'story_passage',
+      ...common, id: passage.id, text: passage.text, node_type: 'storytelling.passage', role: 'story_passage',
       epistemic_status: 'authored_passage', evidence_type: 'fictional_canon',
       holder: scene.viewpoint, subject: scene.id, value_time: scene.worldTime, render: 'include',
     }));
@@ -776,6 +800,10 @@ export class StorytellingAddon {
       ...(packet.authorModel ? [edge(`${prefix}author-model`, nodeId, packet.authorModel.nodeId, 'semantic', 'shaped_by')] : []),
       ...packet.authorContext.map((item, index) => edge(`${prefix}context.${index}`, nodeId, item.nodeId, 'grounding', 'uses_context')),
     ];
+    // Only the reviewed mapping declares a leaf's dependency on an Event. It does not establish reader knowledge.
+    const toldByPassage = new Map(report.grounding.passages.map((mapping) => [mapping.id, mapping.eventIds]));
+    const renderEdges = (nodeId, prefix = '') => (toldByPassage.get(nodeId) ?? []).map((eventId, index) => ({ id: `${scene.id}.${prefix}renders.${index}`, source: endpoint(nodeId), target: { kind: 'anchor', anchor_kind: 'event', anchor_id: eventId },
+      family: 'grounding', relation: 'renders', access_scopes: accessScopes, provenance }));
     const batch = {
       schema: 'life-sim-rust-narrative-batch/v1',
       previous_graph_hash: packet.graphHash,
@@ -787,9 +815,11 @@ export class StorytellingAddon {
         ...authorReview.narrativeBatch.add_edges,
         edge('placement', scene.parentNodeId, scene.id, 'structural', 'contains', { order: scene.order }),
         ...contextEdges(scene.id),
+        ...(passageNodes.length ? [] : renderEdges(scene.id)),
         ...passageNodes.flatMap((passage, index) => [
           edge(`passage.${index}.placement`, scene.id, passage.id, 'structural', 'contains', { order: index }),
           ...contextEdges(passage.id, `passage.${index}.`),
+          ...renderEdges(passage.id, `passage.${index}.`),
         ]),
       ],
     };
@@ -811,6 +841,7 @@ export class StorytellingAddon {
     }
     return { ...stored, sceneId: scene.id, reviewNodeId: reviewId, openQuestions,
       passageIds: input.passages?.map((passage) => passage.id) ?? [scene.id],
+      grounding: report.grounding,
       understandingRootId: authorReview.receipt.understandingRootId,
       packetHash: packet.packetHash, reviewHash: report.reviewHash, textHash: report.textHash,
       nextStep: `Go back to the model before the next scene: take its open questions (openQuestions), deepen where the next part's causality runs, and let the next scene come from the model's state at its moment. If this work introduced consequential model, causal, life, or disclosure changes, repeat the model-depth review on the changed basis before further prose. Decide whether this scene completes a chapter, significant turning point, part, or whole work. If so, perform the editorial review now; otherwise continue within the agreed brief and involvement. At an agreed approval checkpoint, present the concrete decision and wait before dependent work. The tool cannot infer unit completion from this scene alone. ${editorialReviewWorkflow}`,
@@ -900,7 +931,7 @@ export function registerStorytellingAddon(server, service) {
     ['life_story_world_record', 'recordWorld', worldRecordSchema,
       `Record the author and the world before the story, one stage at a time: author_reader (the author's life as its own life model, in whatever structure understands them best, whose open questions this stage returns; the voice; why they write this story, what they want to teach and what they are figuring out, citing the life records; optionally an example reader's life the same way; and the buttons the story presses in its reader), candidates (at least three candidate worlds that come out of the author's life and press those buttons, with premise, emotional core, long-term processes, principals and pressure tests, and a selection with reasons), opening (successive expansions of the chosen world), aspects (every aspect of the story one could understand better, from the characters' choices and the author's style to the technology and the period, each investigated by modeling), implications (each commitment's consequences traced to model records or reasoned remainder) and route (the parts to render, each with Events, focal route and change, found where the model jumps). Record them in any order, whenever the understanding happens, and revise any of them when the model leads back; each is validated against the life models and the bound model and against whichever related stages exist, stored as an author record, and returns the model's open questions. Scene preparation shows what the world holds and what is still open. ${worldInstructions}`, false],
     ['life_story_direct', 'direct', directionSchema,
-      `The director: principles of what makes a good story, for the world (after the route, before the first scene) and for the draft (after a completed part, and before release). Without findings it returns the task: the principles, the model's open questions and jumps, and for a draft the rendered text. With findings it records the direction; each failure must say what changes in the model first. Unanswered failures come back as questions in every scene's preparation, and release waits until the bound model has changed and a record answers the direction. ${directionInstructions}`, false],
+      `The director: contextual challenges for the world before drafting and the draft before release. Without findings it returns the task, model questions and rendered draft. With findings it records applicability, evidence and any modelChange and/or proseChange. Unanswered failures return as questions; release requires the relevant repairs, an answers record and the exact reviewed prose. Prose-only repairs need a fresh passing draft direction, without requiring a world change. ${directionInstructions}`, false],
     ['life_story_release', 'release', storyReleaseSchema,
       'Release a story\'s committed prose to readers. Committed prose inherits the author-only scope of the records it was built from, so a reader\'s render shows only the title. This records the author\'s decision (kind decision, with the reason) and widens the scopes of the prose passages, their scenes and their structural edges to releaseTo, or to every reader when releaseTo is empty; the dossier, drafts, reviews and author model keep their scopes. Release when the human\'s agreement allows publishing, then render with the reader scopes to read it as a reader does.', false],
     ['life_story_scene_commit', 'commit', sceneCommitSchema,

@@ -34,6 +34,19 @@ evidence.
 
 ## The construction record
 
+Version 0.4.0 bundles a browser viewer. Ask the connected assistant
+to **“Open this model”**; `life_model_viewer_open` returns a local link to the chosen
+model or graph revision. No separate viewer checkout or special run folder is
+required. It is a read-only snapshot; reopen after changes. The browser must run on
+the same computer as the MCP. See the [viewer guide](mcp-server/README.md#browser-viewer)
+for supported views and access requirements.
+
+Reading position is independent of world time: selecting a passage highlights its
+model links, while reading opens separately. Optional document spans stay attached
+to stable passage boundaries as text changes. Concepts, world events, author
+records and the telling can remain distinct while Understanding Nodes connect
+them freely; a connection does not make their clocks or authority identical.
+
 The model and its Understanding Graph are the modeler's understanding, not a report
 about it: what is done and not recorded cannot be picked up by the next agent. Every
 Event that carries a Cut has a description of what happens in it, so its numbers mean

@@ -4,6 +4,267 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## 0.4.0 — 2026-09-26
+
+- The MCP bundles its browser viewer. Ask the assistant to open a model or
+  model-bound graph; `life_model_viewer_open` returns a local link to the exact
+  revision without requiring a separate viewer checkout or run transcript.
+  Calendar-based stories with numeric paths use the visual timeline; other
+  models use a record inspector that preserves their units. Views are read-only
+  snapshots, require complete scope access, and last while the MCP runs (up to
+  sixteen open snapshots). Nothing is published by opening a view.
+- The reading-position track selects passages independently of world time, with
+  proportional prose lengths and Previous/Next controls. Selection highlights
+  documents and their explicit Event links; reading opens separately and retains
+  the entire manuscript. Document roots and their links remain visible.
+- `life_document_project` derives UTF-8 byte coordinates from one exact native
+  render. Optional `document.span` records follow stable passage boundaries and
+  retained split containers through length edits; missing or reversed endpoints
+  remain unresolved. World intervals and process values are unchanged.
+- Split and merge operations accept explicit incoming or outgoing semantic-link
+  assignments, preserve originals as history, and report omitted assignments.
+  New leaves do not silently inherit every claim from the old passage.
+- The Book of Conditions importer now records reviewed depiction links separately
+  from general route associations, including the publication scene in Chapter IX.
+- Source and npm exports reject local model databases and scratch artifacts;
+  viewer packages exclude generated datasets. Legend and span labels render as
+  literal text.
+- Revision checks do not ask for Event links on title-only document roots.
+  Prose-drift checks match whole words, so removed phrases beginning with "he"
+  no longer match current text beginning with "she".
+- Director findings distinguish model repairs from prose repairs. Contextual
+  evidence can make any principle inapplicable, and shared voices or quiet scenes
+  need not be defects. A prose-only repair requires an answer and a fresh passing
+  review of the exact changed prose, without forcing a world-model change.
+
+- Lenses: ways of seeing that the modeler finds, defines and asks of the model.
+  `life_lens_define` records a lens (a question such as whether an act comes
+  from fear or from love, or whether a person is wanting, bartering or standing
+  for something; the kinds of record it is asked of; and its answers, or none
+  when they are to be found case by case) as an Understanding Node of kind
+  `lens`, linked to who or what it looks at. `life_lens_questions` asks every
+  lens of every act, period, life or Event it applies to, lists the records
+  still without an answer with the Cut id to answer each, follows where a
+  person's answer changes over their life and where it never does, and keeps
+  asking which other lenses would see what these cannot. Answers are ordinary
+  Cuts whose ids begin `lens.<id>.`, so they are weighted, keep a remainder, and
+  can be estimated and drawn; the engine is unchanged. Fear or love is built in,
+  and its answers recorded before lenses existed still count. A lens on acts asks
+  of every drawn decision through what was then done (the realized
+  continuation), of the acts its `about` names, and of any moment answered
+  under it; the other moments a person is the subject of are listed as
+  candidates, since the model does not say which are acts and which merely
+  happen to them, and answering one makes it a record. Change arcs are not
+  periods, and a lens's Cut id keeps the Event id unchanged. Moments inside a
+  person's change arcs are candidates too; an act lists the other principals
+  who take part, whose own act is asked of them once it is modeled as its own
+  Event; a record whose description reads like a note to the modeler is
+  flagged; and defining a lens again revises it, the new version superseding
+  the old while its answers keep their Cut ids.
+- `life_estimate_cut_shares` no longer tells the estimator the lens readings of
+  a person (lens answers, and fear-or-love answers in their own words) as part
+  of their modeled state, so an estimate cannot read its own lens's answer for
+  the period around it. It warns when a situation text reads like a note to
+  the modeler, and it normalizes and records an estimator's rounding drift of
+  up to two hundredths instead of refusing it; a caller's distribution must
+  still sum to one.
+- The estimator is told whose act it judges, the Event's subject by the name the
+  model gives them, so a situation that centres someone else is still read as
+  the subject's. A lens reading of an act that has happened is not warned about
+  for being lopsided, and defining a lens warns when an answer shares a word
+  with the model's own Cuts (wants, feelings, expectations, decisions).
+- From an independent review (26 September): a lens version has a signature
+  (its question, records and answers), which its answers carry in their unit;
+  answers given to an earlier version are listed as stale, to be answered again
+  under the same Cut id. Trajectories compare readings as distributions: a
+  reading that puts most weight on none of the answers is unclear and asserts
+  nothing, a close difference is a possible change to look into, a clear move a
+  change whose cause is missing, and a large move under one answer a shift.
+  Revising a lens from a stale graph hash writes at the newest head. Timed
+  model questions without a story graph say the draw history is unknown rather
+  than failing. A draft direction records the prose it read, and release
+  refuses prose changed since; the director's draft task renders only the
+  story it directs. An estimator's complete shares are scaled to one in both
+  directions.
+- Lens trajectories follow the theory's rules for comparing readings: only
+  compatible readings (one person, one kind of record, one lens version with a
+  fixed vocabulary; fear or love compares by its love and fear families), with
+  the remainder kept in the distance, each labeled an attributed account, and a
+  change placed in the estimate, the situation or the person before a cause is
+  sought. A lens whose answers are found case by case is exploratory and has no
+  trajectories. A record a lens does not fit is declined with a note, not a
+  number; old not_applicable answers count as declined.
+- An estimate records a signature of its Event's text, and a lens reading of an
+  Event rewritten since it was read is listed as stale. Every Event answered
+  under a lens is one of its records, change arcs included. `life_lens_questions`
+  takes an optional `modelHash` to read a model the graph is not yet bound to.
+  A lens reading that fits none of the answers is warned about in the lens's
+  terms, and a rebind names dropped anchors only when there are some.
+- A withdrawn record leaves the current account in the engine: a withdrawn
+  abstract cut no longer takes part in the hierarchy's acyclicity check, so a
+  replacement may reverse it, and a realization of a withdrawn concept no longer
+  covers its Events in semantic coverage.
+- The engine keeps up to 512 model revisions (256 MB) in a state file, up from
+  64 (64 MB). A story model is revised often, every applied estimate being a
+  revision, and a construction replays through every one, so 64 was reached in
+  three rounds of lens estimates on one story.
+  `life_model_questions` gives lenses with unanswered records up to two places,
+  and its standing questions now ask which ways of seeing could explain what is
+  being modeled.
+- A lens reading is held by someone, so it now sits beneath its holder instead
+  of on the record it reads, where it carried the world's authority. The engine
+  has an `about` Event relation: the source is about the target without taking
+  part in it, and it carries no causal meaning and no context.
+  `life_lens_place` adds the holder's understanding root (a context root of
+  kind `understanding`) and one reading Event per record, contained by that
+  root and linked `about` the record, and moves the lens's Cuts that sit on the
+  record onto it with the same ids, questions, units and weights. A lens has a
+  `perspective`: the modeler's reading (the default), or the actor's own
+  reasons as canon, which go on an inner Event under the actor's inner root at
+  the decision. A lens keeps its perspective across its versions: a different
+  holder is a different lens. It also has a reading type (allocation or
+  support, by default support), the divided unit in words and a status.
+  A model that declared no context roots gets its world's top Events declared
+  as accepted world, and placement refuses to split Cuts that condition across
+  them. A Cut that merely matches a lens's question is reported and left in
+  place, since it may be canon, and Cuts in a conditioning or recomposition
+  chain are not moved alone. The tool lists the estimates to recheck: those
+  made without an Event-text signature, which may have read lens readings as
+  part of a person's state. The estimator reads a reading Event through its
+  `about` link: the record's text, subject and signature, and the record as the
+  model holds it for the modeler's reading, and the actor at the decision, from
+  the decision's text, for an inner Event. `life_lens_questions` shows where each open
+  record's and candidate's reading goes, and the model's open questions ask for
+  readings still on their records to be placed; declined records no longer
+  count as open there.
+- From the fifth round on the published story: a reading of an Event rewritten
+  since it was read is stale even when it answers the lens's current version
+  (the check was skipped for signed readings). Readings of Events that overlap
+  in time are compared as concurrent, two stances held at once, not as a change
+  from one to the other. An Event beneath an inner root is what a person thinks
+  or feels, not an act, and is no longer offered as an act candidate. The
+  estimator names each person in the modeled state by the name the model gives
+  them, as it already named the subject. A record that names no person says
+  so, since a lens about people would otherwise be asked of no one in
+  particular.
+- From a theory review of the placement:
+  - What is a reading is decided by where an Event sits (under an
+    understanding root, or made by `life_lens_place`), not by an `about` link,
+    which world Events use too.
+  - A model without context roots stays one world. `life_lens_place` first
+    lists its top Events. Given `worldRoot`, it contains them under one untimed
+    History Event, declared accepted world, and gives any that are not this
+    world a root of their own; it refuses where that would split a
+    conditioning chain.
+  - A Cut that only asks a lens's question in its own words no longer counts as
+    the lens's answer until the modeler says whose it is, with `resolve`: canon,
+    reading or direction. Direction Cuts (decisions, forecasts a relation names,
+    drawn Cuts) never count.
+  - Trajectories check every pair of records. Overlapping records are a split.
+    A record nested in another is a finer record of the same stretch, neither
+    a change nor a split. Only disjoint neighbours are compared for a change. Families are
+    total, so an answer in no family compares as other, and a defined lens may
+    declare families.
+  - A lens can be asked of inner records (what a person thinks, feels or tells
+    themselves), compared only with other inner records. Events under inner,
+    understanding, document or candidate roots are not offered as acts. Lens
+    Cuts and Cuts on reading Events stay out of the model's uncaused-shift
+    questions and its jumps.
+- From the sixth round: a shift in a person's state that the model gives a
+  cause for (a causal relation into the later record or what contains it, or
+  into the person's Events from an Event between the two) is no longer asked
+  about. An estimate signs the situation text it read, and the estimator warns
+  when that text is too short to judge, as a decision Event's description that
+  defers to its Cut often is. The placement's lists say when they are cut short,
+  and its recheck says how to recheck: with the situation an estimate was made
+  from.
+- A lens reading opens deeper, level by level, as the theory's Cut hierarchy
+  does: fear, then fear of what. A lens's answers may have children, the kinds
+  they open into, and a level may also be found case by case. Each opening is a Cut on the same reading Event, conditioned on the
+  answer it divides, with its own remainder, and a remainder can itself be
+  opened ("what else"). Each level is versioned by itself, so opening deeper
+  leaves the levels above valid. `life_lens_questions` shows each reading's
+  joint shares down every path, so answers at different depths are measured
+  against each other. Its openings name, for each answer or remainder that
+  carries at least 0.3 of a reading and for an answer that holds while its
+  reading shifts, the Cut id, question, unit, conditioning and kinds to estimate,
+  and why to open it. A stop is recorded as a sufficiency note and is not asked
+  again. Kinds found case by case that recur in three readings ask for their
+  level to be fixed. A trajectory's new kind, composition, finds an answer that
+  holds while what it is made of changes. The estimator is told which answer a
+  level divides but never its weight, and a lens reading's levels stay on one
+  reading Event. Placement moves a reading's deeper levels with it.
+- A drawn Cut keeps the weights it was drawn from: the estimator refuses to replace one, before any estimate is paid for
+  when a realized forecast names it, and at apply when the graph records its
+  draw. An estimate is not told the answer it is estimating again. A period is
+  also cut by the person's own inner states within it.
+- It is always possible to revise, and a revision keeps the whole consistent.
+  `life_revision_check` takes the model before a revision and after it, names
+  what changed (Events rewritten, retimed or removed; Cuts reweighted,
+  withdrawn, removed or moved) and everything that depended on it: Cuts
+  conditioned on a changed Cut, draws made from weights that have changed,
+  readings and estimates whose Event text changed, later Events a changed one
+  causes, and the passages and notes anchored to changed records. A passage
+  that renders no Event is reported as unchecked, not as unaffected.
+- A committed scene links each segmented passage by `renders` only to the
+  Events that passage explicitly names. Omitted mappings remain unchecked;
+  route and scene Event lists apply only to an unsegmented scene leaf. Selections
+  are validated against the bound model and included in its review hash. That link is
+  the passage's declared dependency, which is how a revision finds the prose to
+  regenerate or mark, and how a view places a passage in world time as well as
+  in reading order.
+  `life_lens_reread` reads every stale lens reading of the records named again,
+  across lenses, with the same questions, answers and units, in one model
+  revision, and reports how far each moved.
+- From the seventh round: a decision followed by a long stretch (months of a
+  rebuild after one evening's choice) no longer lends the moment's readings to
+  the stretch: the stretch is its own record, read as a stretch. Wants that last
+  most of a life are not inner records, since they are what an account is
+  about, and inner records are not checked for fit like world stretches. A
+  lens's about list is optional again.
+- From a theoretical review of generality, and the rule that only what a model
+  needs is added:
+  - General modeling assumes no human narrative. Fear or love is built in only
+    when the storytelling profile is adopted, and so are the questions that give
+    people whole lives (a life, its periods, wants, shocks and choices), the
+    standing question about the reasons behind acts, and the suggestion to draw
+    undrawn decisions:
+    a draw constructs fiction, and in a model of what happened a decision is
+    observed. The lens survey and the general guide ask about processes,
+    dependencies, thresholds and observers instead.
+  - Nothing holds a stretch to what it contains unless the model declares how
+    it composes, as a temporal recomposition the engine checks: meaning,
+    evidence and success do not average (two stages that each succeed at 0.9
+    succeed together at 0.81). A record nested in another is neither a change
+    nor a split.
+  - A lens's reading is an allocation or support. Answers that co-occur (an act
+    can be a quarrel and a farewell at once) are a joint answer or separate
+    lenses; a fit reading type will be added when a model needs one.
+  - Opening has no ceiling. The questions suggest openings down to a default
+    depth of four, report the ones beyond it as beyond the limit, and take
+    maxDepth to go further.
+  - A model question can be answered "sufficient here": an Understanding Node
+    about the records it concerns, with data { schema:
+    meaning-model-sufficient/v1, kind, reason, reopenIf }. It is not asked
+    again while the note stands. A note covers every question of its kind only
+    when it is about the document root; a note whose records are gone lapses.
+  - A lens offers only what a model needs: the reader perspective, the text
+    and prose evidence policies, and placing readings by an earlier version's
+    perspective are gone. A character's estimate of another person is an
+    ordinary inner estimate Event with its Cut.
+  - A lens reading depends on the text it read, and is stale when that text is
+    rewritten. Its dependence on the modeled state is not tracked until a model
+    needs it.
+- From the eighth round: the revision check counts a draw whose Cut carries its
+  own drawn weights again as consistent. The bulk re-read also answers readings
+  given to an earlier version of a lens, under this one, and can read each
+  several times, applying the mean and reporting the spread and the estimator's
+  confidence, so a move within its noise shows as noise. A lens defined with a
+  built-in's id keeps the families and matching the built-in declared, and an
+  answer given under the same question to the exploratory version, in keys the
+  fixed vocabulary has, carries over. A note may be an assessment, and a lens
+  that names no one is about the whole work.
+
 ## 0.3.0 — 2026-09-25
 
 - A refused `life_profile_compile` request returns a complete valid example of

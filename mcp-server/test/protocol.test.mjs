@@ -116,6 +116,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_construction_import',
       'life_construction_replay',
       'life_direction_draw',
+      'life_document_project',
       'life_engine_status',
       'life_estimate_cut_shares',
       'life_estimation_proposal_inspect',
@@ -123,6 +124,10 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_estimation_request_create',
       'life_estimation_response_submit',
       'life_graph_query',
+      'life_lens_define',
+      'life_lens_place',
+      'life_lens_questions',
+      'life_lens_reread',
       'life_meaning_query',
       'life_model_ingest',
       'life_model_inspect',
@@ -131,6 +136,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_model_register',
       'life_model_revise',
       'life_model_validate',
+      'life_model_viewer_open',
       'life_modeling_context',
       'life_narrative_alignment_audit',
       'life_narrative_batch',
@@ -146,6 +152,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_process_estimation_record',
       'life_profile_compile',
       'life_review_record',
+      'life_revision_check',
       'life_story_revision_diagnose',
       'life_trajectory_query',
       'life_trajectory_summarize',
@@ -780,6 +787,13 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'The harbor held one exact state beneath the sentence.\n\n' +
         'A second node arrived in one atomic, connected batch.',
     );
+    const documentProjection = await client.callTool({ name: 'life_document_project', arguments: {
+      graphHash: appendedGraphHash, rootId: renderedNarrative.structuredContent.roots[0], accessScopes: ['world'],
+    } });
+    assert.equal(documentProjection.isError, undefined, JSON.stringify(documentProjection));
+    assert.equal(documentProjection.structuredContent.coordinate, 'utf8_byte');
+    assert.equal(documentProjection.structuredContent.projectionHash, renderedNarrative.structuredContent.projection_hash);
+    assert.equal(documentProjection.structuredContent.byteLength, Buffer.byteLength(renderedNarrative.structuredContent.text));
     // A successor can be sent as its change instead of the complete graph.
     const changed = await client.callTool({
       name: 'life_narrative_revise',

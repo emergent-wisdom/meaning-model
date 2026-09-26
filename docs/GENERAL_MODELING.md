@@ -35,18 +35,25 @@ not lived in the system it describes; the model gives it one.
 
 - **Open questions.** Every model registration and revision returns the model's
   own open questions (`openQuestions`); `life_model_questions` returns all of
-  them. Examples: a process with nothing longer behind it; a decision nobody
-  drew; weights nobody estimated; a series that shifts with nothing modeled to
-  cause the shift; Events that instantiate no concept; no regularity linking
-  Events that recur. Take them between every step.
+  them. Examples: a process with nothing longer behind it; weights nobody
+  estimated; a series that shifts with nothing modeled to cause the shift;
+  Events that instantiate no concept; no regularity linking Events that recur.
+  Take them between every step. A question that needs no more here is answered
+  by saying so: an Understanding Node about the records it concerns, with data
+  { schema: meaning-model-sufficient/v1, kind, reason, reopenIf }. It is not
+  asked again while the note stands.
 - **Standing questions.** Ask them all the time. Is there a macro aspect I must
   model to truly understand what is going on here, a regime change, an
-  institution's history, a war decades back? What kinds of reasons lie behind
-  what the actors here do, are they primarily out of fear or out of love, and
-  what does that fear or love ask of them? What can be richer about this
-  process? What is it an instance of? Climb up to the concept or law that
+  institution's history, a long process behind it? What can be richer about
+  this process? What is it an instance of? Climb up to the concept or law that
   explains it together with other things, and test what that abstraction
   predicts elsewhere.
+- **Profiles add their own questions.** General modeling works on subjects,
+  processes, constraints, observations, dependencies and alternatives. The
+  storytelling profile adds what fiction needs: whole lives, the reasons
+  behind acts (fear or love is built in there), and drawn decisions. A draw
+  constructs fiction; in a model of what happened, a decision is observed, and
+  what is unknown stays unresolved.
 - **Background processes.** Model far more than the question shows: the
   surrounding economy, institutions, technology, people and their incentives,
   and long histories run in the model whether or not the answer mentions them.
@@ -74,8 +81,11 @@ what was recorded, and a thought helps only when it is linked to what it concern
 - When a Cut, concept or opening no longer holds, mark it withdrawn in the next model
   revision (`withdrawn: {reason, superseded_by}`) instead of deleting it. It stays as
   history, the notes about it keep their links, and the outline shows it as withdrawn.
-  `life_narrative_rebind` refuses a successor that removes a record notes are anchored
-  to, and names them.
+  Withdrawn records leave the current account: the current hierarchy is made of current
+  abstract cuts, so a replacement may reverse a withdrawn decomposition, and semantic
+  coverage counts only realizations of current concepts, so an Event whose only account
+  is withdrawn is uncovered again. `life_narrative_rebind` refuses a successor that
+  removes a record notes are anchored to, and names them.
 - To continue someone's model, start with `sessionMode` `continuation`, read
   `life_construction_replay` from the start at outline level, then
   `life_model_outline`, and open detail where you need it. Record what you read and

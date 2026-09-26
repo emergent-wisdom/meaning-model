@@ -61,7 +61,9 @@ const MAX_QUERY_ACCESS_SCOPES: usize = 64;
 const MAX_QUERY_STRING_BYTES: usize = 1_024;
 const MAX_MODEL_IDENTIFIER_BYTES: usize = 1_024;
 const MAX_MODEL_DEFINITION_BYTES: usize = 8 * 1024 * 1024;
-const MAX_SESSION_MODELS: usize = 64;
+// Every model revision is kept, since a construction replays through each one, and a story model is revised often
+// (every applied estimate is a revision). The byte bound below limits memory; the count bounds restart validation.
+const MAX_SESSION_MODELS: usize = 512;
 const MAX_SESSION_WORLDS: usize = 64;
 const MAX_SESSION_CANDIDATES: usize = 2_048;
 const MAX_SESSION_WORLD_REVISIONS: usize = 2_048;
@@ -69,7 +71,7 @@ const MAX_SESSION_WORLD_REVISION_BYTES: usize = 64 * 1024 * 1024;
 // Revisions are kept materialized with every unchanged record shared with the
 // parent, so this count bounds restart validation, which is linear in it.
 const MAX_SESSION_NARRATIVE_GRAPHS: usize = 4_096;
-const MAX_SESSION_MODEL_BYTES: usize = 64 * 1024 * 1024;
+const MAX_SESSION_MODEL_BYTES: usize = 256 * 1024 * 1024;
 const MAX_SESSION_WORLD_BYTES: usize = 64 * 1024 * 1024;
 const MAX_SESSION_CANDIDATE_BYTES: usize = 128 * 1024 * 1024;
 // Narrative history is stored as shared source snapshots plus append-only

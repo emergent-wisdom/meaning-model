@@ -1,13 +1,13 @@
 import { spawnSync } from 'node:child_process';
 import { chmod, copyFile, lstat, mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
 const runtimeFiles = [
   'LICENSE', 'LICENSE-CONTENT', 'NOTICE', 'server.json', 'CHANGELOG.md',
-  'mcp-server/bin', 'mcp-server/resources',
+  'mcp-server/bin', 'mcp-server/resources', 'mcp-server/viewer',
   'rust-engine/Cargo.toml', 'rust-engine/Cargo.lock', 'rust-engine/src',
   'rust-engine/README.md', 'rust-engine/MEANING_MODEL_CONFORMANCE.md',
   'rust-engine/examples/meaning-model-command.json',
@@ -19,16 +19,21 @@ const runtimeFiles = [
   'docs/NARRATIVE_UNDERSTANDING_GRAPH.md', 'docs/GENERAL_MODELING.md', 'docs/examples', 'profiles',
   'scripts/verify-resources.mjs', 'mcp-server/README.md', 'mcp-server/NPM-README.md',
 ];
-const excluded = new Set(['.git', '.DS_Store', 'node_modules', 'target']);
+const excluded = new Set(['.git', '.DS_Store', 'node_modules', 'target',
+  '.local-work', '.local-drafts', '.private-backups', '.model-revisions', '.model-snapshots',
+  '.conversation-scratch', 'tmp', 'temp', '.claude']);
+const localArtifact = /(?:\.(?:sqlite3?|db)(?:-(?:wal|shm|journal))?|\.(?:tmp|temp|bak|swp|swo)|~)$/iu;
+const viewerOutput = /^mcp-server\/viewer\/public\/(?:data|renders)(?:\/|$)/u;
 
-async function copyRuntime(source, destination) {
+async function copyRuntime(source, destination, root) {
+  if (excluded.has(basename(source)) || localArtifact.test(source)
+    || viewerOutput.test(relative(root, source).split(sep).join('/'))) throw new Error(`Unexpected package input: ${source}`);
   const info = await lstat(source);
   if (info.isSymbolicLink()) throw new Error(`Refusing symlink in package input: ${source}`);
   if (info.isDirectory()) {
     await mkdir(destination, { recursive: true });
     for (const entry of (await readdir(source)).sort()) {
-      if (excluded.has(entry)) throw new Error(`Unexpected package input: ${join(source, entry)}`);
-      await copyRuntime(join(source, entry), join(destination, entry));
+      await copyRuntime(join(source, entry), join(destination, entry), root);
     }
   } else if (info.isFile()) {
     await mkdir(dirname(destination), { recursive: true });
@@ -44,12 +49,12 @@ export async function stageNpmPackage(root = repositoryRoot, outputParent = join
   const packageDirectory = join(stage, 'package');
   await mkdir(packageDirectory);
   for (const entry of runtimeFiles) {
-    await copyRuntime(join(root, entry), join(packageDirectory, entry));
+    await copyRuntime(join(root, entry), join(packageDirectory, entry), root);
   }
   const sourceDirectory = join(root, 'mcp-server', 'src');
   for (const entry of (await readdir(sourceDirectory)).sort()) {
     if (entry.endsWith('.mjs')) {
-      await copyRuntime(join(sourceDirectory, entry), join(packageDirectory, 'mcp-server', 'src', entry));
+      await copyRuntime(join(sourceDirectory, entry), join(packageDirectory, 'mcp-server', 'src', entry), root);
     } else if (entry !== 'server.ts') {
       throw new Error(`Unrecognized runtime source: ${entry}`);
     }

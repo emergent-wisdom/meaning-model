@@ -67,7 +67,7 @@ function fixture() {
       return { graphHash: 'd'.repeat(64), snapshotHash, immutableRevision: true };
     },
     // The bound model: its Cut-bearing Events are described unless a test says otherwise.
-    model: { id: 'fixture-model', meaning_model: { events: [], normalized_cuts: [] } },
+    model: { id: 'fixture-model', meaning_model: { events: [{ id: 'ev.route', boundary: 'Leo checks the latch.', description: 'Leo checks the latch once more.' }], normalized_cuts: [] } },
     async inspectModel() { return { modelHash: 'f'.repeat(64), model: withLives(this.model, this.people ?? ['Leo']) }; },
   };
   const preparation = {

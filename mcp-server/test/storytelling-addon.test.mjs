@@ -34,7 +34,7 @@ function fixture() {
       return { graphHash: 'd'.repeat(64), snapshotHash, immutableRevision: true };
     },
     // The bound model: its Cut-bearing Events are described unless a test says otherwise.
-    model: { id: 'fixture-model', meaning_model: { events: [], normalized_cuts: [] } },
+    model: { id: 'fixture-model', meaning_model: { events: [{ id: 'ev.route', boundary: 'Leo finds the key.', description: 'Leo finds the key beneath the bridge.' }], normalized_cuts: [] } },
     async inspectModel() { return { modelHash: 'f'.repeat(64), model: withLives(this.model, this.people ?? ['Leo']) }; },
   };
   const preparation = {
@@ -198,7 +198,14 @@ test('successful commit submits one atomic Rust batch containing exact prose and
   assert.equal(batch.add_edges[0].relation, 'contains');
   assert.equal(batch.add_edges.find((edge) => edge.id === 'scene-3.placement').order, 2);
   assert.ok(batch.add_edges.some((edge) => edge.source.node_id === result.understandingRootId && edge.target.node_id === result.reviewNodeId && edge.relation === 'contains'));
-  assert.equal(batch.add_edges.filter((edge) => edge.family === 'grounding').length, 3);
+  assert.deepEqual(batch.add_edges.filter((edge) => edge.family === 'grounding').map((edge) => ({
+    source: edge.source.node_id, relation: edge.relation, target: edge.target.node_id ?? edge.target.anchor_id,
+  })), [
+    { source: 'scene-3', relation: 'uses_life_trends', target: 'life.trends' },
+    { source: 'scene-3', relation: 'uses_context', target: 'key' },
+    { source: 'scene-3', relation: 'uses_context', target: 'betrayal' },
+    { source: 'scene-3', relation: 'renders', target: 'ev.route' },
+  ]);
   assert.equal(batch.add_edges.filter((edge) => edge.relation === 'uses_life_trends').length, 1);
 });
 

@@ -8,6 +8,23 @@ export const AUTHORING_SCOPE = "book.07r2.authoring";
 const AUTHOR = "author.book.07r2";
 const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
 const SOURCE_DIRECTORY = "examples/book-of-conditions";
+// Reviewed against BOOK-DRAFT.md, independently of the retrospective route.
+// In particular, VIII signs the proposed result; IX narrates E15's July
+// publication. Opened Events are listed explicitly, never inferred by suffix.
+const DEPICTED_EVENTS_BY_CHAPTER = [
+  ["E23", "E24", "E25"],
+  ["E01"],
+  ["E02", "E03", "E03a", "E03b", "E03c"],
+  ["E04", "E05"],
+  ["E06", "E07"],
+  ["E08", "E09", "E10"],
+  ["E11"],
+  ["E12", "E13", "E14", "E14a", "E14b", "E14c"],
+  ["E15", "E16", "E17", "E18", "E19"],
+  ["E20", "E20a", "E21", "E22"],
+  ["E26", "E27"],
+  ["E28", "E29", "E30"],
+];
 const sha256 = (text) => createHash("sha256").update(text).digest("hex");
 const nodeEndpoint = (nodeId) => ({ kind: "node", node_id: nodeId });
 const anchorEndpoint = (kind, id) => ({ kind: "anchor", anchor_kind: kind, anchor_id: id });
@@ -171,6 +188,13 @@ export function buildNarrativeGraph({ modelHash, sourceDigest, events, modelDefi
       addEdge(id, anchorEndpoint("event", eventsBySource.get(sourceId)), "expresses", {
         source: route,
         explanation: `Retrospective source route association with ${sourceId}${/[a-z]$/u.test(sourceId) ? " through its explicitly opened parent Event" : ""}; does not certify every sentence or historical fact.`,
+      });
+    }
+    for (const sourceId of DEPICTED_EVENTS_BY_CHAPTER[index]) {
+      if (!eventsBySource.has(sourceId)) throw new Error(`Unresolved depicted Event ${sourceId}`);
+      addEdge(id, anchorEndpoint("event", eventsBySource.get(sourceId)), "renders", {
+        source: book,
+        explanation: `Reviewed depiction of ${sourceId} in manuscript chapter ${chapter.key}; a partial representation of the Event, not certification of every model field or historical fact.`,
       });
     }
   }

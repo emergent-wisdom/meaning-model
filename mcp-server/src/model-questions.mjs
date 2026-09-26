@@ -40,6 +40,26 @@ const questionOf = (cut) => String(cut.question ?? cut.id ?? '');
 const answersOf = (cut) => cut.answers ?? [];
 const estimated = (cut) => (cut.provenance ?? []).some((item) => /^(estimator|supplied):/u.test(String(item)));
 
+// Whether the storytelling profile is adopted. Fear or love, whole lives and drawn decisions belong to it: general
+// modeling works on subjects, processes, constraints, observations, dependencies and alternatives, and a draw
+// constructs fiction, it does not settle an observed fact.
+export const storyProfile = (environment = process.env) => String(environment.MEANING_MODEL_ADDONS ?? '').split(',').map((item) => item.trim()).includes('storytelling');
+// The questions that give people whole lives (a life, its periods and processes, wants, shocks and choices) belong to the
+// storytelling profile; general modeling asks about causes, processes and structure of whatever it models.
+const LIFE_KINDS = new Set(['life-missing', 'life-untimed', 'processes-few', 'process-empty', 'periods-missing', 'period-gap', 'period-uncut', 'wants-missing',
+  'wants-generic', 'shocks-few', 'adaptation-open', 'moment-unmodeled', 'why-local', 'choices-missing', 'life-thin', 'secondary-without-life']);
+const asked = (kind) => storyProfile() || !LIFE_KINDS.has(kind);
+// The provenance a reading Event made by life_lens_place carries.
+export const READING_MARK = 'Meaning Model lens placement v1';
+// The kind of context an Event sits in: its nearest declared root, following containment up; null in a model without roots.
+export function contextKindOf(index, eventId) {
+  let at = eventId;
+  for (let step = 0; step < 256 && at; step += 1) { if (index.rootKinds?.has(at)) return index.rootKinds.get(at); at = [...(index.parents.get(at) ?? [])][0]; }
+  return null;
+}
+// A reading's Cut is not a person's state: lens answers, and any Cut on a reading Event.
+const readingCut = (index, cut) => String(cut.id ?? '').startsWith('lens.') || Boolean(index.readings?.has(cut.parent_event_id));
+
 export function indexModel(model) {
   const mm = model?.meaning_model ?? {};
   const events = new Map((mm.events ?? []).map((event) => [event.id, event]));
@@ -68,7 +88,14 @@ export function indexModel(model) {
   const relations = mm.event_relations ?? [];
   const abstractions = { concepts: (mm.concepts ?? []).length, abstractRelations: (mm.abstract_relations ?? []).length, abstractCuts: (mm.abstract_cuts ?? []).length,
     laws: (model?.laws ?? []).length, claims: (model?.initial_claims ?? []).length, realizations: (mm.realizations ?? []).length };
-  return { events, children, parents, cuts, cutsByEvent, referents, eventsOf, arcsOf, abstractions, relations, processes: (model?.processes ?? []).length, processList: model?.processes ?? [] };
+  // Readings are held apart from the world, and what is a reading is decided by where an Event sits, not by what it
+  // refers to: Events under an understanding root, and the reading Events life_lens_place makes. A world Event may be
+  // about another (a letter about a death) and is still the world's.
+  const rootKinds = new Map((mm.context_roots ?? []).map((root) => [root.event_id, root.kind]));
+  const readings = new Set();
+  for (const [root, kind] of rootKinds) if (kind === 'understanding') { readings.add(root); for (const id of walk(children, root)) readings.add(id); }
+  for (const event of events.values()) if ((event.provenance ?? []).includes(READING_MARK)) readings.add(event.id);
+  return { events, children, parents, cuts, cutsByEvent, referents, eventsOf, arcsOf, abstractions, relations, readings, rootKinds, processes: (model?.processes ?? []).length, processList: model?.processes ?? [] };
 }
 
 function walk(map, eventId) {
@@ -96,7 +123,7 @@ export function displayName(referentId) {
 // count as principals.
 // Events with no place of their own or from an Event that contains them.
 export function unplacedEvents(index, eventIds) {
-  return eventIds.map((eventId) => index.events.get(eventId)).filter((event) => event && !event.region && !event.substrate
+  return eventIds.map((eventId) => index.events.get(eventId)).filter((event) => event && !index.readings?.has(event.id) && !event.region && !event.substrate
     && ![...ancestors(index, event.id)].some((eventId) => index.events.get(eventId)?.region || index.events.get(eventId)?.substrate));
 }
 
@@ -142,7 +169,7 @@ const describe = (event) => (event?.description ?? event?.boundary ?? event?.id 
 const when = (event) => (start(event) === null ? 'at an untimed moment' : end(event) !== null && end(event) !== start(event) ? `from ${start(event)} to ${end(event)}` : `at ${start(event)}`);
 
 // Consecutive Cuts asking the same question must be consistent in time: a large shift needs a cause between them.
-function uncausedShifts(series, causes, subjectLabel) {
+function uncausedShifts(series, causes, subjectLabel, causedBy = () => false) {
   const found = [];
   for (const list of series.values()) {
     list.sort((a, b) => start(a.event) - start(b.event));
@@ -151,7 +178,7 @@ function uncausedShifts(series, causes, subjectLabel) {
       const weights = (cut) => Object.fromEntries(answersOf(cut).map((answer) => [answer.key, answer.weight]));
       const [a, b] = [weights(before.cut), weights(after.cut)];
       const moved = Object.keys({ ...a, ...b }).filter((key) => Math.abs((b[key] ?? 0) - (a[key] ?? 0)) > MAX_UNCAUSED_SHIFT + 1e-9);
-      if (!moved.length || causes.some((time) => time > start(before.event) && time <= start(after.event))) continue;
+      if (!moved.length || causes.some((time) => time > start(before.event) && time <= start(after.event)) || causedBy(before, after)) continue;
       const key = moved[0];
       found.push({ at: [start(before.event), start(after.event)], cuts: [before.cut.id, after.cut.id],
         question: `${subjectLabel}"${before.cut.question}" moves ${key} from ${(a[key] ?? 0).toFixed(2)} to ${(b[key] ?? 0).toFixed(2)} between ${start(before.event)} and ${start(after.event)}, with nothing modeled between them to cause it. What happened? Model the cause and what followed from it, or make the change gradual across more moments.` });
@@ -163,7 +190,7 @@ function uncausedShifts(series, causes, subjectLabel) {
 // A person's open questions, most structural first.
 function personQuestions(index, person, name, principal) {
   const questions = [];
-  const ask = (kind, question, tool, extra = {}) => questions.push({ kind, subject: person.personId, principal, question, tool, ...extra });
+  const ask = (kind, question, tool, extra = {}) => { if (asked(kind)) questions.push({ kind, subject: person.personId, principal, question, tool, ...extra }); };
   if (!person.referent) {
     ask('life-missing', `${name} is not in the model. Who are they? Give them a referent and a whole life, from the person template (person_scaffold) or from processes of your own.`, 'life_profile_compile (person_scaffold) or life_model_revise');
     return questions;
@@ -186,9 +213,14 @@ function personQuestions(index, person, name, principal) {
       cursor = Math.max(cursor, end(period));
     }
     if (end(person.life) !== null && end(person.life) - cursor > tolerance) ask('period-gap', `${name}'s life has no period from ${cursor} to ${end(person.life)}. What was their life then?`, 'life_model_revise', { at: [cursor, end(person.life)] });
+    // A person's own states belong under their inner root, so a period is also cut by the inner Events within it.
+    const innerWithin = (period) => [...person.own].some((eventId) => {
+      if (contextKindOf(index, eventId) !== 'inner' || index.readings?.has(eventId)) return false;
+      const t = start(index.events.get(eventId)); return t !== null && t >= start(period) && t <= end(period) && (index.cutsByEvent.get(eventId) ?? []).some((cut) => !readingCut(index, cut));
+    });
     for (const period of person.periods) {
       const inside = [period.id, ...descendants(index, period.id)];
-      if (!inside.some((eventId) => (index.cutsByEvent.get(eventId) ?? []).length)) {
+      if (!inside.some((eventId) => (index.cutsByEvent.get(eventId) ?? []).some((cut) => !readingCut(index, cut))) && !innerWithin(period)) {
         ask('period-uncut', `In ${name}'s period "${describe(period)}" (${when(period)}), how did they expect what they want to turn out, and what was at risk? Give the period its outlook Cut and, conditional on threat, a Cut over what was threatened.`, 'life_model_revise or life_estimate_cut_shares', { at: [start(period), end(period)] });
       }
     }
@@ -210,11 +242,17 @@ function personQuestions(index, person, name, principal) {
   }
   const series = new Map();
   for (const item of person.cuts) {
-    if (start(item.event) === null || cutKind(item.cut) === 'decision') continue;
+    if (start(item.event) === null || cutKind(item.cut) === 'decision' || readingCut(index, item.cut)) continue;
     push(series, `${questionOf(item.cut).toLowerCase().trim()}|${item.cut.unit}`, item);
   }
   const shocksAt = person.arcs.map((item) => start(item.focal ?? item.arc)).filter((value) => value !== null);
-  for (const shift of uncausedShifts(series, shocksAt, `${name}'s `)) ask('shift-uncaused', shift.question, 'life_model_revise', { at: shift.at, cuts: shift.cuts });
+  // A modeled cause: a causal relation into the later record or what contains it, or into any of the person's own
+  // Events from an Event that starts between the two readings.
+  const causal = new Set(['causes', 'enables', 'prevents', 'constrains']);
+  const causedBy = (before, after) => { const within = new Set([after.event.id, ...ancestors(index, after.event.id)]);
+    return index.relations.some((relation) => causal.has(relation.kind) && (within.has(relation.target_event_id)
+      || (person.own.has(relation.target_event_id) && start(index.events.get(relation.source_event_id)) > start(before.event) && start(index.events.get(relation.source_event_id)) <= start(after.event)))); };
+  for (const shift of uncausedShifts(series, shocksAt, `${name}'s `, causedBy)) ask('shift-uncaused', shift.question, 'life_model_revise', { at: shift.at, cuts: shift.cuts });
   // A decision is a moment: what the person wants, feels and how they decide should be modeled there first. The moment
   // is the decision Event, give or take its own length, a twentieth of the Event that contains it or a thousandth of
   // the life, whichever is longest; a fixed unit would be a year in a model counted in years.
@@ -239,7 +277,7 @@ function personQuestions(index, person, name, principal) {
 // Questions of the whole model, in any mode: time, causes, the abstraction ladder, decisions and estimates.
 function worldQuestions(index, lives, draws) {
   const questions = [];
-  const ask = (kind, question, tool, extra = {}) => questions.push({ kind, subject: null, principal: false, question, tool, ...extra });
+  const ask = (kind, question, tool, extra = {}) => { if (asked(kind)) questions.push({ kind, subject: null, principal: false, question, tool, ...extra }); };
   const timed = [...index.events.values()].filter((event) => span(event) !== null);
   if (index.events.size && !timed.length) ask('time-missing', 'No Event in the model has an interval. When does each happen? Without time the model cannot say what is true at a moment or keep one state consistent with the next.', 'life_model_revise');
   if (timed.length) {
@@ -266,7 +304,7 @@ function worldQuestions(index, lives, draws) {
     ask('laws-missing', 'What regularities hold across these Events: when one thing happens, what tends to follow, for whom, and why? State them as laws, claims or abstract relations, and test them against what the model shows.', 'life_model_revise');
   }
   const byQuestion = new Map();
-  for (const cut of index.cuts) push(byQuestion, questionOf(cut).toLowerCase().trim(), cut);
+  for (const cut of index.cuts) if (!index.readings?.has(cut.parent_event_id)) push(byQuestion, questionOf(cut).toLowerCase().trim(), cut);
   for (const [question, list] of byQuestion) {
     if (list.length >= 3 && concepts < 3) ask('recurring-question', `"${list[0].question}" is asked at ${list.length} moments. What general pattern do the answers show across them, and which concept or law is it? Climb up.`, 'life_model_revise', { cuts: list.slice(0, 8).map((cut) => cut.id), key: question });
   }
@@ -274,8 +312,9 @@ function worldQuestions(index, lives, draws) {
   const unplaced = unplacedEvents(index, [...index.cutsByEvent.keys()]);
   if (unplaced.length) ask('place-missing', `${unplaced.length} moment${unplaced.length === 1 ? '' : 's'} carrying Cuts ${unplaced.length === 1 ? 'has' : 'have'} no place (for example ${unplaced.slice(0, 3).map((event) => event.id).join(', ')}). Where does each happen, where is each person and Thing in it, and in what physical state? Give each its region, or contain it in an Event that has one, and model the physical processes of the Things taking part.`, 'life_model_revise');
   // Draws are recorded in the story graph, not the model. Without the graph the tool cannot tell which decisions are
-  // drawn, so it names them together rather than claiming each is undrawn.
-  if (draws === null) {
+  // drawn, so it names them together rather than claiming each is undrawn. A draw constructs fiction, so draws are
+  // suggested only where the storytelling profile is adopted: in a model of what happened, a decision is observed.
+  if (!storyProfile()) { /* no draws suggested outside fiction */ } else if (draws === null) {
     const decisions = index.cuts.filter((item) => cutKind(item) === 'decision');
     if (decisions.length) ask('decision-undrawn', `The model holds ${decisions.length} decision Cut${decisions.length === 1 ? '' : 's'} (${decisions.slice(0, 4).map((cut) => cut.id).join(', ')}${decisions.length > 4 ? ', and more' : ''}). Which are drawn is recorded in the story graph, not the model: life_model_questions with graphHash, or the questions a rebind returns, name the ones still undrawn. Draw each with a recorded seed; the work follows the draw.`, 'life_model_questions (graphHash) or life_direction_draw (record)', { cuts: decisions.map((cut) => cut.id) });
   } else {
@@ -301,7 +340,7 @@ function worldQuestions(index, lives, draws) {
   if (thin.length) ask('life-thin', `${thin.length} li${thin.length === 1 ? 'fe is' : 'ves are'} one Event with nothing inside (${thin.slice(0, 8).map((referent) => displayName(referent.id)).join(', ')}${thin.length > 8 ? ', and more' : ''}). For a person: a want, a shock and the periods their part in the world needs. For a Thing (a machine, a document, an institution): its parts, capacities, limits and failure modes, and its history.`, 'life_profile_compile (person_scaffold or thing_scaffold) or life_model_revise', { referents: thin.map((referent) => referent.id) });
   const unestimated = index.cuts.filter((cut) => !estimated(cut) && cutKind(cut) !== 'other');
   if (unestimated.length) ask('weights-unestimated', `${unestimated.length} Cut${unestimated.length === 1 ? '' : 's'} carry weights nobody estimated (for example ${unestimated.slice(0, 3).map((cut) => cut.id).join(', ')}). Estimate them from their described situations, or record whose distribution they are.`, 'life_estimate_cut_shares or life_process_estimate', { cuts: unestimated.slice(0, 12).map((cut) => cut.id) });
-  const undescribed = [...index.cutsByEvent.keys()].map((eventId) => index.events.get(eventId)).filter((event) => event && !String(event.description ?? '').trim());
+  const undescribed = [...index.cutsByEvent.keys()].map((eventId) => index.events.get(eventId)).filter((event) => event && !index.readings?.has(event.id) && !String(event.description ?? '').trim());
   if (undescribed.length) ask('event-undescribed', `${undescribed.length} Event${undescribed.length === 1 ? '' : 's'} carrying Cuts ${undescribed.length === 1 ? 'has' : 'have'} no description (for example ${undescribed.slice(0, 3).map((event) => event.id).join(', ')}). What happens in each? Describe it, so its numbers mean something.`, 'life_model_revise');
   if (lives.length) {
     const personIds = new Set(lives.map((item) => item.id));
@@ -327,7 +366,7 @@ export function authorLinks(index, authorId) {
   if (!author.life) return null;
   const authorEvents = author.own;
   const storyEvents = new Set([...index.events.keys()].filter((eventId) => !authorEvents.has(eventId)));
-  const relations = (index.relations ?? []).filter((relation) => relation.kind !== 'contains'
+  const relations = (index.relations ?? []).filter((relation) => relation.kind !== 'contains' && relation.kind !== 'about'
     && ((authorEvents.has(relation.source_event_id) && storyEvents.has(relation.target_event_id)) || (storyEvents.has(relation.source_event_id) && authorEvents.has(relation.target_event_id))));
   return { authorEvents, storyEvents, relations };
 }
@@ -355,7 +394,7 @@ function visible(questions, limit) {
   return shown;
 }
 
-export function modelQuestions(model, { people = null, draws = null, limit = 12, focus = {}, author = null } = {}) {
+export function modelQuestions(model, { people = null, draws = null, limit = 12, focus = {}, author = null, sufficient = null } = {}) {
   const index = indexModel(model);
   const named = people ?? modeledPeople(index);
   const lives = named.map((item) => ({ ...item, name: item.name ?? displayName(item.id), read: readPerson(index, item.id) }));
@@ -370,7 +409,9 @@ export function modelQuestions(model, { people = null, draws = null, limit = 12,
   for (const item of own.filter((entry) => !entry.principal)) push(grouped, item.kind, item);
   const secondary = [...grouped.values()].map((list) => (list.length === 1 ? list[0] : { ...list[0], subject: list.map((item) => item.subject),
     question: `${list.length} secondary people share this question (${list.map((item) => displayName(item.subject)).join(', ')}): ${list[0].question}` }));
-  const questions = [...own.filter((entry) => entry.principal), ...secondary, ...worldQuestions(index, lives, draws)];
+  const asked = [...own.filter((entry) => entry.principal), ...secondary, ...worldQuestions(index, lives, draws)];
+  // A question the modeler has judged sufficient here is not asked again while that judgment stands.
+  const questions = sufficient ? asked.filter((item) => !sufficient.covers(item)) : asked;
   questions.sort((a, b) => Number(b.principal) - Number(a.principal) || ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind));
   const counts = questions.reduce((all, item) => ({ ...all, [item.kind]: (all[item.kind] ?? 0) + 1 }), {});
   const depth = { events: index.events.size, processes: index.processes, cuts: index.cuts.length, ...index.abstractions,
@@ -378,6 +419,8 @@ export function modelQuestions(model, { people = null, draws = null, limit = 12,
       processesOpened: item.read.processes.filter((process) => process.opened > 0).length, periods: item.read.periods.length,
       shocks: item.read.arcs.length, cuts: item.read.cuts.length })) };
   return { schema: 'meaning-model-open-questions/v1', total: questions.length, counts, depth, questions: visible(questions, limit), alwaysAsk: standingQuestions(focus),
+    ...(sufficient && asked.length > questions.length ? { sufficientHere: asked.length - questions.length } : {}),
+    sufficientHow: `A question that needs no more here is answered by saying so: record an Understanding Node about the records it concerns, with data { schema: ${SUFFICIENT_SCHEMA}, kind, reason, reopenIf }, or about the story's root for every question of that kind. It is not asked again while the note stands.`,
     guidance: 'The loop: find the areas worth investigating, go deeper inside the model, put your understanding inside the model, then loop again and let what the model holds lead you down different paths. These are the model\'s own open questions, read from its structure. The model is a language and none of its constructs is mandatory: the questions read common ones (a lifecycle Event, periods, change arcs, Cut units), so where you expressed the same understanding your own way a question may not see it; say so in the record and move on. Answer the rest by adding structure, in whatever form understands best, then ask again: every answer raises new questions, and there is no depth at which the model is finished. Take at least one between every step of the work.' };
 }
 
@@ -392,7 +435,10 @@ export function personStateAt(model, personId, t, { draws = [] } = {}) {
     const key = `${item.cut.question}|${item.cut.unit}`;
     if (!latest.has(key) || start(latest.get(key).event) <= start(item.event)) latest.set(key, item);
   }
-  const drawnBy = new Map(draws.map((item) => [item.cutId, item]));
+  // Without the story graph the draws are unknown: which decisions were drawn by this time cannot be said, and saying
+  // none were would be a claim the model does not make.
+  const known = Array.isArray(draws);
+  const drawnBy = new Map((known ? draws : []).map((item) => [item.cutId, item]));
   const decisions = person.cuts.filter((item) => cutKind(item.cut) === 'decision');
   return {
     personId, time: t,
@@ -402,18 +448,25 @@ export function personStateAt(model, personId, t, { draws = [] } = {}) {
       answers: answersOf(item.cut).slice().sort((x, y) => y.weight - x.weight).slice(0, 4) })),
     adapting: person.arcs.filter((item) => start(item.focal ?? item.arc) !== null && start(item.focal ?? item.arc) <= t
       && (end(item.adaptation ?? item.arc) ?? Infinity) >= t).map((item) => ({ arcEventId: item.arcEventId, shock: describe(item.focal ?? item.arc), since: start(item.focal ?? item.arc) })),
-    decided: decisions.filter((item) => start(item.event) !== null && start(item.event) <= t && drawnBy.has(item.cut.id))
-      .map((item) => ({ cutId: item.cut.id, question: item.cut.question, realized: drawnBy.get(item.cut.id).realized ?? null })),
-    undecided: decisions.filter((item) => !drawnBy.has(item.cut.id) && (start(item.event) === null || start(item.event) >= t))
-      .map((item) => ({ cutId: item.cut.id, question: item.cut.question, at: start(item.event) })),
-    undrawnBefore: decisions.filter((item) => !drawnBy.has(item.cut.id) && start(item.event) !== null && start(item.event) < t)
-      .map((item) => ({ cutId: item.cut.id, question: item.cut.question, at: start(item.event) })),
+    ...(known ? {
+      decided: decisions.filter((item) => start(item.event) !== null && start(item.event) <= t && drawnBy.has(item.cut.id))
+        .map((item) => ({ cutId: item.cut.id, question: item.cut.question, realized: drawnBy.get(item.cut.id).realized ?? null })),
+      undecided: decisions.filter((item) => !drawnBy.has(item.cut.id) && (start(item.event) === null || start(item.event) >= t))
+        .map((item) => ({ cutId: item.cut.id, question: item.cut.question, at: start(item.event) })),
+      undrawnBefore: decisions.filter((item) => !drawnBy.has(item.cut.id) && start(item.event) !== null && start(item.event) < t)
+        .map((item) => ({ cutId: item.cut.id, question: item.cut.question, at: start(item.event) })),
+    } : {
+      drawHistory: 'unknown', decided: null, undecided: null, undrawnBefore: null,
+      decisions: decisions.map((item) => ({ cutId: item.cut.id, question: item.cut.question, at: start(item.event) })),
+      drawNote: 'Draws live in the story graph, which this request did not name, so which of these decisions were drawn by this time is unknown. Pass graphHash to know.',
+    }),
   };
 }
 
 // Questions the agent asks itself at every step, about whatever it is working on. The model's structure cannot
 // raise them; only asking can, and only modeling answers them.
 export function standingQuestions(focus = {}) {
+  const story = storyProfile();
   const subjects = [focus.event ? `this event (${focus.event})` : null, focus.scene ? `this scene (${focus.scene})` : null,
     ...(focus.people ?? []).map((name) => `this character (${name})`)].filter(Boolean);
   const about = subjects.length ? subjects.join(', ') : 'what you are working on';
@@ -421,11 +474,13 @@ export function standingQuestions(focus = {}) {
     `How can you understand ${about} better, using the model? Whatever the object of investigation is (a character, an object, a concept, an era, whatever the work is about), go deeper by modeling more: its history, its parts and processes over time, what it depends on and what depends on it, and what it is an instance of.`,
     `List all the aspects of ${about} you could understand better (for a story: the characters' choices, the author's writing and style, each voice, the technology, the time period, places, institutions, relationships, money, bodies, beliefs; for a market: its participants, instruments, rules, regimes, technology, history), then investigate each by modeling: create new processes, refine existing ones, open sub-processes, add earlier Events that explain or later Events that follow (a childhood, a war a century back, a consequence years on), add Cuts and estimate them, draw decisions, name the concepts and laws things instantiate, model how Things work and where everything is, try another decomposition, sample trajectories.`,
     `Is there a macro aspect you must model to truly understand what is going on in ${about}? It could be something from a character's childhood or a war a hundred years ago; you will not know unless you model it. Follow the causes back along the lives and the world's long processes, and model what you find.`,
-    `What kinds of reasons lie behind what ${focus.people?.length ? focus.people.join(', ') : `the people acting in ${about}`} do${focus.people?.length === 1 ? 'es' : ''}, are they primarily out of fear or out of love, and what does that fear or love ask of them? Fear of losing one's place, of being excluded, of not being accepted, of missing out; love of oneself, expressed and given to others, and of the people, work and things cared for. The same act can come from either, and what it does to the person depends on which. Most acts mix both: model the shares and how they shift with shocks and with being seen, what the person believes the reason is, and what others read.`,
+    ...(story ? [`What kinds of reasons lie behind what ${focus.people?.length ? focus.people.join(', ') : `the people acting in ${about}`} do${focus.people?.length === 1 ? 'es' : ''}, are they primarily out of fear or out of love, and what does that fear or love ask of them? Fear of losing one's place, of being excluded, of not being accepted, of missing out; love of oneself, expressed and given to others, and of the people, work and things cared for. The same act can come from either, and what it does to the person depends on which. Most acts mix both: model the shares and how they shift with shocks and with being seen, what the person believes the reason is, and what others read.`] : []),
+    story ? `Which ways of seeing could explain ${about}? Fear or love is one lens; there are many more (how people grow, bond and barter, what they believe they are owed, what the body, the purse, an era or an institution allows), in thinkers, traditions and disciplines, and ones no one has named. Define the ones that would change the model with life_lens_define; life_lens_questions asks each of every record it applies to.`
+      : `Which ways of seeing could explain ${about}? Every discipline and tradition has its own, and many have no name yet: how a system is balanced or driven, what holds it and what breaks it, what limits it, what it trades, what it remembers. Define the ones that would change the model with life_lens_define; life_lens_questions asks each of every record it applies to.`,
     `What can be richer about ${about}? A process still coarse, a person without a life, a thing without a history, a feeling without its cause, a consequence nobody followed. Open it in the model before you use it.`,
     `What is ${about} an instance of? Climb up the ladder: which concept, pattern or law explains it together with other things in the model, and what does that abstraction predict elsewhere?`,
     `What else? These questions are a start, not a boundary: what question about ${about} has nobody asked yet, and what category would you need to invent to answer it?`,
-    ...(focus.people?.length ? [`Can you understand ${focus.people.join(', ')} better by inventing processes or subcategories of your own for them? A template is a suggestion: look at it, and at the life, and ask what distinctions this life actually turns on.`,
+    ...(story && focus.people?.length ? [`Can you understand ${focus.people.join(', ')} better by inventing processes or subcategories of your own for them? A template is a suggestion: look at it, and at the life, and ask what distinctions this life actually turns on.`,
       `What is flawed in ${focus.people.join(', ')}, and how does the flaw work over the life? Model where it came from (often a strategy that once served a deep want), when it takes over, where the same trait is a strength and where it does harm, what it costs here, and whether they see it.`] : []),
   ];
 }
@@ -445,7 +500,7 @@ export function modelJumps(model, { people = null, limit = 12 } = {}) {
     const name = item.name ?? displayName(item.id);
     const series = new Map();
     for (const entry of person.cuts) {
-      if (start(entry.event) === null || cutKind(entry.cut) === 'decision') continue;
+      if (start(entry.event) === null || cutKind(entry.cut) === 'decision' || readingCut(index, entry.cut)) continue;
       push(series, `${questionOf(entry.cut).toLowerCase().trim()}|${entry.cut.unit}`, entry);
     }
     for (const list of series.values()) {
@@ -501,6 +556,31 @@ export function readDraws(view) {
 
 // Everything a caller needs to keep thinking in the model: its open questions, its jumps, and, at a moment, the
 // state of each person.
+// A question answered "sufficient here": an Understanding Node with data { schema: meaning-model-sufficient/v1, kind,
+// reason, reopenIf }, about the records the question concerns, or about a document root for every question of the kind.
+export const SUFFICIENT_SCHEMA = 'meaning-model-sufficient/v1';
+export function readSufficientHere(view) {
+  // A note covers every question of its kind only when it says so, by being about a document root. A note about records
+  // covers questions about those records, and lapses when they are gone rather than spreading to the whole kind.
+  const roots = new Set([...(view?.roots ?? []), ...(view?.nodes ?? []).filter((node) => node.role === 'document_root').map((node) => node.id)]);
+  const about = new Map();
+  for (const edge of view?.edges ?? []) if (edge.source?.kind === 'node' && edge.relation === 'about') {
+    if (!about.has(edge.source.node_id)) about.set(edge.source.node_id, { records: [], nodes: [] });
+    const entry = about.get(edge.source.node_id);
+    if (edge.target?.kind === 'anchor') entry.records.push(edge.target.anchor_id); else if (edge.target?.kind === 'node') entry.nodes.push(edge.target.node_id);
+  }
+  const stops = [];
+  for (const node of view?.nodes ?? []) {
+    if (!String(node.node_type ?? '').startsWith('understanding.')) continue;
+    let data = null; try { data = JSON.parse(node.text)?.data; } catch { continue; }
+    if (data?.schema !== SUFFICIENT_SCHEMA || !data.kind) continue;
+    const { records = [], nodes = [] } = about.get(node.id) ?? {};
+    stops.push({ kind: data.kind, records: new Set(records), everywhere: nodes.some((nodeId) => roots.has(nodeId)) });
+  }
+  const idsOf = (item) => [item.subject, item.cutId, item.eventId, ...(item.cuts ?? []), ...(item.eventIds ?? []), ...(item.processes ?? []), ...(item.referents ?? [])].flat().filter((value) => typeof value === 'string');
+  return { count: stops.length, covers: (item) => stops.some((stop) => stop.kind === item.kind && (stop.everywhere || idsOf(item).some((value) => stop.records.has(value)))) };
+}
+
 export async function readOpenQuestions(service, { modelHash, people = null, at = null, focus = {}, graphHash = null, accessScopes = [], limit = 16, author = null }) {
   const { model } = await service.inspectModel({ modelHash, includeDefinition: true });
   let draws = null;
@@ -510,7 +590,17 @@ export async function readOpenQuestions(service, { modelHash, people = null, at 
     draws = readDraws(view);
   }
   const named = people ?? modeledPeople(indexModel(model));
-  const questions = modelQuestions(model, { people: named, draws, limit, focus, author });
+  const questions = modelQuestions(model, { people: named, draws, limit, focus, author, sufficient: view ? readSufficientHere(view) : null });
+  // Lenses keep up to two places among the questions asked: readings still on their records first, then records unanswered.
+  if (view) {
+    const { lensOpenQuestions } = await import('./lenses.mjs');
+    const asked = lensOpenQuestions(view, model).slice(0, 2);
+    if (asked.length) {
+      questions.total += asked.length; questions.counts = { ...(questions.counts ?? {}) };
+      for (const item of asked) questions.counts[item.kind] = (questions.counts[item.kind] ?? 0) + 1;
+      questions.questions = [...questions.questions.slice(0, Math.max(0, limit - asked.length)), ...asked];
+    }
+  }
   // Understanding that holds the author and the story together: a note linked to a record of the author's life and to
   // a record of the story. The author's life may share this model or be a model of its own, reached through reference
   // nodes to any revision of it (matched by model id, since the life keeps being revised).

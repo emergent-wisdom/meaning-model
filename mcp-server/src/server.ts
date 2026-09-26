@@ -12,8 +12,12 @@ import { directionDrawSchema, drawDirection } from './direction-draw.mjs';
 import { registerJevProcessEstimationTools } from './jev-process-estimation.mjs';
 import { registerGeneralModelingTools } from './general-modeling.mjs';
 import { constructionRecordInstructions, registerConstructionRecordTools } from './construction-record.mjs';
+import { registerLensTools } from './lenses.mjs';
+import { registerRevisionCheckTools } from './revision-check.mjs';
+import { registerViewerTools } from './viewer-server.mjs';
 import { narrativeRebindSchema, rebindNarrativeGraph } from './narrative-rebind.mjs';
 import { narrativeEditSchema, editNarrativeGraph } from './narrative-editing.mjs';
+import { documentProjectSchema, projectNarrativeDocument } from './document-projection.mjs';
 import {
   LifeSimulationService,
   meaningModelCollections,
@@ -41,7 +45,7 @@ const enabledAddons = parseEnabledAddons(process.env.MEANING_MODEL_ADDONS);
 const estimator = createEstimator(parseEstimatorConfig(process.env));
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.3.0',
+  version: '0.4.0',
 });
 const service = new LifeSimulationService();
 const requestIdSchema = z.string().min(1).max(256);
@@ -637,6 +641,16 @@ server.registerTool(
 );
 
 server.registerTool(
+  'life_document_project',
+  {
+    description: 'Project one exact document into reading order and UTF-8 byte positions, independently of world time. Resolve optional document.span metadata records anchored to stable node boundaries; positions follow text edits and retained split containers. Missing or reversed boundaries remain unresolved. Existing semantic connections stay open; no process values or reader responses are invented. Available without the storytelling add-on. Read life-sim://protocol/narrative-understanding-graph for the optional span record contract.',
+    inputSchema: documentProjectSchema,
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  async (input) => toolResult(await projectNarrativeDocument(service, input)),
+);
+
+server.registerTool(
   'life_narrative_training_export',
   {
     description: 'Export deterministic text↔semantic-state records from a frozen Rust narrative graph and its exact model/world/candidate snapshot. These are single-snapshot alignments, not proof of cutoff-safe chronological order; causal training needs separately time-bound snapshots or a downstream mask. The tool performs no training. Externalized testimony is explicit content—not hidden chain-of-thought.',
@@ -962,6 +976,9 @@ server.registerTool(
 registerJevProcessEstimationTools(server, service, estimator, { toolResult });
 registerGeneralModelingTools(server, service, estimator, { toolResult });
 registerConstructionRecordTools(server, service, { toolResult });
+registerLensTools(server, service, { toolResult, estimator });
+registerRevisionCheckTools(server, service, { toolResult });
+const viewer = registerViewerTools(server, service);
 
 if (enabledAddons.includes('storytelling')) {
   const { registerStorytellingAddon } = await import('./storytelling-addon.mjs');
@@ -980,8 +997,10 @@ let closing = false;
 async function close() {
   if (closing) return;
   closing = true;
+  await viewer.close();
   await service.close();
 }
 process.stdin.once('end', close);
+server.server.onclose = close;
 process.once('SIGINT', async () => { await close(); process.exit(0); });
 process.once('SIGTERM', async () => { await close(); process.exit(0); });

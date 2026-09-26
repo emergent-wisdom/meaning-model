@@ -111,8 +111,8 @@ remain addressable.
 
 | Operation | Fields and behavior |
 | --- | --- |
-| `split` | `nodeId`, `parts: [{id, text, title?}]`. Split a text leaf into at least two fresh children. Their text joined with `"\n\n"` must exactly equal the original. |
-| `merge` | `nodeIds`, `mergedNodeId`, optional `title`. Combine at least two consecutive compatible leaf siblings into one fresh text node. |
+| `split` | `nodeId`, `parts: [{id, text, title?}]`, optional `linkAssignments`. Split a text leaf into at least two fresh children. Their text joined with `"\n\n"` must exactly equal the original. |
+| `merge` | `nodeIds`, `mergedNodeId`, optional `title` and `linkAssignments`. Combine at least two consecutive compatible leaf siblings into one fresh text node. |
 | `move` | `nodeId`, `parentNodeId`, `index`. Move a node and its subtree to the requested child position, counted after removal from its old position, while preserving their identities. |
 | `reorder` | `parentNodeId`, `nodeIds`. Supply every immediate child exactly once in the desired order. |
 | `replace_text` | `nodeId`, `expectedText`, `text`. Replace text only when the existing text exactly matches `expectedText`. |
@@ -134,6 +134,27 @@ crossing-`next` arrangements, and parents with outgoing `next` links, whose
 intended placement is ambiguous. Use an explicit full revision for unsupported
 topology changes.
 
+Split and merge accept optional `linkAssignments: [{edgeId, successorNodeIds}]`.
+Select existing incoming or outgoing `grounding`, `semantic`, or `provenance`
+edges incident to the operation's original nodes. Each selected successor must
+be a new child of this split or the new merged node. A link is copied only to
+those selected successors, replacing its one affected endpoint; its other
+endpoint, relation, explanation, and access scopes remain unchanged. Original
+edges remain as history, and copied edges receive fresh IDs and provenance
+naming the original link. This supports arbitrary relations and cognitive
+connections, not just Event `renders` links. It does not convert model clocks
+or recompute process timing. Structural placement and revision lineage are
+handled separately and cannot be assigned through this field.
+
+For example, a split may assign `{"edgeId":"passage.renders.event1",
+"successorNodeIds":["passage.a"]}` and separately assign an incoming
+Understanding Node's link to `passage.b`. Omitted assignments remain on the
+originals and appear in `unresolvedSemanticLinks`; `successorNodeIds: []`
+explicitly keeps a link only as history. If both endpoints belong to the
+edited originals, copying would require choosing both ends: use an explicit
+graph revision instead, or `[]` to retain only the historical link. The helper
+does not guess a self-link or a pairing of new passages.
+
 The tool requires a complete graph read: visible node, edge, and root counts
 must match the whole graph. It refuses to construct a successor from a partial
 scope projection, which would drop hidden records. Supply the scopes needed
@@ -143,6 +164,12 @@ below. The receipt includes `changedNodeIds`, `changedEdgeIds`,
 `directlyAffectedReviewNodeIds` lists reviews linked to the changed nodes
 themselves; `ancestorReviewNodeIds` lists reviews linked only to their
 containers, such as whole-document assessments, which need a lighter check.
+`semanticLinkAssignments` records original edge IDs, the edited endpoints,
+selected successor node IDs, and new edge IDs. `unresolvedSemanticLinks` lists
+omitted incident links, the candidate successors, and whether both endpoints
+were edited. Its `operationIndex` is zero-based. `semanticLinkReassignment`
+is true only when at least one new link was created; explicit empty mappings
+remain visible in the assignments receipt.
 
 These operations preserve structure and provenance, but do not reinterpret
 semantic links or establish that changed text still supports them. Inspect
@@ -151,6 +178,55 @@ order remains a historical assessment; refresh affected reviews against the
 new rendered result. Neither an edit receipt nor retained review links certify
 the revised content. Raw registration, complete revision, and additive batch
 tools remain available.
+
+## Document coordinates and optional spans
+
+`life_document_project({ graphHash, rootId, accessScopes })` returns the reading
+order and half-open UTF-8 byte intervals of one exact native render. Every result
+names its graph and projection hashes. Byte positions include the actual text,
+headings and blank-line separators; they are neither world-time intervals nor
+prose-word counts. Recompute them after an edit, rather than storing absolute
+offsets as semantic identities. Older experimental JavaScript-string offsets
+must also be recomputed, not reused as byte positions.
+
+An optional `document.span` node can attach a process, interpretation, or other
+record to a changing document extent. Use role `metadata`, `render: exclude`,
+the usual evidence/authority/provenance fields, and set `text` to the JSON
+encoding of this payload:
+
+```json
+{
+  "schema": "meaning-model-document-span/v1",
+  "documentId": "book",
+  "start": { "nodeId": "passage.two", "boundary": "start" },
+  "end": { "nodeId": "passage.four", "boundary": "end" }
+}
+```
+
+Connect this record using the graph's ordinary edges. It can link to model
+processes, concepts, Events, author records, or cognitive Understanding Nodes;
+there is no mandatory relation vocabulary or four-stage pipeline. Cross-context
+connections do not equate their clocks or automatically confer world authority.
+This optional document profile does not restrict the graph's other node types.
+
+Extending or shortening text preserves the endpoint identities and recomputes
+the span. The selected document root denotes the whole exact render, including
+`next` chains. Other container endpoints use the outer extent of their visible
+rendered `contains` descendants. Thus a retained split container follows its
+children without assigning every semantic claim to every child. This extent
+may include intervening prose; use separate spans for disjoint regions.
+
+Missing, out-of-projection, retired merge, or reversed boundaries are reported
+as unresolved. Reassign them explicitly when their meaning changes. Scope-limited
+results use only the visible render; they do not infer positions through hidden
+content. Empty spans are permitted. Interior character anchors are not part of
+this profile; passage boundaries avoid silently pointing into rewritten text.
+
+These are coordinates and attachments, not simulated reader responses. The
+projection does not alter process values, retime world Events, or automatically
+reassess suspense, disclosure, or voice after editing. An author may inhabit the
+same world as the story or another world; concept structure, world chronology,
+authorship, and document order remain separately interpretable.
 
 ## Training export
 
@@ -233,6 +309,7 @@ revision, and a session keeps at most 4,096.
 | `life_narrative_edit` | `query_narrative_graph`, then `revise_narrative_graph_by_change` | Apply split, merge, move, reorder, or guarded text replacement as one immutable successor, sent and stored as its change. |
 | `life_narrative_query` | `query_narrative_graph` | Read a full, skeleton, or neighborhood projection; `forRevision` returns a full content projection stripped to the fields revise accepts. |
 | `life_narrative_render` | `render_narrative_graph` | Derive ordered story text from canonical nodes. |
+| `life_document_project` | `render_narrative_graph`, `query_narrative_graph` | Derive exact document positions and resolve optional passage-boundary spans independently of world time. |
 | `life_narrative_training_export` | `export_narrative_training` | Derive aligned text/state training records. |
 | `life_narrative_rebind` | `query_narrative_graph`, then `revise_narrative_graph_by_change` | Rebind a model-bound graph to a successor model as one complete successor, keeping every node and dropping only predecessor model anchors; sent and stored as its change. |
 | `life_narrative_alignment_audit` | `render_narrative_graph`, then `query_narrative_graph` | Read-only: generate narrated/contradicted/leaked questions from the graph's records for a rendered unit, per passage and whole; optionally scored by the configured external estimator. |

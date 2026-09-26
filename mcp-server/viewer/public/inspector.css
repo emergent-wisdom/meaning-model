@@ -1,0 +1,15 @@
+body.inspector { display: block; height: 100vh; overflow: auto; color: #ecebe6; background: #090a0c; }
+.inspection-content { max-width: 1080px; margin: 0 auto; padding: 36px 28px 80px; font-size: 15px; line-height: 1.5; }
+.inspection-content h1 { font-size: clamp(26px, 4vw, 38px); overflow-wrap: anywhere; }
+.inspection-content h2 { font-size: 20px; font-weight: 600; margin: 32px 0 12px; }
+.inspection-eyebrow { color: #a6a39b; font-size: 13px; }
+.inspection-meta { color: #a6a39b; font-size: 13px; overflow-wrap: anywhere; margin: 6px 0; }
+.inspection-notice { border-left: 3px solid #9fc3ff; padding-left: 12px; }
+.inspection-nav { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 24px 0; }
+.inspection-nav a { color: #a9ceff; text-underline-offset: 3px; }
+.inspection-record { margin: 8px 0; border: 1px solid #36363a; border-radius: 8px; background: #141417; }
+.inspection-record summary { padding: 12px 14px; cursor: pointer; overflow-wrap: anywhere; }
+.inspection-record summary:focus-visible { outline: 2px solid #9fc3ff; outline-offset: 2px; }
+.inspection-record pre { margin: 0; padding: 0 14px 14px; max-height: 60vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 12.5px/1.5 ui-monospace, monospace; }
+.inspection-prose { max-width: 760px; margin: 20px 0; white-space: pre-wrap; font: 19px/1.65 Georgia, serif; }
+@media (max-width: 640px) { .inspection-content { padding: 24px 16px 64px; } }

@@ -52,6 +52,7 @@
     "mcp-server/src",
     "mcp-server/test",
     "mcp-server/resources",
+    "mcp-server/viewer",
     "examples/book-of-conditions/README.md",
     "examples/book-of-conditions/BOOK-DRAFT.md",
     "examples/book-of-conditions/story.tex",

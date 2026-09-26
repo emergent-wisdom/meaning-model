@@ -6,6 +6,10 @@ import { recordsQuoting, removedFragments, textRecords } from './prose-drift.mjs
 const id = z.string().trim().min(1).max(256);
 const text = z.string().max(1_048_576);
 const title = z.string().max(2_000).optional();
+const linkAssignments = z.array(z.object({
+  edgeId: id,
+  successorNodeIds: z.array(id).max(100).describe('Selected new passages that inherit this link. [] explicitly keeps the link only as history.'),
+}).strict()).max(200_000).optional().describe('Explicit assignments of incoming or outgoing grounding, semantic, or provenance links. Omitted links stay on the originals and are reported unresolved.');
 export const narrativeEditSchema = z.object({
   requestId: id,
   graphHash: z.string().regex(/^[a-f0-9]{64}$/u),
@@ -13,8 +17,8 @@ export const narrativeEditSchema = z.object({
   reason: z.string().trim().min(1).max(4_000),
   operations: z.array(z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('split'), nodeId: id,
-      parts: z.array(z.object({ id, text, title }).strict()).min(2).max(100) }).strict(),
-    z.object({ kind: z.literal('merge'), nodeIds: z.array(id).min(2).max(100), mergedNodeId: id, title }).strict(),
+      parts: z.array(z.object({ id, text, title }).strict()).min(2).max(100), linkAssignments }).strict(),
+    z.object({ kind: z.literal('merge'), nodeIds: z.array(id).min(2).max(100), mergedNodeId: id, title, linkAssignments }).strict(),
     z.object({ kind: z.literal('move'), nodeId: id, parentNodeId: id,
       index: z.number().int().min(0).max(50_000) }).strict(),
     z.object({ kind: z.literal('reorder'), parentNodeId: id, nodeIds: z.array(id).min(1).max(50_000) }).strict(),
@@ -77,6 +81,8 @@ export async function editNarrativeGraph(service, raw) {
   const marker = `life_narrative_edit/v1 request:${requestHash}`;
   let serial = 0;
   const affected = new Set();
+  const semanticLinkAssignments = [];
+  const unresolvedSemanticLinks = [];
   const node = (nodeId) => {
     const value = graph.nodes.find((item) => item.id === nodeId);
     if (!value) throw new Error(`Unknown narrative node: ${nodeId}.`);
@@ -89,10 +95,13 @@ export async function editNarrativeGraph(service, raw) {
   const mark = (...ids) => ids.forEach((nodeId) => affected.add(nodeId));
   const provenance = (...records) => [...new Set([...records.flatMap((record) => record.provenance ?? []), marker])];
   const touch = (record) => { record.provenance = provenance(record); };
-  const addEdge = (from, to, family, relation, accessScopes, order) => {
+  const freshEdgeId = () => {
     const edgeId = `narrative.edit.${requestHash.slice(0, 24)}.${serial++}`;
     if (graph.edges.some((edge) => edge.id === edgeId)) throw new Error('Generated narrative edge ID collides with existing history.');
-    const edge = { id: edgeId, source: endpoint(from), target: endpoint(to), family, relation,
+    return edgeId;
+  };
+  const addEdge = (from, to, family, relation, accessScopes, order) => {
+    const edge = { id: freshEdgeId(), source: endpoint(from), target: endpoint(to), family, relation,
       access_scopes: [...accessScopes], provenance: [marker], ...(order === undefined ? {} : { order }) };
     graph.edges.push(edge);
     return edge;
@@ -143,8 +152,50 @@ export async function editNarrativeGraph(service, raw) {
       throw new Error('Structural edit refuses next edges crossing the subtree boundary.');
     }
   };
+  const planLinks = (operation, originalIds, successorIds, operationIndex) => {
+    const originals = new Set(originalIds);
+    const successors = new Set(successorIds);
+    const candidates = new Map(graph.edges.filter((edge) => ['grounding', 'semantic', 'provenance'].includes(edge.family))
+      .map((edge) => ({ edge, endpoints: ['source', 'target'].filter((side) => edge[side]?.kind === 'node' && originals.has(edge[side].node_id)) }))
+      .filter(({ endpoints }) => endpoints.length).map((entry) => [entry.edge.id, entry]));
+    const assignments = operation.linkAssignments ?? [];
+    unique(assignments.map((assignment) => assignment.edgeId), 'Assigned edge IDs');
+    for (const assignment of assignments) {
+      const candidate = candidates.get(assignment.edgeId);
+      if (!candidate) throw new Error(`Link assignment ${assignment.edgeId} must name an existing grounding, semantic, or provenance edge incident to this operation's original nodes.`);
+      unique(assignment.successorNodeIds, 'Link assignment successor IDs');
+      if (assignment.successorNodeIds.some((nodeId) => !successors.has(nodeId))) {
+        throw new Error('Link assignments must select only this operation\'s new successor nodes.');
+      }
+      if (candidate.endpoints.length !== 1 && assignment.successorNodeIds.length) {
+        throw new Error(`Link assignment ${assignment.edgeId} touches originals at both endpoints; use an explicit graph revision to choose both endpoints.`);
+      }
+    }
+    const selected = new Map(assignments.map((assignment) => [assignment.edgeId, assignment.successorNodeIds]));
+    return [...candidates.values()].map((candidate) => ({ ...candidate, operationIndex,
+      successorNodeIds: selected.get(candidate.edge.id), availableSuccessorNodeIds: successorIds }));
+  };
+  const applyLinks = (plans) => {
+    for (const { edge, endpoints, operationIndex, successorNodeIds, availableSuccessorNodeIds } of plans) {
+      if (successorNodeIds === undefined) {
+        unresolvedSemanticLinks.push({ operationIndex, edgeId: edge.id, family: edge.family, relation: edge.relation,
+          source: structuredClone(edge.source), target: structuredClone(edge.target),
+          successorNodeIds: [...availableSuccessorNodeIds],
+          reason: endpoints.length === 1 ? 'unassigned' : 'both_endpoints_edited' });
+        continue;
+      }
+      const successorEdgeIds = successorNodeIds.map((nodeId) => {
+        const copied = { ...structuredClone(edge), id: freshEdgeId(), [endpoints[0]]: endpoint(nodeId),
+          provenance: provenance(edge, { provenance: [`link-assignment:${edge.id}`] }) };
+        graph.edges.push(copied);
+        return copied.id;
+      });
+      semanticLinkAssignments.push({ operationIndex, edgeId: edge.id, editedEndpoints: endpoints,
+        successorNodeIds: [...successorNodeIds], successorEdgeIds });
+    }
+  };
 
-  for (const operation of input.operations) {
+  for (const [operationIndex, operation] of input.operations.entries()) {
     if (operation.kind === 'replace_text') {
       const current = node(operation.nodeId);
       if (typeof current.text !== 'string') throw new Error('Text replacement requires a node containing text.');
@@ -163,6 +214,7 @@ export async function editNarrativeGraph(service, raw) {
       if (operation.parts.map((part) => part.text).join('\n\n') !== current.text) {
         throw new Error('Split parts must preserve the exact original text when joined by one blank line.');
       }
+      const links = planLinks(operation, [current.id], operation.parts.map((part) => part.id), operationIndex);
       const original = structuredClone(current);
       current.render = 'exclude';
       current.training = 'exclude';
@@ -180,6 +232,7 @@ export async function editNarrativeGraph(service, raw) {
         edge.source = endpoint(operation.parts.at(-1).id);
         touch(edge);
       }
+      applyLinks(links);
       mark(current.id);
     } else if (operation.kind === 'merge') {
       unique(operation.nodeIds, 'Merged node IDs');
@@ -203,6 +256,7 @@ export async function editNarrativeGraph(service, raw) {
       if (placements.some((item) => digest(placementMetadata(item)) !== digest(placementMetadata(placements[0])))) {
         throw new Error('Merge requires matching placement scopes and metadata; it cannot broaden existing edge access.');
       }
+      const links = planLinks(operation, operation.nodeIds, [operation.mergedNodeId], operationIndex);
       graph.nodes.push({ ...structuredClone(originals[0]), id: operation.mergedNodeId,
         text: originals.map((item) => item.text).join('\n\n'), title: operation.title ?? null, summary: null,
         access_scopes: sharedScopes([...originals, ...placements, node(parentId)]), provenance: provenance(...originals) });
@@ -217,6 +271,7 @@ export async function editNarrativeGraph(service, raw) {
         touch(original);
         addEdge(operation.mergedNodeId, original.id, 'revision', 'merged_from', original.access_scopes);
       });
+      applyLinks(links);
       mark(parentId, operation.mergedNodeId, ...operation.nodeIds);
     } else if (operation.kind === 'reorder') {
       node(operation.parentNodeId);
@@ -316,5 +371,7 @@ export async function editNarrativeGraph(service, raw) {
     ancestorReviewNodeIds: [...reviewIds].filter((reviewId) => !directReviewIds.has(reviewId)).sort(),
     reviewRefresh: 'Reassess affected prose, disclosure timing, and linked reviews against this successor. Existing review nodes are historical evidence; this edit does not renew their approval. Refresh any model-depth assessment whose selected evidence changed.',
     preservedPredecessor: true, worldMutation: false, semanticVerification: false,
-    semanticLinkReassignment: false };
+    semanticLinkReassignment: semanticLinkAssignments.some((assignment) => assignment.successorEdgeIds.length > 0),
+    semanticLinkAssignments, unresolvedSemanticLinks,
+    ...(unresolvedSemanticLinks.length ? { semanticLinksNextStep: 'These links remain on historical originals. Review each and use an explicit graph revision to connect still-relevant links to selected successors. No semantic coverage is inferred from lineage, and retained review links do not renew approval.' } : {}) };
 }

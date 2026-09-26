@@ -1,6 +1,6 @@
 {
   "name": "@emergent-wisdom/meaning-model-mcp",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "mcpName": "io.github.emergent-wisdom/meaning-model",
   "description": "Meaning Model MCP server: revisable general-purpose models with opt-in storytelling and ideation add-ons, on a Rust engine",
   "author": "Henrik Westerberg",

@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Landscape</title>
+<script>
+// The landscape is one way of showing the one view: every function of the model as terrain across all its years, with
+// the construction as what plays. A link to the landscape keeps what it asked for: &play, &read, &live, &still (the
+// camera held free).
+const from = new URLSearchParams(location.search); const to = new URLSearchParams();
+for (const key of ['data', 'title', 'live', 'read', 'play']) if (from.has(key)) to.set(key, from.get(key));
+to.set('view', 'terrain'); to.set('zoom', 'world'); to.set('mode', 'construction'); if (from.has('still')) to.set('camera', 'free');
+location.replace(`./?${to.toString().replace(/=(&|$)/g, '$1')}`);
+</script>
+</head>
+<body style="background:#050608"></body>
+</html>

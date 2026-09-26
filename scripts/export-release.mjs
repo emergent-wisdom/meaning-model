@@ -3,7 +3,11 @@ import { lstat, mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/pro
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const forbidden = new Set(['.git', '.DS_Store', 'node_modules', 'target']);
+const forbidden = new Set(['.git', '.DS_Store', 'node_modules', 'target',
+  '.local-work', '.local-drafts', '.private-backups', '.model-revisions', '.model-snapshots',
+  '.conversation-scratch', 'tmp', 'temp', '.claude']);
+const localArtifact = /(?:\.(?:sqlite3?|db)(?:-(?:wal|shm|journal))?|\.(?:tmp|temp|bak|swp|swo)|~)$/iu;
+const viewerOutput = /^mcp-server\/viewer\/public\/(?:data|renders)(?:\/|$)/u;
 
 export async function exportRelease(root, destination) {
   root = resolve(root);
@@ -11,10 +15,11 @@ export async function exportRelease(root, destination) {
   const selected = new Set();
 
   async function collect(name) {
-    if (isAbsolute(name) || name.split(/[\\/]/).some(part => part === '..' || forbidden.has(part))) {
+    const source = join(root, name);
+    if (isAbsolute(name) || name.split(/[\\/]/).some(part => part === '..' || forbidden.has(part)) || localArtifact.test(name)
+      || viewerOutput.test(relative(root, source).split(sep).join('/'))) {
       throw new Error(`Unsafe release path: ${name}`);
     }
-    const source = join(root, name);
     const info = await lstat(source);
     if (info.isSymbolicLink()) throw new Error(`Release paths must not be symlinks: ${name}`);
     if (info.isDirectory()) {

@@ -156,7 +156,7 @@ export { nextOrder as nextPlacementOrder };
 // Understanding records: a thought, linked to what it is about.
 
 export const noteKinds = Object.freeze(['question', 'hypothesis', 'prediction', 'interpretation', 'reason', 'criticism', 'revision',
-  'decision', 'idea', 'reference', 'voice', 'plan', 'observation', 'estimate', 'report']);
+  'decision', 'idea', 'reference', 'voice', 'plan', 'observation', 'estimate', 'assessment', 'report', 'lens']);
 // What a report rests on. A documented fact is recorded as a report of its source, dated, so the world up to a
 // documentary cutoff stays distinguishable from what the modeler supposed or invented.
 const sourceSchema = z.object({

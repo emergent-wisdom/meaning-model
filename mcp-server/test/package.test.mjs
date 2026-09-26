@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -9,13 +9,44 @@ import test from 'node:test';
 import { stageNpmPackage } from '../scripts/pack-release.mjs';
 import { exportRelease } from '../../scripts/export-release.mjs';
 
+test('npm staging rejects scratch and database sentinels nested in an otherwise allowed resource directory', async (t) => {
+  const temporary = await mkdtemp(join(tmpdir(), 'meaning-model-package-hygiene-test-'));
+  t.after(() => rm(temporary, { recursive: true, force: true }));
+  const root = fileURLToPath(new URL('../../', import.meta.url));
+  const exported = await exportRelease(root, join(temporary, 'source'));
+  const resources = join(exported.destination, 'mcp-server', 'resources');
+  for (const name of ['.local-work', '.local-drafts', '.private-backups', '.model-revisions', '.model-snapshots', '.conversation-scratch', 'tmp', 'temp', '.claude']) {
+    const scratch = join(resources, name);
+    await mkdir(scratch);
+    await writeFile(join(scratch, 'conversation.json'), 'private sentinel');
+    await assert.rejects(stageNpmPackage(exported.destination, join(temporary, 'npm')), /Unexpected package input/, name);
+    await rm(scratch, { recursive: true });
+  }
+  for (const name of ['state.sqlite', 'state.sqlite3', 'state.db', 'state.sqlite-wal', 'state.sqlite-shm', 'state.db-journal', 'draft.tmp', 'draft.temp', 'draft.bak', 'draft.swp', 'draft.swo', 'draft~']) {
+    const scratch = join(resources, name);
+    await writeFile(scratch, 'private sentinel');
+    await assert.rejects(stageNpmPackage(exported.destination, join(temporary, 'npm')), /Unexpected package input/, name);
+    await rm(scratch);
+  }
+  for (const name of ['data', 'renders']) {
+    const generated = join(exported.destination, 'mcp-server/viewer/public', name);
+    await mkdir(generated);
+    await writeFile(join(generated, 'model.json'), 'private viewer sentinel');
+    await assert.rejects(stageNpmPackage(exported.destination, join(temporary, 'npm')), /Unexpected package input/, name);
+    await rm(generated, { recursive: true });
+  }
+  const { packageDirectory } = await stageNpmPackage(exported.destination, join(temporary, 'npm'));
+  assert.equal(await readFile(join(packageDirectory, 'rust-engine/examples/meaning-model-command.json'), 'utf8'),
+    await readFile(join(root, 'rust-engine/examples/meaning-model-command.json'), 'utf8'));
+});
+
 test('a clean source export retains every input needed to stage the npm package', async (t) => {
   const temporary = await mkdtemp(join(tmpdir(), 'meaning-model-export-package-test-'));
   t.after(() => rm(temporary, { recursive: true, force: true }));
   const root = fileURLToPath(new URL('../../', import.meta.url));
   const exported = await exportRelease(root, join(temporary, 'source'));
   const { packageDirectory } = await stageNpmPackage(exported.destination, join(temporary, 'npm'));
-  for (const name of ['rust-engine/MEANING_MODEL_CONFORMANCE.md']) {
+  for (const name of ['rust-engine/MEANING_MODEL_CONFORMANCE.md', 'mcp-server/viewer/public/index.html', 'mcp-server/viewer/public/vendor/three/LICENSE']) {
     assert.equal(await readFile(join(packageDirectory, name), 'utf8'), await readFile(join(root, name), 'utf8'));
   }
   for (const name of ['.local-work', 'build', '.git']) {
@@ -31,7 +62,7 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
   const { packageDirectory } = await stageNpmPackage(root, temporary);
   const metadata = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'));
   assert.equal(metadata.name, '@emergent-wisdom/meaning-model-mcp');
-  assert.equal(metadata.version, '0.3.0');
+  assert.equal(metadata.version, '0.4.0');
   assert.equal(metadata.mcpName, 'io.github.emergent-wisdom/meaning-model');
   const registry = JSON.parse(await readFile(join(packageDirectory, 'server.json'), 'utf8'));
   assert.equal(registry.name, metadata.mcpName);
@@ -90,7 +121,9 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
   assert.ok(!sources.some((name) => name.endsWith('.ts')));
   const parsed = spawnSync(process.execPath, ['--check', join(packageDirectory, 'mcp-server', 'src', 'server.mjs')], { encoding: 'utf8' });
   assert.equal(parsed.status, 0, parsed.stderr);
-  for (const path of ['rust-engine/Cargo.toml', 'rust-engine/Cargo.lock', 'rust-engine/src/main.rs', 'LICENSE', 'LICENSE-CONTENT', 'NOTICE']) {
+  for (const path of ['rust-engine/Cargo.toml', 'rust-engine/Cargo.lock', 'rust-engine/src/main.rs', 'LICENSE', 'LICENSE-CONTENT', 'NOTICE',
+    'mcp-server/src/viewer-server.mjs', 'mcp-server/src/viewer-data.mjs', 'mcp-server/viewer/public/index.html',
+    'mcp-server/viewer/public/view.js', 'mcp-server/viewer/public/vendor/three/LICENSE']) {
     assert.ok((await stat(join(packageDirectory, path))).isFile(), path);
   }
   for (const path of [

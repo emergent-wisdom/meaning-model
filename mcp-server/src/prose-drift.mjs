@@ -6,6 +6,8 @@
 const MIN_WORDS = 4;
 const normalize = (text) => String(text ?? '').replace(/[‘’]/gu, "'").replace(/[“”]/gu, '"').replace(/[–—]/gu, '-')
   .replace(/\s+/gu, ' ').trim().toLowerCase();
+// Match the literal normalized phrase at word boundaries: "he" inside "she" is not a quotation.
+const fragmentPattern = (fragment) => new RegExp(`(?<![\\p{L}\\p{M}\\p{N}_])${fragment.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}(?![\\p{L}\\p{M}\\p{N}_])`, 'u');
 
 // Sentences, and quoted phrases inside them, long enough to be distinctive.
 export function distinctiveFragments(text) {
@@ -20,17 +22,18 @@ export function distinctiveFragments(text) {
 // Fragments of the old prose that are gone from the new prose.
 export function removedFragments(beforeTexts, afterTexts) {
   const after = normalize(afterTexts.join(' \n '));
-  return distinctiveFragments(beforeTexts.join('\n')).filter((fragment) => !after.includes(fragment));
+  return distinctiveFragments(beforeTexts.join('\n')).filter((fragment) => !fragmentPattern(fragment).test(after));
 }
 
 // Records whose text still contains a removed fragment. Records are {kind, id, text, holder?}.
 export function recordsQuoting(records, fragments, { limit = 40 } = {}) {
   if (!fragments.length) return [];
+  const patterns = fragments.map((fragment) => ({ fragment, pattern: fragmentPattern(fragment) }));
   const found = [];
   for (const record of records) {
     const text = normalize(record.text);
     if (!text) continue;
-    const quotes = fragments.filter((fragment) => text.includes(fragment));
+    const quotes = patterns.filter(({ pattern }) => pattern.test(text)).map(({ fragment }) => fragment);
     if (quotes.length) found.push({ kind: record.kind, id: record.id, ...(record.holder ? { holder: record.holder } : {}), quotes: quotes.slice(0, 3).map((quote) => quote.slice(0, 160)) });
     if (found.length >= limit) break;
   }

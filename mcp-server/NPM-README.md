@@ -7,6 +7,34 @@ It contains no prebuilt engine or build cache.
 
 See the [changelog](CHANGELOG.md) for release changes and upgrade notes.
 
+## Open your model
+
+Version 0.4.0 includes the browser viewer in the MCP package.
+
+After installing this MCP and its matching engine, connect it to your assistant as
+usual. Ask **“Open the model we are working on”** or **“Show me this story.”** The
+assistant calls `life_model_viewer_open` with the model or graph revision and returns
+a local link. Open that link in your browser. No separate viewer installation,
+GitHub checkout, run transcript or website account is needed.
+
+The viewer shows the selected saved revision without changing it. Stories with
+calendar dates and numeric paths can use the processes, tree and terrain views;
+other models open a record inspector with their original units. Ask
+the assistant to open the model again after changes to see the new revision.
+
+Select a part on the reading-position track, or use Previous/Next, to highlight
+its document and model links without changing world time. **Read this part** opens
+the full manuscript at that section; **Read full story** opens it at the beginning.
+Linked dates remain separate from document position and do not establish what a
+reader knows. Optional Document spans follow authored passage boundaries after
+edits and display unresolved boundaries explicitly.
+
+The browser and MCP must run on the same computer. The link lasts while that MCP
+process runs; its sixteen most recently opened views remain available. This is a
+complete author view, requiring the supplied `accessScopes` to cover every scoped
+record in the exported model and graph. Partial access is refused rather than
+presented as a complete model. Opening a viewer does not publish the model.
+
 ## Three workflows in one server
 
 One MCP server covers three kinds of work over the same engine and graph:
@@ -94,7 +122,7 @@ can use the explicit source build below.
 In a directory where you want to keep the installation, run:
 
 ```sh
-npm install @emergent-wisdom/meaning-model-mcp@0.3.0
+npm install @emergent-wisdom/meaning-model-mcp@0.4.0
 npx meaning-model-mcp --install-engine
 ```
 
@@ -408,7 +436,7 @@ in a manual configuration:
   "mcpServers": {
     "meaning-model": {
       "command": "npx",
-      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.3.0"],
+      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.4.0"],
       "env": {
         "LIFE_SIM_ENGINE_BIN": "/absolute/path/to/life-sim-engine"
       }
@@ -437,7 +465,7 @@ starts the real Rust engine, then checks an MCP connection and engine status.
 Only passing jobs upload the version-named executable and its `.sha256` file.
 
 Once the reviewed source, workflow and matching tag are pushed, select **Build
-engine release** in the repository's Actions tab. Run it with `tag: v0.3.0` and
+engine release** in the repository's Actions tab. Run it with `tag: v0.4.0` and
 leave `create_draft` false for a build and smoke run that only uploads workflow
 artifacts. Set it true to create a draft release after all four platforms pass.
 Pushing a new `v*` tag also runs the workflow and prepares a draft release.
@@ -481,7 +509,7 @@ for release.
 Record the reviewed tarball's checksum and inspect the publication preview:
 
 ```sh
-release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.3.0.tgz"
+release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.4.0.tgz"
 shasum -a 256 "$release_tarball"
 npm publish "$release_tarball" --dry-run --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
@@ -493,7 +521,7 @@ exact tarball, authenticate with an npm account that can publish to
 ```sh
 npm whoami --registry=https://registry.npmjs.org/
 npm publish "$release_tarball" --access public --ignore-scripts --registry=https://registry.npmjs.org/
-npm view @emergent-wisdom/meaning-model-mcp@0.3.0 version dist.integrity --registry=https://registry.npmjs.org/
+npm view @emergent-wisdom/meaning-model-mcp@0.4.0 version dist.integrity --registry=https://registry.npmjs.org/
 ```
 
 A dry run does not establish registry authentication or scope access. Any change

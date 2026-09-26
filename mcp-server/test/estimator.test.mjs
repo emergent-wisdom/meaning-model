@@ -424,5 +424,5 @@ test('a lopsided estimate warns that the situation text may carry its own answer
     async estimate() { return { model: 'jev-1.13.0', usage: { input_tokens: 1, output_tokens: 1 }, answers: { shares: { type: 'choice', probabilities: { money: 0.95, grief: 0.03, remainder: 0.02 }, confidence: 0.8 } } }; } };
   const result = await proposeCutShares(cutInput, fake);
   assert.ok(result.warnings?.length >= 1);
-  assert.match(result.warnings[0], /puts over 0\.9 on money\. A share this lopsided often means the situation text already states the answer/);
+  assert.ok(result.warnings.some((warning) => /puts over 0\.9 on money\. A share this lopsided often means the situation text already states the answer/u.test(warning)), result.warnings.join(' | '));
 });

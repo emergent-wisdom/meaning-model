@@ -22,3 +22,29 @@ test('removed sentences and quoted phrases are found in current records, not in 
   assert.deepEqual(stale.map((record) => record.id).sort(), ['event.realization', 'note.pivot'], 'reviews, revision notes and superseded notes are history');
   assert.deepEqual(distinctiveFragments('Too short. Also short here.'), [], 'fragments need at least four words');
 });
+
+test('a fragment does not survive merely as a substring inside another word', () => {
+  assert.deepEqual(removedFragments(['He did not say it.'], ['She did not say it was her fault.']), ['he did not say it']);
+  assert.deepEqual(removedFragments(['He did not say it.'], ['He did not say itself.']), ['he did not say it']);
+  assert.deepEqual(removedFragments(['He did not say it.'], ['Then: “He did not say it!”']), [], 'quotation marks and punctuation delimit a genuine occurrence');
+  assert.deepEqual(removedFragments(['He did not say it.'], ['She did not say it. Later, he did not say it either.']), [], 'a later whole-word occurrence still counts');
+});
+
+test('record quotations require both word boundaries but preserve literal punctuation matching', () => {
+  const fragments = ['he did not say it', 'the sum was (a+b)'];
+  const records = [
+    { kind: 'event', id: 'she', text: 'She answers that she did not say it was her fault.' },
+    { kind: 'event', id: 'itself', text: 'He did not say itself.' },
+    { kind: 'event', id: 'unicode-prefix', text: 'Éhe did not say it.' },
+    { kind: 'event', id: 'unicode-suffix', text: 'He did not say ité.' },
+    { kind: 'event', id: 'quote', text: 'The line was “He did not say it!”' },
+    { kind: 'event', id: 'later-quote', text: 'She did not say it. “He did not say it,” the note adds.' },
+    { kind: 'event', id: 'literal', text: 'A note: the sum was (a+b), exactly.' },
+    { kind: 'event', id: 'not-literal', text: 'The sum was aaab.' },
+  ];
+  assert.deepEqual(recordsQuoting(records, fragments).map(({ id, quotes }) => ({ id, quotes })), [
+    { id: 'quote', quotes: ['he did not say it'] },
+    { id: 'later-quote', quotes: ['he did not say it'] },
+    { id: 'literal', quotes: ['the sum was (a+b)'] },
+  ]);
+});

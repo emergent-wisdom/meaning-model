@@ -16,6 +16,10 @@ Optional addons are disabled by default. Set MEANING_MODEL_ADDONS to a
 comma-separated list to enable bundled addons. Available: storytelling, alien.
 Example: MEANING_MODEL_ADDONS=storytelling,alien meaning-model-mcp
 
+To view a saved model, ask your connected assistant to open it. The bundled
+life_model_viewer_open tool returns a read-only local browser link; no separate
+viewer installation or storytelling add-on is needed. Reopen after changes.
+
 An external estimator is off by default. Set MEANING_MODEL_ESTIMATOR=typesafe and
 TYPESAFE_API_KEY to let TypeSafe's Jev answer the estimator tools' questions (Cut
 shares, ingest, alignment audits and process estimates); only the text given to

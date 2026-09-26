@@ -45,3 +45,29 @@
 /.idea/
 *.sqlite
 *.tgz
+
+# Local model revisions, agent drafts, and conversation scratch stay on this computer.
+# Put generated working files in one of these directories, never among product sources.
+.local-work/
+.local-drafts/
+.private-backups/
+.model-revisions/
+.model-snapshots/
+.conversation-scratch/
+/tmp/
+/temp/
+.claude/worktrees/
+# Editor and database working files.
+*.tmp
+*.bak
+*~
+*.swp
+*.swo
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.db-wal
+*.db-shm
+*.db-journal

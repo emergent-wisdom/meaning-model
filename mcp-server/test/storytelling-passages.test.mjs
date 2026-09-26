@@ -7,8 +7,8 @@ import { lifeConnections, lifeTrendsDossier } from './storytelling-life-fixture.
 import { recordWorldProcess } from './world-process-fixture.mjs';
 
 const passages = [
-  { id: 'scene.arrival', text: 'Leo stopped by the door.\nThe rain followed him inside.' },
-  { id: 'scene.reply', text: '“Still here?” he asked.\n\nNobody answered.' },
+  { id: 'scene.arrival', text: 'Leo stopped by the door.\nThe rain followed him inside.', renders: ['ev.arrival'] },
+  { id: 'scene.reply', text: '“Still here?” he asked.\n\nNobody answered.', renders: ['ev.reply'] },
 ];
 const draftText = passages.map((passage) => passage.text).join('\n\n');
 const provenance = ['storytelling passage integration test'];
@@ -30,8 +30,10 @@ async function fixture(t) {
       referents: [{ id: 'Leo', boundary: 'Leo throughout his life.',
         continuity_criterion: 'The same person.', provenance }, { id: 'author', boundary: 'The invented archivist who writes the story.',
         continuity_criterion: 'The same person.', provenance }],
-      events: [{ id: 'ev.arrival', boundary: 'Leo comes home in the rain.', description: 'Leo comes home in the rain, forces the stuck door and asks whether anyone is still there.',
-        interval: { start: 3, end: 4 }, process_ids: [], observation_process_ids: [], participants: { subject: 'Leo' }, substrate: null, region: null, provenance }],
+      events: [{ id: 'ev.arrival', boundary: 'Leo comes home in the rain.', description: 'Leo comes home in the rain and forces the stuck door.',
+        interval: { start: 3, end: 3.5 }, process_ids: [], observation_process_ids: [], participants: { subject: 'Leo' }, substrate: null, region: null, provenance },
+      { id: 'ev.reply', boundary: 'Leo asks whether anyone is still there.', description: 'Leo asks whether anyone is still there and receives no answer.',
+        interval: { start: 3.5, end: 4 }, process_ids: [], observation_process_ids: [], participants: { subject: 'Leo' }, substrate: null, region: null, provenance }],
       event_referent_bindings: [] },
   } });
   const graph = await service.registerNarrativeGraph({ requestId: 'graph', narrativeGraph: {
@@ -70,7 +72,7 @@ async function fixture(t) {
     kind: 'draft', text: draftText });
   const preparation = { graphHash: draft.graphHash, lifeTrendsNodeId: 'life.trends',
     modelDepthReviewNodeId: depth.modelDepthReviewNodeId, accessScopes: ['author'],
-    scene: { id: 'scene', parentNodeId: 'book', order: 1, worldTime: 4, readerOrder: 1, routePartId: 'part.1',
+    scene: { id: 'scene', parentNodeId: 'book', order: 1, worldTime: 4, readerOrder: 1, routePartId: 'part.1', renders: ['ev.reply'],
       viewpoint: 'Leo', brief: 'An unanswered question after returning.', characterConnections: lifeConnections(),
       context: [], requirements: [] } };
   const packet = await addon.prepare(preparation);
@@ -114,7 +116,15 @@ test('one atomic scene append creates independently addressable leaves and rende
     for (const relation of ['reviewed_by', 'derived_from', 'reviewed_against', 'uses_life_trends']) {
       assert.ok(graph.edges.some((edge) => edge.source.node_id === leaf.id && edge.relation === relation), relation);
     }
+    // The route and scene together name two Events, but each leaf depicts only its reviewed selection.
+    const told = graph.edges.filter((edge) => edge.source.node_id === leaf.id && edge.relation === 'renders');
+    assert.deepEqual(told.map((edge) => edge.target.anchor_id), passage.renders);
+    assert.ok(told.every((edge) => edge.family === 'grounding' && edge.target.kind === 'anchor' && edge.target.anchor_kind === 'event'));
+    assert.equal('renders' in leaf, false, 'mappings are graph edges, not undeclared node fields');
   }
+  assert.deepEqual(report.grounding.uncheckedPassageIds, []);
+  assert.equal(report.grounding.semanticVerification, false);
+  assert.deepEqual(result.grounding, report.grounding);
   const review = graph.nodes.find((node) => node.id === result.reviewNodeId);
   assert.equal(review.render, 'exclude');
   assert.deepEqual(JSON.parse(review.text).data.review.passages, report.passages);
@@ -132,7 +142,7 @@ test('one atomic scene append creates independently addressable leaves and rende
   assert.equal((await f.render(result.graphHash)).text, draftText, 'the reviewed predecessor remains readable');
 });
 
-test('passage identities and exact boundaries are bound to the whole-scene review', async (t) => {
+test('passage identities, boundaries and Event mappings are bound to the whole-scene review', async (t) => {
   const f = await fixture(t);
   const report = await f.addon.review(f.input);
   const changedId = structuredClone(f.input);
@@ -141,11 +151,48 @@ test('passage identities and exact boundaries are bound to the whole-scene revie
   changedBoundary.passages = [{ id: 'scene.single', text: draftText }];
   const omitted = structuredClone(f.input);
   delete omitted.passages;
-  for (const input of [changedId, changedBoundary, omitted]) {
+  const changedMapping = structuredClone(f.input);
+  changedMapping.passages[0].renders = ['ev.reply'];
+  const uncheckedMapping = structuredClone(f.input);
+  delete uncheckedMapping.passages[0].renders;
+  const emptyMapping = structuredClone(f.input);
+  emptyMapping.passages[0].renders = [];
+  for (const input of [changedId, changedBoundary, omitted, changedMapping, uncheckedMapping, emptyMapping]) {
     assert.notEqual((await f.addon.review(input)).reviewHash, report.reviewHash);
     await assert.rejects(f.addon.commit({ ...input, requestId: 'stale-segmentation', expectedReviewHash: report.reviewHash }),
       /review hash changed/);
   }
+  assert.deepEqual(f.writes, []);
+});
+
+test('omitted passage mappings remain unchecked and explicit empty mappings create no links', async (t) => {
+  const f = await fixture(t);
+  f.input.passages[0].renders = [];
+  delete f.input.passages[1].renders;
+  const { report, result } = await commit(f);
+  assert.equal(report.readyToCommit, true, 'missing grounding is reported without claiming semantic verification');
+  assert.deepEqual(report.grounding.uncheckedPassageIds, ['scene.arrival', 'scene.reply'], 'intentional empty mappings still have no dependency coverage');
+  assert.deepEqual(report.passages[0].renders, []);
+  assert.equal('renders' in report.passages[1], false, 'the hashed review preserves intentional empty versus omitted selections');
+  assert.deepEqual(report.grounding.passages, [{ id: 'scene.arrival', eventIds: [] }, { id: 'scene.reply', eventIds: [] }]);
+  const graph = await f.read(result.graphHash);
+  assert.ok(!graph.edges.some((edge) => edge.relation === 'renders'), 'the scene union must not leak onto any leaf');
+  assert.equal((await f.render(result.graphHash)).text, draftText);
+});
+
+test('unknown, wrong-kind and duplicate passage Event selections fail before append', async (t) => {
+  const f = await fixture(t);
+  const report = await f.addon.review(f.input);
+  for (const renders of [['missing-event'], ['Leo'], ['ev.arrival', 'ev.arrival']]) {
+    const input = structuredClone(f.input);
+    input.passages[0].renders = renders;
+    await assert.rejects(f.addon.review(input), /unknown Events|unique/);
+    await assert.rejects(f.addon.commit({ ...input, requestId: 'invalid-mapping', expectedReviewHash: report.reviewHash }), /unknown Events|unique/);
+  }
+  const preparation = structuredClone(f.input.preparation);
+  preparation.scene.renders = ['missing-scene-event'];
+  const packet = await f.addon.prepare(preparation);
+  await assert.rejects(f.addon.review({ ...f.input, preparation, expectedPacketHash: packet.packetHash }), /unknown Events.*missing-scene-event/);
   assert.deepEqual(f.writes, []);
 });
 
@@ -186,5 +233,7 @@ test('omitting passages preserves the original single scene leaf workflow', asyn
   assert.equal(scene.render, 'include');
   assert.equal(scene.text, draftText);
   assert.ok(!graph.edges.some((edge) => edge.source.node_id === 'scene' && edge.relation === 'contains'));
+  assert.deepEqual(graph.edges.filter((edge) => edge.source.node_id === 'scene' && edge.relation === 'renders').map((edge) => edge.target.anchor_id).sort(),
+    ['ev.arrival', 'ev.reply'], 'the single scene leaf keeps its route and explicit scene selections');
   assert.equal((await f.render(result.graphHash)).text, draftText);
 });
