@@ -13,6 +13,10 @@ function nameOf(referent) {
   return String(referent?.id ?? '').split('.').filter(Boolean).at(-1)?.replace(/[_-]+/gu, ' ') ?? '';
 }
 const words = (id) => String(id).split('.').filter(Boolean).at(-1)?.replace(/[_-]+/gu, ' ') ?? String(id);
+// Where an Event takes place, as a binding declares it without coordinates. The two binding types in use say the
+// same thing; they are read as they are declared, never inferred from a name or a region's words.
+export const LOCATED = new Set(['located_in', 'spatial_setting']);
+const placeName = (referent) => { const first = String(referent?.boundary ?? '').split(/(?<=[.;])\s/u)[0].replace(/[.;]$/u, '').trim(); return (first.length > 72 ? `${first.slice(0, 71)}…` : first) || words(referent?.id ?? ''); };
 
 export function spaceModel(model = {}) {
   const processes = array(model.processes), meaning = model.meaning_model ?? {};
@@ -89,7 +93,28 @@ export function spaceModel(model = {}) {
     frames.get(key).objects.push(object);
   }
   const positioned = new Set(placed.map((object) => object.referentId).filter(Boolean));
+  // Settings: each place an Event is declared to be located in, with when and who, and no geometry.
+  const events = new Map(array(meaning.events).map((event) => [event.id, event]));
+  const bindingsOf = new Map();
+  for (const binding of array(meaning.event_referent_bindings)) if (binding?.target?.kind === 'event') { if (!bindingsOf.has(binding.target.event_id)) bindingsOf.set(binding.target.event_id, []); bindingsOf.get(binding.target.event_id).push(binding); }
+  const settings = new Map();
+  for (const [eventId, bindings] of bindingsOf) {
+    const event = events.get(eventId); if (!event) continue;
+    const places = bindings.filter((binding) => LOCATED.has(binding.binding_type) && referents.has(binding.referent_id));
+    if (!places.length) continue;
+    const placeIds = new Set(places.map((binding) => binding.referent_id));
+    const who = [...new Set([...Object.values(event.participants ?? {}).flat(), ...bindings.filter((binding) => !LOCATED.has(binding.binding_type)).map((binding) => binding.referent_id)])]
+      .filter((id) => referents.has(id) && !placeIds.has(id)).map((id) => nameOf(referents.get(id)));
+    for (const binding of places) {
+      if (!settings.has(binding.referent_id)) settings.set(binding.referent_id, { id: binding.referent_id, name: placeName(referents.get(binding.referent_id)), boundary: referents.get(binding.referent_id).boundary, events: [] });
+      settings.get(binding.referent_id).events.push({ id: eventId, label: event.boundary, description: event.description ?? null, interval: binding.interval ?? event.interval ?? null, role: binding.role, type: binding.binding_type, who });
+    }
+  }
+  const startOf = (item) => item.interval?.start ?? Infinity;
+  const settingList = [...settings.values()].map((setting) => ({ ...setting, events: setting.events.sort((a, b) => startOf(a) - startOf(b)), who: [...new Set(setting.events.flatMap((event) => event.who))] }))
+    .sort((a, b) => startOf(a.events[0]) - startOf(b.events[0]) || a.name.localeCompare(b.name));
   return {
+    settings: settingList,
     frames: [...frames.values()].map((frame) => ({ ...frame, axes: [...new Set(frame.objects.flatMap((object) => object.axes))], dimensions: Math.max(...frame.objects.map((object) => object.position.length)) })),
     timeUnit: model.time_unit ?? null,
     // What the view cannot place: referents with no declared position, and places named only in free text.

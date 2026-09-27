@@ -11,6 +11,13 @@ const element = (tag, text, className) => {
 };
 const HUES = ['#9fc3ff', '#ffb057', '#93d3bd', '#dca4bd', '#c9b4f4', '#e5bd7b', '#7fe0e6'];
 const number = (value) => (Math.abs(value) >= 1000 || Number.isInteger(value) ? value.toLocaleString('en-GB', { maximumFractionDigits: 1 }) : value.toLocaleString('en-GB', { maximumSignificantDigits: 4 }));
+// A model time in words: a calendar date for calendar clocks, else the number in the model's own unit.
+function timeText(t, unit) {
+  if (!Number.isFinite(t)) return 'undated';
+  if (String(unit).startsWith('civil_day_since_1970')) return new Date(t * 86400000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  if (/^years?$/u.test(String(unit))) { const year = Math.floor(t), month = Math.min(11, Math.floor((t - year) * 12)); return `${new Date(Date.UTC(2000, month, 1)).toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' })} ${year}`; }
+  return `${number(t)} ${unit ?? ''}`.trim();
+}
 
 // Where a declared coordinate goes in the scene: x east, y north (away from the viewer), z up; latitude and longitude
 // as a map, longitude narrowed by the cosine of the frame's middle latitude.
@@ -34,16 +41,33 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   const abort = new AbortController(); let active = false, alive = true, frameId = null, dirty = true;
   const summary = element('aside', null, 'space-summary'); summary.setAttribute('aria-label', 'Space overview'); surface.append(summary);
   const unplacedText = () => [
-    space.unplacedReferents.length ? `${space.unplacedReferents.length} ${space.unplacedReferents.length === 1 ? 'referent has' : 'referents have'} no declared position` : null,
+    space.unplacedReferents.length ? `${space.unplacedReferents.length} ${space.unplacedReferents.length === 1 ? 'referent has' : 'referents have'} no declared coordinates` : null,
     space.textRegions.length ? (space.textRegions.length === 1 ? '1 place is named only in words, as an Event\'s region, and is not placed' : `${space.textRegions.length} places are named only in words, as Events' regions, and are not placed`) : null,
   ].filter(Boolean).join(' · ');
 
   if (!space.frames.length) {
-    // Nothing to draw: say what would place the model's things, in the grammar it already has.
+    // Nothing to draw: say what would place the model's things, in the grammar it already has, and show where the model
+    // does say things happen, without geometry.
     summary.classList.add('empty');
-    summary.append(element('strong', 'This model declares no positions.'),
-      element('p', 'A thing is placed when the model gives it coordinates: a process whose value is a pose (object_pose) or a position vector, or scalar processes with scale semantic_role "position" and an axis, all in a named reference frame and unit. A binding from the process to a referent says whose position it is; an evolution law with a constant or a static velocity moves it.'),
-      element('p', unplacedText() || 'No referents or named places are waiting for positions.'));
+    summary.append(element('strong', 'This model declares no coordinates.'),
+      element('p', 'A thing is drawn in space when the model gives it coordinates: a process whose value is a pose (object_pose) or a position vector, or scalar processes with scale semantic_role "position" and an axis, all in a named reference frame and unit. A binding from the process to a referent says whose position it is; an evolution law with a constant or a static velocity moves it.'));
+    if (space.settings.length) {
+      const list = element('div', null, 'space-settings');
+      list.append(element('h2', `Where things happen, as declared: ${space.settings.length} ${space.settings.length === 1 ? 'place' : 'places'}, no geometry`));
+      for (const setting of space.settings) {
+        const item = element('details'), head = element('summary'), first = setting.events[0]?.interval?.start, last = Math.max(...setting.events.map((event) => event.interval?.end ?? event.interval?.start ?? -Infinity));
+        const from = timeText(first, space.timeUnit), to = Number.isFinite(last) ? timeText(last, space.timeUnit) : from;
+        head.append(element('b', setting.name), element('span', ` · ${from}${to !== from ? ` – ${to}` : ''}${setting.who.length ? ` · ${setting.who.join(', ')}` : ''}`));
+        head.title = setting.boundary; item.append(head);
+        for (const event of setting.events) {
+          item.append(element('p', `${timeText(event.interval?.start, space.timeUnit)} · ${event.label}${event.who.length ? ` · ${event.who.join(', ')}` : ''}`, 'space-setting-event'));
+          if (event.description) item.append(element('p', event.description, 'space-setting-note'));
+        }
+        list.append(item);
+      }
+      summary.append(list);
+    }
+    summary.append(element('p', unplacedText() || 'No referents or named places are waiting for positions.', 'space-regions'));
     if (space.textRegions.length) summary.append(element('p', `Named in words: ${space.textRegions.slice(0, 8).join('; ')}${space.textRegions.length > 8 ? '; …' : ''}`, 'space-regions'));
     return { activate() { active = true; }, deactivate() { active = false; }, recenter() {}, getState: () => ({ space: { frames: 0 } }), destroy() { alive = false; summary.remove(); } };
   }

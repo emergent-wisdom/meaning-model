@@ -70,6 +70,19 @@ test('a law the view cannot follow exactly is named, never guessed', () => {
   assert.equal(spaceModel(model2).frames[0].objects.find((object) => object.label === 'boat').evaluated, false, 'two laws on one coordinate are not summed by the viewer');
 });
 
+test('where Events happen is listed from declared place bindings, with when and who, and without geometry', () => {
+  const model = harbour();
+  model.meaning_model.referents.push({ id: 'person.ines', boundary: 'Ines Berg, the harbour pilot', continuity_criterion: 'the same person', provenance });
+  model.meaning_model.events.push({ id: 'harbour.boarding', boundary: 'Ines boards at the pier', interval: { start: 6, end: 6.5 }, participants: { subject: 'person.ines' }, description: 'She can reach the rail from the ladder.', provenance });
+  model.meaning_model.event_referent_bindings.push(
+    { id: 'at.pier', target: { kind: 'event', event_id: 'harbour.boarding' }, role: 'setting', referent_id: 'thing.pier', binding_type: 'located_in', provenance },
+    { id: 'named.pier', target: { kind: 'event', event_id: 'harbour.day' }, role: 'mentioned', referent_id: 'thing.pier', binding_type: 'participant', provenance });
+  const { settings, frames } = spaceModel(model);
+  assert.deepEqual(settings.map((setting) => [setting.name, setting.events.map((event) => event.id), setting.who]), [['The Old Pier', ['harbour.boarding'], ['Ines Berg']]]);
+  assert.equal(settings[0].events[0].description, 'She can reach the rail from the ladder.');
+  assert.ok(!frames.flatMap((frame) => frame.objects).some((object) => object.referentId === 'thing.pier'), 'a setting is not given coordinates');
+});
+
 test('nothing is placed from names, regions or other frames, and coordinates in different frames never join', () => {
   const model = harbour();
   model.processes.push(scalar('ghost.position.x', 1, { reference_frame: 'another map', scale: { semantic_role: 'position', axis: 'x' } }),
