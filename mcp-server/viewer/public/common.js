@@ -18,7 +18,7 @@ export async function loadData(params) {
 }
 
 // The links a view shows: the run's own (its viewer.json), then this viewer and the Meaning Model.
-export const VIEWER = { label: 'This view', url: 'https://github.com/emergent-wisdom/meaning-model-viewer' };
+export const VIEWER = { label: 'Viewer source', url: 'https://github.com/emergent-wisdom/meaning-model/tree/main/mcp-server/viewer' };
 export const TOOL = { label: 'The tool', url: 'https://github.com/emergent-wisdom/meaning-model' };
 export const linksOf = (data) => [...(data.display?.links ?? []).filter((link) => /^https?:\/\//.test(link.url ?? '')), VIEWER, TOOL]
   .filter((link, i, all) => all.findIndex((other) => other.url === link.url) === i);
