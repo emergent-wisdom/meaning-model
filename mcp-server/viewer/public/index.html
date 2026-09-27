@@ -241,6 +241,7 @@
   .pop .note { margin-top: 5px; font-size: 11.5px; color: var(--muted); line-height: 1.35; }
   .toggle { display: flex; align-items: center; gap: 9px; padding: 3px 4px; margin: 0 -4px; border-radius: 7px; cursor: pointer; line-height: 1.25; user-select: none; }
   .toggle:hover { background: rgba(255,255,255,0.06); }
+  .toggle:focus-visible { outline: 2px solid rgba(159, 195, 255, 0.7); outline-offset: 1px; }
   .toggle .box { flex: none; width: 15px; height: 15px; border-radius: 4px; box-shadow: 0 0 0 1.5px rgba(255,255,255,0.35) inset; position: relative; }
   .toggle.on .box { background: var(--swatch, #fff); box-shadow: none; }
   .toggle.on .box::after { content: ""; position: absolute; left: 5px; top: 2px; width: 4px; height: 8px; border: solid #050608; border-width: 0 2px 2px 0; transform: rotate(45deg); }

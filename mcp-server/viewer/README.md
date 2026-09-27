@@ -14,9 +14,16 @@ The bundled adaptations are:
 
 - `src/viewer-data.mjs`, in the parent MCP source directory, accepts complete
   definitions supplied by the service instead of opening a run directory.
-- `public/start.js` opens the calendar scene for supported story snapshots;
-  `public/inspector.js` shows the stored model and graph records otherwise.
-  Noncalendar clocks and initial values keep their declared meanings.
+- `public/start.js` holds one page with six representations of the same
+  snapshot: Processes, Tree and Terrain (`public/view.js`), Graph
+  (`public/graph-view.js`), Structure (`public/inspector.js`) and Space
+  (`public/space-view.js`). Each is built the first time it is shown and keeps
+  the shared selection and time; noncalendar clocks and initial values keep
+  their declared meanings.
+- Lens readings are grouped into acts by `public/lens-readings.js`, so a deeper
+  reading is drawn inside the answer it divides; the Graph's overview and its
+  layout come from `public/model-graph.js`, and Space reads only declared
+  coordinates through `public/space-model.js` (see below).
 - The bundled scene hides construction playback when no call timestamps were
   supplied and omits QR-code requests. The local MCP server serves immutable
   snapshots; opening the viewer again obtains a new snapshot.
@@ -24,8 +31,9 @@ The bundled adaptations are:
   timeline moves. World dates do not establish what a reader may read.
 
 The standalone viewer remains a separate project. When updating this snapshot,
-preserve these adaptations and the upstream license files, and verify both a
-book scene and a general model inspector.
+preserve these adaptations and the upstream license files, and verify a book
+scene, a general model inspector and each representation; `test/viewer-renderers.test.mjs`
+runs the Space and Graph renderers on the real scene graph.
 
 ## What the Space view draws
 

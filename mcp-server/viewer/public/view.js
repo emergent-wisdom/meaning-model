@@ -1937,17 +1937,23 @@ qrPanel.hidden = true; document.getElementById('qr').hidden = true;
 if (data.constructionTiming === 'unavailable') document.querySelector('[data-mode="construction"]')?.remove();
 
 // ---- the toolbar ------------------------------------------------------------------------------------------------------------------
+// A row that turns a kind of record or a lens on and off: a switch the keyboard can reach and turn (Enter or Space).
+function switchRow() {
+  const row = document.createElement('div'); row.className = 'toggle'; row.setAttribute('role', 'switch'); row.tabIndex = 0; row.setAttribute('aria-checked', 'false');
+  row.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); row.click(); } });
+  return row;
+}
 const KINDS = [
-  ['processes', 'Numerical curves', '#9fc3ff', () => measures.length],
-  ['threads', 'Events moving them', '#ffffff', () => threads.length],
-  ['decisions', 'Decisions', '#ffffff', () => decisions.length],
-  ['lovefear', 'Love or fear of the acts', '#ffb057', () => lenses.length],
-  ['numbers', 'Numerical readings', '#7fe0e6', () => numericCuts.length],
-  ['causal', 'Causal links', '#ff8a4c', () => causalAll.length],
-  ['notes', 'Documents & notes', '#c9d4ff', () => notes.length],
-  ['events', 'The tree of Events', '#e9e8e2', () => nodes.filter((node) => node.kind === 'event').length],
-  ['subsidiary', 'Subsidiary processes', '#b9aefc', () => nodes.filter((node) => node.kind === 'sub').length],
-  ['prose', 'Prose, part by part', '#fff0d0', () => prose.length],
+  ['processes', 'Numerical curves', '#9fc3ff', () => measures.length, 'Each numerical process, and each recorded Cut answer compared over time'],
+  ['threads', 'Events moving them', '#ffffff', () => threads.length, 'Events drawn through every numerical process they move'],
+  ['decisions', 'Decisions', '#ffffff', () => decisions.length, 'Decisions the model drew, at their moment'],
+  ['lovefear', 'Love or fear of the acts', '#ffb057', () => lenses.length, 'The fear-or-love lens\'s reading of each act: how much comes from love and how much from fear'],
+  ['numbers', 'Numerical readings', '#7fe0e6', () => numericCuts.length, 'Recorded numerical Cuts, each at its own time'],
+  ['causal', 'Causal links', '#ff8a4c', () => causalAll.length, 'Declared causes, enables, constrains and realized forecasts between Events'],
+  ['notes', 'Documents & notes', '#c9d4ff', () => notes.length, 'The documents, passages and notes in the story graph'],
+  ['events', 'The tree of Events', '#e9e8e2', () => nodes.filter((node) => node.kind === 'event').length, 'Events as bars over their time, in their declared containment'],
+  ['subsidiary', 'Life processes and change phases', '#b9aefc', () => nodes.filter((node) => node.kind === 'sub').length, 'The slow processes that run through a whole life (body, kin, work…) and the phases of each change'],
+  ['prose', 'Prose, part by part', '#fff0d0', () => prose.length, 'Each part of the story over the moments it tells'],
 ];
 const depthNote = { 0: 'The world alone.', 1: 'The world and what it holds: long developments, lives, places and institutions.', 2: 'With the periods, change arcs and parts of each.', 3: 'With the phases of each change and the moments in them.', 4: 'With the moments within moments.', 5: 'Deeper still.', 6: 'The whole tree.' };
 // The toolbar, the legend and what was clicked stand together on the right.
@@ -2055,8 +2061,8 @@ processFocus.addEventListener('change', () => setProcessDetail(0, { scope: proce
 document.getElementById('less-detail').addEventListener('click', () => setProcessDetail(Math.max(0, (opt.detailLevel ?? Math.max(1, opt.depth - 1)) - 1)));
 document.getElementById('more-detail').addEventListener('click', () => setProcessDetail((opt.detailLevel ?? Math.max(0, opt.depth - 1)) + 1));
 { const kinds = document.getElementById('kinds');
-  for (const [key, name, swatch, count] of KINDS) {
-    const n = count(); if (!n) continue; const row = document.createElement('div'); row.className = 'toggle'; row.dataset.key = key; row.style.setProperty('--swatch', swatch);
+  for (const [key, name, swatch, count, about] of KINDS) {
+    const n = count(); if (!n) continue; const row = switchRow(); row.dataset.key = key; row.style.setProperty('--swatch', swatch); if (about) row.title = about;
     row.innerHTML = '<span class="box"></span><span class="name"></span><span class="n"></span>'; row.querySelector('.name').textContent = name; row.querySelector('.n').textContent = n;
     row.addEventListener('click', () => { if (key === 'notes') { showThoughts(!opt.show.has('notes')); return; } setLayerVisibility(key, !opt.show.has(key)); computeLayout(); apply(); syncPanel(); syncURL(); }); kinds.append(row);
   } }
@@ -2081,7 +2087,7 @@ function setHideFlat(on) {
 flatButton.addEventListener('click', () => setHideFlat(!opt.hideFlat));
 { const box = document.getElementById('lenses');
   for (const lens of lensList) {
-    const row = document.createElement('div'); row.className = 'toggle'; row.dataset.lens = lens.id; row.style.setProperty('--swatch', [...lens.palette.values()][0]);
+    const row = switchRow(); row.dataset.lens = lens.id; row.style.setProperty('--swatch', [...lens.palette.values()][0]);
     row.innerHTML = '<span class="box"></span><span class="name"></span><span class="keys"></span><span class="n"></span>';
     const counted = actCounts(lens.acts); row.querySelector('.name').textContent = lens.name; row.querySelector('.n').textContent = counted.acts;
     row.title = `${counted.acts} ${counted.acts === 1 ? 'record' : 'records'} read${counted.deeper ? `, ${counted.deeper} of them deeper, into the kinds within an answer` : ''}\n\n${lens.question ?? ''}${lens.why ? `\n\n${lens.why}` : ''}`;
@@ -2127,8 +2133,8 @@ function syncPanel() {
   const life = document.querySelector('#presets [data-preset="life"]'); if (life) life.textContent = currentPreset === 'life' ? lifeName : 'A life';
   for (const [i, button] of [...document.querySelectorAll('#depths button')].entries()) button.classList.toggle('on', !projected && i === opt.depth);
   document.getElementById('depth-note').textContent = depthNote[opt.depth] ?? '';
-  for (const row of document.querySelectorAll('#kinds .toggle')) row.classList.toggle('on', opt.show.has(row.dataset.key));
-  for (const row of document.querySelectorAll('#lenses .toggle')) row.classList.toggle('on', opt.lenses.has(row.dataset.lens));
+  for (const row of document.querySelectorAll('#kinds .toggle')) row.setAttribute('aria-checked', String(row.classList.toggle('on', opt.show.has(row.dataset.key))));
+  for (const row of document.querySelectorAll('#lenses .toggle')) row.setAttribute('aria-checked', String(row.classList.toggle('on', opt.lenses.has(row.dataset.lens))));
   for (const key of document.querySelectorAll('#lenses .lens-key')) key.hidden = !opt.lenses.has(key.dataset.lens);
   document.getElementById('span').textContent = `${timeText(F.a)} – ${timeText(F.b)} · ${spanText(F.a, F.b)}${F.w > 0.5 ? ' · years before the present, on a log scale' : ''}`;
 }

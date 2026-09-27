@@ -10,11 +10,28 @@ unpublished work stays under Unreleased. This is not a development transcript.
   record selection. First visits fit the new model’s time range. Model switching
   still loads the selected snapshot; representation changes stay on one page.
 
-- Processes, Tree, Terrain, Graph and Structure share one page and retain the
-  selected record and time when switching representation. Coarse view opens a
-  broad process overview, with more detail exposing declared subprocesses.
-  Recenter (Home) fits the current view; the top controls can be hidden, and
-  Documents & notes now sits alongside the other display controls.
+- Processes, Tree, Terrain, Graph, Structure and Space share one page and
+  retain the selected record and time when switching representation. Detail and
+  focus choose among the kinds of record Show includes and never switch the
+  representation; Coarse returns the current view to its broadest level.
+  Recenter (Home) fits the current view. The top controls can be hidden and sit
+  in rows by purpose: Model and Focus are compact choices, and Focus lists each
+  whole under whose it is. How to read it opens on request (H), and Text hides
+  the names, values, dates and cards in the view (N).
+- Space draws only declared coordinates, to scale and one reference frame at a
+  time: poses, position vectors and scalar position coordinates, with declared
+  precision, positions held for an interval, exact timed moves and latitude and
+  longitude as a map. Coarse life locations show home, work and visits as role
+  lanes with unrecorded gaps; successive locations are joined as a sequence,
+  never as a route. Places without coordinates are listed with their Events,
+  and presence is shown only where it is declared.
+- Graph opens on an overview that draws Cut answers within their Cut, Cuts
+  within their Event and relation records as their links; every record is one
+  switch away, and choosing a record the overview holds opens it.
+- Lens readings are drawn once per act: a deeper reading divides the answer it
+  reads within instead of covering the act's reading. The love-or-fear cards and
+  their count come from the built-in lens's readings. Cut curves are named by
+  their answer, with the question once per series and the remainder last.
 - New or changed prose must declare the Events it renders or an explicit,
   text-bound reason for having no such links. Scene defaults, narrative edits,
   splitting and merging preserve these declarations. Grounding proposals require
