@@ -125,9 +125,13 @@ export function cutTrajectories(data) {
     // happened to arrive first. Both records remain in the independent Cut view.
     if (records.length < 2 || records.some((record, i) => i && record.t === records[i - 1].t)) continue;
     const referent = referents.get(schema.owner), home = commonHome(records, schema.owner);
-    for (const answerKey of schema.answerKeys) rows.push({
+    // A row is named by its answer; the question names the series once, above its first row. The remainder, what the
+    // answers leave open, comes last.
+    const answerOrder = [...schema.answerKeys.filter((answerKey) => answerKey !== 'remainder'), 'remainder'];
+    for (const [index, answerKey] of answerOrder.entries()) rows.push({
       id: `cut-answer:${encodeURIComponent(JSON.stringify([key, answerKey]))}`,
-      label: `${answerKey} · ${schema.question}`, kind: 'cut-answer', answerKey, question: schema.question, unit: schema.unit,
+      label: answerKey.replace(/_/g, ' '), kind: 'cut-answer', answerKey, question: schema.question, unit: schema.unit,
+      series: { key, first: index === 0, size: answerOrder.length }, remainder: answerKey === 'remainder',
       owner: schema.owner, group: { id: schema.owner, label: displayNames.get(schema.owner) ?? referent?.boundary ?? schema.owner }, home, depth: 1,
       range: [0, 1], domain: [records[0].t, records.at(-1).t], sourceEventIds: sorted(records.map((record) => record.parentEventId)),
       contexts: structuredClone(records[0].contexts), conditioningSchema: structuredClone(schema.conditioningSchema),

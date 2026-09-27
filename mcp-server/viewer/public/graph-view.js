@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { buildModelGraph, layoutModelGraph } from './model-graph.js';
+import { buildModelGraph, overviewModelGraph, layoutModelGraph } from './model-graph.js';
 import { formatModelInterval } from './structure-model.js';
 import { proseUnit } from './inspector.js';
 
@@ -19,15 +19,26 @@ const colorOf = (node) => node.unresolved ? '#ff6a7c' : COLORS[node.kind] ?? '#a
 
 export function showGraph(data, { host, tools, detail, reader, surface, onSelect = () => {} }) {
   if (!data.inspection?.model) throw new Error('This snapshot lacks native graph records. Reopen it from the current MCP.');
-  const graph = buildModelGraph(data.inspection), positions = layoutModelGraph(graph);
+  // The overview draws a Cut's answers within the Cut and the Cut within its Event, and a relation record as its link;
+  // every record is one choice away. Each has its own layout, made when first shown.
+  const graphs = { all: buildModelGraph(data.inspection) }; graphs.overview = overviewModelGraph(graphs.all);
+  const layouts = new Map(), heldBy = new Map();
+  for (const node of graphs.overview.nodes) for (const held of node.holds ?? []) heldBy.set(held.id, node.id);
+  let mode = 'overview', graph = null, positions = null, nodeById = null, incident = null;
+  function useGraph(next) {
+    mode = next; graph = graphs[next];
+    if (!layouts.has(next)) layouts.set(next, layoutModelGraph(graph));
+    positions = layouts.get(next);
+    nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+    incident = new Map(graph.nodes.map((node) => [node.id, []]));
+    for (const edge of graph.edges) {
+      incident.get(edge.source)?.push(edge);
+      if (edge.source !== edge.target) incident.get(edge.target)?.push(edge);
+    }
+  }
+  useGraph('overview');
   // Fail before attaching controls or styles if this browser cannot create 3D.
   const renderer = new THREE.WebGLRenderer({ antialias: true });
-  const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
-  const incident = new Map(graph.nodes.map((node) => [node.id, []]));
-  for (const edge of graph.edges) {
-    incident.get(edge.source)?.push(edge);
-    if (edge.source !== edge.target) incident.get(edge.target)?.push(edge);
-  }
   const css = element('link'); css.rel = 'stylesheet'; css.href = 'graph-view.css'; document.head.append(css);
   const body = detail.querySelector('.details-body');
   const abort = new AbortController(); let active = false, alive = true, frameId = null;
@@ -38,10 +49,18 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
   spinButton.setAttribute('aria-pressed', 'false');
   const edgesButton = button('Links', () => { showEdges = !showEdges; edgesButton.setAttribute('aria-pressed', String(showEdges)); refresh(); });
   edgesButton.setAttribute('aria-pressed', 'true');
-  const kinds = [...new Set(graph.nodes.map((node) => node.kind))].sort();
+  const everyButton = button('Every record', () => showRecords(mode === 'overview' ? 'all' : 'overview'));
+  everyButton.setAttribute('aria-pressed', 'false');
+  everyButton.title = 'Show each Cut answer, Cut and relation record as its own record. The overview draws them within the Cut, the Event and the link they belong to.';
   const filter = element('select', null, 'graph-control graph-filter'); filter.setAttribute('aria-label', 'Record type');
-  const all = element('option', 'All record types'); all.value = ''; filter.append(all);
-  for (const kind of kinds) { const option = element('option', `${words(kind)} (${graph.nodes.filter((node) => node.kind === kind).length})`); option.value = kind; filter.append(option); }
+  let kinds = [];
+  function fillFilter() {
+    kinds = [...new Set(graph.nodes.map((node) => node.kind))].sort(); const chosen = filter.value;
+    const all = element('option', 'All record types'); all.value = ''; filter.replaceChildren(all);
+    for (const kind of kinds) { const option = element('option', `${words(kind)} (${graph.nodes.filter((node) => node.kind === kind).length})`); option.value = kind; filter.append(option); }
+    filter.value = kinds.includes(chosen) ? chosen : '';
+  }
+  fillFilter();
   tools.append(filter); filter.addEventListener('change', () => { neighborsOnly = false; refresh(); fit(); updateSearch(); });
   const neighborButton = button('Neighbors only', () => { if (!selected) return; neighborsOnly = !neighborsOnly; if (neighborsOnly) filter.value = ''; refresh(); fit(); });
   neighborButton.disabled = true; neighborButton.setAttribute('aria-pressed', 'false');
@@ -59,7 +78,8 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
   const hint = element('span', 'Drag to turn · scroll to zoom · click a record to inspect its connections');
   summary.append(count, explanation, hint);
   const key = element('div', null, 'graph-key');
-  for (const kind of kinds) { const item = element('span'), dot = element('i'); dot.style.background = COLORS[kind] ?? '#aaa5ca'; item.append(dot, document.createTextNode(words(kind))); key.append(item); }
+  function fillKey() { key.replaceChildren(); for (const kind of kinds) { const item = element('span'), dot = element('i'); dot.style.background = COLORS[kind] ?? '#aaa5ca'; item.append(dot, document.createTextNode(words(kind))); key.append(item); } }
+  fillKey();
   summary.append(key); surface.append(summary);
   const empty = element('p', '', 'graph-empty'); empty.hidden = true; surface.append(empty);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); host.append(renderer.domElement);
@@ -129,7 +149,8 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
       const label = element('div', node.label, `graph-label${node.id === selected ? ' selected' : ''}`); label.title = node.nativeId;
       const object = new CSS2DObject(label); object.position.copy(point(node.id)).add(new THREE.Vector3(0, 2.3, 0)); group.add(object); labelItems.push({ object, id: node.id });
     }
-    count.textContent = `${visibleNodes.length.toLocaleString()} / ${graph.nodes.length.toLocaleString()} records · ${showEdges ? visibleEdges.length.toLocaleString() : '0'} / ${graph.edges.length.toLocaleString()} links`;
+    count.textContent = `${visibleNodes.length.toLocaleString()} / ${graph.nodes.length.toLocaleString()} records · ${showEdges ? visibleEdges.length.toLocaleString() : '0'} / ${graph.edges.length.toLocaleString()} links${mode === 'overview' ? ` · overview of ${graphs.all.nodes.length.toLocaleString()} records` : ''}`;
+    everyButton.setAttribute('aria-pressed', String(mode === 'all'));
     Object.assign(summary.dataset, { nodes: String(graph.nodes.length), edges: String(graph.edges.length), visibleNodes: String(visibleNodes.length), visibleEdges: String(showEdges ? visibleEdges.length : 0) });
     neighborButton.disabled = !selected; neighborButton.setAttribute('aria-pressed', String(neighborsOnly));
     empty.hidden = visibleNodes.length !== 0; empty.textContent = graph.nodes.length ? 'No records match this filter. Choose Show all.' : 'This model has no graph records yet.';
@@ -157,9 +178,9 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
   function updateSearch() {
     const query = search.value.trim().toLocaleLowerCase(); searchResults.replaceChildren(); searchResults.hidden = !query;
     if (!query) { resize(); fit(); return; }
-    const matches = graph.nodes.filter((node) => `${node.label} ${node.nativeId}`.toLocaleLowerCase().includes(query));
+    const matches = graphs.all.nodes.filter((node) => `${node.label} ${node.nativeId}`.toLocaleLowerCase().includes(query));
     searchResults.append(element('p', `${matches.length} matching records${matches.length > 40 ? ' · showing the first 40' : ''}`));
-    for (const node of matches.slice(0, 40)) { const choice = button(`${words(node.kind)} · ${node.label}`, () => { filter.value = ''; searchResults.hidden = true; select(node.id); }, searchResults); choice.className = 'graph-result'; }
+    for (const node of matches.slice(0, 40)) { const choice = button(`${words(node.kind)} · ${node.label}`, () => { filter.value = ''; searchResults.hidden = true; if (!nodeById.has(node.id)) showRecords('all', false); select(node.id); }, searchResults); choice.className = 'graph-result'; }
     resize(); fit();
   }
   function select(id, notify = true) {
@@ -183,6 +204,14 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
       body.append(element('p', `Local answer weights · ${raw.unit ?? 'unit not declared'}`, 'a'));
       for (const answer of raw.answers) body.append(element('p', `${answer.key}: ${answer.weight ?? 'not declared'}`, 'm'));
     }
+    const held = (node.holds ?? []).filter((item) => item.kind === 'normalized_cut');
+    if (held.length) {
+      const cuts = element('details'); cuts.open = held.length <= 3; cuts.append(element('summary', `Cuts on this ${words(node.kind)} (${held.length})`));
+      for (const cut of held) {
+        cuts.append(element('p', cut.label, 'm'), element('p', `${(cut.record?.answers ?? []).map((answer) => `${words(answer.key)} ${answer.weight ?? 'not declared'}`).join(' · ')} · ${cut.record?.unit ?? 'unit not declared'}${cut.record?.conditioning ? ` · within ${cut.record.conditioning.cut_id} → ${words(cut.record.conditioning.answer_key)}` : ''}`, 'a'));
+      }
+      body.append(cuts);
+    }
     const passage = (data.story?.units ?? []).find((unit) => unit.id === node.nativeId && node.kind === 'narrative');
     if (passage) button('Read this passage', () => read(passage.id), body);
     const connected = incident.get(id) ?? [];
@@ -190,18 +219,24 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
     for (const edge of connected) {
       const outgoing = edge.source === id, other = nodeById.get(outgoing ? edge.target : edge.source);
       const choice = element('button', null, 'graph-neighbor'); choice.type = 'button';
-      choice.append(element('small', `${outgoing ? '→ outgoing' : '← incoming'} · ${words(edge.kind)}${edge.relation && edge.relation !== edge.kind ? ` · ${edge.relation}` : ''}`), element('span', other?.label ?? 'Unresolved reference'));
+      choice.append(element('small', `${outgoing ? '→ outgoing' : '← incoming'} · ${words(edge.kind)}${edge.relation && edge.relation !== edge.kind ? ` · ${edge.relation}` : ''}${edge.declared?.length > 1 ? ` · ${edge.declared.length} declared links` : ''}`), element('span', other?.label ?? 'Unresolved reference'));
       choice.addEventListener('click', () => { if (!other) return; filter.value = ''; select(other.id); fit([other.id, ...(incident.get(other.id) ?? []).flatMap((item) => [item.source, item.target])]); }); connections.append(choice);
       const evidence = element('details'); evidence.append(element('summary', 'Link details'));
       if (edge.path) evidence.append(element('small', `Native path: ${edge.path}`));
       if (edge.sourcePath) evidence.append(element('p', `Source anchor: ${edge.sourcePath}`, 'm'));
       if (edge.targetPath) evidence.append(element('p', `Target anchor: ${edge.targetPath}`, 'm'));
-      evidence.addEventListener('toggle', () => { if (evidence.open && !evidence.querySelector('pre')) evidence.append(element('pre', JSON.stringify(edge.record, null, 2))); });
+      evidence.addEventListener('toggle', () => { if (evidence.open && !evidence.querySelector('pre')) evidence.append(element('pre', JSON.stringify(edge.declared ? edge.declared.map((item) => item.record) : edge.record, null, 2))); });
       connections.append(evidence);
     }
     body.append(connections);
     const definition = element('details'); definition.append(element('summary', 'Full native record'), element('pre', JSON.stringify(raw, null, 2))); body.append(definition);
     detail.hidden = false; refresh(); fit([id, ...connected.flatMap((edge) => [edge.source, edge.target])]);
+  }
+  function showRecords(next, keep = true) {
+    if (next === mode) return;
+    const was = selected ? nodeById.get(selected) : null; useGraph(next); fillFilter(); fillKey(); neighborsOnly = false;
+    const again = !was ? null : nodeById.has(was.id) ? was.id : next === 'overview' ? heldBy.get(was.id) ?? null : null;
+    if (keep && again) select(again, false); else if (keep) { selected = null; detail.hidden = true; refresh(); fit(); }
   }
   detail.querySelector('.close').addEventListener('click', () => { detail.hidden = true; selected = null; onSelect(null); neighborsOnly = false; refresh(); fit(); });
 
@@ -262,13 +297,16 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
     recenter: recenterView,
     activate(_view, state) {
       active = true; controls.enabled = true; resize();
-      const choice = state.selection && graph.nodes.find((node) => node.kind === state.selection.kind && node.nativeId === state.selection.id);
+      // A record the overview holds is shown by what holds it; one it draws as a link opens every record.
+      const wanted = state.selection && graphs.all.nodes.find((node) => node.kind === state.selection.kind && node.nativeId === state.selection.id);
+      if (wanted && !nodeById.has(wanted.id) && mode === 'overview' && !heldBy.has(wanted.id)) showRecords('all', false);
+      const choice = wanted && nodeById.get(nodeById.has(wanted.id) ? wanted.id : heldBy.get(wanted.id));
       if (choice && choice.id !== selected) { filter.value = ''; neighborsOnly = false; select(choice.id, false); }
       else if (!choice && selected) { selected = null; detail.hidden = true; neighborsOnly = false; refresh(); }
       fit(); dirty = true; if (frameId === null) frame();
     },
     deactivate() { active = false; controls.enabled = false; cancelAnimationFrame(frameId); frameId = null; },
-    getState() { return { graph: { filter: filter.value, neighborsOnly, showEdges, rotating } }; },
+    getState() { return { graph: { filter: filter.value, neighborsOnly, showEdges, rotating, records: mode } }; },
     destroy() { alive = false; active = false; abort.abort(); cancelAnimationFrame(frameId); controls.dispose(); renderer.dispose(); geometry.dispose(); material.dispose(); disposeLines(lines); disposeLines(selectedLines); css.remove(); },
   };
 }

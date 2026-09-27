@@ -29,9 +29,9 @@ export async function mountModelPicker() {
     if (!Array.isArray(views) || views.length < 2) return;
     for (const view of views) modelSwitchURL(location.href, view.url);
   } catch { return; }
-  const label = document.createElement('label'); label.className = 'model-picker';
-  const name = document.createElement('span'); name.textContent = 'Model';
-  const select = document.createElement('select'); select.className = 'tool'; select.setAttribute('aria-label', 'Model');
+  const label = document.createElement('label'); label.className = 'tool picker model-picker';
+  const name = document.createElement('i'); name.textContent = 'Model';
+  const select = document.createElement('select'); select.setAttribute('aria-label', 'Model');
   for (const view of views) {
     const option = document.createElement('option'); option.value = view.url;
     option.textContent = view.title ?? 'Untitled model'; option.selected = view.selected === true; select.append(option);

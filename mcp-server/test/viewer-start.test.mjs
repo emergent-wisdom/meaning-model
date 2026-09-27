@@ -201,7 +201,8 @@ test('Coarse is reachable from every representation on the same page and retains
     const selection = { kind: 'event', id: 'engine' };
     const result = run({ view, data: snapshot(true), query: { record: JSON.stringify(selection), scope: 'engine', detail: '3' }, steps: [{ coarse: true }] });
     assert.equal(result.coarseDisabled, false); assert.equal(result.coarseTemporalOnly, false);
-    assert.equal(activations(result).at(-1).view, 'layers');
+    // Processes and Tree keep their own representation; a view without detail opens the tree.
+    assert.equal(activations(result).at(-1).view, ['together', 'layers'].includes(view) ? view : 'layers');
     assert.deepEqual(result.state.selection, selection);
     assert.deepEqual(result.actions.filter((action) => action.kind === 'detail'), [{ kind: 'detail', surface: 'temporal', level: 0 }]);
     assert.equal(mounts(result).filter((mount) => mount.surface === 'temporal').length, 1);

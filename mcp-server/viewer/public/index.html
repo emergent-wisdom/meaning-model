@@ -8,11 +8,12 @@
   [hidden] { display: none !important; }
   body[data-representation="graph"] [data-temporal], body[data-representation="structure"] [data-temporal] { display: none !important; }
   body:not([data-representation="graph"]) [data-graph], body:not([data-representation="structure"]) #structure-surface { display: none !important; }
-  #graph-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  #graph-controls { display: flex; flex-wrap: wrap; gap: 6px; }
   #structure-surface { position: fixed; inset: 160px 0 0; overflow: auto; background: #090a0c; }
   #structure-surface .inspection-content { padding-top: 12px; }
   body[data-representation="structure"] .side { z-index: 12; }
   #selection-label { overflow-wrap: anywhere; }
+  body[aria-busy="true"], body[aria-busy="true"] * { cursor: progress !important; }
   :root { --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781; --panel: rgba(18, 18, 17, 0.74); --ring: rgba(255, 255, 255, 0.10); --love: #ffb057; --fear: #58b4ff; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: #050608; overflow: hidden; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); }
@@ -108,6 +109,7 @@
   @media (max-width: 640px) { .reader, .reader.full { padding: 40px 16px 80px; font-size: 17px; } .reader-head { margin-right: 0; } }
   .label { color: var(--ink-2); font-size: 12px; white-space: nowrap; text-shadow: 0 0 6px #000, 0 0 2px #000; }
   .label.row { font-size: 13px; color: #e9e8e2; pointer-events: auto; cursor: default; }
+  .label.series { font-size: 11px; color: var(--muted); max-width: min(220px, 30vw); white-space: normal; text-align: right; line-height: 1.25; padding-bottom: 10px; pointer-events: auto; cursor: default; }
   .label.value { font-size: 12px; font-variant-numeric: tabular-nums; }
   .label.group { font-size: 17px; font-weight: 600; }
   .label.year { color: var(--muted); font-size: 13px; }
@@ -120,6 +122,7 @@
   .lens .split i { display: block; height: 100%; } .lens .love { background: var(--love); } .lens .fear { background: var(--fear); } .lens .rest { background: #55534e; }
   .lens .words { display: flex; justify-content: space-between; margin-top: 3px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
   .lens .words b { font-weight: 600; }
+  .lens .kinds { margin-top: 2px; color: var(--muted); font-size: 10.5px; line-height: 1.25; }
   /* Small windows keep the title, the links and the story; the legend, caption and subtitle step aside. */
   @media (max-width: 1100px), (max-height: 760px) {
     h1 { font-size: 30px; } .sub, .legend, .caption { display: none; }
@@ -140,11 +143,22 @@
   .tool.switch[aria-pressed="true"] { background: rgba(159, 195, 255, 0.24); box-shadow: 0 0 0 1px rgba(159, 195, 255, 0.45) inset; }
   select.tool { appearance: none; -webkit-appearance: none; min-width: 0; max-width: 100%; padding-right: 28px; font-weight: 600; background-image: linear-gradient(45deg, transparent 50%, #898781 50%), linear-gradient(135deg, #898781 50%, transparent 50%); background-position: calc(100% - 15px) 14px, calc(100% - 10px) 14px; background-size: 5px 5px; background-repeat: no-repeat; }
   select.tool option { background: #151517; color: #fff; }
-  .model-picker { display: flex; align-items: center; gap: 8px; flex: 1 1 100%; color: var(--muted); font-size: 13px; }
-  .model-picker select { flex: 1; max-width: 360px; min-width: 0; }
-  .process-focus { display: flex; align-items: center; gap: 8px; flex: 1 1 100%; min-width: 0; color: var(--muted); font-size: 13px; }
-  .process-focus select { flex: 1; min-width: 0; }
-  #process-detail-status { flex: 1 1 100%; margin: 0; font-size: 12px; color: var(--muted); }
+  /* The controls in rows by purpose: what is shown, how much of it, when and how, and the layers. */
+  .tools .row-break { flex-basis: 100%; height: 0; }
+  .tool.picker { gap: 7px; padding: 0 3px 0 11px; cursor: default; min-width: 0; max-width: 100%; }
+  .tool.picker select { appearance: none; -webkit-appearance: none; height: 28px; min-width: 0; max-width: 190px; padding: 0 24px 0 0; border: 0; border-radius: 7px; color: #fff; font: inherit; font-size: 13px; font-weight: 600; text-overflow: ellipsis; cursor: pointer;
+    background: transparent linear-gradient(45deg, transparent 50%, #898781 50%) no-repeat calc(100% - 13px) 12px / 5px 5px, transparent linear-gradient(135deg, #898781 50%, transparent 50%) no-repeat calc(100% - 8px) 12px / 5px 5px; }
+  .tool.picker.process-focus select { max-width: 220px; }
+  .tool.picker select:focus-visible, .tool.stepper button:focus-visible { outline: 2px solid rgba(159, 195, 255, 0.7); outline-offset: 1px; }
+  .tool.picker option, .tool.picker optgroup { background: #151517; color: #fff; }
+  .tool.picker optgroup { color: var(--muted); font-weight: 600; }
+  .tool.stepper { gap: 2px; padding: 0 3px; cursor: default; }
+  .tool.stepper button { width: 26px; height: 26px; border: 0; border-radius: 7px; background: none; color: #fff; font: inherit; font-size: 16px; line-height: 1; cursor: pointer; }
+  .tool.stepper button:hover { background: rgba(255, 255, 255, 0.1); } .tool.stepper button:disabled { opacity: 0.35; cursor: default; }
+  .tool.stepper .stepper-value { padding: 0 3px; }
+  #process-detail-status { flex: 1 1 100%; margin: 0; font-size: 11.5px; color: var(--muted); text-align: right; }
+  #graph-controls { flex: 1 1 100%; justify-content: flex-end; }
+  .toolbar-visibility { height: 26px; padding: 0 9px; font-size: 12px; color: var(--ink-2); }
   .tool:disabled { opacity: 0.4; cursor: default; }
   .pop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 6; width: 300px; max-width: 100%; background: #121214; border-radius: 12px; padding: 11px 13px; box-shadow: 0 0 0 1px var(--ring) inset, 0 12px 30px rgba(0,0,0,0.55); font-size: 13px; color: var(--ink-2); }
   .pop { overflow-y: auto; scrollbar-width: thin; }
@@ -222,24 +236,25 @@
   <div class="tools" id="tools">
     <select class="tool story" id="story" hidden aria-label="Which story"></select>
     <span class="tool-wrap"><button class="tool" data-pop="pop-show"><i>Show</i> <b id="t-show">Processes</b><span class="caret">▾</span></button>
-      <div class="pop" id="pop-show" hidden><h2>Show it as</h2><div class="seg" id="layouts"><button data-layout="together">Processes</button><button data-layout="layers">Tree</button><button data-layout="terrain">Terrain</button><button data-layout="graph">Graph</button><button data-layout="structure">Structure</button></div><div class="note" id="layout-note"></div><div class="note" id="selection-label" hidden></div><div class="whose" id="whose" data-temporal></div><div id="graph-controls" data-graph></div></div></span>
+      <div class="pop" id="pop-show" hidden><h2>Show it as</h2><div class="seg" id="layouts"><button data-layout="together">Processes</button><button data-layout="layers">Tree</button><button data-layout="terrain">Terrain</button><button data-layout="graph">Graph</button><button data-layout="structure">Structure</button></div><div class="note" id="layout-note"></div><div class="note" id="selection-label" hidden></div><div class="whose" id="whose" data-temporal></div></div></span>
+    <label class="tool picker process-focus" id="process-focus-label"><i>Focus</i><select id="process-focus" aria-label="Character or process"><option value="">Whole model</option></select></label>
+    <span class="row-break" aria-hidden="true"></span>
+    <span class="tool stepper" id="detail-stepper" role="group" aria-label="Detail"><button type="button" id="less-detail" aria-label="Less detail" title="Collapse one level of subprocesses">−</button><span class="stepper-value"><i>Detail</i> <b id="t-detail"></b></span><button type="button" id="more-detail" aria-label="More detail" title="Expose another level of subprocesses">+</button></span>
     <button class="tool switch" id="coarse-view" aria-pressed="false" title="Return to a coarse overview of the selected whole">Coarse</button>
     <button class="tool" id="recenter-view" title="Recenter the current view (Home)" aria-keyshortcuts="Home" disabled>Recenter</button>
-    <button class="tool" id="less-detail" aria-label="Less detail" title="Collapse one level of subprocesses">− Detail</button>
-    <button class="tool" id="more-detail" aria-label="More detail" title="Expose another level of subprocesses">+ Detail</button>
-    <label class="process-focus" id="process-focus-label">Focus <select class="tool" id="process-focus" aria-label="Character or process"><option value="">Whole model</option></select></label>
-    <div id="process-detail-status" role="status" hidden></div>
     <span class="tool-wrap"><button class="tool" data-pop="pop-time"><i>Time</i> <b id="t-time">Story</b><span class="caret">▾</span></button>
       <div class="pop" id="pop-time" hidden><h2>Time</h2><div class="seg" id="presets"><button data-preset="story">Story</button><button data-preset="life">A life</button><button data-preset="centuries">Centuries</button><button data-preset="world">World history</button></div><div class="note" id="span"></div></div></span>
     <span class="tool-wrap"><button class="tool" data-pop="pop-play"><i>Play</i> <b id="t-play">The story's years</b><span class="caret">▾</span></button>
       <div class="pop" id="pop-play" hidden><h2>What plays</h2><div class="seg" id="modes"><button data-mode="story">The story's years</button><button data-mode="construction">The construction</button></div><div class="note" id="mode-note"></div>
         <h2>Speed</h2><div class="seg" id="speeds"><button data-speed="0.25">¼×</button><button data-speed="0.5">½×</button><button data-speed="1">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button></div></div></span>
+    <span class="row-break" aria-hidden="true"></span>
     <span class="tool-wrap"><button class="tool" data-pop="pop-camera"><i>Camera</i> <b id="t-camera">Spinning</b><span class="caret">▾</span></button>
       <div class="pop" id="pop-camera" hidden><h2>Camera</h2><div class="seg" id="cameras"><button data-camera="spin">Spinning</button><button data-camera="free">Free</button><button data-camera="locked">Locked</button></div><div class="note" id="camera-note"></div></div></span>
     <button class="tool switch" id="shine" aria-pressed="true" title="Switch between the shining look and a less shining one (G)">Shining</button>
     <button class="tool switch" id="edges" aria-pressed="true" title="Show or hide the lines that link one thing to another: thoughts to their moments, documents to each other, causal links, the tree (K)">Edges</button>
     <button class="tool switch" id="thoughts" aria-pressed="false" title="Show or hide documents and notes in the model">Documents &amp; notes</button>
     <button class="tool switch" id="reading-toggle" hidden aria-pressed="true" aria-controls="strip" title="Show or hide the reading position panel">Reading position</button>
+    <span class="row-break" aria-hidden="true"></span>
     <span class="tool-wrap"><button class="tool" data-pop="pop-details"><i>Details</i><span class="caret">▾</span></button>
       <div class="pop wide" id="pop-details" hidden>
         <section id="show-section"><h2>Show <button id="all">All</button></h2><div id="kinds"></div></section>
@@ -248,6 +263,8 @@
         <section class="keys-help"><b>Home</b> recenter · <b>W</b> <b>A</b> <b>S</b> <b>D</b> walk · <b>Q</b> <b>E</b> down and up · arrows look around · <b>Shift</b> faster · <b>1</b>–<b>4</b> the scales · <b>T</b> processes · <b>L</b> tree · <b>R</b> terrain · <b>Space</b> play · <b>C</b> the camera · <b>G</b> shining · <b>K</b> edges · <b>X</b> everything. Locked: scroll or pinch zooms in time, drag pans, <b>Shift</b>+scroll moves a tall view up and down. Otherwise drag turns, right-drag moves, scroll comes closer, <b>Shift</b>+scroll zooms in time. Click anything to read what it is.</section>
       </div></span>
     <button class="tool switch" id="everything" aria-pressed="false" title="Show every kind of record, every lens and the whole tree (X)">Show everything</button>
+    <div id="process-detail-status" role="status" hidden></div>
+    <div id="graph-controls" data-graph></div>
   </div>
   <div class="hud legend" id="legend"></div>
   <aside class="details" id="details" hidden aria-label="What you clicked"><button class="close" id="details-close" aria-label="Close">✕</button><div id="details-body"></div></aside>

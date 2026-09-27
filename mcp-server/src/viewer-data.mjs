@@ -393,10 +393,15 @@ export async function buildViewerData({ history, rendered = null, calls = [], na
     // stated, and a decision's Cut (continuations and their weights) is never a reading.
     const older = lens.matchesQuestion ? liveCuts.filter((cut) => !String(cut.id).startsWith('lens.') && lens.matchesQuestion.test(String(cut.question ?? '')) && !answered.has(cut.parent_event_id)
       && cutKind(cut) !== 'decision' && !drawOf.has(cut.id)) : [];
-    const keys = lens.answers ? new Set([...lens.answers.map((answer) => answer.key), 'remainder']) : null;
+    // A deeper reading answers in the kinds within one answer, so every level of the lens's answers is its vocabulary.
+    const vocabulary = (answers) => (answers ?? []).flatMap((answer) => [answer.key, ...vocabulary(answer.children)]);
+    const keys = lens.answers ? new Set([...vocabulary(lens.answers), 'remainder']) : null;
     const readings = [...own, ...older].map((cut) => {
       const provenance = (cut.provenance ?? []).join(' ; '); const placed = readingEvents.get(cut.parent_event_id) ?? null; const record = recordOf(cut);
-      return { cutId: cut.id, eventId: record, t: toYear(start(index.events.get(record))), question: clip(cut.question, 220), unit: cut.unit ?? null,
+      // Whose act a reading reads, as its record declares it: the record's subject.
+      const subject = [index.events.get(record)?.participants?.subject].flat().find((id) => typeof id === 'string') ?? null;
+      return { cutId: cut.id, eventId: record, t: toYear(start(index.events.get(record))), question: clip(cut.question, 220), unit: cut.unit ?? null, subject,
+        ...(cut.conditioning ? { conditioning: { cutId: cut.conditioning.cut_id, answerKey: cut.conditioning.answer_key } } : {}),
         answers: (cut.answers ?? []).slice().sort((a, b) => b.weight - a.weight).map((answer) => ({ key: answer.key, weight: +answer.weight.toFixed(4) })),
         // Whose reading it is: the holder it sits beneath, else (before placement) the lens's holder; unknown for older Cuts.
         holder: placed ? placed.holder : own.includes(cut) ? lens.holder ?? null : null, perspective: placed ? placed.perspective : own.includes(cut) ? 'modeler' : null,

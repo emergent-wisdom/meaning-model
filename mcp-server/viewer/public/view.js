@@ -22,6 +22,7 @@ import { unopenedProcessEvents } from './process-visibility.js';
 import { createProcessDetail } from './process-detail.js';
 import { cutTrajectories } from './cut-trajectories.js';
 import { buildModelGraph } from './model-graph.js';
+import { readingActs, actShares, actCounts } from './lens-readings.js';
 
 let temporalActive = !window.modelViewer, temporalFrame = null, appliedSelection = null, hoveredRecord = null;
 const temporalEvents = new AbortController();
@@ -387,6 +388,18 @@ for (const lens of lensList) {
   if (lens.id === 'fear-love') { lens.palette.set('love', '#ffb057'); lens.palette.set('fear', '#58b4ff'); }
   lens.keyOf = (key) => (lens.palette.has(key) ? key : lens.id === 'fear-love' ? (/^love/.test(key) ? 'love' : /^fear/.test(key) ? 'fear' : 'remainder') : key);
   lens.colorOf = (key) => lens.palette.get(lens.keyOf(key)) ?? REMAINDER;
+  // Each act once: a deeper reading (the kinds within one answer) is drawn inside that answer of its act.
+  lens.acts = readingActs(lens.readings);
+  // A share inside an answer keeps its answer's hue, a step darker for each kind; what the kinds leave open, darker still.
+  const darkness = (share, i) => (!share.depth ? 0 : share.key === 'remainder' ? 0.62 : Math.min(0.55, i * 0.16));
+  const baseOf = (share) => (!share.depth && share.key === 'remainder' ? REMAINDER : lens.palette.get(share.family) ?? REMAINDER);
+  lens.shareCss = (share, i = 0) => { const dark = darkness(share, i); return dark ? `color-mix(in srgb, ${baseOf(share)} ${Math.round((1 - dark) * 100)}%, #0b0b0d)` : baseOf(share); };
+  const tints = new Map();
+  lens.shareTint = (share, i = 0) => {
+    const dark = darkness(share, i); if (!dark) return color(baseOf(share));
+    const key = `${baseOf(share)}|${dark}`; if (!tints.has(key)) tints.set(key, color(baseOf(share)).clone().lerp(color('#0b0b0d'), dark));
+    return tints.get(key);
+  };
 }
 if (params.has('lenses') || params.has('everything')) opt.lenses = new Set(params.has('everything') || params.get('lenses') === 'all' ? lensList.map((lens) => lens.id) : params.get('lenses').split(',').filter(Boolean));
 const prose = (data.story?.units ?? []).filter((unit) => Number.isFinite(unit.t));
@@ -401,14 +414,16 @@ const bornAt = (item) => (item?.born?.at ? Date.parse(item.born.at) : -Infinity)
 const LANE = 1.0; const LAMP = 3.2; const MIN_DUR = 0.02;
 const blend = { now: opt.layout === 'layers' ? 1 : 0, to: opt.layout === 'layers' ? 1 : 0 };
 const visibleNode = (node, layers) => {
+  // What kinds of record a view shows is its Show choice; detail and focus only choose among them, so opening detail
+  // never turns the processes into the tree.
+  const kindShown = node.kind === 'sub' ? opt.show.has('subsidiary') : (node.trunk && layers) || opt.show.has('events');
   // Collapsing preserves the whole, even when flat numerical curves are hidden.
-  if (opt.detailProjection) return opt.detailProjection.eventIds.has(node.id)
+  if (opt.detailProjection) return kindShown && opt.detailProjection.eventIds.has(node.id)
     && (opt.detailProjection.retainedEventIds.has(node.id) || !(opt.hideUnopened && unopenedProcessIds.has(node.id)));
   if (opt.hideFlat) return false;
   if (opt.hideUnopened && unopenedProcessIds.has(node.id)) return false;
   if (node.depth > opt.depth) return false;
-  if (node.kind === 'sub') return opt.show.has('subsidiary');
-  return (node.trunk && layers) || opt.show.has('events');
+  return kindShown;
 };
 function visibleRow(row) {
   if (opt.detailProjection && !opt.detailProjection.rowIds.has(row.measure.id)) return false;
@@ -487,9 +502,10 @@ const frontOf = (rowsOf) => rowsOf.reduce((a, b) => (rowAt(b).z > rowAt(a).z ? b
 // ---- the processes: curtains of light, each on its own scale ------------------------------------------------------------------
 // Each process a wall of light, bright at its value, fading to the ground.
 for (const row of rows) {
-  const c = new THREE.Color(row.group.hue);
+  // What a Cut's answers leave open is drawn apart from the answers: grey, with a faint curtain.
+  const open = Boolean(row.measure.remainder); const c = new THREE.Color(open ? '#77756f' : row.group.hue);
   const positions = new Float32Array(NX * 2 * 3); const colors = new Float32Array(NX * 2 * 4); const index = [];
-  for (let i = 0; i < NX; i += 1) { colors.set([c.r, c.g, c.b, 0.0, c.r, c.g, c.b, 0.3], i * 8); if (i) index.push((i - 1) * 2, (i - 1) * 2 + 1, i * 2, i * 2, (i - 1) * 2 + 1, i * 2 + 1); }
+  for (let i = 0; i < NX; i += 1) { colors.set([c.r, c.g, c.b, 0.0, c.r, c.g, c.b, open ? 0.08 : 0.3], i * 8); if (i) index.push((i - 1) * 2, (i - 1) * 2 + 1, i * 2, i * 2, (i - 1) * 2 + 1, i * 2 + 1); }
   const wall = new THREE.BufferGeometry(); wall.setAttribute('position', new THREE.BufferAttribute(positions, 3)); wall.setAttribute('color', new THREE.BufferAttribute(colors, 4)); wall.setIndex(index);
   row.wall = new THREE.Mesh(wall, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
   const line = new THREE.BufferGeometry(); line.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NX * 3), 3));
@@ -497,9 +513,15 @@ for (const row of rows) {
   row.wall.frustumCulled = false; row.crest.frustumCulled = false; row.sampleT = new Float64Array(NX);
   field.add(row.wall, row.crest);
   const name = label('row', clip(NAMES[row.measure.id] ?? row.measure.id.split('.').slice(-1)[0].replace(/_/g, ' '), 64), new THREE.Vector3(-LENGTH / 2 - 1.2, 0.8, row.z), [1, 0.5]);
-  name.element.title = [NAMES[row.measure.id], row.measure.question, row.measure.role, row.measure.support].filter(Boolean).join('\n\n'); name.element.style.color = `color-mix(in srgb, ${row.group.hue} 45%, #ffffff)`;
+  name.element.title = [open ? 'remainder: the share of each reading that its answers leave open' : NAMES[row.measure.id], row.measure.question, row.measure.role, row.measure.support].filter(Boolean).join('\n\n');
+  name.element.style.color = open ? 'var(--muted)' : `color-mix(in srgb, ${row.group.hue} 45%, #ffffff)`;
   if (row.measure.kind === 'cut-answer') Object.assign(name.element.style, { maxWidth: 'min(150px, 25vw)', overflow: 'hidden', textOverflow: 'ellipsis' });
   row.name = name; row.value = label('value', '', new THREE.Vector3(LENGTH / 2 + 1.2, 0.8, row.z), [0, 0.5]);
+  // A series of readings of one question is named once, by its question, above its first answer.
+  if (row.measure.series?.first) {
+    row.caption = label('series', clip(row.measure.question, 96), new THREE.Vector3(-LENGTH / 2 - 1.2, 0.8, row.z), [1, 1]);
+    row.caption.element.title = `${row.measure.question}\n\nUnit: ${row.measure.unit}`;
+  }
 }
 // Lay a curtain over the window: samples evenly across the screen, over the years the curtain spans.
 function layRow(row) {
@@ -508,6 +530,7 @@ function layRow(row) {
   const shown = vis > 0.01 && d1 > d0; row.wall.visible = shown; row.crest.visible = shown;
   row.name.visible = vis > 0.5; row.value.visible = vis > 0.5;
   row.name.position.set(-LENGTH / 2 - 1.2, p.y + 0.8, p.z); row.value.position.set(LENGTH / 2 + 1.2, p.y + 0.8, p.z);
+  if (row.caption) { row.caption.position.copy(row.name.position); row.caption.visible = row.name.visible; }
   row.wall.material.opacity = vis; row.crest.material.opacity = vis;
   if (!shown) return;
   const x0 = X(d0); const x1 = X(d1); const amp = row.measure.kind === 'cut-answer' ? 1 : 1 - smooth(blend.now) * (1 - LAMP / AMP);
@@ -565,8 +588,10 @@ function layThread(group) {
 
 // Decisions the model drew, and the love-or-fear split behind the acts, on each person's front row.
 const decisions = []; const lenses = [];
+const fearLove = lensList.find((lens) => lens.id === 'fear-love') ?? null;
+const ownRows = (person) => rows.filter((row) => ownerOf(row.measure) === person);
 principals.forEach((person) => {
-  const own = rows.filter((row) => ownerOf(row.measure) === person);
+  const own = ownRows(person);
   const hue = HUES[principals.indexOf(person) % HUES.length];
   for (const decision of person.decisions) {
     if (!Number.isFinite(decision.t)) continue;
@@ -576,7 +601,8 @@ principals.forEach((person) => {
     gem.userData.hover = { kind: `A decision · ${person.name}${decision.drawn ? ' · drawn by the model' : ''}`, title: decision.question ?? decision.label ?? 'A decision', text: answers, about: [timeText(decision.t, 2)] };
     const halo = spark(hue, 3.2); gem.add(halo); halo.position.set(0, 0, 0);
   }
-  for (const series of person.series.filter((item) => /love or (of )?fear/i.test(item.question))) {
+  // Without the built-in lens's readings (an older snapshot), the Cuts that asked it in their own words.
+  if (!fearLove) for (const series of person.series.filter((item) => /love or (of )?fear/i.test(item.question))) {
     const point = series.points[0]; if (!point || !Number.isFinite(point.t)) continue;
     const shared = lenses.find((lens) => lens.userData.cutId === point.cutId); if (shared) { shared.userData.names.push(person.name.split(' ')[0]); shared.element.querySelector('.act').textContent = `${shared.userData.names.join(' and ')}: ${shared.userData.act}`; continue; }
     const share = (pattern) => point.answers.filter((answer) => pattern.test(answer.key)).reduce((sum, answer) => sum + answer.weight, 0);
@@ -593,6 +619,44 @@ principals.forEach((person) => {
     element.addEventListener('click', () => { const [question, unit, ...rest] = element.title.split('\n'); showDetails([tipLine('k', 'Love or fear'), tipLine('v', element.querySelector('.act').textContent), element.querySelector('.split').cloneNode(true), tipLine('m', question), ...rest.map((line) => tipLine('a', line)), tipLine('a', unit)]); });
   }
 });
+// With them, every act the lens read, once, over the person whose act it is (the record's subject, else whose life holds
+// it). A deeper reading divides the love or the fear it reads within into kinds, each a step darker in that hue; a
+// deeper share is of that answer only.
+function actCard(act) {
+  if (!Number.isFinite(act.t)) return;
+  const event = byId.get(act.eventId);
+  const person = data.people.find((item) => item.id === act.subject) ?? data.people.find((item) => item.id === event?.owner) ?? null;
+  const name = person ? person.name.split(' ')[0] : null;
+  const shares = actShares(act, fearLove.keyOf);
+  const total = (family) => shares.filter((share) => share.family === family).reduce((sum, share) => sum + share.weight, 0);
+  const text = act.older ? act.question.match(/^Is (.+?) an act of/i)?.[1] ?? act.question : clip(event?.label ?? act.eventId, 72);
+  const actText = text.replace(/^(\w)/, (c) => c.toUpperCase());
+  const element = document.createElement('div'); element.className = 'label lens-host';
+  element.innerHTML = '<div class="lens"><div class="act"></div><div class="split"></div><div class="words"></div></div>';
+  element.querySelector('.act').textContent = name ? `${name}: ${actText}` : actText;
+  const rank = (share) => (share.family === 'love' ? 0 : share.family === 'fear' ? 1 : 2); const steps = new Map();
+  for (const share of [...shares].sort((a, b) => rank(a) - rank(b))) {
+    const kind = share.depth > 0 && share.key !== 'remainder'; const i = kind ? steps.get(share.family) ?? 0 : 0; if (kind) steps.set(share.family, i + 1);
+    const part = document.createElement('i'); part.style.width = `${share.weight * 100}%`; part.style.background = fearLove.shareCss(share, i); element.querySelector('.split').append(part);
+  }
+  for (const family of ['love', 'fear']) { const item = document.createElement('span'); const b = document.createElement('b'); b.textContent = family; item.append(b, ` ${Math.round(total(family) * 100)}%`); element.querySelector('.words').append(item); }
+  const percent = (weight) => `${Math.round(weight * 100)}%`, named = (key) => key.replace(/_/g, ' ');
+  // What each deeper reading found within the answer it divides, as shares of that answer.
+  const deeper = act.within.map((item) => {
+    const kinds = [...item.answers].filter((answer) => answer.key !== 'remainder' && answer.weight > 0).sort((a, b) => b.weight - a.weight);
+    return { item, line: `Of the ${named(item.conditioning.answerKey)}: ${kinds.slice(0, 2).map((answer) => `${named(answer.key)} ${percent(answer.weight)}`).join(', ')}` };
+  });
+  if (deeper.length) { const kinds = document.createElement('div'); kinds.className = 'kinds'; kinds.textContent = deeper.map((entry) => entry.line).join(' · '); element.querySelector('.lens').append(kinds); }
+  // A weight is never shown alone: the question, the unit, every answer with the remainder, the moment and whose it is.
+  element.title = [act.question, act.unit, ...act.answers.map((answer) => `${named(answer.key)}: ${percent(answer.weight)}`),
+    ...deeper.flatMap(({ item }) => [`Within the ${named(item.conditioning.answerKey)}: ${item.question}`, ...item.answers.map((answer) => `  ${named(answer.key)}: ${percent(answer.weight)} of the ${named(item.conditioning.answerKey)}`)]),
+    event ? `At: ${event.label}` : null, `Whose: ${holderText(act, data.people)}`].filter(Boolean).join('\n');
+  const object = new CSS2DObject(element); object.center.set(0.5, 1);
+  object.userData = { t: act.t, eventId: act.eventId, cutId: act.cutId, act: actText, names: name ? [name] : [], own: person ? ownRows(person) : [], lift: 4.2, born: act.born };
+  field.add(object); lenses.push(object);
+  element.addEventListener('click', () => { const body = document.createElement('div'); appendLensInspection(body, { lens: fearLove, reading: act }); showDetails([tipLine('k', 'Love or fear'), tipLine('v', element.querySelector('.act').textContent), element.querySelector('.split').cloneNode(true), body]); });
+}
+if (fearLove) for (const act of fearLove.acts) actCard(act);
 function layOnFront(item) {
   const { lift, t, eventId } = item.userData; const own = item.userData.own.filter((row) => presence(row) > 0.5 && rowValue(row, t) !== null);
   if (!own.length) { const p = anchor(eventId, t); item.userData.placed = Boolean(p); if (p) item.position.set(p.x, p.y + lift, p.z + 0.8); return; }
@@ -818,16 +882,20 @@ function drawExtras() {
     if (parent && m > 0.01 && opt.edges) { const q = nodeAt(parent); const x = Math.max(x0, X(parent.t0)); const holds = lit2 && litChain.has(parent.id);
       if ((x >= left && x <= right) || holds) connectors.add(clampX(x), top, p.z, clampX(x), q.y, q.z, holds ? WHITE : tint, (holds ? 0.85 : 0.16) * m, (holds ? 0.85 : 0.05) * m); }
   }
-  // Lens readings: a small bar of each reading's answers over its record, one row per lens.
+  // Lens readings: a small bar of each act's reading over its record, one row per lens. A deeper reading divides the
+  // answer it reads within, in that answer's hue, instead of covering the act's bar with a second one.
   lensList.filter((lens) => opt.lenses.has(lens.id)).forEach((lens, row) => {
-    for (const reading of lens.readings) {
+    for (const reading of lens.acts) {
       if (opt.detailProjection && !opt.detailProjection.eventIds.has(reading.eventId)) continue;
       if (!shownByPlay(reading.t, bornAt(reading))) continue;
       const place = anchor(reading.eventId, reading.t); if (!place || place.x < left || place.x > right) continue;
       const w = 3.1; const h = 0.62; const y = place.y + 0.9 + row * 0.95; let x = place.x - w / 2; const alpha = reading.earlier ? 0.4 : 1; const on = litReading === reading;
       chips.quad(x - 0.12, x + w + 0.12, y - 0.12, y + h + 0.12, y - 0.12, y + h + 0.12, place.z, on ? WHITE : RIM, 0.95, 0.95);
-      const answers = numericCutById.get(reading.cutId)?.answers ?? reading.answers;
-      for (const answer of answers.filter((item) => item.weight > 0).sort((a, b) => (a.key === 'remainder') - (b.key === 'remainder'))) { const width = w * answer.weight; chips.quad(x, x + width, y, y + h, y, y + h, place.z, color(lens.colorOf(answer.key)), alpha, alpha); x += width; }
+      const steps = new Map();
+      for (const share of actShares(reading, lens.keyOf)) {
+        const kind = share.depth > 0 && share.key !== 'remainder'; const i = kind ? steps.get(share.family) ?? 0 : 0; if (kind) steps.set(share.family, i + 1);
+        const width = w * share.weight; chips.quad(x, x + width, y, y + h, y, y + h, place.z, lens.shareTint(share, i), alpha, alpha); x += width;
+      }
       extraTargets.push({ kind: 'lens', lens, reading, wpt: [place.x, y + h / 2, place.z], r: 20 });
     }
   });
@@ -922,7 +990,7 @@ const labels2 = (() => {
     for (const { event, point } of selectedLinks) wanted.push({ key: `selected-event:${event.id}`, cls: 'event', html: esc(words(event.label, 45)), p: [point.x, point.y + 0.4, point.z], ax: 0.5, ay: 1, pri: 1200 });
     const panels = [...document.querySelectorAll('.hud.caption, .hud.bar, .hud.legend, .hud.title, .hud.stats, #tools, .pop:not([hidden]), #details:not([hidden])')].map((el) => el.getBoundingClientRect()).filter((r) => r.width);
     const placed = [...panels.map((r) => ({ l: r.left - 6, r: r.right + 6, t: r.top - 4, b: r.bottom + 4 }))];
-    for (const el of labels.domElement.querySelectorAll('.label.row, .label.group, .label.year, .label.lane')) { if (el.style.display === 'none') continue; const r = el.getBoundingClientRect(); if (r.width) placed.push({ l: r.left, r: r.right, t: r.top, b: r.bottom }); }
+    for (const el of labels.domElement.querySelectorAll('.label.row, .label.series, .label.group, .label.year, .label.lane')) { if (el.style.display === 'none') continue; const r = el.getBoundingClientRect(); if (r.width) placed.push({ l: r.left, r: r.right, t: r.top, b: r.bottom }); }
     wanted.sort((a, b) => b.pri - a.pri);
     const items = wanted.map((want) => element(want.key, want.cls, want.html));
     const fresh = items.filter((item) => !item.w); for (const item of fresh) { item.el.style.transform = 'translate(-9999px,0)'; item.transform = null; }
@@ -1331,6 +1399,7 @@ function apply() {
     const unmade = construction && !row.riseTo; const arrived = native ? row.points.length >= 2 && shownByPlay(row.points[0].t, -Infinity) : construction || shownByPlay(row.measure.points[0].t, bornAt(row.measure));
     row.name.visible = presence(row) > 0.5 && opt.show.has('processes') && arrived; row.value.visible = row.name.visible && value !== null && (!native || row.wall.visible);
     row.value.element.style.visibility = unmade ? 'hidden' : ''; row.name.element.style.opacity = unmade ? '0.3' : '';
+    if (row.caption) row.caption.visible = row.name.visible;
   }
   for (const entry of groupLabels) syncGroupLabel(entry);
   for (const thread of threads) {
@@ -1422,7 +1491,7 @@ function fitLocked() {
   // The names on the left and the values on the right keep their width in pixels, whatever the distance.
   const width = (elements) => Math.max(0, ...elements.map((el) => el.offsetWidth || 0));
   if (terrain.on) { room.l += width(terrain.groupNames.map((item) => item.element)) || 140; room.r -= width(terrain.sectionNames.map((item) => item.object.element)) || 170; }
-  else { room.l += visibleLabelWidth([...rows.map((row) => row.name), ...groupLabels.map((item) => item.object), laneTag], Math.min(160, innerWidth * 0.28)); room.r -= visibleLabelWidth(rows.filter((row) => row.measure.kind !== 'cut-answer').map((row) => row.value), Math.min(90, innerWidth * 0.18)); }
+  else { room.l += visibleLabelWidth([...rows.flatMap((row) => row.caption ? [row.caption, row.name] : [row.name]), ...groupLabels.map((item) => item.object), laneTag], Math.min(160, innerWidth * 0.28)); room.r -= visibleLabelWidth(rows.filter((row) => row.measure.kind !== 'cut-answer').map((row) => row.value), Math.min(90, innerWidth * 0.18)); }
   const corners = []; for (const x of [-LENGTH / 2 - 1.2, LENGTH / 2 + 1.2]) for (const y of [box.y0, box.y1]) for (const zz of [box.z0, box.z1]) corners.push(new THREE.Vector3(x, y, zz));
   const probe = new THREE.PerspectiveCamera(LOCKED.fov, innerWidth / innerHeight, 0.1, 10000);
   const measure = (d) => { probe.position.copy(center).addScaledVector(dir, d); probe.lookAt(center); probe.updateMatrixWorld();
@@ -1919,27 +1988,40 @@ for (const button of document.querySelectorAll('#presets button')) {
 { const depths = document.getElementById('depths'); for (let level = 0; level <= MAX_DEPTH; level += 1) { const button = document.createElement('button'); button.textContent = String(level); button.addEventListener('click', () => { opt.detailLevel = null; opt.processScope = null; explicitDepth = true; opt.depth = level; computeLayout(); syncPanel(); syncURL(); }); depths.append(button); } }
 const processFocus = document.getElementById('process-focus');
 const subjectByLife = new Map([...referents.values()].filter((referent) => referent.life).map((referent) => [referent.life, referent]));
-function focusLabel(item) {
-  const subject = subjectByLife.get(item.id);
-  if (subject) return `${subject.name} — whole`;
-  let parent = treeById.get(item.id)?.parent;
-  const seen = new Set([item.id]);
-  while (treeById.has(parent) && !seen.has(parent)) {
-    seen.add(parent);
-    const owner = subjectByLife.get(parent);
-    if (owner) return `${owner.name} › ${item.label}`;
-    parent = treeById.get(parent).parent;
-  }
-  return item.label;
+// Focus lists each whole under whose it is, as containment declares it: each person in the story's order, then the other
+// things with lives, then the rest of the world. Within one, a whole's parts follow it, indented, in time order.
+function focusGroups() {
+  const options = processDetail.options.filter((item) => treeById.has(item.id)); const optionIds = new Set(options.map((item) => item.id));
+  const ownerOf = (id) => treeById.get(id)?.owner ?? null;
+  const optionAbove = (id) => { for (let at = treeById.get(id)?.parent, hops = 0; at && hops < 64; at = treeById.get(at)?.parent, hops += 1) if (optionIds.has(at)) return at; return null; };
+  const below = new Map();
+  for (const item of options) { const above = optionAbove(item.id); push(below, above && ownerOf(above) === ownerOf(item.id) ? above : `whole:${ownerOf(item.id)}`, item); }
+  const byTime = (a, b) => (treeById.get(a.id)?.start ?? Infinity) - (treeById.get(b.id)?.start ?? Infinity) || a.label.localeCompare(b.label);
+  const seen = new Set();
+  const walk = (key, depth, out) => { for (const item of (below.get(key) ?? []).sort(byTime)) { if (seen.has(item.id)) continue; seen.add(item.id); out.push({ item, depth }); walk(item.id, depth + 1, out); } return out; };
+  const nameOf = (owner) => (owner ? data.people.find((person) => person.id === owner)?.name ?? referents.get(owner)?.name ?? owner : 'The world');
+  const rank = (owner) => { const i = principals.findIndex((person) => person.id === owner); return i >= 0 ? i : owner ? principals.length : principals.length + 1; };
+  return [...new Set(options.map((item) => ownerOf(item.id)))].sort((a, b) => rank(a) - rank(b) || nameOf(a).localeCompare(nameOf(b)))
+    .map((owner) => ({ owner, name: nameOf(owner), entries: walk(`whole:${owner}`, 0, []) })).filter((group) => group.entries.length);
 }
-for (const item of processDetail.options) {
-  const option = document.createElement('option'); option.value = item.id; option.textContent = focusLabel(item);
-  option.title = treeById.get(item.id)?.description ?? item.label; processFocus.append(option);
+for (const group of focusGroups()) {
+  const holder = document.createElement('optgroup'); holder.label = group.name;
+  for (const { item, depth } of group.entries) {
+    const option = document.createElement('option'); option.value = item.id;
+    // A life is its owner's whole; every other whole is named by its own Event.
+    const name = subjectByLife.has(item.id) ? `${subjectByLife.get(item.id).name}, whole` : clip(item.label, 64);
+    option.textContent = `${' '.repeat(Math.min(depth, 6))}${name}`;
+    option.title = treeById.get(item.id)?.description || item.label; holder.append(option);
+  }
+  processFocus.append(holder);
 }
 async function setProcessDetail(level, { scope = opt.processScope, fit = false } = {}) {
   if (terrain.on) await setLayout('layers');
   opt.detailLevel = level; opt.processScope = scope; explicitEverything = false;
   computeLayout();
+  // A level that shows nothing in this view is passed over, so less detail never empties it.
+  const shownHere = () => (opt.layout === 'layers' ? rows.some((row) => row.inL) || nodes.some((node) => node.inL) : rows.some((row) => row.inT) || nodes.some((node) => node.inT));
+  while (opt.detailProjection && opt.detailLevel < opt.detailProjection.maxLevel && !shownHere()) { opt.detailLevel += 1; computeLayout(); }
   if (fit) {
     animation = null;
     const event = treeById.get(opt.processScope);
@@ -1984,7 +2066,8 @@ flatButton.addEventListener('click', () => setHideFlat(!opt.hideFlat));
   for (const lens of lensList) {
     const row = document.createElement('div'); row.className = 'toggle'; row.dataset.lens = lens.id; row.style.setProperty('--swatch', [...lens.palette.values()][0]);
     row.innerHTML = '<span class="box"></span><span class="name"></span><span class="keys"></span><span class="n"></span>';
-    row.querySelector('.name').textContent = lens.name; row.querySelector('.n').textContent = lens.readings.length; row.title = `${lens.question ?? ''}${lens.why ? `\n\n${lens.why}` : ''}`;
+    const counted = actCounts(lens.acts); row.querySelector('.name').textContent = lens.name; row.querySelector('.n').textContent = counted.acts;
+    row.title = `${counted.acts} ${counted.acts === 1 ? 'record' : 'records'} read${counted.deeper ? `, ${counted.deeper} of them deeper, into the kinds within an answer` : ''}\n\n${lens.question ?? ''}${lens.why ? `\n\n${lens.why}` : ''}`;
     for (const hex of [...lens.palette.values()].slice(0, 5)) { const i = document.createElement('i'); i.style.background = hex; row.querySelector('.keys').append(i); }
     row.addEventListener('click', () => { if (opt.lenses.has(lens.id)) opt.lenses.delete(lens.id); else opt.lenses.add(lens.id); syncPanel(); syncURL(); extrasDirty = true; }); box.append(row);
     const key = document.createElement('div'); key.className = 'lens-key'; key.dataset.lens = lens.id;
@@ -2015,10 +2098,11 @@ function syncPanel() {
   document.getElementById('coarse-view').setAttribute('aria-pressed', String(Boolean(projected && projected.level === 0 && !terrain.on)));
   document.getElementById('less-detail').disabled = projected?.level === 0;
   document.getElementById('more-detail').disabled = Boolean(projected && projected.level >= projected.maxLevel);
+  setText('t-detail', projected && !terrain.on ? (projected.level === 0 ? 'coarse' : String(projected.level)) : '');
   const detailStatus = document.getElementById('process-detail-status'); detailStatus.hidden = !projected || terrain.on;
   if (projected) {
     const shownRows = rows.filter(visibleRow).length;
-    detailStatus.textContent = `${projected.level === 0 ? 'Coarse overview' : `Detail ${projected.level}`} · ${nodes.filter((node) => node.shown).length} outlines · ${shownRows} numerical curves. ${opt.processScope ? 'The whole stays visible as its parts open.' : 'Choose a character or process to inspect its summary and subprocesses.'}`;
+    detailStatus.textContent = `${projected.level === 0 ? 'Coarse overview' : `Detail ${projected.level}`} · ${nodes.filter((node) => (opt.layout === 'layers' ? node.inL : node.inT)).length} outlines · ${shownRows} numerical curves${opt.processScope ? ' · the whole stays visible as its parts open' : ''}`;
   }
   document.getElementById('edges').setAttribute('aria-pressed', String(opt.edges)); setText('edges', opt.edges ? 'Edges' : 'No edges');
   on('#cameras button', 'camera', opt.camera); on('#modes button', 'mode', opt.mode); on('#speeds button', 'speed', opt.speed); on('#layouts button', 'layout', opt.layout);
@@ -2142,16 +2226,19 @@ document.getElementById('details-close').addEventListener('click', hideDetails);
 const numbersButton = document.createElement('button'); numbersButton.id = 'numbers'; numbersButton.className = 'tool'; numbersButton.textContent = 'Numbers';
 numbersButton.dataset.temporal = '';
 numbersButton.title = 'Browse every recorded Cut and scalar initial value, including undated records';
-document.getElementById('tools').append(numbersButton);
+document.getElementById('everything').before(numbersButton);
 const numericOptions = () => ({ formatTime: (time) => timeText(time, 1), timeUnit: data.timeUnit, referentName: (id) => referents.get(id)?.name ?? id });
-function appendLensInspection(container, { lens, reading }) {
+function appendLensInspection(container, { lens, reading, within = null }) {
   const exact = numericCutById.get(reading.cutId);
-  const label = `A reading · ${lens.name}${reading.earlier ? ' · asked of an earlier version' : ''}`;
+  const label = `${within ? `Within the ${within.replace(/_/g, ' ')}: a deeper reading` : 'A reading'} · ${lens.name}${reading.earlier ? ' · asked of an earlier version' : ''}`;
   container.append(tipLine('k', label));
+  // The kinds a deeper reading found within one answer follow the reading they divide.
+  const deeper = () => { for (const item of reading.within ?? []) appendLensInspection(container, { lens, reading: item, within: item.conditioning.answerKey }); };
   if (exact) {
     // A selected lens replaces this Cut's generic glyph, so it must also retain
     // the full question, exact shares, conditional denominator and source.
     appendRecordedCut(container, exact, numericOptions());
+    deeper();
     return;
   }
   // Older viewer snapshots do not contain the complete numerical projection.
@@ -2162,6 +2249,7 @@ function appendLensInspection(container, { lens, reading }) {
   for (const answer of reading.answers.filter((item) => item.weight > 0).sort((a, b) => (a.key === 'remainder') - (b.key === 'remainder'))) { const i = document.createElement('i'); i.style.width = `${answer.weight * 100}%`; i.style.background = lens.colorOf(answer.key); split.append(i); }
   container.append(split, weightsBox(reading.answers, (key) => lens.colorOf(key)));
   container.append(tipLine('a', `At the record's time, ${timeText(reading.t, 1)}${reading.confidence ? ` · confidence ${reading.confidence.toFixed(2)}` : ''}${reading.estimated ? ' · estimated' : ' · authored'} · evidence cutoff not recorded`));
+  deeper();
 }
 numbersButton.addEventListener('click', () => {
   const body = document.createElement('div'); appendRecordedNumbers(body, data.numerics, numericOptions()); showDetails([body]); tip.hidden = true;
@@ -2199,21 +2287,28 @@ function declutter() {
   // would cover each other take turns, and a love-or-fear chip with no room waits; the stage's field keeps its own rules.
   const stage = !nativeMeasures.length && isStory() && blend.now === 0 && opt.camera !== 'locked' && !nodes.some((node) => node.inT);
   const names = [];
-  for (const object of [...groupLabels.map((item) => item.object), ...rows.map((row) => row.name)]) {
+  for (const object of [...groupLabels.map((item) => item.object), ...rows.flatMap((row) => row.caption ? [row.caption, row.name] : [row.name])]) {
     const el = object.element; if (stage || !object.visible) { if (el.style.visibility) el.style.visibility = ''; continue; }
-    el.style.visibility = ''; const r = el.getBoundingClientRect(); if (!r.width) continue;
+    // A series caption's padding only lifts it clear of its first answer's name; it does not take room.
+    el.style.visibility = ''; const box = el.getBoundingClientRect(); if (!box.width) continue;
+    const r = el.classList?.contains('series') ? { left: box.left, right: box.right, top: box.top, bottom: box.bottom - 10 } : box;
     const outside = r.left < 2 || r.right > innerWidth - 2 || r.top < 2 || r.bottom > innerHeight - 2;
     const overPanel = panels.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top < p.bottom + 2 && r.bottom > p.top - 2);
     if (outside || overPanel || names.some((o) => r.left < o.right && r.right > o.left && r.top < o.bottom - 4 && r.bottom > o.top + 4)) el.style.visibility = 'hidden'; else names.push(r);
   }
-  for (const el of labels.domElement.querySelectorAll('.label.row, .label.group, .label.year, .label.lane')) { if (el.style.visibility === 'hidden') continue; const r = el.getBoundingClientRect(); if (r.width) placed.push(r); }
+  for (const el of labels.domElement.querySelectorAll('.label.row, .label.series, .label.group, .label.year, .label.lane')) { if (el.style.visibility === 'hidden') continue; const r = el.getBoundingClientRect(); if (r.width) placed.push(r); }
   const hits = (r, lift = 0) => placed.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top - lift < p.bottom + 2 && r.bottom - lift > p.top - 2);
-  for (const lens of lenses.filter((item) => item.visible).sort((a, b) => a.userData.t - b.userData.t)) {
-    const inner = lens.element.firstElementChild; const r = lens.element.getBoundingClientRect(); if (!r.width) continue;
-    let lift = 0; while (lift <= 150 && hits(r, lift)) lift += 6;
-    const room = stage || lift <= 150; inner.style.visibility = room ? '' : 'hidden';
-    inner.style.transform = `translateY(${-lift}px)`; if (room) placed.push({ left: r.left, right: r.right, top: r.top - lift, bottom: r.bottom - lift });
+  // Where there is room for only some, the acts nearest the playhead take it, so playing the years shows the acts as they come.
+  const nearNow = (item) => Math.abs(item.userData.t - (building() ? T1 : now));
+  // Every card is measured before any is moved, so one layout serves them all.
+  const cards = lenses.filter((item) => item.visible).sort((a, b) => nearNow(a) - nearNow(b) || a.userData.t - b.userData.t)
+    .map((lens) => ({ inner: lens.element.firstElementChild, r: lens.element.getBoundingClientRect(), lift: 0, room: false }));
+  for (const card of cards) {
+    if (!card.r.width) continue; const { r } = card;
+    while (card.lift <= 150 && hits(r, card.lift)) card.lift += 6;
+    card.room = stage || card.lift <= 150; if (card.room) placed.push({ left: r.left, right: r.right, top: r.top - card.lift, bottom: r.bottom - card.lift });
   }
+  for (const card of cards) if (card.r.width) { card.inner.style.visibility = card.room ? '' : 'hidden'; card.inner.style.transform = `translateY(${-card.lift}px)`; }
   for (const row of rows) { const el = row.value.element; el.style.opacity = ''; const r = el.getBoundingClientRect(); if (!r.width) continue; if (hits(r)) el.style.opacity = '0'; else placed.push(r); }
   const tags = threads.map((thread) => thread.userData.tag).filter((tag) => tag?.visible && tag.parent?.visible !== false).sort((a, b) => b.userData.weight - a.userData.weight || b.userData.t - a.userData.t);
   for (const tag of tags) {

@@ -14,7 +14,7 @@ const initialView = !data ? 'structure' : labels[requested] ? requested : tempor
 
 for (const element of document.querySelectorAll('#scene, #stats, .caption, #strip, .bar, #labels2, #legend, #details, #tip, #reader, #qr-panel, #sub, #repos')) element.dataset.temporal = '';
 for (const element of document.getElementById('tools').children) {
-  if (!element.querySelector?.('[data-pop="pop-show"]') && !['story', 'coarse-view', 'recenter-view'].includes(element.id)) element.dataset.temporal = '';
+  if (!element.querySelector?.('[data-pop="pop-show"]') && !['story', 'coarse-view', 'recenter-view', 'graph-controls'].includes(element.id)) element.dataset.temporal = '';
 }
 const structureHost = document.createElement('div'); structureHost.id = 'structure-surface'; document.body.append(structureHost);
 function fitPanels() {
@@ -88,9 +88,17 @@ const session = createViewerSession({
     const status = document.getElementById('selection-label'); status.hidden = !state.selection; status.textContent = state.selection ? `Selected ${state.selection.kind.replace(/_/g, ' ')}: ${state.selection.id}` : '';
   },
 });
+const opened = new Set();
 async function switchView(view) {
-  try { return await session.setView(view); }
+  const key = timeViews.has(view) ? 'temporal' : view;
+  if (data && !opened.has(key)) {
+    // A representation is built the first time it is shown, which can take a moment: say so before the work starts.
+    document.getElementById('t-show').textContent = `Opening ${labels[view] ?? view}…`; document.body.setAttribute('aria-busy', 'true');
+    await new Promise((done) => { const timer = setTimeout(done, 60); globalThis.requestAnimationFrame?.(() => setTimeout(() => { clearTimeout(timer); done(); }, 0)); });
+  }
+  try { const state = await session.setView(view); opened.add(key); return state; }
   catch (error) { console.error(error); notice = 'The 3D view is unavailable in this browser. The recorded model is available below.'; return session.setView('structure'); }
+  finally { document.body.setAttribute('aria-busy', 'false'); }
 }
 window.modelViewer = { switchView, selectRecord: (record) => session.selectRecord(record), getState: () => session.snapshot(), getSnapshot: () => ({ name: dataName, data }) };
 for (const button of document.querySelectorAll('#layouts button')) {
@@ -100,9 +108,11 @@ for (const button of document.querySelectorAll('#layouts button')) {
 }
 const coarseButton = document.getElementById('coarse-view');
 coarseButton.disabled = !temporal;
+// The coarse overview is the least detail of the time view being looked at; only a view without detail opens the tree.
 coarseButton.addEventListener('click', async () => {
-  await switchView('layers');
-  if (session.snapshot().view === 'layers') (await import('./view.js')).temporalController.setDetail(0);
+  const current = session.snapshot().view;
+  await switchView(['together', 'layers'].includes(current) ? current : 'layers');
+  if (['together', 'layers'].includes(session.snapshot().view)) (await import('./view.js')).temporalController.setDetail(0);
 });
 const recenterButton = document.getElementById('recenter-view');
 recenterButton.addEventListener('click', () => session.recenter());

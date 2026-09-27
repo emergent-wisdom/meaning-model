@@ -221,6 +221,49 @@ export function buildModelGraph(inspection = {}) {
     recordEndpointEdges: edgesByKind.record_endpoint ?? 0 } };
 }
 
+// Records drawn in the overview as the direct link they already are.
+const RELATION_RECORDS = new Set(['event_relation', 'event_referent_binding', 'decomposition', 'dependency', 'abstract_relation']);
+
+/** The overview of a built graph: a Cut's answers are drawn as part of the Cut and a Cut as part of the Event it
+ * divides, and a relation record as its direct link. Every other record and declared link stays; a link between folded
+ * records is drawn between the records that hold them, once per kind and relation, and one inside a single record is
+ * not drawn. Nothing is removed from the model: each shown record lists what it holds (`holds`), and each link the
+ * declared links it stands for (`declared`). */
+export function overviewModelGraph(graph) {
+  const byId = new Map(array(graph?.nodes).map((node) => [node.id, node]));
+  const holderOf = (node) => {
+    if (node.kind === 'normalized_cut_answer' && node.cutId != null) return modelGraphId('normalized_cut', node.cutId);
+    if (node.kind === 'normalized_cut' && node.record?.parent_event_id != null) return modelGraphId('event', node.record.parent_event_id);
+    return null;
+  };
+  const shownFor = new Map();
+  const shown = (id) => {
+    if (shownFor.has(id)) return shownFor.get(id);
+    let at = id;
+    for (let hops = 0; hops < 4; hops += 1) { const node = byId.get(at), holder = node ? holderOf(node) : null; if (!holder || !byId.has(holder)) break; at = holder; }
+    shownFor.set(id, at); return at;
+  };
+  const hidden = (id) => RELATION_RECORDS.has(byId.get(id)?.kind);
+  const nodes = [], holds = new Map();
+  for (const node of array(graph?.nodes)) {
+    if (hidden(node.id)) continue;
+    const at = shown(node.id);
+    if (at === node.id) nodes.push(node);
+    else { if (!holds.has(at)) holds.set(at, []); holds.get(at).push(node); }
+  }
+  const edges = new Map();
+  for (const edge of array(graph?.edges)) {
+    if (edge.kind === 'record_endpoint' || hidden(edge.source) || hidden(edge.target)) continue;
+    const source = shown(edge.source), target = shown(edge.target);
+    if (source === target) continue;
+    const id = JSON.stringify(['overview', edge.kind, edge.relation ?? null, source, target]);
+    if (!edges.has(id)) edges.set(id, { ...edge, id, source, target, declared: [] });
+    edges.get(id).declared.push(edge);
+  }
+  return { nodes: nodes.map((node) => (holds.has(node.id) ? { ...node, holds: holds.get(node.id) } : node)),
+    edges: [...edges.values()].sort((a, b) => compare(a.id, b.id)), overview: true };
+}
+
 /** Stable topology-aware positions, bounded in a sphere of radius. O(V + E) per
  * pass; no pairwise force simulation, random source, time conversion or sampling. */
 export function layoutModelGraph(graph, { radius = 120, iterations = 24 } = {}) {
