@@ -13,8 +13,10 @@ const functionSource = (name) => {
 test('the actual temporal controller owns one frame loop and pauses keyboard/playback while another representation is active', () => {
   const frames = new Map(), listeners = [], canceled = [], disposed = [], intervals = [];
   let serial = 0, renders = 0;
+  const sharedControls = { play: { disabled: true, removeAttribute() {} }, track: { attributes: { 'aria-valuenow': '2020.55' }, removeAttribute(name) { delete this.attributes[name]; } } };
   const context = {
     window: { modelViewer: {}, addEventListener: (name, callback, options) => listeners.push({ name, callback, options }) },
+    document: { getElementById: (id) => sharedControls[id] }, apply() {},
     AbortController, innerWidth: 505, innerHeight: 788, performance: { now: () => 100 },
     requestAnimationFrame(callback) { const id = ++serial; frames.set(id, callback); return id; },
     cancelAnimationFrame(id) { frames.delete(id); canceled.push(id); },
@@ -53,7 +55,10 @@ test('the actual temporal controller owns one frame loop and pauses keyboard/pla
   assert.equal(context.held.size, 0); assert.equal(context.tip.hidden, true);
   keydown.callback({}); assert.equal(context.keyboardCalls, 1);
   assert.deepEqual(JSON.parse(JSON.stringify(control.getState().time)), before, 'the same time and window survive pausing');
-  control.activate('layers', {}); assert.equal(frames.size, 1);
+  control.activate('layers', { time: { mode: 'story', now: 1848.5, atEnd: false } }); assert.equal(frames.size, 1);
+  assert.equal(context.now, 1848.5, 'the world cursor returned by Space is restored');
+  assert.deepEqual(sharedControls.track.attributes, {}, 'Space-native slider ARIA does not survive in the temporal control');
+  assert.equal(sharedControls.play.disabled, false);
   control.destroy(); assert.equal(frames.size, 0);
   assert.equal(keydown.options.signal.aborted, true);
   assert.deepEqual(intervals, [17, 18]);

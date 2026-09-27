@@ -40,10 +40,22 @@ unit at a time. It never places anything from a name, an Event's region or prose
 - **Axes** `x`, `y`, `z` lie east, north and up. A frame whose axes are
   `latitude` and `longitude` (optionally `altitude`) is drawn as a map, with
   longitude narrowed by the cosine of the frame's middle latitude.
-- **Whose position** comes from an `event_referent_binding` whose target is the
-  process. A binding `interval` means the position holds only then: several such
-  processes bound to one referent are its successive stays, joined by a dashed
-  line in time order that is their sequence, not a route.
+- **Whose position** comes from a coordinate/position
+  `event_referent_binding` whose target is the process. Its `interval` bounds
+  the declaration. The process's stated meaning distinguishes bodily presence
+  from a home or work base; a base never implies uninterrupted occupancy.
+- **Coarse life locations** use existing process scale metadata:
+  `spatial_status: "coarse_life_location"`, `location_role` (`home_base`,
+  `workplace`, `visit` or `presence`), `place_ref`, and a concise `label`.
+  These declarations produce the lifetime overview and separate role lanes.
+  Dashed links join successive records for the same subject and role in one
+  frame; they do not supply a route, speed or position during an unrecorded gap.
+- **Connections** follow native Event `process_ids`, subject/place bindings
+  and narrative grounding edges. Include the position process in its Event
+  and anchor relevant Understanding notes and passages to those records.
+  Selecting a location shows direct period connections first, separately from
+  broader place and person context. The viewer never infers these links from
+  words in the prose.
 - **Precision** is the process's `uncertainty`: a `standard_deviation` or an
   `interval` is drawn as a spread on the ground; `exact` and undeclared are said
   in the details. A town's representative point and a surveyed building differ
@@ -55,4 +67,9 @@ unit at a time. It never places anything from a name, an Event's region or prose
   Any other law on a position is named in the details, not evaluated.
 - **Places without coordinates** (an Event bound to a referent with binding type
   `located_in` or `spatial_setting`) are listed with their dates and the people
-  in those Events, and are not drawn.
+  in those Events, and are not drawn. Explicit presence is distinguished from
+  participation in an Event, which can include remote communication.
+
+Space uses the shared bottom playback controls. Coarse returns to its lifetime
+overview without changing representation; the frame menu opens scene layouts.
+The main toolbar can be hidden while exploring, and Home recenters the view.

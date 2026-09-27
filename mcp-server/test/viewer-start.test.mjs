@@ -59,7 +59,7 @@ globalThis.console={error(error){errors.push(error.message);}};
 function surface(kind,data,message,options={}){
   actions.push({kind:'mount',surface:kind,data,exactSnapshot:data===input.data,message,host:options.host?.id,tools:options.tools?.id,detail:options.detail?.id,reader:options.reader?.id});
   retained[kind]=kind==='temporal'?input.temporalState??{time:{mode:'story',at:2022.25}}:{};
-  return controllers[kind]={activate(view,state){active.add(kind);if(active.size!==1)throw Error('Multiple active surfaces');actions.push({kind:'activate',surface:kind,view,state});},deactivate(){active.delete(kind);actions.push({kind:'deactivate',surface:kind});},getState(){return structuredClone(retained[kind]);},destroy(){actions.push({kind:'destroy',surface:kind});},select(record){options.onSelect?.(record);},setDetail(level){actions.push({kind:'detail',surface:kind,level});},recenter(){actions.push({kind:'recenter',surface:kind});}};
+  return controllers[kind]={activate(view,state){active.add(kind);if(active.size!==1)throw Error('Multiple active surfaces');actions.push({kind:'activate',surface:kind,view,state});},deactivate(){active.delete(kind);actions.push({kind:'deactivate',surface:kind});},getState(){return structuredClone(retained[kind]);},destroy(){actions.push({kind:'destroy',surface:kind});},select(record){options.onSelect?.(record);},setDetail(level){actions.push({kind:'detail',surface:kind,level});},coarse(){actions.push({kind:'coarse',surface:kind});},recenter(){actions.push({kind:'recenter',surface:kind});}};
 }
 globalThis.__route={input,actions,surface};
 const sources={
@@ -287,5 +287,16 @@ test('the top toolbar can be hidden and restored in every representation without
     assert.deepEqual(result.actions.filter(action => action.kind === 'recenter'), []);
     assert.equal(mounts(result).length, 1);
     assert.deepEqual(result.errors, []);
+  }
+});
+
+
+test('Coarse in Space delegates to Space without loading or switching a temporal view', () => {
+  for (const data of [snapshot(true), snapshot(false)]) {
+    const result = run({ view: 'space', data, steps: [{ coarse: true }] });
+    assert.equal(result.coarseDisabled, false);
+    assert.equal(result.state.view, 'space');
+    assert.deepEqual(result.actions.filter((action) => action.kind === 'coarse'), [{ kind: 'coarse', surface: 'space' }]);
+    assert.ok(!result.imports.includes('./view.js'));
   }
 });

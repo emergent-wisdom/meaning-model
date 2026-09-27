@@ -25,6 +25,7 @@ export function createViewerSession({ temporal, initialView, state = {}, mounts,
   return {
     setView, snapshot,
     recenter() { return current?.recenter?.(); },
+    coarse() { return current?.coarse?.(); },
     selectRecord(selection) { shared.selection = selection ? { kind: selection.kind, id: selection.id } : null; onState(snapshot()); },
     destroy() { request += 1; current?.deactivate?.(); for (const promise of mounted.values()) promise.then((surface) => surface.destroy?.()); mounted.clear(); current = null; activeView = null; },
   };

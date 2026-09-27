@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LifeSimulationService } from '../src/service.mjs';
-import { spaceModel, positionAt, timeSpan, planeOf } from '../viewer/public/space-model.js';
+import { spaceModel, positionAt, timeSpan, planeOf, lifeLocations, locationSequence, spaceConnections, spatialRecordText, resolveSpaceSelection, spaceToViewerTime, viewerToSpaceTime } from '../viewer/public/space-model.js';
 
 // A harbour declared in the existing grammar: a ferry's pose, a buoy's two coordinates, a boat moving at a declared
 // constant speed, and a pier with no position. Places named only in an Event's region are never placed.
@@ -115,7 +115,8 @@ test('where Events happen is listed from declared place bindings, with when and 
     { id: 'at.pier', target: { kind: 'event', event_id: 'harbour.boarding' }, role: 'setting', referent_id: 'thing.pier', binding_type: 'located_in', provenance },
     { id: 'named.pier', target: { kind: 'event', event_id: 'harbour.day' }, role: 'mentioned', referent_id: 'thing.pier', binding_type: 'participant', provenance });
   const { settings, frames } = spaceModel(model);
-  assert.deepEqual(settings.map((setting) => [setting.name, setting.events.map((event) => event.id), setting.who]), [['The Old Pier', ['harbour.boarding'], ['Ines Berg']]]);
+  assert.deepEqual(settings.map((setting) => [setting.name, setting.events.map((event) => event.id), setting.who]), [['The Old Pier', ['harbour.boarding'], []]]);
+  assert.deepEqual(settings[0].events[0].participants, ['Ines Berg'], 'participation is not a declaration of physical presence');
   assert.equal(settings[0].events[0].description, 'She can reach the rail from the ladder.');
   assert.ok(!frames.flatMap((frame) => frame.objects).some((object) => object.referentId === 'thing.pier'), 'a setting is not given coordinates');
 });
@@ -149,4 +150,108 @@ test('latitude and longitude lie as a map, and a representative point keeps its 
   assert.ok(Math.abs(a.east / swindon.position[swindon.axes.indexOf('longitude')] - Math.cos(51.493 * Math.PI / 180)) < 1e-9, 'longitude narrows by the cosine of the middle latitude');
   assert.deepEqual(swindon.precision, [{ kind: 'standard_deviation', value: 0.02 }, { kind: 'standard_deviation', value: 0.02 }]);
   assert.equal(timeSpan(frame), null, 'places that do not move have no time span');
+});
+
+
+function lifeModel() {
+  const locations = [['home.a', 'home_base', 'place.a', 2, 8, [10, 20]], ['work.b', 'workplace', 'place.b', 4, 10, [40, 20]], ['home.c', 'home_base', 'place.c', 12, 16, [50, 80]]];
+  return {
+    time_unit: 'year',
+    processes: locations.map(([id, role, place, start, end, point]) => ({ id, initial_value: { kind: 'vector', value: point }, unit: 'm', reference_frame: 'map', axes: [{ id: 'x' }, { id: 'y' }],
+      scale: { semantic_role: 'position', spatial_status: 'coarse_life_location', location_role: role, place_ref: place, label: place }, provenance: ['Authored coarse context'] })),
+    meaning_model: {
+      referents: [{ id: 'person', boundary: 'Asha, a person', lifecycle_event_id: 'life' }, ...['a', 'b', 'c'].map((id) => ({ id: `place.${id}`, boundary: `Place ${id}` }))],
+      events: [{ id: 'life', boundary: 'A life', interval: { start: 0, end: 20 } }, { id: 'move', boundary: 'A new home', interval: { start: 12, end: 16 }, process_ids: ['home.c'] }],
+      event_referent_bindings: locations.map(([id, , , start, end]) => ({ id: `bind.${id}`, target: { kind: 'process', process_id: id }, role: 'position', binding_type: 'coordinate', referent_id: 'person', interval: { start, end } })),
+    },
+  };
+}
+
+test('lifetime positions retain home and work roles, and unrecorded time stays unrecorded', () => {
+  const [frame] = spaceModel(lifeModel()).frames, [life] = lifeLocations(frame);
+  assert.equal(frame.lifeLocations.length, 3);
+  assert.equal(life.label, 'Asha');
+  assert.deepEqual(life.locations.map((location) => [location.locationRole, location.placeId]), [['home_base', 'place.a'], ['workplace', 'place.b'], ['home_base', 'place.c']]);
+  assert.deepEqual(life.gaps, [{ start: 0, end: 2 }, { start: 10, end: 12 }, { start: 16, end: 20 }]);
+  assert.deepEqual(positionAt(life.locations[0], 9), null, 'no carry-forward into a gap');
+  assert.deepEqual(locationSequence(frame).map((link) => [link.source.id, link.target.id, link.gap]), [['home.a', 'home.c', true]], 'a workplace does not become a move away from home');
+});
+
+test('position ownership never comes from a non-position binding, and settings never infer co-presence', () => {
+  const model = lifeModel();
+  model.meaning_model.event_referent_bindings.unshift({ id: 'about', target: { kind: 'process', process_id: 'home.a' }, role: 'observer', binding_type: 'belief', referent_id: 'place.a' });
+  model.meaning_model.events.push({ id: 'call', boundary: 'A remote conversation', participants: { caller: 'person' } });
+  model.meaning_model.event_referent_bindings.push(
+    { id: 'call.place', target: { kind: 'event', event_id: 'call' }, role: 'setting', binding_type: 'located_in', referent_id: 'place.b' },
+    { id: 'call.other', target: { kind: 'event', event_id: 'call' }, role: 'mentioned', binding_type: 'about', referent_id: 'place.c' });
+  const space = spaceModel(model);
+  assert.equal(space.frames[0].objects.find((object) => object.id === 'home.a').referentId, 'person');
+  assert.deepEqual(space.settings[0].who, []);
+  assert.deepEqual(space.settings[0].events[0].participants, ['Asha']);
+});
+
+test('Space context follows native process/Event and narrative grounding edges, never word overlap', () => {
+  const model = lifeModel();
+  const inspection = { model, graph: { nodes: [{ id: 'thought', kind: 'understanding', text: 'Distance makes the visit harder.' }, { id: 'unrelated', text: 'Asha home.c move place.c' }, { id: 'passage', kind: 'passage', text: 'She unpacked.' }],
+    edges: [
+      { source: { kind: 'node', node_id: 'thought' }, target: { kind: 'anchor', anchor_kind: 'process', anchor_id: 'home.c' }, relation: 'about', family: 'grounding' },
+      { source: { kind: 'node', node_id: 'passage' }, target: { kind: 'anchor', anchor_kind: 'event', anchor_id: 'move' }, relation: 'renders', family: 'grounding' },
+    ] } };
+  const object = spaceModel(model).frames[0].objects.find((item) => item.id === 'home.c');
+  const related = spaceConnections(inspection).related(object);
+  assert.ok(related.some((node) => node.nativeId === 'move'));
+  assert.ok(related.some((node) => node.nativeId === 'thought'));
+  assert.ok(related.some((node) => node.nativeId === 'passage'));
+  assert.ok(!related.some((node) => node.nativeId === 'unrelated'));
+});
+
+
+test('typed Understanding prose is readable and broader person links stay separate from period evidence', () => {
+  const model = lifeModel();
+  const note = { id: 'note', text: JSON.stringify({ schema: 'meaning-model-understanding-note/v1', kind: 'interpretation', text: 'The unfamiliar route makes her hesitate.', data: { detail: 'kept in the native record' } }) };
+  const personNote = { id: 'life-note', text: 'She remembers another city.' };
+  const inspection = { model, graph: { nodes: [note, personNote], edges: [
+    { source: { kind: 'node', node_id: 'note' }, target: { kind: 'anchor', anchor_kind: 'event', anchor_id: 'move' }, relation: 'about' },
+    { source: { kind: 'node', node_id: 'life-note' }, target: { kind: 'anchor', anchor_kind: 'referent', anchor_id: 'person' }, relation: 'about' },
+  ] } };
+  const object = spaceModel(model).frames[0].objects.find((item) => item.id === 'home.c'), related = spaceConnections(inspection).related(object);
+  const direct = related.find((item) => item.nativeId === 'note'), broader = related.find((item) => item.nativeId === 'life-note');
+  assert.equal(direct.label, 'The unfamiliar route makes her hesitate.');
+  assert.equal(direct.displayText, direct.label);
+  assert.equal(direct.scope, 'period');
+  assert.equal(broader.scope, 'person');
+  assert.equal(direct.record.text, note.text, 'the envelope is preserved for provenance inspection');
+  assert.equal(spatialRecordText({ text: '{"schema":"something-else","text":"do not decode"}' }), '{"schema":"something-else","text":"do not decode"}');
+  assert.equal(spatialRecordText({ text: 'Ordinary <prose> stays literal.' }), 'Ordinary <prose> stays literal.');
+});
+
+
+test('Space restores narrative and Event selections, using directly declared period frames only', () => {
+  const model = lifeModel(), note = { id: 'thought', text: 'The new room changes her routine.' };
+  const inspection = { model, graph: { nodes: [note, { id: 'general', text: 'A broader life note.' }], edges: [
+    { source: { kind: 'node', node_id: 'thought' }, target: { kind: 'anchor', anchor_kind: 'event', anchor_id: 'move' }, relation: 'about' },
+    { source: { kind: 'node', node_id: 'general' }, target: { kind: 'anchor', anchor_kind: 'referent', anchor_id: 'person' }, relation: 'about' },
+  ] } };
+  const frames = [{ frame: 'unrelated', objects: [] }, ...spaceModel(model).frames], connections = spaceConnections(inspection);
+  const restored = resolveSpaceSelection(frames, connections, { kind: 'narrative', id: 'thought' }, 0);
+  assert.equal(restored.frame, 1);
+  assert.equal(restored.object.id, 'home.c');
+  assert.equal(restored.node.nativeId, 'thought');
+  const event = resolveSpaceSelection(frames, connections, { kind: 'event', id: 'move' }, 0);
+  assert.equal(event.frame, 1);
+  assert.equal(event.object.id, 'home.c');
+  const general = resolveSpaceSelection(frames, connections, { kind: 'narrative', id: 'general' }, 0);
+  assert.equal(general.frame, 0, 'a broader person note does not imply a physical location');
+  assert.equal(general.object, null);
+  assert.equal(general.node.nativeId, 'general', 'the native record still opens without drawable coordinates');
+});
+
+
+test('Space carries a civil-day cursor through the shared viewer clock without treating days as years', () => {
+  for (const day of [-48577, -42886, 0, 19500]) {
+    const displayed = spaceToViewerTime(day, 'civil_day_since_1970');
+    assert.ok(Math.abs(viewerToSpaceTime(displayed, 'civil_day_since_1970') - day) < 1e-8);
+  }
+  assert.equal(spaceToViewerTime(2022.7, 'year'), 2022.7);
+  assert.equal(viewerToSpaceTime(8, 'hour'), 8);
 });

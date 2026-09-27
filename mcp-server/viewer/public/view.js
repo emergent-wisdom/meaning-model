@@ -1459,16 +1459,16 @@ function play() {
     }, 50);
   }
 }
-document.getElementById('play').addEventListener('click', () => (playing ? stop() : play()));
+document.getElementById('play').addEventListener('click', () => { if (temporalActive) (playing ? stop() : play()); });
 const seekTo = (fraction) => {
   const f = Math.max(0, Math.min(1, fraction)); atEnd = f >= 1;
   if (building()) tau = activeClock.invert(f * activeClock.total); else now = f >= 1 ? F.b : F.w ? timeAt(F, f) : F.a + f * (F.b - F.a);
   apply();
 };
 { const track = document.getElementById('track'); let scrubbing = false; const at = (e) => { const r = track.getBoundingClientRect(); return (e.clientX - r.left) / r.width; };
-  track.addEventListener('pointerdown', (e) => { stop(); scrubbing = true; track.setPointerCapture(e.pointerId); seekTo(at(e)); });
-  track.addEventListener('pointermove', (e) => { if (scrubbing) seekTo(at(e)); });
-  const end = () => { if (scrubbing) { scrubbing = false; syncURL(); } }; track.addEventListener('pointerup', end); track.addEventListener('pointercancel', end); }
+  track.addEventListener('pointerdown', (e) => { if (!temporalActive) return; stop(); scrubbing = true; track.setPointerCapture(e.pointerId); seekTo(at(e)); });
+  track.addEventListener('pointermove', (e) => { if (temporalActive && scrubbing) seekTo(at(e)); });
+  const end = () => { if (temporalActive && scrubbing) { scrubbing = false; syncURL(); } }; track.addEventListener('pointerup', end); track.addEventListener('pointercancel', end); }
 
 // ---- the camera: spinning (the view as it always turned), free, or locked to a steady framing ---------------------------------
 // Locked is the explorer's framing: from the front and above, nearly flat, the whole view in the part of the window the
@@ -1740,16 +1740,17 @@ function renderReader(unitId = null) {
   document.getElementById('reader-status').textContent = part ? `Full story · ${part.title ?? part.unit.title ?? part.unit.id}` : 'Full story · Complete manuscript';
   if (target) target.scrollIntoView({ block: 'start' }); else document.getElementById('reader').scrollTop = 0;
 }
-document.getElementById('read').addEventListener('click', () => { document.getElementById('reader').hidden = false; renderReader(); });
-document.getElementById('reader-start').addEventListener('click', () => renderReader());
-document.getElementById('reader-close').addEventListener('click', () => { document.getElementById('reader').hidden = true; });
+document.getElementById('read').addEventListener('click', () => { if (!temporalActive) return; document.getElementById('reader').hidden = false; renderReader(); });
+document.getElementById('reader-start').addEventListener('click', () => { if (temporalActive) renderReader(); });
+document.getElementById('reader-close').addEventListener('click', () => { if (!temporalActive) return; document.getElementById('reader').hidden = true; });
 addEventListener('keydown', (event) => { if (event.key === 'Escape') document.getElementById('reader').hidden = true; });
 // Full view: the story across the whole window. Download: the whole story as the Meaning Model renders it, as Markdown.
 const readerPanel = document.getElementById('reader');
 function fullReader(on) { readerPanel.classList.toggle('full', on); setText('reader-full', on ? 'Side view' : 'Full view'); syncURL(); }
-document.getElementById('reader-full').addEventListener('click', () => fullReader(!readerPanel.classList.contains('full')));
+document.getElementById('reader-full').addEventListener('click', () => { if (temporalActive) fullReader(!readerPanel.classList.contains('full')); });
 addEventListener('keydown', (event) => { if ((event.key === 'f' || event.key === 'F') && !readerPanel.hidden && !event.metaKey && !event.ctrlKey) fullReader(!readerPanel.classList.contains('full')); });
 document.getElementById('reader-download').addEventListener('click', () => {
+  if (!temporalActive) return;
   const units = data.story?.units ?? []; const markdown = `${units.map((unit) => String(unit.text ?? '').trim()).filter(Boolean).join('\n\n')}\n`;
   const slug = (text) => String(text ?? '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f'’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   const own = units.find((unit) => unit.role === 'document_root')?.text?.match(/^#\s+(.+)$/m)?.[1] ?? titleText; const story = document.getElementById('story');
@@ -2561,6 +2562,9 @@ export const temporalController = {
   recenter: recenterView,
   activate(view, state) {
     temporalActive = true; controls.enabled = opt.camera !== 'locked'; setLayout(view); useSharedSelection(state.selection);
+    if (state.time?.mode === 'story' && Number.isFinite(state.time.now)) { opt.mode = 'story'; now = state.time.now; atEnd = Boolean(state.time.atEnd); apply(); }
+    document.getElementById('play').disabled = false; document.getElementById('play').removeAttribute('aria-pressed');
+    for (const attribute of ['role', 'tabindex', 'aria-label', 'aria-disabled', 'aria-valuemin', 'aria-valuemax', 'aria-valuenow', 'aria-valuetext']) document.getElementById('track').removeAttribute(attribute);
     renderer.setSize(innerWidth, innerHeight); labels.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); composer.setSize(innerWidth, innerHeight);
     if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } syncPanel(); syncURL(true); relayout = true;
     if (temporalFrame === null && !params.has('capture')) frame();

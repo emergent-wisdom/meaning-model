@@ -12,7 +12,8 @@ const temporal = Boolean(data && (data.capabilities?.temporal ?? data.capabiliti
 const requested = params.get('view');
 const initialView = !data ? 'structure' : labels[requested] ? requested : temporal ? data.capabilities?.trajectories ? 'together' : 'layers' : 'graph';
 
-for (const element of document.querySelectorAll('#scene, #stats, .caption, #strip, .bar, #labels2, #legend, #details, #tip, #reader, #qr-panel, #sub, #repos')) element.dataset.temporal = '';
+for (const element of document.querySelectorAll('#scene, #stats, .caption, #strip, #labels2, #legend, #details, #tip, #qr-panel, #sub, #repos')) element.dataset.temporal = '';
+for (const element of document.querySelectorAll('.bar, #reader')) element.dataset.playback = '';
 for (const element of document.getElementById('tools').children) {
   if (!element.querySelector?.('[data-pop="pop-show"]') && !['story', 'coarse-view', 'recenter-view', 'graph-controls', 'space-controls'].includes(element.id)) element.dataset.temporal = '';
 }
@@ -87,6 +88,7 @@ const session = createViewerSession({
     document.body.classList.toggle('graph-mode', view === 'graph'); document.body.classList.toggle('space-mode', view === 'space'); document.body.classList.remove('graph-selection');
     document.body.classList.toggle('details-open', timeViews.has(view) && !document.getElementById('details').hidden);
     document.getElementById('t-show').textContent = labels[view];
+    document.getElementById('coarse-view').disabled = view === 'space' ? !data : !temporal;
     const recenter = document.getElementById('recenter-view'); recenter.hidden = view === 'structure'; recenter.disabled = !data || view === 'structure';
     document.querySelector('.eyebrow').textContent = `Meaning Model · ${labels[view]}`;
     document.getElementById('title').textContent = data?.title ?? 'Meaning Model'; document.title = data?.title ?? 'Meaning Model';
@@ -127,6 +129,7 @@ coarseButton.disabled = !temporal;
 // The coarse overview is the least detail of the time view being looked at; only a view without detail opens the tree.
 coarseButton.addEventListener('click', async () => {
   const current = session.snapshot().view;
+  if (current === 'space') { session.coarse(); return; }
   await switchView(['together', 'layers'].includes(current) ? current : 'layers');
   if (['together', 'layers'].includes(session.snapshot().view)) (await import('./view.js')).temporalController.setDetail(0);
 });
