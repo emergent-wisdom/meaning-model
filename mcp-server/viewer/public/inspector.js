@@ -38,9 +38,14 @@ export function proseUnit(source) {
   flush(); return article;
 }
 
-function structureView(model, onSelect = () => {}) {
+function structureView(model, { choose = () => {}, isSelected = () => false, rows = new Map() } = {}) {
   const index = buildStructureIndex(model), registry = new Map();
   const key = (kind, id) => `${kind}:${id}`;
+  // Opening a row selects its record; closing the selected row lets it go, so browsing never strands a selection.
+  const pick = (summary, record) => {
+    rows.set(JSON.stringify(record), summary); if (isSelected(record)) summary.setAttribute('aria-current', 'true');
+    summary.addEventListener('click', () => { if (!summary.parentElement?.open) choose(record); else if (isSelected(record)) choose(null); });
+  };
   function reference(kind, id, context = 'Shared reference') {
     const wrapper = text('div', `${context} · ${id}`, 'inspection-reference');
     const target = registry.get(key(kind, id));
@@ -59,7 +64,7 @@ function structureView(model, onSelect = () => {}) {
     if (path.has(cut.id)) return reference('cut', cut.id, 'Cycle reference');
     if (registry.has(key('cut', cut.id))) return reference('cut', cut.id, 'Conditional / shared Cut reference');
     const summary = text('summary', labelOf(cut));
-    summary.addEventListener('click', () => onSelect({ kind: 'normalized_cut', id: cut.id }));
+    pick(summary, { kind: 'normalized_cut', id: cut.id });
     summary.append(badge(`Cut · ${cut.unit ?? 'unit not declared'}`));
     const details = lazy(summary, (container) => {
       const body = document.createElement('div'); body.className = 'inspection-body';
@@ -92,7 +97,7 @@ function structureView(model, onSelect = () => {}) {
     const cuts = isEvent ? index.cutsByEvent.get(id) ?? [] : [];
     const contexts = isEvent ? index.contexts.get(id) ?? inheritedContexts : [];
     const summary = text('summary', labelOf(record));
-    summary.addEventListener('click', () => onSelect({ kind, id }));
+    pick(summary, { kind, id });
     summary.append(badge(isEvent ? 'Event' : 'Process'));
     if (children.length) summary.append(badge(`${children.length} ${isEvent ? 'contained' : 'decomposed'} children`));
     if (cuts.length) summary.append(badge(`${cuts.length} Cuts`));
@@ -182,7 +187,24 @@ export function showInspector(data, notice = null, { host = null, onSelect = () 
     const link = text('a', label); link.href = href; navigation.append(link);
   }
   const selectedRecord = document.createElement('section'); selectedRecord.hidden = true; selectedRecord.className = 'inspection-selection';
-  main.append(navigation, selectedRecord, structureView(model, onSelect));
+  let selectionGraph = null, lastSelection = null; const rows = new Map();
+  // The selection shown here is the one every representation shares, and it can always be let go.
+  function showSelection(selection) {
+    const key = selection ? JSON.stringify(selection) : null;
+    if (key === lastSelection) return;
+    rows.get(lastSelection)?.removeAttribute('aria-current'); rows.get(key)?.setAttribute('aria-current', 'true'); lastSelection = key;
+    selectedRecord.hidden = !selection; selectedRecord.replaceChildren();
+    if (!selection) return;
+    selectionGraph ??= buildModelGraph(data.inspection ?? { model, graph: data.graph });
+    const node = selectionGraph.nodes.find((node) => node.kind === selection.kind && node.nativeId === selection.id);
+    const clear = text('button', 'Clear selection', 'inspection-clear'); clear.type = 'button'; clear.addEventListener('click', () => choose(null));
+    selectedRecord.append(text('h2', `Selected ${words(selection.kind)}`), text('p', node?.label ?? selection.id), text('p', selection.id, 'inspection-meta'), clear);
+    if (node) selectedRecord.append(definition('Selected native record', node.record));
+    else selectedRecord.append(text('p', 'This selection has no record in this snapshot.', 'inspection-meta'));
+  }
+  function choose(selection) { onSelect(selection); showSelection(selection); }
+  const isSelected = (record) => lastSelection === JSON.stringify(record);
+  main.append(navigation, selectedRecord, structureView(model, { choose, isSelected, rows }));
   if (story.length) {
     const section = document.createElement('section'); section.id = 'rendered-document'; section.append(text('h2', 'Complete rendered document'), text('p', 'All current rendered passages, in native reading order. Expanding model records does not change this text.', 'inspection-meta'));
     for (const unit of story) section.append(proseUnit(unit.text));
@@ -203,19 +225,8 @@ export function showInspector(data, notice = null, { host = null, onSelect = () 
     }
   }, 'inspection-section'));
   raw.append(definition('Complete model definition', model)); main.append(raw);
-  let selectionGraph = null, lastSelection = null;
   return {
-    activate(_view, state = {}) {
-      const selection = state.selection, key = selection ? JSON.stringify(selection) : null;
-      if (key === lastSelection) return; lastSelection = key;
-      selectedRecord.hidden = !selection; selectedRecord.replaceChildren();
-      if (!selection) return;
-      selectionGraph ??= buildModelGraph(data.inspection ?? { model, graph: data.graph });
-      const node = selectionGraph.nodes.find((node) => node.kind === selection.kind && node.nativeId === selection.id);
-      selectedRecord.append(text('h2', `Selected ${words(selection.kind)}`), text('p', node?.label ?? selection.id), text('p', selection.id, 'inspection-meta'));
-      if (node) selectedRecord.append(definition('Selected native record', node.record));
-      else selectedRecord.append(text('p', 'This selection has no record in this snapshot.', 'inspection-meta'));
-    },
+    activate(_view, state = {}) { showSelection(state.selection ?? null); },
     deactivate() {},
   };
 }

@@ -25,6 +25,15 @@ import { buildModelGraph } from './model-graph.js';
 import { readingActs, actShares, actCounts } from './lens-readings.js';
 
 let temporalActive = !window.modelViewer, temporalFrame = null, appliedSelection = null, hoveredRecord = null;
+// The thing under the pointer (a light, bar, link or card; null on a curtain or the ground) and the one the panel holds,
+// kept by what it shows, since redrawing rebuilds the bars and links under the pointer.
+let hoveredTarget = null, pinnedTarget = null;
+function targetKey(target) {
+  if (!target) return null;
+  if (target.isObject3D || target.nodeType === 1) return target;
+  const id = target.relation?.id ?? target.node?.id ?? target.unit?.id ?? target.reading?.cutId ?? target.reading?.id;
+  return id == null ? null : `${target.kind}:${id}:${target.reading?.t ?? ''}`;
+}
 const temporalEvents = new AbortController();
 const addEventListener = (type, handler, options = {}) => window.addEventListener(type, (event) => { if (temporalActive) handler(event); }, { ...(typeof options === 'boolean' ? { capture: options } : options), signal: temporalEvents.signal });
 function publishRecord(record) { if (record && (!record.kind || typeof record.id !== 'string')) return; appliedSelection = JSON.stringify(record); window.modelViewer?.selectRecord(record); }
@@ -618,7 +627,7 @@ principals.forEach((person) => {
     element.title = [series.question, series.unit, ...point.answers.map((answer) => `${answer.key.replace(/_/g, ' ')}: ${Math.round(answer.weight * 100)}%`),
       at ? `At: ${at.label}` : null, `Whose: ${holderText({ holder: null })}`].filter(Boolean).join('\n');
     const object = new CSS2DObject(element); object.center.set(0.5, 1); object.userData = { t: point.t, eventId: point.eventId, cutId: point.cutId, act, names: [person.name.split(' ')[0]], own, lift: 4.2, born: point.born }; field.add(object); lenses.push(object);
-    element.addEventListener('click', () => { const [question, unit, ...rest] = element.title.split('\n'); showDetails([tipLine('k', 'Love or fear'), tipLine('v', element.querySelector('.act').textContent), element.querySelector('.split').cloneNode(true), tipLine('m', question), ...rest.map((line) => tipLine('a', line)), tipLine('a', unit)]); });
+    element.addEventListener('click', () => { if (pinnedTarget === element && !details.hidden) { hideDetails(); return; } const [question, unit, ...rest] = element.title.split('\n'); showDetails([tipLine('k', 'Love or fear'), tipLine('v', element.querySelector('.act').textContent), element.querySelector('.split').cloneNode(true), tipLine('m', question), ...rest.map((line) => tipLine('a', line)), tipLine('a', unit)], element); });
   }
 });
 // With them, every act the lens read, once, over the person whose act it is (the record's subject, else whose life holds
@@ -656,7 +665,7 @@ function actCard(act) {
   const object = new CSS2DObject(element); object.center.set(0.5, 1);
   object.userData = { t: act.t, eventId: act.eventId, cutId: act.cutId, act: actText, names: name ? [name] : [], own: person ? ownRows(person) : [], lift: 4.2, born: act.born };
   field.add(object); lenses.push(object);
-  element.addEventListener('click', () => { const body = document.createElement('div'); appendLensInspection(body, { lens: fearLove, reading: act }); showDetails([tipLine('k', 'Love or fear'), tipLine('v', element.querySelector('.act').textContent), element.querySelector('.split').cloneNode(true), body]); });
+  element.addEventListener('click', () => { if (pinnedTarget === element && !details.hidden) { hideDetails(); return; } const body = document.createElement('div'); appendLensInspection(body, { lens: fearLove, reading: act }); showDetails([tipLine('k', 'Love or fear'), tipLine('v', element.querySelector('.act').textContent), element.querySelector('.split').cloneNode(true), body], element); });
 }
 if (fearLove) for (const act of fearLove.acts) actCard(act);
 function layOnFront(item) {
@@ -1307,12 +1316,12 @@ function hoverTerrain() {
   // A causal link under the pointer first, as in the processes.
   let arc = null; let bestArc = 8; for (const target of terrainArcTargets) for (let i = 1; i < target.pts.length; i += 1) { const a = screen(target.pts[i - 1].x, target.pts[i - 1].y, target.pts[i - 1].z); const b = screen(target.pts[i].x, target.pts[i].y, target.pts[i].z); if (!a.ok || !b.ok) continue; const d = distToSeg(pointerAt, a, b); if (d < bestArc) { bestArc = d; arc = target; } }
   if (arc !== litArc) { litArc = arc; drawTerrainArcs(); }
-  if (arc) { highlightRow(null); renderer.domElement.style.cursor = 'help'; tip.replaceChildren(...arcLines(arc).map(([cls, text]) => tipLine(cls, text))); placeTip(); return; }
+  if (arc) { highlightRow(null); hoveredTarget = arc; renderer.domElement.style.cursor = 'help'; tip.replaceChildren(...arcLines(arc).map(([cls, text]) => tipLine(cls, text))); placeTip(); return; }
   ndc.set((pointerAt.x / innerWidth) * 2 - 1, -(pointerAt.y / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
   const lines = []; let row = null;
   const hit = ray.intersectObjects([...terrain.beams, ...terrain.mind].filter((item) => item.visible), false)[0];
   if (hit) {
-    const u = hit.object.userData; row = u.row ?? null;
+    const u = hit.object.userData; row = u.row ?? null; hoveredTarget = hit.object;
     if (u.event) lines.push(['v', u.event.label], ['m', timeText(u.event.start, 2)], ['m', clip(u.event.description, 260)]);
     else if (u.decision) lines.push(['k', 'A decision'], ['v', u.decision.question], ...(u.decision.answers ?? []).slice(0, 5).map((answer) => ['m', `${Math.round(answer.weight * 100)}%  ${answer.key.replace(/[_.-]+/g, ' ')}${u.decision.drawn?.realized === answer.key ? '  ← drawn' : ''}`]));
     else if (u.node) lines.push(['k', NOTE[u.node.category]?.[0] ?? u.node.category], ['v', u.node.title || clip(u.node.text, 90)], ['m', clip(u.node.text, 360)]);
@@ -1797,7 +1806,7 @@ function partButton(part, child = false) {
   const button = document.createElement('button'); button.className = 'part'; button.style.flex = `${Math.max(1, part.words)} 1 0`; button.textContent = partDisplayPath(part); button.readingPart = part;
   button.title = `${hasEnclosingGroups && opt.readingOverview === 'structure' && !part.parent ? 'Group' : 'Part'} ${partDisplayPath(part)}: ${part.title} · ${proseNumber(part.words)} prose words`; button.setAttribute('aria-label', button.title);
   button.addEventListener('mousemove', (event) => { overStrip = true; showPartTip(part, event); }); button.addEventListener('mouseleave', () => { overStrip = false; tip.hidden = true; });
-  button.addEventListener('click', () => selectReadingPart(part)); return button;
+  button.addEventListener('click', () => (part === selectedPart ? hideDetails() : selectReadingPart(part))); return button;
 }
 function drawReadingChildren() {
   const section = document.getElementById('reading-children'); const list = document.getElementById('child-parts'); list.replaceChildren();
@@ -2233,7 +2242,8 @@ renderer.domElement.addEventListener('pointermove', (event) => { pointerAt = { x
 renderer.domElement.addEventListener('pointerleave', () => { pointerAt = null; tip.hidden = true; });
 // A click on anything opens what it is beside the view, as in the understanding graph; a click on nothing closes it.
 const details = document.getElementById('details');
-function showDetails(nodes) {
+function showDetails(nodes, target = null) {
+  pinnedTarget = targetKey(target);
   const body = document.getElementById('details-body'); body.replaceChildren(...nodes);
   let selected = null; try { selected = JSON.parse(appliedSelection); } catch { /* No native record selected. */ }
   const scope = selected?.kind === 'event' ? selected.id : selected?.kind === 'process' ? processById.get(selected.id)?.home : null;
@@ -2247,7 +2257,8 @@ function showDetails(nodes) {
   details.hidden = false; document.body.classList.add('details-open'); fitOpenPanels();
   if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } dirty = true;
 }
-function hideDetails() { if (details.hidden) return; publishRecord(null); selectedPart = null; selectedEventIds.clear(); expandedPart = null; drawReadingChildren(); extrasDirty = true; details.hidden = true; document.body.classList.remove('details-open'); if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } dirty = true; }
+// A selection can outlive its panel (Explore this process closes the panel and keeps it), so letting go never waits on the panel.
+function hideDetails() { if (details.hidden && !selectedPart && !selectedEventIds.size && [null, 'null'].includes(appliedSelection)) return; pinnedTarget = null; publishRecord(null); selectedPart = null; selectedEventIds.clear(); expandedPart = null; drawReadingChildren(); extrasDirty = true; details.hidden = true; document.body.classList.remove('details-open'); if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } dirty = true; }
 document.getElementById('details-close').addEventListener('click', hideDetails);
 const numbersButton = document.createElement('button'); numbersButton.id = 'numbers'; numbersButton.className = 'tool'; numbersButton.textContent = 'Numbers';
 numbersButton.dataset.temporal = '';
@@ -2285,9 +2296,14 @@ addEventListener('keydown', (event) => { if (event.key === 'Escape') hideDetails
 let downAt = null; renderer.domElement.addEventListener('pointerdown', (event) => { downAt = { x: event.clientX, y: event.clientY }; });
 renderer.domElement.addEventListener('click', (event) => {
   if (downAt && Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y) > 5) return; // a drag, not a click
+  if (event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return; // a modifier with the button pans; it never picks
   if (litUnit) { document.getElementById('reader').hidden = false; renderReader(litUnit.id); return; }
   pointerAt = { x: event.clientX, y: event.clientY }; hoveredAt = null; quietAt = null; hover();
-  if (!tip.hidden && tip.childNodes.length) { if (hoveredRecord) publishRecord(hoveredRecord); showDetails([...tip.childNodes].map((node) => node.cloneNode(true))); tip.hidden = true; quietAt = { ...pointerAt }; } else hideDetails();
+  // With the panel open, a click on the field itself (a curtain, the ground) lets the selection go rather than pinning the
+  // next reading, and so does the same light, bar or link again; the second click of a double-click keeps it.
+  const key = targetKey(hoveredTarget);
+  if (!details.hidden && (!hoveredTarget || (key !== null && key === pinnedTarget && event.detail < 2))) { hideDetails(); return; }
+  if (!tip.hidden && tip.childNodes.length) { if (hoveredRecord) publishRecord(hoveredRecord); showDetails([...tip.childNodes].map((node) => node.cloneNode(true)), hoveredTarget); tip.hidden = true; quietAt = { ...pointerAt }; } else hideDetails();
 });
 // Love-or-fear chips lift clear of each other; values and event names that would cover something wait for their turn.
 function declutter() {
@@ -2345,7 +2361,7 @@ function declutter() {
 const distToSeg = (p, a, b) => { const dx = b.x - a.x; const dy = b.y - a.y; const k = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1))); return Math.hypot(p.x - a.x - k * dx, p.y - a.y - k * dy); };
 const tipLine = (cls, text) => { const el = document.createElement('div'); el.className = cls; el.textContent = text; return el; };
 function hover() {
-  hoveredRecord = null;
+  hoveredRecord = null; hoveredTarget = null;
   curtainMark.visible = false; if (overStrip) return;
   if (terrain.on) { hoverTerrain(); return; }
   if (!pointerAt) return;
@@ -2371,16 +2387,17 @@ function hover() {
     for (const id of [litNode?.id, litReading?.eventId, ...(litUnit?.tells ?? []).map((tell) => tell.eventId)]) if (id) for (let at2 = id, hops = 0; at2 && hops < 16; at2 = treeById.get(at2)?.parent, hops += 1) litChain.add(at2);
     extrasDirty = true;
   }
-  if (extra) { lit = null; showExtraTip(extra); return; }
+  if (extra) { lit = null; hoveredTarget = extra; showExtraTip(extra); return; }
   // A causal link under the pointer, when no light or bar is nearer.
   let arc = null; if (!hit) { let bestArc = 8; for (const target of arcTargets) for (let i = 1; i < target.pts.length; i += 1) { const a = screen(target.pts[i - 1].x, target.pts[i - 1].y, target.pts[i - 1].z); const b = screen(target.pts[i].x, target.pts[i].y, target.pts[i].z); if (!a.ok || !b.ok) continue; const d = distToSeg(pointerAt, a, b); if (d < bestArc) { bestArc = d; arc = target; } } }
   if (arc !== litArc) { litArc = arc; drawArcs(); }
-  if (arc) { hoveredRecord = { kind: 'event_relation', id: arc.relation.id }; if (lit) { lit = null; drawNotes(); } renderer.domElement.style.cursor = 'help'; tip.replaceChildren(...arcLines(arc).map(([cls, text]) => tipLine(cls, text))); placeTip(); return; }
+  if (arc) { hoveredRecord = { kind: 'event_relation', id: arc.relation.id }; hoveredTarget = arc; if (lit) { lit = null; drawNotes(); } renderer.domElement.style.cursor = 'help'; tip.replaceChildren(...arcLines(arc).map(([cls, text]) => tipLine(cls, text))); placeTip(); return; }
   // A curtain under the pointer: its process's display value and how it was obtained.
   const curtain = hit ? null : curtainAt(pointerAt); curtainMark.visible = Boolean(curtain) && field.visible;
   if (curtain) { hoveredRecord = curtain.row.measure.kind === 'cut-answer' ? { kind: 'event', id: curtain.row.home } : { kind: 'process', id: curtain.row.measure.id }; if (lit) { lit = null; drawNotes(); } renderer.domElement.style.cursor = 'crosshair'; tip.replaceChildren(...curtainLines(curtain).map(([cls, text]) => tipLine(cls, text))); appendCurtainSources(tip, curtain); placeTip(); return; }
   if (!hit) { tip.hidden = true; renderer.domElement.style.cursor = ''; if (lit) { lit = null; drawNotes(); } return; }
   if (lit !== hit) { lit = hit; drawNotes(); }
+  hoveredTarget = hit;
   if (hit.userData.node?.id) hoveredRecord = { kind: 'narrative', id: hit.userData.node.id };
   else if (hit.userData.decision?.cutId) hoveredRecord = { kind: 'normalized_cut', id: hit.userData.decision.cutId };
   const info = hit.userData.hover; renderer.domElement.style.cursor = 'help';
@@ -2548,13 +2565,13 @@ if (params.has('capture')) {
 let selectionGraph = null;
 function useSharedSelection(selection) {
   const key = JSON.stringify(selection); if (key === appliedSelection) return; appliedSelection = key;
-  if (!selection) { if (!details.hidden) hideDetails(); return; }
+  if (!selection) { hideDetails(); return; }
   if (selection.kind === 'narrative') {
     const pending = [...storyRoots]; while (pending.length) { const part = pending.pop(); if (part.unit.id === selection.id) { selectReadingPart(part); return; } pending.push(...part.children); }
   }
   selectionGraph ??= buildModelGraph(data.inspection);
   const record = selectionGraph.nodes.find((node) => node.kind === selection.kind && node.nativeId === selection.id);
-  if (!record) { if (!details.hidden) { details.hidden = true; document.body.classList.remove('details-open'); } return; }
+  if (!record) { selectedPart = null; selectedEventIds.clear(); expandedPart = null; drawReadingChildren(); extrasDirty = true; if (!details.hidden) { details.hidden = true; document.body.classList.remove('details-open'); } return; }
   selectedEventIds.clear(); litChain = new Set(); const eventId = record.kind === 'event' ? record.nativeId : record.record?.parent_event_id;
   if (eventId) { selectedEventIds.add(eventId); litChain = new Set([eventId]); }
   const body = document.createElement('div'); body.append(tipLine('k', record.kind.replace(/_/g, ' ')), tipLine('v', record.label), tipLine('a', 'Selected in this snapshot. The time position is unchanged.'));

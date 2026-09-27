@@ -4,6 +4,18 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## Unreleased
+
+- A selection is easy to let go in every representation: a click on nothing,
+  on the same record again, or Escape clears it everywhere. Turning, panning or
+  pinching a 3D view never selects, and neither does another mouse button or a
+  modifier key. With an inspector open in the time views, a click on a curtain
+  or the ground closes it instead of pinning the next reading.
+- Structure selects a row when it opens and lets it go when that row closes. The
+  selected row is marked, and Selected has a Clear selection button.
+- Selecting a Graph record no longer moves the camera. Graph and Space
+  inspectors end inside the window and scroll, so every connection can be reached.
+
 ## 0.5.0 — 2026-09-27
 
 - Modeling guidance now distinguishes qualitative places, declared coordinates,

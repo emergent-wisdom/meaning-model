@@ -19,6 +19,8 @@
 .graph-result:hover, .graph-neighbor:hover { background: rgba(255, 255, 255, .12); }
 .graph-mode button:focus-visible, .graph-mode a:focus-visible, .graph-mode input:focus-visible, .graph-mode select:focus-visible { outline: 2px solid #ffe6ae; outline-offset: 3px; }
 .graph-mode .graph-summary { position: fixed; bottom: 18px; left: 28px; right: 28px; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; color: var(--ink-2); background: var(--panel); padding: 12px 14px; box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); border-radius: 12px; font-size: 12px; pointer-events: none; }
+/* With a record open, the summary ends where the inspector column begins, as the scene does. */
+@media (min-width: 761px) { .graph-mode.graph-selection .graph-summary { right: calc(min(450px, 44vw) + 46px); } }
 .graph-mode .graph-summary strong { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 .graph-mode .graph-key { display: flex; flex-wrap: wrap; gap: 5px 13px; flex: 1 1 100%; }
 .graph-mode .graph-key span { display: inline-flex; gap: 5px; align-items: center; }

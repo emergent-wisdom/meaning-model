@@ -31,3 +31,7 @@ body.inspector { display: block; height: 100vh; overflow: auto; color: #ecebe6; 
 .inspection-prose h2 { margin-top: 36px; font-size: 25px; }
 .inspection-prose p { margin: 18px 0; }
 @media (max-width: 640px) { .inspection-content { padding: 24px 16px 64px; } .inspection-body { padding: 0 8px 10px; } .inspection-branch { padding-left: 8px; } .inspection-record summary { padding: 10px; } }
+.inspection-selection { padding: 2px 14px 12px; border-left: 2px solid #9fc3ff; background: #141417; border-radius: 0 8px 8px 0; }
+.inspection-selection h2 { margin-top: 12px; }
+.inspection-clear { margin: 4px 0 8px; padding: 5px 10px; color: #a9ceff; border: 1px solid #475166; border-radius: 4px; background: transparent; cursor: pointer; }
+.inspection-record summary[aria-current="true"] { box-shadow: inset 3px 0 0 #9fc3ff; border-radius: 8px; }

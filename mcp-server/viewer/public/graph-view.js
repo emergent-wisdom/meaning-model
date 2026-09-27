@@ -7,6 +7,7 @@ import { buildModelGraph, overviewModelGraph, layoutStructured, isContainment } 
 import { formatModelInterval } from './structure-model.js';
 import { proseUnit } from './inspector.js';
 import { createWalker } from './walk-controls.js';
+import { onPlainClick } from './pointer-click.js';
 
 const COLORS = { event: '#9fc3ff', process: '#93d3bd', referent: '#dca4bd', concept: '#c9b4f4',
   normalized_cut: '#e5bd7b', normalized_cut_answer: '#c39c68', physical_cut: '#db9d78', narrative: '#fff3dc',
@@ -98,14 +99,14 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
   const matrix = new THREE.Matrix4(), scale = new THREE.Vector3(), quaternion = new THREE.Quaternion();
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
   const point = (id) => { const p = positions.get(id) ?? { x: 0, y: 0, z: 0 }; return new THREE.Vector3(p.x, p.y, p.z); };
-  let down = null;
-  renderer.domElement.addEventListener('pointerdown', (event) => { down = { x: event.clientX, y: event.clientY }; });
-  renderer.domElement.addEventListener('pointerup', (event) => {
-    if (!down || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 5) { down = null; return; }
-    down = null; const rect = renderer.domElement.getBoundingClientRect();
+  // A click on a record selects it where it is; a click on nothing, or on the selected record again, lets it go.
+  // Neither moves the camera, so a stray click costs nothing.
+  onPlainClick(renderer.domElement, (event) => {
+    const rect = renderer.domElement.getBoundingClientRect();
     ndc.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1); ray.setFromCamera(ndc, camera);
-    const hit = mesh && ray.intersectObject(mesh)[0]; if (hit?.instanceId != null) select(visibleIndex[hit.instanceId].id);
-  });
+    const hit = mesh && ray.intersectObject(mesh)[0], id = hit?.instanceId != null ? visibleIndex[hit.instanceId].id : null;
+    if (id && id !== selected) select(id, true, false); else if (selected) deselect();
+  }, { signal: abort.signal });
   function disposeLines(object) { if (object) { group.remove(object); object.geometry.dispose(); object.material.dispose(); } }
   function edgeLines(edges, tint, opacity) {
     const coords = [];
@@ -191,7 +192,7 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
     for (const node of matches.slice(0, 40)) { const choice = button(`${words(node.kind)} · ${node.label}`, () => { filter.value = ''; searchResults.hidden = true; if (!nodeById.has(node.id)) showRecords('all', false); select(node.id); }, searchResults); choice.className = 'graph-result'; }
     resize(); fit();
   }
-  function select(id, notify = true) {
+  function select(id, notify = true, frame = true) {
     const node = nodeById.get(id); if (!node) return; selected = id; rotating = false; controls.autoRotate = false; spinButton.setAttribute('aria-pressed', 'false');
     if (notify) onSelect({ kind: node.kind, id: node.nativeId });
     body.replaceChildren(element('div', words(node.kind), 'k'), element('div', node.label, 'v'), element('p', node.nativeId, 'a'));
@@ -238,15 +239,16 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
     }
     body.append(connections);
     const definition = element('details'); definition.append(element('summary', 'Full native record'), element('pre', JSON.stringify(raw, null, 2))); body.append(definition);
-    detail.hidden = false; refresh(); fit([id, ...connected.flatMap((edge) => [edge.source, edge.target])]);
+    detail.hidden = false; refresh(); if (frame) fit([id, ...connected.flatMap((edge) => [edge.source, edge.target])]);
   }
+  function deselect() { detail.hidden = true; selected = null; onSelect(null); neighborsOnly = false; refresh(); }
   function showRecords(next, keep = true) {
     if (next === mode) return;
     const was = selected ? nodeById.get(selected) : null; useGraph(next); fillFilter(); fillKey(); neighborsOnly = false;
     const again = !was ? null : nodeById.has(was.id) ? was.id : next === 'overview' ? heldBy.get(was.id) ?? null : null;
-    if (keep && again) select(again, false); else if (keep) { selected = null; detail.hidden = true; refresh(); fit(); }
+    if (keep && again) select(again, false); else if (keep) { deselect(); fit(); }
   }
-  detail.querySelector('.close').addEventListener('click', () => { detail.hidden = true; selected = null; onSelect(null); neighborsOnly = false; refresh(); fit(); });
+  detail.querySelector('.close').addEventListener('click', deselect);
 
   const readerElement = (id) => reader.querySelector(`#graph-${id}`), readerBody = readerElement('reader-body');
   const storyUnits = (data.story?.units ?? []).filter((unit) => unit.text?.trim()), articles = new Map();
@@ -270,9 +272,11 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
     const blob = new Blob([storyUnits.map((unit) => unit.text).join('\n\n')], { type: 'text/markdown;charset=utf-8' }), url = URL.createObjectURL(blob), anchor = element('a');
     anchor.href = url; anchor.download = `${String(data.title ?? 'document').replace(/[^\p{L}\p{N} ._-]/gu, '_')}.md`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
-  addEventListener('keydown', (event) => { if (active && event.key === 'Escape') { reader.hidden = true; searchResults.hidden = true; detail.hidden = true; selected = null; onSelect(null); neighborsOnly = false; refresh(); } }, { signal: abort.signal });
+  addEventListener('keydown', (event) => { if (active && event.key === 'Escape') { reader.hidden = true; searchResults.hidden = true; if (selected || !detail.hidden) deselect(); } }, { signal: abort.signal });
   function resize() {
     dirty = true;
+    // An open inspector ends above the window's edge and scrolls, so its last connections can be reached.
+    if (!detail.hidden) detail.style.maxHeight = `${Math.max(120, innerHeight - detail.getBoundingClientRect().top - 12)}px`;
     const titleRect = document.querySelector('.title').getBoundingClientRect(), toolsRect = document.getElementById('tools').getBoundingClientRect(), toggleRect = document.getElementById('toolbar-visibility').getBoundingClientRect();
     const narrow = innerWidth <= 760, top = Math.max(titleRect.bottom, narrow ? Math.max(toolsRect.bottom, toggleRect.bottom) : 0) + 12;
     const bottom = Math.min(summary.getBoundingClientRect().top, narrow && !detail.hidden ? detail.getBoundingClientRect().top : innerHeight) - 10;

@@ -5,6 +5,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { proseUnit } from './inspector.js';
 import { createWalker } from './walk-controls.js';
+import { onPlainClick } from './pointer-click.js';
 import { spaceModel, positionAt, presentAt, timeSpan, planeOf, lifeLocations, locationSequence, spaceConnections, spatialRecordText, resolveSpaceSelection, spaceToViewerTime, viewerToSpaceTime, placedEvents } from './space-model.js';
 
 const element = (tag, text, className) => {
@@ -68,8 +69,14 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     const link = element('a'); link.href = URL.createObjectURL(new Blob([markdown], { type: 'text/markdown;charset=utf-8' })); link.download = `${String(data.title ?? 'story').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'story'}.md`;
     document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(link.href), 2000);
   });
-  addEventListener('keydown', (event) => { if (active && event.key === 'Escape') reader.hidden = true; }, { signal: abort.signal });
+  // Escape closes the story and lets the selection go, as a click on nothing does.
+  // What the details panel shows, so a second click on the same thing closes it.
+  let shown = null;
+  let letGo = () => { shown = null; if (!detail.hidden) { detail.hidden = true; onSelect(null); } };
+  addEventListener('keydown', (event) => { if (active && event.key === 'Escape') { reader.hidden = true; letGo(); } }, { signal: abort.signal });
 
+  // An open inspector ends above the window's edge and scrolls, so everything in it can be reached.
+  const fitDetail = () => { if (!detail.hidden) detail.style.maxHeight = `${Math.max(120, innerHeight - detail.getBoundingClientRect().top - 12)}px`; };
   function showRecord(node, back = null) {
     if (!node) return;
     const record = node.record ?? {}, text = node.displayText ?? spatialRecordText(record);
@@ -80,7 +87,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     if (record.interval) parts.push(element('p', intervalText(record.interval, space.timeUnit), 'a'));
     if (node.via?.length) parts.push(element('p', [...new Set(node.via.map((via) => via.relation))].join(' · '), 'a'));
     const raw = element('details'), title = element('summary', 'Record and provenance'); raw.append(title, element('pre', JSON.stringify(record, null, 2), 'space-raw')); parts.push(raw);
-    body.replaceChildren(...parts); detail.hidden = false; onSelect({ kind: node.kind, id: node.nativeId }); if (active && space.frames.length) resize();
+    body.replaceChildren(...parts); detail.hidden = false; shown = node; fitDetail(); onSelect({ kind: node.kind, id: node.nativeId }); if (active && space.frames.length) resize();
   }
   function settingList() {
     const list = element('div', null, 'space-settings');
@@ -100,8 +107,8 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     summary.classList.add('empty'); count.textContent = 'Places in the model';
     note.textContent = 'No coordinates are declared. These Events still connect people, places and passages.';
     journeys.append(settingList());
-    detailsClose.addEventListener('click', () => { detail.hidden = true; onSelect(null); }, { signal: abort.signal });
-    return { activate(_view, state) { active = true; playButton.disabled = true; playButton.textContent = '▶'; track.setAttribute('aria-disabled', 'true'); fill.style.width = '0%'; clock.textContent = 'No spatial clock'; const restored = resolveSpaceSelection([], connections, state?.selection); if (restored.node) showRecord(restored.node); }, deactivate() { active = false; }, recenter() {}, coarse() { detail.hidden = true; summary.scrollTop = 0; }, getState: () => ({ space: { frames: 0 } }), destroy() { alive = false; abort.abort(); summary.remove(); } };
+    detailsClose.addEventListener('click', () => letGo(), { signal: abort.signal });
+    return { activate(_view, state) { active = true; playButton.disabled = true; playButton.textContent = '▶'; track.setAttribute('aria-disabled', 'true'); fill.style.width = '0%'; clock.textContent = 'No spatial clock'; const restored = resolveSpaceSelection([], connections, state?.selection); if (restored.node) showRecord(restored.node); else { shown = null; detail.hidden = true; } }, deactivate() { active = false; }, recenter() {}, coarse() { detail.hidden = true; summary.scrollTop = 0; }, getState: () => ({ space: { frames: 0 } }), destroy() { alive = false; abort.abort(); summary.remove(); } };
   }
 
   const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); host.append(renderer.domElement);
@@ -197,7 +204,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     frame.objects.forEach((object) => {
       const hue = object.lifeLocation ? hueFor(object) : HUES[hueKeys.indexOf(object.referentId ?? object.id) % HUES.length];
       const mesh = new THREE.Mesh(sphere, new THREE.MeshStandardMaterial({ color: hue, emissive: hue, emissiveIntensity: 0.24, metalness: 0.15, roughness: 0.4, transparent: true })); mesh.userData.object = object;
-      const labelElement = element('button', short(positionLabel(object), 42), 'space-label'); labelElement.type = 'button'; labelElement.title = `${positionLabel(object)}\n${intervalText(object.interval, space.timeUnit)}`; labelElement.addEventListener('click', () => select(object));
+      const labelElement = element('button', short(positionLabel(object), 42), 'space-label'); labelElement.type = 'button'; labelElement.title = `${positionLabel(object)}\n${intervalText(object.interval, space.timeUnit)}`; labelElement.addEventListener('click', () => (shown === object && !detail.hidden ? letGo() : select(object)));
       const label = new CSS2DObject(labelElement); label.center.set(0.5, 1.7);
       const halo = new THREE.Mesh(ring, new THREE.MeshBasicMaterial({ color: hue, transparent: true, opacity: 0.36, side: THREE.DoubleSide, depthWrite: false }));
       let trail = null;
@@ -231,7 +238,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
         const light = new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ color: item.color, transparent: true, opacity: 0.9 })); light.scale.setScalar(0.42);
         light.userData.attachment = { ...item, placed }; light.userData.angle = k / all.length * Math.PI * 2; world.add(light); return light;
       });
-      const labelElement = element('button', short(placed.event.boundary, 46), 'space-event-label'); labelElement.type = 'button'; labelElement.title = placed.event.boundary; labelElement.addEventListener('click', () => selectEvent(placed));
+      const labelElement = element('button', short(placed.event.boundary, 46), 'space-event-label'); labelElement.type = 'button'; labelElement.title = placed.event.boundary; labelElement.addEventListener('click', () => (shown === placed && !detail.hidden ? letGo() : selectEvent(placed)));
       const label = new CSS2DObject(labelElement); label.center.set(0.5, 1.5);
       world.add(marker, stem, label); eventItems.push({ placed, marker, stem, lights, label, base, key });
     }
@@ -265,7 +272,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
         const cursor = element('i', null, 'space-life-cursor'); cursor.style.left = pct(t); track.append(cursor);
         for (const location of person.locations.filter((item) => (item.locationRole ?? 'presence') === role)) {
           if (!location.interval) continue;
-          const bar = button(short(periodCaption(location), 32), () => { t = location.interval.start; select(location); update(); }, 'space-life-period');
+          const bar = button(short(periodCaption(location), 32), () => { if (shown === location && !detail.hidden) { letGo(); return; } t = location.interval.start; select(location); update(); }, 'space-life-period');
           bar.style.left = pct(location.interval.start); bar.style.width = `${Math.max(0.35, (location.interval.end - location.interval.start) / range * 100)}%`; bar.style.setProperty('--person-color', hueFor(location));
           bar.title = `${location.periodLabel || `${person.label} · ${roles[role] ?? role} · ${location.placeLabel}`}\n${intervalText(location.interval, space.timeUnit)}`; bar.setAttribute('aria-label', bar.title); bar.dataset.position = location.id;
           if (location === selected) bar.classList.add('selected'); track.append(bar);
@@ -363,7 +370,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
       lines.push(section);
     }
     if (!related.length) lines.push(element('p', 'No declared model connections were found for this position.', 'a'));
-    body.replaceChildren(...lines); detail.hidden = false; if (active) resize();
+    body.replaceChildren(...lines); detail.hidden = false; shown = object; if (active) resize();
   }
   // An Event where it happens: what it is, where and when, and what is attached to it.
   function describeEvent(placed) {
@@ -378,7 +385,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     section('Notes about it', placed.notes, placed.passages.length === 0, record);
     const causes = placement.causal.filter((relation) => relation.source_event_id === event.id || relation.target_event_id === event.id);
     section('Causal links', causes, true, (relation) => { const other = placement.events.find((item) => item.id === (relation.source_event_id === event.id ? relation.target_event_id : relation.source_event_id)); return [`${relation.source_event_id === event.id ? `${relation.kind} →` : `← ${relation.kind}`} ${other?.event.boundary ?? ''}`, () => other && selectEvent(other)]; });
-    body.replaceChildren(...lines); detail.hidden = false; if (active) resize();
+    body.replaceChildren(...lines); detail.hidden = false; shown = placed; if (active) resize();
   }
   function selectEvent(placed, notify = true) {
     selectedEvent = placed; selected = null; if (placed.frame !== frameIndex) showFrame(placed.frame);
@@ -386,23 +393,27 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   }
   function select(object, notify = true) {
     selected = object;
-    if (!object) detail.hidden = true;
+    if (!object) { detail.hidden = true; shown = null; }
     else { describe(object); if (notify) onSelect({ kind: 'process', id: object.processIds[0] }); }
     update(); if (active) resize();
   }
-  detailsClose.addEventListener('click', () => { select(null); onSelect(null); }, { signal: abort.signal });
-  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(); let down = null;
-  renderer.domElement.addEventListener('pointerdown', (event) => { down = { x: event.clientX, y: event.clientY }; }, { signal: abort.signal });
-  renderer.domElement.addEventListener('pointerup', (event) => {
-    if (!down || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 5) { down = null; return; }
-    down = null; const rect = renderer.domElement.getBoundingClientRect(); ndc.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1); ray.setFromCamera(ndc, camera);
+  // Letting go clears what is selected here and in every other representation.
+  letGo = () => { if (!selected && !selectedEvent && detail.hidden) return; selectedEvent = null; select(null); onSelect(null); };
+  detailsClose.addEventListener('click', letGo, { signal: abort.signal });
+  // A plain click picks what is under it; a click on nothing, or on what is already open, lets it go.
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  onPlainClick(renderer.domElement, (event) => {
+    const rect = renderer.domElement.getBoundingClientRect(); ndc.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1); ray.setFromCamera(ndc, camera);
     const targets = [...items.filter((item) => item.mesh.visible).map((item) => item.mesh), ...eventItems.filter((item) => item.marker.visible).flatMap((item) => [item.marker, ...item.lights.filter((light) => light.visible)])];
     const hit = ray.intersectObjects(targets)[0], data2 = hit?.object.userData ?? {};
+    const passage = data2.attachment ? connections.nodes.get(JSON.stringify(['narrative', data2.attachment.node.id])) : null;
+    const target = data2.placed ?? passage ?? data2.object ?? null;
+    if (!target || (target === shown && !detail.hidden)) { letGo(); return; }
     if (data2.placed) selectEvent(data2.placed);
-    else if (data2.attachment) { selectEvent(data2.attachment.placed, false); showRecord(connections.nodes.get(JSON.stringify(['narrative', data2.attachment.node.id])), data2.attachment.placed); }
-    else { selectedEvent = null; select(hit ? data2.object : null); }
+    else if (passage) { selectEvent(data2.attachment.placed, false); showRecord(passage, data2.attachment.placed); }
+    else { selectedEvent = null; select(data2.object); }
   }, { signal: abort.signal });
-  frameSelect.addEventListener('change', () => { selected = null; detail.hidden = true; showFrame(Number(frameSelect.value)); });
+  frameSelect.addEventListener('change', () => { letGo(); showFrame(Number(frameSelect.value)); });
   personSelect.addEventListener('change', () => { focus = personSelect.value; renderJourneys(); update(); fit(); });
   function fit() {
     const bounds = new THREE.Box3(); for (const item of items) if ((!focus || item.object.referentId === focus) && (overview || item.mesh.visible)) bounds.expandByPoint(item.mesh.position);
@@ -413,6 +424,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     controls.target.copy(middle); camera.position.copy(middle).add(new THREE.Vector3(0.12, 1.6, 1.45).normalize().multiplyScalar(distance)); camera.near = Math.max(0.1, radius / 1000); camera.far = radius * 70; camera.updateProjectionMatrix(); controls.update(); dirty = true;
   }
   function resize() {
+    fitDetail();
     const titleRect = document.querySelector('.title').getBoundingClientRect(), toolsRect = document.getElementById('tools').getBoundingClientRect();
     // Without the panel below, the map reaches down to the play bar.
     const floor = showSummary ? summary.getBoundingClientRect().top : document.getElementById('track')?.closest?.('.bar')?.getBoundingClientRect().top ?? innerHeight;
@@ -459,10 +471,13 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
       if (state.space) { if (Number.isInteger(state.space.frame) && space.frames[state.space.frame] && state.space.frame !== frameIndex) showFrame(state.space.frame); t = state.space.time ?? t; focus = state.space.focus ?? focus; overview = state.space.overview ?? overview; personSelect.value = focus; }
       if (state.time?.mode === 'story' && Number.isFinite(state.time.now)) { t = viewerToSpaceTime(state.time.now, space.timeUnit); if (!state.space) overview = Boolean(state.time.atEnd); }
       const restored = resolveSpaceSelection(space.frames, connections, state.selection, frameIndex);
+      if (selectedEvent && !(state.selection?.kind === 'event' && state.selection.id === selectedEvent.id)) selectedEvent = null;
       if (restored.frame !== frameIndex) showFrame(restored.frame);
       if (restored.object) selected = restored.object;
       if (restored.node && !['process', 'referent'].includes(state.selection.kind)) showRecord(restored.node, restored.object);
       else if (restored.object) select(restored.object, false);
+      // A selection let go elsewhere, or one Space cannot show, leaves nothing open here.
+      else { selectedEvent = null; select(null, false); }
       renderJourneys(); update(); resize(); fit(); last = performance.now(); if (frameId === null) animate();
     },
     deactivate() { active = false; controls.enabled = false; playing = false; walker.stop(); cancelAnimationFrame(frameId); frameId = null; },

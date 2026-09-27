@@ -11,6 +11,7 @@ function dom() {
     append(...nodes) { for (const node of nodes) { node.parentElement = this; this.children.push(node); } }
     replaceChildren(...nodes) { this.children = []; this._text = ''; this.append(...nodes); }
     setAttribute(key, value) { this[key] = value; }
+    removeAttribute(key) { delete this[key]; }
     addEventListener(name, callback) { this.handlers[name] = callback; }
     set open(value) { this._open = value; this.handlers.toggle?.(); }
     get open() { return this._open; }
@@ -90,9 +91,19 @@ test('embedded Structure preserves the shared shell, selected native records and
   controller.activate('structure', { selection: { kind: 'event', id: 'b' } });
   const selection = all(host).find((node) => node.className === 'inspection-selection');
   assert.equal(selection.hidden, false); assert.match(selection.textContent, /Shared child/);
-  const root = expand(document, 'Root Event');
-  root.children[0].handlers.click();
+  // Opening a row selects it and the Selected section follows at once; closing the selected row lets it go.
+  const root = all(host).find((node) => node.tagName === 'DETAILS' && node.children[0]?.textContent.startsWith('Root Event'));
+  root.children[0].handlers.click(); root.open = true;
   assert.deepEqual(selections, [{ kind: 'event', id: 'a' }]);
+  assert.match(selection.textContent, /Root Event/); assert.equal(root.children[0]['aria-current'], 'true');
+  root.children[0].handlers.click(); root.open = false;
+  assert.deepEqual(selections, [{ kind: 'event', id: 'a' }, null]); assert.equal(selection.hidden, true); assert.equal(root.children[0]['aria-current'], undefined);
+  // Closing a row that is not the selection leaves the selection alone; Clear selection lets it go.
+  root.children[0].handlers.click(); root.open = true;
+  const child = expand(document, 'Shared child'); child.children[0].handlers.click();
+  assert.deepEqual(selections.at(-1), { kind: 'event', id: 'a' });
+  all(selection).find((node) => node.tagName === 'BUTTON' && node.textContent === 'Clear selection').handlers.click();
+  assert.equal(selections.at(-1), null); assert.equal(selection.hidden, true);
   controller.deactivate(); controller.activate('structure', { selection: { kind: 'normalized_cut', id: 'q' } });
   assert.equal(root.open, true, 'switching back keeps the reader\'s expanded tree');
   assert.match(selection.textContent, /Where\?/);

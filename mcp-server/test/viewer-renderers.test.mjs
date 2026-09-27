@@ -67,6 +67,7 @@ Object.assign(globalThis, { innerWidth: 1280, innerHeight: 800, devicePixelRatio
 globalThis.document = { body, head, hidden: false, createElement: (tag) => new Element(tag), createTextNode: (text) => Object.assign(new Element('#text'), { _text: String(text) }),
   getElementById: (id) => body.all().find((node) => node.id === id) ?? head.all().find((node) => node.id === id) ?? null, querySelector: (selector) => body.querySelector(selector), querySelectorAll: (selector) => body.querySelectorAll(selector) };
 let frames = []; globalThis.requestAnimationFrame = (callback) => { frames.push(callback); return frames.length; }; globalThis.cancelAnimationFrame = () => {};
+const press = (target, x, y, button = 0) => { for (const type of ['pointerdown', 'pointerup']) target.dispatchEvent({ type, button, clientX: x, clientY: y, pointerId: 1, isPrimary: true, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, preventDefault() {} }); };
 const run = (count = 3) => { for (let i = 0; i < count; i += 1) { const now = frames; frames = []; for (const callback of now) { try { callback(performance.now()); } catch (error) { errors.push(String(error?.stack ?? error)); } } } };
 const add = (parent, tag, id = '', classes = '') => { const node = new Element(tag); if (id) node.id = id; node.className = classes; parent.append(node); return node; };
 const title = add(body, 'header', '', 'title'); add(title, 'h1', 'title');
@@ -91,8 +92,8 @@ try {
     key('keydown', 'ArrowLeft'); walker.step(0.1); key('keyup', 'ArrowLeft'); const target = controls.target.toArray().map((value) => +value.toFixed(3));
     Object.assign(report, { start, forward, idle, typed, started, target });
   } else if (which === 'space') {
-    const { showSpace } = await import(publicUrl + 'space-view.js');
-    const view = showSpace(data, { host, tools: controls, detail, surface, onSelect: () => {} });
+    const { showSpace } = await import(publicUrl + 'space-view.js'); const selections = [];
+    const view = showSpace(data, { host, tools: controls, detail, surface, onSelect: (record) => selections.push(record) });
     view.activate('space', { selection: null, time: null }); run();
     // Every frame, and in each the person focus, the whole-life overview, play and a selection.
     const selects = controls.querySelectorAll('select');
@@ -105,17 +106,30 @@ try {
       const label = host.querySelector('.space-label') ?? surface.querySelector('.space-related'); label?.click(); run(1);
     }
     document.getElementById('read').click(); run(1);
+    // A period clicked twice opens and lets go; a right click keeps it; a plain click on nothing lets it go everywhere.
+    if (frameSelect) { frameSelect.value = '0'; frameSelect.dispatchEvent({ type: 'change', target: frameSelect }); run(1); }
+    const period = surface.querySelector('.space-life-period'), canvas = host.querySelector('canvas');
+    if (period && canvas) {
+      period.click(); const opened = !detail.hidden; period.click(); const toggled = detail.hidden;
+      period.click(); press(canvas, 1, 1, 2); const kept = !detail.hidden; press(canvas, 1, 1); run(1);
+      report.letGo = { opened, toggled, kept, hidden: detail.hidden, last: selections.length ? selections.at(-1) : 'none' };
+    }
     report.state = view.getState(); report.summary = surface.querySelector('.space-summary')?.textContent?.slice(0, 200) ?? null;
     view.coarse?.(); run(1); view.recenter?.(); view.deactivate(); view.destroy();
   } else {
     const { showGraph } = await import(publicUrl + 'graph-view.js');
     const readerCopy = add(body, 'aside', 'graph-reader'); readerCopy.hidden = true; add(readerCopy, 'div', '', 'source');
     for (const id of ['graph-reader-body', 'graph-reader-status']) add(readerCopy, 'div', id); for (const id of ['graph-reader-start', 'graph-reader-close', 'graph-reader-full', 'graph-reader-download']) add(readerCopy, 'button', id);
-    const view = showGraph(data, { host, tools: controls, detail, reader: readerCopy, surface, onSelect: () => {} });
+    const selections = []; const view = showGraph(data, { host, tools: controls, detail, reader: readerCopy, surface, onSelect: (record) => selections.push(record) });
     view.activate('graph', { selection: null }); run();
     for (const button of controls.querySelectorAll('button').filter((node) => node.textContent !== 'Read full document')) { button.click(); run(1); }
     const first = data.inspection.model.meaning_model?.normalized_cuts?.[0];
-    if (first) { view.activate('graph', { selection: { kind: 'normalized_cut', id: first.id } }); run(1); }
+    if (first) {
+      view.activate('graph', { selection: { kind: 'normalized_cut', id: first.id } }); run(1);
+      const canvas = host.querySelector('canvas'), opened = !detail.hidden;
+      press(canvas, 1, 1, 2); const kept = !detail.hidden; press(canvas, 1, 1); run(1);
+      report.letGo = { opened, kept, hidden: detail.hidden, last: selections.length ? selections.at(-1) : 'none' };
+    }
     report.state = view.getState(); report.summary = surface.querySelector('.graph-summary')?.textContent?.slice(0, 200) ?? null;
     view.recenter(); view.deactivate(); view.destroy();
   }
@@ -170,6 +184,7 @@ test('the Space renderer runs every frame, focus, play and selection without an 
   const { data, plain } = await snapshots(t);
   const drawn = render('space', data);
   assert.deepEqual(drawn.errors, []); assert.equal(drawn.frames, 2, 'geography and the authored room are separate frames');
+  assert.deepEqual(drawn.letGo, { opened: true, toggled: true, kept: true, hidden: true, last: null }, 'a selection in Space can always be let go');
   const listed = render('space', plain);
   assert.deepEqual(listed.errors, []); assert.match(listed.summary ?? '', /No coordinates are declared/u);
 });
@@ -178,6 +193,7 @@ test('the Graph renderer runs its overview, every record and a restored selectio
   const { data } = await snapshots(t);
   const drawn = render('graph', data);
   assert.deepEqual(drawn.errors, []); assert.equal(drawn.state.graph.records, 'all', 'selecting a Cut the overview holds opens every record');
+  assert.deepEqual(drawn.letGo, { opened: true, kept: true, hidden: true, last: null }, 'a click on nothing lets the Graph selection go; a right click does not');
 });
 
 test('W A S D walk the Space and Graph cameras, stop on release and leave typing alone', () => {
@@ -189,4 +205,19 @@ test('W A S D walk the Space and Graph cameras, stop on release and leave typing
   assert.equal(walked.typed, false, 'a key typed into a field does not walk');
   assert.equal(walked.started, 2, 'starting to walk is announced once per press');
   assert.notEqual(walked.target[0], 0, 'the arrows turn the view');
+});
+
+test('only a plain, still click of one pointer picks; a drag, another button, a modifier or a pinch never does', async () => {
+  const { onPlainClick } = await import(publicUrl + 'pointer-click.js');
+  const listeners = {}, element = { addEventListener: (type, handler) => { listeners[type] = handler; } };
+  const picks = []; onPlainClick(element, (event) => picks.push(event.clientX));
+  const pointer = (type, x, extra = {}) => listeners[type]({ button: 0, clientX: x, clientY: 0, pointerId: 1, isPrimary: true, ...extra });
+  pointer('pointerdown', 10); pointer('pointerup', 12); // a click that barely moves
+  pointer('pointerdown', 20); pointer('pointerup', 40); // a drag turns the view
+  pointer('pointerdown', 30, { button: 2 }); pointer('pointerup', 30, { button: 2 }); // the right button pans
+  pointer('pointerdown', 50, { shiftKey: true }); pointer('pointerup', 50, { shiftKey: true }); // so does a modifier
+  pointer('pointerdown', 60); pointer('pointerdown', 90, { pointerId: 2, isPrimary: false }); pointer('pointerup', 90, { pointerId: 2, isPrimary: false }); pointer('pointerup', 60); // a pinch
+  pointer('pointerdown', 70); listeners.pointercancel({ pointerId: 1 }); pointer('pointerup', 70); // a cancelled press
+  pointer('pointerdown', 80); pointer('pointerup', 80);
+  assert.deepEqual(picks, [12, 80]);
 });
