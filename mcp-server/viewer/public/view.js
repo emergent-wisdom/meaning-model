@@ -23,6 +23,7 @@ import { createProcessDetail } from './process-detail.js';
 import { cutTrajectories } from './cut-trajectories.js';
 import { buildModelGraph } from './model-graph.js';
 import { readingActs, actShares, actCounts } from './lens-readings.js';
+import { onPlainClick } from './pointer-click.js';
 
 let temporalActive = !window.modelViewer, temporalFrame = null, appliedSelection = null, hoveredRecord = null;
 // The thing under the pointer (a light, bar, link or card; null on a curtain or the ground) and the one the panel holds,
@@ -45,6 +46,9 @@ const calendarTime = isCalendarTime(data.timeUnit);
 // those old guesses must not be presented as authored world time by this version of the viewer.
 if (data.story) data.story.units = data.story.units.map((unit) => unit.timing ? unit
   : { ...unit, t: null, end: null, tells: [], spans: [], timing: 'unlinked' });
+// A story is prose the model's graph renders. Without one the view speaks of the model's own time, not a story's.
+const hasStory = (data.story?.units ?? []).some((unit) => String(unit.text ?? '').trim());
+const captionBox = document.querySelector('.hud.caption');
 const HUES = ['#3987e5', '#d95926', '#199e70']; const WORLD = '#9085e9';
 const KIND = { causes: '#ff8a4c', enables: '#3fd3c0', realizes_forecast: '#b793ff', constrains: '#ff4d6d' };
 const LENGTH = 116; const AMP = 5.6; const ROW = 2.7; const GAP = 4.4; const NX = 400;
@@ -984,8 +988,8 @@ const labels2 = (() => {
     if (m > 0.5) for (const floor of floors) {
       const counts2 = new Map(); for (const item of floor.roles) { if (!shownByPlay(item.measure ? (item.points ?? item.measure.points)[0]?.t : item.event.start ?? item.t0, bornAt(item.measure ?? item.event))) continue; const key = item.measure ? item.measure.kind === 'cut-answer' ? 'answer curves' : 'processes' : item.event.role; counts2.set(key, (counts2.get(key) ?? 0) + 1); }
       if (!counts2.size) continue;
-      const names = { world: 'the world', development: 'developments', life: 'lives', inner: 'inner lives', period: 'periods', arc: 'change arcs', part: 'parts', moment: 'moments', slow: 'slow processes', phase: 'phases', processes: 'processes' };
-      const text = [...counts2].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([key, n]) => (key === 'world' ? names[key] : `${n} ${names[key] ?? key}`)).join(' · ');
+      const names = { development: ['development', 'developments'], life: ['lifecycle', 'lifecycles'], inner: ['inner perspective', 'inner perspectives'], period: ['period', 'periods'], arc: ['change arc', 'change arcs'], part: ['part', 'parts'], moment: ['moment', 'moments'], slow: ['slow process', 'slow processes'], phase: ['phase', 'phases'], processes: ['process', 'processes'], 'answer curves': ['answer curve', 'answer curves'] };
+      const text = [...counts2].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([key, n]) => (key === 'world' ? 'the world' : `${n} ${(names[key] ?? [key, key])[n === 1 ? 0 : 1]}`)).join(' · ');
       // A floor's name heads it on the left, above its first row.
       wanted.push({ key: `floor:${floor.level}`, cls: 'floor', html: `Level ${floor.level}<span>${esc(text)}</span>`, p: [left - 1.2, floor.y * m, floor.z0 - 0.3], ax: 1, ay: 1, pri: 950 });
     }
@@ -1120,7 +1124,7 @@ function buildTerrain() {
     row.ridge.frustumCulled = false; row.ridge.userData.row = row; group.add(row.ridge);
   }
   // What the ridges are and what their height means, block by block on the right; whose they are on the left.
-  const SECTION = { named: ['named processes', 'each on its own scale, as the processes show them'], life: ['life & shocks', 'plateaus are periods, peaks are shocks'], process: ['life processes', 'how much happens in each'], series: ['wants · feels · expects', 'share of the main answer'], world: ['long developments', 'how much happens inside each'] };
+  const SECTION = { named: ['named processes', 'each on its own scale, as the processes show them'], life: ['life & shocks', 'plateaus are periods, peaks are shocks'], process: ['life processes', 'how much happens in each'], series: ['wants · feels · expects', 'share of the main answer'], world: [data.people.length ? 'long developments' : 'Events', 'how much happens inside each'] };
   const sections = new Map(); for (const row of rows) { const key = `${row.group.id}|${row.kind}`; if (!sections.has(key)) sections.set(key, { kind: row.kind, zs: [] }); sections.get(key).zs.push(row.z); }
   terrain.sectionNames = [...sections.values()].map((section) => {
     const [name, meaning] = SECTION[section.kind] ?? [section.kind, '']; const element = document.createElement('div'); element.className = 'label section';
@@ -1183,6 +1187,8 @@ function layTerrain() {
 }
 // Heights from each row's samples and how far it has risen; colour from the row that rises highest at each point.
 function heightsTerrain() {
+  // First activation can apply a retained playback time before layTerrain samples the new ridges.
+  if (terrain.rows.some((row) => !row.samples)) return;
   const position = terrain.mesh.geometry.attributes.position; const colour = terrain.mesh.geometry.attributes.color; const count = position.count;
   const heights = new Float32Array(count); const winner = new Int32Array(count).fill(-1); const best = new Float32Array(count);
   terrain.rows.forEach((row, r) => { const scale = row.scale * (row.amp ?? 1); if (scale <= 0.001) return;
@@ -1199,6 +1205,8 @@ function heightsTerrain() {
 }
 function syncTerrainLabels() {
   for (const name of terrain.ridgeNames) {
+    // A small model names every ridge before its samples are taken; a name waits for its ridge.
+    if (!name.row.samples) { name.object.visible = false; continue; }
     const first = name.row.samples.findIndex((value) => value > 0.05);
     name.object.visible = first >= 0 && name.row.scale > 0.35 && shownByPlay(Math.max(name.row.firstTime ?? -Infinity, terrain.ts[first]), name.row.born);
     if (first >= 0) name.object.position.set(-LENGTH / 2 + (first / (TNX - 1)) * LENGTH, name.row.samples[first] * TAMP * (name.row.amp ?? 1) * name.row.scale + 1.1 * TS, name.row.z);
@@ -1370,14 +1378,15 @@ function showStats() {
   const made = (item) => !building() || bornAt(item) <= tau;
   if (terrain.on) {
     const nodesMade = data.graph.nodes.filter(made);
-    const counts = [['Events', terrain.events.filter(made).length], ['Cuts', data.people.flatMap((person) => [...person.series.flatMap((series) => series.points), ...person.decisions]).filter(made).length],
-      ['Functions', terrain.rows.filter((row) => !building() || row.born <= tau).length], ['Thoughts', nodesMade.filter((node) => node.category !== 'passage').length], ['Words of prose', nodesMade.reduce((sum, node) => sum + (node.words ?? 0), 0).toLocaleString('en-GB')]];
-    const html = counts.map(([name, value]) => tile(name, value)).join(''); if (html !== statsShown) { document.getElementById('stats').innerHTML = html; statsShown = html; } return;
+    const cuts = data.people.flatMap((person) => [...person.series.flatMap((series) => series.points), ...person.decisions]), words = (nodes) => nodes.reduce((sum, node) => sum + (node.words ?? 0), 0);
+    const counts = [['Events', terrain.events.filter(made).length], ['Cuts', cuts.filter(made).length, cuts.length > 0],
+      ['Functions', terrain.rows.filter((row) => !building() || row.born <= tau).length], ['Thoughts', nodesMade.filter((node) => node.category !== 'passage').length, data.graph.nodes.some((node) => node.category !== 'passage')], ['Words of prose', words(nodesMade).toLocaleString('en-GB'), words(data.graph.nodes) > 0]];
+    const html = counts.filter(([, , has = true]) => has).map(([name, value]) => tile(name, value)).join(''); if (html !== statsShown) { document.getElementById('stats').innerHTML = html; statsShown = html; } return;
   }
-  const counts = [...(hasPaths ? [['Numerical curves', rows.filter((row) => row.measure.kind === 'cut-answer' ? row.points.length >= 2 : made(row.measure)).length], ['Events moving them', inStoryThreads.filter((thread) => made(thread.userData.event)).length]]
-    : [['Events', treeEvents.filter(made).length], ['Process records', data.processes.filter(made).length]]), ['Causal links', causal.filter(made).length],
-    ['Decisions drawn', decisions.filter((gem) => gem.userData.t >= T0 && gem.userData.t <= T1 && made(gem.userData.decision)).length], ['Love or fear', lenses.filter((chip) => made(chip.userData)).length]];
-  const html = counts.map(([name, value]) => tile(name, value)).join(''); if (html !== statsShown) { document.getElementById('stats').innerHTML = html; statsShown = html; }
+  const counts = [...(hasPaths ? [['Numerical curves', rows.filter((row) => row.measure.kind === 'cut-answer' ? row.points.length >= 2 : made(row.measure)).length], ['Events moving them', inStoryThreads.filter((thread) => made(thread.userData.event)).length, inStoryThreads.length > 0]]
+    : [['Events', treeEvents.filter(made).length], ['Process records', data.processes.filter(made).length]]), ['Causal links', causal.filter(made).length, causal.length > 0],
+    ['Decisions drawn', decisions.filter((gem) => gem.userData.t >= T0 && gem.userData.t <= T1 && made(gem.userData.decision)).length, decisions.length > 0], ['Love or fear', lenses.filter((chip) => made(chip.userData)).length, lenses.length > 0]];
+  const html = counts.filter(([, , has = true]) => has).map(([name, value]) => tile(name, value)).join(''); if (html !== statsShown) { document.getElementById('stats').innerHTML = html; statsShown = html; }
 }
 let readerShown = null;
 function placeNativeValue(row, t) {
@@ -1426,6 +1435,7 @@ function apply() {
   const fill = construction ? activeClock(tau) / activeClock.total : fracOf(F, now);
   document.getElementById('fill').style.width = `${Math.max(0, Math.min(1, fill)) * 100}%`;
   if (construction) {
+    if (captionBox) captionBox.hidden = false;
     setText('clock', `${new Date(tau).toISOString().slice(11, 19)} UTC · ${Math.round(activeClock(tau) / 60000)} minutes of work`);
     // The newest of the agent's own words: its reason for a revision, or the thought, stage or prose it wrote.
     const step = steps.filter((item) => item.label && Date.parse(item.at) <= tau).at(-1);
@@ -1442,8 +1452,9 @@ function apply() {
     const currentParts = partsNow().map((i) => storyParts[i]);
     const partCaption = currentParts.length === 1 ? `Part ${currentParts[0].n}: ${currentParts[0].title}`
       : currentParts.length ? `Parts ${currentParts.map((part) => part.n).join(', ')}` : '';
-    setText('kind', `${latest ? momentText(drawn(latest)) : 'The story'}${partCaption ? ` · ${partCaption}` : ''}`);
+    setText('kind', `${latest ? momentText(drawn(latest)) : hasStory ? 'The story' : ''}${partCaption ? ` · ${partCaption}` : ''}`);
     setText('text', latest ? clip(`${latest.userData.event.label} ${latest.userData.event.description ?? ''}`, 330) : '');
+    if (captionBox) captionBox.hidden = !latest && !hasStory && !partCaption;
   }
   showStats();
   // Keep the complete manuscript available through both playback clocks.
@@ -1613,6 +1624,11 @@ function boundsNow() {
 
 // ---- zoom and pan in time --------------------------------------------------------------------------------------------------------
 let animation = null;
+// What plays and the time presets, named for what the model declares: a story's years only when there is a story.
+const playLabel = calendarTime ? (hasStory ? "The story's years" : "The model's years") : 'Model time';
+const presetNames = { story: hasStory ? 'Story' : 'Model span', world: calendarTime && hasStory ? 'World history' : 'Full time range' };
+for (const [name, text] of Object.entries(presetNames)) { const button = document.querySelector(`#presets [data-preset="${name}"]`); if (button) button.textContent = text; }
+{ const button = document.querySelector('#modes [data-mode="story"]'); if (button) button.textContent = playLabel; }
 const lives = principals.filter((person) => Number.isFinite(person.life?.start) && Number.isFinite(person.life?.end) && person.life.start < person.life.end).map((person) => ({ name: person.name.split(' ')[0], start: person.life.start, end: person.life.end }));
 let lifeTurn = Math.max(0, lives.findIndex((life) => life.name.toLowerCase() === String(params.get('life') ?? '').toLowerCase()));
 const centuries = (() => { const starts = treeEvents.filter((event) => event.depth === 1 && event.reach[0] >= 1000).map((event) => event.reach[0]); return starts.length ? Math.min(...starts) : PRESENT - 600; })();
@@ -1681,22 +1697,23 @@ document.getElementById('title').textContent = titleText; document.title = title
 const inStoryThreads = threads.filter((thread) => thread.userData.t >= T0 - 0.2 && thread.userData.t <= T1);
 const FIELD_SUB = hasPaths ? `${measures.length} numerical curves${nativeMeasures.length ? `, including ${nativeMeasures.length} recorded Cut-answer series on a fixed 0–1 scale` : ', each on its own scale'}. `
   + (nativeMeasures.length ? 'A ~ value is visual interpolation between authored readings; no Cut value is extrapolated beyond them.' : `Heights interpolate samples parsed from process source wording; ${inStoryThreads.length} Events move these processes.`)
-  : `${treeEvents.length} Events in their declared containment structure. Bars show time spans; the model has no numeric process paths to draw as curves.`;
+  : `${treeEvents.length} Events in their declared containment structure. Bars show time spans; this snapshot has no recorded Cut answers or dated process values to draw as curves${(data.inspection?.model?.laws ?? []).length ? ', and the viewer does not evaluate declared laws' : ''}.`;
 document.getElementById('sub').textContent = FIELD_SUB;
 const tile = (name, value) => `<div class="stat"><div class="value">${value}</div><div class="name">${name}</div></div>`;
 showStats();
 const keyRow = (glyph, text) => `<div class="key-row"><span class="glyph">${glyph}</span><span>${text}</span></div>`;
+const when = (shown, html) => (shown ? html : '');
 const FIELD_LEGEND = '<div class="key-head">How to read it</div>' + (!hasPaths
   ? keyRow('<svg width="28" height="10"><path d="M1 8V2H27V8" stroke="#9fc3ff" stroke-width="2" fill="none"/></svg>', 'A bar is an Event over time; layers follow declared containment, not a numeric process value')
-    + keyRow('<svg width="14" height="14"><path d="M7 1 L13 7 L7 13 L1 7Z" fill="#fff"/></svg>', 'A diamond marks a recorded decision Cut; inspect it for its question and weights')
-    + keyRow('<svg width="16" height="16"><circle cx="8" cy="8" r="4" fill="#c9d4ff"/></svg>', 'Lights are document and note nodes; select a passage to follow its declared Event links')
+    + when(decisions.length, keyRow('<svg width="14" height="14"><path d="M7 1 L13 7 L7 13 L1 7Z" fill="#fff"/></svg>', 'A diamond marks a recorded decision Cut; inspect it for its question and weights'))
+    + when(notes.length, keyRow('<svg width="16" height="16"><circle cx="8" cy="8" r="4" fill="#c9d4ff"/></svg>', 'Lights are document and note nodes; select a passage to follow its declared Event links'))
   : ''
-  + keyRow('<svg width="28" height="14"><path d="M1 12 C8 12 9 3 15 4 S23 9 27 2" stroke="#9fc3ff" stroke-width="2" fill="none"/></svg>', nativeMeasures.length ? 'A curtain compares recorded values. Cut answers use 0–1; ~ marks visual interpolation. Hover for the question, context and exact readings' : 'A curtain is one process over the years, on its own scale; the value is on the right')
-  + keyRow('<svg width="10" height="16"><line x1="5" y1="1" x2="5" y2="15" stroke="#fff" stroke-width="2"/></svg>', 'A thread is an event, through every process it moves')
-  + keyRow('<svg width="14" height="14"><path d="M7 1 L13 7 L7 13 L1 7Z" fill="#fff"/></svg>', 'A diamond is a decision the model drew from its weights')
-  + keyRow('<svg width="28" height="8"><rect width="15" height="8" rx="3" fill="#ffb057"/><rect x="15" width="10" height="8" fill="#58b4ff"/></svg>', 'How much of an act comes from love and how much from fear')
-  + keyRow('<svg width="28" height="12"><path d="M1 11 Q14 -4 27 11" stroke="#ff8a4c" stroke-width="2" fill="none"/></svg>', 'An arc is a causal link from one event to another: causes, enables, fulfils a forecast')
-  + keyRow('<svg width="16" height="16"><circle cx="8" cy="8" r="4" fill="#c9d4ff"/><circle cx="8" cy="8" r="7.5" fill="none" stroke="#c9d4ff" stroke-opacity="0.35"/></svg>', `Documents & notes shows ${notes.length} book, passage and note nodes above the processes. A selected passage is labeled; its gold links point to the Events it depicts`));
+  + keyRow('<svg width="28" height="14"><path d="M1 12 C8 12 9 3 15 4 S23 9 27 2" stroke="#9fc3ff" stroke-width="2" fill="none"/></svg>', nativeMeasures.length ? 'A curtain compares recorded values. Cut answers use 0–1; ~ marks visual interpolation. Hover for the question, context and exact readings' : `A curtain is one process over ${calendarTime ? 'the years' : 'time'}, on its own scale; the value is on the right`)
+  + when(inStoryThreads.length, keyRow('<svg width="10" height="16"><line x1="5" y1="1" x2="5" y2="15" stroke="#fff" stroke-width="2"/></svg>', 'A thread is an event, through every process it moves'))
+  + when(decisions.length, keyRow('<svg width="14" height="14"><path d="M7 1 L13 7 L7 13 L1 7Z" fill="#fff"/></svg>', 'A diamond is a decision the model drew from its weights'))
+  + when(lenses.length, keyRow('<svg width="28" height="8"><rect width="15" height="8" rx="3" fill="#ffb057"/><rect x="15" width="10" height="8" fill="#58b4ff"/></svg>', 'How much of an act comes from love and how much from fear'))
+  + when(causal.length, keyRow('<svg width="28" height="12"><path d="M1 11 Q14 -4 27 11" stroke="#ff8a4c" stroke-width="2" fill="none"/></svg>', 'An arc is a causal link from one event to another: causes, enables, fulfils a forecast'))
+  + when(notes.length, keyRow('<svg width="16" height="16"><circle cx="8" cy="8" r="4" fill="#c9d4ff"/><circle cx="8" cy="8" r="7.5" fill="none" stroke="#c9d4ff" stroke-opacity="0.35"/></svg>', `Documents & notes shows ${notes.length} document, passage and note nodes above the processes. A selected passage is labeled; its gold links point to the Events it depicts`)));
 
 // ---- the story, as the tool renders it from the graph ------------------------------------------------------------------------
 const setLegend = (html, names = groups.map((group) => [group.label, group.hue])) => {
@@ -1722,7 +1739,8 @@ textToggle.addEventListener('click', () => showText(!opt.text)); showText(opt.te
 // The terrain's own words: what its ridges, beams, diamonds and lights are, and how many functions rise.
 function hud() {
   if (!terrain.on) { document.getElementById('sub').textContent = FIELD_SUB; setLegend(FIELD_LEGEND); showStats(); return; }
-  document.getElementById('sub').textContent = `${terrain.persons.map((person) => person.name).join(', ')}. ${terrain.rows.length} functions over time, each the model's own record, rising in the order the agent built them.`;
+  const whose = terrain.persons.map((person) => person.name).join(', ');
+  document.getElementById('sub').textContent = `${whose ? `${whose}. ` : ''}${terrain.rows.length} ${terrain.rows.length === 1 ? 'function' : 'functions'} over time, each the model's own record${steps.length ? ', rising in the order the agent built them' : ''}.`;
   const svg = (inner) => `<svg width="30" height="16">${inner}</svg>`;
   setLegend('<div class="key-head">How to read it</div>'
     + keyRow(svg('<path d="M1 14 C 7 14, 9 3, 14 5 S 22 12, 29 2" fill="none" stroke="#c3c2b7" stroke-width="2"/>'), 'A ridge is one function of the model over time')
@@ -1747,7 +1765,9 @@ function renderReader(unitId = null) {
     if (unit.id === targetId && i === 0) target = element;
   });
   document.getElementById('reader-status').textContent = part ? `Full story · ${part.title ?? part.unit.title ?? part.unit.id}` : 'Full story · Complete manuscript';
-  if (target) target.scrollIntoView({ block: 'start' }); else document.getElementById('reader').scrollTop = 0;
+  const scroll = document.getElementById('reader-scroll');
+  scroll.style.scrollPaddingTop = `${document.querySelector('#reader .reader-head')?.getBoundingClientRect().height ?? 0}px`;
+  if (target) target.scrollIntoView({ block: 'start' }); else scroll.scrollTop = 0;
 }
 document.getElementById('read').addEventListener('click', () => { if (!temporalActive) return; document.getElementById('reader').hidden = false; renderReader(); });
 document.getElementById('reader-start').addEventListener('click', () => { if (temporalActive) renderReader(); });
@@ -1939,6 +1959,7 @@ if (params.has('read')) { document.getElementById('read').click(); if (params.ge
 const thoughtsButton = document.getElementById('thoughts');
 const showThoughts = (on, explicit = true) => { if (explicit) setLayerVisibility('notes', on); else if (on) opt.show.add('notes'); else opt.show.delete('notes'); mind.visible = on; thoughtsButton.classList.toggle('on', on); thoughtsButton.setAttribute('aria-pressed', String(on)); thoughtsButton.textContent = on ? 'Hide documents & notes' : 'Documents & notes'; if (!on) tip.hidden = true; syncPanel(); syncURL(); dirty = true; };
 thoughtsButton.addEventListener('click', () => showThoughts(!mind.visible)); showThoughts(mind.visible, false);
+thoughtsButton.hidden = !notes.length;
 
 // The bundled local viewer does not offer QR-code hosting.
 const qrPanel = document.getElementById('qr-panel');
@@ -1959,12 +1980,12 @@ const KINDS = [
   ['lovefear', 'Love or fear of the acts', '#ffb057', () => lenses.length, 'The fear-or-love lens\'s reading of each act: how much comes from love and how much from fear'],
   ['numbers', 'Numerical readings', '#7fe0e6', () => numericCuts.length, 'Recorded numerical Cuts, each at its own time'],
   ['causal', 'Causal links', '#ff8a4c', () => causalAll.length, 'Declared causes, enables, constrains and realized forecasts between Events'],
-  ['notes', 'Documents & notes', '#c9d4ff', () => notes.length, 'The documents, passages and notes in the story graph'],
+  ['notes', 'Documents & notes', '#c9d4ff', () => notes.length, 'The documents, passages and notes in the model\'s graph'],
   ['events', 'The tree of Events', '#e9e8e2', () => nodes.filter((node) => node.kind === 'event').length, 'Events as bars over their time, in their declared containment'],
   ['subsidiary', 'Life processes and change phases', '#b9aefc', () => nodes.filter((node) => node.kind === 'sub').length, 'The slow processes that run through a whole life (body, kin, work…) and the phases of each change'],
   ['prose', 'Prose, part by part', '#fff0d0', () => prose.length, 'Each part of the story over the moments it tells'],
 ];
-const depthNote = { 0: 'The world alone.', 1: 'The world and what it holds: long developments, lives, places and institutions.', 2: 'With the periods, change arcs and parts of each.', 3: 'With the phases of each change and the moments in them.', 4: 'With the moments within moments.', 5: 'Deeper still.', 6: 'The whole tree.' };
+const depthNote = { 0: 'The root Events alone.', 1: 'With the Events the roots contain.', 2: 'With the Events those contain.', 3: 'With a third level of contained Events.', 4: 'With a fourth level.', 5: 'Deeper still.', 6: 'The whole tree.' };
 // The toolbar, the legend and what was clicked stand together on the right.
 const panel = document.getElementById('side');
 // Keep the temporal detail panel within the viewport; the shell owns popups.
@@ -2114,12 +2135,12 @@ document.getElementById('lenses-all').addEventListener('click', () => { opt.lens
 function syncPanel() {
   if (!ready) return;
   const on = (selector, attr, value) => { for (const button of document.querySelectorAll(selector)) button.classList.toggle('on', button.dataset[attr] === String(value)); };
-  document.getElementById('play').setAttribute('aria-label', building() ? 'Play the construction' : calendarTime ? "Play the story's years" : 'Play model time');
-  document.getElementById('layout-note').textContent = { together: 'Every process on its own scale in one field, as the stage showed it.', layers: "The model's tree level by level: the world, what it holds, each life and its parts, every process at the level of what holds it.", terrain: 'Every function of the model as one terrain, as the landscape showed it: the lives and their shocks, the processes they run through, what they want, feel and expect, and the world behind them.' }[opt.layout];
+  document.getElementById('play').setAttribute('aria-label', building() ? 'Play the construction' : `Play ${playLabel.toLowerCase()}`);
+  document.getElementById('layout-note').textContent = { together: 'Every process on its own scale in one field.', layers: "The model's tree level by level: the world, what it holds and the parts of each, every process at the level of what holds it.", terrain: data.people.length ? 'Every function of the model as one terrain: the lives and their shocks, the processes they run through, what they want, feel and expect, and the world behind them.' : 'Every function of the model as one terrain, with the Events that happen in them and the world behind them.' }[opt.layout];
   const lifeName = lives.length ? `${lives[lifeTurn % lives.length].name}'s life` : 'A life';
   setText('t-show', { together: 'Processes', layers: 'Tree', terrain: 'Terrain' }[opt.layout]); setText('t-camera', { spin: 'Spinning', free: 'Free', locked: 'Locked' }[opt.camera]);
-  setText('t-time', currentPreset ? { story: 'Story', life: lifeName, centuries: 'Centuries', world: calendarTime ? 'World history' : 'Full time range' }[currentPreset] : spanText(F.a, F.b));
-  setText('t-play', `${building() ? 'The construction' : calendarTime ? "The story's years" : 'Model time'}${opt.speed !== 1 ? ` · ${{ 0.25: '¼', 0.5: '½' }[opt.speed] ?? opt.speed}×` : ''}`);
+  setText('t-time', currentPreset ? { story: presetNames.story, life: lifeName, centuries: 'Centuries', world: presetNames.world }[currentPreset] : spanText(F.a, F.b));
+  setText('t-play', `${building() ? 'The construction' : playLabel}${opt.speed !== 1 ? ` · ${{ 0.25: '¼', 0.5: '½' }[opt.speed] ?? opt.speed}×` : ''}`);
   setText('mode-note', building() ? 'The model and the story graph as the agent built them, step by step, with its own reasons as captions.' : 'History plays forward: the processes draw on, and events, decisions and thoughts arrive as their moments come.');
   const shine = document.getElementById('shine'); shine.setAttribute('aria-pressed', String(opt.glare === 'full')); setText('shine', opt.glare === 'full' ? 'Shining' : 'Less shining');
   document.getElementById('everything').setAttribute('aria-pressed', String(isEverything()));
@@ -2139,7 +2160,7 @@ function syncPanel() {
   document.getElementById('edges').setAttribute('aria-pressed', String(opt.edges)); setText('edges', opt.edges ? 'Edges' : 'No edges');
   on('#cameras button', 'camera', opt.camera); on('#modes button', 'mode', opt.mode); on('#speeds button', 'speed', opt.speed); on('#layouts button', 'layout', opt.layout);
   for (const button of document.querySelectorAll('#presets button')) button.classList.toggle('on', button.dataset.preset === currentPreset);
-  const life = document.querySelector('#presets [data-preset="life"]'); if (life) life.textContent = currentPreset === 'life' ? lifeName : 'A life';
+  const life = document.querySelector('#presets [data-preset="life"]'); if (life) { life.textContent = currentPreset === 'life' ? lifeName : 'A life'; life.hidden = !lives.length; }
   for (const [i, button] of [...document.querySelectorAll('#depths button')].entries()) button.classList.toggle('on', !projected && i === opt.depth);
   document.getElementById('depth-note').textContent = depthNote[opt.depth] ?? '';
   for (const row of document.querySelectorAll('#kinds .toggle')) row.setAttribute('aria-checked', String(row.classList.toggle('on', opt.show.has(row.dataset.key))));
@@ -2293,10 +2314,8 @@ numbersButton.addEventListener('click', () => {
   quietAt = pointerAt ? { ...pointerAt } : null;
 });
 addEventListener('keydown', (event) => { if (event.key === 'Escape') hideDetails(); });
-let downAt = null; renderer.domElement.addEventListener('pointerdown', (event) => { downAt = { x: event.clientX, y: event.clientY }; });
-renderer.domElement.addEventListener('click', (event) => {
-  if (downAt && Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y) > 5) return; // a drag, not a click
-  if (event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) return; // a modifier with the button pans; it never picks
+onPlainClick(renderer.domElement, (event) => {
+  if (!temporalActive) return;
   if (litUnit) { document.getElementById('reader').hidden = false; renderReader(litUnit.id); return; }
   pointerAt = { x: event.clientX, y: event.clientY }; hoveredAt = null; quietAt = null; hover();
   // With the panel open, a click on the field itself (a curtain, the ground) lets the selection go rather than pinning the
@@ -2304,7 +2323,7 @@ renderer.domElement.addEventListener('click', (event) => {
   const key = targetKey(hoveredTarget);
   if (!details.hidden && (!hoveredTarget || (key !== null && key === pinnedTarget && event.detail < 2))) { hideDetails(); return; }
   if (!tip.hidden && tip.childNodes.length) { if (hoveredRecord) publishRecord(hoveredRecord); showDetails([...tip.childNodes].map((node) => node.cloneNode(true)), hoveredTarget); tip.hidden = true; quietAt = { ...pointerAt }; } else hideDetails();
-});
+}, { signal: temporalEvents.signal });
 // Love-or-fear chips lift clear of each other; values and event names that would cover something wait for their turn.
 function declutter() {
   // A selected document may move out of view with the graph; never show a clipped badge.
@@ -2453,7 +2472,7 @@ function showExtraTip(target) {
   renderer.domElement.style.cursor = target.kind === 'prose' ? 'pointer' : 'help'; tip.replaceChildren();
   if (target.kind === 'event' || target.kind === 'sub') {
     const { event } = target.node; const holder = event.parent ? treeById.get(event.parent) : null; const who = principals.find((person) => person.id === event.owner)?.name ?? referents.get(event.owner)?.name ?? 'The world';
-    const roles = { world: 'The world', development: 'A long development', life: 'A life', inner: 'An inner life', period: 'A period of a life', arc: 'A change arc', phase: 'A phase of a change arc', slow: 'A slow process of a life', part: 'A part', moment: 'A moment' };
+    const roles = { world: 'The world', development: 'A long development', life: 'A lifecycle', inner: 'An inner perspective', period: 'A period', arc: 'A change arc', phase: 'A phase of a change arc', slow: 'A slow process', part: 'A part', moment: 'A moment' };
     const own = event.context === 'inner';
     tip.append(tipLine('k', own ? `${who}'s own · ${event.role === 'inner' ? 'their inner process' : 'a record of their inner process'} · level ${event.depth}` : `${roles[event.role] ?? 'An Event'} · level ${event.depth} · ${who}`), tipLine('v', clip(event.label, 200)));
     if (own) tip.append(tipLine('a', `Held in ${who.split(' ')[0]}'s inner process: their own view, not a fact of the world. Where it differs from the world, it is how they see it.`));

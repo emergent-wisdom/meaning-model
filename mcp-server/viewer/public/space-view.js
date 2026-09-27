@@ -32,6 +32,8 @@ const positionLabel = (object) => object.lifeLocation ? object.periodLabel || `$
 const periodCaption = (object) => (object.periodLabel || object.placeLabel || object.label).replace(/^[^·:]+[·:]\s*/u, '');
 const qualification = (object) => [...new Set(['spatial_interpretation', 'spatial_status', 'precision_interpretation', 'temporal_interpretation', 'temporal_scope', 'temporal_domain', 'represented_point', 'reference_frame_definition', 'frame_origin_and_axes', 'spatial_extent'].map((key) => object.declaration[key]).filter(Boolean))];
 const authored = (object) => /authored|fictional/u.test(qualification(object).join(' '));
+// Geography only for a frame on the Earth: geodetic axes, or a named geodetic or projected reference system.
+const geographic = (frame) => planeOf(frame).geo || /\b(EPSG|WGS ?84|OSGB|ETRS|UTM|geodetic)\b/iu.test(String(frame.frame ?? ''));
 function projector(frame) {
   const plane = planeOf(frame);
   return { ...plane, point(object, position) { const { east, north, up } = plane.coordinates(object, position); return new THREE.Vector3(east, up, -north); } };
@@ -57,7 +59,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   function renderStory() {
     const units = data.story?.units ?? [];
     document.getElementById('reader-body').replaceChildren(...units.map((unit) => proseUnit(String(unit.text ?? ''))));
-    document.getElementById('reader-status').textContent = 'Full story · Complete manuscript'; reader.scrollTop = 0;
+    document.getElementById('reader-status').textContent = 'Full story · Complete manuscript'; document.getElementById('reader-scroll').scrollTop = 0;
   }
   const ownAction = (id, action) => document.getElementById(id).addEventListener('click', () => { if (active) action(); }, { signal: abort.signal });
   ownAction('read', () => { reader.hidden = false; renderStory(); });
@@ -126,14 +128,14 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   let items = [], links = [], grid = null, axes = null, axisLabels = [], scale = 1, projection = null, center = new THREE.Vector3(), currentPeople = [];
   const sphere = new THREE.SphereGeometry(1, 20, 14), disc = new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), ring = new THREE.RingGeometry(1.3, 1.65, 40).rotateX(-Math.PI / 2), octa = new THREE.OctahedronGeometry(0.85);
   const frameSelect = element('select', null, 'graph-control'); frameSelect.setAttribute('aria-label', 'Reference frame');
-  space.frames.forEach((frame, i) => { const option = element('option', `${frame.lifeLocations.length ? 'Life locations' : frame.objects.some(authored) ? 'Scene layout' : 'Geography'} · ${frame.frame ?? 'Unnamed frame'}`); option.value = String(i); frameSelect.append(option); }); tools.append(frameSelect);
+  space.frames.forEach((frame, i) => { const option = element('option', `${frame.lifeLocations.length ? 'Life locations' : frame.objects.some(authored) ? 'Scene layout' : geographic(frame) ? 'Geography' : 'Positions'} · ${frame.frame ?? 'Unnamed frame'}`); option.value = String(i); frameSelect.append(option); }); tools.append(frameSelect);
   const personSelect = element('select', null, 'graph-control'); personSelect.setAttribute('aria-label', 'Focus person'); tools.append(personSelect);
   const overviewButton = button('Whole life', () => { overview = !overview; update(); renderJourneys(); }, 'tool'); overviewButton.title = 'Show the whole declared location history or only the current time'; tools.append(overviewButton);
   const pathsButton = button('Paths', () => { showPaths = !showPaths; update(); }); pathsButton.setAttribute('aria-pressed', 'true'); pathsButton.title = 'Dashed connections show recorded order, not travel routes'; tools.append(pathsButton);
   const textButton = button('Text', () => { showText = !showText; update(); }); textButton.setAttribute('aria-pressed', 'true'); tools.append(textButton);
   // The panel below the map folds down to its one-line count, from its own button or this switch, giving the map its room.
   const toggleSummary = () => { showSummary = !showSummary; syncLayers(); resize(); fit(); };
-  const timelineButton = button('Timeline', toggleSummary); timelineButton.title = 'Show or minimize the lives and location periods below the map'; tools.append(timelineButton);
+  const timelineButton = button('Timeline', toggleSummary); timelineButton.title = 'Show or minimize the panel below the map'; tools.append(timelineButton);
   const minimizeButton = button('–', toggleSummary, 'space-minimize'); overviewHead.append(minimizeButton);
   // More of the model where it happens, each a layer: the Events it places, their notes and passages, their causal links.
   const layersWrap = element('span', null, 'tool-wrap space-layers'), layersPop = element('div', null, 'pop space-layers-pop');
@@ -248,10 +250,10 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
       const line = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: '#ff8a4c', transparent: true, opacity: 0.7 }));
       world.add(line); arcItems.push({ relation, line, a, b });
     }
-    frameHeading.textContent = currentPeople.length ? 'Lives across places' : frame.objects.some(authored) ? 'Within a scene' : 'Declared geography';
+    frameHeading.textContent = currentPeople.length ? 'Lives across places' : frame.objects.some(authored) ? 'Within a scene' : geographic(frame) ? 'Declared geography' : 'Declared positions';
     frameCaption.textContent = currentPeople.length ? 'Home, work and visits · select a period below' : frame.objects.some(authored) ? 'Authored layout · select a point to see its scope' : 'Coordinates in one shared reference frame';
     count.textContent = currentPeople.length ? `${currentPeople.length} lives · ${frame.lifeLocations.length} location periods` : `${frame.objects.length} declared positions`;
-    note.textContent = currentPeople.length ? 'Dashed links show sequence, not travel routes. Hatched time is unrecorded. Home and work can overlap.' : frame.objects.some(authored) ? 'Fictional scene layout. Date ranges bound a representative moment, not a continuous stay.' : 'Reference points are shown to scale; they do not define the extent of a town or building.';
+    note.textContent = currentPeople.length ? 'Dashed links show sequence, not travel routes. Hatched time is unrecorded. Home and work can overlap.' : frame.objects.some(authored) ? 'Fictional scene layout. Date ranges bound a representative moment, not a continuous stay.' : 'Reference points are shown to scale; a point does not define the extent of what it marks.';
     renderJourneys(); update(); fit(); if (active) resize();
   }
   function place(object, position) { return projection.point(object, position).sub(center).multiplyScalar(scale); }

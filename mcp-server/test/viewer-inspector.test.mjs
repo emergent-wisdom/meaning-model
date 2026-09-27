@@ -19,7 +19,7 @@ function dom() {
     scrollIntoView() { this.scrolled = true; }
     focus() { this.focused = true; }
   }
-  const document = { createElement: (tag) => new Element(tag), querySelector: () => null, head: new Element('head'), body: new Element('body') };
+  const document = Object.assign(new EventTarget(), { createElement: (tag) => new Element(tag), querySelector: () => null, head: new Element('head'), body: new Element('body') });
   return document;
 }
 function all(node) { return [node, ...node.children.flatMap(all)]; }
@@ -109,4 +109,21 @@ test('embedded Structure preserves the shared shell, selected native records and
   assert.match(selection.textContent, /Where\?/);
   controller.activate('structure', { selection: null }); assert.equal(selection.hidden, true);
   assert.equal(all(host).filter((node) => node.className === 'inspection-prose').length, 2);
+}));
+
+test('Escape clears Structure selection only while Structure is active and stops after destruction', () => withDom((document) => {
+  const host = document.createElement('div'), selections = [];
+  document.body.append(host);
+  const controller = showInspector(fixture(), null, { host, onSelect: (selection) => selections.push(selection) });
+  const record = { kind: 'event', id: 'a' };
+  const escape = () => document.dispatchEvent(Object.assign(new Event('keydown'), { key: 'Escape' }));
+  controller.activate('structure', { selection: record });
+  const selected = all(host).find((node) => node.className === 'inspection-selection');
+  const row = all(host).find((node) => node.tagName === 'SUMMARY' && node.textContent.startsWith('Root Event'));
+  escape();
+  assert.deepEqual(selections, [null]); assert.equal(selected.hidden, true); assert.equal(row['aria-current'], undefined);
+  controller.activate('structure', { selection: record }); controller.deactivate(); escape();
+  assert.deepEqual(selections, [null]); assert.equal(selected.hidden, false, 'an inactive view must not clear another view’s selection');
+  controller.activate('structure', { selection: record }); controller.destroy(); escape();
+  assert.deepEqual(selections, [null]);
 }));

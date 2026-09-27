@@ -115,7 +115,9 @@ export function spaceModel(model = {}) {
       laws: [...new Set(object.laws)], placeId: place?.id ?? null, placeLabel: String(object.declaration.place_label ?? (place ? labelOf(place) : object.declaration.label ?? '')), periodLabel: String(object.declaration.label ?? ''),
       lifeLocation: object.declaration.spatial_status === 'coarse_life_location', locationRole: object.declaration.location_role ?? null,
       lifetime: array(meaning.events).find((event) => event.id === referent?.lifecycle_event_id)?.interval ?? null,
-      fullLabel: referent?.boundary ?? object.id, label: referent ? labelOf(referent) : words(object.id.replace(/^entity:/u, '')),
+      // A position's own declared label names it; a life location is named by whose it is, and its period by its label.
+      fullLabel: referent?.boundary ?? object.id, label: object.declaration.spatial_status !== 'coarse_life_location' && object.declaration.label ? String(object.declaration.label)
+        : referent ? labelOf(referent) : words(object.id.replace(/^entity:/u, '')),
       moves: motion.some((item) => item === null || item.rate || item.steps?.length), evaluated: motion.every(Boolean) };
   }).sort((a, b) => a.label.localeCompare(b.label) || (a.interval?.start ?? -Infinity) - (b.interval?.start ?? -Infinity) || a.id.localeCompare(b.id));
   const frames = new Map();

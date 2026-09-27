@@ -4,8 +4,11 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
-## Unreleased
+## 0.5.1 — 2026-09-27
 
+- The story reader keeps an opaque toolbar and contains scrolling within its
+  own painted panel, without elastic scroll overshoot into the background.
+  Passage navigation leaves room for the toolbar, and the reader opens in Graph.
 - A selection is easy to let go in every representation: a click on nothing,
   on the same record again, or Escape clears it everywhere. Turning, panning or
   pinching a 3D view never selects, and neither does another mouse button or a
@@ -15,6 +18,13 @@ unpublished work stays under Unreleased. This is not a development transcript.
   selected row is marked, and Selected has a Clear selection button.
 - Selecting a Graph record no longer moves the camera. Graph and Space
   inspectors end inside the window and scroll, so every connection can be reached.
+- The viewer describes a model in its own terms. Counts, legend lines and
+  controls appear only for records the snapshot has; story wording, the reader
+  and the love-or-fear count appear only for a model that has them. Levels name
+  lifecycles and parts in the singular or plural they count, a local frame is
+  not called geography, and a position shows its own declared label.
+- Terrain opens for a model with few functions instead of falling back to
+  Structure.
 
 ## 0.5.0 — 2026-09-27
 

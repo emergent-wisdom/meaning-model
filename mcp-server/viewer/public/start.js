@@ -14,6 +14,8 @@ const initialView = !data ? 'structure' : labels[requested] ? requested : tempor
 
 for (const element of document.querySelectorAll('#scene, #stats, .caption, #strip, #labels2, #legend, #details, #tip, #qr-panel, #sub, #repos')) element.dataset.temporal = '';
 for (const element of document.querySelectorAll('.bar, #reader')) element.dataset.playback = '';
+// Only a model whose graph renders prose has a story to read.
+{ const read = document.getElementById('read'); if (read) read.hidden = !(data?.story?.units ?? []).some((unit) => String(unit.text ?? '').trim()); }
 for (const element of document.getElementById('tools').children) {
   if (!element.querySelector?.('[data-pop="pop-show"]') && !['story', 'coarse-view', 'recenter-view', 'graph-controls', 'space-controls'].includes(element.id)) element.dataset.temporal = '';
 }
@@ -48,7 +50,7 @@ function graphParts() {
   const surface = document.createElement('div'); surface.id = 'graph-surface'; surface.dataset.graph = '';
   const host = document.createElement('div'); host.id = 'graph-scene'; surface.append(host); document.body.append(surface);
   const copy = (id) => {
-    const node = document.getElementById(id).cloneNode(true); node.hidden = true; delete node.dataset.temporal; node.dataset.graph = '';
+    const node = document.getElementById(id).cloneNode(true); node.hidden = true; delete node.dataset.temporal; delete node.dataset.playback; node.dataset.graph = '';
     node.id = `graph-${id}`; for (const child of node.querySelectorAll('[id]')) child.id = `graph-${child.id}`;
     return node;
   };

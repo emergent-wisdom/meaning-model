@@ -203,6 +203,8 @@ export function showInspector(data, notice = null, { host = null, onSelect = () 
     else selectedRecord.append(text('p', 'This selection has no record in this snapshot.', 'inspection-meta'));
   }
   function choose(selection) { onSelect(selection); showSelection(selection); }
+  const abort = new AbortController(); let active = !host;
+  document.addEventListener('keydown', (event) => { if (active && event.key === 'Escape' && lastSelection) choose(null); }, { signal: abort.signal });
   const isSelected = (record) => lastSelection === JSON.stringify(record);
   main.append(navigation, selectedRecord, structureView(model, { choose, isSelected, rows }));
   if (story.length) {
@@ -226,7 +228,8 @@ export function showInspector(data, notice = null, { host = null, onSelect = () 
   }, 'inspection-section'));
   raw.append(definition('Complete model definition', model)); main.append(raw);
   return {
-    activate(_view, state = {}) { showSelection(state.selection ?? null); },
-    deactivate() {},
+    activate(_view, state = {}) { active = true; showSelection(state.selection ?? null); },
+    deactivate() { active = false; },
+    destroy() { active = false; abort.abort(); },
   };
 }

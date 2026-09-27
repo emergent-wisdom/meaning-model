@@ -116,6 +116,45 @@ test('terrain ridge labels follow their first visible sample and their construct
   }
 });
 
+test('a small model names its ridges before their samples are taken, and Terrain opens without an error', () => {
+  // Up to 14 functions are named; a snapshot with no people and few functions reached the names before any sample.
+  const context = fixture('story');
+  const row = { firstTime: 1, born: 8, scale: 1, target: 1, amp: 1, z: 0 };
+  const object = { visible: true, position: position() };
+  context.terrain.rows.push(row); context.terrain.ridgeNames.push({ row, object });
+  assert.doesNotThrow(() => context.applyTerrain());
+  assert.equal(object.visible, false, 'a name waits for its ridge');
+});
+
+test('first opening Terrain after seeking waits for ridge samples before calculating heights', () => {
+  // Activation restores the Processes/Tree cursor before the next frame runs layTerrain().
+  const context = fixture('story');
+  const attribute = () => ({ count: 3, array: new Float32Array(9),
+    setY(i, value) { this.array[i * 3 + 1] = value; },
+    setXYZ(i, x, y, z) { this.array.set([x, y, z], i * 3); } });
+  context.terrain.mesh = { geometry: { attributes: { position: attribute(), color: attribute() },
+    computeVertexNormals() {}, computeBoundingSphere() {} } };
+  context.terrain.ps = new Float64Array(3); context.F.s = 10;
+  context.THREE = { Color: class { copy(other) { Object.assign(this, other); return this; } lerp() { return this; } } };
+  context.color = () => ({ r: 0, g: 0, b: 0 });
+  const ridge = (firstTime, samples) => ({ firstTime, born: firstTime, scale: 1, target: 1, amp: 1, z: 0,
+    reach: [[0, 1]], color: { r: 1, g: 1, b: 1 }, recipe: () => new Float64Array(samples),
+    ridge: { geometry: { attributes: { position: attribute() } } } });
+  const arrived = ridge(0, [1, 1, 1]); const future = ridge(8, [0, 0, 1]);
+  context.terrain.rows.push(arrived, future);
+  context.terrain.ridgeNames = [arrived, future].map((row) => ({ row, object: { visible: true, position: position() } }));
+  vm.runInContext([functionSource('heightsTerrain'), functionSource('layTerrain')].join('\n'), context);
+  assert.doesNotThrow(() => context.applyTerrain(), 'an intermediate retained cursor hides future ridges before sampling');
+  assert.equal(future.scale, 0);
+  assert.deepEqual(context.terrain.ridgeNames.map(({ object }) => object.visible), [false, false]);
+  assert.equal(context.terrain.mesh.geometry.attributes.position.needsUpdate, undefined, 'no unsampled geometry is calculated');
+  assert.doesNotThrow(() => context.layTerrain(), 'the first layout samples and draws the retained time');
+  context.applyTerrain();
+  assert.deepEqual(context.terrain.ridgeNames.map(({ object }) => object.visible), [true, false]);
+  assert.equal(arrived.ridge.visible, true); assert.equal(future.ridge.visible, false);
+  assert.equal(context.terrain.mesh.geometry.attributes.position.array[1], context.TAMP);
+});
+
 test('starting either playback mode applies the reset cursor before the first timer tick', () => {
   for (const mode of ['story', 'construction']) {
     const applications = []; const timers = [];
@@ -132,6 +171,32 @@ test('starting either playback mode applies the reset cursor before the first ti
     assert.equal(applications[0].atEnd, false);
     assert.equal(applications[0].playing, true);
     assert.equal(timers.length, 1);
+  }
+});
+
+test('construction captions return after an empty model-time caption is hidden', () => {
+  const text = {};
+  const elements = { fill: { style: {} }, reader: { hidden: true } };
+  const clock = (value) => value; clock.total = 10000;
+  const context = { opt: { mode: 'story', show: new Set() }, atEnd: false, playing: false,
+    now: 3, tau: 5000, F: { a: 0, b: 10 }, T1: 10, calendarTime: false,
+    rows: [], groupLabels: [], threads: [], decisions: [], lenses: [], notes: [],
+    mind: {}, sweep: { position: {} }, activeClock: clock, xOf: (value) => value,
+    fracOf: (frame, value) => (value - frame.a) / (frame.b - frame.a),
+    document: { getElementById: (id) => elements[id] }, setText: (id, value) => { text[id] = value; },
+    steps: [{ at: new Date(4000).toISOString(), kind: 'model', rev: 2, label: 'Correct the declared boundary.' }],
+    data: { graph: { nodes: [] } }, NOTE_NAMES: {}, unitOf: new Map(), clip: (value) => value,
+    isStory: () => false, momentText: String, partsNow: () => [], storyParts: [], hasStory: false,
+    captionBox: { hidden: false }, showStats() {}, applyTerrain() {}, drawNotes() {}, drawArcs() {}, syncStrip() {} };
+  context.building = () => context.opt.mode === 'construction';
+  vm.createContext(context); vm.runInContext(functionSource('apply'), context);
+  for (let i = 0; i < 2; i++) {
+    context.opt.mode = 'story'; context.apply();
+    assert.equal(context.captionBox.hidden, true, 'no empty story caption for a model without prose');
+    context.opt.mode = 'construction'; context.apply();
+    assert.equal(context.captionBox.hidden, false, 'switching to Construction reveals the revision reason');
+    assert.equal(text.kind, 'The agent · model revision 2');
+    assert.equal(text.text, 'Correct the declared boundary.');
   }
 });
 

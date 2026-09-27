@@ -259,13 +259,14 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
     if (record) { const reveal = element('button', 'Show this passage in the graph', 'graph-reveal'); reveal.type = 'button'; reveal.addEventListener('click', () => { reader.hidden = true; filter.value = ''; select(record.id); fit([record.id, ...(incident.get(record.id) ?? []).flatMap((edge) => [edge.source, edge.target])]); }); article.append(reveal); }
   }
   function read(id) {
-    reader.hidden = false; reader.classList.add('full'); reader.scrollTop = 0;
+    reader.hidden = false; reader.classList.add('full'); readerElement('reader-scroll').scrollTop = 0;
     readerElement('reader-status').textContent = 'Complete document';
+    readerElement('reader-scroll').style.scrollPaddingTop = `${reader.querySelector('.reader-head')?.getBoundingClientRect().height ?? 0}px`;
     if (id) articles.get(id)?.scrollIntoView({ block: 'start' });
   }
   if (storyUnits.length) button('Read full document', () => read());
   readerElement('reader-close').addEventListener('click', () => { reader.hidden = true; });
-  readerElement('reader-start').addEventListener('click', () => { reader.scrollTop = 0; });
+  readerElement('reader-start').addEventListener('click', () => { readerElement('reader-scroll').scrollTop = 0; });
   readerElement('reader-full').hidden = true;
   reader.querySelector('.source').textContent = 'The complete document in its declared reading order.';
   readerElement('reader-download').addEventListener('click', () => {

@@ -63,11 +63,12 @@ test('opening a part renders the whole manuscript including its root, and beginn
   assert.ok(readerCode.includes('function renderReader('));
   const elements = {
     'reader-body': { children: [], replaceChildren() { this.children = []; }, append(node) { this.children.push(node); } },
-    'reader-status': { textContent: '' }, reader: { scrollTop: 900 },
+    'reader-status': { textContent: '' }, 'reader-scroll': { scrollTop: 900, style: {} },
   };
   const units = [{ id: 'root', role: 'document_root', text: '# Root title' }, { id: 'p1', text: 'First passage.' }, { id: 'p2', text: 'Second passage.' }];
   const context = { data: { story: { units } }, document: {
     getElementById: (id) => elements[id],
+    querySelector: (selector) => selector === '#reader .reader-head' ? { getBoundingClientRect: () => ({height: 84}) } : null,
     createElement: (tag) => ({ tag, innerHTML: '', scrollIntoView() { this.scrolledIntoView = true; } }),
   }, storyParts: [{ n: 1, unit: units[1] }, { n: 2, unit: units[2] }], titleText: 'The whole book', inline: (text) => text,
   readerShown: 0, building: () => true, bornAt: () => 100, tau: 0 };
@@ -75,9 +76,10 @@ test('opening a part renders the whole manuscript including its root, and beginn
   vm.createContext(context); vm.runInContext(`${readerCode}\nrenderReader('p2');`, context);
   assert.deepEqual(elements['reader-body'].children.map((node) => node.innerHTML), ['The whole book', 'First passage.', 'Second passage.']);
   assert.equal(elements['reader-body'].children[2].scrolledIntoView, true);
+  assert.equal(elements['reader-scroll'].style.scrollPaddingTop, '84px', 'passage navigation leaves room for the sticky toolbar');
   assert.equal(elements['reader-status'].textContent, 'Full story · p2');
   vm.runInContext('renderReader();', context);
-  assert.equal(elements.reader.scrollTop, 0);
+  assert.equal(elements['reader-scroll'].scrollTop, 0);
   assert.equal(elements['reader-body'].children.length, 3);
   assert.equal(elements['reader-status'].textContent, 'Full story · Complete manuscript');
   const parent = { n: 1, path: '1', unit: { id: 'retained-parent', text: 'Old excluded version.' }, renderedUnitIds: ['p1'], children: [] };

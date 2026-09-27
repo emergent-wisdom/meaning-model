@@ -67,13 +67,13 @@ Object.assign(globalThis, { innerWidth: 1280, innerHeight: 800, devicePixelRatio
 globalThis.document = { body, head, hidden: false, createElement: (tag) => new Element(tag), createTextNode: (text) => Object.assign(new Element('#text'), { _text: String(text) }),
   getElementById: (id) => body.all().find((node) => node.id === id) ?? head.all().find((node) => node.id === id) ?? null, querySelector: (selector) => body.querySelector(selector), querySelectorAll: (selector) => body.querySelectorAll(selector) };
 let frames = []; globalThis.requestAnimationFrame = (callback) => { frames.push(callback); return frames.length; }; globalThis.cancelAnimationFrame = () => {};
-const press = (target, x, y, button = 0) => { for (const type of ['pointerdown', 'pointerup']) target.dispatchEvent({ type, button, clientX: x, clientY: y, pointerId: 1, isPrimary: true, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, preventDefault() {} }); };
+const press = (target, x, y, button = 0) => { for (const type of ['pointerdown', 'pointerup', 'click']) target.dispatchEvent({ type, button, clientX: x, clientY: y, pointerId: 1, isPrimary: true, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, preventDefault() {} }); };
 const run = (count = 3) => { for (let i = 0; i < count; i += 1) { const now = frames; frames = []; for (const callback of now) { try { callback(performance.now()); } catch (error) { errors.push(String(error?.stack ?? error)); } } } };
 const add = (parent, tag, id = '', classes = '') => { const node = new Element(tag); if (id) node.id = id; node.className = classes; parent.append(node); return node; };
 const title = add(body, 'header', '', 'title'); add(title, 'h1', 'title');
 const side = add(body, 'aside', 'side'); add(side, 'button', 'toolbar-visibility'); const tools = add(side, 'div', 'tools'); for (const id of ['coarse-view', 'recenter-view']) add(tools, 'button', id);
 for (const id of ['play', 'read']) add(body, 'button', id); const track = add(body, 'div', 'track'); add(track, 'div', 'fill'); add(body, 'div', 'clock');
-const reader = add(body, 'aside', 'reader'); reader.hidden = true; for (const id of ['reader-body', 'reader-status']) add(reader, 'div', id); for (const id of ['reader-start', 'reader-close', 'reader-full', 'reader-download']) add(reader, 'button', id);
+const reader = add(body, 'aside', 'reader'); reader.hidden = true; for (const id of ['reader-scroll', 'reader-body', 'reader-status']) add(reader, 'div', id); for (const id of ['reader-start', 'reader-close', 'reader-full', 'reader-download']) add(reader, 'button', id);
 const detail = add(side, 'aside', which + '-details', 'details'); detail.hidden = true; add(detail, 'button', '', 'close'); add(detail, 'div', '', 'details-body');
 const surface = add(body, 'div', which + '-surface'), host = add(surface, 'div', which + '-scene'), controls = add(tools, 'div', which + '-controls');
 const data = JSON.parse(readFileSync(snapshotPath, 'utf8'));
@@ -119,7 +119,7 @@ try {
   } else {
     const { showGraph } = await import(publicUrl + 'graph-view.js');
     const readerCopy = add(body, 'aside', 'graph-reader'); readerCopy.hidden = true; add(readerCopy, 'div', '', 'source');
-    for (const id of ['graph-reader-body', 'graph-reader-status']) add(readerCopy, 'div', id); for (const id of ['graph-reader-start', 'graph-reader-close', 'graph-reader-full', 'graph-reader-download']) add(readerCopy, 'button', id);
+    for (const id of ['graph-reader-scroll', 'graph-reader-body', 'graph-reader-status']) add(readerCopy, 'div', id); for (const id of ['graph-reader-start', 'graph-reader-close', 'graph-reader-full', 'graph-reader-download']) add(readerCopy, 'button', id);
     const selections = []; const view = showGraph(data, { host, tools: controls, detail, reader: readerCopy, surface, onSelect: (record) => selections.push(record) });
     view.activate('graph', { selection: null }); run();
     for (const button of controls.querySelectorAll('button').filter((node) => node.textContent !== 'Read full document')) { button.click(); run(1); }
@@ -210,14 +210,22 @@ test('W A S D walk the Space and Graph cameras, stop on release and leave typing
 test('only a plain, still click of one pointer picks; a drag, another button, a modifier or a pinch never does', async () => {
   const { onPlainClick } = await import(publicUrl + 'pointer-click.js');
   const listeners = {}, element = { addEventListener: (type, handler) => { listeners[type] = handler; } };
-  const picks = []; onPlainClick(element, (event) => picks.push(event.clientX));
-  const pointer = (type, x, extra = {}) => listeners[type]({ button: 0, clientX: x, clientY: 0, pointerId: 1, isPrimary: true, ...extra });
+  const picks = [], details = []; onPlainClick(element, (event) => { picks.push(event.clientX); details.push(event.detail); });
+  const pointer = (type, x, extra = {}) => {
+    const event = { button: 0, clientX: x, clientY: 0, pointerId: 1, isPrimary: true, detail: 1, ...extra };
+    listeners[type](event);
+    if (type === 'pointerup') listeners.click(event);
+  };
   pointer('pointerdown', 10); pointer('pointerup', 12); // a click that barely moves
   pointer('pointerdown', 20); pointer('pointerup', 40); // a drag turns the view
   pointer('pointerdown', 30, { button: 2 }); pointer('pointerup', 30, { button: 2 }); // the right button pans
   pointer('pointerdown', 50, { shiftKey: true }); pointer('pointerup', 50, { shiftKey: true }); // so does a modifier
   pointer('pointerdown', 60); pointer('pointerdown', 90, { pointerId: 2, isPrimary: false }); pointer('pointerup', 90, { pointerId: 2, isPrimary: false }); pointer('pointerup', 60); // a pinch
   pointer('pointerdown', 70); listeners.pointercancel({ pointerId: 1 }); pointer('pointerup', 70); // a cancelled press
-  pointer('pointerdown', 80); pointer('pointerup', 80);
+  pointer('pointerdown', 80); pointer('pointerup', 80, { detail: 2 }); // preserve the native double-click count
+  pointer('pointerdown', 100); pointer('pointermove', 200, { button: -1 }); pointer('pointermove', 100, { button: -1 }); pointer('pointerup', 100); // a drag that returns to its start
+  pointer('pointerdown', 110); pointer('pointermove', 110, { button: -1, shiftKey: true }); pointer('pointerup', 110); // a modifier released before the button
+  pointer('pointerdown', 120); pointer('pointerup', 120, { pointerId: 2 }); // an unrelated pointer cannot finish the click
   assert.deepEqual(picks, [12, 80]);
+  assert.deepEqual(details, [1, 2]);
 });
