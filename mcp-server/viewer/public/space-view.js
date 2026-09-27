@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { proseUnit } from './inspector.js';
-import { spaceModel, positionAt, presentAt, timeSpan, planeOf, lifeLocations, locationSequence, spaceConnections, spatialRecordText, resolveSpaceSelection, spaceToViewerTime, viewerToSpaceTime } from './space-model.js';
+import { spaceModel, positionAt, presentAt, timeSpan, planeOf, lifeLocations, locationSequence, spaceConnections, spatialRecordText, resolveSpaceSelection, spaceToViewerTime, viewerToSpaceTime, placedEvents } from './space-model.js';
 
 const element = (tag, text, className) => {
   const node = document.createElement(tag); if (text != null) node.textContent = String(text);
@@ -39,6 +39,8 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   const model = data.inspection?.model;
   if (!model) throw new Error('This snapshot lacks the model definition. Reopen it from the current MCP.');
   const space = spaceModel(model), connections = spaceConnections(data.inspection), body = detail.querySelector('.details-body');
+  // The Events the model places, with the notes, passages and causal links that belong to them.
+  const placement = placedEvents(model, data.inspection.graph ?? {}, space.frames);
   const abort = new AbortController(); let active = false, alive = true, frameId = null, dirty = true;
   const summary = element('aside', null, 'space-summary'); summary.setAttribute('aria-label', 'Space overview'); surface.append(summary);
   const overviewHead = element('div', null, 'space-overview-head'), count = element('strong'), note = element('span', null, 'space-overview-note');
@@ -72,7 +74,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     const record = node.record ?? {}, text = node.displayText ?? spatialRecordText(record);
     const titleText = node.kind === 'narrative' ? record.title || String(text).split(/\n/u)[0].replace(/^#+\s*/u, '') || node.label : node.label;
     const parts = [element('div', node.kind.replaceAll('_', ' '), 'k'), element('div', titleText, 'v')];
-    if (back) parts.unshift(button('← Position', () => describe(back), 'space-back'));
+    if (back) parts.unshift(button(back.event ? '← Event' : '← Position', () => (back.event ? describeEvent(back) : describe(back)), 'space-back'));
     if (typeof text === 'string') parts.push(element('div', text, 'space-record-text'));
     if (record.interval) parts.push(element('p', intervalText(record.interval, space.timeUnit), 'a'));
     if (node.via?.length) parts.push(element('p', [...new Set(node.via.map((via) => via.relation))].join(' · '), 'a'));
@@ -110,14 +112,39 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.addEventListener('change', () => { dirty = true; });
   const world = new THREE.Group(); scene.add(world);
   let span = null, t = 0, playing = false, frameIndex = 0, selected = null, focus = '', overview = false, showPaths = true, showText = true;
+  let layers = { events: true, notes: true, causal: true }, showSummary = true, selectedEvent = null, eventItems = [], arcItems = [];
   let items = [], links = [], grid = null, axes = null, axisLabels = [], scale = 1, projection = null, center = new THREE.Vector3(), currentPeople = [];
-  const sphere = new THREE.SphereGeometry(1, 20, 14), disc = new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), ring = new THREE.RingGeometry(1.3, 1.65, 40).rotateX(-Math.PI / 2);
+  const sphere = new THREE.SphereGeometry(1, 20, 14), disc = new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), ring = new THREE.RingGeometry(1.3, 1.65, 40).rotateX(-Math.PI / 2), octa = new THREE.OctahedronGeometry(0.85);
   const frameSelect = element('select', null, 'graph-control'); frameSelect.setAttribute('aria-label', 'Reference frame');
   space.frames.forEach((frame, i) => { const option = element('option', `${frame.lifeLocations.length ? 'Life locations' : frame.objects.some(authored) ? 'Scene layout' : 'Geography'} · ${frame.frame ?? 'Unnamed frame'}`); option.value = String(i); frameSelect.append(option); }); tools.append(frameSelect);
   const personSelect = element('select', null, 'graph-control'); personSelect.setAttribute('aria-label', 'Focus person'); tools.append(personSelect);
   const overviewButton = button('Whole life', () => { overview = !overview; update(); renderJourneys(); }, 'tool'); overviewButton.title = 'Show the whole declared location history or only the current time'; tools.append(overviewButton);
   const pathsButton = button('Paths', () => { showPaths = !showPaths; update(); }); pathsButton.setAttribute('aria-pressed', 'true'); pathsButton.title = 'Dashed connections show recorded order, not travel routes'; tools.append(pathsButton);
   const textButton = button('Text', () => { showText = !showText; update(); }); textButton.setAttribute('aria-pressed', 'true'); tools.append(textButton);
+  // The panel below the map can go, giving the map its room.
+  const timelineButton = button('Timeline', () => { showSummary = !showSummary; syncLayers(); resize(); fit(); }); timelineButton.title = 'Show or hide the lives and location periods below the map'; tools.append(timelineButton);
+  // More of the model where it happens, each a layer: the Events it places, their notes and passages, their causal links.
+  const layersWrap = element('span', null, 'tool-wrap space-layers'), layersPop = element('div', null, 'pop space-layers-pop');
+  const layersButton = button('Layers ▾', () => { layersPop.hidden = !layersPop.hidden; layersButton.setAttribute('aria-expanded', String(!layersPop.hidden)); }); layersButton.setAttribute('aria-expanded', 'false');
+  layersPop.hidden = true; layersPop.setAttribute('role', 'group'); layersPop.setAttribute('aria-label', 'Space layers');
+  const attachedCount = placement.events.reduce((sum, item) => sum + item.notes.length + item.passages.length, 0);
+  const layerRow = (key, name, count, about) => {
+    const row = element('button', null, 'toggle space-layer'); row.type = 'button'; row.setAttribute('role', 'switch'); row.title = about;
+    row.append(element('span', null, 'box'), element('span', name, 'name'), element('span', String(count), 'n'));
+    row.addEventListener('click', () => { layers[key] = !layers[key]; syncLayers(); update(); }); layersPop.append(row); return row;
+  };
+  const layerRows = { events: layerRow('events', 'Events where they happen', placement.events.length, 'Events the model places: where a position they move stands, or at a place they are declared to be located in'),
+    notes: layerRow('notes', 'Their notes and passages', attachedCount, 'Notes and passages the story graph links to those Events, as lights above them'),
+    causal: layerRow('causal', 'Causal links between them', placement.causal.length, 'Declared causes, enables, constrains, prevents and realized forecasts between placed Events') };
+  layersPop.append(element('p', 'Across the whole life, an Event\'s height shows when it happens, earliest lowest; at one time, the Events happening then stand just above their place.', 'note'),
+    element('p', placement.unplaced ? `${placement.unplaced} other Events have no declared place, so they are not drawn here.` : 'Every Event has a declared place.', 'note'));
+  layersWrap.append(layersButton, layersPop); tools.append(layersWrap);
+  addEventListener('pointerdown', (event) => { if (!layersPop.hidden && !layersWrap.contains(event.target)) { layersPop.hidden = true; layersButton.setAttribute('aria-expanded', 'false'); } }, { signal: abort.signal });
+  function syncLayers() {
+    for (const [key, row] of Object.entries(layerRows)) { row.setAttribute('aria-checked', String(layers[key])); row.classList.toggle('on', layers[key]); }
+    timelineButton.setAttribute('aria-pressed', String(showSummary)); summary.hidden = !showSummary;
+  }
+  syncLayers();
   const togglePlay = () => { if (!span) return; playing = !playing; overview = false; if (playing && t >= span.end) t = span.start; update(); };
   ownAction('play', togglePlay);
   const seek = (fraction) => { if (!span) return; playing = false; overview = false; t = span.start + Math.max(0, Math.min(1, fraction)) * (span.end - span.start); update(); };
@@ -136,6 +163,8 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   function clear() {
     for (const item of items) { world.remove(item.mesh, item.label, item.halo); item.mesh.material.dispose(); item.halo.material.dispose(); item.label.element.remove(); dispose(item.trail); if (item.spread) { world.remove(item.spread); item.spread.material.dispose(); } }
     for (const link of links) dispose(link.line);
+    for (const item of eventItems) { world.remove(item.marker, item.label); item.marker.material.dispose(); item.label.element.remove(); dispose(item.stem); for (const light of item.lights) { world.remove(light); light.material.dispose(); } }
+    for (const arc of arcItems) dispose(arc.line); eventItems = []; arcItems = [];
     for (const label of axisLabels) { world.remove(label); label.element.remove(); }
     dispose(grid); dispose(axes); grid = null; axes = null; items = []; links = []; axisLabels = [];
   }
@@ -181,6 +210,30 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
       const points = [place(link.source, link.source.position), place(link.target, link.target.position)];
       const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineDashedMaterial({ color: hueFor(link.source), dashSize: link.gap ? 0.6 : 1.5, gapSize: link.gap ? 1.2 : 0.7, transparent: true, opacity: 0.48 }));
       line.computeLineDistances(); world.add(line); links.push({ ...link, line });
+    }
+    // Events where the model places them, raised above their place and stacked when several share it; their notes and
+    // passages as small lights above; causal links as arcs between them.
+    const stacks = new Map();
+    for (const placed of placement.events.filter((item) => item.frame === index)) {
+      const when = placed.interval?.start ?? span?.start ?? 0;
+      const points = placed.objects.map((object) => place(object, positionAt(object, when) ?? object.position));
+      const base = points.reduce((sum, point) => sum.add(point), new THREE.Vector3()).divideScalar(points.length);
+      const key = `${Math.round(base.x)}|${Math.round(base.z)}`;
+      const marker = new THREE.Mesh(octa, new THREE.MeshStandardMaterial({ color: '#f2efe6', emissive: '#f2efe6', emissiveIntensity: 0.3, transparent: true })); marker.userData.placed = placed;
+      const stem = new THREE.Line(new THREE.BufferGeometry().setFromPoints([base, base.clone()]), new THREE.LineBasicMaterial({ color: '#8b93a6', transparent: true, opacity: 0.35 }));
+      const lights = [...placed.passages.map((item) => ({ ...item, color: '#fff0d0' })), ...placed.notes.map((item) => ({ ...item, color: '#c9d4ff' }))].slice(0, 12).map((item, k, all) => {
+        const light = new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ color: item.color, transparent: true, opacity: 0.9 })); light.scale.setScalar(0.42);
+        light.userData.attachment = { ...item, placed }; light.userData.angle = k / all.length * Math.PI * 2; world.add(light); return light;
+      });
+      const labelElement = element('button', short(placed.event.boundary, 46), 'space-event-label'); labelElement.type = 'button'; labelElement.title = placed.event.boundary; labelElement.addEventListener('click', () => selectEvent(placed));
+      const label = new CSS2DObject(labelElement); label.center.set(0.5, 1.5);
+      world.add(marker, stem, label); eventItems.push({ placed, marker, stem, lights, label, base, key });
+    }
+    for (const relation of placement.causal) {
+      const a = eventItems.find((item) => item.placed.id === relation.source_event_id), b = eventItems.find((item) => item.placed.id === relation.target_event_id);
+      if (!a || !b) continue;
+      const line = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: '#ff8a4c', transparent: true, opacity: 0.7 }));
+      world.add(line); arcItems.push({ relation, line, a, b });
     }
     frameHeading.textContent = currentPeople.length ? 'Lives across places' : frame.objects.some(authored) ? 'Within a scene' : 'Declared geography';
     frameCaption.textContent = currentPeople.length ? 'Home, work and visits · select a period below' : frame.objects.some(authored) ? 'Authored layout · select a point to see its scope' : 'Coordinates in one shared reference frame';
@@ -232,6 +285,36 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
       if (item.trail) item.trail.visible = inFocus && showPaths;
     }
     for (const link of links) link.line.visible = showPaths && (!focus || link.source.referentId === focus) && (overview || link.target.interval.start <= t);
+    // An Event shows while it happens (or across the whole life), for the focused person when one is chosen. Across the
+    // whole life its height is when it happens, earliest lowest, so a place's column reads as its chronology; at one time,
+    // the few Events happening then stand just above their place.
+    const current = eventItems.filter((item) => { const span2 = item.placed.interval; return !span2 || (t >= span2.start && t <= span2.end); });
+    const levels = new Map(), starts = eventItems.map((item) => item.placed.interval?.start).filter(Number.isFinite);
+    // Height runs over the placed Events' own dates, so a decade of Events is not squeezed into a lifetime.
+    const first = Math.min(...starts), last = Math.max(...starts);
+    for (const item of [...eventItems].sort((a, b) => (a.placed.interval?.start ?? 0) - (b.placed.interval?.start ?? 0))) {
+      let height = 3;
+      if (overview && Number.isFinite(item.placed.interval?.start) && last > first) height = 3 + 36 * (item.placed.interval.start - first) / (last - first);
+      else { const level = levels.get(item.key) ?? 0; if (current.includes(item)) levels.set(item.key, level + 1); height = 3 + level * 1.7; }
+      item.marker.position.copy(item.base).add(new THREE.Vector3(0, height, 0)); item.label.position.copy(item.marker.position);
+      const stem = item.stem.geometry.attributes.position; stem.setXYZ(1, item.marker.position.x, item.marker.position.y, item.marker.position.z); stem.needsUpdate = true; item.stem.geometry.computeBoundingSphere();
+      for (const light of item.lights) light.position.copy(item.marker.position).add(new THREE.Vector3(Math.cos(light.userData.angle) * 1.5, 0.95, Math.sin(light.userData.angle) * 1.5));
+    }
+    for (const arc of arcItems) {
+      const from = arc.a.marker.position, to = arc.b.marker.position, lift = from.clone().add(to).multiplyScalar(0.5).add(new THREE.Vector3(0, from.distanceTo(to) * 0.35 + 2, 0));
+      arc.line.geometry.setFromPoints(new THREE.QuadraticBezierCurve3(from.clone(), lift, to.clone()).getPoints(28));
+    }
+    for (const item of eventItems) {
+      const { placed } = item, now = current.includes(item), isSelected = selectedEvent === placed;
+      const theirs = !focus || placed.objects.some((object) => object.referentId === focus) || Object.values(placed.event.participants ?? {}).flat().includes(focus);
+      const visible = layers.events && theirs && (overview || now || isSelected);
+      item.marker.visible = item.stem.visible = visible; item.marker.material.opacity = overview && !now && !isSelected ? 0.5 : 1;
+      item.marker.material.color.set(isSelected ? '#fff0b8' : '#f2efe6'); item.marker.scale.setScalar(isSelected ? 1.45 : 1);
+      for (const light of item.lights) light.visible = visible && layers.notes;
+      // Names only where they can be read: the chosen Event, or the few happening now.
+      item.label.visible = visible && showText && (isSelected || (!overview && current.length <= 6));
+    }
+    for (const arc of arcItems) arc.line.visible = layers.causal && arc.a.marker.visible && arc.b.marker.visible;
     for (const label of axisLabels) label.visible = showText;
     overviewButton.setAttribute('aria-pressed', String(overview)); overviewButton.textContent = overview ? 'Whole life' : 'At this time';
     pathsButton.setAttribute('aria-pressed', String(showPaths)); textButton.setAttribute('aria-pressed', String(showText));
@@ -276,6 +359,25 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     if (!related.length) lines.push(element('p', 'No declared model connections were found for this position.', 'a'));
     body.replaceChildren(...lines); detail.hidden = false; if (active) resize();
   }
+  // An Event where it happens: what it is, where and when, and what is attached to it.
+  function describeEvent(placed) {
+    const { event } = placed, lines = [element('div', 'Event where it happens', 'k'), element('div', event.boundary, 'v')];
+    if (placed.interval) lines.push(element('p', intervalText(placed.interval, space.timeUnit), 'space-date'));
+    if (event.description) lines.push(element('p', event.description, 'm'));
+    const placeNode = placed.placeId ? connections.nodes.get(JSON.stringify(['referent', placed.placeId])) : null;
+    lines.push(element('p', placed.via === 'place' ? `Declared to be located in ${placeNode?.label ?? placed.placeId}.` : `It moves ${placed.objects.length === 1 ? 'this declared position' : `these ${placed.objects.length} declared positions`}: ${placed.objects.map((object) => positionLabel(object)).join('; ')}.`, 'a'));
+    const section = (title, members, open, action) => { if (!members.length) return; const box = element('details', null, 'space-connections'); box.open = open; box.append(element('summary', `${title} · ${members.length}`)); for (const [label, fn] of members.map(action)) { const entry = button(short(label, 100), fn, 'space-related'); entry.title = label; box.append(entry); } lines.push(box); };
+    const record = (item) => { const node = connections.nodes.get(JSON.stringify(['narrative', item.node.id])); const text = node ? (node.record?.title || spatialRecordText(node.record).split(/\n/u)[0].replace(/^#+\s*/u, '') || node.label) : item.node.id; return [text, () => showRecord(node, placed)]; };
+    section('Passages that tell it', placed.passages, true, record);
+    section('Notes about it', placed.notes, placed.passages.length === 0, record);
+    const causes = placement.causal.filter((relation) => relation.source_event_id === event.id || relation.target_event_id === event.id);
+    section('Causal links', causes, true, (relation) => { const other = placement.events.find((item) => item.id === (relation.source_event_id === event.id ? relation.target_event_id : relation.source_event_id)); return [`${relation.source_event_id === event.id ? `${relation.kind} →` : `← ${relation.kind}`} ${other?.event.boundary ?? ''}`, () => other && selectEvent(other)]; });
+    body.replaceChildren(...lines); detail.hidden = false; if (active) resize();
+  }
+  function selectEvent(placed, notify = true) {
+    selectedEvent = placed; selected = null; if (placed.frame !== frameIndex) showFrame(placed.frame);
+    describeEvent(placed); if (notify) onSelect({ kind: 'event', id: placed.id }); update();
+  }
   function select(object, notify = true) {
     selected = object;
     if (!object) detail.hidden = true;
@@ -288,7 +390,11 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   renderer.domElement.addEventListener('pointerup', (event) => {
     if (!down || Math.hypot(event.clientX - down.x, event.clientY - down.y) > 5) { down = null; return; }
     down = null; const rect = renderer.domElement.getBoundingClientRect(); ndc.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1); ray.setFromCamera(ndc, camera);
-    const hit = ray.intersectObjects(items.filter((item) => item.mesh.visible).map((item) => item.mesh))[0]; select(hit ? hit.object.userData.object : null);
+    const targets = [...items.filter((item) => item.mesh.visible).map((item) => item.mesh), ...eventItems.filter((item) => item.marker.visible).flatMap((item) => [item.marker, ...item.lights.filter((light) => light.visible)])];
+    const hit = ray.intersectObjects(targets)[0], data2 = hit?.object.userData ?? {};
+    if (data2.placed) selectEvent(data2.placed);
+    else if (data2.attachment) { selectEvent(data2.attachment.placed, false); showRecord(connections.nodes.get(JSON.stringify(['narrative', data2.attachment.node.id])), data2.attachment.placed); }
+    else { selectedEvent = null; select(hit ? data2.object : null); }
   }, { signal: abort.signal });
   frameSelect.addEventListener('change', () => { selected = null; detail.hidden = true; showFrame(Number(frameSelect.value)); });
   personSelect.addEventListener('change', () => { focus = personSelect.value; renderJourneys(); update(); fit(); });
@@ -302,7 +408,9 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   }
   function resize() {
     const titleRect = document.querySelector('.title').getBoundingClientRect(), toolsRect = document.getElementById('tools').getBoundingClientRect();
-    const narrow = innerWidth <= 760, top = Math.max(titleRect.bottom, narrow ? toolsRect.bottom : 0) + 12, bottom = summary.getBoundingClientRect().top - 10;
+    // Without the panel below, the map reaches down to the play bar.
+    const floor = !summary.hidden ? summary.getBoundingClientRect().top : document.getElementById('track')?.closest?.('.bar')?.getBoundingClientRect().top ?? innerHeight;
+    const narrow = innerWidth <= 760, top = Math.max(titleRect.bottom, narrow ? toolsRect.bottom : 0) + 12, bottom = floor - 10;
     // The map stays wide when only controls are visible; an open inspector reserves a genuine reading column.
     const left = 12, right = !narrow && !detail.hidden ? detail.getBoundingClientRect().left - 16 : innerWidth - 12;
     const width = Math.max(120, right - left), height = Math.max(100, bottom - top);
@@ -353,6 +461,6 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     deactivate() { active = false; controls.enabled = false; playing = false; cancelAnimationFrame(frameId); frameId = null; },
     // Whole-life is a spatial presentation, not the temporal renderer's instruction to jump to its window end.
     getState() { return { space: { frame: frameIndex, time: t, focus, overview }, time: { mode: 'story', now: spaceToViewerTime(t, space.timeUnit), atEnd: false } }; },
-    destroy() { alive = false; active = false; abort.abort(); cancelAnimationFrame(frameId); clear(); controls.dispose(); renderer.dispose(); sphere.dispose(); disc.dispose(); ring.dispose(); summary.remove(); },
+    destroy() { alive = false; active = false; abort.abort(); cancelAnimationFrame(frameId); clear(); controls.dispose(); renderer.dispose(); sphere.dispose(); disc.dispose(); ring.dispose(); octa.dispose(); summary.remove(); },
   };
 }

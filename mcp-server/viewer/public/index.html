@@ -180,6 +180,11 @@
   .space-context-label span { font-size: 11px; color: #8d9bac; }
   .space-label { font: 12px system-ui, sans-serif; color: #dce5ef; padding: 5px 9px; border: 1px solid rgba(152,182,220,.16); background: rgba(8, 13, 20, .88); border-radius: 6px; white-space: nowrap; pointer-events: auto; cursor: pointer; max-width: 250px; text-overflow: ellipsis; overflow: hidden; box-shadow: 0 3px 15px rgba(0,0,0,.3); }
   .space-label:hover, .space-label.selected { border-color: #ffe6ae; color: #fff3dc; background: #22212a; }
+  /* Events where they happen, and the layers that show them. */
+  .space-event-label { font: 11.5px system-ui, sans-serif; color: #f2efe6; padding: 3px 7px; border: 1px solid rgba(242, 239, 230, .14); background: rgba(8, 13, 20, .82); border-radius: 6px; white-space: nowrap; pointer-events: auto; cursor: pointer; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+  .space-event-label:hover, .space-event-label:focus-visible { border-color: #ffe6ae; color: #fff3dc; outline: none; }
+  .space-layers-pop { width: 320px; } .space-layers-pop .toggle { width: 100%; border: 0; background: none; font: inherit; text-align: left; color: inherit; }
+  .space-layers-pop .toggle:focus-visible { outline: 2px solid rgba(159, 195, 255, 0.7); outline-offset: 1px; }
   .space-axis { font-size: 10px; color: #697b91; white-space: nowrap; }
   .space-summary { position: fixed; bottom: 82px; left: 28px; right: 28px; z-index: 3; display: flex; flex-direction: column; gap: 10px; color: var(--ink-2); background: linear-gradient(130deg, rgba(18,24,32,.94), rgba(16,17,22,.94)); padding: 13px 16px; box-shadow: 0 0 0 1px rgba(154,179,212,.12) inset, 0 15px 55px #0006; backdrop-filter: blur(14px); border-radius: 13px; font-size: 12px; line-height: 1.45; }
   .space-overview-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 18px; align-items: baseline; }

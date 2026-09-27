@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LifeSimulationService } from '../src/service.mjs';
-import { spaceModel, positionAt, timeSpan, planeOf, lifeLocations, locationSequence, spaceConnections, spatialRecordText, resolveSpaceSelection, spaceToViewerTime, viewerToSpaceTime } from '../viewer/public/space-model.js';
+import { spaceModel, positionAt, timeSpan, planeOf, lifeLocations, locationSequence, spaceConnections, spatialRecordText, resolveSpaceSelection, spaceToViewerTime, viewerToSpaceTime, placedEvents } from '../viewer/public/space-model.js';
 
 // A harbour declared in the existing grammar: a ferry's pose, a buoy's two coordinates, a boat moving at a declared
 // constant speed, and a pier with no position. Places named only in an Event's region are never placed.
@@ -254,4 +254,29 @@ test('Space carries a civil-day cursor through the shared viewer clock without t
   }
   assert.equal(spaceToViewerTime(2022.7, 'year'), 2022.7);
   assert.equal(viewerToSpaceTime(8, 'hour'), 8);
+});
+
+test('Events are placed only where the model says they happen, with their notes, passages and causal links', () => {
+  const model = harbour();
+  const event = (id, extra = {}) => ({ id, boundary: id, interval: { start: 2, end: 3 }, provenance, ...extra });
+  model.meaning_model.events.push(
+    event('boat.run', { process_ids: ['boat.position.x'] }),
+    event('ferry.docks', { interval: { start: 5, end: 6 } }),
+    event('pier.meeting', { interval: { start: 7, end: 8 } }),
+    event('rumour', { region: 'the Red Buoy, people say' }));
+  model.meaning_model.event_referent_bindings.push(
+    { id: 'at.ferry', target: { kind: 'event', event_id: 'ferry.docks' }, role: 'setting', referent_id: 'thing.ferry', binding_type: 'located_in', provenance },
+    { id: 'at.pier', target: { kind: 'event', event_id: 'pier.meeting' }, role: 'setting', referent_id: 'thing.pier', binding_type: 'located_in', provenance });
+  model.meaning_model.event_relations = [{ id: 'run-docks', kind: 'causes', source_event_id: 'boat.run', target_event_id: 'ferry.docks', provenance }];
+  const graph = { nodes: [{ id: 'chapter.1', node_type: 'chapter', role: 'story_passage', text: 'The boat ran.' }, { id: 'note.1', node_type: 'understanding.observation', text: 'Why it ran.' }],
+    edges: [{ id: 'r', source: { kind: 'node', node_id: 'chapter.1' }, target: { kind: 'anchor', anchor_kind: 'event', anchor_id: 'boat.run' }, relation: 'renders' },
+      { id: 'n', source: { kind: 'node', node_id: 'note.1' }, target: { kind: 'anchor', anchor_kind: 'event', anchor_id: 'boat.run' }, relation: 'about' }] };
+  const space = spaceModel(model), placement = placedEvents(model, graph, space.frames);
+  const byId = Object.fromEntries(placement.events.map((item) => [item.id, item]));
+  assert.deepEqual(Object.keys(byId).sort(), ['boat.run', 'ferry.docks'], 'the pier has no position and the rumour only names a place in words');
+  assert.equal(byId['boat.run'].via, 'position'); assert.equal(byId['boat.run'].objects.length, 1);
+  assert.equal(byId['ferry.docks'].via, 'place'); assert.equal(byId['ferry.docks'].placeId, 'thing.ferry');
+  assert.deepEqual([byId['boat.run'].passages.map((item) => item.node.id), byId['boat.run'].notes.map((item) => item.node.id)], [['chapter.1'], ['note.1']]);
+  assert.deepEqual(placement.causal.map((relation) => relation.id), ['run-docks']);
+  assert.equal(placement.unplaced, model.meaning_model.events.length - 2);
 });

@@ -56,6 +56,7 @@ class Element {
   matches(selector) { return selector.split(',').some((part) => { const s = part.trim(); if (s.startsWith('#')) return this.id === s.slice(1); if (s.startsWith('.')) return s.slice(1).split('.').every((name) => this.classes.has(name)); return this.tagName === s.toUpperCase(); }); }
   querySelector(selector) { return this.all().find((node) => node.matches?.(selector)) ?? null; } querySelectorAll(selector) { return this.all().filter((node) => node.matches?.(selector)); }
   closest(selector) { for (let node = this; node; node = node.parentNode) if (node.matches?.(selector)) return node; return null; }
+  contains(node) { for (let at = node; at; at = at.parentNode) if (at === this) return true; return false; }
   getBoundingClientRect() { return { left: 0, top: 0, right: 640, bottom: 400, width: 640, height: 400 }; }
   click() { this.dispatchEvent({ type: 'click', target: this, preventDefault() {}, stopPropagation() {} }); } focus() {} scrollIntoView() {} setPointerCapture() {} releasePointerCapture() {}
   cloneNode() { return new Element(this.tagName.toLowerCase()); }

@@ -311,3 +311,44 @@ export function resolveSpaceSelection(frames, connections, selection, preferredF
 // The existing temporal presentation uses decimal years for civil-day clocks; Space retains native coordinates.
 export const spaceToViewerTime = (time, unit) => String(unit).startsWith('civil_day_since_1970') ? 1970 + time / 365.2425 : time;
 export const viewerToSpaceTime = (time, unit) => String(unit).startsWith('civil_day_since_1970') ? (time - 1970) * 365.2425 : time;
+
+const CAUSAL = new Set(['causes', 'enables', 'constrains', 'prevents', 'realizes_forecast']);
+// Which narrative records are passages of the told story, as their type or role says; every other attached node is a note.
+const isPassage = (node) => node?.role === 'story_passage' || /(^|[._])(passage|chapter|scene|story_part)($|[._])/u.test(String(node?.node_type ?? ''));
+
+/** The Events a frame can show where they happen, as the model declares it, and what is attached to them. An Event is
+ * placed where a position it moves stands (its `process_ids`), else at a place it is declared to be located in whose
+ * position the frame holds. Nothing is placed by containment, participants or the words of a region. Notes and
+ * passages come from the narrative graph's own edges to the Event; causal links join two placed Events. */
+export function placedEvents(model = {}, graph = {}, frames = []) {
+  const meaning = model.meaning_model ?? {}, events = array(meaning.events);
+  const byProcess = new Map(), byPlace = new Map();
+  // A place stands at its own declared position; only failing that at the point a period there declares.
+  for (const own of [true, false]) frames.forEach((frame, index) => { for (const object of frame.objects) {
+    if (own) for (const id of object.processIds) if (!byProcess.has(id)) byProcess.set(id, { index, object });
+    const ref = own ? object.referentId : object.placeId; if (ref && !byPlace.has(ref)) byPlace.set(ref, { index, object });
+  } });
+  const located = new Map();
+  for (const binding of array(meaning.event_referent_bindings)) if (binding?.target?.kind === 'event' && LOCATED.has(binding.binding_type) && byPlace.has(binding.referent_id) && !located.has(binding.target.event_id)) located.set(binding.target.event_id, { ...byPlace.get(binding.referent_id), placeId: binding.referent_id });
+  const nodes = new Map(array(graph.nodes).map((node) => [node.id, node]));
+  const attached = new Map();
+  for (const edge of array(graph.edges)) {
+    if (edge?.source?.kind !== 'node' || edge.target?.kind !== 'anchor' || edge.target.anchor_kind !== 'event' || !nodes.has(edge.source.node_id)) continue;
+    const list = attached.get(edge.target.anchor_id) ?? []; if (!list.some((item) => item.node.id === edge.source.node_id)) list.push({ node: nodes.get(edge.source.node_id), relation: edge.relation ?? null, passage: isPassage(nodes.get(edge.source.node_id)) });
+    attached.set(edge.target.anchor_id, list);
+  }
+  const placed = [];
+  for (const event of events) {
+    // An Event that moves positions stands among them: every position it moves in the first frame that holds one.
+    const moved = [...new Set([...array(event.process_ids), ...array(event.observation_process_ids)])].map((id) => byProcess.get(id)).filter(Boolean);
+    const frame = moved[0]?.index;
+    const objects = moved.length ? [...new Set(moved.filter((item) => item.index === frame).map((item) => item.object))] : located.has(event.id) ? [located.get(event.id).object] : [];
+    if (!objects.length) continue;
+    const via = moved.length ? 'position' : 'place', placeId = via === 'place' ? located.get(event.id).placeId : objects.length === 1 ? objects[0].placeId ?? null : null;
+    placed.push({ id: event.id, event, frame: via === 'position' ? frame : located.get(event.id).index, objects, via, placeId, interval: event.interval ?? null,
+      notes: (attached.get(event.id) ?? []).filter((item) => !item.passage), passages: (attached.get(event.id) ?? []).filter((item) => item.passage) });
+  }
+  const placedIds = new Set(placed.map((item) => item.id));
+  const causal = array(meaning.event_relations).filter((relation) => CAUSAL.has(relation?.kind) && placedIds.has(relation.source_event_id) && placedIds.has(relation.target_event_id));
+  return { events: placed, causal, unplaced: events.length - placed.length };
+}
