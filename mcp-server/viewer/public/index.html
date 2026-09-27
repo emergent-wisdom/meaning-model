@@ -147,7 +147,8 @@
   .tools .row-break { flex-basis: 100%; height: 0; }
   .tool.picker { gap: 7px; padding: 0 3px 0 11px; cursor: default; min-width: 0; max-width: 100%; }
   .tool.picker select { appearance: none; -webkit-appearance: none; height: 28px; min-width: 0; max-width: 190px; padding: 0 24px 0 0; border: 0; border-radius: 7px; color: #fff; font: inherit; font-size: 13px; font-weight: 600; text-overflow: ellipsis; cursor: pointer;
-    background: transparent linear-gradient(45deg, transparent 50%, #898781 50%) no-repeat calc(100% - 13px) 12px / 5px 5px, transparent linear-gradient(135deg, #898781 50%, transparent 50%) no-repeat calc(100% - 8px) 12px / 5px 5px; }
+    background-color: transparent; background-image: linear-gradient(45deg, transparent 50%, #898781 50%), linear-gradient(135deg, #898781 50%, transparent 50%);
+    background-position: calc(100% - 13px) 12px, calc(100% - 8px) 12px; background-size: 5px 5px; background-repeat: no-repeat; }
   .tool.picker.process-focus select { max-width: 220px; }
   .tool.picker select:focus-visible, .tool.stepper button:focus-visible { outline: 2px solid rgba(159, 195, 255, 0.7); outline-offset: 1px; }
   .tool.picker option, .tool.picker optgroup { background: #151517; color: #fff; }
