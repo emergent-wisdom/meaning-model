@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { spaceModel, positionAt } from './space-model.js';
+import { spaceModel, positionAt, presentAt, timeSpan, planeOf } from './space-model.js';
 
 const element = (tag, text, className) => {
   const node = document.createElement(tag); if (text != null) node.textContent = String(text);
@@ -19,18 +19,10 @@ function timeText(t, unit) {
   return `${number(t)} ${unit ?? ''}`.trim();
 }
 
-// Where a declared coordinate goes in the scene: x east, y north (away from the viewer), z up; latitude and longitude
-// as a map, longitude narrowed by the cosine of the frame's middle latitude.
+// Where a declared coordinate goes in the scene (see planeOf): east along x, north away from the viewer, up.
 function projector(frame) {
-  const axes = frame.axes; const geo = axes.includes('latitude') && axes.includes('longitude');
-  const latitudes = geo ? frame.objects.map((object) => object.position[object.axes.indexOf('latitude')]).filter(Number.isFinite) : [];
-  const narrow = geo && latitudes.length ? Math.cos((latitudes.reduce((sum, value) => sum + value, 0) / latitudes.length) * Math.PI / 180) : 1;
-  const east = geo ? 'longitude' : 'x', north = geo ? 'latitude' : 'y', up = geo ? (axes.includes('altitude') ? 'altitude' : 'z') : 'z';
-  return { geo, east, north, up, point(object, position) {
-    const at = (axis) => { const i = object.axes.indexOf(axis); return i >= 0 ? position[i] : 0; };
-    // A coordinate on an axis other than these three is shown in the details, not drawn.
-    return new THREE.Vector3(at(east) * (geo ? narrow : 1), at(up), -at(north));
-  } };
+  const plane = planeOf(frame);
+  return { ...plane, point(object, position) { const { east, north, up } = plane.coordinates(object, position); return new THREE.Vector3(east, up, -north); } };
 }
 
 export function showSpace(data, { host, tools, detail, surface, onSelect = () => {} }) {
@@ -82,57 +74,72 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.addEventListener('change', () => { dirty = true; });
   const world = new THREE.Group(); scene.add(world);
 
-  // Time: the model's start (0) to the end of its latest Event, when anything moves by a declared law.
-  const ends = (model.meaning_model?.events ?? []).map((event) => event?.interval?.end).filter(Number.isFinite);
-  const horizon = Math.max(1, ...ends);
-  let t = 0, playing = false, frameIndex = 0, selected = null;
+  // Time: the span over which the frame's positions hold or change, as declared.
+  let span = null, t = 0, playing = false, frameIndex = 0, selected = null;
   const frameSelect = element('select', null, 'graph-control'); frameSelect.setAttribute('aria-label', 'Reference frame');
   space.frames.forEach((frame, i) => { const option = element('option', `${frame.frame ?? 'Unnamed frame'}${frame.unit ? ` · ${frame.unit}` : ''} (${frame.objects.length})`); option.value = String(i); frameSelect.append(option); });
   if (space.frames.length > 1) tools.append(frameSelect);
   const playButton = element('button', 'Play', 'tool'); playButton.type = 'button'; playButton.setAttribute('aria-pressed', 'false');
-  const slider = element('input', null, 'space-time'); slider.type = 'range'; slider.min = '0'; slider.max = String(horizon); slider.step = String(horizon / 500); slider.value = '0'; slider.setAttribute('aria-label', 'Model time');
+  const slider = element('input', null, 'space-time'); slider.type = 'range'; slider.setAttribute('aria-label', 'Model time');
   const clock = element('span', null, 'space-clock');
   const timeRow = element('span', null, 'space-time-row'); timeRow.append(playButton, slider, clock); tools.append(timeRow);
   const count = element('strong'), note = element('span'), unplaced = element('span', unplacedText());
   summary.append(count, note, unplaced);
 
-  let items = [], grid = null, axes = null, axisLabels = [], scale = 1, projection = null, center = new THREE.Vector3();
-  const sphere = new THREE.SphereGeometry(1, 20, 14);
+  let items = [], links = [], grid = null, axes = null, axisLabels = [], scale = 1, projection = null, center = new THREE.Vector3();
+  const sphere = new THREE.SphereGeometry(1, 20, 14), disc = new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2);
+  const dispose = (object) => { if (!object) return; world.remove(object); object.geometry?.dispose?.(); object.material?.dispose?.(); };
   function clear() {
-    for (const item of items) { world.remove(item.mesh, item.label, item.trail); item.mesh.material.dispose(); item.label.element.remove(); if (item.trail) { item.trail.geometry.dispose(); item.trail.material.dispose(); } }
+    for (const item of items) { world.remove(item.mesh, item.label); item.mesh.material.dispose(); item.label.element.remove(); dispose(item.trail); if (item.spread) { world.remove(item.spread); item.spread.material.dispose(); } }
+    for (const link of links) dispose(link);
     for (const label of axisLabels) { world.remove(label); label.element.remove(); }
-    if (grid) { world.remove(grid); grid.geometry.dispose(); grid.material.dispose(); } if (axes) { world.remove(axes); axes.geometry.dispose(); axes.material.dispose(); }
-    items = []; axisLabels = [];
+    dispose(grid); dispose(axes); grid = null; axes = null; items = []; links = []; axisLabels = [];
   }
   // One frame at a time: coordinates in different frames are not in one space.
   function showFrame(index) {
     clear(); frameIndex = index; const frame = space.frames[index]; projection = projector(frame);
-    const moving = frame.objects.some((object) => object.moves);
-    timeRow.hidden = !moving;
+    span = timeSpan(frame, space.modelEnd); timeRow.hidden = !span;
+    if (span) { slider.min = String(span.start); slider.max = String(span.end); slider.step = String((span.end - span.start) / 500); t = span.start; slider.value = String(t); } else t = 0;
+    // Every time a position is declared to hold or change, so the frame and its trails cover all of them.
+    const times = (object) => [...new Set([span?.start, span?.end, object.interval?.start, object.interval?.end, ...object.motion.flatMap((motion) => motion?.steps?.map((step) => step.t) ?? [])].filter(Number.isFinite))];
     // The same scale on every axis, so distances stay true to each other.
-    const points = frame.objects.flatMap((object) => [0, horizon].map((time) => positionAt(object, time)).filter(Boolean).map((position) => projection.point(object, position)));
+    const points = frame.objects.flatMap((object) => [0, ...times(object)].map((time) => positionAt(object, time)).filter(Boolean).map((position) => projection.point(object, position)));
+    if (!points.length) points.push(...frame.objects.map((object) => projection.point(object, object.position)));
     const box = new THREE.Box3().setFromPoints(points); const size = box.getSize(new THREE.Vector3()); box.getCenter(center);
     const extent = Math.max(size.x, size.y, size.z, 1e-9); scale = 100 / extent;
-    const span = Math.max(size.x, size.z) * scale * 1.3 || 100;
-    grid = new THREE.GridHelper(span, 10, '#39404f', '#1d222c'); grid.position.set(0, (box.min.y - center.y) * scale, 0); world.add(grid);
-    const axisPoints = [new THREE.Vector3(-span / 2, 0, 0), new THREE.Vector3(span / 2, 0, 0), new THREE.Vector3(0, 0, span / 2), new THREE.Vector3(0, 0, -span / 2)];
+    const width = Math.max(size.x, size.z) * scale * 1.3 || 100;
+    grid = new THREE.GridHelper(width, 10, '#39404f', '#1d222c'); grid.position.set(0, (box.min.y - center.y) * scale, 0); world.add(grid);
+    const axisPoints = [new THREE.Vector3(-width / 2, 0, 0), new THREE.Vector3(width / 2, 0, 0), new THREE.Vector3(0, 0, width / 2), new THREE.Vector3(0, 0, -width / 2)];
     axes = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(axisPoints), new THREE.LineBasicMaterial({ color: '#59627a' })); axes.position.copy(grid.position); world.add(axes);
     const axisName = (axis) => `${axis}${frame.unit ? ` (${frame.unit})` : ''}`;
-    for (const [text, at] of [[axisName(projection.east), new THREE.Vector3(span / 2, 0, 0)], [axisName(projection.north), new THREE.Vector3(0, 0, -span / 2)]]) {
+    for (const [text, at] of [[axisName(projection.east), new THREE.Vector3(width / 2, 0, 0)], [axisName(projection.north), new THREE.Vector3(0, 0, -width / 2)]]) {
       const label = new CSS2DObject(element('div', text, 'space-axis')); label.position.copy(at).add(grid.position); world.add(label); axisLabels.push(label);
     }
-    frame.objects.forEach((object, i) => {
-      const hue = HUES[i % HUES.length];
+    // One hue per thing: the positions one referent holds at different times share it.
+    const hueKeys = [...new Set(frame.objects.map((object) => object.referentId ?? object.id))];
+    frame.objects.forEach((object) => {
+      const hue = HUES[hueKeys.indexOf(object.referentId ?? object.id) % HUES.length];
       const mesh = new THREE.Mesh(sphere, new THREE.MeshBasicMaterial({ color: hue })); mesh.scale.setScalar(1.6); mesh.userData.object = object;
       const label = new CSS2DObject(element('div', object.label, 'space-label')); label.center.set(0.5, 1.4);
       let trail = null;
-      if (object.moves && object.evaluated) {
-        const samples = Array.from({ length: 33 }, (_, k) => place(object, positionAt(object, horizon * k / 32)));
-        trail = new THREE.Line(new THREE.BufferGeometry().setFromPoints(samples), new THREE.LineBasicMaterial({ color: hue, transparent: true, opacity: 0.45 }));
-        world.add(trail);
+      if (object.moves && object.evaluated && span) {
+        const samples = Array.from({ length: 65 }, (_, k) => span.start + (span.end - span.start) * k / 64).map((time) => positionAt(object, time)).filter(Boolean).map((position) => place(object, position));
+        if (samples.length > 1) { trail = new THREE.Line(new THREE.BufferGeometry().setFromPoints(samples), new THREE.LineBasicMaterial({ color: hue, transparent: true, opacity: 0.45 })); world.add(trail); }
       }
-      world.add(mesh, label); items.push({ object, mesh, label, trail });
+      // A declared spread on the ground plane: one standard deviation, or the declared interval's half-width.
+      const half = (axis) => { const precision = object.precision[object.axes.indexOf(axis)]; return precision?.kind === 'standard_deviation' ? precision.value : precision?.kind === 'interval' ? (precision.upper - precision.lower) / 2 : 0; };
+      const radius = Math.max(half(projection.east) * (projection.geo ? projection.narrow : 1), half(projection.north)) * scale;
+      let spread = null;
+      if (radius > 0) { spread = new THREE.Mesh(disc, new THREE.MeshBasicMaterial({ color: hue, transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide })); spread.scale.setScalar(radius); world.add(spread); }
+      world.add(mesh, label); items.push({ object, mesh, label, trail, spread, hue });
     });
+    // A referent's positions at different times, in their order: the line is their sequence, not a route.
+    for (const key of hueKeys) {
+      const stays = frame.objects.filter((object) => (object.referentId ?? object.id) === key && object.interval).sort((a, b) => a.interval.start - b.interval.start);
+      if (stays.length < 2) continue;
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(stays.map((object) => place(object, object.position))), new THREE.LineDashedMaterial({ color: HUES[hueKeys.indexOf(key) % HUES.length], dashSize: 1.2, gapSize: 1, transparent: true, opacity: 0.5 }));
+      line.computeLineDistances(); world.add(line); links.push(line);
+    }
     count.textContent = `${frame.objects.length} ${frame.objects.length === 1 ? 'thing' : 'things'} in ${frame.frame ?? 'an unnamed frame'}${frame.unit ? `, in ${frame.unit}` : ''}`;
     note.textContent = 'Declared coordinates, to scale. Only records with a declared position are placed.';
     update(); fit();
@@ -140,12 +147,15 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   function place(object, position) { return projection.point(object, position).sub(center).multiplyScalar(scale); }
   function update() {
     for (const item of items) {
-      const position = positionAt(item.object, t) ?? item.object.position;
+      // A thing appears only while its position is declared to hold.
+      const here = presentAt(item.object, t), position = positionAt(item.object, t) ?? item.object.position;
+      item.mesh.visible = item.label.visible = here; if (item.spread) item.spread.visible = here;
       item.mesh.position.copy(place(item.object, position)); item.label.position.copy(item.mesh.position);
-      item.mesh.material.color.set(item.object === selected ? '#fff0b8' : HUES[items.indexOf(item) % HUES.length]);
+      if (item.spread) item.spread.position.set(item.mesh.position.x, grid.position.y + 0.02, item.mesh.position.z);
+      item.mesh.material.color.set(item.object === selected ? '#fff0b8' : item.hue);
       item.label.element.classList.toggle('selected', item.object === selected);
     }
-    clock.textContent = `${number(t)} ${space.timeUnit ?? ''} after the model's start`.trim();
+    clock.textContent = span ? timeText(t, space.timeUnit) : '';
     if (selected) describe(selected);
     dirty = true;
   }
@@ -156,9 +166,16 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     lines.push(element('p', `${frame.frame ?? 'Unnamed frame'}${frame.unit ? ` · ${frame.unit}` : ''}`, 'a'));
     const shown = position ?? object.position;
     lines.push(element('p', object.axes.map((axis, i) => `${axis} ${number(shown[i])}`).join(' · '), 'm'));
-    if (!position) lines.push(element('p', 'A law moves it that the viewer does not evaluate; this is its declared start.', 'a'));
+    if (!presentAt(object, t)) lines.push(element('p', `Declared for ${timeText(object.interval.start, space.timeUnit)} – ${timeText(object.interval.end, space.timeUnit)}, not now.`, 'a'));
+    else if (!position) lines.push(element('p', 'A law moves it that the viewer does not evaluate; this is its declared start.', 'a'));
+    else if (object.interval) lines.push(element('p', `Declared for ${timeText(object.interval.start, space.timeUnit)} – ${timeText(object.interval.end, space.timeUnit)}.`, 'a'));
+    const precision = object.axes.map((axis, i) => { const item = object.precision[i]; return item?.kind === 'standard_deviation' ? `${axis} ± ${number(item.value)}` : item?.kind === 'interval' ? `${axis} within ${number(item.lower)}–${number(item.upper)}` : item?.kind === 'exact' ? `${axis} exact` : null; }).filter(Boolean);
+    lines.push(element('p', precision.length ? `Precision: ${precision.join(' · ')}${frame.unit ? ` (${frame.unit})` : ''}` : 'Precision: not declared', 'a'));
     if (object.orientation) lines.push(element('p', `Orientation: ${object.orientation.map(number).join(', ')}`, 'a'));
-    object.rates.forEach((rate, i) => { if (rate) lines.push(element('p', `Moves ${number(rate)} ${frame.unit ?? ''} per ${space.timeUnit ?? 'time unit'} along ${object.axes[i]}`, 'a')); });
+    object.motion.forEach((motion, i) => {
+      if (motion?.rate) lines.push(element('p', `Moves ${number(motion.rate)} ${frame.unit ?? ''} per ${space.timeUnit ?? 'time unit'} along ${object.axes[i]}`, 'a'));
+      if (motion?.steps?.length) lines.push(element('p', `${object.axes[i]} is set to ${motion.steps.map((step) => `${number(step.value)} at ${timeText(step.t, space.timeUnit)}`).join(', ')}`, 'a'));
+    });
     if (object.laws.length) lines.push(element('p', `Laws: ${object.laws.join(', ')}`, 'a'));
     lines.push(element('p', `Declared by ${object.processIds.join(', ')}${object.referentId ? `, bound to ${object.referentId}` : ''}`, 'a'));
     body.replaceChildren(...lines); detail.hidden = false;
@@ -179,7 +196,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   });
   frameSelect.addEventListener('change', () => { selected = null; detail.hidden = true; showFrame(Number(frameSelect.value)); });
   slider.addEventListener('input', () => { t = Number(slider.value); update(); });
-  playButton.addEventListener('click', () => { playing = !playing; playButton.setAttribute('aria-pressed', String(playing)); playButton.textContent = playing ? 'Pause' : 'Play'; if (playing && t >= horizon) t = 0; });
+  playButton.addEventListener('click', () => { playing = !playing; playButton.setAttribute('aria-pressed', String(playing)); playButton.textContent = playing ? 'Pause' : 'Play'; if (playing && span && t >= span.end) t = span.start; });
   function fit() {
     const bounds = new THREE.Box3(); for (const item of items) bounds.expandByPoint(item.mesh.position); if (grid) bounds.expandByObject(grid);
     const middle = bounds.getCenter(new THREE.Vector3()); const radius = Math.max(10, bounds.getSize(new THREE.Vector3()).length() / 2);
@@ -201,7 +218,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   function frame(now = performance.now()) {
     frameId = null; if (!alive || !active) return;
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
-    if (playing) { t = Math.min(horizon, t + dt * horizon / 12); slider.value = String(t); update(); if (t >= horizon) { playing = false; playButton.setAttribute('aria-pressed', 'false'); playButton.textContent = 'Play'; } }
+    if (playing && span) { t = Math.min(span.end, t + dt * (span.end - span.start) / 12); slider.value = String(t); update(); if (t >= span.end) { playing = false; playButton.setAttribute('aria-pressed', 'false'); playButton.textContent = 'Play'; } }
     const changed = controls.update();
     if (!document.hidden && (dirty || changed)) { renderer.render(scene, camera); labels.render(scene, camera); dirty = false; }
     frameId = requestAnimationFrame(frame);
@@ -217,6 +234,6 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     },
     deactivate() { active = false; controls.enabled = false; playing = false; cancelAnimationFrame(frameId); frameId = null; },
     getState() { return { space: { frame: frameIndex, time: t } }; },
-    destroy() { alive = false; active = false; abort.abort(); cancelAnimationFrame(frameId); clear(); controls.dispose(); renderer.dispose(); sphere.dispose(); summary.remove(); },
+    destroy() { alive = false; active = false; abort.abort(); cancelAnimationFrame(frameId); clear(); controls.dispose(); renderer.dispose(); sphere.dispose(); disc.dispose(); summary.remove(); },
   };
 }

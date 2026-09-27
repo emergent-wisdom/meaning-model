@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LifeSimulationService } from '../src/service.mjs';
-import { spaceModel, positionAt } from '../viewer/public/space-model.js';
+import { spaceModel, positionAt, timeSpan, planeOf } from '../viewer/public/space-model.js';
 
 // A harbour declared in the existing grammar: a ferry's pose, a buoy's two coordinates, a boat moving at a declared
 // constant speed, and a pier with no position. Places named only in an Event's region are never placed.
@@ -57,6 +57,43 @@ test('the engine accepts positions declared in the existing grammar, and the spa
   assert.deepEqual(space.textRegions, ['Kalmar harbour']);
 });
 
+test('declared precision, positions held for an interval and moves at a declared time are drawn as declared', async (t) => {
+  const model = harbour();
+  // The pier is a surveyed point within a metre; the pilot stands at the pier, then on the ferry's deck; the buoy is
+  // moved to a new mooring when the clock reaches hour 12.
+  model.processes.push(
+    scalar('pier.position.x', -60, { scale: { semantic_role: 'position', axis: 'x' }, uncertainty: { kind: 'standard_deviation', value: 1 }, update_mode: 'static' }),
+    scalar('pier.position.y', 5, { scale: { semantic_role: 'position', axis: 'y' }, uncertainty: { kind: 'interval', lower: 4, upper: 6 }, update_mode: 'static' }),
+    scalar('pilot.at_pier.position.x', -58, { scale: { semantic_role: 'position', axis: 'x' }, update_mode: 'static' }),
+    scalar('pilot.at_pier.position.y', 6, { scale: { semantic_role: 'position', axis: 'y' }, update_mode: 'static' }),
+    scalar('pilot.on_ferry.position.x', 41, { scale: { semantic_role: 'position', axis: 'x' }, update_mode: 'static' }),
+    scalar('pilot.on_ferry.position.y', -19, { scale: { semantic_role: 'position', axis: 'y' }, update_mode: 'static' }));
+  model.laws.push({ id: 'buoy.moored.x', operator: { role: 'occurrence', trigger: { kind: 'threshold', expression: { op: 'time' }, comparison: 'greater_or_equal', threshold: 12, firing: 'on_enter' },
+    effects: [{ target: 'buoy.position.x', mode: 'set', value: { op: 'constant', value: 150 } }] }, provenance });
+  model.processes.find((process) => process.id === 'buoy.position.x').update_mode = 'unspecified';
+  model.meaning_model.referents.push({ id: 'person.pilot', boundary: 'Ines Berg, the harbour pilot', continuity_criterion: 'the same person', provenance });
+  model.meaning_model.event_referent_bindings.push(
+    { id: 'where.pier', target: { kind: 'process', process_id: 'pier.position.x' }, role: 'position', referent_id: 'thing.pier', binding_type: 'position of', provenance },
+    { id: 'pilot.stay.pier', target: { kind: 'process', process_id: 'pilot.at_pier.position.x' }, role: 'position', referent_id: 'person.pilot', binding_type: 'position of', interval: { start: 5, end: 6 }, provenance },
+    { id: 'pilot.stay.ferry', target: { kind: 'process', process_id: 'pilot.on_ferry.position.x' }, role: 'position', referent_id: 'person.pilot', binding_type: 'position of', interval: { start: 6, end: 9 }, provenance });
+  // The engine accepts every shape the view reads.
+  const service = new LifeSimulationService(); t.after(() => service.close()); await service.initialize();
+  const registered = await service.registerModel({ requestId: 'harbour-timed', model });
+  const { model: accepted } = await service.inspectModel({ modelHash: registered.modelHash, includeDefinition: true });
+  const [frame] = spaceModel(accepted).frames;
+  const find = (label, start) => frame.objects.find((object) => object.label === label && (start === undefined || object.interval?.start === start));
+  const pier = find('Old Pier');
+  assert.deepEqual(pier.precision, [{ kind: 'standard_deviation', value: 1 }, { kind: 'interval', lower: 4, upper: 6 }]);
+  const [atPier, onFerry] = [find('Ines Berg', 5), find('Ines Berg', 6)];
+  assert.ok(atPier && onFerry, 'each stay is its own declared position of the same referent');
+  assert.deepEqual([positionAt(atPier, 5.5), positionAt(onFerry, 5.5)], [[-58, 6], null]);
+  assert.deepEqual([positionAt(atPier, 7), positionAt(onFerry, 7)], [null, [41, -19]]);
+  const buoy = find('Red Buoy');
+  assert.deepEqual(buoy.motion[0], { steps: [{ t: 12, value: 150 }] }); assert.equal(buoy.evaluated, true);
+  assert.deepEqual([positionAt(buoy, 11.9), positionAt(buoy, 12)], [[120, 35], [150, 35]]);
+  assert.deepEqual(timeSpan(frame, 24), { start: 0, end: 24 });
+});
+
 test('a law the view cannot follow exactly is named, never guessed', () => {
   const model = harbour();
   model.laws[0].activation = 'gated';
@@ -94,4 +131,22 @@ test('nothing is placed from names, regions or other frames, and coordinates in 
   const ghost = space.frames.flatMap((frame) => frame.objects).filter((object) => object.id === 'ghost');
   assert.equal(ghost.length, 1); assert.deepEqual(ghost[0].axes, ['x'], 'a coordinate in another frame does not join it');
   assert.deepEqual(spaceModel({}).frames, []);
+});
+
+test('latitude and longitude lie as a map, and a representative point keeps its declared spread', () => {
+  // Two sourced town points in a geographic frame, one with a representative-point spread in degrees.
+  const geo = (id, latitude, longitude, spread) => ['latitude', 'longitude'].map((axis) => ({ id: `${id}.position.${axis}`, value_type: { kind: 'scalar', bounds: { minimum: -180, maximum: 180 } },
+    initial_value: { kind: 'scalar', value: axis === 'latitude' ? latitude : longitude }, uncertainty: spread ? { kind: 'standard_deviation', value: spread } : { kind: 'exact' }, provenance: ['public gazetteer'],
+    unit: 'degree', reference_frame: 'WGS84', scale: { semantic_role: 'position', axis }, support: [`spatial_entity:${id}`], access_scopes: [], update_mode: 'static' }));
+  const model = { processes: [...geo('swindon', 51.558, -1.782, 0.02), ...geo('avebury', 51.428, -1.854)], meaning_model: {} };
+  const [frame] = spaceModel(model).frames;
+  assert.deepEqual([frame.frame, frame.unit, [...frame.axes].sort()], ['WGS84', 'degree', ['latitude', 'longitude']]);
+  const plane = planeOf(frame);
+  assert.equal(plane.geo, true);
+  const swindon = frame.objects.find((object) => object.label === 'swindon'), avebury = frame.objects.find((object) => object.label === 'avebury');
+  const a = plane.coordinates(swindon, swindon.position), b = plane.coordinates(avebury, avebury.position);
+  assert.ok(a.north > b.north && a.east > b.east, 'Swindon lies north and east of Avebury');
+  assert.ok(Math.abs(a.east / swindon.position[swindon.axes.indexOf('longitude')] - Math.cos(51.493 * Math.PI / 180)) < 1e-9, 'longitude narrows by the cosine of the middle latitude');
+  assert.deepEqual(swindon.precision, [{ kind: 'standard_deviation', value: 0.02 }, { kind: 'standard_deviation', value: 0.02 }]);
+  assert.equal(timeSpan(frame), null, 'places that do not move have no time span');
 });
