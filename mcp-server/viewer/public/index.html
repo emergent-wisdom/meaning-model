@@ -190,6 +190,11 @@
   .space-overview-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 18px; align-items: baseline; }
   .space-summary strong { color: #e1e7ee; font-weight: 550; font-size: 13px; }
   .space-overview-note { color: #8d9bac; font-size: 11px; }
+  /* The panel folds down to its count line and opens again from the same button. */
+  .space-minimize { flex: none; width: 24px; height: 24px; margin-left: auto; border: 0; border-radius: 6px; background: rgba(255, 255, 255, .08); color: #e1e7ee; font: 600 15px/1 system-ui, sans-serif; cursor: pointer; }
+  .space-minimize:hover { background: rgba(255, 255, 255, .16); } .space-minimize:focus-visible { outline: 2px solid #ffe6ae; outline-offset: 2px; }
+  .space-summary.minimized { right: auto; padding: 7px 10px 7px 14px; gap: 0; } .space-summary.minimized .space-journeys, .space-summary.minimized .space-overview-note { display: none; }
+  .space-summary.minimized .space-overview-head { gap: 12px; align-items: center; }
   .space-journeys { width: 100%; min-width: 0; overflow-x: hidden; overflow-y: auto; max-height: min(230px, 29vh); scrollbar-width: thin; overscroll-behavior: contain; }
   .space-life-axis { min-width: 0; display: flex; justify-content: space-between; padding-left: 157px; color: #8d9bac; font-size: 10px; margin-bottom: 5px; }
   .space-life-row { display: grid; grid-template-columns: 105px minmax(0, 1fr); align-items: start; gap: 10px; padding: 7px 0; border-top: 1px solid rgba(163,190,226,.09); }

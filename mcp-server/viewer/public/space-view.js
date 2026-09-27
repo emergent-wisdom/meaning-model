@@ -121,8 +121,10 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   const overviewButton = button('Whole life', () => { overview = !overview; update(); renderJourneys(); }, 'tool'); overviewButton.title = 'Show the whole declared location history or only the current time'; tools.append(overviewButton);
   const pathsButton = button('Paths', () => { showPaths = !showPaths; update(); }); pathsButton.setAttribute('aria-pressed', 'true'); pathsButton.title = 'Dashed connections show recorded order, not travel routes'; tools.append(pathsButton);
   const textButton = button('Text', () => { showText = !showText; update(); }); textButton.setAttribute('aria-pressed', 'true'); tools.append(textButton);
-  // The panel below the map can go, giving the map its room.
-  const timelineButton = button('Timeline', () => { showSummary = !showSummary; syncLayers(); resize(); fit(); }); timelineButton.title = 'Show or hide the lives and location periods below the map'; tools.append(timelineButton);
+  // The panel below the map folds down to its one-line count, from its own button or this switch, giving the map its room.
+  const toggleSummary = () => { showSummary = !showSummary; syncLayers(); resize(); fit(); };
+  const timelineButton = button('Timeline', toggleSummary); timelineButton.title = 'Show or minimize the lives and location periods below the map'; tools.append(timelineButton);
+  const minimizeButton = button('–', toggleSummary, 'space-minimize'); overviewHead.append(minimizeButton);
   // More of the model where it happens, each a layer: the Events it places, their notes and passages, their causal links.
   const layersWrap = element('span', null, 'tool-wrap space-layers'), layersPop = element('div', null, 'pop space-layers-pop');
   const layersButton = button('Layers ▾', () => { layersPop.hidden = !layersPop.hidden; layersButton.setAttribute('aria-expanded', String(!layersPop.hidden)); }); layersButton.setAttribute('aria-expanded', 'false');
@@ -142,7 +144,8 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   addEventListener('pointerdown', (event) => { if (!layersPop.hidden && !layersWrap.contains(event.target)) { layersPop.hidden = true; layersButton.setAttribute('aria-expanded', 'false'); } }, { signal: abort.signal });
   function syncLayers() {
     for (const [key, row] of Object.entries(layerRows)) { row.setAttribute('aria-checked', String(layers[key])); row.classList.toggle('on', layers[key]); }
-    timelineButton.setAttribute('aria-pressed', String(showSummary)); summary.hidden = !showSummary;
+    timelineButton.setAttribute('aria-pressed', String(showSummary)); summary.classList.toggle('minimized', !showSummary);
+    minimizeButton.textContent = showSummary ? '–' : '+'; const label = showSummary ? 'Minimize this panel' : 'Show this panel'; minimizeButton.title = label; minimizeButton.setAttribute('aria-label', label); minimizeButton.setAttribute('aria-expanded', String(showSummary));
   }
   syncLayers();
   const togglePlay = () => { if (!span) return; playing = !playing; overview = false; if (playing && t >= span.end) t = span.start; update(); };
@@ -409,7 +412,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   function resize() {
     const titleRect = document.querySelector('.title').getBoundingClientRect(), toolsRect = document.getElementById('tools').getBoundingClientRect();
     // Without the panel below, the map reaches down to the play bar.
-    const floor = !summary.hidden ? summary.getBoundingClientRect().top : document.getElementById('track')?.closest?.('.bar')?.getBoundingClientRect().top ?? innerHeight;
+    const floor = showSummary ? summary.getBoundingClientRect().top : document.getElementById('track')?.closest?.('.bar')?.getBoundingClientRect().top ?? innerHeight;
     const narrow = innerWidth <= 760, top = Math.max(titleRect.bottom, narrow ? toolsRect.bottom : 0) + 12, bottom = floor - 10;
     // The map stays wide when only controls are visible; an open inspector reserves a genuine reading column.
     const left = 12, right = !narrow && !detail.hidden ? detail.getBoundingClientRect().left - 16 : innerWidth - 12;
