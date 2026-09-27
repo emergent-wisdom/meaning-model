@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { proseUnit } from './inspector.js';
+import { createWalker } from './walk-controls.js';
 import { spaceModel, positionAt, presentAt, timeSpan, planeOf, lifeLocations, locationSequence, spaceConnections, spatialRecordText, resolveSpaceSelection, spaceToViewerTime, viewerToSpaceTime, placedEvents } from './space-model.js';
 
 const element = (tag, text, className) => {
@@ -110,6 +111,8 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   scene.add(new THREE.AmbientLight('#b8caff', 1.6)); const light = new THREE.DirectionalLight('#ffffff', 2.8); light.position.set(30, 100, 40); scene.add(light);
   const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 20000);
   const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.addEventListener('change', () => { dirty = true; });
+  const walker = createWalker({ camera, controls, isActive: () => active, signal: abort.signal });
+  renderer.domElement.title = 'Drag to turn · scroll to zoom · W A S D move, Q E down and up, arrows look around, Shift faster';
   const world = new THREE.Group(); scene.add(world);
   let span = null, t = 0, playing = false, frameIndex = 0, selected = null, focus = '', overview = false, showPaths = true, showText = true;
   let layers = { events: true, notes: true, causal: true }, showSummary = true, selectedEvent = null, eventItems = [], arcItems = [];
@@ -442,6 +445,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     frameId = null; if (!alive || !active) return;
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     if (playing && span) { t = Math.min(span.end, t + dt * (span.end - span.start) / 45); if (t >= span.end) playing = false; update(); }
+    if (walker.step(dt)) dirty = true;
     const changed = controls.update();
     if (!document.hidden && (dirty || changed)) { renderer.render(scene, camera); labels.render(scene, camera); arrangeLabels(); dirty = false; }
     frameId = requestAnimationFrame(animate);
@@ -461,7 +465,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
       else if (restored.object) select(restored.object, false);
       renderJourneys(); update(); resize(); fit(); last = performance.now(); if (frameId === null) animate();
     },
-    deactivate() { active = false; controls.enabled = false; playing = false; cancelAnimationFrame(frameId); frameId = null; },
+    deactivate() { active = false; controls.enabled = false; playing = false; walker.stop(); cancelAnimationFrame(frameId); frameId = null; },
     // Whole-life is a spatial presentation, not the temporal renderer's instruction to jump to its window end.
     getState() { return { space: { frame: frameIndex, time: t, focus, overview }, time: { mode: 'story', now: spaceToViewerTime(t, space.timeUnit), atEnd: false } }; },
     destroy() { alive = false; active = false; abort.abort(); cancelAnimationFrame(frameId); clear(); controls.dispose(); renderer.dispose(); sphere.dispose(); disc.dispose(); ring.dispose(); octa.dispose(); summary.remove(); },

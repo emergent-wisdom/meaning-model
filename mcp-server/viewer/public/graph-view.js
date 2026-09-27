@@ -6,6 +6,7 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 import { buildModelGraph, overviewModelGraph, layoutStructured, isContainment } from './model-graph.js';
 import { formatModelInterval } from './structure-model.js';
 import { proseUnit } from './inspector.js';
+import { createWalker } from './walk-controls.js';
 
 const COLORS = { event: '#9fc3ff', process: '#93d3bd', referent: '#dca4bd', concept: '#c9b4f4',
   normalized_cut: '#e5bd7b', normalized_cut_answer: '#c39c68', physical_cut: '#db9d78', narrative: '#fff3dc',
@@ -75,7 +76,7 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
   const summary = element('aside', null, 'graph-summary'); summary.id = 'graph-summary'; summary.setAttribute('aria-label', 'Graph overview');
   summary.dataset.modelHash = data.modelHash ?? ''; summary.dataset.graphHash = data.headGraphHash ?? '';
   const count = element('strong'), explanation = element('span', 'Arrows show link direction. Position is a layout, not time or a measured distance.');
-  const hint = element('span', 'Drag to turn · scroll to zoom · click a record to inspect its connections');
+  const hint = element('span', 'Drag to turn · scroll to zoom · W A S D move, Q E down and up, arrows look around · click a record to inspect its connections');
   summary.append(count, explanation, hint);
   const key = element('div', null, 'graph-key');
   function fillKey() { key.replaceChildren(); for (const kind of kinds) { const item = element('span'), dot = element('i'); dot.style.background = COLORS[kind] ?? '#aaa5ca'; item.append(dot, document.createTextNode(words(kind))); key.append(item); } }
@@ -89,6 +90,9 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
   const camera = new THREE.PerspectiveCamera(42, 1, .1, 20000);
   const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.autoRotateSpeed = .25;
   controls.addEventListener('change', () => { dirty = true; });
+  // Walking stops the turning, as taking the wheel does.
+  const walker = createWalker({ camera, controls, isActive: () => active, signal: abort.signal, onStart: () => { rotating = false; controls.autoRotate = false; spinButton.setAttribute('aria-pressed', 'false'); } });
+  let lastFrame = 0;
   const group = new THREE.Group(); scene.add(group);
   const geometry = new THREE.IcosahedronGeometry(1, 1), material = new THREE.MeshBasicMaterial({ color: '#ffffff' });
   const matrix = new THREE.Matrix4(), scale = new THREE.Vector3(), quaternion = new THREE.Quaternion();
@@ -284,8 +288,9 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
   css.addEventListener('load', () => { if (active) { resize(); fit(); } });
   function frame() {
     frameId = null; if (!alive || !active) return;
-    const changed = !document.hidden && controls.update();
-    if (!document.hidden && (dirty || changed)) {
+    const now = performance.now(), dt = lastFrame ? Math.min(0.1, (now - lastFrame) / 1000) : 0; lastFrame = now;
+    const walked = walker.step(dt), changed = !document.hidden && controls.update();
+    if (!document.hidden && (dirty || changed || walked)) {
     renderer.render(scene, camera); labels.render(scene, camera);
     const occupied = [document.querySelector('.title'), document.querySelector('#tools'), summary, ...(!detail.hidden ? [detail] : [])].map((node) => node.getBoundingClientRect());
     for (const item of labelItems) {
@@ -307,9 +312,9 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
       const choice = wanted && nodeById.get(nodeById.has(wanted.id) ? wanted.id : heldBy.get(wanted.id));
       if (choice && choice.id !== selected) { filter.value = ''; neighborsOnly = false; select(choice.id, false); }
       else if (!choice && selected) { selected = null; detail.hidden = true; neighborsOnly = false; refresh(); }
-      fit(); dirty = true; if (frameId === null) frame();
+      fit(); dirty = true; lastFrame = 0; if (frameId === null) frame();
     },
-    deactivate() { active = false; controls.enabled = false; cancelAnimationFrame(frameId); frameId = null; },
+    deactivate() { active = false; controls.enabled = false; walker.stop(); cancelAnimationFrame(frameId); frameId = null; },
     getState() { return { graph: { filter: filter.value, neighborsOnly, showEdges, rotating, records: mode } }; },
     destroy() { alive = false; active = false; abort.abort(); cancelAnimationFrame(frameId); controls.dispose(); renderer.dispose(); geometry.dispose(); material.dispose(); disposeLines(lines); disposeLines(otherLines); disposeLines(selectedLines); css.remove(); },
   };

@@ -67,7 +67,7 @@ Object.assign(globalThis, { innerWidth: 1280, innerHeight: 800, devicePixelRatio
 globalThis.document = { body, head, hidden: false, createElement: (tag) => new Element(tag), createTextNode: (text) => Object.assign(new Element('#text'), { _text: String(text) }),
   getElementById: (id) => body.all().find((node) => node.id === id) ?? head.all().find((node) => node.id === id) ?? null, querySelector: (selector) => body.querySelector(selector), querySelectorAll: (selector) => body.querySelectorAll(selector) };
 let frames = []; globalThis.requestAnimationFrame = (callback) => { frames.push(callback); return frames.length; }; globalThis.cancelAnimationFrame = () => {};
-const run = (count = 3) => { for (let i = 0; i < count; i += 1) { const now = frames; frames = []; for (const callback of now) { try { callback(1000 + i * 16); } catch (error) { errors.push(String(error?.stack ?? error)); } } } };
+const run = (count = 3) => { for (let i = 0; i < count; i += 1) { const now = frames; frames = []; for (const callback of now) { try { callback(performance.now()); } catch (error) { errors.push(String(error?.stack ?? error)); } } } };
 const add = (parent, tag, id = '', classes = '') => { const node = new Element(tag); if (id) node.id = id; node.className = classes; parent.append(node); return node; };
 const title = add(body, 'header', '', 'title'); add(title, 'h1', 'title');
 const side = add(body, 'aside', 'side'); add(side, 'button', 'toolbar-visibility'); const tools = add(side, 'div', 'tools'); for (const id of ['coarse-view', 'recenter-view']) add(tools, 'button', id);
@@ -78,7 +78,19 @@ const surface = add(body, 'div', which + '-surface'), host = add(surface, 'div',
 const data = JSON.parse(readFileSync(snapshotPath, 'utf8'));
 const report = { errors };
 try {
-  if (which === 'space') {
+  if (which === 'walk') {
+    // The keyboard walking both 3D views share.
+    const { PerspectiveCamera, Vector3 } = await import('three'); const { createWalker } = await import(publicUrl + 'walk-controls.js');
+    const camera = new PerspectiveCamera(42, 1, 0.1, 1000); camera.position.set(0, 10, 30); camera.lookAt(0, 0, 0);
+    const controls = { target: new Vector3(0, 0, 0) }; let started = 0;
+    const walker = createWalker({ camera, controls, onStart: () => { started += 1; } });
+    const key = (type, name, target = body) => globalThis.dispatchEvent({ type, key: name, target, preventDefault() {}, metaKey: false, ctrlKey: false, altKey: false });
+    const at = () => camera.position.toArray().map((value) => +value.toFixed(3));
+    const start = at(); key('keydown', 'w'); walker.step(0.1); const forward = at(); key('keyup', 'w'); const idle = walker.step(0.1);
+    const field = new Element('input'); body.append(field); key('keydown', 'w', field); const typed = walker.step(0.1);
+    key('keydown', 'ArrowLeft'); walker.step(0.1); key('keyup', 'ArrowLeft'); const target = controls.target.toArray().map((value) => +value.toFixed(3));
+    Object.assign(report, { start, forward, idle, typed, started, target });
+  } else if (which === 'space') {
     const { showSpace } = await import(publicUrl + 'space-view.js');
     const view = showSpace(data, { host, tools: controls, detail, surface, onSelect: () => {} });
     view.activate('space', { selection: null, time: null }); run();
@@ -166,4 +178,15 @@ test('the Graph renderer runs its overview, every record and a restored selectio
   const { data } = await snapshots(t);
   const drawn = render('graph', data);
   assert.deepEqual(drawn.errors, []); assert.equal(drawn.state.graph.records, 'all', 'selecting a Cut the overview holds opens every record');
+});
+
+test('W A S D walk the Space and Graph cameras, stop on release and leave typing alone', () => {
+  const walked = render('walk', { inspection: { model: {} } });
+  assert.deepEqual(walked.errors, []);
+  assert.ok(walked.forward[2] < walked.start[2], 'W moves toward what the camera faces');
+  assert.equal(walked.forward[1], walked.start[1], 'walking keeps to the ground plane');
+  assert.equal(walked.idle, false, 'releasing the key stops');
+  assert.equal(walked.typed, false, 'a key typed into a field does not walk');
+  assert.equal(walked.started, 2, 'starting to walk is announced once per press');
+  assert.notEqual(walked.target[0], 0, 'the arrows turn the view');
 });
