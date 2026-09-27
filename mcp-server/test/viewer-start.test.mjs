@@ -49,6 +49,7 @@ const panel=add(wrap,'div','pop-show','pop');panel.hidden=true;const layouts=add
 const html=readFileSync(new URL('./index.html',startUrl),'utf8'),menu=html.match(/id="layouts">([\\s\\S]*?)<\\/div>/)?.[1];
 if(!menu)throw Error('Show menu absent');for(const match of menu.matchAll(/<button data-layout="([^"]+)">([^<]+)<\\/button>/g)){const button=add(layouts,'button');button.dataset.layout=match[1];button.textContent=match[2];}
 for(const id of ['layout-note','selection-label','graph-controls'])add(panel,'div',id);
+add(tools,'div','space-controls');
 add(tools,'button','story');add(tools,'button','legacy-camera-tool');
 for(const id of ['coarse-view','less-detail','more-detail','recenter-view'])add(tools,'button',id);
 add(tools,'select','process-focus');add(tools,'div','process-detail-status');
@@ -66,6 +67,7 @@ const sources={
   './inspector.js':'export function showInspector(data,message,options){return globalThis.__route.surface("structure",data,message,options);}',
   './model-picker.js':'export async function mountModelPicker(){globalThis.__route.actions.push({kind:"picker"});}',
   './graph-view.js':'export function showGraph(data,options){if(globalThis.__route.input.graphError)throw Error("WebGL absent");return globalThis.__route.surface("graph",data,null,options);}',
+  './space-view.js':'export function showSpace(data,options){return globalThis.__route.surface("space",data,null,options);}',
   './view.js':'if(globalThis.__route.input.trajectoryError)throw Error("trajectory unavailable");export const temporalController=globalThis.__route.surface("temporal",globalThis.__route.input.data);'
 };
 registerHooks({resolve(specifier,context,next){if(context.parentURL===startUrl&&Object.hasOwn(sources,specifier)){imports.push(specifier);return {url:'viewer-routing:'+specifier,shortCircuit:true};}return next(specifier,context);},load(url,context,next){if(url.startsWith('viewer-routing:'))return {format:'module',source:sources[url.slice('viewer-routing:'.length)],shortCircuit:true};return next(url,context);}});
@@ -87,7 +89,7 @@ for(const action of input.steps??[]){
   if(action.view){if(action.button){const button=layouts.children.find(node=>node.dataset.layout===action.view);for(const handler of button.handlers.click??[])await handler({target:button});}else await window.modelViewer.switchView(action.view);}
   if(action.pagehide){for(const handler of handlers.pagehide??[])handler(action.pagehide);await Promise.resolve();}
 }
-process.stdout.write(JSON.stringify({actions,imports,errors,replacements,keys,toolbarStates,url:location.href,state:window.modelViewer.getState(),representation:body.dataset.representation,buttons:layouts.children.map(node=>({view:node.dataset.layout,label:node.textContent,disabled:node.disabled,pressed:node.attributes['aria-pressed']})),surfaces:body.all().filter(node=>['graph-surface','structure-surface'].includes(node.id)).map(node=>node.id),sharedToolbarRetained:document.getElementById('t-show')===show.children[0],recenterHidden:document.getElementById('recenter-view').hidden,recenterTemporalOnly:Object.hasOwn(document.getElementById('recenter-view').dataset,'temporal'),coarseDisabled:document.getElementById('coarse-view').disabled,coarseTemporalOnly:Object.hasOwn(document.getElementById('coarse-view').dataset,'temporal')}));
+process.stdout.write(JSON.stringify({actions,imports,errors,replacements,keys,toolbarStates,url:location.href,state:window.modelViewer.getState(),representation:body.dataset.representation,buttons:layouts.children.map(node=>({view:node.dataset.layout,label:node.textContent,disabled:node.disabled,pressed:node.attributes['aria-pressed']})),surfaces:body.all().filter(node=>['graph-surface','structure-surface','space-surface'].includes(node.id)).map(node=>node.id),sharedToolbarRetained:document.getElementById('t-show')===show.children[0],recenterHidden:document.getElementById('recenter-view').hidden,recenterTemporalOnly:Object.hasOwn(document.getElementById('recenter-view').dataset,'temporal'),coarseDisabled:document.getElementById('coarse-view').disabled,coarseTemporalOnly:Object.hasOwn(document.getElementById('coarse-view').dataset,'temporal')}));
 `;
 
 function run({ view, data, query = {}, ...options }) {
@@ -116,20 +118,20 @@ test('startup selects Processes with paths, Tree with dated Events, and Graph wi
   }
 });
 
-test('all five Show choices stay on one page and reuse renderers with the exact loaded snapshot', () => {
+test('all six Show choices stay on one page and reuse renderers with the exact loaded snapshot', () => {
   const result = run({ view: 'layers', data: snapshot(true), steps: [
     { view: 'graph', button: true }, { view: 'structure', button: true }, { view: 'together', button: true },
-    { view: 'terrain', button: true }, { view: 'layers', button: true }, { view: 'graph' }, { view: 'structure' },
+    { view: 'terrain', button: true }, { view: 'layers', button: true }, { view: 'space', button: true }, { view: 'graph' }, { view: 'space' }, { view: 'structure' },
   ] });
   assert.deepEqual(result.buttons.map(({ view, label }) => ({ view, label })), [
     { view: 'together', label: 'Processes' }, { view: 'layers', label: 'Tree' }, { view: 'terrain', label: 'Terrain' },
-    { view: 'graph', label: 'Graph' }, { view: 'structure', label: 'Structure' },
+    { view: 'graph', label: 'Graph' }, { view: 'structure', label: 'Structure' }, { view: 'space', label: 'Space' },
   ]);
-  assert.deepEqual(activations(result).map(({ view }) => view), ['layers', 'graph', 'structure', 'together', 'terrain', 'layers', 'graph', 'structure']);
-  assert.deepEqual(mounts(result).map(({ surface }) => surface).sort(), ['graph', 'structure', 'temporal']);
+  assert.deepEqual(activations(result).map(({ view }) => view), ['layers', 'graph', 'structure', 'together', 'terrain', 'layers', 'space', 'graph', 'space', 'structure']);
+  assert.deepEqual(mounts(result).map(({ surface }) => surface).sort(), ['graph', 'space', 'structure', 'temporal']);
   assert.ok(mounts(result).every((mount) => mount.exactSnapshot));
   for (const kind of ['load', 'picker']) assert.equal(result.actions.filter((action) => action.kind === kind).length, 1);
-  for (const name of ['./view.js', './graph-view.js']) assert.equal(result.imports.filter((item) => item === name).length, 1);
+  for (const name of ['./view.js', './graph-view.js', './space-view.js']) assert.equal(result.imports.filter((item) => item === name).length, 1);
   assert.deepEqual(result.errors, []); assert.equal(result.sharedToolbarRetained, true); assert.equal(result.representation, 'structure');
   for (const address of result.replacements) {
     const url = new URL(address); assert.equal(url.pathname, '/token/');
@@ -137,7 +139,9 @@ test('all five Show choices stay on one page and reuse renderers with the exact 
   }
   const graph = mounts(result).find((mount) => mount.surface === 'graph');
   assert.deepEqual([graph.host, graph.tools, graph.detail, graph.reader], ['graph-scene', 'graph-controls', 'graph-details', 'graph-reader']);
-  assert.deepEqual(result.surfaces.sort(), ['graph-surface', 'structure-surface']);
+  assert.deepEqual(result.surfaces.sort(), ['graph-surface', 'space-surface', 'structure-surface']);
+  const space = mounts(result).find((mount) => mount.surface === 'space');
+  assert.deepEqual([space.host, space.tools, space.detail], ['space-scene', 'space-controls', 'space-details']);
 });
 
 test('native selection and time transfer through Graph and Structure and explicit selection clearing', () => {

@@ -2,7 +2,7 @@
 // active presentation runs. Native selection and the time cursor are shared.
 export function createViewerSession({ temporal, initialView, state = {}, mounts, onView = () => {}, onState = () => {} }) {
   const timeViews = new Set(['together', 'layers', 'terrain']);
-  const normalize = (view) => timeViews.has(view) ? temporal ? view : 'graph' : ['graph', 'structure'].includes(view) ? view : temporal ? 'together' : 'graph';
+  const normalize = (view) => timeViews.has(view) ? temporal ? view : 'graph' : ['graph', 'structure', 'space'].includes(view) ? view : temporal ? 'together' : 'graph';
   const shared = { ...state, view: normalize(initialView) }, mounted = new Map();
   let current = null, activeView = null, request = 0;
   const snapshot = () => structuredClone(shared);

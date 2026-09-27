@@ -3,7 +3,7 @@ import { showInspector } from './inspector.js';
 import { mountModelPicker } from './model-picker.js';
 import { createViewerSession } from './viewer-session.js';
 
-const labels = { together: 'Processes', layers: 'Tree', terrain: 'Terrain', graph: 'Graph', structure: 'Structure' };
+const labels = { together: 'Processes', layers: 'Tree', terrain: 'Terrain', graph: 'Graph', structure: 'Structure', space: 'Space' };
 const timeViews = new Set(['together', 'layers', 'terrain']);
 const params = new URLSearchParams(location.search);
 let notice = null, data = null, dataName = null;
@@ -14,7 +14,7 @@ const initialView = !data ? 'structure' : labels[requested] ? requested : tempor
 
 for (const element of document.querySelectorAll('#scene, #stats, .caption, #strip, .bar, #labels2, #legend, #details, #tip, #reader, #qr-panel, #sub, #repos')) element.dataset.temporal = '';
 for (const element of document.getElementById('tools').children) {
-  if (!element.querySelector?.('[data-pop="pop-show"]') && !['story', 'coarse-view', 'recenter-view', 'graph-controls'].includes(element.id)) element.dataset.temporal = '';
+  if (!element.querySelector?.('[data-pop="pop-show"]') && !['story', 'coarse-view', 'recenter-view', 'graph-controls', 'space-controls'].includes(element.id)) element.dataset.temporal = '';
 }
 const structureHost = document.createElement('div'); structureHost.id = 'structure-surface'; document.body.append(structureHost);
 function fitPanels() {
@@ -55,6 +55,15 @@ function graphParts() {
   const reader = copy('reader'); document.body.append(reader);
   return { surface, host, detail, reader, tools: document.getElementById('graph-controls') };
 }
+// The physical view has its own scene, details and controls, shown only while it is the representation.
+function spaceParts() {
+  const surface = document.createElement('div'); surface.id = 'space-surface'; surface.dataset.space = '';
+  const host = document.createElement('div'); host.id = 'space-scene'; surface.append(host); document.body.append(surface);
+  const detail = document.getElementById('details').cloneNode(true); detail.hidden = true; delete detail.dataset.temporal; detail.dataset.space = '';
+  detail.id = 'space-details'; for (const child of detail.querySelectorAll('[id]')) child.id = `space-${child.id}`;
+  detail.querySelector('#space-details-body').classList.add('details-body'); document.getElementById('side').append(detail);
+  return { surface, host, detail, tools: document.getElementById('space-controls') };
+}
 let selection = null;
 try { const value = JSON.parse(params.get('record') ?? 'null'); if (value && typeof value.kind === 'string' && typeof value.id === 'string') selection = value; } catch { /* An invalid UI selection does not change the snapshot. */ }
 const session = createViewerSession({
@@ -67,17 +76,24 @@ const session = createViewerSession({
       catch (error) { parts.surface.remove(); parts.detail.remove(); parts.reader.remove(); parts.tools.replaceChildren(); throw error; }
     },
     structure: async () => showInspector(data, notice, { host: structureHost, onSelect: (record) => session.selectRecord(record) }),
+    space: async () => {
+      const { showSpace } = await import('./space-view.js'), parts = spaceParts();
+      try { return showSpace(data, { ...parts, onSelect: (record) => session.selectRecord(record) }); }
+      catch (error) { parts.surface.remove(); parts.detail.remove(); parts.tools.replaceChildren(); throw error; }
+    },
   },
   onView(view) {
     document.body.dataset.representation = timeViews.has(view) ? 'temporal' : view;
-    document.body.classList.toggle('graph-mode', view === 'graph'); document.body.classList.remove('graph-selection');
+    document.body.classList.toggle('graph-mode', view === 'graph'); document.body.classList.toggle('space-mode', view === 'space'); document.body.classList.remove('graph-selection');
     document.body.classList.toggle('details-open', timeViews.has(view) && !document.getElementById('details').hidden);
     document.getElementById('t-show').textContent = labels[view];
     const recenter = document.getElementById('recenter-view'); recenter.hidden = view === 'structure'; recenter.disabled = !data || view === 'structure';
     document.querySelector('.eyebrow').textContent = `Meaning Model · ${labels[view]}`;
     document.getElementById('title').textContent = data?.title ?? 'Meaning Model'; document.title = data?.title ?? 'Meaning Model';
     for (const button of document.querySelectorAll('#layouts button')) { button.classList.toggle('on', button.dataset.layout === view); button.setAttribute('aria-pressed', String(button.dataset.layout === view)); }
-    if (!timeViews.has(view)) document.getElementById('layout-note').textContent = view === 'graph' ? 'Declared records and relationships. Position is a layout, not time or a measured distance.' : 'Declared Event containment, process decomposition and Cuts. The same snapshot, selection and time position are retained.';
+    if (!timeViews.has(view)) document.getElementById('layout-note').textContent = view === 'graph' ? 'Declared records and relationships. Position is a layout, not time or a measured distance.'
+      : view === 'space' ? 'Declared coordinates, to scale, in the model\'s own reference frames. Only records with a declared position are placed.'
+      : 'Declared Event containment, process decomposition and Cuts. The same snapshot, selection and time position are retained.';
     fitPanels();
   },
   onState(state) {
