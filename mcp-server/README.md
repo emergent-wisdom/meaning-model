@@ -1,5 +1,34 @@
 # Meaning Model MCP server
 
+## Find the right entry
+
+MCP **resources** are readings (`life-sim://…`); **prompts** prepare instructions
+for the calling LLM; **tools** inspect or change records. A start prompt does not
+run a model by itself.
+
+General modeling and the shared model, document, understanding, lens and viewer
+tools are always available. `MEANING_MODEL_ADDONS=storytelling` adds the fiction
+workflow; `alien` adds mechanism search through invented worlds. Enable both with
+`MEANING_MODEL_ADDONS=storytelling,alien`; they use the same core. Estimator and
+reading settings are independent of these add-ons.
+
+Choose a **purpose** within the work: `observation`, `forecasting`,
+`counterfactual`, `creative_story`, `source_reconstruction`, or `person_reflection`.
+Purposes select evidence and authority guidance; they do not enable add-ons.
+`sessionMode` describes first use, repeat work, a new domain, consequential work,
+or continuation, rather than another modeling workflow.
+
+1. Check `life_engine_status` and configure durable storage for work you intend to
+   keep. See [Keep and continue your work](#keep-and-continue-your-work).
+2. Start with the `life_general_modeling_start` prompt for general work, or
+   `life_modeling_start` for the other purposes. Call `life_modeling_context`,
+   then read its required resources. See the [reading entry](#paper-grounded-modeling-entry).
+3. For new general work, preview and apply `life_world_model_build`; for existing
+   work, use `sessionMode: continuation`, select a saved branch with
+   `life_saved_work_list`, and read its replay and outline before editing.
+4. Inspect `life_model_questions`, record decisions and revisions, then open the
+   resulting exact revision with `life_model_viewer_open`.
+
 ## Browser viewer
 
 With version 0.5.0, ask the connected assistant to **“Open this model.”**
@@ -11,7 +40,8 @@ it needs no separate download, web hosting, call transcript or storytelling add-
 Use a graph hash to include its prose and construction record, or a model hash for
 the model alone. The graph must be model-bound. This complete author view refuses
 access unless all exported scoped records are accessible; it is not a filtered
-model projection. Reopen after a revision to inspect the new state. The browser
+model projection. Open the updated revision through the MCP to inspect a new
+state; reloading an existing link retains its snapshot. The browser
 must be on the MCP server's computer, and links expire when that process stops or
 when they fall outside its sixteen most recent snapshots.
 
@@ -42,12 +72,21 @@ record. Selecting a graph record does not open the reader automatically.
 The optional **Structure** view expands declared Event containment, process
 decomposition and conditional Cut answers. Shared nodes remain references and
 answer weights remain local to each question. Use **Show it as** to switch among
-Processes, Tree, Terrain, Graph and Structure on the same page. The selected record
-and time position remain available across these representations. **Coarse view**
+Processes, Tree, Terrain, Graph, Structure and Space on the same page. The selected
+record and time position remain available across these representations. **Coarse view**
 returns to the broadest process overview; expose subprocesses with more detail.
 **Recenter** (or Home outside text fields) fits the current representation.
 **Documents & notes** is with the other top controls. **Hide controls** clears
 the toolbar for exploration; **Show controls** restores it.
+
+**Space** uses declared positions and units in one explicit reference frame at a
+time. It distinguishes coarse home bases, workplaces, visits and presence from
+selected scene layouts; a home base does not imply uninterrupted presence, and
+sequence connectors do not assert travel routes or speeds. Unlocated periods stay
+unplaced, while qualitative settings remain inspectable. Space shares the bottom
+Play, time cursor and full-story reader. **Coarse view** stays in Space and returns
+to its broad overview; the selected record and world-time cursor carry across
+representation switches. The other layouts do not represent physical geography.
 
 In the original viewer, the reading-position track follows document order, with
 segment widths based on prose words. Click a part or use Previous/Next to highlight
@@ -152,7 +191,7 @@ protocol, and checked examples.
 `life_modeling_context` returns their SHA-256 digests and
 an ordered reading contract for creative story, source reconstruction,
 person-reflection, observation, forecasting, or counterfactual work. The
-`life_modeling_start` MCP prompt provides the same paper-first entry point.
+`life_modeling_start` MCP prompt provides the same entry point.
 
 The Life Simulation snapshot is bound to its source file digests in
 [`SOURCE.json`](../docs/companions/life-simulation/SOURCE.json); its canonical
@@ -160,14 +199,23 @@ manuscript remains in the separate Life Simulation repository. Run
 `node scripts/verify-resources.mjs` from the Meaning Model repository root to
 check the companion snapshot, precompiled presets, and resource availability.
 
-First use, a changed theory version, a new domain, or consequential real-person
-work requires reading the complete papers before using the short protocol. The
-live MCP process records access to both theory resources and refuses profile
-compilation until both have been accessed. Same-domain repeat work in that process
+Paper-first is the default. First use, a changed theory version, a new domain, or
+consequential real-person work requires reading the complete papers before using
+the short protocol. The
+live MCP process records access to both theory resources and gates
+`life_profile_compile` until both have been accessed. This gate does not cover all
+model writes. Same-domain repeat work in that process
 may reuse the access record, but caller-supplied digests never satisfy the gate
 and the record is lost on restart. Resource access is not evidence that an
 agent understood the papers, and the server does not claim to verify
 comprehension.
+
+The experimental `MEANING_MODEL_READING=guides` setting starts with the protocol,
+purpose-specific guide or profile, and a worked example. The served entry text
+changes accordingly; the papers remain references for the reasons behind the
+rules. It disables the two-paper profile-compilation gate, without changing model
+validation or demonstrating equivalent modeling quality. The alien add-on retains
+its separate paper-access requirement.
 
 The protocol deliberately does not hardcode an interview. The intelligent
 agent selects questions and interpretations; the server preserves model,
@@ -250,6 +298,36 @@ done and why where a later agent can read it.
   `life_construction_import` rebuilds it on another engine with the same hashes.
 - `life_model_register` and `life_model_revise` report `descriptionCoverage`: Events
   that carry a Cut without a description. `requireDescribedNumbers` refuses them.
+
+### Lenses and review after a revision
+
+Lenses are reusable, attributed questions about records, available in every
+workflow. `life_lens_define` stores or versions a lens in the understanding graph;
+`life_lens_place` creates its holder's reading Events and can move existing
+reading Cuts there without changing their weights. A reading is about its target,
+not automatically a fact of that target. `life_lens_questions` reports unanswered
+or stale readings, changes across records and useful openings. Estimate answers
+on the reading Events with `life_estimate_cut_shares`. Built-in templates such as
+fear/love are optional: explicit `lensIds` selection lasts for one call, while a
+graph-defined lens persists.
+
+After text or lens changes, `life_lens_reread` reassesses eligible stale readings
+through the configured estimator and applies them in one model revision. Optional
+repeated samples report variability; a changed estimate is not proof that the
+world changed. Without an estimator, inspect the questions and supply reviewed
+answers through `life_estimate_cut_shares`. Rebind the graph to the resulting model
+revision, either explicitly or with the tool's `rebind` option.
+
+`life_revision_check` compares two model revisions using a scoped graph. It lists
+changed Events and Cuts, conditioned Cuts, affected draws, stale text readings,
+directly related later Events, passages with `renders` dependencies and anchored
+notes. It also identifies passages lacking Event grounding or a current no-link
+reason. It does not repair them or verify prose meaning, complete dependency
+coverage or character knowledge. Its spatial change detection currently covers
+Event `region`/`substrate` edits, not coordinate-process or location-binding changes;
+review their dependent passages and notes explicitly. This is distinct from the
+[story-revision diagnosis](#optional-story-revision-diagnosis), which organizes
+caller-supplied evidence about the layer needing repair.
 
 ## Optional Meaning Model layer
 
@@ -604,13 +682,15 @@ trajectory, or mutate accepted history.
 
 ## Optional external estimator
 
-Three tools turn an external classifier into a modeling aid, and one tool makes model
-revisions cheap to follow. They are always registered. Without configuration the
-estimator tools return their generated questions as a task for the calling LLM and
-send nothing anywhere. Set `MEANING_MODEL_ESTIMATOR=typesafe` with `TYPESAFE_API_KEY`
+The optional estimator supplies bounded judgments; the LLM frames and reviews
+them. Set `MEANING_MODEL_ESTIMATOR=typesafe` with `TYPESAFE_API_KEY`
 (optionally `TYPESAFE_MODEL`, default `jev-latest`) to have TypeSafe's Jev score the
-questions instead. With the estimator on, the text supplied to these tools leaves the
-machine; no other tool changes behaviour.
+questions. Configured calls send their supplied evidence and questions to that
+service. The setting serves Cut estimation, situation ingestion, alignment audits,
+initial builder estimates, process estimation, lens rereading and the alien
+add-on's decision checks. Without it, question-producing tools return tasks or
+accept supplied answers; automated lens rereading requires a configured estimator.
+Model validation, storage and candidate acceptance remain separate operations.
 
 `life_estimate_cut_shares` takes one comparison question, its answer keys with
 meanings, and targets: free-text situations, or event IDs in a bound model whose
@@ -623,7 +703,8 @@ revision in the same call; `distributions` lets you place your own numbers witho
 estimator. Proposals are AI inference, not canon: a large remainder usually means a
 missing answer category.
 
-`life_model_ingest` is the one-call entry for general modeling. You write the event's
+`life_model_ingest` adds situations to an existing model, identified by `modelHash`;
+use `life_world_model_build` for compact initial construction. You write the event's
 boundary and description once, list the questions to ask about it, and optionally add
 notes; the tool creates the events under their declared parent, asks every question
 for every event, writes the distributions as Cuts, registers the revision, rebinds the
@@ -667,7 +748,7 @@ parallel manuscript or model. Use `life_story_author_record` for authoring
 material and concise Understanding Nodes. Numerical exploration and revision
 persist their results directly; neither accepts them as world facts.
 
-Start the server with `MEANING_MODEL_ADDONS=storytelling` to enable twelve
+Start the server with `MEANING_MODEL_ADDONS=storytelling` to enable the
 bundled tools, the `life-sim://addon/storytelling` resource, and the
 `life_story_scene_start`, `life_story_structure_explore`,
 `life_story_purpose_review`, and `life_story_deepen` prompts:

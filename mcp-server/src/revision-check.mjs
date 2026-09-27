@@ -1,8 +1,8 @@
 // What a revision leaves to recheck, through recorded dependencies rather than a semantic verdict on the whole.
 // The check follows Cuts conditioned on a revised Cut, draws made from weights that
 // have changed, readings and estimates whose Event text changed, later Events a changed one causes, and the passages
-// that render a changed record. A reading depends on the text it read; its dependence on the modeled state is not
-// tracked until a model needs it.
+// that render a changed record, including its declared region or substrate. A reading depends on the text it read;
+// its dependence on the modeled state is not tracked until a model needs it.
 import { z } from 'zod';
 import { eventTextSignature } from './cut-shares.mjs';
 import { indexModel } from './model-questions.mjs';
@@ -33,13 +33,15 @@ export async function checkRevision(service, raw) {
   // What the revision changed.
   const rewritten = [...eventsB.values()].filter((event) => eventsA.has(event.id) && eventTextSignature(eventsA.get(event.id)) !== eventTextSignature(event)).map((event) => event.id);
   const retimed = [...eventsB.values()].filter((event) => eventsA.has(event.id) && JSON.stringify(eventsA.get(event.id).interval ?? null) !== JSON.stringify(event.interval ?? null)).map((event) => event.id);
+  const relocated = [...eventsB.values()].filter((event) => eventsA.has(event.id)
+    && ['region', 'substrate'].some((field) => (eventsA.get(event.id)[field] ?? null) !== (event[field] ?? null))).map((event) => event.id);
   const removedEvents = [...eventsA.keys()].filter((eventId) => !eventsB.has(eventId));
   const reweighted = [...cutsB.values()].filter((cut) => cutsA.has(cut.id) && weightsOf(cutsA.get(cut.id)) !== weightsOf(cut)).map((cut) => cut.id);
   const withdrawn = [...cutsB.values()].filter((cut) => cut.withdrawn && cutsA.has(cut.id) && !cutsA.get(cut.id).withdrawn).map((cut) => cut.id);
   const removedCuts = [...cutsA.keys()].filter((cutId) => !cutsB.has(cutId));
   const moved = [...cutsB.values()].filter((cut) => cutsA.has(cut.id) && cutsA.get(cut.id).parent_event_id !== cut.parent_event_id).map((cut) => cut.id);
   const changedCuts = new Set([...reweighted, ...withdrawn, ...removedCuts]);
-  const changedEvents = new Set([...rewritten, ...retimed, ...removedEvents]);
+  const changedEvents = new Set([...rewritten, ...retimed, ...relocated, ...removedEvents]);
   // What depended on it.
   const conditioned = [...cutsB.values()].filter((cut) => !cut.withdrawn && cut.conditioning?.cut_id && changedCuts.has(cut.conditioning.cut_id))
     .map((cut) => ({ cutId: cut.id, on: cut.conditioning.cut_id, why: withdrawn.includes(cut.conditioning.cut_id) || removedCuts.includes(cut.conditioning.cut_id) ? 'it is conditioned on a Cut that is gone: withdraw it with its parent or condition it on the new one' : 'the answer it divides changed weight, so its joint shares changed: check it still holds' }));
@@ -56,10 +58,10 @@ export async function checkRevision(service, raw) {
     if (cut.withdrawn) continue;
     const text = (cut.provenance ?? []).find((item) => String(item).startsWith('event-text:'))?.slice(11);
     const target = index.readings?.has(cut.parent_event_id) ? (index.relations.find((relation) => relation.source_event_id === cut.parent_event_id && relation.kind === 'about')?.target_event_id ?? cut.parent_event_id) : cut.parent_event_id;
-    if (text && changedEvents.has(target) && eventsB.has(target) && text !== eventTextSignature(eventsB.get(target))) readings.push({ cutId: cut.id, eventId: target, why: 'it read the Event\'s text, which has been rewritten' });
+    if (text && rewritten.includes(target) && text !== eventTextSignature(eventsB.get(target))) readings.push({ cutId: cut.id, eventId: target, why: 'it read the Event\'s text, which has been rewritten' });
   }
   const later = (b.event_relations ?? []).filter((relation) => causal.has(relation.kind) && changedEvents.has(relation.source_event_id) && eventsB.has(relation.target_event_id))
-    .map((relation) => ({ eventId: relation.target_event_id, from: relation.source_event_id, relation: relation.kind, why: 'it follows from an Event that changed: check its description and interval still hold' }));
+    .map((relation) => ({ eventId: relation.target_event_id, from: relation.source_event_id, relation: relation.kind, why: 'it follows from an Event that changed: check its description, interval and placement still hold' }));
   const anchored = new Map(); const depicted = new Map();
   // Moving a Cut changes what its depiction is about, even when its answer weights stay the same.
   const changedAnchoredCuts = new Set([...changedCuts, ...moved]);
@@ -90,7 +92,7 @@ export async function checkRevision(service, raw) {
   const toCheck = conditioned.length + draws.length + readings.length + later.length + passages.length + notes.length;
   return {
     schema: 'meaning-model-revision-check/v1', fromModelHash: input.fromModelHash, toModelHash: toHash, graphMutation: false,
-    changed: { rewritten: limit(rewritten), retimed: limit(retimed), removedEvents: limit(removedEvents), reweighted: limit(reweighted), withdrawn: limit(withdrawn), removedCuts: limit(removedCuts), moved: limit(moved) },
+    changed: { rewritten: limit(rewritten), retimed: limit(retimed), relocated: limit(relocated), removedEvents: limit(removedEvents), reweighted: limit(reweighted), withdrawn: limit(withdrawn), removedCuts: limit(removedCuts), moved: limit(moved) },
     toCheck, conditioned: limit(conditioned), draws: limit(draws), readings: limit(readings), later: limit(later), passages: limit(passages), notes: limit(notes),
     ...(intentionallyUnlinked.length ? { intentionallyUnlinked: { count: intentionallyUnlinked.length, passages: limit(intentionallyUnlinked) } } : {}),
     ...(unlinked.length ? { unlinkedPassages: { count: unlinked.length, nodeIds: limit(unlinked), why: 'These passages have no declared Event/renders link or current per-passage no-link reason. Use life_narrative_grounding_propose, then confirm or correct selections with life_narrative_grounding_apply. Cut links remain useful dependencies but do not replace the passage Event declaration.' } } : {}),
@@ -101,7 +103,7 @@ export async function checkRevision(service, raw) {
 
 export function registerRevisionCheckTools(server, service, { toolResult }) {
   server.registerTool('life_revision_check', {
-    description: 'After a revision, inspect recorded dependencies that need review. Given the model before and after, it names detected changes (Events rewritten, retimed or removed; Cuts reweighted, withdrawn, removed or moved), dependent Cuts and draws, stale readings, directly related later Events, passages with grounding/renders links, and notes anchored to changed records. Passages without a declared renders link are unchecked. This does not verify prose meaning, dependency completeness, or character knowledge.',
+    description: 'After a revision, inspect recorded dependencies that need review. Given the model before and after, it names detected changes (Events rewritten, retimed, relocated through region/substrate edits or removed; Cuts reweighted, withdrawn, removed or moved), dependent Cuts and draws, stale text readings, directly related later Events, passages with grounding/renders links, and notes anchored to changed records. Passages without a declared renders link are unchecked. Placement changes flag dependencies without claiming that a text-based estimate read changed text. This does not verify prose meaning, dependency completeness, or character knowledge.',
     inputSchema: revisionCheckSchema,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await checkRevision(service, input)));

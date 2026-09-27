@@ -16,6 +16,8 @@
 // attention for what they feel, decision allocation for a decision between continuations); decisions are drawn
 // with life_direction_draw, and estimates carry estimator or supplied provenance.
 
+import { spatialDiagnostics } from './spatial-diagnostics.mjs';
+
 export const SLOW_PROCESSES = Object.freeze(['body', 'kin', 'partnership', 'work', 'place', 'means', 'knowledge', 'standing', 'meaning']);
 // The shared first-run comparison vocabulary of the Book; a person's own wants replace it.
 const SHARED_WANTS = new Set(['belonging', 'competence', 'autonomy', 'understanding', 'well_being', 'wellbeing', 'well-being', 'remainder']);
@@ -74,6 +76,9 @@ export function indexModel(model) {
   const cutsByEvent = new Map();
   for (const cut of cuts) push(cutsByEvent, cut.parent_event_id, cut);
   const referents = new Map((mm.referents ?? []).map((referent) => [referent.id, referent]));
+  const settingEvents = new Set((mm.event_referent_bindings ?? []).filter((binding) => binding.target?.kind === 'event'
+    && events.has(binding.target.event_id) && referents.has(binding.referent_id)
+    && ['located_in', 'spatial_setting'].includes(binding.binding_type)).map((binding) => binding.target.event_id));
   const eventsOf = new Map();
   for (const event of events.values()) {
     for (const value of Object.values(event.participants ?? {})) for (const referentId of [value].flat()) push(eventsOf, referentId, event.id);
@@ -95,7 +100,7 @@ export function indexModel(model) {
   const readings = new Set();
   for (const [root, kind] of rootKinds) if (kind === 'understanding') { readings.add(root); for (const id of walk(children, root)) readings.add(id); }
   for (const event of events.values()) if ((event.provenance ?? []).includes(READING_MARK)) readings.add(event.id);
-  return { events, children, parents, cuts, cutsByEvent, referents, eventsOf, arcsOf, abstractions, relations, readings, rootKinds, processes: (model?.processes ?? []).length, processList: model?.processes ?? [] };
+  return { events, children, parents, cuts, cutsByEvent, referents, settingEvents, eventsOf, arcsOf, abstractions, relations, readings, rootKinds, processes: (model?.processes ?? []).length, processList: model?.processes ?? [] };
 }
 
 function walk(map, eventId) {
@@ -121,10 +126,22 @@ export function displayName(referentId) {
 // Modeled people: referents with a lifecycle Event that holds the processes of a life, from the person template or
 // the modeler's own, or whose moments carry what they want or feel. Those the model says most about come first and
 // count as principals.
-// Events with no place of their own or from an Event that contains them.
+// A substrate identifies what carries an Event, not necessarily where it occurs.
+// Follow a declared host only to a region or setting binding; a person/life id alone is no place.
 export function unplacedEvents(index, eventIds) {
-  return eventIds.map((eventId) => index.events.get(eventId)).filter((event) => event && !index.readings?.has(event.id) && !event.region && !event.substrate
-    && ![...ancestors(index, event.id)].some((eventId) => index.events.get(eventId)?.region || index.events.get(eventId)?.substrate));
+  const hasPlace = (eventId, seen = new Set()) => {
+    if (seen.has(eventId)) return false;
+    seen.add(eventId);
+    const event = index.events.get(eventId);
+    if (!event) return false;
+    if ((typeof event.region === 'string' && event.region.trim()) || index.settingEvents?.has(event.id)) return true;
+    const host = index.events.has(event.substrate) ? event.substrate
+      : index.referents.get(event.substrate)?.lifecycle_event_id;
+    return (host && hasPlace(host, seen))
+      || [...(index.parents.get(eventId) ?? [])].some((parentId) => hasPlace(parentId, seen));
+  };
+  return eventIds.map((eventId) => index.events.get(eventId))
+    .filter((event) => event && !index.readings?.has(event.id) && !hasPlace(event.id));
 }
 
 export function modeledPeople(index) {
@@ -275,7 +292,7 @@ function personQuestions(index, person, name, principal) {
 }
 
 // Questions of the whole model, in any mode: time, causes, the abstraction ladder, decisions and estimates.
-function worldQuestions(index, lives, draws) {
+function worldQuestions(index, lives, draws, spatial) {
   const questions = [];
   const ask = (kind, question, tool, extra = {}) => { if (asked(kind)) questions.push({ kind, subject: null, principal: false, question, tool, ...extra }); };
   const timed = [...index.events.values()].filter((event) => span(event) !== null);
@@ -315,7 +332,10 @@ function worldQuestions(index, lives, draws) {
   }
   // Where things happen: the physical coordinates of the moments that carry the work.
   const unplaced = unplacedEvents(index, [...index.cutsByEvent.keys()]);
-  if (unplaced.length) ask('place-missing', `${unplaced.length} moment${unplaced.length === 1 ? '' : 's'} carrying Cuts ${unplaced.length === 1 ? 'has' : 'have'} no place (for example ${unplaced.slice(0, 3).map((event) => event.id).join(', ')}). Where does each happen, where is each person and Thing in it, and in what physical state? Give each its region, or contain it in an Event that has one, and model the physical processes of the Things taking part.`, 'life_model_revise');
+  if (unplaced.length) ask('place-missing', `${unplaced.length} moment${unplaced.length === 1 ? '' : 's'} carrying Cuts ${unplaced.length === 1 ? 'has' : 'have'} no place (for example ${unplaced.slice(0, 3).map((event) => event.id).join(', ')}). Where does each happen, where is each person and Thing in it, and in what physical state? Give each its region, or contain it in an Event that has one, and model the physical processes of the Things taking part. Where reach, movement, sightlines or access matter, describe those relations. Use numerical coordinates with a declared reference frame and units only when they help answer the question; a named region alone does not establish those relations.`, 'life_model_revise');
+  if (spatial.incompletePositionProcesses) ask('spatial-declaration-incomplete', `${spatial.incompletePositionProcesses} declared position processes lack a recognized valid value, frame, units, subject binding or native spatial_entity support, or provenance. Inspect depth.spatial for the specific gaps and the original records for other conventions before changing anything. Complete declarations needed for the intended physical reasoning or view; do not invent measurements or call the presence of a number complete geometry.`, 'life_model_inspect, then life_model_revise if needed');
+  else if (spatial.status === 'qualitative_locations_only') ask('spatial-resolution', 'Named regions or setting bindings are present, but no usable native numerical positions were recognized. Does the intended physical view or reasoning need distances, drawable placement or motion? If so, declare useful positions with frame, axes, units, stable subjects, evidence and precision. Sourced geographical representative points and explicitly authored fictional local layouts are both valid; distinguish them. Otherwise keep the qualitative account and record why it is sufficient. Do not report qualitative placement as coordinates, or infer geography from names.', 'life_model_inspect, life_understanding_record; life_model_revise when useful');
+  if (spatial.placeHistory.withoutCoarseHistory) ask('spatial-history-unopened', `${spatial.placeHistory.withoutCoarseHistory} declared place-process indexes are empty and have no recognized coarse location episodes. Town markers and isolated room positions do not establish a subject's location history. Inspect linked Events and other conventions first. When movement through a life or process matters, connect dated home bases, workplaces, visits and transitions to that same subject; keep unknown periods visible and use one compatible frame for a drawable sequence. Distinguish a base from continuous bodily presence. Explore how access, privacy, distance or material conditions affect the subject's actions and understanding, linking the relevant thoughts to the actual places and Events. Do not manufacture journeys, memories, numerical precision or extra thought nodes merely to satisfy this question; record when the current resolution is sufficient.`, 'life_model_inspect, life_model_revise, life_understanding_record');
   // Draws are recorded in the story graph, not the model. Without the graph the tool cannot tell which decisions are
   // drawn, so it names them together rather than claiming each is undrawn. A draw constructs fiction, so draws are
   // suggested only where the storytelling profile is adopted: in a model of what happened, a decision is observed.
@@ -334,9 +354,9 @@ function worldQuestions(index, lives, draws) {
     if (!cut || index.cuts.some((item) => item.conditioning?.cut_id === draw.cutId && item.conditioning?.answer_key === 'remainder')) continue;
     ask('remainder-unopened', `The draw on "${cut.question}" landed on the remainder, and no Cut conditioned on that answer was recognized. Read any subsequent Events and accepted outcome first. If it remains unresolved, model the admissible continuations; a conditioned Cut and further draw are optional when their quantitative question and uncertainty are delegated. Preserve a resolution already recorded in another form.`, 'life_meaning_query or life_model_revise; optional conditioned Cut and recorded draw', { cuts: [cut.id] });
   }
-  // A quantity with only a starting value, which no Event observes, has no trajectory: nothing can cross a threshold.
+  // An explicitly static process already declares intentional constancy; do not demand manufactured movement.
   const observed = new Set([...index.events.values()].flatMap((event) => [...(event.process_ids ?? []), ...(event.observation_process_ids ?? [])]));
-  const still = (index.processList ?? []).filter((process) => !observed.has(process.id) && !String(process.id).startsWith('concept-index.'));
+  const still = (index.processList ?? []).filter((process) => process.update_mode !== 'static' && !observed.has(process.id) && !String(process.id).startsWith('concept-index.'));
   if (still.length) ask('process-unobserved', `${still.length} process${still.length === 1 ? ' holds' : 'es hold'} only a starting value, and no Event observes ${still.length === 1 ? 'it' : 'them'} (for example ${still.slice(0, 4).map((process) => `${process.id}${typeof process.initial_value?.value === 'number' ? ` ${process.initial_value.value}` : ''}`).join(', ')}). Give each a dated trajectory, observed at the Events where it matters, and the thresholds at which what depends on it fails.`, 'life_model_revise', { processes: still.map((process) => process.id) });
   // A life that is one Event with nothing inside is a name with dates.
   const principalIds = new Set(lives.filter((item) => item.principal !== false).map((item) => item.id));
@@ -359,7 +379,7 @@ function worldQuestions(index, lives, draws) {
 }
 
 const ORDER = ['author-separate', 'author-unlinked', 'life-missing', 'life-untimed', 'time-missing', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'choices-missing', 'macro-missing', 'period-gap',
-  'moment-unmodeled', 'decision-undrawn', 'remainder-unopened', 'shift-uncaused', 'adaptation-open', 'laws-missing', 'place-missing', 'process-unobserved', 'wants-generic', 'why-local',
+  'moment-unmodeled', 'decision-undrawn', 'remainder-unopened', 'shift-uncaused', 'adaptation-open', 'laws-missing', 'place-missing', 'spatial-declaration-incomplete', 'spatial-resolution', 'spatial-history-unopened', 'process-unobserved', 'wants-generic', 'why-local',
   'concepts-thin', 'recurring-question', 'period-uncut', 'process-empty', 'secondary-without-life', 'life-thin', 'event-undescribed', 'weights-unestimated'];
 // How many open questions come back with each model change, rebind and world record; life_model_questions gives all.
 export const VISIBLE_QUESTIONS = 8;
@@ -399,8 +419,9 @@ function visible(questions, limit) {
   return shown;
 }
 
-export function modelQuestions(model, { people = null, draws = null, limit = 12, focus = {}, author = null, sufficient = null } = {}) {
+export function modelQuestions(model, { people = null, draws = null, limit = 12, focus = {}, author = null, sufficient = null, accessScopes = [] } = {}) {
   const index = indexModel(model);
+  const spatial = spatialDiagnostics(model, { accessScopes });
   const named = people ?? modeledPeople(index);
   const lives = named.map((item) => ({ ...item, name: item.name ?? displayName(item.id), read: readPerson(index, item.id) }));
   const own = lives.flatMap((item) => personQuestions(index, item.read, item.name, item.principal !== false));
@@ -414,7 +435,7 @@ export function modelQuestions(model, { people = null, draws = null, limit = 12,
   for (const item of own.filter((entry) => !entry.principal)) push(grouped, item.kind, item);
   const secondary = [...grouped.values()].map((list) => (list.length === 1 ? list[0] : { ...list[0], subject: list.map((item) => item.subject),
     question: `${list.length} secondary people share this question (${list.map((item) => displayName(item.subject)).join(', ')}): ${list[0].question}` }));
-  const asked = [...own.filter((entry) => entry.principal), ...secondary, ...worldQuestions(index, lives, draws)];
+  const asked = [...own.filter((entry) => entry.principal), ...secondary, ...worldQuestions(index, lives, draws, spatial)];
   // A question the modeler has judged sufficient here is not asked again while that judgment stands.
   const questions = sufficient ? asked.filter((item) => !sufficient.covers(item)) : asked;
   questions.sort((a, b) => Number(b.principal) - Number(a.principal) || ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind));
@@ -429,7 +450,7 @@ export function modelQuestions(model, { people = null, draws = null, limit = 12,
     noteBytes += bytes;
   }
   const omittedNotes = (sufficient?.notes?.length ?? 0) - sufficiencyNotes.length;
-  const depth = { events: index.events.size, processes: index.processes, cuts: index.cuts.length, ...index.abstractions,
+  const depth = { events: index.events.size, processes: index.processes, cuts: index.cuts.length, ...index.abstractions, spatial,
     people: lives.map((item) => ({ id: item.id, name: item.name ?? item.id, life: Boolean(item.read.life), processes: item.read.processes.length,
       processesOpened: item.read.processes.filter((process) => process.opened > 0).length, periods: item.read.periods.length,
       shocks: item.read.arcs.length, cuts: item.read.cuts.length })) };
@@ -663,7 +684,7 @@ export async function readOpenQuestions(service, { modelHash, people = null, at 
   const authors = author ? (explicitRoots.length ? explicitRoots.map((root) => ({ ...author, storyRootId: root })) : [author]) : [...declaredAuthors.values()];
   const declaredRootIds = new Set([...declaredAuthors.keys(), ...(author ? explicitRoots : [])]);
   const soleAuthor = authors.length === 1 && storyRoots.size <= 1 ? authors[0] : null;
-  const questions = modelQuestions(model, { people: named, draws, limit, focus,
+  const questions = modelQuestions(model, { people: named, draws, limit, focus, accessScopes,
     author: soleAuthor ? { ...soleAuthor, sameModel: soleAuthor.lifeModelHash ? soleAuthor.lifeModelHash === modelHash : soleAuthor.sameModel } : null, sufficient });
   const addQuestion = (item) => {
     if (sufficient?.covers(item)) return;

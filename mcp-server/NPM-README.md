@@ -39,11 +39,16 @@ When prose is present, **Read full document** opens the complete manuscript.
 **Read this passage** opens it at a selected passage; **Back to graph** returns to
 exploration. Selecting a record keeps the reader closed. **Structure** offers an
 expandable record view. **Show it as** switches among Processes, Tree, Terrain,
-Graph and Structure on the same page, retaining the record selection and time.
+Graph, Structure and Space on the same page, retaining the record selection and time.
 **Coarse view** returns to a broad overview; more detail opens subprocesses.
 **Recenter** (or Home outside text fields) fits the current representation.
 **Documents & notes** sits with the top controls. **Hide controls** clears that
 toolbar while **Show controls** remains available.
+**Space** draws declared coordinates in their reference frame, lists qualitative
+settings, and distinguishes dated home or work bases from continuous presence
+and observed travel. Graph and Space use the same movement keys as the time
+views: W/A/S/D along the ground, Q/E vertically, arrows to look, and Shift for
+speed. Text fields keep their normal typing behavior.
 The original viewer's reading-position track highlights document links without changing world time;
 its reading buttons also open the complete manuscript. Optional Document spans
 follow authored passage boundaries after edits and display unresolved boundaries.

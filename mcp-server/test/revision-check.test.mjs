@@ -60,6 +60,45 @@ async function checkGraph(nodes, edges, modelAfter = after, modelBefore = before
   }, { graphHash: 'c'.repeat(64), fromModelHash: 'a'.repeat(64) });
 }
 
+test('Event region and substrate edits flag declared prose and notes without invalidating text estimates or draws', async () => {
+  for (const field of ['region', 'substrate']) for (const [from, to] of [[undefined, 'workshop'], ['workshop', 'office'], ['office', null]]) {
+    const modelBefore = structuredClone(before), modelAfter = structuredClone(before);
+    modelBefore.meaning_model.events[1][field] = from;
+    modelAfter.meaning_model.events[1][field] = to;
+    // Even an older stale text signature is not evidence that this placement edit rewrote text.
+    modelBefore.meaning_model.normalized_cuts.at(-1).provenance = ['estimator:t', 'event-text:older-text'];
+    modelAfter.meaning_model.normalized_cuts.at(-1).provenance = ['estimator:t', 'event-text:older-text'];
+    const result = await checkGraph([
+      passage('scene'), passage('unrelated'),
+      { id: 'note', node_type: 'understanding.explanation', render: 'exclude', text: 'The location bears on this choice.' },
+      { id: 'draw', node_type: 'direction_draw', render: 'exclude', text: JSON.stringify({ cutId: 'cut.choice', realized: 'yes' }) },
+    ], [anchor('scene', 'ana.choice'), anchor('unrelated', 'ana.life'),
+      anchor('note', 'ana.choice', { family: 'semantic', relation: 'about' })], modelAfter, modelBefore);
+    assert.deepEqual(result.changed.relocated, ['ana.choice'], `${field}: ${from} → ${to}`);
+    assert.deepEqual(result.changed.rewritten, []);
+    assert.deepEqual(result.changed.retimed, []);
+    assert.deepEqual(result.changed.reweighted, []);
+    assert.deepEqual(result.passages.map(({ nodeId, records }) => ({ nodeId, records })), [{ nodeId: 'scene', records: ['ana.choice'] }]);
+    assert.deepEqual(result.notes.map(({ nodeId, records }) => ({ nodeId, records })), [{ nodeId: 'note', records: ['ana.choice'] }]);
+    assert.deepEqual(result.later.map(({ eventId }) => eventId), ['ana.after']);
+    assert.deepEqual(result.readings, []);
+    assert.deepEqual(result.draws, []);
+    assert.deepEqual(result.conditioned, []);
+    assert.equal(result.toCheck, 3);
+    assert.equal(result.graphMutation, false);
+  }
+});
+
+test('omitted and null placement fields are equivalent; new Events are not relocations', async () => {
+  const modelAfter = structuredClone(before);
+  modelAfter.meaning_model.events[1].region = null;
+  modelAfter.meaning_model.events[1].substrate = null;
+  modelAfter.meaning_model.events.push({ id: 'new.place', boundary: 'A new Event', region: 'workshop', substrate: 'stone' });
+  const result = await checkGraph([passage('scene')], [anchor('scene', 'ana.choice')], modelAfter);
+  assert.deepEqual(result.changed.relocated, []);
+  assert.equal(result.toCheck, 0);
+});
+
 test('a heading-only document root is not an unlinked passage; prose on roots remains unchecked', async () => {
   const root = (id, text) => ({ id, node_type: 'story', role: 'document_root', render: 'include', text });
   const result = await checkGraph([

@@ -102,6 +102,12 @@ test('official MCP client discovers and calls the local stdio server', async () 
     env: { ...process.env },
   }));
   try {
+    const startup = client.getInstructions();
+    assert.match(startup, /In every mode, begin modeling with life_modeling_context/);
+    assert.match(startup, /Explore recursively/);
+    assert.match(startup, /controlled read-back/);
+    assert.match(startup, /if independent readers are unavailable, record that limitation/);
+    assert.match(startup, /not claims that the server has assessed meaning/);
     const { tools } = await client.listTools();
     const names = tools.map(({ name }) => name).sort();
     assert.deepEqual(names, [

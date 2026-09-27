@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { StorytellingAddon, storySeedWords } from '../src/storytelling-addon.mjs';
+import { constructionRecordInstructions } from '../src/construction-principles.mjs';
+import { controlledReadbackInstructions } from '../src/readback-guidance.mjs';
 
 function addonWithoutServiceAccess() {
   return new StorytellingAddon(new Proxy({}, {
@@ -69,10 +71,16 @@ test('supplied seeds make the task reproducible and all creative material is has
   }
 });
 
-test('a name draw returns its own instructions without repeating the author-model guide', async () => {
+test('a name draw keeps its record instructions without repeating prose and milestone review guides', async () => {
   const task = await addonWithoutServiceAccess().prepareStructureExplore({ brief, targetKind: 'name', seedWord: 'candle' });
   assert.ok(!task.generatorInstructions.includes('meaning-model-story-author-model/v1'), 'the author-model schema belongs to prose work');
   assert.match(task.generatorInstructions, /life-sim:\/\/addon\/storytelling/);
+  assert.match(task.generatorInstructions, /life_story_author_record/);
+  assert.match(task.generatorInstructions, /explicit author-only scopes/);
+  assert.match(task.generatorInstructions, /current graphHash returned by each write/);
+  assert.match(task.generatorInstructions, /Candidates remain unaccepted/);
+  assert.ok(!task.generatorInstructions.includes(controlledReadbackInstructions), 'a small exploration refers to milestone reviews without repeating their procedure');
+  assert.ok(constructionRecordInstructions.includes(controlledReadbackInstructions), 'the complete shared review procedure remains in the entry instructions');
   assert.ok(JSON.stringify(task).length < 10_000, `name task is ${JSON.stringify(task).length} characters`);
 });
 

@@ -9,6 +9,8 @@ import { modeledStateText, proposeCutShares } from '../src/cut-shares.mjs';
 import { drawnSinceQuestions, partsWithoutChoiceQuestion } from '../src/storytelling-world.mjs';
 import { storyInterest } from '../src/storytelling-interest.mjs';
 import { withLives } from './storytelling-life-fixture.mjs';
+import { spatialDiagnostics } from '../src/spatial-diagnostics.mjs';
+import { constructionRecordInstructions } from '../src/construction-principles.mjs';
 
 // Fear or love, whole lives and drawn decisions belong to the storytelling profile, which these tests adopt.
 process.env.MEANING_MODEL_ADDONS = 'storytelling';
@@ -100,6 +102,232 @@ test('route parts without a choice, unplaced Events and the social life of a sec
     event_relations: [{ kind: 'contains', source_event_id: 'ev.town', target_event_id: 'ev.inside' }] } });
   assert.deepEqual(unplacedEvents(index, ['ev.town', 'ev.inside', 'ev.nowhere']).map((item) => item.id), ['ev.nowhere'], 'a place is inherited from an enclosing Event');
   assert.match(storyInterest.find((item) => item.id === 'secrets').investigate, /A secret has a social life: model a knowledge or belief process for everyone who could know or suspect it/);
+});
+
+test('a substrate must resolve to a placed host, not merely name a person or form a cycle', () => {
+  const index = indexModel({ meaning_model: {
+    events: [event('life', 0, 10), event('unplaced', 1, 2, { substrate: 'person' }),
+      event('room', 0, 10, { region: 'the workshop' }), event('placed', 1, 2, { substrate: 'room' }),
+      event('cycle-a', 1, 2, { substrate: 'cycle-b' }), event('cycle-b', 1, 2, { substrate: 'cycle-a' }),
+      event('blank', 1, 2, { region: '  ', substrate: 'body' }),
+      event('host-child', 1, 2, { substrate: 'resident' })],
+    referents: [{ id: 'person', lifecycle_event_id: 'life' }, { id: 'resident', lifecycle_event_id: 'placed' }],
+  } });
+  assert.deepEqual(unplacedEvents(index, ['unplaced', 'placed', 'cycle-a', 'blank', 'host-child']).map((item) => item.id),
+    ['unplaced', 'cycle-a', 'blank']);
+});
+
+test('declared setting bindings place Events and their contained or hosted Events without a legacy region', () => {
+  const model = { meaning_model: {
+    events: ['located', 'legacy-setting', 'child', 'hosted', 'dangling', 'mere-participant'].map((id) => event(id, 0, 1,
+      id === 'hosted' ? { substrate: 'located' } : {})),
+    referents: [{ id: 'room' }],
+    event_relations: [{ kind: 'contains', source_event_id: 'located', target_event_id: 'child' }],
+    event_referent_bindings: [
+      ['located', 'located_in', 'room'], ['legacy-setting', 'spatial_setting', 'room'],
+      ['dangling', 'located_in', 'missing-room'], ['mere-participant', 'participation', 'room'],
+    ].map(([id, binding_type, referent_id]) => ({ id: `${id}.binding`, target: { kind: 'event', event_id: id },
+      role: 'setting', binding_type, referent_id })),
+  } };
+  const index = indexModel(model);
+  assert.deepEqual(unplacedEvents(index, [...index.events.keys()]).map((item) => item.id), ['dangling', 'mere-participant']);
+  assert.equal(spatialDiagnostics(model).settingBindings, 2);
+});
+
+function positioned() {
+  return { processes: [{ id: 'desk.position', value_type: { kind: 'vector', dimensions: 2, bounds: { minimum: -20, maximum: 20 } },
+    initial_value: { kind: 'vector', value: [2, 3] }, scale: { semantic_role: 'position' },
+    reference_frame: 'fictional room: southwest corner, x east, y north', unit: 'm',
+    axes: [{ id: 'x', unit: 'm' }, { id: 'y', unit: 'm' }], provenance: ['authored fictional staging'], update_mode: 'static' }],
+  meaning_model: { referents: [{ id: 'desk' }, { id: 'room' }], events: [event('meeting', 0, 1, { region: 'fictional room' })],
+    event_referent_bindings: [{ id: 'desk.coordinate', target: { kind: 'process', process_id: 'desk.position' },
+      referent_id: 'desk', binding_type: 'coordinate', role: 'position', interval: { start: 0, end: 1 } },
+    { id: 'meeting.setting', target: { kind: 'event', event_id: 'meeting' }, referent_id: 'room', binding_type: 'located_in', role: 'meeting_room' }] } };
+}
+
+test('spatial diagnostics distinguish named settings from numbers that are not physical positions', () => {
+  const model = positioned();
+  model.processes[0].scale.semantic_role = 'financial allocation';
+  model.meaning_model.event_referent_bindings[0].role = 'state';
+  model.processes.push({ id: 'position.in.market', value_type: { kind: 'scalar' }, initial_value: { kind: 'scalar', value: 5 }, unit: 'm' });
+  const result = modelQuestions(model, { people: [], limit: 100 });
+  assert.equal(result.depth.spatial.status, 'qualitative_locations_only');
+  assert.equal(result.depth.spatial.declaredPositionProcesses, 0);
+  assert.equal(result.depth.spatial.namedRegionEvents, 1);
+  assert.equal(result.depth.spatial.settingBindings, 1);
+  const question = result.questions.find((item) => item.kind === 'spatial-resolution');
+  assert.match(question.question, /Otherwise keep the qualitative account/);
+  assert.match(question.question, /explicitly authored fictional local layouts/);
+  model.meaning_model.event_referent_bindings[1].binding_type = 'spatial_setting';
+  assert.equal(spatialDiagnostics(model).settingBindings, 1, 'existing vocabulary remains readable');
+});
+
+test('native vector, pose and scalar positions retain their declared frame, subject, units and provenance', () => {
+  const model = positioned();
+  const vector = model.processes[0];
+  model.processes.push({ ...structuredClone(vector), id: 'desk.pose', value_type: { kind: 'object_pose', position_dimensions: 2, orientation_dimensions: 1 },
+    initial_value: { kind: 'object_pose', value: { position: [2, 3], orientation: [0] } }, scale: {} },
+  { ...structuredClone(vector), id: 'desk.x', value_type: { kind: 'scalar', bounds: { minimum: -20, maximum: 20 } },
+    initial_value: { kind: 'scalar', value: 2 }, scale: { semantic_role: 'position', axis: 'x' }, axes: [{ id: 'x', unit: 'm' }] });
+  for (const id of ['desk.pose', 'desk.x']) model.meaning_model.event_referent_bindings.push({ ...model.meaning_model.event_referent_bindings[0], id: `${id}.binding`, target: { kind: 'process', process_id: id } });
+  const result = spatialDiagnostics(model);
+  assert.equal(result.status, 'declared_initial_positions');
+  assert.equal(result.usableInitialPositionProcesses, 3);
+  assert.deepEqual(result.positions[0].subjects, [{ referentId: 'desk', bindingId: 'desk.coordinate', interval: { start: 0, end: 1 } }]);
+  assert.equal(result.positions[0].frame, vector.reference_frame);
+  assert.equal(result.positions[0].unit, 'm');
+  assert.deepEqual(result.positions[0].provenance, ['authored fictional staging']);
+  assert.equal(result.completenessVerified, false);
+  assert.equal(result.physicalTruthVerified, false);
+  assert.match(result.interpretation, /do not verify.*binding-time applicability, later motion/);
+  assert.ok(!modelQuestions(model, { people: [], limit: 100 }).questions.some((item) => item.kind === 'spatial-resolution'));
+});
+
+test('native scalar spatial profiles identify entities through support without inventing referents', () => {
+  const model = { processes: ['x', 'y'].map((axis, i) => ({
+    id: `profile.harbour.spatial.entity.boat.position.${axis}`,
+    value_type: { kind: 'scalar', bounds: { minimum: -100, maximum: 100 } },
+    initial_value: { kind: 'scalar', value: i + 2 }, scale: { semantic_role: 'position', axis },
+    reference_frame: 'harbour', unit: 'm', provenance: ['authored harbour model'],
+    support: ['space:harbour', 'spatial_entity:boat'],
+  })) };
+  const result = modelQuestions(model, { people: [], limit: 100 });
+  assert.equal(result.depth.spatial.usableInitialPositionProcesses, 2);
+  assert.deepEqual(result.depth.spatial.positions[0].subjects, [{ spatialEntityId: 'boat', support: 'spatial_entity:boat' }]);
+  assert.ok(!result.questions.some((item) => item.kind === 'spatial-declaration-incomplete'));
+  model.processes[0].support = ['space:harbour', 'spatial_entity: '];
+  assert.ok(spatialDiagnostics(model).positions[0].gaps.includes('missing-position-subject-binding'), 'empty entity identities do not qualify');
+  model.processes[1].access_scopes = ['author'];
+  assert.equal(spatialDiagnostics(model).declaredPositionProcesses, 1, 'support identities do not bypass process visibility');
+});
+
+test('usable scene coordinates do not conceal an empty lifetime place process', () => {
+  const model = positioned();
+  model.processes.push({ id: 'desk.place-history', scale: { process_key: 'place', subject_referent_id: 'desk' },
+    initial_value: { kind: 'graph', value: { nodes: [], edges: [] } } });
+  const open = modelQuestions(model, { people: [], limit: 100 });
+  assert.equal(open.depth.spatial.status, 'declared_initial_positions');
+  assert.equal(open.depth.spatial.placeHistory.withoutCoarseHistory, 1);
+  assert.equal(open.depth.spatial.placeHistory.subjects[0].status, 'positions_without_recognized_coarse_history');
+  const question = open.questions.find((item) => item.kind === 'spatial-history-unopened');
+  assert.match(question.question, /Inspect linked Events and other conventions first/);
+  assert.match(question.question, /Distinguish a base from continuous bodily presence/);
+  assert.match(question.question, /Do not manufacture journeys, memories/);
+  // The place marker has no ownership relationship to the desk's history.
+  model.meaning_model.event_referent_bindings[0].referent_id = 'room';
+  assert.equal(spatialDiagnostics(model).placeHistory.subjects[0].positionProcesses, 0);
+});
+
+test('coarse location inventory separates roles and frames without certifying life coverage', () => {
+  const model = positioned();
+  const first = model.processes[0];
+  first.scale = { semantic_role: 'position', spatial_status: 'coarse_life_location', location_role: 'home_base' };
+  const later = structuredClone(first); later.id = 'later-home';
+  const workplace = structuredClone(first); workplace.id = 'work'; workplace.scale.location_role = 'workplace';
+  const room = structuredClone(first); room.id = 'room-pose'; room.reference_frame = 'other-frame';
+  model.processes.push(later, workplace, room,
+    { id: 'place-history', scale: { process_key: 'place', subject_referent_id: 'desk' }, initial_value: { kind: 'graph', value: { nodes: [], edges: [] } } });
+  for (const process of [later, workplace, room]) model.meaning_model.event_referent_bindings.push({
+    id: `${process.id}.owner`, target: { kind: 'process', process_id: process.id }, referent_id: 'desk', binding_type: 'coordinate', role: 'position', interval: { start: 2, end: 4 } });
+  const result = spatialDiagnostics(model, { limit: 1 });
+  assert.equal(result.positionsOmitted, 3);
+  const history = result.placeHistory.subjects[0];
+  assert.equal(history.datedPositionProcesses, 4, 'inventory uses all records, not the truncated preview');
+  assert.equal(history.coarseLocationProcesses, 4);
+  assert.equal(history.sameFrameProcessGroups.length, 1, 'work and independent room frames do not join home-base process groups');
+  assert.deepEqual(history.sameFrameProcessGroups[0].processIds, [first.id, later.id]);
+  assert.match(result.placeHistory.interpretation, /not assembled poses, chronological sequences or evidence of movement/);
+  assert.equal(history.completenessVerified, false);
+  assert.equal(result.placeHistory.withoutCoarseHistory, 0, 'typed location episodes may already supply an empty index');
+});
+
+test('same-frame process groups do not combine scalar axes or incompatible axis units into a movement sequence', () => {
+  const model = positioned();
+  const first = model.processes[0];
+  first.unit = null;
+  const centimeters = structuredClone(first); centimeters.id = 'desk.centimeters';
+  centimeters.axes = centimeters.axes.map((axis) => ({ ...axis, unit: 'cm' }));
+  const scalar = (axis) => ({ ...structuredClone(first), id: `desk.${axis}`,
+    value_type: { kind: 'scalar', bounds: { minimum: -20, maximum: 20 } },
+    initial_value: { kind: 'scalar', value: 1 }, unit: 'm', axes: [],
+    scale: { semantic_role: 'position', axis } });
+  model.processes.push(centimeters, scalar('x'), scalar('y'),
+    { id: 'place-history', scale: { process_key: 'place', subject_referent_id: 'desk' },
+      initial_value: { kind: 'graph', value: { nodes: [], edges: [] } } });
+  for (const id of [centimeters.id, 'desk.x', 'desk.y']) model.meaning_model.event_referent_bindings.push({
+    ...model.meaning_model.event_referent_bindings[0], id: `${id}.owner`,
+    target: { kind: 'process', process_id: id } });
+  const history = spatialDiagnostics(model).placeHistory.subjects[0];
+  assert.equal(history.datedPositionProcesses, 4, 'all four declarations are individually usable');
+  assert.deepEqual(history.sameFrameProcessGroups, [], 'm/cm vectors and x/y components remain separate');
+});
+
+test('qualitative place histories and private indexes do not require a numerical life itinerary', () => {
+  const model = positioned();
+  const index = { id: 'qualitative-place-history', scale: { process_key: 'place', subject_referent_id: 'desk' },
+    initial_value: { kind: 'graph', value: { nodes: ['event:meeting'], edges: [] } } };
+  model.processes.push(index);
+  assert.ok(!modelQuestions(model, { people: [], limit: 100 }).questions.some((item) => item.kind === 'spatial-history-unopened'));
+  index.initial_value.value.nodes = []; index.access_scopes = ['private'];
+  assert.equal(spatialDiagnostics(model).placeHistory.declaredPlaceProcesses, 0);
+  assert.equal(spatialDiagnostics(model, { accessScopes: ['private'] }).placeHistory.withoutCoarseHistory, 1);
+  index.scale.subject_referent_id = 'undeclared-subject';
+  assert.equal(spatialDiagnostics(model, { accessScopes: ['private'] }).placeHistory.declaredPlaceProcesses, 0);
+});
+
+test('declared but unusable coordinates name the actual omissions instead of claiming drawable geometry', () => {
+  const model = positioned();
+  const process = model.processes[0];
+  process.reference_frame = ' ';
+  process.unit = null;
+  process.axes = [];
+  process.initial_value.value = [2, Number.NaN];
+  process.provenance = [];
+  model.meaning_model.event_referent_bindings[0].referent_id = 'not-a-declared-subject';
+  const result = modelQuestions(model, { people: [], limit: 100 });
+  assert.equal(result.depth.spatial.status, 'incomplete_position_declarations');
+  assert.equal(result.depth.spatial.usableInitialPositionProcesses, 0);
+  assert.deepEqual(result.depth.spatial.positions[0].gaps, ['invalid-position-value', 'missing-reference-frame', 'missing-unit', 'missing-position-subject-binding', 'missing-provenance']);
+  assert.ok(result.questions.some((item) => item.kind === 'spatial-declaration-incomplete'));
+  process.initial_value = { kind: 'scalar', value: 2 };
+  process.value_type = { kind: 'scalar', bounds: { minimum: -20, maximum: 20 } };
+  assert.ok(spatialDiagnostics(model).positions[0].gaps.includes('missing-coordinate-axis'));
+});
+
+test('spatial inspection respects process access scopes and remains in automatic post-change guidance', async () => {
+  const { readOpenQuestions, withOpenQuestions } = await import('../src/model-questions.mjs');
+  const model = positioned();
+  model.processes[0].access_scopes = ['author'];
+  model.processes[0].provenance = ['private source annotation'];
+  const service = { inspectModel: async () => ({ model }) };
+  const publicResult = await readOpenQuestions(service, { modelHash: 'a'.repeat(64) });
+  assert.equal(publicResult.depth.spatial.declaredPositionProcesses, 0);
+  assert.doesNotMatch(JSON.stringify(publicResult.depth.spatial), /private source annotation/);
+  const authorized = await readOpenQuestions(service, { modelHash: 'a'.repeat(64), accessScopes: ['author'] });
+  assert.equal(authorized.depth.spatial.usableInitialPositionProcesses, 1);
+  assert.deepEqual(authorized.depth.spatial.positions[0].provenance, ['private source annotation']);
+  const changed = await withOpenQuestions(service, { modelHash: 'a'.repeat(64) });
+  assert.equal(changed.openQuestions.depth.spatial.status, 'qualitative_locations_only');
+});
+
+test('shared spatial guidance permits authored layouts without requiring them in every model', () => {
+  assert.match(constructionRecordInstructions, /Distinguish qualitative places and relations, declared numerical positions, and evaluated movement/);
+  assert.match(constructionRecordInstructions, /author fictional room layouts or movements when delegated/);
+  assert.match(constructionRecordInstructions, /representative town point from a building/);
+  assert.match(constructionRecordInstructions, /reusable convention in an open vocabulary/);
+  assert.match(constructionRecordInstructions, /do not require.*coordinates.*every model/);
+});
+
+test('intentional static positions need no invented trajectory, while observed and unspecified processes still prompt review', () => {
+  const model = positioned();
+  const scalar = { value_type: { kind: 'scalar', bounds: { minimum: 0, maximum: 1 } }, initial_value: { kind: 'scalar', value: 0.5 } };
+  model.processes.push({ id: 'waiting-observation', ...scalar, update_mode: 'observed' }, { id: 'unspecified', ...scalar });
+  let result = modelQuestions(model, { people: [], limit: 100 });
+  assert.deepEqual(result.questions.find((item) => item.kind === 'process-unobserved').processes, ['waiting-observation', 'unspecified']);
+  model.processes[0].reference_frame = null;
+  result = modelQuestions(model, { people: [], limit: 100 });
+  assert.ok(result.questions.some((item) => item.kind === 'spatial-declaration-incomplete'), 'static placement still needs its frame');
+  assert.equal(result.depth.spatial.positions[0].usableInitialPlacement, false);
 });
 
 test('a decision moment is its own time, not one unit of the model\'s clock', () => {

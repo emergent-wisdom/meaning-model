@@ -17,6 +17,12 @@ function fixture() {
     projection_hash: projectionHash,
     sequence: ['chapter-2.opening', 'chapter-2.close'],
     text: 'The empty chair faced the sea.\n\nShe set a second cup beside her own.',
+    roots: ['chapter-2'],
+    join_policy: 'blank_line',
+    units: [
+      { node_id: 'chapter-2.opening', text: 'The empty chair faced the sea.', role: 'story_passage' },
+      { node_id: 'chapter-2.close', text: 'She set a second cup beside her own.', role: 'story_passage' },
+    ],
   };
   const view = { graph_hash: graphHash, source_snapshot_hash: snapshotHash, content_included: true,
     nodes: [{ id: 'chapter-2', role: 'section' }, ...rendered.sequence.map((id) => ({ id, role: 'story_passage' }))],
@@ -69,6 +75,146 @@ test('goal attribution and review context are explicit and bound to the review t
   assert.deepEqual(await f.addon.preparePurposeReview(f.input), inferred);
   f.rendered.text += ' She did not drink.';
   assert.notEqual((await f.addon.preparePurposeReview(f.input)).taskHash, inferred.taskHash);
+});
+
+test('purpose review discovers declared disclosure plans after a split without treating renders as knowledge', async () => {
+  const f = fixture();
+  f.view.nodes.push({ id: 'story', role: 'document_root' }, { id: 'chapter-1', role: 'story_passage' },
+    { id: 'older', node_type: 'storytelling.disclosure', text: 'Outdated disclosure.' },
+    { id: 'current', node_type: 'storytelling.disclosure', text: 'Leave the motive unresolved.', access_scopes: ['editor'] },
+    { id: 'unrelated', node_type: 'storytelling.disclosure', subject: 'story', text: 'Another chapter.' });
+  const link = (source, target, relation = 'about') => ({ family: 'semantic', relation,
+    source: { kind: 'node', node_id: source }, target: { kind: 'node', node_id: target } });
+  f.view.edges.push({ ...link('story', 'chapter-2', 'contains'), family: 'structural' },
+    { ...link('unrelated', 'story'), id: 'unrelated.story' }, link('unrelated', 'chapter-1'),
+    link('older', 'chapter-2'), link('current', 'older', 'supersedes'), link('current', 'chapter-2'),
+    { family: 'grounding', relation: 'renders', source: { kind: 'node', node_id: 'chapter-2.opening' },
+      target: { kind: 'anchor', anchor_kind: 'event', anchor_id: 'ev.loss' } });
+  const task = await f.addon.preparePurposeReview(f.input);
+  assert.deepEqual(task.disclosureReview.plans.map(({ nodeId }) => nodeId), ['current']);
+  assert.deepEqual(task.disclosureReview.plans[0].linkedPassageIds, f.rendered.sequence);
+  assert.deepEqual(task.disclosureReview.passageIdsWithoutLinkedPlan, []);
+  assert.equal(task.disclosureReview.completenessVerified, false);
+  assert.equal(task.disclosureReview.semanticDisclosureVerified, false);
+  f.view.nodes.find(({ id }) => id === 'current').text = 'Reveal the motive here instead.';
+  assert.notEqual((await f.addon.preparePurposeReview(f.input)).taskHash, task.taskHash);
+  f.view.edges = f.view.edges.filter((edge) => edge.source.node_id !== 'current' || edge.relation === 'supersedes');
+  const missing = await f.addon.preparePurposeReview(f.input);
+  assert.deepEqual(missing.disclosureReview.passageIdsWithoutLinkedPlan, f.rendered.sequence);
+  assert.equal(missing.advisoryOnly, true, 'absence of a plan is not a literary gate');
+});
+
+test('disclosure review resolves stable spans and keeps private plan evidence private', async () => {
+  const f = fixture();
+  f.view.nodes.push({ id: 'span', node_type: 'document.span', role: 'metadata', render: 'exclude', text: JSON.stringify({ schema: 'meaning-model-document-span/v1',
+    documentId: 'chapter-2', start: { nodeId: 'chapter-2.opening', boundary: 'start' }, end: { nodeId: 'chapter-2.close', boundary: 'end' } }) },
+    { id: 'plan', node_type: 'storytelling.disclosure', text: 'Two cups before the absence is named.', access_scopes: ['editor'] });
+  f.view.edges.push({ family: 'semantic', relation: 'about', source: { kind: 'node', node_id: 'plan' }, target: { kind: 'node', node_id: 'span' } });
+  f.view.edges.push({ family: 'semantic', relation: 'applies_during', source: { kind: 'node', node_id: 'span' }, target: { kind: 'node', node_id: 'plan' } });
+  const task = await f.addon.preparePurposeReview({ ...f.input, accessScopes: ['editor', 'reader'] });
+  assert.deepEqual(task.disclosureReview.plans[0].linkedPassageIds, f.rendered.sequence);
+  assert.equal(task.disclosureReview.plans[0].spanRecords.length, 1, 'multiple declared links do not repeat the span body in the review packet');
+  assert.deepEqual(task.accessScopes, ['editor']);
+  f.view.nodes.push({ id: 'other-plan', node_type: 'storytelling.disclosure', text: 'Separately restricted evidence.', access_scopes: ['reader'] });
+  f.view.edges.push({ family: 'semantic', relation: 'about', source: { kind: 'node', node_id: 'other-plan' }, target: { kind: 'node', node_id: 'chapter-2' } });
+  await assert.rejects(f.addon.preparePurposeReview({ ...f.input, accessScopes: ['editor', 'reader'] }), /disclosure plans require a common access scope/);
+});
+
+test('disclosure associations retain edge and inherited containment audiences without importing unrelated restrictions', async () => {
+  const f = fixture();
+  f.view.nodes.push({ id: 'plan', node_type: 'storytelling.disclosure', text: 'Leave the motive unresolved.' },
+    { id: 'other-story' }, { id: 'other-passage' });
+  const association = { family: 'semantic', relation: 'about', access_scopes: ['editor'],
+    source: { kind: 'node', node_id: 'plan' }, target: { kind: 'node', node_id: 'chapter-2' } };
+  f.view.edges.push(association, { family: 'structural', relation: 'contains', access_scopes: ['unrelated-private'],
+    source: { kind: 'node', node_id: 'other-story' }, target: { kind: 'node', node_id: 'other-passage' } });
+  const input = { ...f.input, accessScopes: ['editor', 'reader', 'unrelated-private'] };
+  const direct = await f.addon.preparePurposeReview(input);
+  assert.deepEqual(direct.accessScopes, ['editor'], 'a restricted about edge cannot be widened to its public endpoints');
+  assert.deepEqual(direct.disclosureReview.evidenceAccessScopes, [['editor']]);
+  delete association.access_scopes;
+  f.view.edges[0].access_scopes = ['editor'];
+  const inherited = await f.addon.preparePurposeReview(input);
+  assert.deepEqual(inherited.accessScopes, ['editor'], 'coverage inherited from a parent depends on its containment path');
+  f.view.nodes.find((node) => node.id === 'plan').access_scopes = ['reader'];
+  await assert.rejects(f.addon.preparePurposeReview(input), /disclosure plans require a common access scope/);
+});
+
+test('a span review retains the audience of structural order used to locate its boundaries', async () => {
+  const f = fixture();
+  f.view.nodes.push({ id: 'span', node_type: 'document.span', role: 'metadata', render: 'exclude',
+    text: JSON.stringify({ schema: 'meaning-model-document-span/v1', documentId: 'chapter-2',
+      start: { nodeId: 'chapter-2.opening', boundary: 'start' }, end: { nodeId: 'chapter-2.close', boundary: 'end' } }) },
+    { id: 'plan', node_type: 'storytelling.disclosure', text: 'The two gestures belong together.' });
+  f.view.edges.push({ family: 'semantic', relation: 'about', source: { kind: 'node', node_id: 'plan' },
+    target: { kind: 'node', node_id: 'span' } });
+  f.view.edges[0].access_scopes = ['editor'];
+  const task = await f.addon.preparePurposeReview({ ...f.input, accessScopes: ['editor', 'reader'] });
+  assert.deepEqual(task.accessScopes, ['editor']);
+  assert.deepEqual(task.disclosureReview.plans[0].linkedPassageIds, f.rendered.sequence);
+});
+
+test('document titles remain in the prose but do not count as passages lacking disclosure plans', async () => {
+  const f = fixture();
+  f.view.nodes[0].role = 'document_root';
+  f.rendered.sequence.unshift('chapter-2');
+  f.rendered.units.unshift({ node_id: 'chapter-2', role: 'document_root', text: '# The Empty Chair' });
+  f.rendered.text = f.rendered.units.map((unit) => unit.text).join('\n\n');
+  const task = await f.addon.preparePurposeReview(f.input);
+  assert.equal(task.text, f.rendered.text);
+  assert.deepEqual(task.disclosureReview.passageIdsWithoutLinkedPlan, ['chapter-2.opening', 'chapter-2.close']);
+});
+
+test('a span covering only a document title does not declare coverage of its descendants', async () => {
+  const f = fixture();
+  f.view.nodes[0].role = 'document_root';
+  f.rendered.sequence.unshift('chapter-2');
+  f.rendered.units.unshift({ node_id: 'chapter-2', role: 'document_root', text: '# The Empty Chair' });
+  f.rendered.text = f.rendered.units.map((unit) => unit.text).join('\n\n');
+  f.view.nodes.push({ id: 'span', node_type: 'document.span', role: 'metadata', render: 'exclude',
+    text: JSON.stringify({ schema: 'meaning-model-document-span/v1', documentId: 'chapter-2',
+      start: { nodeId: 'chapter-2', boundary: 'start' }, end: { nodeId: 'chapter-2.opening', boundary: 'start' } }) },
+    { id: 'plan', node_type: 'storytelling.disclosure', text: 'The title does not name the absent person.' });
+  f.view.edges.push({ family: 'semantic', relation: 'about', source: { kind: 'node', node_id: 'plan' },
+    target: { kind: 'node', node_id: 'span' } });
+  const task = await f.addon.preparePurposeReview(f.input);
+  assert.deepEqual(task.disclosureReview.plans, []);
+  assert.deepEqual(task.disclosureReview.passageIdsWithoutLinkedPlan, ['chapter-2.opening', 'chapter-2.close']);
+});
+
+test('a review inside a disclosure span finds the plan and reprojects edited boundaries without widening its prose', async () => {
+  const f = fixture();
+  const document = { ...structuredClone(f.rendered), roots: ['story'],
+    units: [{ node_id: 'before', text: 'Before.', role: 'story_passage' }, ...f.rendered.units,
+      { node_id: 'after', text: 'After.', role: 'story_passage' }] };
+  document.sequence = document.units.map((unit) => unit.node_id);
+  document.text = document.units.map((unit) => unit.text).join('\n\n');
+  const spanDefinition = { schema: 'meaning-model-document-span/v1', documentId: 'story',
+    start: { nodeId: 'before', boundary: 'start' }, end: { nodeId: 'after', boundary: 'end' } };
+  const span = { id: 'span', role: 'metadata', render: 'exclude', node_type: 'document.span',
+    text: JSON.stringify(spanDefinition), access_scopes: ['editor'] };
+  f.view.nodes.push({ id: 'story', role: 'document_root' }, { id: 'before' }, { id: 'after' }, span,
+    { id: 'plan', node_type: 'storytelling.disclosure', text: 'The setup covers all three parts.' });
+  f.view.edges.push(...['before', 'chapter-2', 'after'].map((id, order) => ({ family: 'structural', relation: 'contains', order,
+    source: { kind: 'node', node_id: 'story' }, target: { kind: 'node', node_id: id } })),
+    { family: 'semantic', relation: 'about', source: { kind: 'node', node_id: 'plan' }, target: { kind: 'node', node_id: 'span' } });
+  const calls = [];
+  const addon = new StorytellingAddon({
+    async renderNarrativeGraph(input) { calls.push(input); return structuredClone(input.rootIds[0] === 'story' ? document : f.rendered); },
+    async queryNarrativeGraph() { return structuredClone(f.view); },
+  });
+  const task = await addon.preparePurposeReview({ ...f.input, accessScopes: ['editor', 'reader'] });
+  assert.equal(task.text, f.rendered.text, 'projection for plan discovery does not turn a chapter review into a book review');
+  assert.deepEqual(task.disclosureReview.plans[0].linkedPassageIds, f.rendered.sequence);
+  assert.deepEqual(task.accessScopes, ['editor'], 'span evidence restricts the resulting review audience');
+  assert.deepEqual(calls.map((call) => call.rootIds), [['chapter-2'], ['story']]);
+  span.text = JSON.stringify({ ...spanDefinition, start: { nodeId: 'after', boundary: 'start' } });
+  const after = await addon.preparePurposeReview(f.input);
+  assert.deepEqual(after.disclosureReview.plans, [], 'moving a boundary past the chapter removes its coverage');
+  span.text = JSON.stringify({ ...spanDefinition, start: { nodeId: 'after', boundary: 'end' }, end: { nodeId: 'before', boundary: 'start' } });
+  const reversed = await addon.preparePurposeReview(f.input);
+  assert.deepEqual(reversed.disclosureReview.plans, []);
+  assert.deepEqual(reversed.disclosureReview.unresolvedSpans, [{ nodeId: 'span', reason: 'reversed_boundaries' }]);
 });
 
 test('review instructions protect uncertainty, multiple functions, and intentional quiet passages', async () => {

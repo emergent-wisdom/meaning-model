@@ -106,6 +106,18 @@ world chronology. This clock can have gaps and does not depend on whether
 earlier private notes are visible. Use the returned graph hash
 for subsequent operations. Earlier nodes and graph revisions remain available.
 
+`life_story_author_record`, `life_story_world_record`, `life_story_life_trends`,
+and recorded `life_story_direct` findings append to the newest head by default:
+`graphHash` may name an earlier revision when it has exactly one descendant
+head. If the graph has branched, name the intended head; the tool does not
+choose a branch. Set `exactRevision: true` to use the supplied revision exactly,
+which can create a branch when that revision is no longer the head. Automatic
+advancement does not refresh the evidence behind your findings: inspect the
+current records before recording a judgment about them. Use the returned
+`graphHash` to continue. Author-record, world-record and recorded-direction
+receipts also identify automatic advancement with `advancedFrom`. Scene
+preparation, edits and release still use their exact requested revisions.
+
 The tool validates visible targets and preserves a common permitted scope;
 it does not establish whether an authored explanation is true. Record concise
 rationales and inspectable conclusions, not hidden internal reasoning.
@@ -1154,14 +1166,24 @@ contains the prose rather than its review record.
 
 Committed prose inherits the author-only scope of the dossier, drafts and
 reviews it was built from, so a reader's render shows only the title. When the
-human's agreement allows publishing, release it with `life_story_release`: it
+human's agreement allows sharing with readers, use `life_story_release`: it
 records the decision and its reason as an author record and widens the scopes
 of the prose passages, their scenes, structural edges and declared Event/renders edges to the reader
-scopes you name, or to every reader. The dossier, drafts, reviews and author
-model keep their scopes. Render with the reader scopes afterwards and read what
-a reader sees; the release does not check what the prose itself reveals.
+scopes in `releaseTo`, or to every reader when `releaseTo: []` is explicit.
+This changes reader access in a graph revision; it does not publish a website,
+upload a manuscript or release a software package. The dossier, drafts, reviews
+and author model keep their scopes. Render with the reader scopes afterwards
+and read what a reader sees; the release does not check what the prose itself reveals.
 Release refuses any rendered passage lacking an Event/renders link or a
 current text-bound no-link reason; its recorded decision lists all such reasons.
+
+Excluded containers included in the release may still hold text that a reader
+could retrieve through a graph query, even though it is absent from the render.
+For example, a passage split into children may retain its earlier text as a
+container. Release refuses this case without writing anything. Edit that text
+first, or pass `clearHiddenText: true` to clear it in the released revision.
+Earlier revisions retain the text and their existing scopes; the receipt lists
+`clearedHiddenTextNodeIds` so the change can be inspected.
 
 ## Character flaws and independent reviews
 
@@ -1287,11 +1309,25 @@ prompt accepts these arguments, with `accessScopes` encoded as a JSON string.
 Supply `authorModelNodeId` to include the exact author profile as separate
 author-only evidence. Review whether its intended writing choices help this
 unit, whether restraint is needed, and whether the narrator remains distinct.
-The task's scopes narrow to the audiences shared by the prose and selected
-author model; including the profile does not broaden access to either.
-Include relevant life trends, prior expectations, unresolved consequences,
-and authored disclosure processes in `context`. The tool's text selection does
-not automatically retrieve all of that surrounding evidence.
+The returned `disclosureReview` automatically retrieves visible disclosure
+plans linked to the selected passages, their containing nodes, or resolved
+`document.span` intervals. Span coverage uses the current document projection,
+including interior passages and the descendants of split passages. Superseded
+plans are excluded; automatic membership in a story does not declare that a
+plan covers every passage in it.
+
+Inspect `unresolvedSpans` and `passageIdsWithoutLinkedPlan`. These are prompts
+to investigate, not proof of a defect or of a plan's absence from the whole
+model: unlinked or inaccessible plans cannot establish coverage here. Linked
+plans do not prove what the prose discloses or what a reader understands;
+`completenessVerified` and `semanticDisclosureVerified` remain false.
+
+The task's scopes narrow to the audiences shared by the prose, selected author
+model and disclosure evidence, including the links and paths used to associate
+plans with passages. A review with no common scope is refused; retrieving a
+plan does not broaden access to it. Still supply relevant life trends, prior
+expectations, unresolved consequences and other surrounding evidence in
+`context`; automatic plan retrieval does not retrieve all of that material.
 
 Selection uses the existing renderer's `contains` and `next` links. Check the
 returned `target.nodeIds`: a leaf linked to later chapters can include those

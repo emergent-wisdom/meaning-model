@@ -1,12 +1,16 @@
-// A picker contains only snapshots explicitly opened together by the MCP.
+// A picker contains only snapshots explicitly grouped by the MCP or a public export.
 // First visits fit the new model. Returning to an exact snapshot restores that
 // model's own view, time and selection instead of copying another world's clock.
 const sharedOptions = ['view', 'visualView', 'timeView', 'glare', 'reading', 'readingOverview', 'camera', 'edges', 'depth', 'detail', 'show', 'nothoughts', 'everything', 'unopened', 'flat'];
 
 export function modelSwitchURL(current, target, remembered = null) {
   const before = new URL(current), after = new URL(target, before);
+  // Public exports may live below a site path. Keep switches inside the same
+  // snapshot collection, with the same opaque snapshot directory convention.
+  const collection = (path) => path.match(/^(.*\/)[a-f0-9]{48}\/$/)?.[1];
+  const currentCollection = collection(new URL('.', before).pathname);
   if (after.origin !== before.origin || after.username || after.password
-    || !/^\/[a-f0-9]{48}\/$/.test(after.pathname)) throw new Error('Invalid model snapshot link');
+    || currentCollection === undefined || collection(after.pathname) !== currentCollection) throw new Error('Invalid model snapshot link');
   if (remembered) {
     try {
       const saved = new URL(remembered);

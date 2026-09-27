@@ -94,6 +94,19 @@ test('scene packet separates world time, viewpoint knowledge, and reader reveal 
   assert.notEqual(flashback.packetHash, packet.packetHash);
 });
 
+test('empty disclosure context triggers a question and a required caller review, without inventing facts', async () => {
+  const f = fixture();
+  f.preparation.scene.context = [];
+  const packet = await f.addon.prepare(f.preparation);
+  assert.ok(packet.world.questions.some(({ kind }) => kind === 'disclosure-context-empty'));
+  assert.ok(packet.checks.some(({ id }) => id === 'disclosure:selection'));
+  assert.deepEqual(packet.readerReveals, []);
+  assert.deepEqual(packet.readerWithheld, []);
+  assert.deepEqual(packet.blockers, [], 'quiet prose is not blocked by a missing-secret quota');
+  assert.equal(packet.boundaries.contextCompletenessVerified, false);
+  assert.deepEqual(f.calls, [], 'preparation must not silently write a disclosure plan');
+});
+
 test('declared current knowledge requires a known source evidence cutoff no later than scene time', async () => {
   for (const cutoff of [null, undefined, 5]) {
     const f = fixture();

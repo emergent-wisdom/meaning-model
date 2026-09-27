@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { LifeSimulationService } from '../src/service.mjs';
 import { recordUnderstanding } from '../src/construction-record.mjs';
+import { StorytellingAddon } from '../src/storytelling-addon.mjs';
+import { lifeTrendsDossier } from './storytelling-life-fixture.mjs';
 
 const provenance = ['graph head test'];
 
@@ -11,7 +13,9 @@ test('add-only records need not chain graph hashes: a stale hash goes to the new
   await service.initialize();
   const model = await service.registerModel({ requestId: 'm', model: { schema: 'life-sim-rust-model/v1', id: 'head-model', time_unit: 'hour', revision: { number: 0, reason: 'Head test.', provenance },
     processes: [{ id: 'p', value_type: { kind: 'scalar', bounds: { minimum: 0, maximum: 1 } }, initial_value: { kind: 'scalar', value: 0 }, uncertainty: { kind: 'exact' }, unit: 'fraction', provenance, support: ['w'], access_scopes: [] }],
-    decomposition: [], dependencies: [], laws: [], initial_claims: [] } });
+    decomposition: [], dependencies: [], laws: [], initial_claims: [],
+    meaning_model: { schema: 'life-sim-rust-meaning-model/v1',
+      referents: [{ id: 'Leo', boundary: 'Leo, the fictional character.', continuity_criterion: 'One continuous life.', provenance }] } } });
   const graph = await service.registerNarrativeGraph({ requestId: 'g', narrativeGraph: { schema: 'life-sim-rust-narrative-graph/v1', id: 'head-graph', revision: { number: 0, reason: 'Head test.', provenance },
     source: { kind: 'model', model_hash: model.modelHash }, roots: ['book'], nodes: [{ id: 'book', node_type: 'story', role: 'document_root', epistemic_status: 'fictional_artifact', evidence_type: 'fictional_canon', access_scopes: [], provenance }], edges: [] } });
   const note = (requestId, nodeId, graphHash) => recordUnderstanding(service, { graphHash, requestId, accessScopes: ['author'], holder: 'writer',
@@ -21,11 +25,19 @@ test('add-only records need not chain graph hashes: a stale hash goes to the new
   assert.equal(second.advancedFrom, graph.graphHash, 'the stale hash was advanced');
   assert.equal(second.previousGraphHash, first.graphHash, 'to the newest head');
   assert.deepEqual(await note('r2', 'note.2', graph.graphHash), second, 'a retry of a finished request returns its receipt');
+  const addon = new StorytellingAddon(service);
+  const lifeInput = { graphHash: graph.graphHash, requestId: 'lives', nodeId: 'life.trends',
+    accessScopes: ['author'], dossier: lifeTrendsDossier() };
+  const lives = await addon.storeLifeTrends(lifeInput);
+  assert.equal(lives.advancedFrom, graph.graphHash, 'life-trends writes report the caller’s stale starting hash');
+  assert.equal(lives.previousGraphHash, second.graphHash, 'the dossier is appended after the preceding notes');
+  const afterLives = await note('r3', 'note.3', lives.graphHash);
+  assert.deepEqual(await addon.storeLifeTrends(lifeInput), lives, 'retry keeps the same advancement metadata even after a later write');
   // A branch: two strict batches from the same parent.
-  const branch = (requestId, nodeId) => service.applyNarrativeBatch({ requestId, previousGraphHash: second.graphHash, narrativeBatch: { schema: 'life-sim-rust-narrative-batch/v1',
-    previous_graph_hash: second.graphHash, reason: 'Branch.', provenance, add_roots: [], add_nodes: [{ id: nodeId, node_type: 'note', role: 'metadata', text: nodeId, epistemic_status: 'x',
+  const branch = (requestId, nodeId) => service.applyNarrativeBatch({ requestId, previousGraphHash: afterLives.graphHash, narrativeBatch: { schema: 'life-sim-rust-narrative-batch/v1',
+    previous_graph_hash: afterLives.graphHash, reason: 'Branch.', provenance, add_roots: [], add_nodes: [{ id: nodeId, node_type: 'note', role: 'metadata', text: nodeId, epistemic_status: 'x',
       evidence_type: 'belief', authority: { source: 'a', weight: 1 }, uncertainty: { kind: 'unknown' }, access_scopes: [], render: 'exclude', training: 'exclude', provenance }],
     add_edges: [{ id: `e.${nodeId}`, source: { kind: 'node', node_id: 'book' }, target: { kind: 'node', node_id: nodeId }, family: 'structural', relation: 'contains', order: 9, access_scopes: [], provenance }] } });
   await branch('b1', 'branch.a'); await branch('b2', 'branch.b');
-  await assert.rejects(note('r3', 'note.3', graph.graphHash), /has branched after .*its heads are .*Pass the head to add to/);
+  await assert.rejects(note('r4', 'note.4', graph.graphHash), /has branched after .*its heads are .*Pass the head to add to/);
 });

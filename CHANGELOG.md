@@ -4,7 +4,23 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
-## Unreleased — 0.5.0 candidate
+## 0.5.0 — 2026-09-27
+
+- Modeling guidance now distinguishes qualitative places, declared coordinates,
+  and dated location histories. Spatial questions identify incomplete declarations
+  without inventing geometry or making every model use coordinates.
+- Story depth review can inspect disclosure plans attached to stable passages and
+  document spans. Reader knowledge remains distinct from what a passage depicts;
+  missing plans prompt exploration without imposing a numerical reader model.
+- All three workflows share controlled read-back guidance: compare independent
+  readers with and without the selected material, and report absolute fidelity
+  separately from additional information recovered. The paper and MCP guides
+  describe the current workflows, viewer and evaluation limits.
+- Space and Graph support the same keyboard movement as the time views:
+  W/A/S/D along the ground, Q/E vertically, arrow keys to look and Shift for speed.
+  Typing in a field does not move the camera.
+- Grouped static snapshots can use the same viewer below a website path;
+  switching models remains within that collection and origin.
 
 - Returning to a model in the same browser tab restores its own view, time and
   record selection. First visits fit the new model’s time range. Model switching

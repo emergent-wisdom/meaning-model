@@ -11,7 +11,7 @@ import { registerEstimatorTools } from './estimator-tools.mjs';
 import { directionDrawSchema, drawDirection } from './direction-draw.mjs';
 import { registerJevProcessEstimationTools } from './jev-process-estimation.mjs';
 import { registerGeneralModelingTools } from './general-modeling.mjs';
-import { constructionRecordInstructions, registerConstructionRecordTools } from './construction-record.mjs';
+import { registerConstructionRecordTools } from './construction-record.mjs';
 import { registerLensTools } from './lenses.mjs';
 import { registerRevisionCheckTools } from './revision-check.mjs';
 import { registerViewerTools } from './viewer-server.mjs';
@@ -49,7 +49,7 @@ const server = new McpServer({
   name: 'meaning-model',
   version: '0.5.0',
 }, {
-  instructions: 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.',
+  instructions: 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.\n\nIn every mode, begin modeling with life_modeling_context and follow its shared construction guidance. Explore recursively where a useful question, connection or discovery warrants it; record what is sufficient and what remains uncertain without forcing extra detail. Before writing or revising prose, consider author and character voice, reader disclosure, and consequential physical placement. Use declared passage links and existing records. At meaningful milestones, use the controlled read-back guidance to compare selected output against a blind control, reporting fidelity separately from improvement over the control. Do not wait for a special user request; if independent readers are unavailable, record that limitation rather than inventing a result. These are instructions to the calling LLM, not claims that the server has assessed meaning or automatically run reviewers.',
 });
 const service = new LifeSimulationService();
 const requestIdSchema = z.string().min(1).max(256);
@@ -190,7 +190,6 @@ server.registerPrompt('life_general_modeling_start', {
     'Use life_world_model_build for compact initial construction; life_process_estimate for batched bounded estimates; life_process_estimation_record for exact reviewed graph records and Understanding Nodes. Keep unknown values unknown and source measurements in their actual units. Inspect and revise categories or deepen processes when needed.',
     estimator ? `The configured estimator is ${estimator.label}. It evaluates supplied questions; the calling LLM frames and reviews them. Measure latency and usage; do not assume a speedup.` : 'No external estimator is configured. Use supplied answers or the returned estimation tasks; general modeling works without Jev.',
     'Keep modeling artifacts and substantive assessments in the graph. Recorded numerical estimates are not accepted runtime observations. Automatic storytelling requires its separate opt-in add-on; this general workflow imposes no literary requirements.',
-    constructionRecordInstructions,
   ].filter(Boolean).join('\n\n') } }],
 }));
 

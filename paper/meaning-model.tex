@@ -31,7 +31,7 @@
 \title{The Meaning Model:\\Constructing Worlds and Stories at Progressive Resolution}
 \author{Henrik Westerberg\\Emergent Wisdom\\
   \texttt{henrik.westerberg@emergentwisdom.org}}
-\ewreviseddates{September 5, 2026}{September 23, 2026}
+\ewreviseddates{September 5, 2026}{September 27, 2026}
 
 \begin{document}
 \maketitle
@@ -564,6 +564,15 @@ building records modeled size, not semantic resolution or uncertainty about its
 location. An explicitly location-propagating physical-part relation may derive
 a part's coarse presence from its container until detachment; social membership
 does not imply co-location.
+
+A coarse spatial history can connect dated home bases, workplaces, visits, and
+presence to the same continuing subject, then open selected scenes into finer
+geometry. A home or work base is a time-scoped relation Event, not an assertion
+of uninterrupted bodily presence.
+Unrecorded periods remain unknown, and a sequence of locations does not supply
+a travel route or speed between them. A representative town point and an
+authored room layout retain their different precision and provenance. Qualitative
+spatial relations remain useful where numerical coordinates are unnecessary.
 
 Uncertain location is a different question. For a missing letter, an epistemic
 assessment Event beneath a named perspective process can parent a Cut asking
@@ -1334,8 +1343,9 @@ through \texttt{renders} and to an UnderstandingNode through \texttt{shaped-by}.
 These links retain their surface-specific roles, not authority over their targets.
 This paper writes link names with hyphens; the implementation serializes them
 with underscores, for example \texttt{learned\_from}, \texttt{shaped\_by}, and
-\texttt{realizes\_forecast}. The released Book import records its rendering
-links as \texttt{expresses}.
+\texttt{realizes\_forecast}. The original released Book import records its
+rendering links as \texttt{expresses}; the later MCP passage workflow uses
+explicit \texttt{renders} links to Events.
 
 For example, a software investigation could link a measured response-time
 history to a bottleneck hypothesis, the code unit changed to test it, and an
@@ -1766,9 +1776,13 @@ This tests whether the grammar can hold
 one inspectable long story at a declared resolution; it does not demonstrate
 every permitted profile or establish comparative advantage.
 
+The construction history, import receipt, and numerical portrait below describe
+that accepted first construction. Later development revisions are distinguished
+in Section~\ref{sec:story-continuations}; they do not replace its evidence.
+
 \subsection{How the construction proceeded}
 
-The Book construction proceeded in six rounds.
+The original Book construction proceeded in six rounds.
 
 \begin{enumerate}
   \item Preparation fixed the historical cutoff, premise, vocabularies, access
@@ -1783,7 +1797,7 @@ The Book construction proceeded in six rounds.
     expanded successively to two, three, four, and five paragraphs. Opening the
     account exposed the missing commercial founder. Local defects prompted
     repairs, not restarts unless the parent history failed.
-  \item Thirteen complete lives were placed at coarse resolution before three
+  \item Thirteen lifecycles and coarse life accounts were placed before three
     principals were opened into concurrent processes, local Cuts, and linked
     UnderstandingNodes. Events, relationships, ledgers, and one concept model
     elaborated or explicitly revised the macro account.
@@ -1937,16 +1951,17 @@ obligations.
 
 \subsection{Construction artifact, Rust host, and validation boundary}
 
-The public package in \texttt{examples/book-of-conditions/} retains the accepted
-macro accounts, lives, Cuts, descriptions, ledgers, rationales, route, and manuscript;
+The public package in \texttt{examples/book-of-conditions/} retains the first
+construction's accepted macro accounts, lives, Cuts, descriptions, ledgers,
+rationales, route, and manuscript;
 earlier proposals remain development history. The engine is included in
 \texttt{rust-engine/}, with its MCP interface alongside it. A
 retrospective import records source digests, a persisted Rust compilation
 response, 117 person-process addresses, 107 authored Cuts plus one derived
 duration Cut, and linked document and understanding nodes in SQLite. Reloading
 recovers the model; native document rendering reproduces the manuscript.
-This is a new import receipt, not a source-locked transaction for the original
-construction or an independent read-back record.
+This is a retrospective import receipt, not a source-locked transaction for
+the original construction or an independent read-back record.
 
 Sema minted and verified the thirty-four flat definition bundles so that each
 has a content-addressed grounding version \cite{westerbergSema2026}. The Rust
@@ -1986,6 +2001,19 @@ forecast calibration, or an empirical advantage over unstructured writing \\
 implementation claim.}
 \label{tab:book-enforcement-boundary}
 \end{table}
+
+\subsection{Later spatial refinement}
+\label{sec:story-continuations}
+
+An unpublished development pass as of 27 September 2026 added coarse location
+histories and linked understanding to the Book using the public MCP workflow.
+Preservation was checked by reconstructing the preceding and resulting graph
+revisions: the included prose-node records were byte-identical under canonical
+serialization, their SHA-256 digests matched, and the Cut records, including
+their weights, were equal. These local checks illustrate the preservation
+contract; the revisions and verification digests are not yet released for
+independent examination. They remain separate from the original released Book
+artifact and do not establish improved literary quality.
 
 \subsection{A separate executable refinement example}
 \label{sec:reference-refinement}
@@ -2153,9 +2181,16 @@ while blind readers compare long-range coherence and literary quality.
 Read-back targets are fixed before rendering: which identities, Events,
 chronology, attributed beliefs, access distinctions, and qualitative or
 numerical comparisons must the passage convey? Other content may remain latent
-or explicitly ambiguous. Fresh readers receive the passage and neutral
-extraction questions, not source records or expected answers. Their recovered
-claims are aligned with source identities and authority paths. Omissions of
+or explicitly ambiguous. Fresh readers receive any preceding text, the passage,
+and neutral extraction questions that allow an unknown answer, not source
+records or expected answers. Their recovered claims are aligned with source
+identities and authority paths. A control group receives the same preceding
+text and questions, with the target passage withheld.
+Report absolute read-back accuracy and improvement over this control separately:
+faithfully repeating a fact the reader already has, from earlier text or from
+prior knowledge such as the historical record of the Book's people, need not
+add new recoverable information.
+Omissions of
 required content, unsupported additions, and contradictions are reported separately;
 an intentionally unexpressed weight counts as neither failed nor successful
 recovery. Total variation is used only for compatible Cut vectors that are
@@ -2215,6 +2250,40 @@ evidence, temporal resolution, and useful depth. Sharing the representation
 does not by itself reconcile separately constructed accounts or establish their
 causal relations.
 
+Shared instructions ask the agent to explore recursively across all three
+workflows: follow useful discoveries into subprocesses, relationships,
+competing accounts, and revised categories, then reconsider the enclosing
+whole. Physical placement and its consequences are developed where they matter
+to the inquiry. Diagnostics expose missing declarations and unopened structure;
+they do not certify semantic completeness. The agent chooses useful depth and
+records why it matters or why the present resolution suffices. Neither a fixed
+inventory of categories nor numerical coordinates are required of every model.
+
+\subsection{MCP entry points and operations}
+
+The interface supplies resources, prompts, and tools. Resources carry the papers,
+operational guides, and examples; prompts assemble a starting task for the
+calling language model; tools inspect records, prepare proposals or review
+packets, and apply explicit changes. The general tools are always available;
+storytelling and mechanism search are optional workflows that may be enabled
+together. Workflow is distinct from modeling purpose: observation, forecasting,
+counterfactual analysis, source reconstruction, person reflection, or creative
+fiction sets the evidence and authority contract. The language model supplies
+substantive interpretations; a prepared task is not an executed review, and a
+review packet is not an accepted result. By default an agent reads both papers
+before compiling a profile; an experimental configuration tests whether the
+operational guides suffice as the entry. Recorded resource access does not
+prove comprehension. Tool names, parameters, and startup and continuation
+procedures are documented in the
+\href{https://github.com/emergent-wisdom/meaning-model/blob/main/mcp-server/README.md}{MCP server guide}.
+
+Registering a model revision is distinct from advancing a runtime world. A roll
+executes the declared laws to propose one complete continuation; inspection and
+comparison do not accept it, and acceptance commits one candidate against its
+expected parent. Adopting a registered revision into a running world is an
+authored change under compatibility checks. Neither makes an authored
+description an executable law or establishes its truth.
+
 \subsection{The language model, estimator, and storage loop}
 
 The division of work separates open-ended construction from bounded evaluation.
@@ -2268,7 +2337,12 @@ each represented, left explicitly unknown, or excluded with a reason. A
 represented aspect must reference processes and sources; a represented
 longer-term aspect must also reference dated events and cover an interval
 containing and extending beyond the focal window. The builder stores these
-assessments as Understanding Nodes. Reference and interval checks do not prove
+assessments as Understanding Nodes. It also requires consideration of authored
+numerical judgments, useful conceptual decomposition, and whether a concept's
+meaning differs across dates or perspectives. Each may be represented,
+unknown, or excluded with reasons;
+consideration does not require invented scores, finer categories, or a claim
+that meaning changed. Reference and interval checks do not prove
 causal relevance or historical completeness, and a long event is not a sampled
 numerical trend. Numerical histories require values at explicit coordinates
 with their evidence cutoffs. The workflow recommends reassessment during
@@ -2291,6 +2365,32 @@ accounts of a person's expressed views, not privileged access to private
 reasoning. Source selection and question design remain substantive modeling
 choices even when numerical evaluation is automated.
 
+\subsection{Lenses and revision review}
+
+The core lens tools make a revisable question reusable across records. A lens
+records the question and its current alternatives, with readings located under
+the appropriate holder's root and linked to what is read. Quantitative answers
+belong to those reading Events as Cuts, retaining the question, unit, and
+remainder. They do not acquire the authority of the world record they interpret.
+Diagnostics expose unanswered readings and possible finer openings. A useful
+answer can be opened through conditional Cuts, or the agent can record why the
+present resolution suffices or the lens does not apply. Templates are optional.
+Changed source text or lens versions can make readings stale; the workflow
+supports reassessment through a configured estimator. The procedure records
+interpretations, not a universal taxonomy.
+
+After a model revision, a check compares specified model versions. It follows
+declared dependencies to conditioned Cuts, draws made from changed weights,
+readings of rewritten text, and passages that render a changed record. It also
+lists for review Events connected through recognized causal relations and
+visible understanding notes directly linked to changed records; an
+\texttt{about} link does not make a note a dependent. It returns work to review,
+without repairing or certifying the construction. Coverage is limited to
+recognized changes and visible links: the current relocation check detects
+changes to an Event's region or substrate, but does not comprehensively track
+changes to position values or spatial Bindings. Semantic agreement, disclosure,
+and dependency completeness still require assessment.
+
 \subsection{Automatic storytelling over the same core}
 
 The storytelling add-on adds author and character models, overall life trends,
@@ -2302,6 +2402,12 @@ model still writes the prose and evaluates author and character voice against
 specific text and modeled processes, recording those assessments in
 Understanding Nodes.
 
+A separate example is \emph{Twelve Words}, whose initial twelve-part manuscript
+of roughly 8,400 words was written by a language-model agent using the Meaning
+Model to construct invented characters, their world, and decisions. Later
+unpublished spatial refinements passed the same prose-record and Cut-equality
+checks described for the Book in Section~\ref{sec:story-continuations}.
+
 Scenes can contain ordered, independently editable passages. Shared graph
 editing supports splitting, merging, moving, reordering, and local text
 revision while retaining predecessor versions. A separate deepening pass can
@@ -2310,6 +2416,28 @@ construction and review; they do not establish distinctive voice, literary
 quality, or semantic alignment merely by accepting a structurally valid record.
 General-purpose modeling does not require author personas, dramatic goals, or
 any other literary vocabulary.
+
+The passage workflow requires declared \texttt{renders} links to Events, or an
+explicit reason that a passage depicts none, for new or changed prose. A
+no-link reason is bound to the exact text and ceases to waive grounding when
+that text changes. Scene commitments supply default Event anchors that the author can
+replace per passage, for example to narrow them or to point a flashback at
+another Event in the bound model; proposals for older unlinked prose require explicit review
+before application. Revision checks follow declared dependencies, and release
+checks identify passages without current grounding. These checks do not infer
+depiction from similar words or establish that the prose is faithful.
+
+Depicting an Event does not disclose all its facts or motives. Disclosure plans
+distinguish what a reader can already know, what a passage reveals, and what
+remains withheld or ambiguous, separately from character knowledge in world
+time. They use existing passage identities, reading order, linked author
+records, and optional document spans. These attachments support revision as
+text grows or is split; their meaning and scope still require review after an
+edit. This introduces no new clock system or required numerical reader model.
+
+The story release operation records a decision to widen reader access to
+selected prose while retaining private authoring records. It is a graph access
+change, not publication to an external website or package registry.
 
 \subsection{The construction record}
 
@@ -2332,6 +2460,13 @@ construction also travels: a portable history holds every model revision and eac
 graph revision as its change, and another engine rebuilds it with the same hashes,
 so the replay there is the same replay.
 
+The MCP also opens a bundled, read-only viewer of a chosen snapshot. Its views
+are representations of the same records: coarse and detailed views retain the
+addressed wholes; spatial views use declared positions in explicit frames, while
+other layouts claim no physical geography; connections to Events, passages, and
+understanding follow recorded links; and reading order remains distinct from
+world time.
+
 \subsection{Mechanism search through invented worlds}
 
 The optional alien add-on implements the world-diversity search of Ontology of
@@ -2348,6 +2483,15 @@ curator's. Diagnosis of the ontologies, including family and outcome
 combinations that no candidate yet realizes, informs the commission of the next
 world. A transfer maps a mechanism's roles onto records of the target model and
 states where the analogy breaks; a graded fit is a fit Cut with its own remainder.
+
+An alternative explorer works directly from the target problem, with or without
+a random-word cue. Both routes can use no population context, an inventory of
+earlier approaches to avoid, or the curated map. The add-on records these
+conditions so their results can be compared under matched budgets; merely
+supporting the alternatives does not establish which works better. The cited
+Ontology of the Alien study did not run the uncued direct explorer without
+population context; running that condition would extend the study rather than
+replicate a reported condition.
 
 These records organize ideation. A world is a textual thought experiment, not a
 simulation, and a transfer records an idea and its mapping, not evidence that the

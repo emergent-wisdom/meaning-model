@@ -233,7 +233,7 @@ textual thought experiments and transfers are ideas, not evidence. See the
 
 ## Read first
 
-The paper was revised on September 23, 2026, and the grammar appendix on
+The paper was revised on September 27, 2026, and the grammar appendix on
 September 12, 2026.
 The [Zenodo series](https://doi.org/10.5281/zenodo.22313515) provides the
 archived versions.

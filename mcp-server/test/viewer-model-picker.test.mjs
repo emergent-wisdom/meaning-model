@@ -66,6 +66,19 @@ test('returning to a snapshot restores its own view, time and selection', () => 
   assert.equal(modelSwitchURL(current, target, saved.href), saved.href);
 });
 
+test('hosted collections switch below a site path without leaving that collection', () => {
+  const first = 'a'.repeat(48), second = 'b'.repeat(48);
+  const current = `https://example.com/meaning-model/${first}/?view=space&at=1843`;
+  const target = `../${second}/`;
+  assert.equal(modelSwitchURL(current, target), `https://example.com/meaning-model/${second}/?view=space`);
+  assert.equal(modelSwitchURL(current.replace('/?view=', '/index.html?view='), target), modelSwitchURL(current, target));
+  const saved = `https://example.com/meaning-model/${second}/?view=tree&at=2022`;
+  assert.equal(modelSwitchURL(current, target, saved), saved);
+  for (const outside of [`/${second}/`, `/other/${second}/`, `../../${second}/`, '/meaning-model/data/model.json']) {
+    assert.throws(() => modelSwitchURL(current, outside), /Invalid model snapshot link/);
+  }
+});
+
 test('a saved position must belong to the exact same snapshot and origin', () => {
   const current = `http://127.0.0.1:1234/${'a'.repeat(48)}/?view=layers`;
   const target = `http://127.0.0.1:1234/${'b'.repeat(48)}/`;
