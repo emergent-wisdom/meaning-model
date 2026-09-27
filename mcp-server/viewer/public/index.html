@@ -14,6 +14,7 @@
   body[data-representation="structure"] .side { z-index: 12; }
   #selection-label { overflow-wrap: anywhere; }
   body[aria-busy="true"], body[aria-busy="true"] * { cursor: progress !important; }
+  body.no-text .scene-labels, body.no-text #labels2 { display: none; }
   :root { --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781; --panel: rgba(18, 18, 17, 0.74); --ring: rgba(255, 255, 255, 0.10); --love: #ffb057; --fear: #58b4ff; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: #050608; overflow: hidden; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); }
@@ -123,9 +124,11 @@
   .lens .words { display: flex; justify-content: space-between; margin-top: 3px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
   .lens .words b { font-weight: 600; }
   .lens .kinds { margin-top: 2px; color: var(--muted); font-size: 10.5px; line-height: 1.25; }
-  /* Small windows keep the title, the links and the story; the legend, caption and subtitle step aside. */
+  /* Small windows keep the title, the links and the story; the caption and subtitle step aside. */
   @media (max-width: 1100px), (max-height: 760px) {
-    h1 { font-size: 30px; } .sub, .legend, .caption { display: none; }
+    h1 { font-size: 30px; } .sub, .caption { display: none; }
+    /* How to read it appears only when asked for, so a small window shows it too, scrolling if it must. */
+    .legend { max-height: 50vh; overflow-y: auto; }
     .stats { gap: 16px; } .stat .value { font-size: 22px; } .repos { font-size: 13px; }
   }
   @media (max-width: 760px), (max-height: 520px) { .stats { display: none; } .eyebrow { display: none; } .clock { font-size: 15px; min-width: 110px; } }
@@ -253,6 +256,7 @@
       <div class="pop" id="pop-camera" hidden><h2>Camera</h2><div class="seg" id="cameras"><button data-camera="spin">Spinning</button><button data-camera="free">Free</button><button data-camera="locked">Locked</button></div><div class="note" id="camera-note"></div></div></span>
     <button class="tool switch" id="shine" aria-pressed="true" title="Switch between the shining look and a less shining one (G)">Shining</button>
     <button class="tool switch" id="edges" aria-pressed="true" title="Show or hide the lines that link one thing to another: thoughts to their moments, documents to each other, causal links, the tree (K)">Edges</button>
+    <button class="tool switch" id="text-toggle" aria-pressed="true" title="Show or hide the text in the view: names, values, dates and cards. Hovering still reads anything (N)">Text</button>
     <button class="tool switch" id="thoughts" aria-pressed="false" title="Show or hide documents and notes in the model">Documents &amp; notes</button>
     <button class="tool switch" id="reading-toggle" hidden aria-pressed="true" aria-controls="strip" title="Show or hide the reading position panel">Reading position</button>
     <span class="row-break" aria-hidden="true"></span>
@@ -261,13 +265,14 @@
         <section id="show-section"><h2>Show <button id="all">All</button></h2><div id="kinds"></div></section>
         <section id="depth-section"><h2>Depth of the tree</h2><div class="seg" id="depths"></div><div class="note" id="depth-note"></div></section>
         <section id="lenses-section"><h2>Lenses <button id="lenses-all">All</button></h2><div id="lenses"></div></section>
-        <section class="keys-help"><b>Home</b> recenter · <b>W</b> <b>A</b> <b>S</b> <b>D</b> walk · <b>Q</b> <b>E</b> down and up · arrows look around · <b>Shift</b> faster · <b>1</b>–<b>4</b> the scales · <b>T</b> processes · <b>L</b> tree · <b>R</b> terrain · <b>Space</b> play · <b>C</b> the camera · <b>G</b> shining · <b>K</b> edges · <b>X</b> everything. Locked: scroll or pinch zooms in time, drag pans, <b>Shift</b>+scroll moves a tall view up and down. Otherwise drag turns, right-drag moves, scroll comes closer, <b>Shift</b>+scroll zooms in time. Click anything to read what it is.</section>
+        <section class="keys-help"><b>Home</b> recenter · <b>W</b> <b>A</b> <b>S</b> <b>D</b> walk · <b>Q</b> <b>E</b> down and up · arrows look around · <b>Shift</b> faster · <b>1</b>–<b>4</b> the scales · <b>T</b> processes · <b>L</b> tree · <b>R</b> terrain · <b>Space</b> play · <b>C</b> the camera · <b>G</b> shining · <b>K</b> edges · <b>N</b> text · <b>H</b> how to read it · <b>X</b> everything. Locked: scroll or pinch zooms in time, drag pans, <b>Shift</b>+scroll moves a tall view up and down. Otherwise drag turns, right-drag moves, scroll comes closer, <b>Shift</b>+scroll zooms in time. Click anything to read what it is.</section>
       </div></span>
     <button class="tool switch" id="everything" aria-pressed="false" title="Show every kind of record, every lens and the whole tree (X)">Show everything</button>
+    <button class="tool switch" id="legend-toggle" aria-pressed="false" aria-controls="legend" title="Show or hide how to read the view (H)">How to read it</button>
     <div id="process-detail-status" role="status" hidden></div>
     <div id="graph-controls" data-graph></div>
   </div>
-  <div class="hud legend" id="legend"></div>
+  <div class="hud legend" id="legend" hidden></div>
   <aside class="details" id="details" hidden aria-label="What you clicked"><button class="close" id="details-close" aria-label="Close">✕</button><div id="details-body"></div></aside>
 </div>
 <div class="tip" id="tip" hidden></div>

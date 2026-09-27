@@ -73,6 +73,8 @@ const opt = {
   readingOverview: params.get('readingOverview') === 'structure' ? 'structure' : 'named',
   edges: params.get('edges') !== 'off', // the lines that link one thing to another
   readingPosition: params.get('reading') !== 'off',
+  legend: params.has('legend'), // how to read it, when asked for
+  text: params.get('text') !== 'off', // the names, values, dates and cards in the view
   hideUnopened: params.get('unopened') === 'hide',
   hideFlat: params.get('flat') === 'hide',
   mode: params.get('mode') === 'construction' && data.constructionTiming !== 'unavailable' ? 'construction' : 'story',
@@ -281,7 +283,7 @@ const host = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(innerWidth, innerHeight); host.append(renderer.domElement);
 const labels = new CSS2DRenderer(); labels.setSize(innerWidth, innerHeight);
-Object.assign(labels.domElement.style, { position: 'fixed', inset: '0', pointerEvents: 'none' }); host.append(labels.domElement);
+Object.assign(labels.domElement.style, { position: 'fixed', inset: '0', pointerEvents: 'none' }); labels.domElement.classList.add('scene-labels'); host.append(labels.domElement);
 const scene = new THREE.Scene(); scene.background = new THREE.Color('#050608'); scene.fog = new THREE.FogExp2('#050608', 0.0048);
 const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 900);
 camera.position.set(-LENGTH * 0.12, 96, zFront + 78);
@@ -1694,6 +1696,20 @@ const setLegend = (html, names = groups.map((group) => [group.label, group.hue])
   appendLegendNames(legend, names);
 };
 setLegend(FIELD_LEGEND);
+// How to read it is there when asked for (H), not always.
+const legendToggle = document.getElementById('legend-toggle');
+function showLegend(on) {
+  opt.legend = on; document.getElementById('legend').hidden = !on; legendToggle.setAttribute('aria-pressed', String(on));
+  dirty = relayout = true; syncURL();
+}
+legendToggle.addEventListener('click', () => showLegend(!opt.legend)); showLegend(opt.legend);
+// The text in the view (names, values, dates and cards) can be taken away for a clear picture (N); hovering still reads it.
+const textToggle = document.getElementById('text-toggle');
+function showText(on) {
+  opt.text = on; document.body.classList.toggle('no-text', !on); textToggle.setAttribute('aria-pressed', String(on));
+  dirty = relayout = true; syncURL();
+}
+textToggle.addEventListener('click', () => showText(!opt.text)); showText(opt.text);
 // The terrain's own words: what its ridges, beams, diamonds and lights are, and how many functions rise.
 function hud() {
   if (!terrain.on) { document.getElementById('sub').textContent = FIELD_SUB; setLegend(FIELD_LEGEND); showStats(); return; }
@@ -2125,6 +2141,8 @@ addEventListener('keydown', (event) => {
   if (event.key === 'g' || event.key === 'G') setShine(opt.glare === 'full' ? 'soft' : 'full');
   if (event.key === 'x' || event.key === 'X') setEverything(!isEverything());
   if (event.key === 'k' || event.key === 'K') setEdges(!opt.edges);
+  if (event.key === 'h' || event.key === 'H') showLegend(!opt.legend);
+  if (event.key === 'n' || event.key === 'N') showText(!opt.text);
   if (event.key === ' ' && !event.target.closest?.('button')) { event.preventDefault(); if (playing) stop(); else play(); }
   if (event.key === '+' || event.key === '=') zoomAt(innerWidth / 2, innerHeight / 2, 1.6); if (event.key === '-') zoomAt(innerWidth / 2, innerHeight / 2, 1 / 1.6);
   if (opt.camera === 'locked' && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) { event.preventDefault(); scrollLocked(event.key === 'ArrowDown' ? 120 : -120); }
@@ -2140,6 +2158,7 @@ function syncURL(immediate = false) {
     const next = new URLSearchParams(); for (const key of ['data', 'title', 'live', 'capture']) if (params.has(key)) next.set(key, params.get(key));
     if (opt.camera !== 'spin') next.set('camera', opt.camera); if (opt.glare !== 'full') next.set('glare', opt.glare); if (!opt.edges) next.set('edges', 'off');
     if (!opt.readingPosition) next.set('reading', 'off');
+    if (opt.legend) next.set('legend', ''); if (opt.text === false) next.set('text', 'off');
     if (opt.hideUnopened) next.set('unopened', 'hide');
     if (opt.hideFlat) next.set('flat', 'hide');
     if (Number.isInteger(opt.detailLevel)) next.set('detail', String(opt.detailLevel));
