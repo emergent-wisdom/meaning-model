@@ -2,6 +2,7 @@
 // clock, or subject matter. Spatial coordinates are presentation only.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { cameraState, restoreCamera } from './live-viewer.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { buildModelGraph, overviewModelGraph, layoutStructured, isContainment } from './model-graph.js';
 import { formatModelInterval } from './structure-model.js';
@@ -311,16 +312,25 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
     recenter: recenterView,
     activate(_view, state) {
       active = true; controls.enabled = true; resize();
+      if (['all', 'overview'].includes(state.graph?.records)) showRecords(state.graph.records, false);
       // A record the overview holds is shown by what holds it; one it draws as a link opens every record.
       const wanted = state.selection && graphs.all.nodes.find((node) => node.kind === state.selection.kind && node.nativeId === state.selection.id);
       if (wanted && !nodeById.has(wanted.id) && mode === 'overview' && !heldBy.has(wanted.id)) showRecords('all', false);
       const choice = wanted && nodeById.get(nodeById.has(wanted.id) ? wanted.id : heldBy.get(wanted.id));
       if (choice && choice.id !== selected) { filter.value = ''; neighborsOnly = false; select(choice.id, false); }
       else if (!choice && selected) { selected = null; detail.hidden = true; neighborsOnly = false; refresh(); }
-      fit(); dirty = true; lastFrame = 0; if (frameId === null) frame();
+      if (state.graph) {
+        const savedFilter = kinds.includes(state.graph.filter) ? state.graph.filter : '';
+        filter.value = choice && savedFilter && choice.kind !== savedFilter ? '' : savedFilter;
+        neighborsOnly = Boolean(selected && state.graph.neighborsOnly);
+        showEdges = state.graph.showEdges !== false; rotating = Boolean(state.graph.rotating); controls.autoRotate = rotating;
+        edgesButton.setAttribute('aria-pressed', String(showEdges)); spinButton.setAttribute('aria-pressed', String(rotating));
+        refresh();
+      }
+      fit(); if (!state.graph || state.graph.records === mode) restoreCamera(camera, controls, state.graphCamera); dirty = true; lastFrame = 0; if (frameId === null) frame();
     },
     deactivate() { active = false; controls.enabled = false; walker.stop(); cancelAnimationFrame(frameId); frameId = null; },
-    getState() { return { graph: { filter: filter.value, neighborsOnly, showEdges, rotating, records: mode } }; },
+    getState() { return { graph: { filter: filter.value, neighborsOnly, showEdges, rotating, records: mode }, graphCamera: cameraState(camera, controls) }; },
     destroy() { alive = false; active = false; abort.abort(); cancelAnimationFrame(frameId); controls.dispose(); renderer.dispose(); geometry.dispose(); material.dispose(); disposeLines(lines); disposeLines(otherLines); disposeLines(selectedLines); css.remove(); },
   };
 }

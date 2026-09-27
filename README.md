@@ -37,8 +37,10 @@ evidence.
 Version 0.5.1 bundles a browser viewer. Ask the connected assistant
 to **“Open this model”**; `life_model_viewer_open` returns a local link to the chosen
 model or graph revision. No separate viewer checkout or special run folder is
-required. It is a read-only snapshot; reopen after changes. The browser must run on
-the same computer as the MCP. See the [viewer guide](mcp-server/README.md#browser-viewer)
+required. While writing, ask **“Keep the viewer following as we work.”** The
+assistant uses `mode: "live"` with a graph hash to follow saved revisions and retain
+your reading context. Exact read-only snapshots remain the default. The browser
+must run on the same computer as the MCP. See the [viewer guide](mcp-server/README.md#browser-viewer)
 for supported views and access requirements.
 
 Reading position is independent of world time: selecting a passage highlights its

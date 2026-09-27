@@ -7,6 +7,7 @@
 // to a depth; and each kind of record, lens by lens.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { cameraState, restoreCamera } from './live-viewer.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -1761,7 +1762,7 @@ function renderReader(unitId = null) {
   for (const unit of units) unit.text.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean).forEach((block, i) => {
     const heading = block.match(/^(#{1,4})\s+([\s\S]*)$/);
     const element = document.createElement(heading ? `h${heading[1].length}` : 'p');
-    element.innerHTML = inline(heading && heading[1].length === 1 && unit.role === 'document_root' ? titleText : heading ? heading[2] : block).replace(/\n/g, '<br>'); body.append(element);
+    element.innerHTML = inline(heading && heading[1].length === 1 && unit.role === 'document_root' ? titleText : heading ? heading[2] : block).replace(/\n/g, '<br>'); element.dataset.nodeId = unit.id; body.append(element);
     if (unit.id === targetId && i === 0) target = element;
   });
   document.getElementById('reader-status').textContent = part ? `Full story · ${part.title ?? part.unit.title ?? part.unit.id}` : 'Full story · Complete manuscript';
@@ -2506,7 +2507,7 @@ setCamera(opt.camera, true); if (opt.glare !== 'full') applyShine();
 if (params.has('pose')) { const v = params.get('pose').split(',').map(Number); if (v.length === 6 && v.every(Number.isFinite)) { camera.position.set(v[0], v[1], v[2]); controls.target.set(v[3], v[4], v[5]); framed = fieldFrame(); } }
 relayOut();
 // Following a run an agent is still making: when it has made more, the view opens again as it is, between plays.
-const liveTimer = params.has('live') ? setInterval(async () => {
+const liveTimer = params.has('live') && data.viewerLive?.mode !== 'live' ? setInterval(async () => {
   if (!temporalActive) return;
   if (playing) return;
   try { const next = await (await fetch(`data/${encodeURIComponent(dataName)}.json?ts=${Date.now()}`, { cache: 'no-store' })).json(); if (next.lastCall !== data.lastCall || next.headGraphHash !== data.headGraphHash) { syncURL(); setTimeout(() => location.reload(), 500); } } catch { /* keep the last view */ }
@@ -2609,9 +2610,13 @@ export const temporalController = {
     for (const attribute of ['role', 'tabindex', 'aria-label', 'aria-disabled', 'aria-valuemin', 'aria-valuemax', 'aria-valuenow', 'aria-valuetext']) document.getElementById('track').removeAttribute(attribute);
     renderer.setSize(innerWidth, innerHeight); labels.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); composer.setSize(innerWidth, innerHeight);
     if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } syncPanel(); syncURL(true); relayout = true;
+    if (state.temporalCamera?.layout === view) {
+      if (opt.camera === 'locked') { LOCKED.scroll = state.temporalCamera.scroll ?? 0; placeLocked(true); }
+      else restoreCamera(camera, controls, state.temporalCamera);
+    }
     if (temporalFrame === null && !params.has('capture')) frame();
   },
   deactivate() { if (playing) stop(); syncURL(true); temporalActive = false; controls.enabled = false; clearTimeout(urlTimer); cancelAnimationFrame(temporalFrame); temporalFrame = null; held.clear(); pointerAt = null; tip.hidden = true; },
-  getState() { return { timeView: opt.layout, time: { now, tau, atEnd, mode: opt.mode, start: F.a, end: F.b } }; },
+  getState() { return { timeView: opt.layout, time: { now, tau, atEnd, mode: opt.mode, start: F.a, end: F.b }, temporalCamera: { ...cameraState(camera, controls), layout: opt.layout, scroll: LOCKED.scroll } }; },
   destroy() { temporalActive = false; temporalEvents.abort(); clearInterval(timer); clearInterval(liveTimer); clearTimeout(urlTimer); cancelAnimationFrame(temporalFrame); controls.dispose(); composer.dispose(); renderer.dispose(); },
 };

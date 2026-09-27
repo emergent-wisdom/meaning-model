@@ -25,6 +25,7 @@ test('the actual temporal controller owns one frame loop and pauses keyboard/pla
     renderer: { setSize() {}, dispose() { disposed.push('renderer'); } },
     labels: { setSize() {}, render() {} }, labels2: { update() {} },
     camera: { updateProjectionMatrix() {} }, scene: {},
+    cameraState: () => ({}), cameraRestores: [], restoreCamera(_camera, _controls, saved) { context.cameraRestores.push(saved); }, LOCKED: { scroll: 0 },
     composer: { setSize() {}, render() { renders += 1; }, dispose() { disposed.push('composer'); } },
     params: new URLSearchParams(), opt: { camera: 'free', layout: 'layers', mode: 'story' },
     now: 1843, tau: 20, atEnd: false, F: { a: 1836, b: 1857 },
@@ -59,6 +60,12 @@ test('the actual temporal controller owns one frame loop and pauses keyboard/pla
   assert.equal(context.now, 1848.5, 'the world cursor returned by Space is restored');
   assert.deepEqual(sharedControls.track.attributes, {}, 'Space-native slider ARIA does not survive in the temporal control');
   assert.equal(sharedControls.play.disabled, false);
+  const savedCamera = { layout: 'layers', position: [1, 2, 3] };
+  control.activate('terrain', { temporalCamera: savedCamera });
+  assert.equal(context.cameraRestores.length, 0, 'switching to Terrain keeps its own camera instead of the outgoing Tree camera');
+  control.activate('layers', { temporalCamera: savedCamera });
+  assert.deepEqual(context.cameraRestores, [savedCamera], 'reloading the same representation restores its camera');
+  assert.equal(control.getState().temporalCamera.layout, 'layers');
   control.destroy(); assert.equal(frames.size, 0);
   assert.equal(keydown.options.signal.aborted, true);
   assert.deepEqual(intervals, [17, 18]);

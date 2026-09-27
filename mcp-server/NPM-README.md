@@ -17,6 +17,15 @@ assistant calls `life_model_viewer_open` with the model or graph revision and re
 a local link. Open that link in your browser. No separate viewer installation,
 GitHub checkout, run transcript or website account is needed.
 
+While writing, ask **“Keep the viewer following as we work.”** The assistant
+uses `mode: "live"` with the story's `graphHash`. Saved revisions update the
+bound model and prose at the same URL through guarded page refreshes, retaining
+reading position, view, record, time and camera. Updates wait while you interact
+or play; branches or insufficient access pause following. This follows saved
+revisions, not unfinished tokens. Exact snapshots remain the default, and
+model-only links stay fixed. Opening a local live viewer does not update the
+public website or publish private drafts.
+
 The same **Processes / Tree / Terrain** viewer opens models with recorded time
 positions. Events can be displayed without numeric curves; curves appear only
 where the model supplies them. Models without time positions remain inspectable
@@ -33,10 +42,10 @@ The alternative **Graph mode** displays each saved revision's native records.
 Filter record types, find a record by name or ID, and click it to inspect
 its declared links and full record. **Neighbors only** focuses its connections;
 **Recenter** restores an overview. Positions are a layout, not time or measured
-values. Ask the assistant to reopen the model after changes to see the new revision.
+values. Exact snapshot links stay fixed; live graph links follow saved revisions.
 
 When prose is present, **Read full document** opens the complete manuscript.
-**Read this passage** opens it at a selected passage; **Back to graph** returns to
+**Read this passage** opens it at a selected passage; **Close the story** returns to
 exploration. Selecting a record keeps the reader closed. **Structure** offers an
 expandable record view. **Show it as** switches among Processes, Tree, Terrain,
 Graph, Structure and Space on the same page, retaining the record selection and time.

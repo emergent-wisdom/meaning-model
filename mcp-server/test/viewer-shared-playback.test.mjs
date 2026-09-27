@@ -39,7 +39,8 @@ test('Space whole-life overview exports its actual cursor, not a command to jump
   const spaceSource = readFileSync(new URL('../viewer/public/space-view.js', import.meta.url), 'utf8');
   const method = spaceSource.match(/getState\(\) \{ return \{ space:[^\n]+/u)?.[0];
   assert.ok(method);
-  const context = { t: 2020.55, space: { timeUnit: 'year' }, frameIndex: 0, focus: '', overview: true, spaceToViewerTime: (time) => time };
+  const context = { t: 2020.55, space: { timeUnit: 'year' }, frameIndex: 0, focus: '', overview: true, spaceToViewerTime: (time) => time,
+    cameraState: () => ({}), spaceFrameIdentity: () => null, camera: {}, controls: {} };
   vm.createContext(context); vm.runInContext(`this.saved = ({${method}}).getState();`, context);
   assert.equal(context.saved.space.overview, true);
   assert.equal(context.saved.time.now, 2020.55);

@@ -6,6 +6,10 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## 0.5.1 — 2026-09-27
 
+- MCP graph viewers can follow saved revisions with `mode: "live"`, including
+  bound model changes and prose. Guarded refreshes retain reading and camera
+  context, wait during interaction or playback, and pause at ambiguous branches
+  or inaccessible revisions. Exact snapshots remain the default.
 - The story reader keeps an opaque toolbar and contains scrolling within its
   own painted panel, without elastic scroll overshoot into the background.
   Passage navigation leaves room for the toolbar, and the reader opens in Graph.

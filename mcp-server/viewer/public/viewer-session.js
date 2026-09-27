@@ -5,7 +5,7 @@ export function createViewerSession({ temporal, initialView, state = {}, mounts,
   const normalize = (view) => timeViews.has(view) ? temporal ? view : 'graph' : ['graph', 'structure', 'space'].includes(view) ? view : temporal ? 'together' : 'graph';
   const shared = { ...state, view: normalize(initialView) }, mounted = new Map();
   let current = null, activeView = null, request = 0;
-  const snapshot = () => structuredClone(shared);
+  const snapshot = () => structuredClone({ ...shared, ...(current?.getState?.() ?? {}) });
   async function setView(requested) {
     const view = normalize(requested), id = ++request;
     if (activeView === view) return snapshot();
@@ -17,8 +17,10 @@ export function createViewerSession({ temporal, initialView, state = {}, mounts,
     if (current !== next) current?.deactivate?.();
     current = next; activeView = view; shared.view = view;
     if (timeViews.has(view)) shared.timeView = view;
-    onView(view, snapshot());
-    await next.activate?.(view, snapshot());
+    // The incoming surface still holds defaults (or an older retained state).
+    // Restore the captured shared state before reading its current state.
+    onView(view, structuredClone(shared));
+    await next.activate?.(view, structuredClone(shared));
     onState(snapshot());
     return snapshot();
   }

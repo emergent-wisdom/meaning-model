@@ -25,8 +25,8 @@ The bundled adaptations are:
   layout come from `public/model-graph.js`, and Space reads only declared
   coordinates through `public/space-model.js` (see below).
 - The bundled scene hides construction playback when no call timestamps were
-  supplied and omits QR-code requests. The local MCP server serves immutable
-  snapshots; opening the viewer again obtains a new snapshot.
+  supplied and omits QR-code requests. The local MCP server defaults to exact
+  immutable snapshots and offers explicit live following of saved graph revisions.
 - Normal reading retains the complete document in reading order when the world
   timeline moves. World dates do not establish what a reader may read.
 
@@ -34,6 +34,37 @@ The standalone viewer remains a separate project. When updating this snapshot,
 preserve these adaptations and the upstream license files, and verify a book
 scene, a general model inspector and each representation; `test/viewer-renderers.test.mjs`
 runs the Space and Graph renderers on the real scene graph.
+
+## Following a story as it grows
+
+While authoring, open `life_model_viewer_open` with `graphHash` and `mode: "live"`.
+The same local link checks for saved descendants about every two seconds. Each
+adopted graph brings its exact bound model and rendered prose; a model revision
+not yet bound to the graph does not appear. `mode: "snapshot"` (the default)
+always keeps the selected exact revision. Model-only views, including automatic
+author/reader life choices, remain snapshots. Each explicitly grouped graph can
+independently request live mode.
+
+The page says **Live · saved revisions** and can pause updates. A fork anywhere
+after the revision explicitly opened pauses following, even if the page already
+passed that ancestor. Open the intended branch explicitly to follow it. Every
+replacement passes the full graph/model scope checks with the original grant;
+an inaccessible or incomplete revision leaves the last authorized view intact.
+The model chooser's membership is fixed when opened; reopen to include newly
+declared author/reader lives. Following never publishes a model.
+
+This implementation refreshes the page when a complete revision is ready; it
+does not stream tokens or rebuild the existing renderers in place. It preserves
+the selected view/record, time, camera and reader open/full state through
+tab-local storage. Reading resumes at the same passage/paragraph and visual
+offset where possible, so inserted earlier prose does not reset the reader. An
+edited or removed paragraph falls back within its passage, then to the prior
+scroll position. A removed spatial frame cannot reuse another frame's camera.
+Refresh waits for scrolling, typing, selection, dragging and playback to pause.
+When browser storage is unavailable it leaves the current page and asks for a
+manual refresh. A brief page repaint remains possible. Static/standalone exports
+do not enter this protocol: only an authorized MCP live snapshot carries its
+explicit live marker.
 
 ## What the Space view draws
 

@@ -9,6 +9,7 @@ import * as z from 'zod/v4';
 import { exportConstructionHistory } from './construction-record.mjs';
 import { buildViewerData } from './viewer-data.mjs';
 import { readWorldState } from './storytelling-world.mjs';
+import { followedGraphHead } from './viewer-live.mjs';
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/u);
 const selectionFields = {
@@ -16,16 +17,19 @@ const selectionFields = {
   modelHash: hash.optional().describe('An exact model revision to inspect without a narrative graph.'),
   accessScopes: z.array(z.string().trim().min(1).max(256)).max(64).default([]),
   title: z.string().trim().min(1).max(200).optional(),
+  mode: z.enum(['snapshot', 'live']).default('snapshot').describe('Use live while authoring: follow saved descendants of graphHash without reopening. Pauses at a fork or insufficient scopes. snapshot keeps the exact revision; modelHash-only views require snapshot.'),
 };
 const oneRevision = (input) => Boolean(input.graphHash) !== Boolean(input.modelHash);
 const revisionMessage = { message: 'Supply exactly one graphHash or modelHash.' };
-const additionalModelSchema = z.object(selectionFields).strict().refine(oneRevision, revisionMessage);
+const liveGraph = (input) => input.mode !== 'live' || Boolean(input.graphHash);
+const liveMessage = { message: 'Live mode requires graphHash; modelHash alone is an exact snapshot.' };
+const additionalModelSchema = z.object(selectionFields).strict().refine(oneRevision, revisionMessage).refine(liveGraph, liveMessage);
 export const modelViewerSchema = z.object({
   ...selectionFields,
   additionalModels: z.array(additionalModelSchema).max(15).optional().describe('Other exact model or graph revisions to offer in this viewer’s model chooser. Every entry needs its own complete accessScopes. Current declared author/reader life models are added automatically using the declaring graph’s scopes. The complete group is limited to 16 views.'),
 }).strict().refine(oneRevision, {
   message: 'Supply exactly one graphHash or modelHash.',
-});
+}).refine(liveGraph, liveMessage);
 
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
@@ -79,6 +83,36 @@ export function createModelViewer(service, { buildData = buildViewerData, public
   let origin = null;
   let closed = false;
 
+  // One refresh per token at a time; only replace the authorized snapshot after
+  // all scope checks and serialization succeed. Never broaden its original grant.
+  async function liveStatus(snapshot) {
+    const live = snapshot.live;
+    if (!live) return { mode: 'snapshot', graphHash: snapshot.graphHash, modelHash: snapshot.modelHash };
+    if (!live.pending && Date.now() - live.checkedAt >= 1_000) {
+      live.pending = (async () => {
+        try {
+          const listing = await service.listNarrativeRevisions({ graphId: live.graphId });
+          const next = followedGraphHead(listing, live.anchor);
+          if (next.status !== 'following') { live.status = next.status; return; }
+          if (next.graphHash !== snapshot.graphHash) {
+            const prepared = await prepareSnapshot({ ...live.selection, graphHash: next.graphHash });
+            if (prepared.graphId !== live.graphId) throw new Error('The graph identity changed.');
+            Object.assign(snapshot, prepared);
+          }
+          live.status = 'following';
+        } catch { live.status = 'unavailable'; }
+        finally { live.checkedAt = Date.now(); live.pending = null; }
+      })();
+    }
+    await live.pending;
+    return { mode: 'live', status: live.status, graphHash: snapshot.graphHash, modelHash: snapshot.modelHash,
+      pollIntervalMs: 2_000, message: live.status === 'branched'
+        ? 'Live paused: this story has branched. Ask the assistant to open the branch you want.'
+        : live.status === 'unavailable'
+          ? 'Live paused: the next revision is unavailable with this link’s original access. Ask the assistant to check its scopes and stored history.'
+          : 'Live · saved revisions' };
+  }
+
   function groupViews(token) {
     const snapshot = snapshots.get(token);
     return snapshot.group.filter((member) => snapshots.has(member)).map((member) => {
@@ -107,6 +141,7 @@ export function createModelViewer(service, { buildData = buildViewerData, public
     if (relative === 'data/index.json') return send(200, snapshot.index, 'application/json; charset=utf-8');
     if (relative === 'data/model.json') return send(200, snapshot.body, 'application/json; charset=utf-8');
     if (relative === 'data/views.json') return send(200, JSON.stringify(groupViews(token)), 'application/json; charset=utf-8');
+    if (relative === 'data/live.json') return send(200, JSON.stringify(await liveStatus(snapshot)), 'application/json; charset=utf-8');
     const file = resolve(root, relative);
     const type = types[extname(file)];
     if (!file.startsWith(`${root}${sep}`) || !type) return send(404, 'Not found');
@@ -147,10 +182,11 @@ export function createModelViewer(service, { buildData = buildViewerData, public
         models: [{ modelHash: input.modelHash, definition: inspected.model }], revisions: [] };
     }
     const data = await buildData({ history, rendered, calls: [], name: 'model', title: input.title });
-    const body = JSON.stringify(data);
+    const body = JSON.stringify(input.mode === 'live' ? { ...data, viewerLive: { mode: 'live', graphHash: input.graphHash } } : data);
     if (Buffer.byteLength(body) > maximumSnapshotBytes) throw new Error('This model is too large for the local viewer snapshot (32 MiB maximum).');
-    const index = JSON.stringify({ default: 'model', runs: [{ name: 'model', title: data.title ?? input.title ?? 'Meaning Model', label: data.title ?? 'Meaning Model', generatedAt: data.generatedAt, live: false }] });
+    const index = JSON.stringify({ default: 'model', runs: [{ name: 'model', title: data.title ?? input.title ?? 'Meaning Model', label: data.title ?? 'Meaning Model', generatedAt: data.generatedAt, live: input.mode === 'live' }] });
     return { body, index, title: data.title ?? input.title ?? 'Meaning Model',
+      graphId: history.graphId ?? data.inspection?.graph?.id ?? null,
       relatedLives: input.graphHash ? declaredLives(data, input.accessScopes) : [],
       modelHash: data.modelHash ?? input.modelHash ?? null, graphHash: input.graphHash ?? null };
   }
@@ -163,7 +199,15 @@ export function createModelViewer(service, { buildData = buildViewerData, public
       // Scope checks and serialization must all succeed before any token is issued or evicted.
       for (const selection of [input, ...(input.additionalModels ?? [])]) {
         const snapshot = await prepareSnapshot(selection), key = selection.graphHash ? `graph:${selection.graphHash}` : `model:${selection.modelHash}`;
-        if (!revisions.has(key)) { prepared.push(snapshot); revisions.add(key); }
+        if (!revisions.has(key)) {
+          if (selection.mode === 'live') {
+            if (!snapshot.graphId) throw new Error('Live mode requires a stored model-bound graph identity.');
+            snapshot.live = { anchor: selection.graphHash, graphId: snapshot.graphId,
+              selection: { graphHash: selection.graphHash, accessScopes: [...selection.accessScopes], title: selection.title, mode: 'live' },
+              checkedAt: 0, pending: null, status: 'following' };
+          }
+          prepared.push(snapshot); revisions.add(key);
+        }
       }
       // An explicit graph of a life is richer than its model-only view. Keep it
       // (and its caller-supplied scopes/title) instead of making a duplicate.
@@ -179,10 +223,10 @@ export function createModelViewer(service, { buildData = buildViewerData, public
       prepared.forEach((snapshot, index) => snapshots.set(group[index], { ...snapshot, group }));
       while (snapshots.size > maximumSnapshots) snapshots.delete(snapshots.keys().next().value);
       const token = group[0], primary = prepared[0];
-      return { schema: 'meaning-model-viewer-open/v1', url: `${origin}/${token}/`, readOnly: true, mode: 'snapshot',
+      return { schema: 'meaning-model-viewer-open/v1', url: `${origin}/${token}/`, readOnly: true, mode: input.mode,
         modelHash: primary.modelHash, graphHash: primary.graphHash,
         ...(group.length > 1 ? { views: groupViews(token) } : {}),
-        instructions: 'Open this link in a browser on the same computer as the MCP server. It shows the selected revision without changing it. The model chooser includes the explicitly grouped revisions and current declared author/reader life models, using the declaring graph’s scopes. Ask to open the model again after making changes. Links last while this MCP process runs; the 16 most recently opened snapshots are kept.' };
+        instructions: `Open this link in a browser on the same computer as the MCP server. ${input.mode === 'live' ? 'It follows saved graph revisions and their bound model/prose, preserving reading context through page refreshes. Updates wait while you scroll or type. A fork pauses following; open the intended branch explicitly. Scopes never expand. Model-only life choices remain exact snapshots.' : 'It shows the exact selected revision. Reopen after changes, or use mode live with graphHash while authoring.'} The chooser includes the explicitly grouped revisions and declared author/reader lives. Links last while this MCP process runs; the 16 most recently opened views are kept.` };
     },
     async close() {
       closed = true;
@@ -198,7 +242,7 @@ export function registerViewerTools(server, service) {
   const viewer = createModelViewer(service);
   server.registerTool('life_model_viewer_open', {
     title: 'Open the model viewer',
-    description: 'Open a read-only local browser viewer of an exact model or model-bound graph revision. Use when the user asks to see, explore or read their model. The chooser automatically includes separate life models declared by current unsuperseded author_reader story records, using the declaring graph’s accessScopes. Optionally include additionalModels for other books or a richer graph of a declared life; identical revisions are deduplicated and the group is limited to 16 views. The viewer is bundled with this MCP; no separate download, run transcript or website account is required. This complete author view requires accessScopes for every scoped record in each selection, including declared lives; it refuses partial access. Return the local URL to the user. The browser must run on the MCP server computer. Reopen after changes to see the new revision.',
+    description: 'Open a read-only local browser viewer. When authoring or revising a story/model, use mode live with graphHash so the user sees saved graph revisions, bound model changes and prose without reopening the link. Live follows only an unambiguous descendant lineage, pauses at forks or insufficient scopes, and preserves reading context through guarded page refreshes; this is saved-revision following, not token streaming. mode snapshot (default) preserves the exact modelHash or graphHash. ModelHash-only live following is not supported. The chooser includes current declared author/reader life snapshots and optional additionalModels; each entry has its own complete accessScopes and mode. This complete author view refuses partial access and never widens scopes. It is bundled; no download or website account is required. Return the local URL, which runs on the same computer as the MCP server.',
     inputSchema: modelViewerSchema,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   }, async (input) => {

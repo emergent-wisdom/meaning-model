@@ -67,6 +67,23 @@ test('outgoing time and selected native records transfer before the next present
   assert.deepEqual(surfaces.temporal.activations.at(-1).state.time, surfaces.temporal.state.time);
 });
 
+test('live startup and view switches restore saved state before incoming renderer defaults can replace it', async () => {
+  const restored = { time: { mode: 'story', now: 1880 }, space: { frame: 2, frameKey: '["harbour","m"]' }, spaceCamera: { position: [1, 2, 3] } };
+  const activations = [];
+  const make = (initial) => ({ state: initial, getState() { return this.state; }, activate(view, state) { activations.push({ view, state }); this.state = { ...this.state, ...state }; } });
+  const space = make({ time: { mode: 'story', now: 0 }, space: { frame: 0 }, spaceCamera: { position: [9, 9, 9] } });
+  const temporal = make({ time: { mode: 'story', now: 1900 } });
+  const session = createViewerSession({ temporal: true, initialView: 'space', state: restored, mounts: { space: () => space, temporal: () => temporal } });
+  await session.setView('space');
+  assert.deepEqual(activations[0].state.time, restored.time);
+  assert.deepEqual(activations[0].state.spaceCamera, restored.spaceCamera);
+  assert.deepEqual(activations[0].state.space, restored.space);
+  space.state.time = { mode: 'story', now: 1885 };
+  assert.equal(session.snapshot().time.now, 1885, 'external capture reads the active cursor');
+  await session.setView('layers');
+  assert.equal(activations[1].state.time.now, 1885, 'incoming temporal defaults do not replace the outgoing cursor');
+});
+
 test('snapshots and presentation activation payloads cannot mutate the session state', async () => {
   const { session, surfaces } = fixture({ state: { selection: { kind: 'event', id: 'one' }, time: { at: 5 } } });
   const saved = session.snapshot(); saved.selection.id = 'outside'; saved.time.at = 99;

@@ -69,7 +69,7 @@ test('opening a part renders the whole manuscript including its root, and beginn
   const context = { data: { story: { units } }, document: {
     getElementById: (id) => elements[id],
     querySelector: (selector) => selector === '#reader .reader-head' ? { getBoundingClientRect: () => ({height: 84}) } : null,
-    createElement: (tag) => ({ tag, innerHTML: '', scrollIntoView() { this.scrolledIntoView = true; } }),
+    createElement: (tag) => ({ tag, dataset: {}, innerHTML: '', scrollIntoView() { this.scrolledIntoView = true; } }),
   }, storyParts: [{ n: 1, unit: units[1] }, { n: 2, unit: units[2] }], titleText: 'The whole book', inline: (text) => text,
   readerShown: 0, building: () => true, bornAt: () => 100, tau: 0 };
   context.storyRoots = context.storyParts;

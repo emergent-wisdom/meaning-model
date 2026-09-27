@@ -2,6 +2,7 @@
 // its dashed links show their order, never a route or an inferred position between observations.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { cameraState, restoreCamera, spaceFrameIdentity } from './live-viewer.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { proseUnit } from './inspector.js';
 import { createWalker } from './walk-controls.js';
@@ -58,7 +59,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   const reader = document.getElementById('reader');
   function renderStory() {
     const units = data.story?.units ?? [];
-    document.getElementById('reader-body').replaceChildren(...units.map((unit) => proseUnit(String(unit.text ?? ''))));
+    document.getElementById('reader-body').replaceChildren(...units.map((unit) => { const article = proseUnit(String(unit.text ?? '')); article.dataset.nodeId = unit.id; return article; }));
     document.getElementById('reader-status').textContent = 'Full story · Complete manuscript'; document.getElementById('reader-scroll').scrollTop = 0;
   }
   const ownAction = (id, action) => document.getElementById(id).addEventListener('click', () => { if (active) action(); }, { signal: abort.signal });
@@ -470,7 +471,8 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     coarse() { playing = false; focus = ''; personSelect.value = ''; const index = space.frames.findIndex((frame) => frame.lifeLocations.length); if (index >= 0 && index !== frameIndex) showFrame(index); overview = true; renderJourneys(); update(); resize(); fit(); },
     activate(_view, state) {
       active = true; controls.enabled = true;
-      if (state.space) { if (Number.isInteger(state.space.frame) && space.frames[state.space.frame] && state.space.frame !== frameIndex) showFrame(state.space.frame); t = state.space.time ?? t; focus = state.space.focus ?? focus; overview = state.space.overview ?? overview; personSelect.value = focus; }
+      const savedFrame = state.space?.frameKey ? space.frames.findIndex((frame) => spaceFrameIdentity(frame) === state.space.frameKey) : state.space?.frame;
+      if (state.space) { if (Number.isInteger(savedFrame) && space.frames[savedFrame] && savedFrame !== frameIndex) showFrame(savedFrame); t = state.space.time ?? t; focus = state.space.focus ?? focus; overview = state.space.overview ?? overview; personSelect.value = focus; }
       if (state.time?.mode === 'story' && Number.isFinite(state.time.now)) { t = viewerToSpaceTime(state.time.now, space.timeUnit); if (!state.space) overview = Boolean(state.time.atEnd); }
       const restored = resolveSpaceSelection(space.frames, connections, state.selection, frameIndex);
       if (selectedEvent && !(state.selection?.kind === 'event' && state.selection.id === selectedEvent.id)) selectedEvent = null;
@@ -480,11 +482,11 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
       else if (restored.object) select(restored.object, false);
       // A selection let go elsewhere, or one Space cannot show, leaves nothing open here.
       else { selectedEvent = null; select(null, false); }
-      renderJourneys(); update(); resize(); fit(); last = performance.now(); if (frameId === null) animate();
+      renderJourneys(); update(); resize(); fit(); if (savedFrame === frameIndex) restoreCamera(camera, controls, state.spaceCamera); last = performance.now(); if (frameId === null) animate();
     },
     deactivate() { active = false; controls.enabled = false; playing = false; walker.stop(); cancelAnimationFrame(frameId); frameId = null; },
     // Whole-life is a spatial presentation, not the temporal renderer's instruction to jump to its window end.
-    getState() { return { space: { frame: frameIndex, time: t, focus, overview }, time: { mode: 'story', now: spaceToViewerTime(t, space.timeUnit), atEnd: false } }; },
+    getState() { return { space: { frame: frameIndex, frameKey: spaceFrameIdentity(space.frames?.[frameIndex]), time: t, focus, overview }, time: { mode: 'story', now: spaceToViewerTime(t, space.timeUnit), atEnd: false }, spaceCamera: cameraState(camera, controls) }; },
     destroy() { alive = false; active = false; abort.abort(); cancelAnimationFrame(frameId); clear(); controls.dispose(); renderer.dispose(); sphere.dispose(); disc.dispose(); ring.dispose(); octa.dispose(); summary.remove(); },
   };
 }

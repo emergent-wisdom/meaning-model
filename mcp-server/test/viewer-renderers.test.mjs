@@ -114,6 +114,15 @@ try {
       period.click(); press(canvas, 1, 1, 2); const kept = !detail.hidden; press(canvas, 1, 1); run(1);
       report.letGo = { opened, toggled, kept, hidden: detail.hidden, last: selections.length ? selections.at(-1) : 'none' };
     }
+    if (frameCount > 1) {
+      frameSelect.value = '1'; frameSelect.dispatchEvent({ type: 'change', target: frameSelect });
+      const saved = view.getState(); saved.space.frame = 0; saved.spaceCamera.position = [11, 22, 33];
+      frameSelect.value = '0'; frameSelect.dispatchEvent({ type: 'change', target: frameSelect });
+      view.activate('space', saved);
+      report.restored = { frame: view.getState().space.frame, position: view.getState().spaceCamera.position };
+      view.activate('space', { ...saved, space: { ...saved.space, frameKey: 'removed-frame' }, spaceCamera: { ...saved.spaceCamera, position: [999, 999, 999] } });
+      report.removedFramePosition = view.getState().spaceCamera.position;
+    }
     report.state = view.getState(); report.summary = surface.querySelector('.space-summary')?.textContent?.slice(0, 200) ?? null;
     view.coarse?.(); run(1); view.recenter?.(); view.deactivate(); view.destroy();
   } else {
@@ -130,6 +139,13 @@ try {
       press(canvas, 1, 1, 2); const kept = !detail.hidden; press(canvas, 1, 1); run(1);
       report.letGo = { opened, kept, hidden: detail.hidden, last: selections.length ? selections.at(-1) : 'none' };
     }
+    const selectedEvent = data.inspection.model.meaning_model?.events?.[0];
+    if (selectedEvent) {
+      view.activate('graph', { selection: { kind: 'event', id: selectedEvent.id }, graph: { records: 'all', filter: 'referent' } });
+      report.crossViewFilter = view.getState().graph.filter;
+    }
+    view.activate('graph', { selection: null, graph: { records: 'all', filter: 'event', neighborsOnly: false, showEdges: false, rotating: false },
+      graphCamera: { position: [11, 22, 33], target: [0, 0, 0] } });
     report.state = view.getState(); report.summary = surface.querySelector('.graph-summary')?.textContent?.slice(0, 200) ?? null;
     view.recenter(); view.deactivate(); view.destroy();
   }
@@ -185,6 +201,9 @@ test('the Space renderer runs every frame, focus, play and selection without an 
   const drawn = render('space', data);
   assert.deepEqual(drawn.errors, []); assert.equal(drawn.frames, 2, 'geography and the authored room are separate frames');
   assert.deepEqual(drawn.letGo, { opened: true, toggled: true, kept: true, hidden: true, last: null }, 'a selection in Space can always be let go');
+  assert.equal(drawn.restored.frame, 1, 'a stable frame identity wins over its stale index');
+  assert.deepEqual(drawn.restored.position.map(Math.round), [11, 22, 33]);
+  assert.notDeepEqual(drawn.removedFramePosition, [999, 999, 999], 'a removed frame cannot restore its camera into another frame');
   const listed = render('space', plain);
   assert.deepEqual(listed.errors, []); assert.match(listed.summary ?? '', /No coordinates are declared/u);
 });
@@ -194,6 +213,9 @@ test('the Graph renderer runs its overview, every record and a restored selectio
   const drawn = render('graph', data);
   assert.deepEqual(drawn.errors, []); assert.equal(drawn.state.graph.records, 'all', 'selecting a Cut the overview holds opens every record');
   assert.deepEqual(drawn.letGo, { opened: true, kept: true, hidden: true, last: null }, 'a click on nothing lets the Graph selection go; a right click does not');
+  assert.equal(drawn.state.graph.filter, 'event'); assert.equal(drawn.state.graph.showEdges, false);
+  assert.equal(drawn.crossViewFilter, '', 'a restored type filter cannot hide an explicitly selected record from another view');
+  assert.deepEqual(drawn.state.graphCamera.position.map(Math.round), [11, 22, 33], 'the camera is restored after its graph layout and filters');
 });
 
 test('W A S D walk the Space and Graph cameras, stop on release and leave typing alone', () => {

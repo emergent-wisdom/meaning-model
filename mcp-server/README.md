@@ -33,15 +33,21 @@ or continuation, rather than another modeling workflow.
 
 With version 0.5.1, ask the connected assistant to **“Open this model.”**
 The core `life_model_viewer_open` tool accepts exactly one `modelHash` or
-`graphHash`, optional `title`, and `accessScopes`. It returns a local browser URL
-for an immutable, read-only snapshot. The viewer is bundled with the MCP package;
+`graphHash`, optional `title`, `accessScopes`, and `mode` (`snapshot` or `live`).
+It returns a local browser URL; the default is an immutable, read-only snapshot. The viewer is bundled with the MCP package;
 it needs no separate download, web hosting, call transcript or storytelling add-on.
 
 Use a graph hash to include its prose and construction record, or a model hash for
 the model alone. The graph must be model-bound. This complete author view refuses
 access unless all exported scoped records are accessible; it is not a filtered
-model projection. Open the updated revision through the MCP to inspect a new
-state; reloading an existing link retains its snapshot. The browser
+model projection. Ask **“Keep the viewer following as we work”** while writing.
+The assistant uses `mode: "live"` with `graphHash` to follow saved descendants,
+including their bound model and prose, through guarded page refreshes. The viewer
+retains the reading position, active view, record, time and camera; updates wait
+while you interact or play. It stops at a fork or insufficient access instead of
+choosing a branch or widening scopes. This follows saved revisions, not unfinished
+tokens. Model-only and default links remain exact snapshots. See the
+[live-view guide](viewer/README.md) for the refresh behavior. The browser
 must be on the MCP server's computer, and links expire when that process stops or
 when they fall outside its sixteen most recent snapshots.
 
@@ -65,8 +71,7 @@ focuses its connections; **Recenter** restores an overview. Positions are a grap
 layout, not time or measured values.
 
 When the graph contains prose, **Read full document** opens the complete manuscript.
-**Read this passage** opens that same document at a selected passage. **Back to
-graph** returns to exploration, and **Show this passage in the graph** locates its
+**Read this passage** opens that same document at a selected passage. **Close the story** returns to exploration, and **Show this passage in the graph** locates its
 record. Selecting a graph record does not open the reader automatically.
 
 The optional **Structure** view expands declared Event containment, process

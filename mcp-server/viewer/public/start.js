@@ -2,6 +2,7 @@ import { loadData } from './common.js';
 import { showInspector } from './inspector.js';
 import { mountModelPicker } from './model-picker.js';
 import { createViewerSession } from './viewer-session.js';
+import { takeLiveContext, mountLiveViewer } from './live-viewer.js';
 
 const labels = { together: 'Processes', layers: 'Tree', terrain: 'Terrain', graph: 'Graph', structure: 'Structure', space: 'Space' };
 const timeViews = new Set(['together', 'layers', 'terrain']);
@@ -9,7 +10,8 @@ const params = new URLSearchParams(location.search);
 let notice = null, data = null, dataName = null;
 try { ({ data, name: dataName } = await loadData(params)); } catch (error) { notice = `The model snapshot could not be opened: ${error.message}`; }
 const temporal = Boolean(data && (data.capabilities?.temporal ?? data.capabilities?.trajectories ?? data.viewKind === 'timeline'));
-const requested = params.get('view');
+const liveContext = data?.viewerLive?.mode === 'live' ? takeLiveContext() : null;
+const requested = liveContext?.state?.view ?? params.get('view');
 const initialView = !data ? 'structure' : labels[requested] ? requested : temporal ? data.capabilities?.trajectories ? 'together' : 'layers' : 'graph';
 
 for (const element of document.querySelectorAll('#scene, #stats, .caption, #strip, #labels2, #legend, #details, #tip, #qr-panel, #sub, #repos')) element.dataset.temporal = '';
@@ -70,7 +72,7 @@ function spaceParts() {
 let selection = null;
 try { const value = JSON.parse(params.get('record') ?? 'null'); if (value && typeof value.kind === 'string' && typeof value.id === 'string') selection = value; } catch { /* An invalid UI selection does not change the snapshot. */ }
 const session = createViewerSession({
-  temporal, initialView, state: { selection, timeView: params.get('timeView') },
+  temporal, initialView, state: { selection, timeView: params.get('timeView'), ...liveContext?.state },
   mounts: {
     temporal: async () => (await import('./view.js')).temporalController,
     graph: async () => {
@@ -147,3 +149,6 @@ addEventListener('keydown', (event) => {
 addEventListener('pagehide', (event) => { if (!event.persisted) session.destroy(); });
 await mountModelPicker();
 await switchView(initialView);
+const stopLive = mountLiveViewer({ data, getState: () => session.snapshot(), restored: liveContext });
+document.documentElement?.removeAttribute('data-live-reader-refresh');
+addEventListener('pagehide', (event) => { if (!event.persisted) stopLive(); });
