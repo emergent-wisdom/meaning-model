@@ -371,3 +371,84 @@ export function layoutModelGraph(graph, { radius = 120, iterations = 24 } = {}) 
   for (const point of positions) { point.x *= scale; point.y *= scale; point.z *= scale; }
   return new Map(nodes.map((node, i) => [node.id, positions[i]]));
 }
+
+// Where an attached record sits: beside a record it declares a link to, preferring the Event it is about, renders or
+// divides, then any Event, then any record in a containment tree.
+const ATTACH = ['cut', 'answer', 'about', 'renders', 'answers', 'lifecycle', 'process', 'observation_process', 'source', 'target'];
+
+/** A layout that shows declared structure: each containment tree (Event `contains` relations and narrative
+ * `contains` edges, one placement parent each, chosen by edge id) takes a sector of a disc in proportion to its size,
+ * deeper levels farther out, each ring given area in proportion to the records it holds; a record outside every tree
+ * sits beside the tree record it links to; records linked to no tree share one further sector. Position is still a
+ * layout: distance and angle carry no measured meaning. Deterministic, bounded by radius, O(V + E log E). */
+export function layoutStructured(graph, { radius = 120, spacing = 2.4 } = {}) {
+  const nodes = [...array(graph?.nodes)].sort((a, b) => compare(a.id, b.id)), ids = new Set(nodes.map((node) => node.id));
+  const edges = [...array(graph?.edges)].filter((edge) => ids.has(edge.source) && ids.has(edge.target) && edge.source !== edge.target).sort((a, b) => compare(a.id, b.id));
+  // One placement parent per record, the first containing edge; a cycle keeps the record a root.
+  const parent = new Map();
+  const reaches = (from, to) => { for (let at = from, hops = 0; at && hops < 4096; at = parent.get(at), hops += 1) if (at === to) return true; return false; };
+  for (const edge of edges) if (isContainment(edge) && !parent.has(edge.target) && !reaches(edge.source, edge.target)) parent.set(edge.target, edge.source);
+  const inTree = new Set([...parent.keys(), ...parent.values()]);
+  // Attach every other record beside the tree record it links to, by the most telling relation it has.
+  const rank = (edge) => { const i = ATTACH.indexOf(edge.relation); return i < 0 ? ATTACH.length : i; };
+  const links = new Map();
+  for (const edge of edges) for (const [self, other] of [[edge.source, edge.target], [edge.target, edge.source]]) {
+    if (inTree.has(self)) continue; if (!links.has(self)) links.set(self, []); links.get(self).push({ other, edge });
+  }
+  // Attachment may pass through another attached record (an answer beside its Cut beside its Event): repeat until settled.
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const node of nodes) {
+      if (inTree.has(node.id) || parent.has(node.id)) continue;
+      const choice = (links.get(node.id) ?? []).filter(({ other }) => inTree.has(other) || parent.has(other))
+        .sort((a, b) => rank(a.edge) - rank(b.edge) || compare(a.edge.id, b.edge.id))[0];
+      if (choice) { parent.set(node.id, choice.other); changed = true; }
+    }
+  }
+  // Records linked to no tree share one sector under a root that is not drawn.
+  const LOOSE = '\u0000loose';
+  const children = new Map([...nodes.map((node) => [node.id, []]), [LOOSE, []]]);
+  for (const node of nodes) {
+    if (parent.has(node.id)) children.get(parent.get(node.id)).push(node.id);
+    else if (!inTree.has(node.id)) { parent.set(node.id, LOOSE); children.get(LOOSE).push(node.id); }
+  }
+  const roots = [...nodes.map((node) => node.id).filter((id) => !parent.has(id)), ...(children.get(LOOSE).length ? [LOOSE] : [])];
+  const size = new Map();
+  for (const root of roots) {
+    const pending = [[root, false]];
+    while (pending.length) { const [at, done] = pending.pop(); if (done) { size.set(at, 1 + children.get(at).reduce((sum, child) => sum + size.get(child), 0)); continue; } pending.push([at, true]); for (const child of children.get(at)) pending.push([child, false]); }
+  }
+  const depth = new Map(), sector = new Map(), order = new Map();
+  const total = roots.reduce((sum, root) => sum + size.get(root), 0);
+  let start = 0;
+  for (const root of [...roots].sort((a, b) => (a === LOOSE) - (b === LOOSE) || size.get(b) - size.get(a) || compare(a, b))) {
+    const width = 2 * Math.PI * size.get(root) / (total || 1); sector.set(root, [start, start + width]); start += width; depth.set(root, root === LOOSE ? 0 : 0);
+    const pending = [root];
+    while (pending.length) {
+      const at = pending.pop(), [a0, a1] = sector.get(at); let cursor = a0;
+      const kids = [...children.get(at)].sort((a, b) => size.get(b) - size.get(a) || compare(a, b));
+      const span = size.get(at) - 1 || 1;
+      kids.forEach((child, i) => { const width2 = (a1 - a0) * size.get(child) / span; sector.set(child, [cursor, cursor + width2]); cursor += width2; depth.set(child, depth.get(at) + 1); order.set(child, { i, n: kids.length }); pending.push(child); });
+    }
+  }
+  // Each depth is a ring whose area follows how many records it holds, so the disc is used evenly.
+  const drawn = nodes.map((node) => node.id), perDepth = new Map();
+  for (const id of drawn) perDepth.set(depth.get(id), (perDepth.get(depth.get(id)) ?? 0) + 1);
+  const levels = [...perDepth.keys()].sort((a, b) => a - b), bands = new Map(); let before = 0;
+  for (const level of levels) { const count = perDepth.get(level); bands.set(level, [Math.sqrt(before / drawn.length), Math.sqrt((before + count) / drawn.length)]); before += count; }
+  const positions = new Map(), disc = radius * 0.94;
+  for (const id of drawn) {
+    const [a0, a1] = sector.get(id), angle = (a0 + a1) / 2, [b0, b1] = bands.get(depth.get(id));
+    // Many siblings in one sector take several sub-rings of their band instead of crowding one arc.
+    const { i = 0, n = 1 } = order.get(id) ?? {}, parentSector = sector.get(parent.get(id)) ?? [a0, a1];
+    const arc = Math.max(1e-6, (parentSector[1] - parentSector[0]) * disc * (b0 + b1) / 2), rows = Math.max(1, Math.min(6, Math.ceil(n * spacing / arc)));
+    const r = disc * (0.06 + 0.94 * (b0 + (b1 - b0) * ((i % rows) + 0.5) / rows));
+    const lift = ((depth.get(id) % 3) - 1) * disc * 0.03;
+    positions.set(id, { x: r * Math.cos(angle), y: lift, z: r * Math.sin(angle) });
+  }
+  return new Map(nodes.map((node) => [node.id, positions.get(node.id)]));
+}
+
+/** Whether a link is declared containment, the structure the layout follows. */
+export function isContainment(edge) { return edge?.relation === 'contains' && (edge.kind === 'event_relation' || edge.kind === 'narrative_edge'); }

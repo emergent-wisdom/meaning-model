@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
-import { buildModelGraph, overviewModelGraph, layoutModelGraph } from './model-graph.js';
+import { buildModelGraph, overviewModelGraph, layoutStructured, isContainment } from './model-graph.js';
 import { formatModelInterval } from './structure-model.js';
 import { proseUnit } from './inspector.js';
 
@@ -27,7 +27,7 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
   let mode = 'overview', graph = null, positions = null, nodeById = null, incident = null;
   function useGraph(next) {
     mode = next; graph = graphs[next];
-    if (!layouts.has(next)) layouts.set(next, layoutModelGraph(graph));
+    if (!layouts.has(next)) layouts.set(next, layoutStructured(graph));
     positions = layouts.get(next);
     nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
     incident = new Map(graph.nodes.map((node) => [node.id, []]));
@@ -43,7 +43,7 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
   const body = detail.querySelector('.details-body');
   const abort = new AbortController(); let active = false, alive = true, frameId = null;
   let selected = null, neighborsOnly = false, visibleNodes = [], visibleEdges = [], showEdges = true, rotating = false;
-  let mesh = null, lines = null, selectedLines = null, visibleIndex = [], labelItems = [], dirty = true;
+  let mesh = null, lines = null, otherLines = null, selectedLines = null, visibleIndex = [], labelItems = [], dirty = true;
   const button = (label, action, parent = tools) => { const node = element('button', label, 'tool'); node.type = 'button'; node.addEventListener('click', action); parent.append(node); return node; };
   const spinButton = button('Rotate', () => { rotating = !rotating; controls.autoRotate = rotating; spinButton.setAttribute('aria-pressed', String(rotating)); });
   spinButton.setAttribute('aria-pressed', 'false');
@@ -137,8 +137,11 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
       const c = new THREE.Color(focus ? '#fff0b8' : colorOf(node)); if (selected && !neighbors.has(node.id)) c.multiplyScalar(.35); mesh.setColorAt(i, c);
     }
     mesh.instanceMatrix.needsUpdate = true; if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true; group.add(mesh);
-    disposeLines(lines); disposeLines(selectedLines);
-    lines = edgeLines(showEdges ? visibleEdges.filter((edge) => edge.source !== selected && edge.target !== selected) : [], '#a3a4aa', selected ? .06 : .16);
+    disposeLines(lines); disposeLines(otherLines); disposeLines(selectedLines);
+    // Containment is the structure the layout follows, so it reads first; other links stay faint until selected.
+    const unselected = showEdges ? visibleEdges.filter((edge) => edge.source !== selected && edge.target !== selected) : [];
+    lines = edgeLines(unselected.filter(isContainment), '#b9c3d6', selected ? .1 : .34);
+    otherLines = edgeLines(unselected.filter((edge) => !isContainment(edge)), '#a3a4aa', selected ? .03 : .07);
     selectedLines = edgeLines(showEdges && selected ? visibleEdges.filter((edge) => edge.source === selected || edge.target === selected) : [], '#ffe6ae', .85);
     for (const item of labelItems) { group.remove(item.object); item.object.element.remove(); }
     labelItems = [];
@@ -159,7 +162,8 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
   function fit(ids = visibleNodes.map((node) => node.id)) {
     const bounds = new THREE.Box3(); for (const id of ids) bounds.expandByPoint(point(id));
     if (bounds.isEmpty()) bounds.set(new THREE.Vector3(-10, -10, -10), new THREE.Vector3(10, 10, 10));
-    const center = bounds.getCenter(new THREE.Vector3()), direction = new THREE.Vector3(.25, .2, 1).normalize();
+    // From above and to one side, so the disc of containment trees reads as sectors rather than edge-on.
+    const center = bounds.getCenter(new THREE.Vector3()), direction = new THREE.Vector3(.18, .82, .62).normalize();
     const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), direction).normalize(), up = new THREE.Vector3().crossVectors(direction, right);
     const vertical = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), horizontal = vertical * camera.aspect;
     let distance = 30;
@@ -307,6 +311,6 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
     },
     deactivate() { active = false; controls.enabled = false; cancelAnimationFrame(frameId); frameId = null; },
     getState() { return { graph: { filter: filter.value, neighborsOnly, showEdges, rotating, records: mode } }; },
-    destroy() { alive = false; active = false; abort.abort(); cancelAnimationFrame(frameId); controls.dispose(); renderer.dispose(); geometry.dispose(); material.dispose(); disposeLines(lines); disposeLines(selectedLines); css.remove(); },
+    destroy() { alive = false; active = false; abort.abort(); cancelAnimationFrame(frameId); controls.dispose(); renderer.dispose(); geometry.dispose(); material.dispose(); disposeLines(lines); disposeLines(otherLines); disposeLines(selectedLines); css.remove(); },
   };
 }

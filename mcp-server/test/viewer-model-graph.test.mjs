@@ -193,3 +193,28 @@ test('many disconnected nodes keep distinct bounded deterministic positions', ()
   assert.ok(points.every((point) => Math.hypot(point.x, point.y, point.z) <= 120 + 1e-10));
   assert.deepEqual(layoutModelGraph({ nodes: [...graph.nodes].reverse(), edges: [] }), positions);
 });
+
+test('the structural layout gives each containment tree its own sector, keeps notes beside their record and is deterministic', async () => {
+  const { layoutStructured, overviewModelGraph } = await import('../viewer/public/model-graph.js');
+  const events = ['world', 'ana.life', 'ana.work', 'ana.home', 'bo.life', 'bo.trip', 'story.root', 'story.part1', 'story.part2'].map((value) => event(value));
+  const inspection = { model: { meaning_model: { events,
+    event_relations: [edge('c1', 'world', 'ana.life'), edge('c2', 'ana.life', 'ana.work'), edge('c3', 'ana.life', 'ana.home'), edge('c4', 'world', 'bo.life'), edge('c5', 'bo.life', 'bo.trip'),
+      edge('c6', 'story.root', 'story.part1'), edge('c7', 'story.root', 'story.part2'), edge('cause', 'ana.work', 'bo.trip', 'causes')],
+    normalized_cuts: [{ id: 'q', parent_event_id: 'ana.work', unit: 'u', answers: [{ key: 'yes', weight: 0.6 }, { key: 'remainder', weight: 0.4 }] }],
+    concepts: [{ id: 'lonely-concept' }] } },
+    graph: { nodes: [{ id: 'note', text: 'A note about the work' }], edges: [{ id: 'about', source: nodeEndpoint('note'), target: endpoint('event', 'ana.work'), family: 'semantic', relation: 'about' }] } };
+  const graph = overviewModelGraph(buildModelGraph(inspection)), positions = layoutStructured(graph, { radius: 50 });
+  assert.equal(positions.size, graph.nodes.length);
+  for (const point of positions.values()) { assert.ok([point.x, point.y, point.z].every(Number.isFinite)); assert.ok(Math.hypot(point.x, point.y, point.z) <= 50 + 1e-9); }
+  const at = (kind, nativeId) => positions.get(id(kind, nativeId)), angle = (point) => Math.atan2(point.z, point.x), dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+  // Children lie farther out than their container, and the two trees do not interleave.
+  assert.ok(Math.hypot(at('event', 'ana.work').x, at('event', 'ana.work').z) > Math.hypot(at('event', 'ana.life').x, at('event', 'ana.life').z));
+  const world = ['world', 'ana.life', 'ana.work', 'ana.home', 'bo.life', 'bo.trip'].map((value) => angle(at('event', value)));
+  const story = ['story.root', 'story.part1', 'story.part2'].map((value) => angle(at('event', value)));
+  const within = (value, range) => value >= Math.min(...range) - 1e-9 && value <= Math.max(...range) + 1e-9;
+  assert.ok(story.every((value) => !within(value, world)) || world.every((value) => !within(value, story)), 'separate trees take separate sectors');
+  // The note sits beside the work it is about, nearer to it than to the other tree.
+  assert.ok(dist(at('narrative', 'note'), at('event', 'ana.work')) < dist(at('narrative', 'note'), at('event', 'story.part1')));
+  assert.deepEqual(layoutStructured({ nodes: [...graph.nodes].reverse(), edges: [...graph.edges].reverse() }, { radius: 50 }), positions, 'order of input does not move anything');
+  assert.equal(layoutStructured({ nodes: [], edges: [] }).size, 0);
+});
