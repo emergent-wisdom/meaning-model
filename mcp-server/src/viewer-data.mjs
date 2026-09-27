@@ -3,8 +3,10 @@
 import { indexModel, modeledPeople, readPerson, cutKind, eventDescendants } from './model-questions.mjs';
 import { readLenses } from './lenses.mjs';
 import { readPath } from '../viewer/measures.mjs';
-import { placeStoryUnits, countProseWords } from '../viewer/public/story-time.js';
+import { placeStoryUnits, countProseWords, buildStoryHierarchy } from '../viewer/public/story-time.js';
 import { projectDocument } from './document-projection.mjs';
+import { temporalWindow } from '../viewer/public/temporal-layout.js';
+import { projectNumerics } from './viewer-numerics.mjs';
 
 export async function buildViewerData({ history, rendered = null, calls = [], name = null, title: requestedTitle = null,
   display = null, meaningModelVersion = null, generatedAt = new Date().toISOString() } = {}) {
@@ -20,33 +22,6 @@ export async function buildViewerData({ history, rendered = null, calls = [], na
     for (const hash of JSON.stringify(entry.result ?? {}).match(HASH) ?? []) if (!hashAt.has(hash)) hashAt.set(hash, { at: entry.at, seq: entry.seq, tool: entry.command.name });
   }
   const firstCall = calls[0]?.at ?? null;
-
-  // ---- time ----------------------------------------------------------------------------------------------------------
-  const finalModelEntry = history.models.at(-1);
-
-
-  // ---- model births ---------------------------------------------------------------------------------------------------
-  const born = new Map(); // record key -> { rev, at }
-  const modelSteps = [];
-  let previous = { events: new Set(), cuts: new Set(), referents: new Set(), relations: new Set(), processes: new Set() };
-  history.models.forEach((entry, rev) => {
-    const mm = entry.definition.meaning_model ?? {};
-    const now = {
-      events: new Set((mm.events ?? []).map((item) => item.id)), cuts: new Set((mm.normalized_cuts ?? []).map((item) => item.id)),
-      referents: new Set((mm.referents ?? []).map((item) => item.id)), processes: new Set((entry.definition.processes ?? []).map((item) => item.id)),
-      relations: new Set((mm.event_relations ?? []).map((item) => item.id ?? `${item.source_event_id}>${item.kind}>${item.target_event_id}`)),
-    };
-    const at = hashAt.get(entry.modelHash)?.at ?? null;
-    const added = {};
-    for (const [collection, ids] of Object.entries(now)) {
-      added[collection] = [...ids].filter((id) => !previous[collection].has(id));
-      for (const id of added[collection]) if (!born.has(`${collection}:${id}`)) born.set(`${collection}:${id}`, { rev, at });
-    }
-    modelSteps.push({ rev, modelHash: entry.modelHash, at, reason: String(entry.definition.revision?.reason ?? '').slice(0, 280),
-      added: Object.fromEntries(Object.entries(added).map(([key, ids]) => [key, ids.length])),
-      totals: Object.fromEntries(Object.entries(now).map(([key, ids]) => [key, ids.size])) });
-    previous = now;
-  });
 
   // ---- graph replay ------------------------------------------------------------------------------------------------------
   const nodes = new Map(); const edges = new Map(); const graphSteps = [];
@@ -74,14 +49,49 @@ export async function buildViewerData({ history, rendered = null, calls = [], na
   });
 
   // The model the story graph is bound to at its head, else the newest one.
-  const selectedModelEntry = boundModel ? history.models.find((entry) => entry.modelHash === boundModel) : finalModelEntry;
+  const modelsByHash = new Map(history.models.map((entry) => [entry.modelHash, entry]));
+  const selectedModelEntry = boundModel ? modelsByHash.get(boundModel) : history.models.at(-1);
   if (!selectedModelEntry) throw new Error('The viewer history is missing the graph-bound model definition.');
+
+  // Portable history also carries independent author/reader lives and other
+  // declared model dependencies. Their revisions and local record IDs are not
+  // construction steps in the selected world. Follow only its exact ancestry;
+  // a model-only snapshot may contain just the available head definition.
+  const modelLineage = [], seenModels = new Set();
+  for (let entry = selectedModelEntry; entry && !seenModels.has(entry.modelHash); entry = modelsByHash.get(entry.definition.revision?.previous_model_hash)) {
+    modelLineage.push(entry); seenModels.add(entry.modelHash);
+  }
+  modelLineage.reverse();
+
+  // ---- model births ---------------------------------------------------------------------------------------------------
+  const born = new Map(); // record key -> { rev, at }
+  const modelSteps = [];
+  let previous = { events: new Set(), cuts: new Set(), referents: new Set(), relations: new Set(), processes: new Set() };
+  modelLineage.forEach((entry, rev) => {
+    const mm = entry.definition.meaning_model ?? {};
+    const now = {
+      events: new Set((mm.events ?? []).map((item) => item.id)), cuts: new Set((mm.normalized_cuts ?? []).map((item) => item.id)),
+      referents: new Set((mm.referents ?? []).map((item) => item.id)), processes: new Set((entry.definition.processes ?? []).map((item) => item.id)),
+      relations: new Set((mm.event_relations ?? []).map((item) => item.id ?? `${item.source_event_id}>${item.kind}>${item.target_event_id}`)),
+    };
+    const at = hashAt.get(entry.modelHash)?.at ?? null;
+    const added = {};
+    for (const [collection, ids] of Object.entries(now)) {
+      added[collection] = [...ids].filter((id) => !previous[collection].has(id));
+      for (const id of added[collection]) if (!born.has(`${collection}:${id}`)) born.set(`${collection}:${id}`, { rev, at });
+    }
+    modelSteps.push({ rev, modelHash: entry.modelHash, at, reason: String(entry.definition.revision?.reason ?? '').slice(0, 280),
+      added: Object.fromEntries(Object.entries(added).map(([key, ids]) => [key, ids.length])),
+      totals: Object.fromEntries(Object.entries(now).map(([key, ids]) => [key, ids.size])) });
+    previous = now;
+  });
+
   const model = selectedModelEntry.definition;
   const runName = name ?? history.graphId ?? model.id ?? 'model';
   const unit = String(model.time_unit ?? '');
   const calendarTime = unit === 'year' || unit === 'years' || unit.startsWith('civil_day_since_1970');
   const pathOf = (support) => calendarTime ? readPath(support) : [];
-  // Calendar scenes use decimal years. Other clocks retain their values and are shown in the inspector.
+  // Calendar trajectories use decimal years. Other clocks retain their native values in the graph.
   const toYear = (t) => (t === null || t === undefined ? null : unit.startsWith('civil_day_since_1970') ? 1970 + t / 365.2425 : unit.startsWith('year') ? t : t);
   const index = indexModel(model);
   const mm = model.meaning_model ?? {};
@@ -203,6 +213,7 @@ export async function buildViewerData({ history, rendered = null, calls = [], na
     if (/root|document|story$/.test(type) || node.role === 'document_root') return 'root';
     if (type.startsWith('storytelling.') || type.startsWith('story.')) return 'author';
     if (/review|assessment|depth/.test(type)) return 'review';
+    if (node.role === 'externalized_reflection') return 'thought';
     return 'other';
   };
   const textOf = (node) => {
@@ -278,17 +289,47 @@ export async function buildViewerData({ history, rendered = null, calls = [], na
   const innerRoots = new Map((mm.context_roots ?? []).filter((root) => root.kind === 'inner').map((root) => [root.event_id, [index.events.get(root.event_id)?.participants?.subject ?? null].flat()[0]]));
   const depthOf = new Map();
   { const queue = (mm.events ?? []).filter((event) => !index.parents.has(event.id)).map((event) => [event.id, 0]);
-    while (queue.length) { const [id, depth] = queue.shift(); if (depthOf.has(id)) continue; depthOf.set(id, depth); for (const child of index.children.get(id) ?? []) queue.push([child, depth + 1]); } }
+    for (let cursor = 0; cursor < queue.length; cursor += 1) { const [id, depth] = queue[cursor]; if (depthOf.has(id)) continue; depthOf.set(id, depth); for (const child of index.children.get(id) ?? []) queue.push([child, depth + 1]); } }
   const treeRoots = (mm.events ?? []).filter((event) => !index.parents.has(event.id)).map((event) => event.id);
   const arcIds = new Set([...index.arcsOf.values()].flat());
   const phaseOf = (id) => { const match = id.match(/^(.*)\.(anticipation|focal_change|adaptation)$/); return match && arcIds.has(match[1]) ? match[2] : null; };
   const ownerOf = (id) => { for (let at = id, hops = 0; at && hops < 64; at = parentOf(at), hops += 1) { if (lifeOf.has(at)) return lifeOf.get(at); if (innerRoots.has(at)) return innerRoots.get(at); } return null; };
   const reach = new Map();
   const reachOf = (id) => {
-    if (reach.has(id)) return reach.get(id); reach.set(id, null);
-    const event = index.events.get(id); let span = start(event) !== null ? [toYear(start(event)), toYear(end(event) ?? start(event))] : null;
-    if (!span) { const inside = (index.children.get(id) ?? []).map(reachOf).filter(Boolean); if (inside.length) span = [Math.min(...inside.map((s) => s[0])), Math.max(...inside.map((s) => s[1]))]; }
-    reach.set(id, span); return span;
+    // Explicit stack keeps arbitrary model containment from overflowing JS's
+    // call stack; the pending null also breaks cycles without inventing a date.
+    const pending = [[id, false]];
+    while (pending.length) {
+      const [at, complete] = pending.pop();
+      if (complete) {
+        let first = Infinity, last = -Infinity;
+        for (const child of index.children.get(at) ?? []) {
+          const span = reach.get(child);
+          if (span) { first = Math.min(first, span[0]); last = Math.max(last, span[1]); }
+        }
+        if (first !== Infinity) reach.set(at, [first, last]);
+      } else if (!reach.has(at)) {
+        const event = index.events.get(at);
+        const span = start(event) !== null ? [toYear(start(event)), toYear(end(event) ?? start(event))] : null;
+        reach.set(at, span);
+        if (!span) {
+          pending.push([at, true]);
+          for (const child of index.children.get(at) ?? []) if (!reach.has(child)) pending.push([child, false]);
+        }
+      }
+    }
+    return reach.get(id) ?? null;
+  };
+  const ancestorReach = new Map();
+  const reachAbove = (id) => {
+    const path = []; const seen = new Set(); let span = null;
+    for (let at = id; at && !seen.has(at); at = parentOf(at)) {
+      if (ancestorReach.has(at)) { span = ancestorReach.get(at); break; }
+      seen.add(at); path.push(at); span = reachOf(at);
+      if (span) break;
+    }
+    for (const at of path) ancestorReach.set(at, span);
+    return span;
   };
   for (const event of events) {
     const depth = depthOf.get(event.id) ?? 0; const span = event.span;
@@ -300,9 +341,10 @@ export async function buildViewerData({ history, rendered = null, calls = [], na
       : depth === 0 ? 'world' : lifeOf.has(event.id) ? 'life' : innerRoots.has(event.id) ? 'inner' : /\.is\.[a-z]+$/.test(event.id) ? 'slow' : arcIds.has(event.id) ? 'arc'
       : phaseOf(event.id) ? 'phase' : periodEvents.has(event.id) ? 'period' : depth === 1 ? 'development' : span !== null && span > 1 ? 'part' : 'moment';
     if (event.role === 'phase') event.phase = phaseOf(event.id);
-    let span2 = reachOf(event.id);
-    for (let at = event.parent; !span2 && at; at = parentOf(at)) span2 = reachOf(at);
+    const ownReach = reachOf(event.id); const parentReach = ownReach ? null : reachAbove(event.parent);
+    const span2 = ownReach ?? parentReach;
     event.reach = span2 ?? (extent ? [extent.start, extent.end] : null);
+    event.reachSource = Number.isFinite(event.start) ? 'recorded' : ownReach ? 'descendants' : parentReach ? 'ancestor' : extent ? 'model_extent' : 'unplaced';
   }
 
   // Every process with its place in the tree. A scaffold process (a life, its slow processes, a change arc and its phases)
@@ -378,12 +420,24 @@ export async function buildViewerData({ history, rendered = null, calls = [], na
     units: (rendered.units ?? []).map((unit) => ({ id: unit.node_id, type: unit.node_type ?? null, role: unit.role ?? null, title: unit.title ?? null, text: String(unit.text ?? ''), born: nodeBorn.get(unit.node_id) ?? null })) } : null;
   // Keep the render's reading order. A passage is placed in world time only by its declared renders links.
   if (story) story.units = placeStoryUnits(story.units, [...edges.values()], events);
+  if (story) story.hierarchy = buildStoryHierarchy({ units: story.units, nodes: [...nodes.values()].map((node) => ({ ...node, born: nodeBorn.get(node.id) ?? null })), edges: [...edges.values()], rootIds: rendered.roots, events });
+  if (story?.hierarchy.status === 'available') {
+    const pending = [...story.hierarchy.roots];
+    while (pending.length) {
+      const part = pending.pop(); pending.push(...part.children);
+      if (!part.children.length || nodes.get(part.unit.id)?.render !== 'exclude') continue;
+      const displayNode = graphNodes.find((node) => node.id === part.unit.id);
+      if (displayNode) { displayNode.text = `Document container with ${part.renderedUnitIds.length} current rendered passages. Its retained original text is excluded from the current render.`; displayNode.words = part.words; }
+    }
+  }
   const proseTimes = story?.units.flatMap((unit) => [unit.t, unit.end]).filter(Number.isFinite) ?? [];
   const storyWindow = proseTimes.length >= 2 ? { start: Math.min(...proseTimes), end: Math.max(...proseTimes) } : window;
   const storyTitle = story?.units.map((unit) => unit.text.match(/^#\s+(.+)$/m)?.[1]?.trim()).find(Boolean) ?? null;
   const storyWords = story ? story.units.reduce((sum, unit) => sum + countProseWords(unit.text), 0) : null;
   const documentProjection = rendered?.join_policy === 'blank_line' && rendered.roots?.length === 1
     ? projectDocument({ rendered, nodes: [...nodes.values()], edges: [...edges.values()], rootId: rendered.roots[0] }) : null;
+  const numerics = projectNumerics(model, { toDisplayTime: toYear });
+  for (const reading of numerics.cuts) { reading.eventId = reading.parentEventId; reading.born = birthOf('cuts', reading.id); }
   const data = {
     // The story's own title, from its document in the graph; else the chosen world's.
     schema: 'meaning-model-viewer/2', runFormat: null, meaningModel: meaningModelVersion, readingsPlaced: readingEvents.size > 0,
@@ -391,18 +445,25 @@ export async function buildViewerData({ history, rendered = null, calls = [], na
     contexts: (mm.context_roots ?? []).map((root) => ({ eventId: root.event_id, kind: root.kind, holder: rootHolder(root.event_id), label: clip(index.events.get(root.event_id)?.boundary, 160) })),
     timeUnit: unit, firstCall, lastCall: calls.at(-1)?.at ?? null, headGraphHash: history.headGraphHash ?? null, modelHash: selectedModelEntry.modelHash,
     window, extent, storyWindow, storyRoute, people, events, relations, draws, referents, processes, lenses,
-    graph: { nodes: graphNodes, edges: graphEdges }, story, documentProjection, measures, steps, toolCalls,
+    graph: { nodes: graphNodes, edges: graphEdges }, story, documentProjection, measures, numerics, steps, toolCalls,
     totals: { events: events.length, cuts: allCuts.length - withdrawn.size, people: people.length, lives: lives.length, thoughts: graphNodes.filter((node) => node.category === 'thought').length,
-      passages: graphNodes.filter((node) => node.category === 'passage').length, words: storyWords ?? graphNodes.reduce((sum, node) => sum + node.words, 0), modelRevisions: history.models.length, graphRevisions: history.revisions.length },
+      passages: graphNodes.filter((node) => node.category === 'passage').length, words: storyWords ?? graphNodes.reduce((sum, node) => sum + node.words, 0), modelRevisions: modelLineage.length, graphRevisions: history.revisions.length },
   };
 
-  // The calendar scene needs numeric paths. Other models remain fully inspectable without invented dates or values.
+  // Every complete model has a graph. Optional views require their own actual
+  // data; a manuscript is independent of numeric paths and construction time.
   const plottedTimes = measures.filter((measure) => measure.points.length >= 2).flatMap((measure) => measure.points.map((point) => point.t));
   const first = Number.isFinite(display?.from) ? display.from : Number.isFinite(storyWindow?.start) ? storyWindow.start - 0.4 : -Infinity;
   const viewStart = Math.max(Math.min(...plottedTimes), first); const viewEnd = Math.max(...plottedTimes) + 0.12;
-  const hasStory = story?.units.some((item) => item.role !== 'document_root' && item.text.trim());
-  data.viewKind = calendarTime && hasStory && Number.isFinite(viewStart) && Number.isFinite(viewEnd) && viewStart < viewEnd ? 'timeline' : 'inspector';
-  data.constructionTiming = steps.some((step) => Number.isFinite(Date.parse(step.at))) ? 'available' : 'unavailable';
-  data.inspection = structuredClone({ model, graph: { id: history.graphId ?? null, nodes: [...nodes.values()], edges: [...edges.values()] } });
+  data.viewKind = 'graph';
+  data.capabilities = {
+    graph: true,
+    temporal: Boolean(temporalWindow(data)),
+    trajectories: calendarTime && Number.isFinite(viewStart) && Number.isFinite(viewEnd) && viewStart < viewEnd,
+    story: story?.units.some((item) => countProseWords(item.text) > 0) ?? false,
+    construction: steps.some((step) => Number.isFinite(Date.parse(step.at))),
+  };
+  data.constructionTiming = data.capabilities.construction ? 'available' : 'unavailable';
+  data.inspection = structuredClone({ modelHash: selectedModelEntry.modelHash, model, graph: { id: history.graphId ?? null, nodes: [...nodes.values()], edges: [...edges.values()] } });
   return data;
 }

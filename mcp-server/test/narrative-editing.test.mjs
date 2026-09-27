@@ -4,14 +4,17 @@ import { LifeSimulationService } from '../src/service.mjs';
 import { editNarrativeGraph, narrativeEditSchema } from '../src/narrative-editing.mjs';
 import { checkProseDrift } from '../src/construction-record.mjs';
 import { checkRevision } from '../src/revision-check.mjs';
+import { noEventLinkDeclaration } from '../src/narrative-grounding.mjs';
 
 const provenance = ['native narrative editing integration test'];
+const noLinkReason = 'Structural fixture prose has no modeled Event depiction.';
 const endpoint = (nodeId) => ({ kind: 'node', node_id: nodeId });
 const scopes = ['author', 'secret'];
 const byId = (records, id) => records.find((record) => record.id === id);
 const leaf = (id, text) => ({ id, node_type: 'paragraph', role: 'story_passage', text,
   epistemic_status: 'fictional_canon', evidence_type: 'fictional_canon',
-  authority: { source: 'author', weight: 1 }, render: 'include', training: 'include', provenance });
+  authority: { source: 'author', weight: 1 }, render: 'include', training: 'include',
+  provenance: [...provenance, noEventLinkDeclaration(text, noLinkReason, 'fixture-author')] });
 const container = (id, role = 'metadata') => ({ id, node_type: 'section', role,
   epistemic_status: 'fictional_artifact', evidence_type: 'fictional_canon',
   render: 'exclude', training: 'exclude', provenance });
@@ -54,6 +57,12 @@ async function fixture(t, alter = () => {}, alterModel = () => {}) {
         family: 'grounding', relation: 'grounded_in', explanation: 'Keep this exact model reference.', provenance }],
   };
   alter(definition);
+  // Fixture variants can change plain prose before registration. Declare that
+  // final fixture text explicitly; production never renews an old declaration.
+  for (const node of definition.nodes) if (node.provenance?.some((item) => item.startsWith('meaning-model:no-event-link/v1:'))) {
+    node.provenance = node.provenance.filter((item) => !item.startsWith('meaning-model:no-event-link/v1:'));
+    node.provenance.push(noEventLinkDeclaration(node.text, noLinkReason, 'fixture-author'));
+  }
   const registered = await service.registerNarrativeGraph({ requestId: 'graph', narrativeGraph: definition });
   const read = (graphHash = registered.graphHash, accessScopes = scopes) => service.queryNarrativeGraph({
     graphHash, expectedGraphHash: graphHash, mode: 'full', includeContent: true, accessScopes });
@@ -61,7 +70,16 @@ async function fixture(t, alter = () => {}, alterModel = () => {}) {
     graphHash, expectedGraphHash: graphHash, rootIds: ['book'], accessScopes });
   const history = () => service.backend.call('list_narrative_revisions', { narrative_history: { graph_id: definition.id } });
   const input = (operations, overrides = {}) => ({ requestId: 'edit', graphHash: registered.graphHash,
-    accessScopes: scopes, reason: 'Make an explicit structural edit.', operations, ...overrides });
+    accessScopes: scopes, reason: 'Make an explicit structural edit.',
+    operations: operations.map((operation) => {
+      const originals = operation.nodeIds ?? [operation.nodeId];
+      const hasEventLinks = definition.edges.some((item) => originals.includes(item.source?.node_id)
+        && item.relation === 'renders' && item.target?.anchor_kind === 'event');
+      if (modelDefinition.meaning_model && (hasEventLinks || originals.every((id) => !byId(definition.nodes, id)))) return operation;
+      if (operation.kind === 'split') return { ...operation, parts: operation.parts.map((part) => ({ noLinkReason, ...part })) };
+      if (['merge', 'replace_text'].includes(operation.kind)) return { noLinkReason, ...operation };
+      return operation;
+    }), ...overrides });
   return { service, registered, model, definition, read, render, history, input };
 }
 
@@ -215,6 +233,7 @@ test('explicit split mappings preserve selected Event, process and incoming cogn
     .sort((a, b) => a.edgeId.localeCompare(b.edgeId)), assignments.toSorted((a, b) => a.edgeId.localeCompare(b.edgeId)));
   for (const assignment of split.semanticLinkAssignments) {
     const original = byId(before.edges, assignment.edgeId);
+    assert.equal(assignment.keptOriginal, true, 'omitting keepOriginal preserves the existing copy behavior');
     assert.deepEqual(byId(after.edges, assignment.edgeId), original, 'original testimony stays untouched');
     for (const [index, edgeId] of assignment.successorEdgeIds.entries()) {
       const copied = byId(after.edges, edgeId);
@@ -249,7 +268,7 @@ test('explicit split mappings preserve selected Event, process and incoming cogn
   const check = await checkRevision(f.service, { graphHash: revised.graphHash, fromModelHash: f.model.modelHash,
     toModelHash: changed.modelHash, accessScopes: scopes });
   assert.deepEqual(check.passages.map((item) => item.nodeId), ['p1.a'], 'only the selected successor depicts the changed Event');
-  assert.ok(!check.unlinkedPassages.nodeIds.some((id) => ['p1.a', 'p1.b'].includes(id)));
+  assert.ok(!(check.unlinkedPassages?.nodeIds ?? []).some((id) => ['p1.a', 'p1.b'].includes(id)));
 });
 
 test('merge can assign incoming and outgoing semantic links without broadening private placement', async (t) => {
@@ -274,19 +293,93 @@ test('merge can assign incoming and outgoing semantic links without broadening p
   assert.equal((await f.render(result.graphHash)).text, (await f.render()).text);
 });
 
-test('omitted link mappings remain unresolved while an explicit empty mapping retains history only', async (t) => {
+test('omitted link mappings remain unresolved while an explicit empty mapping keeps the current parent link', async (t) => {
   const f = await fixture(t);
   const split = { kind: 'split', nodeId: 'p1', parts: [{ id: 'p1.a', text: 'First.' }, { id: 'p1.b', text: 'Second.' }] };
   const omitted = await editNarrativeGraph(f.service, f.input([split]));
   assert.deepEqual(omitted.unresolvedSemanticLinks.map(({ edgeId, reason, successorNodeIds }) => ({ edgeId, reason, successorNodeIds })),
     [{ edgeId: 'p1.anchor', reason: 'unassigned', successorNodeIds: ['p1.a', 'p1.b'] }]);
   assert.deepEqual(omitted.semanticLinkAssignments, []);
-  assert.match(omitted.semanticLinksNextStep, /historical originals/);
+  assert.match(omitted.semanticLinksNextStep, /current containers after a split/);
   const intentional = await editNarrativeGraph(f.service, f.input([{ ...split, linkAssignments: [{ edgeId: 'p1.anchor', successorNodeIds: [] }] }], { requestId: 'intentional' }));
   assert.deepEqual(intentional.unresolvedSemanticLinks, []);
   assert.equal(intentional.semanticLinkReassignment, false);
   assert.deepEqual(intentional.semanticLinkAssignments[0].successorEdgeIds, []);
-  assert.ok((await f.read(intentional.graphHash)).edges.some((edge) => edge.id === 'p1.anchor'), '[] never deletes historical evidence');
+  assert.equal(intentional.semanticLinkAssignments[0].keptOriginal, true);
+  assert.ok((await f.read(intentional.graphHash)).edges.some((edge) => edge.id === 'p1.anchor'), '[] keeps the connection on the current parent');
+});
+
+test('explicit link moves preserve predecessor evidence and support repeated nested splits with links kept at either level', async (t) => {
+  const originalText = 'First.\n\nSecond.\n\nThird detail.';
+  const f = await fixture(t, (graph) => {
+    byId(graph.nodes, 'p1').text = originalText;
+    graph.edges.push(edge('p1.explains', 'p1', 'q1', 'explains', undefined, ['author']),
+      edge('review.interprets.p1', 'review.scene', 'p1', 'interprets', undefined, ['author']));
+  });
+  const before = await f.read();
+  const renderedBefore = (await f.render()).text;
+  const input = f.input([{ kind: 'split', nodeId: 'p1',
+    parts: [{ id: 'p1.a', text: 'First.' }, { id: 'p1.b', text: 'Second.\n\nThird detail.' }],
+    linkAssignments: [
+      { edgeId: 'p1.anchor', successorNodeIds: [], keepOriginal: true },
+      { edgeId: 'p1.explains', successorNodeIds: ['p1.b'], keepOriginal: false },
+      { edgeId: 'review.interprets.p1', successorNodeIds: ['p1.b'], keepOriginal: false },
+    ] }]);
+  const first = await editNarrativeGraph(f.service, input);
+  const afterFirst = await f.read(first.graphHash);
+  assert.deepEqual(first.unresolvedSemanticLinks, []);
+  const moved = first.semanticLinkAssignments.filter((assignment) => !assignment.keptOriginal);
+  assert.equal(moved.length, 2);
+  for (const assignment of moved) {
+    const original = byId(before.edges, assignment.edgeId);
+    const replacement = byId(afterFirst.edges, assignment.successorEdgeIds[0]);
+    assert.equal(byId(afterFirst.edges, assignment.edgeId), undefined, 'the current graph has only the selected replacement');
+    assert.ok(first.changedEdgeIds.includes(assignment.edgeId), 'the receipt includes removed original edge IDs');
+    assert.equal(replacement[assignment.editedEndpoints[0]].node_id, 'p1.b');
+    for (const field of ['family', 'relation', 'explanation', 'access_scopes']) assert.deepEqual(replacement[field], original[field]);
+    const otherSide = assignment.editedEndpoints[0] === 'source' ? 'target' : 'source';
+    assert.deepEqual(replacement[otherSide], original[otherSide]);
+    assert.ok(original.provenance.every((item) => replacement.provenance.includes(item)));
+    assert.ok(replacement.provenance.includes(`link-assignment:${original.id}`));
+  }
+  assert.deepEqual(byId(afterFirst.edges, 'p1.anchor'), byId(before.edges, 'p1.anchor'));
+  assert.equal((await f.render(first.graphHash)).text, renderedBefore);
+  assert.deepEqual(await f.read(), before, 'moving links leaves the immutable predecessor intact');
+  assert.deepEqual(await editNarrativeGraph(f.service, input), first, 'link moves are idempotent');
+  const publicView = await f.read(first.graphHash, []);
+  assert.ok(moved.every((assignment) => !byId(publicView.edges, assignment.successorEdgeIds[0])), 'moves preserve private scopes');
+
+  const outgoingId = moved.find((assignment) => assignment.edgeId === 'p1.explains').successorEdgeIds[0];
+  const incomingId = moved.find((assignment) => assignment.edgeId === 'review.interprets.p1').successorEdgeIds[0];
+  const second = await editNarrativeGraph(f.service, f.input([{ kind: 'split', nodeId: 'p1.b',
+    parts: [{ id: 'p1.b.i', text: 'Second.' }, { id: 'p1.b.ii', text: 'Third detail.' }],
+    linkAssignments: [{ edgeId: outgoingId, successorNodeIds: ['p1.b.i'], keepOriginal: false }],
+  }], { requestId: 'nested-split', graphHash: first.graphHash }));
+  const afterSecond = await f.read(second.graphHash);
+  assert.equal(byId(afterSecond.nodes, 'p1').text, originalText);
+  assert.equal(byId(afterSecond.nodes, 'p1.b').text, 'Second.\n\nThird detail.');
+  for (const nodeId of ['p1', 'p1.b']) assert.equal(byId(afterSecond.nodes, nodeId).render, 'exclude');
+  for (const nodeId of ['p1.a', 'p1.b.i', 'p1.b.ii']) assert.equal(byId(afterSecond.nodes, nodeId).render, 'include');
+  assert.ok(afterSecond.edges.some((item) => item.relation === 'contains' && item.source.node_id === 'p1' && item.target.node_id === 'p1.b'));
+  assert.ok(afterSecond.edges.some((item) => item.relation === 'contains' && item.source.node_id === 'p1.b' && item.target.node_id === 'p1.b.i'));
+  assert.deepEqual(byId(afterSecond.edges, 'p1.anchor'), byId(before.edges, 'p1.anchor'));
+  assert.deepEqual(byId(afterSecond.edges, incomingId), byId(afterFirst.edges, incomingId), 'an omitted incoming link stays on the nested parent');
+  assert.deepEqual(second.unresolvedSemanticLinks.map((item) => item.edgeId), [incomingId]);
+  assert.equal(byId(afterSecond.edges, outgoingId), undefined);
+  const nestedOutgoing = byId(afterSecond.edges, second.semanticLinkAssignments[0].successorEdgeIds[0]);
+  assert.equal(nestedOutgoing.source.node_id, 'p1.b.i');
+  assert.equal((await f.render(second.graphHash)).text, renderedBefore, 'retained parent text is not rendered twice');
+  assert.deepEqual(await f.read(first.graphHash), afterFirst);
+
+  const extended = await editNarrativeGraph(f.service, f.input([
+    { kind: 'replace_text', nodeId: 'p1.b.i', expectedText: 'Second.', text: 'Second, with more detail.' },
+    { kind: 'reorder', parentNodeId: 'p1.b', nodeIds: ['p1.b.ii', 'p1.b.i'] },
+  ], { requestId: 'grow-and-reorder-nested-part', graphHash: second.graphHash }));
+  const afterExtended = await f.read(extended.graphHash);
+  assert.equal((await f.render(extended.graphHash)).text,
+    renderedBefore.replace('Second.\n\nThird detail.', 'Third detail.\n\nSecond, with more detail.'));
+  for (const edgeId of ['p1.anchor', incomingId, nestedOutgoing.id]) assert.deepEqual(byId(afterExtended.edges, edgeId), byId(afterSecond.edges, edgeId));
+  assert.equal((await f.render()).text, renderedBefore);
 });
 
 test('invalid mappings cannot partly edit the graph or assign unrelated, structural, or lineage edges', async (t) => {
@@ -300,6 +393,7 @@ test('invalid mappings cannot partly edit the graph or assign unrelated, structu
     [{ ...mapping, edgeId: 'one.p1' }], [{ ...mapping, edgeId: 'p1.lineage' }],
     [mapping, mapping], [{ ...mapping, successorNodeIds: ['p1.a', 'p1.a'] }],
     [{ ...mapping, successorNodeIds: ['p2'] }], [{ ...mapping, successorNodeIds: ['p1'] }],
+    [{ ...mapping, successorNodeIds: [], keepOriginal: false }],
   ];
   for (const linkAssignments of invalid) await assert.rejects(editNarrativeGraph(f.service, f.input([
     { kind: 'replace_text', nodeId: 'q1', expectedText: 'Elsewhere.', text: 'Must not be stored.' },

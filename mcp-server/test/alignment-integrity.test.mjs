@@ -27,6 +27,8 @@ test('audit preserves evidence audiences, distinct disclosure questions and exac
   const fact = graph.nodes.find((node) => node.role === 'metadata');
   fact.access_scopes = ['secret'];
   root.text = '# The offer\n\nSomeone offered to buy the bakery.';
+  const renders = (nodeId) => ({ id: `${nodeId}.renders.offer`, source: { kind: 'node', node_id: nodeId }, target: { kind: 'anchor', anchor_kind: 'event', anchor_id: 'event.offer' }, family: 'grounding', relation: 'renders', provenance: ['audit-integrity'] });
+  graph.edges.push(renders(root.id));
   const registered = await service.registerNarrativeGraph(request);
   let calls = 0;
   const seen = [];
@@ -38,7 +40,7 @@ test('audit preserves evidence audiences, distinct disclosure questions and exac
   const passage = { ...root, id: 'whole', role: 'story_passage', node_type: 'passage', text: 'Someone offered to buy the bakery.' };
   const batch = await service.applyNarrativeBatch({ requestId: 'audit-integrity-passage', previousGraphHash: registered.graphHash, narrativeBatch: {
     schema: 'life-sim-rust-narrative-batch/v1', previous_graph_hash: registered.graphHash, reason: 'Test passage.', provenance: ['audit-integrity'], add_roots: [], add_nodes: [passage],
-    add_edges: [{ id: 'passage.placement', source: { kind: 'node', node_id: root.id }, target: { kind: 'node', node_id: passage.id }, family: 'structural', relation: 'contains', order: 0, access_scopes: [], provenance: ['audit-integrity'] }],
+    add_edges: [renders(passage.id), { id: 'passage.placement', source: { kind: 'node', node_id: root.id }, target: { kind: 'node', node_id: passage.id }, family: 'structural', relation: 'contains', order: 0, access_scopes: [], provenance: ['audit-integrity'] }],
   } });
   const input = { graphHash: batch.graphHash, rootId: root.id, accessScopes: ['public', 'secret'], recordNodeIds: [fact.id], chunk: 'both', withheld: [
     { nodeId: fact.id, audience: 'reader' }, { nodeId: fact.id, audience: 'viewpoint', viewpoint: 'Ada' }, { nodeId: fact.id, audience: 'viewpoint', viewpoint: 'Ben' },

@@ -284,3 +284,27 @@ test('it is not a strict workflow: a scene can be prepared before any world stag
   assert.ok(packet.world.questions.some((item) => item.kind === 'world-stage-missing' && /in any order/.test(item.question)));
   assert.ok(packet.model.forThisScene.some((item) => item.kind === 'direction-missing'));
 });
+
+test('scene questions preserve established outcomes and offer draws only for delegated open choices', async () => {
+  const f = fixture();
+  const quiet = await f.addon.prepare(f.preparation);
+  const noCut = quiet.model.forThisScene.find((item) => item.kind === 'part-without-choice');
+  assert.ok(noCut);
+  assert.match(noCut.question, /A part may contain no choice/);
+  assert.match(noCut.question, /recorded draw are optional/);
+  assert.deepEqual(quiet.blockers, []);
+
+  f.service.model.meaning_model.events[0].description = 'Leo already chose to take the key. This accepted outcome is established canon.';
+  f.service.model.meaning_model.normalized_cuts.push({ id: 'cut.route.choice', parent_event_id: 'ev.route',
+    question: 'Which continuation receives his decision weight?', unit: 'decision allocation',
+    answers: [{ key: 'take', weight: 0.6 }, { key: 'leave', weight: 0.3 }, { key: 'remainder', weight: 0.1 }] });
+  const prepared = await f.addon.prepare(f.preparation);
+  const undrawn = prepared.model.forThisScene.find((item) => item.kind === 'decision-undrawn' && item.subject === 'cut.route.choice');
+  assert.ok(undrawn);
+  assert.match(undrawn.question, /absent draw receipt does not make an accepted or observed outcome undecided/);
+  assert.match(undrawn.question, /still-open fictional choice.*delegated uncertainty/);
+  assert.match(undrawn.question, /Sampling is optional/);
+  assert.match(undrawn.tool, /optional life_direction_draw/);
+  assert.deepEqual(prepared.blockers, []);
+  assert.equal(f.calls.length, 0);
+});

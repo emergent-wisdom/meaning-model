@@ -1,0 +1,44 @@
+.graph-mode [hidden] { display: none !important; }
+.graph-mode .repos { display: none; }
+.graph-mode .side { width: min(450px, 44vw); }
+.graph-mode .tools { justify-content: flex-end; }
+.graph-mode .details { width: 100%; max-height: calc(100vh - 250px); }
+.graph-mode .details pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.5 ui-monospace, monospace; max-height: 280px; overflow: auto; }
+.graph-mode .details .v, .graph-mode .details p { overflow-wrap: anywhere; }
+.graph-mode .details summary { cursor: pointer; margin: 12px 0 6px; color: var(--ink); }
+.graph-mode .graph-control { height: 32px; background: var(--panel); border: 0; box-shadow: 0 0 0 1px var(--ring) inset; border-radius: 9px; color: var(--ink); padding: 0 9px; font: inherit; font-size: 13px; min-width: 0; }
+.graph-mode .graph-control::placeholder { color: var(--muted); }
+.graph-mode .graph-control option { background: #151517; color: var(--ink); }
+.graph-mode #graph-controls .tool[aria-pressed="true"] { background: rgba(159, 195, 255, .24); box-shadow: 0 0 0 1px rgba(159, 195, 255, .45) inset; }
+.graph-mode .graph-search { display: flex; gap: 6px; flex: 1 1 100%; }
+.graph-mode .graph-search input { flex: 1; width: 0; }
+.graph-mode .graph-filter { max-width: 190px; }
+.graph-mode .graph-results { width: 100%; max-height: min(230px, 30vh); overflow: auto; padding: 6px 0; color: var(--ink-2); scrollbar-width: thin; }
+.graph-result, .graph-neighbor { display: block; width: 100%; text-align: left; padding: 8px 10px; margin: 4px 0; color: var(--ink); background: rgba(255, 255, 255, .06); border: 0; border-radius: 7px; font: inherit; line-height: 1.4; cursor: pointer; overflow-wrap: anywhere; }
+.graph-neighbor small { display: block; color: var(--muted); margin-bottom: 4px; }
+.graph-result:hover, .graph-neighbor:hover { background: rgba(255, 255, 255, .12); }
+.graph-mode button:focus-visible, .graph-mode a:focus-visible, .graph-mode input:focus-visible, .graph-mode select:focus-visible { outline: 2px solid #ffe6ae; outline-offset: 3px; }
+.graph-mode .graph-summary { position: fixed; bottom: 18px; left: 28px; right: 28px; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; color: var(--ink-2); background: var(--panel); padding: 12px 14px; box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); border-radius: 12px; font-size: 12px; pointer-events: none; }
+.graph-mode .graph-summary strong { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.graph-mode .graph-key { display: flex; flex-wrap: wrap; gap: 5px 13px; flex: 1 1 100%; }
+.graph-mode .graph-key span { display: inline-flex; gap: 5px; align-items: center; }
+.graph-mode .graph-key i { height: 7px; width: 7px; border-radius: 50%; }
+.graph-mode .graph-label { font-size: 12px; color: var(--ink-2); max-width: 240px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 3px 6px; background: rgba(5, 6, 8, .75); text-shadow: 0 0 6px #000, 0 0 2px #000; border-radius: 6px; pointer-events: none; }
+.graph-mode .graph-label.selected { box-shadow: 0 0 0 1px #ffe6ae inset; color: #fff3dc; }
+.graph-mode .graph-empty { position: fixed; top: 45%; left: 20%; right: 20%; text-align: center; color: var(--ink-2); pointer-events: none; }
+.graph-mode .reader { z-index: 10; }
+.graph-mode .reader .source { margin-bottom: 24px; }
+.graph-mode .reader article { scroll-margin-top: 130px; }
+.graph-mode .reader article p { overflow-wrap: anywhere; }
+.graph-mode .reader .graph-reveal { font: 12px system-ui,sans-serif; margin: 12px 0; background: var(--panel); color: var(--ink); border: 0; box-shadow: 0 0 0 1px var(--ring) inset; border-radius: 9px; padding: 7px 10px; cursor: pointer; }
+.graph-mode .reader .graph-reveal:hover { background: rgba(40, 40, 44, .9); }
+@media (max-width: 760px) {
+  .graph-mode .side { width: auto; }
+  .graph-mode .tools { justify-content: flex-start; }
+  .graph-mode .details { position: fixed; bottom: 12px; left: 16px; right: 16px; width: auto; height: 28vh; max-height: 28vh; margin: 0; }
+  .graph-mode .graph-summary { left: 12px; right: 12px; bottom: 12px; padding: 8px 10px; font-size: 11px; gap: 5px 10px; }
+  .graph-mode .graph-key { max-height: 43px; overflow: hidden; }
+  .graph-mode.graph-selection .graph-summary { bottom: calc(28vh + 24px); }
+  .graph-mode.graph-selection .graph-summary > span, .graph-mode.graph-selection .graph-key { display: none; }
+  .graph-mode .graph-filter { max-width: 170px; }
+}

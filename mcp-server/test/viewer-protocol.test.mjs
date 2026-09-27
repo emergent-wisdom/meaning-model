@@ -31,7 +31,7 @@ test('the MCP opens a complete browser snapshot from its own model and graph', a
   const html = await fetch(opened.url);
   assert.equal(html.status, 200);
   assert.match(await html.text(), /start\.js/);
-  for (const path of ['start.js', 'inspector.js', 'inspector.css', 'vendor/three/three.module.js']) {
+  for (const path of ['start.js', 'model-picker.js', 'temporal-layout.js', 'graph-view.js', 'graph-view.css', 'model-graph.js', 'inspector.js', 'inspector.css', 'vendor/three/three.module.js']) {
     const response = await fetch(new URL(path, opened.url));
     assert.equal(response.status, 200, path);
     assert.ok((await response.text()).length > 0, path);
@@ -39,7 +39,9 @@ test('the MCP opens a complete browser snapshot from its own model and graph', a
   const index = await (await fetch(new URL('data/index.json', opened.url))).json();
   assert.equal(index.default, 'model');
   const data = await (await fetch(new URL('data/model.json', opened.url))).json();
-  assert.equal(data.viewKind, 'inspector');
+  assert.equal(data.viewKind, 'graph');
+  assert.equal(data.capabilities.graph, true);
+  assert.equal(data.capabilities.trajectories, false);
   assert.equal(data.timeUnit, 'hour');
   assert.equal(data.modelHash, registered.modelHash);
   assert.equal(data.inspection.model.processes[0].initial_value.value, 1650000);
@@ -49,13 +51,26 @@ test('the MCP opens a complete browser snapshot from its own model and graph', a
   const graph = structuredClone(graphRequest.narrativeGraph);
   graph.source.model_hash = registered.modelHash;
   const stored = await call('life_narrative_register', { ...graphRequest, narrativeGraph: graph });
-  const story = await call('life_model_viewer_open', { graphHash: stored.graphHash, accessScopes: ['author'] });
+  const story = await call('life_model_viewer_open', { graphHash: stored.graphHash, accessScopes: ['author'],
+    additionalModels: [{ modelHash: registered.modelHash, title: 'Model without prose' }] });
   const storyData = await (await fetch(new URL('data/model.json', story.url))).json();
   assert.equal(storyData.headGraphHash, stored.graphHash);
   assert.equal(storyData.modelHash, registered.modelHash);
   assert.ok(storyData.inspection.graph.nodes.some((node) => node.id === 'story'));
   assert.ok(storyData.inspection.graph.edges.length > 0);
   assert.notEqual(opened.url, story.url);
+  assert.equal(story.views.length, 2);
+  assert.equal(story.views[0].graphHash, stored.graphHash);
+  assert.equal(story.views[0].selected, true);
+  assert.equal(story.views[1].modelHash, registered.modelHash);
+  assert.equal(story.views[1].graphHash, null);
+  assert.equal(story.views[1].selected, false);
+  assert.deepEqual(await (await fetch(new URL('data/views.json', story.url))).json(), story.views);
+  const sibling = await (await fetch(new URL('data/model.json', story.views[1].url))).json();
+  assert.deepEqual(sibling.inspection.model, inspected.model);
+  const unrelated = await (await fetch(new URL('data/views.json', opened.url))).json();
+  assert.equal(unrelated.length, 1);
+  assert.equal(unrelated[0].url, opened.url);
 
   await client.close();
   await assert.rejects(fetch(story.url), /fetch failed/);

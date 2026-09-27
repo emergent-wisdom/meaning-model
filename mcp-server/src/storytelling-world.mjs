@@ -110,9 +110,9 @@ const openingStage = z.object({
     livingPeople: text(4, 4_000).nullable().default(null).describe('The living people and real organizations the story would otherwise touch, and the invented people and companies that take their place; the real world stays in the background.'),
   }).strict().nullable().default(null).describe('Optional: the era, whether it is real, and if so what is documented and what is invented.'),
 }).strict();
-export const partsWithoutChoiceQuestion = (parts, total) => `${parts.length} of ${total} parts hold no decision the model draws (${parts.join(', ')}). Who chooses in each, between what, and why? Model the choices from the people's state at those moments, contain them in the part's Events, and draw them, so each part is caused by a choice as well as by what happens.`;
+export const partsWithoutChoiceQuestion = (parts, total) => `${parts.length} of ${total} parts have no recognized decision Cut (${parts.join(', ')}). Read their Events and descriptions: choices may already be recorded there. Where a choice matters, what does the person choose, between which alternatives, and why? Preserve accepted or observed outcomes and refine any missing causal account. A part may contain no choice; quiet continuity, atmosphere or consequences can be sufficient. For a still-open fictional choice with a meaningful quantitative question and delegated uncertainty, a decision Cut and recorded draw are optional ways to explore what happens next.`;
 
-// The route as the model sees it: parts in which nobody chooses, principals with no shock inside the story's time, the
+// The route as the model sees it: parts without a recognized decision Cut, principals with no shock inside the story's time, the
 // largest jumps it leaves out without saying why, and aspects still open. Questions, not gates.
 export function routeQuestions(model, route, { openAspects = [] } = {}) {
   if (!model || !route?.parts?.length) return [];
@@ -123,7 +123,7 @@ export function routeQuestions(model, route, { openAspects = [] } = {}) {
     const events = inside(part);
     return !index.cuts.some((cut) => cutKind(cut) === 'decision' && events.has(cut.parent_event_id));
   }).map((part) => part.id);
-  if (withoutChoice.length) questions.push({ kind: 'parts-without-choice', parts: withoutChoice, tool: 'life_model_revise, then life_direction_draw (record)', question: partsWithoutChoiceQuestion(withoutChoice, route.parts.length) });
+  if (withoutChoice.length) questions.push({ kind: 'parts-without-choice', parts: withoutChoice, tool: 'life_meaning_query or life_model_revise; optional life_direction_draw (record)', question: partsWithoutChoiceQuestion(withoutChoice, route.parts.length) });
   // Decisions withdrawn after the route was recorded leave it rendering a chain the model no longer holds.
   const rendered = new Set(route.parts.flatMap((part) => [...inside(part)]));
   const withdrawn = (model.meaning_model?.normalized_cuts ?? []).filter((cut) => cut.withdrawn && rendered.has(cut.parent_event_id));
@@ -192,7 +192,7 @@ const aspectsStage = z.object({
     aspect: text(10, 2_000).describe('Where the element lives in this story: whose flaw, which choice, which object, which institution.'),
     category: text(2, 200).optional().describe('For kind other: your own name for this element, a category no list names.'),
     why: text(10, 2_000).optional().describe('For kind other: why it makes this story interesting.'),
-    how: text(10, 4_000).describe('How to investigate it by modeling: create new processes, refine existing ones, open sub-processes, add earlier Events that explain or later Events that follow (a childhood, a war a century back, a consequence years on), add Cuts and estimate them, draw decisions, name the concepts and laws things instantiate, model how Things work and where everything is, try another decomposition, sample trajectories.'),
+    how: text(10, 4_000).describe('Choose useful investigation: create or refine processes, open sub-processes, follow earlier causes or later consequences, inspect concepts, physical mechanisms, locations or institutional rules. Use Cuts only for meaningful declared comparisons and sampled trajectories only when quantitative exploration helps. Draw unresolved prospective fictional decisions when delegated; preserve accepted outcomes. Explain what the opening would change or why the current account is sufficient.'),
     status: z.enum(['modeled', 'opening', 'open']),
     records: z.array(reference).max(32).default([]).describe('The model records that answer it so far.'),
   }).strict()).min(20).max(200),

@@ -71,12 +71,23 @@ test('opening a part renders the whole manuscript including its root, and beginn
     createElement: (tag) => ({ tag, innerHTML: '', scrollIntoView() { this.scrolledIntoView = true; } }),
   }, storyParts: [{ n: 1, unit: units[1] }, { n: 2, unit: units[2] }], titleText: 'The whole book', inline: (text) => text,
   readerShown: 0, building: () => true, bornAt: () => 100, tau: 0 };
+  context.storyRoots = context.storyParts;
   vm.createContext(context); vm.runInContext(`${readerCode}\nrenderReader('p2');`, context);
   assert.deepEqual(elements['reader-body'].children.map((node) => node.innerHTML), ['The whole book', 'First passage.', 'Second passage.']);
   assert.equal(elements['reader-body'].children[2].scrolledIntoView, true);
-  assert.equal(elements['reader-status'].textContent, 'Full story · Part 2 of 2');
+  assert.equal(elements['reader-status'].textContent, 'Full story · p2');
   vm.runInContext('renderReader();', context);
   assert.equal(elements.reader.scrollTop, 0);
   assert.equal(elements['reader-body'].children.length, 3);
-  assert.equal(elements['reader-status'].textContent, 'Full story · All 2 parts');
+  assert.equal(elements['reader-status'].textContent, 'Full story · Complete manuscript');
+  const parent = { n: 1, path: '1', unit: { id: 'retained-parent', text: 'Old excluded version.' }, renderedUnitIds: ['p1'], children: [] };
+  parent.children.push({ n: 1, path: '1.1', parent, unit: units[1], renderedUnitIds: ['p1'] });
+  context.storyParts = [parent, { n: 2, path: '2', unit: units[2], renderedUnitIds: ['p2'] }];
+  context.storyRoots = context.storyParts;
+  vm.runInContext("renderReader('retained-parent');", context);
+  assert.equal(elements['reader-body'].children[1].scrolledIntoView, true, 'reading an excluded parent starts at its first current descendant');
+  assert.deepEqual(elements['reader-body'].children.map((node) => node.innerHTML), ['The whole book', 'First passage.', 'Second passage.']);
+  assert.equal(elements['reader-status'].textContent, 'Full story · retained-parent');
+  vm.runInContext("renderReader('p1');", context);
+  assert.equal(elements['reader-status'].textContent, 'Full story · p1');
 });

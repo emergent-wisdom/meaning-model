@@ -30,6 +30,7 @@ async function setup(t) {
     render: 'include', training: 'exclude', epistemic_status: 'fictional_artifact', evidence_type: 'fictional_canon', authority: { source: 'example-author', weight: 1 }, provenance: ['test'] });
   graph.edges.push({ id: 'story.contains.passage.1', source: { kind: 'node', node_id: 'story' }, target: { kind: 'node', node_id: 'passage.1' }, family: 'structural', relation: 'contains', order: 0,
     explanation: 'The offer opens the story.', provenance: ['test'] });
+  graph.edges.push({ id: 'passage.1.renders.offer', source: { kind: 'node', node_id: 'passage.1' }, target: { kind: 'anchor', anchor_kind: 'event', anchor_id: 'event.offer' }, family: 'grounding', relation: 'renders', provenance: ['test'] });
   graph.nodes = graph.nodes.map((node) => ({ ...node, access_scopes: scopes }));
   graph.edges = graph.edges.map((edge) => ({ ...edge, access_scopes: scopes }));
   const stored = await service.registerNarrativeGraph({ requestId: 'graph', narrativeGraph: graph });
@@ -189,7 +190,7 @@ test('a long history travels as changes: each revision by change keeps only its 
     add_nodes: [{ id: 'passage.long', node_type: 'passage', role: 'story_passage', text: longText, render: 'include', training: 'exclude', epistemic_status: 'fictional_artifact',
       evidence_type: 'fictional_canon', authority: { source: 'example-author', weight: 1 }, access_scopes: scopes, provenance: ['test'] }],
     add_edges: [{ id: 'story.contains.passage.long', source: { kind: 'node', node_id: 'story' }, target: { kind: 'node', node_id: 'passage.long' }, family: 'structural',
-      relation: 'contains', order: 1, access_scopes: scopes, provenance: ['test'] }] } })).graphHash;
+      relation: 'contains', order: 1, access_scopes: scopes, provenance: ['test'] }, { id: 'passage.long.renders.life', source: { kind: 'node', node_id: 'passage.long' }, target: { kind: 'anchor', anchor_kind: 'event', anchor_id: 'event.ada.life' }, family: 'grounding', relation: 'renders', access_scopes: scopes, provenance: ['test'] }] } })).graphHash;
   const retainedBefore = service.receiptBytes;
   for (let step = 1; step <= 12; step += 1) {
     const view = await service.queryNarrativeGraph({ graphHash: head, mode: 'full', includeContent: true, accessScopes: scopes, forRevision: true });

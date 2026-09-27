@@ -3,12 +3,15 @@
 // Event's numbers their meaning, notes are linked to the records they concern, reviews are held by
 // their actual reviewers, and the whole development can be read back as an outline or replayed.
 import { resolveAppendHead } from './graph-head.mjs';
+import { NARRATIVE_HISTORY_REPLAY } from './narrative-grounding.mjs';
 import { createHash } from 'node:crypto';
 import * as z from 'zod/v4';
 import { assertDescribedEvents, descriptionCoverage } from './description-coverage.mjs';
 import { constructionRecordInstructions } from './construction-principles.mjs';
 import { additiveNarrativeBatch, applyNarrativeDefinitionDelta, definitionFromCompleteView, narrativeDefinitionDelta } from './narrative-delta.mjs';
 import { recordsQuoting, removedFragments, textRecords } from './prose-drift.mjs';
+import { absoluteHistoryPath, historyDigest, MAX_HISTORY_FILE_BYTES, MAX_INLINE_HISTORY_BYTES, readHistoryFile, writeHistoryFile } from './construction-files.mjs';
+import { requireCompleteModelScopes } from './construction-scope.mjs';
 
 const id = z.string().trim().min(1).max(256);
 const longId = z.string().trim().min(1).max(1_024);
@@ -872,11 +875,14 @@ export async function replayConstruction(service, raw) {
 // Portable history: the model chain and every graph revision, so a construction can be rebuilt
 // and replayed on another engine with the same hashes.
 
-export const historyExportSchema = z.object({ graphHash: hash, accessScopes: z.array(id).max(64).default([]) }).strict();
+export const historyExportSchema = z.object({ graphHash: hash, accessScopes: z.array(id).max(64).default([]),
+  destinationPath: absoluteHistoryPath.optional().describe('Write a portable JSON file at this explicit absolute path instead of returning the bundle inline. Parent directory must exist; existing files are never overwritten. File limit: 256 MiB.'),
+}).strict();
 export const historyImportSchema = z.object({
   requestId: id,
-  history: z.object({ schema: z.literal('meaning-model-construction-history/v1') }).passthrough(),
-}).strict();
+  history: z.object({ schema: z.literal('meaning-model-construction-history/v1') }).passthrough().optional(),
+  sourcePath: absoluteHistoryPath.optional().describe('Read a regular local JSON bundle, at most 256 MiB, instead of echoing history through MCP. Its bundle hash is checked before any model or graph mutation.'),
+}).strict().refine((input) => Boolean(input.history) !== Boolean(input.sourcePath), 'Supply exactly one of history or sourcePath.');
 
 async function definitionAt(service, graphHash, accessScopes) {
   const view = await service.queryNarrativeGraph({ graphHash, expectedGraphHash: graphHash, mode: 'full', includeContent: true,
@@ -900,22 +906,72 @@ function scopesIn(value, into = new Set()) {
   return into;
 }
 
-export async function exportConstructionHistory(service, raw) {
+// Only typed, versioned declarations introduce portable model dependencies.
+// A hash quoted in prose, an old review packet or arbitrary JSON is not a reference.
+function declaredExternalModels(definition) {
+  const references = [];
+  const add = (modelHash, nodeId, field) => {
+    if (typeof modelHash !== 'string' || !/^[a-f0-9]{64}$/u.test(modelHash)) {
+      throw new Error(`Construction export: ${nodeId} declares an invalid ${field}; repair that explicit model reference before exporting.`);
+    }
+    references.push({ modelHash, nodeId, field });
+  };
+  for (const node of definition.nodes ?? []) {
+    if (!['model_reference', 'storytelling.world'].includes(node.node_type)) continue;
+    let payload; try { payload = JSON.parse(node.text); } catch { continue; }
+    if (node.node_type === 'model_reference' && payload?.schema === MODEL_REFERENCE_SCHEMA) {
+      add(payload.modelHash, node.id, 'modelHash');
+    }
+    if (node.node_type === 'storytelling.world' && payload?.schema === 'meaning-model-story-author-record/v1'
+      && payload.kind === 'world' && payload.data?.schema === 'meaning-model-story-world/v1' && payload.data.stage === 'author_reader') {
+      add(payload.data.author?.lifeModelHash, node.id, 'author.lifeModelHash');
+      if (payload.data.reader !== null && payload.data.reader !== undefined) add(payload.data.reader.lifeModelHash, node.id, 'reader.lifeModelHash');
+    }
+  }
+  return references;
+}
+
+export async function exportConstructionHistory(service, raw, { maximumBytes = MAX_HISTORY_FILE_BYTES } = {}) {
   const input = historyExportSchema.parse(raw);
+  const budget = input.destinationPath ? MAX_HISTORY_FILE_BYTES : maximumBytes;
+  let retainedBytes = 0;
+  const retain = (record) => {
+    retainedBytes += historyDigest(record, budget).bytes;
+    if (retainedBytes > budget) throw new Error(`Construction history exceeds ${budget} UTF-8 bytes. ${budget <= MAX_INLINE_HISTORY_BYTES ? 'Use destinationPath to export it to a local JSON file instead of an inline MCP response.' : 'The portable-file limit is 256 MiB.'}`);
+  };
   const head = await readGraph(service, input.graphHash, input.accessScopes);
   const lineage = await graphLineage(service, head);
-  const revisions = []; let previous = null; const bound = [];
+  const revisions = []; let previous = null; const bound = []; const declared = new Map();
   for (const entry of lineage.path) {
     const definition = await definitionAt(service, entry.graph_hash, input.accessScopes);
     if (definition.source?.kind !== 'model') throw new Error('A portable history currently covers model-bound graphs; this revision is bound to a world or candidate.');
     if (!bound.includes(definition.source.model_hash)) bound.push(definition.source.model_hash);
-    revisions.push(previous ? { graphHash: entry.graph_hash, delta: narrativeDefinitionDelta(previous, definition) } : { graphHash: entry.graph_hash, definition });
+    for (const reference of declaredExternalModels(definition)) if (!declared.has(reference.modelHash)) declared.set(reference.modelHash, reference);
+    const revision = previous ? { graphHash: entry.graph_hash, delta: narrativeDefinitionDelta(previous, definition) } : { graphHash: entry.graph_hash, definition };
+    retain(revision); revisions.push(revision);
     previous = definition;
   }
-  // Every bound model with its ancestors, parents before children.
+  // Include the graph's models and explicitly referenced other worlds/lives, with
+  // their ancestry. Otherwise a successful round-trip silently strands references.
   const models = new Map();
-  for (const modelHash of bound) {
-    for (const entry of await modelChain(service, modelHash, null, 1_024)) if (!models.has(entry.hash)) models.set(entry.hash, entry.model);
+  for (const modelHash of [...new Set([...bound, ...declared.keys()])]) {
+    const pending = []; let cursor = modelHash;
+    while (cursor && !models.has(cursor)) {
+      if (pending.length >= 1_024) throw new Error('Construction export exceeds the supported model ancestry depth.');
+      let model;
+      try {
+        model = await cachedModel(service, cursor);
+        if (!model) throw new Error('The model is not stored.');
+      } catch (cause) {
+        const reference = declared.get(modelHash);
+        if (!reference) throw cause;
+        throw new Error(`Construction export cannot include model ${cursor}, required by ${reference.nodeId} (${reference.field}: ${modelHash}). Import or restore that declared model and its ancestry, or explicitly revise the reference; no incomplete bundle was exported.`, { cause });
+      }
+      requireCompleteModelScopes(model, input.accessScopes);
+      retain({ modelHash: cursor, definition: model }); pending.push({ hash: cursor, model });
+      cursor = model.revision?.previous_model_hash ?? null;
+    }
+    for (const entry of pending.reverse()) models.set(entry.hash, entry.model);
   }
   const ordered = []; const placed = new Set();
   while (ordered.length < models.size) {
@@ -928,14 +984,21 @@ export async function exportConstructionHistory(service, raw) {
   }
   const history = { schema: 'meaning-model-construction-history/v1', graphId: head.graph.id, headGraphHash: head.graph_hash,
     revisionCount: revisions.length, models: ordered, revisions };
-  return { ...history, bundleSha256: sha256(canonical(history)) };
+  const bundle = { ...history, bundleSha256: historyDigest(history, budget).sha256 };
+  if (!input.destinationPath) return bundle;
+  const file = await writeHistoryFile(input.destinationPath, bundle);
+  return { schema: 'meaning-model-construction-file-export/v1', ...file, bundleSha256: bundle.bundleSha256,
+    graphId: history.graphId, headGraphHash: history.headGraphHash, revisionCount: revisions.length, modelCount: ordered.length,
+    graphMutation: false, worldMutation: false, nextStep: 'Import with life_construction_import using sourcePath and a requestId. The file contains complete history within this selected model-bound lineage.' };
 }
 
 export async function importConstructionHistory(service, raw) {
   const input = historyImportSchema.parse(raw);
-  const { history } = input;
+  const file = input.sourcePath ? await readHistoryFile(input.sourcePath) : null;
+  const history = file ? z.object({ schema: z.literal('meaning-model-construction-history/v1') }).passthrough().parse(file.history) : input.history;
   const { bundleSha256, ...content } = history;
-  if (bundleSha256 && sha256(canonical(content)) !== bundleSha256) throw new Error('The history bundle does not match its bundleSha256.');
+  if (file && !/^[a-f0-9]{64}$/u.test(bundleSha256 ?? '')) throw new Error('A portable history file must include its bundleSha256 checksum.');
+  if (bundleSha256 && historyDigest(content).sha256 !== bundleSha256) throw new Error('The history bundle does not match its bundleSha256.');
   for (const [index, entry] of (history.models ?? []).entries()) {
     const definition = entry.definition;
     const stored = definition.revision?.number === 0 || !definition.revision?.previous_model_hash
@@ -953,7 +1016,7 @@ export async function importConstructionHistory(service, raw) {
     const requestId = `${input.requestId}.graph.${index}`;
     if (index === 0) {
       definition = entry.definition;
-      graphHash = (await service.registerNarrativeGraph({ requestId, narrativeGraph: definition })).graphHash;
+      graphHash = (await service.registerNarrativeGraph({ requestId, narrativeGraph: definition, [NARRATIVE_HISTORY_REPLAY]: true })).graphHash;
       applied.registered += 1;
     } else {
       const next = applyNarrativeDefinitionDelta(definition, entry.delta);
@@ -961,7 +1024,7 @@ export async function importConstructionHistory(service, raw) {
       let stored = null;
       if (batch) {
         try {
-          stored = await service.applyNarrativeBatch({ requestId, previousGraphHash: graphHash, narrativeBatch: batch });
+          stored = await service.applyNarrativeBatch({ requestId, previousGraphHash: graphHash, narrativeBatch: batch, [NARRATIVE_HISTORY_REPLAY]: true });
           applied.additiveBatches += 1;
         } catch (cause) {
           // A batch must connect every new part to what exists; a step that added a part the original
@@ -970,7 +1033,7 @@ export async function importConstructionHistory(service, raw) {
         }
       }
       if (!stored) {
-        stored = await service.reviseNarrativeGraphByDelta({ requestId, previousGraphHash: graphHash, delta: entry.delta, accessScopes: scopes });
+        stored = await service.reviseNarrativeGraphByDelta({ requestId, previousGraphHash: graphHash, delta: entry.delta, accessScopes: scopes, [NARRATIVE_HISTORY_REPLAY]: true });
         applied.revisionsByChange += 1;
       }
       graphHash = stored.graphHash;
@@ -979,6 +1042,7 @@ export async function importConstructionHistory(service, raw) {
     if (graphHash !== entry.graphHash) throw new Error(`Graph revision ${index} rebuilt as ${graphHash}, not ${entry.graphHash}; the history cannot be reproduced.`);
   }
   return { schema: 'meaning-model-construction-import/v1', graphId: history.graphId, headGraphHash: graphHash, revisions: history.revisions.length, models: history.models.length,
+    ...(file ? { sourceFile: { path: file.path, bytes: file.bytes, fileSha256: file.fileSha256 }, bundleSha256 } : {}),
     applied, verified: graphHash === history.headGraphHash, graphMutation: true, worldMutation: false,
     nextStep: 'Replay it with life_construction_replay on headGraphHash.' };
 }
@@ -1012,12 +1076,12 @@ export function registerConstructionRecordTools(server, service, { toolResult })
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await outlineModel(service, input)));
   server.registerTool('life_construction_export', {
-    description: 'Export the whole construction of a model-bound graph as a portable history: every model revision it was bound to with their ancestors, the first graph revision in full, and each later revision as its change, with a bundle hash. Importing it on another engine rebuilds the same hashes, so the construction can be replayed there. Needs accessScopes that reveal every node.',
+    description: 'Export a model-bound graph lineage as portable history: every bound model revision, explicitly declared external model_reference targets and author_reader life models with all their ancestors, the first graph revision in full, and later graph changes, with a bundle hash. Missing declared dependencies refuse export with repair guidance. Prefer destinationPath for a local JSON file: explicit absolute path, existing parent directory, no overwrite, maximum 256 MiB, compact receipt only. Without a path, inline output is capped at 1 MiB. Import rebuilds the same hashes. Needs accessScopes revealing every graph and model record, including external lives; arbitrary hashes quoted in prose do not introduce dependencies.',
     inputSchema: historyExportSchema,
-    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-  }, async (input) => toolResult(await exportConstructionHistory(service, input)));
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  }, async (input) => toolResult(await exportConstructionHistory(service, input, { maximumBytes: MAX_INLINE_HISTORY_BYTES })));
   server.registerTool('life_construction_import', {
-    description: 'Rebuild an exported construction history on this engine: register the model revisions in order and every graph revision (steps that only added records as additive batches, the others as revisions by change), checking that each rebuilt hash equals the exported one, then replay it with life_construction_replay.',
+    description: 'Rebuild exported construction history on this engine. Supply exactly one of inline history or an explicit absolute sourcePath to a regular local JSON file of at most 256 MiB. File imports check the bundle checksum before any mutation. Register model and graph revisions in order, verifying each rebuilt hash, then replay with life_construction_replay. Source files are never modified; importing is a sequence of immutable registrations, not one all-or-nothing database transaction.',
     inputSchema: historyImportSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await importConstructionHistory(service, input)));

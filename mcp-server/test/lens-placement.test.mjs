@@ -42,6 +42,83 @@ const fake = (definition) => {
   return { calls, queryNarrativeGraph: async () => view, inspectModel: async () => ({ model: definition }),
     reviseModel: async (request) => { calls.push(request); return { modelHash: 'c'.repeat(64) }; } };
 };
+const emptyView = { graph: view.graph, nodes: [], edges: [] };
+const withoutReadings = () => {
+  const fresh = structuredClone(model);
+  fresh.meaning_model.normalized_cuts = fresh.meaning_model.normalized_cuts.filter((cut) => !cut.id.startsWith('lens.') && cut.id !== 'cut.ana.fl');
+  return fresh;
+};
+
+test('default placement in a fresh story adds no readings or roots and writes no model revision', async () => {
+  for (const worldRoot of [undefined, {}]) {
+    const fresh = withoutReadings();
+    const before = structuredClone(fresh);
+    const service = { ...fake(fresh), queryNarrativeGraph: async () => emptyView };
+    const result = await placeReadings(service, { graphHash: 'b'.repeat(64), requestId: 'fresh', accessScopes: ['author'], ...(worldRoot ? { worldRoot } : {}) });
+    assert.equal(result.readingEventsAdded, 0);
+    assert.equal(result.relationsAdded, 0);
+    assert.equal(result.moved, 0);
+    assert.deepEqual(result.rootsAdded, []);
+    assert.equal(result.worldRoot, undefined);
+    assert.equal(result.plan, undefined, 'no root-creation plan is needed without an adopted lens');
+    assert.equal(result.graphMutation, false);
+    assert.equal(service.calls.length, 0);
+    assert.deepEqual(fresh, before);
+  }
+});
+
+test('explicit built-in selection can still place readings in a fresh story', async () => {
+  const service = { ...fake(withoutReadings()), queryNarrativeGraph: async () => emptyView };
+  const result = await placeReadings(service, { graphHash: 'b'.repeat(64), requestId: 'opt-in', accessScopes: ['author'], lensIds: ['fear-love'], worldRoot: {} });
+  assert.equal(service.calls.length, 1);
+  assert.equal(result.readingEventsAdded, 2);
+  assert.equal(result.moved, 0);
+  const readings = service.calls[0].model.meaning_model.events.filter((event) => event.id.startsWith('reading.'));
+  assert.deepEqual(readings.map((event) => event.id).sort(), ['reading.fear-love.ana.choice1', 'reading.fear-love.ana.choice2']);
+  const after = await lensQuestions({ ...service, inspectModel: async () => ({ model: service.calls[0].model }) }, { graphHash: 'b'.repeat(64) });
+  assert.deepEqual(after.lenses, [], 'empty placement Events do not silently persist template adoption');
+  assert.match(result.selection, /repeat lensIds or persist .*life_lens_define/u);
+});
+
+test('a historical built-in prefix remains readable and migrates by default without changing its claim', async () => {
+  const historical = withoutReadings();
+  const cut = { ...structuredClone(model.meaning_model.normalized_cuts.find((item) => item.id === 'cut.ana.fl')),
+    id: 'lens.fear-love.ana.choice1', unit: 'lens:fear-love@a8a2223e2f3ccc1e' };
+  historical.meaning_model.normalized_cuts.push(cut);
+  const service = { ...fake(historical), queryNarrativeGraph: async () => emptyView };
+  const result = await placeReadings(service, { graphHash: 'b'.repeat(64), requestId: 'historic', accessScopes: ['author'], records: 'in-world', worldRoot: {} });
+  assert.equal(service.calls.length, 1);
+  assert.deepEqual(result.movedCutIds, [cut.id]);
+  const placed = service.calls[0].model;
+  const after = placed.meaning_model.normalized_cuts.find((item) => item.id === cut.id);
+  assert.equal(after.parent_event_id, 'reading.fear-love.ana.choice1');
+  assert.deepEqual({ ...after, parent_event_id: cut.parent_event_id }, cut);
+  const read = await lensQuestions({ ...service, inspectModel: async () => ({ model: placed }) }, { graphHash: 'b'.repeat(64) });
+  assert.deepEqual(read.lenses.map((item) => item.id), ['fear-love']);
+  assert.equal(read.lenses[0].answered, 1);
+  assert.equal(read.lenses[0].inWorld, 0);
+  assert.equal(read.lenses[0].stale, 0);
+});
+
+test('a legacy question activates default placement but keeps its claim until its holder is resolved', async () => {
+  const historical = withoutReadings();
+  const cut = structuredClone(model.meaning_model.normalized_cuts.find((item) => item.id === 'cut.ana.fl'));
+  historical.meaning_model.normalized_cuts.push(cut);
+  const service = { ...fake(historical), queryNarrativeGraph: async () => emptyView };
+  const result = await placeReadings(service, { graphHash: 'b'.repeat(64), requestId: 'legacy', accessScopes: ['author'], records: 'in-world', worldRoot: {} });
+  assert.deepEqual(result.kept.map((item) => item.cutId), [cut.id]);
+  assert.equal(result.moved, 0);
+  assert.deepEqual(service.calls[0].model.meaning_model.normalized_cuts.find((item) => item.id === cut.id), cut);
+  const resolved = { ...fake(historical), queryNarrativeGraph: async () => emptyView };
+  await placeReadings(resolved, { graphHash: 'b'.repeat(64), requestId: 'resolved', accessScopes: ['author'], worldRoot: {}, resolve: [{ cutId: cut.id, as: 'reading' }] });
+  const placed = resolved.calls[0].model;
+  const after = placed.meaning_model.normalized_cuts.find((item) => item.id === cut.id);
+  assert.equal(after.parent_event_id, 'reading.fear-love.ana.choice1');
+  assert.deepEqual({ ...after, parent_event_id: cut.parent_event_id }, cut);
+  const read = await lensQuestions({ ...resolved, inspectModel: async () => ({ model: placed }) }, { graphHash: 'b'.repeat(64) });
+  assert.equal(read.lenses[0].id, 'fear-love');
+  assert.equal(read.lenses[0].answered, 1);
+});
 
 test('placing a lens puts each record\'s reading beneath the lens\'s holder, about its record, with the Cut unchanged', async () => {
   const service = fake(model);

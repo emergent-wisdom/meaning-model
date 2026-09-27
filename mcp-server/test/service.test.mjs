@@ -52,6 +52,38 @@ function minimalCandidateRecord(hash, status = 'pending', rollIndex = 0) {
   };
 }
 
+test('status distinguishes transport limits, native storage limits, and the bounded summary cache', async () => {
+  const transportLimits = { maxRequestBytes: 12345 };
+  const nativeLimits = { max_session_models: 78, max_session_model_bytes: 98765 };
+  const backend = fakeBackend(async () => { throw new Error('No mutation expected.'); });
+  backend.initialize = async () => ({ execution_limits: nativeLimits });
+  backend.status = () => ({ persistenceMode: 'volatile-test', limits: transportLimits });
+  const service = new LifeSimulationService({ backend });
+  service.models.set('recent-summary', {});
+  const status = await service.engineStatus();
+  assert.deepEqual(status.engine.limits, transportLimits);
+  assert.deepEqual(status.engine.nativeLimits, nativeLimits);
+  assert.equal(status.limits.maxModels, undefined);
+  assert.equal(status.limits.maxCachedModelSummaries, serviceLimits.maxCachedModelSummaries);
+  assert.equal(status.limits.maxPendingModelWrites, serviceLimits.maxPendingModelWrites);
+  assert.equal(status.controlPlaneUsage.cachedModelSummaries, 1);
+  assert.equal(status.controlPlaneUsage.pendingModelWrites, 0);
+});
+
+test('status reports the actual native engine execution and storage limits', async (t) => {
+  const service = new LifeSimulationService();
+  t.after(() => service.close());
+  const description = await service.initialize();
+  assert.ok(Number.isSafeInteger(description.execution_limits?.max_session_models));
+  assert.ok(description.execution_limits.max_session_models > serviceLimits.maxCachedModelSummaries);
+  assert.ok(description.execution_limits.max_session_model_bytes > 0);
+  const transportLimits = service.backend.status().limits;
+  const status = await service.engineStatus();
+  assert.deepEqual(status.engine.nativeLimits, description.execution_limits);
+  assert.deepEqual(status.engine.limits, transportLimits);
+  assert.ok(status.engine.limits.maxCommandBytes > 0);
+});
+
 test('profile compilation is one read-only Rust call and never registers the returned model', async () => {
   const calls = [];
   const model = minimalModel('compiled-profiles');
@@ -296,14 +328,15 @@ test('graph-native story, testimony, rendering, and training stay in the Rust au
 
   assert.deepEqual(calls.map(({ operation }) => operation), [
     'register_narrative_graph',
+    'query_narrative_graph',
     'revise_narrative_graph',
     'apply_narrative_batch',
     'query_narrative_graph',
     'render_narrative_graph',
     'export_narrative_training',
   ]);
-  assert.deepEqual(calls[2].payload.narrative_batch, narrativeBatch);
-  assert.deepEqual(calls[3].payload.narrative_query, {
+  assert.deepEqual(calls[3].payload.narrative_batch, narrativeBatch);
+  assert.deepEqual(calls[4].payload.narrative_query, {
     mode: 'neighborhood',
     access_scopes: ['author'],
     include_content: true,
@@ -312,7 +345,7 @@ test('graph-native story, testimony, rendering, and training stay in the Rust au
     depth: 2,
     direction: 'ancestors',
   });
-  assert.deepEqual(calls[5].payload.narrative_training, {
+  assert.deepEqual(calls[6].payload.narrative_training, {
     node_ids: ['passage'],
     access_scopes: ['author'],
     include_linked_values: true,
@@ -1813,9 +1846,11 @@ test('in-flight reservations close model, world, candidate, and preset quota rac
         return gate.promise;
       }),
     });
-    for (let index = 0; index < serviceLimits.maxModels - 1; index += 1) {
+    for (let index = 0; index < serviceLimits.maxCachedModelSummaries; index += 1) {
       service.models.set(`existing-model-${index}`, {});
     }
+    // Simulate other concurrent writes independently of the full summary cache.
+    service.pendingModels = serviceLimits.maxPendingModelWrites - 1;
     const first = service.registerModel({
       requestId: 'model-reservation-first',
       model: minimalModel('first-model'),
@@ -1825,15 +1860,17 @@ test('in-flight reservations close model, world, candidate, and preset quota rac
         requestId: 'model-reservation-second',
         model: minimalModel('second-model'),
       }),
-      /Model quota/,
+      /Concurrent model-write quota/,
     );
     gate.resolve({
       model: storedModel,
       summary: { model_hash: modelHash, process_ids: [] },
     });
     await first;
-    assert.equal(service.models.size, serviceLimits.maxModels);
-    assert.equal(service.pendingModels, 0);
+    assert.equal(service.models.size, serviceLimits.maxCachedModelSummaries);
+    assert.equal(service.models.has('existing-model-0'), false);
+    assert.equal(service.models.has(modelHash), true);
+    assert.equal(service.pendingModels, serviceLimits.maxPendingModelWrites - 1);
   }
 
   {
@@ -1929,9 +1966,10 @@ test('in-flight reservations close model, world, candidate, and preset quota rac
         throw new Error(`Unexpected ${operation}.`);
       }),
     });
-    for (let index = 0; index < serviceLimits.maxModels - 1; index += 1) {
+    for (let index = 0; index < serviceLimits.maxCachedModelSummaries; index += 1) {
       service.models.set(`existing-model-${index}`, {});
     }
+    service.pendingModels = serviceLimits.maxPendingModelWrites - 1;
     const first = service.createWorld({
       requestId: 'preset-reservation-first',
       presetId: 'north-harbor/12',
@@ -1941,7 +1979,7 @@ test('in-flight reservations close model, world, candidate, and preset quota rac
         requestId: 'preset-reservation-second',
         presetId: 'north-harbor/48',
       }),
-      /Model quota/,
+      /Concurrent model-write quota/,
     );
     gate.resolve({
       model: minimalModel('preset-model'),
@@ -1949,7 +1987,10 @@ test('in-flight reservations close model, world, candidate, and preset quota rac
     });
     await first;
     assert.equal(registrationCount, 1);
-    assert.equal(service.pendingModels, 0);
+    assert.equal(service.pendingModels, serviceLimits.maxPendingModelWrites - 1);
+    assert.equal(service.models.size, serviceLimits.maxCachedModelSummaries);
+    assert.equal(service.models.has('existing-model-0'), false);
+    assert.equal(service.models.has(presetHash), true);
     assert.equal(service.pendingWorlds, 0);
   }
 });

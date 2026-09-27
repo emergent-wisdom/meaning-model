@@ -51,8 +51,88 @@ const view = {
   edges: [{ source: { kind: 'node', node_id: 'lens.stage' }, target: { kind: 'anchor', anchor_kind: 'referent', anchor_id: 'person.ana' }, relation: 'about' }],
 };
 const service = { queryNarrativeGraph: async () => view, inspectModel: async () => ({ model }) };
+const emptyView = { graph: view.graph, nodes: [], edges: [] };
+const withoutReadings = () => {
+  const fresh = structuredClone(model);
+  fresh.meaning_model.normalized_cuts = fresh.meaning_model.normalized_cuts.filter((cut) => !cut.id.startsWith('lens.') && cut.id !== 'cut.ana.fl');
+  return fresh;
+};
 
-test('a defined lens is asked of the acts and periods of the people it looks at, beside the built-in fear or love', async () => {
+test('a fresh story has no active built-in lens or lens backlog until one is adopted', async () => {
+  const fresh = withoutReadings();
+  const before = structuredClone(fresh);
+  const result = await lensQuestions({ queryNarrativeGraph: async () => emptyView, inspectModel: async () => ({ model: fresh }) }, { graphHash: 'b'.repeat(64) });
+  assert.deepEqual(result.lenses, []);
+  assert.deepEqual(result.availableTemplates.map((item) => item.id), ['fear-love']);
+  assert.deepEqual(result.availableTemplates[0].select, { lensIds: ['fear-love'] });
+  assert.match(result.selection, /for this call only/u);
+  assert.match(result.selection, /persist .*life_lens_define/u);
+  assert.deepEqual(lensOpenQuestions(emptyView, fresh), []);
+  assert.equal(result.graphMutation, false);
+  assert.equal(result.worldMutation, false);
+  assert.deepEqual(fresh, before);
+  assert.ok(readLenses(emptyView).some((item) => item.id === 'fear-love' && item.builtIn), 'the available template remains discoverable');
+});
+
+test('explicit built-in selection preserves the historical question and signed unit', async () => {
+  const result = await lensQuestions({ queryNarrativeGraph: async () => emptyView, inspectModel: async () => ({ model: withoutReadings() }) },
+    { graphHash: 'b'.repeat(64), lensIds: ['fear-love'] });
+  assert.equal(result.lenses.length, 1);
+  const [selected] = result.lenses;
+  assert.equal(selected.id, 'fear-love');
+  assert.equal(selected.builtIn, true);
+  assert.equal(selected.question, 'What kinds of reasons lie behind {subject}: is it primarily out of fear or out of love, and what does that fear or love ask of the person?');
+  assert.equal(selected.unit, 'lens:fear-love@a8a2223e2f3ccc1e');
+  assert.equal(selected.records, 3);
+  assert.equal(selected.answered, 0);
+  assert.ok(selected.open.every((item) => item.unit === selected.unit));
+});
+
+test('historical prefix, signed or plain unit, and legacy question each activate their built-in lens', async () => {
+  const legacy = model.meaning_model.normalized_cuts.find((cut) => cut.id === 'cut.ana.fl');
+  const evidence = [
+    { id: 'lens.fear-love.ana.choice1', question: 'Earlier motive reading', unit: 'share' },
+    { id: 'old.signed', question: 'Earlier motive reading', unit: 'lens:fear-love@a8a2223e2f3ccc1e' },
+    { id: 'old.plain', question: 'Earlier motive reading', unit: 'lens:fear-love' },
+    { id: legacy.id, question: legacy.question },
+  ];
+  for (const adopted of evidence) {
+    const historical = withoutReadings();
+    historical.meaning_model.normalized_cuts.push({ ...legacy, ...adopted });
+    const historicalService = { queryNarrativeGraph: async () => emptyView, inspectModel: async () => ({ model: historical }) };
+    const result = await lensQuestions(historicalService, { graphHash: 'b'.repeat(64) });
+    assert.deepEqual(result.lenses.map((item) => item.id), ['fear-love'], adopted.id);
+    assert.ok(lensOpenQuestions(emptyView, historical).some((item) => item.subject === 'fear-love'), adopted.id);
+    if (adopted.id.startsWith('lens.')) assert.equal(result.lenses[0].answered, 1, 'the historic prefixed reading still counts');
+    if (adopted.id === legacy.id) assert.deepEqual(result.lenses[0].open.find((item) => item.eventId === 'ana.choice1').matched, [legacy.id]);
+    historical.meaning_model.normalized_cuts.at(-1).withdrawn = true;
+    assert.deepEqual((await lensQuestions(historicalService, { graphHash: 'b'.repeat(64) })).lenses, [], `${adopted.id}: withdrawal removes the adoption evidence`);
+    assert.deepEqual(lensOpenQuestions(emptyView, historical), [], `${adopted.id}: withdrawn readings create no backlog`);
+  }
+});
+
+test('a graph-defined lens is active by default without activating a built-in lens', async () => {
+  const fresh = withoutReadings();
+  const result = await lensQuestions({ ...service, inspectModel: async () => ({ model: fresh }) }, { graphHash: 'b'.repeat(64) });
+  assert.deepEqual(result.lenses.map((item) => item.id), ['stage']);
+  assert.equal(result.lenses[0].builtIn, false);
+  assert.equal(result.lenses[0].records, 4);
+  assert.equal(result.lenses[0].answered, 0);
+  assert.deepEqual(lensOpenQuestions(view, fresh).map((item) => item.subject), ['stage']);
+});
+
+test('a decision or resolved direction question mentioning fear and love does not adopt a reading lens', async () => {
+  const legacy = model.meaning_model.normalized_cuts.find((cut) => cut.id === 'cut.ana.fl');
+  for (const direction of [{ unit: 'decision allocation' }, { provenance: ['lens-resolved:direction'] }]) {
+    const fresh = withoutReadings();
+    fresh.meaning_model.normalized_cuts.push({ ...legacy, ...direction });
+    const result = await lensQuestions({ queryNarrativeGraph: async () => emptyView, inspectModel: async () => ({ model: fresh }) }, { graphHash: 'b'.repeat(64) });
+    assert.deepEqual(result.lenses, []);
+    assert.deepEqual(lensOpenQuestions(emptyView, fresh), []);
+  }
+});
+
+test('a defined lens is asked of the acts and periods of the people it looks at, beside historically adopted fear or love', async () => {
   const result = await lensQuestions(service, { graphHash: 'b'.repeat(64) });
   const [fearLove, stage] = result.lenses;
   assert.equal(fearLove.id, 'fear-love'); assert.equal(fearLove.builtIn, true);

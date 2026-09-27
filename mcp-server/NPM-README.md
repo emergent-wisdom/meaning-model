@@ -9,7 +9,7 @@ See the [changelog](CHANGELOG.md) for release changes and upgrade notes.
 
 ## Open your model
 
-Version 0.4.0 includes the browser viewer in the MCP package.
+Version 0.5.0 includes the browser viewer in the MCP package.
 
 After installing this MCP and its matching engine, connect it to your assistant as
 usual. Ask **“Open the model we are working on”** or **“Show me this story.”** The
@@ -17,17 +17,36 @@ assistant calls `life_model_viewer_open` with the model or graph revision and re
 a local link. Open that link in your browser. No separate viewer installation,
 GitHub checkout, run transcript or website account is needed.
 
-The viewer shows the selected saved revision without changing it. Stories with
-calendar dates and numeric paths can use the processes, tree and terrain views;
-other models open a record inspector with their original units. Ask
-the assistant to open the model again after changes to see the new revision.
+The same **Processes / Tree / Terrain** viewer opens models with recorded time
+positions. Events can be displayed without numeric curves; curves appear only
+where the model supplies them. Models without time positions remain inspectable
+in Graph mode without an invented clock.
 
-Select a part on the reading-position track, or use Previous/Next, to highlight
-its document and model links without changing world time. **Read this part** opens
-the full manuscript at that section; **Read full story** opens it at the beginning.
-Linked dates remain separate from document position and do not establish what a
-reader knows. Optional Document spans follow authored passage boundaries after
-edits and display unresolved boundaries explicitly.
+Ask **“Open these models together”** to get a **Model** selector in the viewer.
+The assistant supplies the other selections through `additionalModels`, each
+with its own scopes. First visits keep the view and fit the selected model’s
+time range. Returning to a snapshot in the same tab restores its own view, time
+and selection. Switching models loads that snapshot. Only models explicitly
+opened together appear in this selector.
+
+The alternative **Graph mode** displays each saved revision's native records.
+Filter record types, find a record by name or ID, and click it to inspect
+its declared links and full record. **Neighbors only** focuses its connections;
+**Recenter** restores an overview. Positions are a layout, not time or measured
+values. Ask the assistant to reopen the model after changes to see the new revision.
+
+When prose is present, **Read full document** opens the complete manuscript.
+**Read this passage** opens it at a selected passage; **Back to graph** returns to
+exploration. Selecting a record keeps the reader closed. **Structure** offers an
+expandable record view. **Show it as** switches among Processes, Tree, Terrain,
+Graph and Structure on the same page, retaining the record selection and time.
+**Coarse view** returns to a broad overview; more detail opens subprocesses.
+**Recenter** (or Home outside text fields) fits the current representation.
+**Documents & notes** sits with the top controls. **Hide controls** clears that
+toolbar while **Show controls** remains available.
+The original viewer's reading-position track highlights document links without changing world time;
+its reading buttons also open the complete manuscript. Optional Document spans
+follow authored passage boundaries after edits and display unresolved boundaries.
 
 The browser and MCP must run on the same computer. The link lasts while that MCP
 process runs; its sixteen most recently opened views remain available. This is a
@@ -122,7 +141,7 @@ can use the explicit source build below.
 In a directory where you want to keep the installation, run:
 
 ```sh
-npm install @emergent-wisdom/meaning-model-mcp@0.4.0
+npm install @emergent-wisdom/meaning-model-mcp@0.5.0
 npx meaning-model-mcp --install-engine
 ```
 
@@ -165,14 +184,19 @@ reviewed `.tgz`; use `--build-engine` until that candidate's release assets exis
 
 ## Connect
 
-After installing or building the engine, point an MCP client at the installed launcher:
+After installing or building the engine, choose a private data directory outside
+`node_modules` and create that directory. Replace both example paths below with
+absolute paths on your computer, then point an MCP client at the installed launcher:
 
 ```json
 {
   "mcpServers": {
     "meaning-model": {
       "command": "node",
-      "args": ["/absolute/path/to/node_modules/@emergent-wisdom/meaning-model-mcp/mcp-server/bin/meaning-model-mcp.mjs"]
+      "args": ["/absolute/path/to/node_modules/@emergent-wisdom/meaning-model-mcp/mcp-server/bin/meaning-model-mcp.mjs"],
+      "env": {
+        "LIFE_SIM_STATE_FILE": "/absolute/private/path/meaning-model.sqlite"
+      }
     }
   }
 }
@@ -182,6 +206,64 @@ The default command serves only MCP on stdio. Run `meaning-model-mcp --help`
 for setup options. Existing `life_*` tools, `life-sim://` resource URIs,
 serialized schemas, `LIFE_SIM_ENGINE_BIN`, and the `life-sim-engine` binary
 retain their compatibility names.
+
+### Keep and continue your work
+
+**Keep `LIFE_SIM_STATE_FILE` set to the same absolute path across sessions and
+package upgrades.** The engine creates the SQLite database on the first successful
+write, but its parent directory must already exist. Run only one MCP server
+process per database; stop the previous process before another client uses that
+file. Without a state file, models and stories are lost when the process ends.
+Ask the assistant to check `life_engine_status` to confirm persistence is enabled.
+
+The database retains Rust-owned models and their revisions, narrative and
+Understanding Graphs and their recorded history, worlds, and candidates. MCP
+world handles/index, request receipts, annotations, pending writer plans, and
+estimation exchange records remain process-local and are not restored on restart.
+Save authoring decisions and results in the graph to retain them; a pending tool
+proposal or chat conversation alone is not a saved construction record.
+
+The 32-entry Node model-summary cache does not limit saved history to 32
+revisions. Rust enforces storage limits, currently 512 model revisions and
+256 MiB of model definitions; `life_engine_status.engine.nativeLimits` reports the
+running engine's limits.
+
+To continue, ask **“Find my saved work and continue this story.”** The assistant
+should:
+
+1. Call `life_saved_work_list` with the same `accessScopes` used for the work, page
+   through the results, and select the intended exact graph revision. Alternative
+   branch heads remain separate choices. The list covers graph-backed work only;
+   it does not enumerate models without a graph or work hidden by those scopes.
+2. Use `life_construction_replay` and `life_model_outline` to inspect the retained
+   construction and current model before deepening or reviewing it. Reuse those
+   scopes in subsequent calls; an empty or different scope may hide private work.
+3. Develop and review through the MCP tools, saving model revisions, story text,
+   and reasoning in the graph. With the storytelling add-on, `life_story_deepen`
+   helps choose useful depth, and scene review checks the proposed continuation.
+4. Use `life_model_viewer_open` on the resulting revision to read and inspect it.
+   The local viewer link ends with the MCP process; opening it does not publish.
+5. Ask for a portable backup with `life_construction_export`, using
+   `destinationPath` for an absolute private JSON path outside the installation,
+   such as `/absolute/private/path/backups/story-2026-09-27.json`. Create its
+   parent directory first and choose a new filename: exports never overwrite.
+   For books, prefer this file route; the assistant gets a compact receipt rather
+   than the whole history in chat. To restore it, use `life_construction_import`
+   with `sourcePath` and `requestId` on the destination engine.
+
+Portable files contain the selected model-bound graph's retained model and graph
+history, up to 256 MiB. Export requires scopes covering the complete retained
+graph history. Import checks the bundle checksum before registering revisions;
+it leaves the source file unchanged. It is a sequence of registrations, so a
+later failure may leave earlier imported revisions in the destination. Worlds,
+candidates, process-local MCP work, and other models mentioned only through
+external references are not included. Manuscript files are exports, not a
+second authoring record to edit separately. Construction history includes old
+drafts and reviews: keep it as a private backup or transfer, not a publication
+artifact. A published manuscript comes from `life_narrative_render`, with only
+deliberately reviewed model or companion material selected for publication.
+Advanced callers can omit `destinationPath` for inline export, limited to 1 MiB,
+and supply that result as `history` on import instead of `sourcePath`.
 
 ### Optional storytelling add-on
 
@@ -203,6 +285,7 @@ them, add `MEANING_MODEL_ADDONS` to the server configuration:
       "command": "node",
       "args": ["/absolute/path/to/node_modules/@emergent-wisdom/meaning-model-mcp/mcp-server/bin/meaning-model-mcp.mjs"],
       "env": {
+        "LIFE_SIM_STATE_FILE": "/absolute/private/path/meaning-model.sqlite",
         "MEANING_MODEL_ADDONS": "storytelling"
       }
     }
@@ -211,8 +294,9 @@ them, add `MEANING_MODEL_ADDONS` to the server configuration:
 ```
 
 Use `"storytelling,alien"` to enable the alien ideation add-on as well, or
-`"alien"` alone. Keep any existing `LIFE_SIM_ENGINE_BIN` in the same `env`
-object, and restart the MCP server. To let TypeSafe's Jev score the estimator tools
+`"alien"` alone. Keep the same `LIFE_SIM_STATE_FILE` and any existing
+`LIFE_SIM_ENGINE_BIN` in the `env` object, and restart the MCP server. To let
+TypeSafe's Jev score the estimator tools
 (`life_estimate_cut_shares`, `life_model_ingest`, `life_narrative_alignment_audit`) instead of
 returning their questions to you, add `MEANING_MODEL_ESTIMATOR: "typesafe"` and
 `TYPESAFE_API_KEY` to the same `env`; with that setting the text given to those
@@ -255,16 +339,25 @@ after-analysis as Understanding Nodes and uses existing tools to revise.
 Keeping successful work is valid; there is no reroll or length quota. The
 tool and same-named prompt are read-only and do not certify improvement.
 
-Because scene commit appends, replacement uses an immutable graph successor:
-retire superseded prose from rendering, remove or rewire active `contains` and
-`next` placement, prepare/store/review/commit fresh scene IDs, and restore the
-intended position. Review the exact final rendered topology for duplicates,
-gaps and changed order, preserve the baseline, and never export an intermediate
-gap as the finished revision.
+For an existing book whose lives and causes are already modeled, the assistant
+can set `lifeTrendsNodeId: null` and supply `modelEvidenceRefs` to
+`life_story_deepen` or `life_story_model_depth_review`. References such as
+`event:<id>` or `process:<id>` select actual records from the bound model;
+they do not certify sufficient life coverage. Inspect the evidence, record
+unknowns, and refine only what the selected passage needs. This mode supports
+reviewing and revising existing work; new-scene commitment still requires its
+life-trends dossier and matching depth assessment.
+
+Use `life_narrative_edit` to replace or subdivide existing passages while keeping
+their earlier revisions. Inspect the retained links and review affected prose.
+Scene commitment appends new material; an append-based replacement requires
+explicitly retiring and rewiring the superseded passage. Review the exact final
+rendered topology for duplicates, gaps and changed order, preserve the baseline,
+and never export an intermediate gap as the finished revision.
 
 
 The calling LLM automatically constructs or reuses the principal cast's overall
-life trends before drafting scenes; the user need not request the step or
+life trends during exploration and before preparing scenes for commitment; the user need not request the step or
 fill in a dossier. Store a new dossier with `life_story_life_trends` when
 needed. It validates and stores authored coarse life
 phases, trends across those phases, and explanations for their
@@ -273,7 +366,9 @@ each present or affected principal character to relevant trends; review findings
 their continuity with the prose. Missing dossiers and incomplete structures
 are rejected. The LLM must still create a substantive model and interpret the
 draft. A brief character sketch or the immediate crisis is not the intended
-scope, and an undecided later life can remain open.
+scope, and an undecided later life can remain open. Exploratory drafts and
+candidates can precede a resolved depth review. Follow the questions they reveal
+back into the model, open further processes and relationships, and repeat.
 
 Before prose and after consequential model, trajectory, causal, or disclosure
 revisions, the LLM automatically reviews whether the model explains the
@@ -285,6 +380,15 @@ nodes or model JSON Pointers. Relevant lives and flaws, concepts, constraints,
 institutions, causes, and disclosure processes can be examined without a
 fixed taxonomy or depth quota. Preserve adequate detail; repair the smallest
 explanatory gap and reassess.
+
+Supply `modelEvidenceRefs` alongside the dossier to read the actual records
+behind the chosen focus. The packet also resolves model anchors from selected
+graph context, preserving full records with their questions and units. These
+remain available when the whole model is too large to include. Omitted records
+and unavailable frozen-runtime evidence are identified explicitly; follow the
+relevant dependencies before calling an account sufficient. The bundled
+`life-sim://example/book-of-conditions-modeling` shows this method without a
+compulsory category list.
 
 Scene preparation requires `modelDepthReviewNodeId` for a current
 assessment covering its source, life dossier, and context. Changed evidence
@@ -302,7 +406,11 @@ edges from the successor through `life_narrative_revise`. Prior immutable
 graphs retain the exact evidence. Never retarget old findings to new values;
 record a fresh review with new model anchors before affected scene commitment.
 
-Numerical trajectory exploration samples actual candidate values at selected
+Numerical trajectory exploration is optional when a declared quantitative
+question benefits from sampling; a new life or Event needs no sampled scores.
+Fear/love is likewise an available lens, selected explicitly or retained from
+existing authored readings, rather than an automatic backlog for every new story.
+Numerical exploration samples actual candidate values at selected
 event or whole-life points, including emotional dimensions. The LLM defines
 axes with explicit meanings, comparison questions, units, and bounds, then
 supplies expected baselines and fixed values. Optional disjoint allocation
@@ -428,17 +536,20 @@ From your installation directory, print the engine path:
 node -p 'require("node:path").resolve("node_modules/@emergent-wisdom/meaning-model-mcp/rust-engine/target/release", process.platform === "win32" ? "life-sim-engine.exe" : "life-sim-engine")'
 ```
 
-Use that path when a Registry client asks for `LIFE_SIM_ENGINE_BIN`, or set it
-in a manual configuration:
+Use that path when a Registry client asks for `LIFE_SIM_ENGINE_BIN`. Also set
+`LIFE_SIM_STATE_FILE` in that client's server environment to your existing private
+database path, even if the client only prompts for the engine path. A manual
+configuration looks like this:
 
 ```json
 {
   "mcpServers": {
     "meaning-model": {
       "command": "npx",
-      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.4.0"],
+      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.5.0"],
       "env": {
-        "LIFE_SIM_ENGINE_BIN": "/absolute/path/to/life-sim-engine"
+        "LIFE_SIM_ENGINE_BIN": "/absolute/path/to/life-sim-engine",
+        "LIFE_SIM_STATE_FILE": "/absolute/private/path/meaning-model.sqlite"
       }
     }
   }
@@ -465,7 +576,7 @@ starts the real Rust engine, then checks an MCP connection and engine status.
 Only passing jobs upload the version-named executable and its `.sha256` file.
 
 Once the reviewed source, workflow and matching tag are pushed, select **Build
-engine release** in the repository's Actions tab. Run it with `tag: v0.4.0` and
+engine release** in the repository's Actions tab. Run it with `tag: v0.5.0` and
 leave `create_draft` false for a build and smoke run that only uploads workflow
 artifacts. Set it true to create a draft release after all four platforms pass.
 Pushing a new `v*` tag also runs the workflow and prepares a draft release.
@@ -509,7 +620,7 @@ for release.
 Record the reviewed tarball's checksum and inspect the publication preview:
 
 ```sh
-release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.4.0.tgz"
+release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.5.0.tgz"
 shasum -a 256 "$release_tarball"
 npm publish "$release_tarball" --dry-run --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
@@ -521,7 +632,7 @@ exact tarball, authenticate with an npm account that can publish to
 ```sh
 npm whoami --registry=https://registry.npmjs.org/
 npm publish "$release_tarball" --access public --ignore-scripts --registry=https://registry.npmjs.org/
-npm view @emergent-wisdom/meaning-model-mcp@0.4.0 version dist.integrity --registry=https://registry.npmjs.org/
+npm view @emergent-wisdom/meaning-model-mcp@0.5.0 version dist.integrity --registry=https://registry.npmjs.org/
 ```
 
 A dry run does not establish registry authentication or scope access. Any change

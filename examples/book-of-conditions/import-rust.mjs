@@ -133,6 +133,118 @@ function personInterval(label) {
     end: end.length === 4 ? civilDay(`${Number(end) + 1}-01-01`) : civilDay(end) + 1 };
 }
 
+const coarseIntervalNote = 'Source precision envelope, clipped to the known lifecycle: adjacent envelopes may overlap. This does not assert an exact transition, disjoint partition, or constant state throughout the envelope; no scene-to-period mixture is asserted.';
+
+// Retain the source's month/year precision. These are possible temporal extents,
+// not invented transition dates or a partition of the person's life.
+export function sourceCoarseInterval(label, life) {
+  assert(Number.isFinite(life?.start) && Number.isFinite(life?.end) && life.start < life.end,
+    `Missing lifecycle bounds for source period: ${label}`);
+  const text = label.match(/^(?:Babbage|Lovelace|Halden), (.+)$/)?.[1];
+  assert(text, `Unrecognized source period: ${label}`);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const boundary = (token, end) => {
+    const match = token.match(/^(?:(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) )?(\d{4})$/);
+    assert(match, `Unrecognized source period boundary: ${label}`);
+    let year = Number(match[2]);
+    let month = match[1] ? months.indexOf(match[1]) + 1 : 1;
+    if (end) {
+      if (match[1]) month += 1;
+      else year += 1;
+    }
+    if (month === 13) { month = 1; year += 1; }
+    return civilDay(`${year}-${String(month).padStart(2, '0')}-01`);
+  };
+  let start; let end;
+  const childhood = text.match(/^childhood through (\d{4})$/);
+  const terminal = text.match(/^terminal transition in (\d{4})$/);
+  if (childhood) { start = life.start; end = boundary(childhood[1], true); }
+  else if (terminal) { start = boundary(terminal[1], false); end = boundary(terminal[1], true); }
+  else {
+    const range = text.replace(/^(?:illness and recovery|progressive illness|working adulthood|later life), /, '').split('--');
+    assert.equal(range.length, 2, `Unrecognized source period: ${label}`);
+    start = boundary(range[0], false); end = boundary(range[1], true);
+  }
+  const result = { start: Math.max(start, life.start), end: Math.min(end, life.end) };
+  assert(result.start < result.end, `Source period is outside the lifecycle or reversed: ${label}`);
+  return result;
+}
+
+// Only the source's explicitly labelled process statements are separated here.
+// The whole-life tables combine several axes in one cell and are deliberately not split by this import.
+export function sourceProcessDevelopments(text = read('PERSON-MODELS.md')) {
+  const developments = [];
+  const names = { Babbage: 'Charles Babbage', Lovelace: 'Ada Lovelace', Halden: 'Edward Halden' };
+  const keys = new Set(['body', 'kin', 'partnership', 'work', 'place', 'means', 'knowledge', 'standing', 'meaning']);
+  let periodCount = 0;
+  for (const [name, personSlug] of Object.entries(personSlugs)) {
+    const person = section(text, `## ${names[name]}`);
+    const table = tables(section(person, '### Opened story periods'))[0];
+    assert.deepEqual(table?.headers, ['Period', 'Slow changes that matter']);
+    for (const [period, statements] of table.rows) {
+      periodCount += 1;
+      const range = period.split(':')[0];
+      const matches = [...statements.matchAll(/\*\*([A-Za-z]+):\*\* ([\s\S]*?)(?= \*\*[A-Za-z]+:\*\*|$)/g)];
+      assert.equal(matches.map(match => match[0]).join(' '), statements, `Unparsed process development: ${period}`);
+      const seen = new Set();
+      for (const [, label, description] of matches) {
+        const processKey = label.toLowerCase();
+        assert(keys.has(processKey) && !seen.has(processKey), `Unknown or repeated process label: ${name}: ${period}: ${label}`);
+        seen.add(processKey);
+        developments.push({ name, personSlug, personName: names[name], period, range, processKey, description });
+      }
+    }
+  }
+  assert.equal(periodCount, 11, 'Opened-period source inventory changed: inspect rather than silently omit rows');
+  assert.equal(developments.length, 46, 'Development source inventory changed: inspect rather than silently omit statements');
+  return developments;
+}
+
+// A deterministic, non-mutating patch when sourceText is supplied. It can repair an existing native model through
+// the ordinary revision tool, as well as populate a fresh import. It never changes Cuts, processes or manuscript text.
+export function processDevelopmentAdditions(model, sourceDigest, sourceText = read('PERSON-MODELS.md')) {
+  const mm = model.meaning_model;
+  const events = [], event_relations = [];
+  const existingEvents = new Map(mm.events.map(event => [event.id, event]));
+  const existingRelations = new Map(mm.event_relations.map(relation => [relation.id, relation]));
+  const assertSameFields = (existing, expected, label) => {
+    if (!existing) return false;
+    for (const key of Object.keys(expected)) assert.deepEqual(existing[key], expected[key], `Existing ${label} conflicts with the source: ${expected.id} (${key})`);
+    return true;
+  };
+  for (const source of sourceProcessDevelopments(sourceText)) {
+    const referentId = `referent.profile.${source.personSlug}.person.${source.personSlug.replaceAll('-', '_')}`;
+    const referent = mm.referents.find(item => item.id === referentId);
+    const life = existingEvents.get(referent?.lifecycle_event_id);
+    assert(life?.interval, `Missing source person's lifecycle: ${source.personName}`);
+    const processes = model.processes.filter(process => process.scale?.semantic_role === 'person_is_process'
+      && process.scale.subject_referent_id === referentId && process.scale.process_key === source.processKey);
+    assert.equal(processes.length, 1, `Missing or ambiguous process: ${source.personName}: ${source.processKey}`);
+    const process = processes[0];
+    const parents = mm.events.filter(event => event.process_ids?.includes(process.id)
+      && mm.event_relations.some(relation => relation.kind === 'contains' && relation.source_event_id === life.id && relation.target_event_id === event.id));
+    assert.equal(parents.length, 1, `Missing or ambiguous lifecycle process Event: ${process.id}`);
+    const suffix = `${source.personSlug}.${slug(source.range)}.${source.processKey}`;
+    const id = `event.development.07r2.${suffix}`;
+    const provenance = [`retrospective-source-sha256:${sourceDigest}`,
+      `source:PERSON-MODELS.md:${source.personName}:Opened story periods:${source.period}:${source.processKey}`,
+      `source-period-label:${source.name}, ${source.range}`,
+      'Authored developmental account of this person, transcribed verbatim; not a numerical state, execution trace, or independently verified historical claim.',
+      source.name === 'Halden' ? 'Source history status: authored fictional person and life compatible with the era.'
+        : 'Source history status: historical person with a documentary prefix and explicit counterfactual continuation; this source interpretation does not independently verify either.',
+      'Descriptions of beliefs, aims and judgments remain attributed to the person; their embedded contents are not adopted as objective claims.', coarseIntervalNote];
+    const development = { id, boundary: `${source.personName} · ${source.processKey} · ${source.period}`,
+      description: source.description, interval: sourceCoarseInterval(`${source.name}, ${source.range}`, life.interval),
+      participants: { subject: referentId }, process_ids: [process.id], provenance };
+    assert(development.boundary.length <= 200, `Development boundary too long: ${id}`);
+    const relation = { id: `relation.development.07r2.${suffix}`, kind: 'contains', source_event_id: parents[0].id,
+      target_event_id: id, description: 'An authored qualitative development within this ongoing process; no disjoint temporal partition or constant state is asserted.', provenance: [...provenance] };
+    if (!assertSameFields(existingEvents.get(id), development, 'development')) events.push(development);
+    if (!assertSameFields(existingRelations.get(relation.id), relation, 'development relation')) event_relations.push(relation);
+  }
+  return { events, event_relations };
+}
+
 function scaffoldRequest() {
   const request = JSON.parse(read('MODEL-SCAFFOLDS-COMPILE.json'));
   const people = JSON.parse(read('PERSON-INSTANCES.json')).instances;
@@ -246,13 +358,18 @@ export function augmentModel(base, sourceDigest) {
       : subject?.root ?? construction;
     const parentId = c.family === 'concept' ? 'event.canonical.07r2.valid-computational-claim'
       : `event.assessment.07r2.${stem}.${slug(c.label)}`;
-    let date = target ? eventMap.get(nativeEvent(target)).interval : null;
+    let date = slow ? sourceCoarseInterval(c.label, eventMap.get(subject.life.lifecycle_event_id).interval)
+      : target ? eventMap.get(nativeEvent(target)).interval : null;
     if (date && subject) {
       const life = eventMap.get(subject.life.lifecycle_event_id).interval;
       assert(date.start < life.end && date.end > life.start, `Assessment outside life: ${c.label}`);
       date = { start: Math.max(date.start, life.start), end: Math.min(date.end, life.end) };
     }
-    event(parentId, `${c.label}. ${c.question} ${slow ? 'Coarse authored parent; no scene-to-period mixture asserted. Source period label is retained without inventing an exact partition.' : 'Authored assessment, not a calibrated measurement.'}`, date, root);
+    const assessment = event(parentId, `${c.label}. ${c.question} ${slow ? `Coarse authored parent. ${coarseIntervalNote}` : 'Authored assessment, not a calibrated measurement.'}`, date, root);
+    if (slow) {
+      if (c.family !== 'threat') assessment.boundary = `${c.label}. ${c.question}`.slice(0, 200);
+      assessment.provenance = [...provenance, `source-period-label:${c.label}`, coarseIntervalNote];
+    }
     if (target) relation(parentId, nativeEvent(target), 'other', 'about: reference only, never authority or evidence access');
     const cut = { id, parent_event_id: parentId, question: c.question, unit: c.unit, answers: c.answers, provenance: [...provenance, `source-row:${c.family}:${c.label}`] };
     if (c.family === 'threat') cut.conditioning = { cut_id: `cut.book.07r2.slow-outlook.${slug(c.label)}`, answer_key: 'threatened_fulfillment' };
@@ -316,8 +433,11 @@ export function augmentModel(base, sourceDigest) {
       reference_frame: 'Declared final-delivery quarter; no continuous capacity simulation', provenance });
     eventMap.get(nativeEvent('E17')).process_ids.push(id);
   }
-  model.revision = { number: 0, reason: 'Retrospective registration of the existing Book with addressable Cuts and declared contexts; no new story rollout.', provenance };
-  return { model, events: sources, accounting, inventory: { authored_cuts: definitions.length, authored_weights: 472, derived_duration_cuts: 1, is_processes: model.processes.filter(p => p.scale?.semantic_role === 'person_is_process').length } };
+  const developments = processDevelopmentAdditions(model, sourceDigest);
+  mm.events.push(...developments.events); mm.event_relations.push(...developments.event_relations);
+  model.revision = { number: 0, reason: 'Retrospective registration of the existing Book with addressable Cuts, source-authored process developments and declared contexts; no new story rollout.', provenance };
+  return { model, events: sources, accounting, inventory: { authored_cuts: definitions.length, authored_weights: 472, derived_duration_cuts: 1,
+    qualitative_process_developments: developments.events.length, is_processes: model.processes.filter(p => p.scale?.semantic_role === 'person_is_process').length } };
 }
 
 export function engine(binary, operation, fields = {}, state = null) {

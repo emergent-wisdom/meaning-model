@@ -17,9 +17,11 @@ including emotional ones. It does not prescribe a fixed psychology, the
 experimental numerical `story` profile, or a universal story-quality score.
 The existing low-level narrative and writer tools remain available.
 
-The calling LLM must model the author's life and the world first, with the
-lives of the principals inside it, and let the model drive the story; the
-process below is required before drafting scenes. The user need not request the step, remember its tool
+The calling LLM models the author's life, the world and the principals through
+the recursive process below, letting model discoveries and provisional prose
+inform one another. Supply the required life dossier and current depth review
+before preparing scenes for acceptance; exploration need not wait for a
+finished account. The user need not request the step, remember its tool
 name, or fill in a dossier. Within the human author's delegated scope, the LLM
 authors needed details and identifies them as authored additions. Respect the
 agreed decision checkpoints before adopting those details. For existing canon,
@@ -154,8 +156,9 @@ this tool is the depth only a model gives, so the tool keeps asking for more:
   on. Is there a macro aspect I must model to truly understand what is going
   on here? It could be something from a character's childhood or a war a
   hundred years ago, and you will not know unless you model it. What kinds of
-  reasons lie behind what each person does, are they primarily out of fear or
-  out of love, and what does that fear or love ask of them? What can be
+  reasons and circumstances explain what each person does? Fear/love is one
+  optional lens when its question fits; duty, habit, curiosity, knowledge and
+  material constraints can suggest other openings. What can be
   richer about this event, this scene, this character? What is it an instance
   of? Climb up to the concept or regularity that explains it together with
   other things.
@@ -176,7 +179,12 @@ arcs are suggestions: look at them and ask whether this person, thing or era
 is understood better through them, through processes of your own, or through
 subcategories. The questions read common constructs; where you expressed the
 same understanding your own way, a question may not see it. The model is never
-finished, and there is no depth at which the tool stops asking.
+finished, and there is no depth at which the tool stops asking. Open a process
+or meaning, discover sub-processes, relationships and new categories or
+questions, follow the fruitful ones, and revisit connected regions as the
+account changes. Curiosity, play and surprise can start that recursion even
+when the current account is sufficient. A run may pause with open branches
+recorded; local sufficiency neither closes inquiry nor demands endless work.
 
 ## The process, from author to release
 
@@ -187,8 +195,13 @@ deeper model. The director never read the book. This process writes that loop
 down so any agent can follow it without a human in the room. It is not a strict
 workflow: the steps come in any order and recur whenever the model leads back
 to them, understanding is recorded when it happens, and processes are modeled
-whenever they are needed. Scene preparation shows what the world holds and
-what is still open; it does not wait for the steps.
+whenever they are needed or an interesting question invites an opening. A
+provisional draft may discover what to model next, and a model discovery may
+change the prose. Save candidates and drafts while exploring; accepting their
+commitments still needs the applicable model and scene reviews. Scene
+preparation shows what the world holds and what is still open; it does not
+wait for every world stage. Continue within existing creative delegation,
+without requesting approval for each recursive opening.
 
 **1. The author, and optionally a reader.** A book comes out of a life: what
 its author lived through, what they could not settle, and why they write this
@@ -296,20 +309,15 @@ For example, someone who turns every threatened dependence into more
 control: brilliant when the problem is design, damaging when authority has to
 be shared.
 
-The same act can come from fear or from love, and what it does to the person
-depends on which. Someone can defend themselves, train, or write a book out of
-fear of losing their place, of being excluded or of not being accepted, or out
-of love: of themselves, expressed and given to others, and of the people and
-work they care for. Ask of every consequential act what kinds of reasons lie
-behind it, whether they are primarily fear or love, and what that fear or
-love asks of the person. Most acts mix both, so model:
-- the shares, and how they shift over the life with shocks and with being seen;
-- what the person believes the reason is, and what others read;
-- what the act does afterwards: to their well-being, to what they need from
-  others, and to their relationships.
-
-In a relationship, love is each person's self-expression reaching the other and
-being returned.
+Fear and love can be useful questions about particular motives and relationships.
+Choose this lens when it explains something relevant, and identify what is feared
+or cared for. It does not exhaust an act's reasons or replace its circumstances.
+Keep the person's own account distinct from what another reader interprets.
+Use numerical shares only for a declared comparison with a meaningful unit and
+remainder. A qualitative account or a different lens may be sufficient.
+The built-in template is available through explicit `lensIds` selection or
+`life_lens_define`; new stories have no automatic fear/love reading backlog.
+Existing authored readings remain available with their original meanings.
 
 Investigating can take many forms, and so much can be done:
 - create new processes, or refine existing ones;
@@ -326,15 +334,18 @@ preparation shows the aspects still open.
 
 **4. Implications and lives** (stage `implications`). Follow each consequential
 commitment into the model, and give every principal a whole life in the story
-model, the way the author's was modeled. Estimate weights with the estimator
-where you can. Draw decisions with `life_direction_draw` rather than choosing
-them: what happens is the model's answer.
+model, the way the author's was modeled. Estimate meaningful quantities where
+useful. For an unresolved fictional choice with a declared quantitative
+question and delegated uncertainty, `life_direction_draw` can select among
+modeled alternatives. Qualitative exploration and directly authored choices
+remain possible; do not redraw an accepted outcome.
 
 **5. Route** (stage `route`). Find where in the model the story is. Choose the
 parts to render through the model's jumps; a route that renders none of the
 largest jumps must say why the story is elsewhere. The route's record returns
 its questions:
-- parts in which nobody chooses;
+- parts without a recognized decision Cut, whose choices may already be recorded
+  in another form or whose purpose may need no choice;
 - decisions it renders that the model has since withdrawn;
 - principals with no shock inside the story's present;
 - the largest jumps it leaves out without saying why;
@@ -383,9 +394,11 @@ each completed part. The draft principles come from the Book's own passes:
 
 The principles are a start, not a boundary: every direction also records at
 least one finding of the director's own, about what the work needs that no
-principle names. What is interesting differs between stories, but that
-decides what the story shows, never how much is modeled. `life_story_release` refuses until a draft
-direction exists and its failures have been answered in the model.
+principle names. What is interesting differs between stories and can lead to
+further model openings as well as choices about what the story shows. No
+fixed amount of modeling settles all future questions. `life_story_release`
+refuses until a draft direction exists and its failures have been answered
+through the applicable model or prose repair and review.
 
 ## Model the author and its effect on prose
 
@@ -576,8 +589,10 @@ not accept it as canon; use an explicit model or narrative revision for that.
 
 ## Explore numerical event and whole-life trajectories
 
-When generating new event or whole-life trajectories, automatically use
-`life_story_trajectory_explore` to sample candidate values at selected points.
+When a declared quantitative question and delegated creative uncertainty benefit
+from sampling, use `life_story_trajectory_explore` for candidate values at selected
+points. First establish what the processes and quantities mean and why their
+variation matters. New lives, Events and flaws do not require numerical scores.
 Its input is `{record, exploration}`. The `record` fields are `graphHash`,
 `requestId`, `nodeId`, `storyRootId`, `authorId`, and nonempty `accessScopes`.
 `exploration` supplies `definition`, `points`, optional `randomness`,
@@ -590,16 +605,18 @@ a request-derived seed keeps retries identical; a new request draws again.
 
 The calling LLM defines meaningful numerical
 dimensions first, including emotional, relational, or material states where
-relevant. Do not replace numerical modeling with a list of qualitative labels.
-Choose categories and comparisons that make the numbers interpretable.
+relevant. Choose categories and comparisons that make the numbers interpretable.
+Preserve the values and provenance of numerical proposals you actually use;
+develop causal explanations alongside them. Unweighted process structure and
+qualitative explanations remain valid when no useful quantitative question arises.
 
 Each axis specifies its `meaning`, `comparisonQuestion`, `unit`, `minimum`, and
 `maximum`. Establish an expected baseline at each ordered point and explicitly
 mark any axis values that must stay fixed. Event exploration requires at least
 two points; whole-life exploration requires at least three. A life candidate
 must cover the intended lifetime interval, rather than rename a short crisis
-as a life, and a life-trends dossier needs numerical points from its
-`lifeBeginning`; the explorer warns when the first point is later. Fix axes that
+as a life. When a life-trends dossier adopts a numerical proposal, its points
+must cover `lifeBeginning`; the explorer warns when the first point is later. Fix axes that
 do not yet apply at birth at stated conventional values. Points are sampled
 independently, so adding one later with the same seed leaves the others unchanged. Give each number a declared meaning: a share of available attention
 allocated to seeking company is different from a count of social encounters.
@@ -744,8 +761,9 @@ own knowledge and disclosure timings.
 
 ## Review whether the model explains the story
 
-Before drafting prose, automatically ask whether the model is developed enough
-to explain the story's consequential choices and outcomes. Use
+Before preparing a scene for acceptance, automatically ask whether the model
+supports the story's consequential commitments. Exploratory drafts and
+candidates can precede this review and help discover what to investigate. Use
 `life_story_model_depth_review`, then store the LLM's findings with
 `life_story_model_depth_record`. This examines the model's adequacy for the
 intended story; the separate purpose review examines the resulting prose.
@@ -757,8 +775,25 @@ record as the focus. The story root can serve as the focus when it contains
 substantive story material. Include the context the affected scenes need.
 The tool reads those actual records and derives the model hash from the
 graph's frozen source snapshot; a caller's summary is not the model evidence.
-If the full model is too large to include in the task, follow its explicit
-read-more route and inspect the relevant records before assessing it.
+Use optional `modelEvidenceRefs` with the dossier to request exact records for
+the focus. Model anchors from selected graph nodes also bring their full records,
+including a Cut's question, unit and provenance when its anchor names one weight.
+If the full model is too large, these selected records still accompany the task.
+`omittedModelEvidence` identifies records beyond the inline budget and their
+read routes; frozen runtime anchors are explicitly marked unavailable in this
+static packet. Inspect the exact bound source for runtime claims, and mark
+dependent findings unclear while it is unavailable. Follow other relevant
+dependencies before assessing sufficiency; the automatic selection does not
+claim that all necessary evidence has been found.
+
+For existing work whose life histories and causes are already represented in
+native model records, set `lifeTrendsNodeId: null` and supply `modelEvidenceRefs`
+such as `event:<id>`, `process:<id>`, or `referent:<id>`. The tool returns those
+records from the bound model for inspection. Do not invent a dossier merely to
+repeat existing evidence; judge its adequacy for the selected focus and record
+unknown history or insufficient coverage. This mode supports existing-work
+review and revision. It does not satisfy the separate life-dossier and matching
+depth-review requirement for committing a new scene.
 
 Choose review subjects from what explains this story. Relevant questions may
 concern a person's overall life, a flaw affecting a choice, the meaning of a
@@ -766,9 +801,10 @@ concept, a physical limitation, an institution's rules or incentives, a causal
 event, or a disclosure process. For example, if the ending depends on a
 character refusing a feasible rescue, inspect the character's reasons and the
 rescue's actual feasibility. A trait label and an assertion that the rescue
-cannot work may leave the central choice unexplained. Open only the detail
-needed to resolve that gap. The review imposes no fixed *Book of Conditions*
-taxonomy, decomposition count, universal psychology, or story-quality score.
+cannot work may leave the central choice unexplained. Repair the relevant gap
+without turning that repair into a ceiling on further exploration. The review
+imposes no fixed *Book of Conditions* taxonomy, decomposition count, universal
+psychology, or story-quality score.
 
 Consequential speech and behavior also need an explanation in the actual
 model. Inspect how the character's history, motives, attention, understanding
@@ -799,8 +835,15 @@ reference into the actual model rather than citing only narrative summaries.
 Record uncertain findings and gaps as well as successful assessments. A gap
 produces a blocker in the scene packet and prevents commitment until it is
 addressed and reassessed; it never prevents saving assessments, drafts, or
-proposals. Sufficiency remains an authored
-LLM judgment, not a machine proof or an aesthetic approval gate.
+proposals. An intentionally unresolved matter is not automatically a gap in
+the scene's commitments: the model may preserve competing interpretations,
+unreliable testimony, unknown motives or an open future. Explain why those
+boundaries support this scene rather than inventing certainty to pass. An
+unsupported claim that the scene relies on still needs repair. Sufficiency
+remains a local authored LLM judgment, not a machine proof or an aesthetic
+approval gate; a fresh question may reopen a sufficient account. A finding
+about a well-represented open boundary may be `sufficient`; an actual `unclear`
+or `needs_opening` finding still blocks scene commitment.
 
 Depth-review freshness follows the exact model/source and selected story
 evidence. Changes to that evidence require a new assessment. Appending an
@@ -831,23 +874,28 @@ the task; the calling LLM performs the judgment.
 
 ## Model, prepare, review, commit
 
+This describes accepting a scene, not a ban on earlier exploratory prose.
+Move between discovery, model refinement and provisional drafting as the work
+reveals new questions, preserving those candidates in the graph.
+
 1. Follow the process above: the author's life, candidate worlds, opening,
    implications with every principal's life in the model, a route through the
    model's jumps, and the director on the world. Then automatically construct
    or reuse the author model and the principal cast's overall life trends,
    which summarize the modeled lives. Keep the author's basis and writing dispositions
    separate from the characters' histories.
-   For new trajectories, explore numerical candidate points, assess their
-   coherence and storytelling potential, and repair promising candidates
-   locally. Record concise assessments as Understanding Nodes. Store a new
-   dossier with `life_story_life_trends` when needed. Do this
-   before drafting, without asking the user to supply the dossier. Use its
-   graph revision for scene work.
-2. Before prose, automatically use `life_story_model_depth_review` to inspect
-   the bound model and stored story focus, life trends, and relevant context.
+   For useful quantitative questions, optionally explore numerical candidate
+   points, assess coherence and storytelling potential, and repair promising
+   candidates locally. Record concise assessments as Understanding Nodes. Store a new
+   dossier with `life_story_life_trends` when needed. Supply it before scene
+   preparation, without asking the user to supply the dossier. Use its graph
+   revision for scene work.
+2. Before preparing the scene for acceptance, use `life_story_model_depth_review`
+   to inspect the bound model and stored story focus, life trends, and relevant context.
    Record the assessment with `life_story_model_depth_record`. Where an
    explanation needs more detail, make the smallest useful explicit refinement
-   and review again. Keep sufficient abstractions unchanged.
+   and review again. Reuse sufficient abstractions for this commitment;
+   another question may still make opening them worthwhile.
 3. Use `life_story_scene_prepare` to select the narrative context for a scene
    and provide its required `lifeTrendsNodeId` and `modelDepthReviewNodeId`.
    Supply `authorModelNodeId` and `scene.authorApplication` to connect the
@@ -984,7 +1032,7 @@ state automatically to later scenes.
 - `expectedPacketHash`: the hash returned by preparation;
 - `draftNodeId`: a draft record already stored in this graph for this story;
 - `text`: exactly the text saved in that draft record;
-- optional `passages`: ordered `{id, text, renders?}` units whose text joined with
+- optional `passages`: ordered `{id, text, renders?, noLinkReason?}` units whose text joined with
   `"\n\n"` exactly equals `text`;
 - `reviewer`: the authored reviewer identity;
 - `findings`: one result for every check in the packet; and
@@ -1009,19 +1057,27 @@ any blockers. Commitment requires `readyToCommit: true` and the matching hash.
 Use `passages` when parts of the scene need to be linked, revised, or moved
 independently. Choose useful units rather than meeting a subdivision or word
 quota. Passage IDs must be fresh, and each text must be nonblank. The ordered
-IDs, texts, boundaries, and `renders` selections enter the review hash; changing or removing that
+IDs, texts, boundaries, `renders` selections and no-link reasons enter the review hash; changing or removing that
 segmentation requires a new review even when the full draft text is unchanged.
 The whole-scene review and citation offsets still refer to the complete `text`.
 Omitting `passages` preserves the single-passage scene form.
 
-Each passage's optional `renders` array names the Events it actually depicts in
-the bound model. The tool validates the identities and creates `grounding` /
-`renders` Event anchors. It does not copy the whole scene's or route part's Events
-onto every passage. An omitted or empty array leaves that passage without declared
-depiction dependencies and the review reports it as unchecked. Such a link says
-what the prose depicts; it does not give the viewpoint or reader every fact in
-the Event. Without segmented passages, the single scene leaf uses the route
-part's Events together with any explicit `scene.renders` selection.
+Each passage defaults to the selected route part's Events plus `scene.renders`.
+Review that scene association: a passage's own `renders` array overrides it
+with the Events this particular text depicts. The tool validates identities
+and creates native `grounding` / `renders` Event anchors. For a passage that
+intentionally depicts no Event, supply its own substantive `noLinkReason`,
+which suppresses inheritance and is recorded against the exact text. An empty
+array alone is refused. Without segmented passages, the single scene leaf
+uses the route-plus-scene selection, or `scene.noLinkReason` if it depicts no
+Event. A link declares a dependency, not every fact the viewpoint or reader knows.
+
+Every rendered passage needs an Event declaration or its own no-link reason,
+including after narrative edits, splits, merges and raw batches. For old
+unlinked prose, `life_narrative_grounding_propose` returns reviewable candidates
+for all passages in one read-only call; the calling agent confirms or corrects
+them with `life_narrative_grounding_apply`. Lexical retrieval does not establish
+meaning. These tools preserve prose and require no external estimator keys.
 
 The declarations need to be complete and accurate. The tool can reject a
 declared leak, but it cannot discover an undeclared implication simply by
@@ -1100,10 +1156,12 @@ Committed prose inherits the author-only scope of the dossier, drafts and
 reviews it was built from, so a reader's render shows only the title. When the
 human's agreement allows publishing, release it with `life_story_release`: it
 records the decision and its reason as an author record and widens the scopes
-of the prose passages, their scenes and their structural edges to the reader
+of the prose passages, their scenes, structural edges and declared Event/renders edges to the reader
 scopes you name, or to every reader. The dossier, drafts, reviews and author
 model keep their scopes. Render with the reader scopes afterwards and read what
 a reader sees; the release does not check what the prose itself reveals.
+Release refuses any rendered passage lacking an Event/renders link or a
+current text-bound no-link reason; its recorded decision lists all such reasons.
 
 ## Character flaws and independent reviews
 
@@ -1152,6 +1210,11 @@ accepts `chapter`, `section`, `part`, or `whole_work` (the default).
 `revisionScope` is `local` by default or `structural` when broader changes are
 authorized; `brief` supplies the requested improvement. The prompt takes
 arrays as JSON strings, as the other storytelling prompts do.
+
+The existing-work model-evidence mode also applies here: pass
+`lifeTrendsNodeId: null` and `modelEvidenceRefs` to the tool. For the prompt, use
+the string `"null"` and a JSON-encoded reference array. New-scene commitment
+still requires its life dossier even after a sufficient existing-work review.
 
 The task binds the baseline graph, source, model, rendered projection and
 text hashes, selected prose and node IDs, author profile when selected, and
@@ -1275,8 +1338,13 @@ expected yet still consequential. Adaptation may begin in anticipation,
 overlap the event, remain partial, fail, or leave lasting changes in a life
 trend. Quiet persistence and an absence of shock are also valid.
 
-When a consequential decision is modeled as a direction Cut over mutually exclusive
-continuations, fix its proposal weights and a seed before drawing, then draw with
+When generative sampling is useful for a still-open fictional choice with a
+meaningful quantitative question and delegated uncertainty, model its mutually
+exclusive continuations as a direction Cut. Preserve accepted or observed
+outcomes; a missing draw receipt does not make them undecided. Qualitative
+exploration and directly authored choices remain valid, and a scene need not
+contain a decision. If you choose to sample, fix the proposal weights and a seed
+before drawing, then draw with
 `life_direction_draw` and record it in the story graph. The server computes the
 draw, and a later draw over the same Cut is recorded and linked as a reroll. If the
 remainder is drawn, model a new admissible continuation under the remainder's

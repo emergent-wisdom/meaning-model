@@ -503,8 +503,8 @@ test('storytelling scene round-trip appends reviewed prose through Rust without 
     storyRootId: 'document', authorId: 'protocol-author', accessScopes: ['editor'], kind: 'draft', text };
   const draftReceipt = await call(client, 'life_story_author_record', draftInput);
   assert.deepEqual(await call(client, 'life_story_author_record', draftInput), draftReceipt);
-  const graphHash = draftReceipt.graphHash;
-  const originalGraph = await readGraph(graphHash);
+  let graphHash = draftReceipt.graphHash;
+  let originalGraph = await readGraph(graphHash);
   const dossierNode = originalGraph.nodes.find(({ id }) => id === 'life.mira');
   assert.equal(dossierNode.render, 'exclude');
   assert.equal(dossierNode.training, 'exclude');
@@ -534,12 +534,63 @@ test('storytelling scene round-trip appends reviewed prose through Rust without 
   delete missingDepth.modelDepthReviewNodeId;
   assert.equal((await client.callTool({ name: 'life_story_scene_prepare', arguments: missingDepth })).isError, true,
     'a scene cannot bypass the recorded depth assessment');
-  const gap = await call(client, 'life_story_model_depth_record', { ...depthInput, requestId: 'record-gap', nodeId: 'depth.gap',
-    findings: [{ ...depthInput.findings[0], status: 'unclear', smallestRepair: 'Confirm that this scene occurs at the declared initial instant.' }] });
+  const gapPreparation = { ...depthPreparation, graphHash };
+  const gapTask = await call(client, 'life_story_model_depth_review', gapPreparation);
+  const gap = await call(client, 'life_story_model_depth_record', { ...depthInput,
+    preparation: gapPreparation, expectedTaskHash: gapTask.taskHash, requestId: 'record-gap', nodeId: 'depth.gap',
+    findings: [{ ...depthInput.findings[0], status: 'needs_opening', smallestRepair: 'Confirm that this scene occurs at the declared initial instant.' }] });
   assert.equal(gap.readyForScene, false, 'gaps are saved without being treated as sufficient');
   const gapPacket = await call(client, 'life_story_scene_prepare', { ...preparation,
     graphHash: gap.graphHash, modelDepthReviewNodeId: gap.modelDepthReviewNodeId });
   assert.ok(gapPacket.blockers.some((blocker) => blocker.code === 'model-depth-unresolved'));
+  // A saved gap restricts commitment, not curiosity or the storage of speculative work.
+  const exploration = await call(client, 'life_story_author_record', {
+    ...draftInput, graphHash: gap.graphHash, exactRevision: true,
+    requestId: 'explore-despite-gap', nodeId: 'candidate.gauge', kind: 'candidate',
+    text: 'Explore whether Mira compares this gauge with a second instrument; the idea may reveal another process to investigate.',
+    links: [{ relation: 'about', targetNodeId: gap.modelDepthReviewNodeId }],
+  });
+  const speculativeDraft = await call(client, 'life_story_author_record', {
+    ...draftInput, graphHash: exploration.graphHash, exactRevision: true,
+    requestId: 'draft-despite-gap', nodeId: 'draft.gauge.exploratory',
+    links: [{ relation: 'about', targetNodeId: exploration.recordNodeId }],
+  });
+  const exploredGraph = await readGraph(speculativeDraft.graphHash);
+  for (const nodeId of [exploration.recordNodeId, speculativeDraft.recordNodeId]) {
+    const node = exploredGraph.nodes.find(({ id }) => id === nodeId);
+    assert.equal(node.epistemic_status, 'authored_proposal');
+    assert.equal(node.render, 'exclude');
+    assert.equal(node.training, 'exclude');
+  }
+  assert.equal(exploredGraph.source_snapshot_hash, originalGraph.source_snapshot_hash);
+  const exploratoryRender = await call(client, 'life_narrative_render', {
+    graphHash: speculativeDraft.graphHash, rootIds: ['document'], accessScopes: ['editor'],
+  });
+  assert.equal(exploratoryRender.text, '', 'unresolved exploration does not become canonical prose');
+  const exploratoryPreparation = { ...preparation, graphHash: speculativeDraft.graphHash,
+    modelDepthReviewNodeId: gap.modelDepthReviewNodeId };
+  const exploratoryPacket = await call(client, 'life_story_scene_prepare', exploratoryPreparation);
+  const exploratoryReviewInput = { preparation: exploratoryPreparation,
+    expectedPacketHash: exploratoryPacket.packetHash, draftNodeId: speculativeDraft.recordNodeId, text,
+    reviewer: 'protocol-exploration-reviewer',
+    findings: exploratoryPacket.checks.map(({ id: checkId }) => ({ checkId, status: 'satisfied',
+      explanation: 'The proposed line matches the gauge record; this supplied reading does not resolve the separate saved model-depth gap.' })),
+    uses: [{ nodeId: 'canon.temperature', audience: 'reader', start: 0, end: text.length, quote: text }],
+  };
+  const exploratoryReview = await call(client, 'life_story_scene_review', exploratoryReviewInput);
+  assert.equal(exploratoryReview.readyToCommit, false);
+  assert.ok(exploratoryReview.blockers.some(({ code }) => code === 'model-depth-unresolved'));
+  const blockedCommit = await client.callTool({ name: 'life_story_scene_commit', arguments: {
+    ...exploratoryReviewInput, requestId: 'reject-exploratory-commit', expectedReviewHash: exploratoryReview.reviewHash,
+  } });
+  assert.equal(blockedCommit.isError, true, 'storing speculative drafts cannot bypass unresolved depth');
+  assert.match(JSON.stringify(blockedCommit.content), /unresolved blockers/u);
+  assert.deepEqual(await readGraph(speculativeDraft.graphHash), exploredGraph, 'failed commitment preserves the exploratory graph');
+  // Continue this test from its explicit successor, selecting the earlier sufficient assessment.
+  // Avoid implicit latest-head resolution or a stale branch after the exploratory writes.
+  graphHash = speculativeDraft.graphHash;
+  originalGraph = exploredGraph;
+  preparation.graphHash = graphHash;
   const packet = await call(client, 'life_story_scene_prepare', preparation);
   assert.deepEqual(packet.blockers, []);
   assert.equal(packet.authorModelDepthReview.basisHash, depthTask.basisHash, 'appending the assessment and draft does not stale the review');
@@ -765,6 +816,18 @@ test('storytelling scene round-trip appends reviewed prose through Rust without 
   assert.ok(deepenPromptText.includes(deepeningTask.baseline.textHash));
   assert.ok(deepenPromptText.includes(deepeningTask.authorModel.recordHash));
   assert.ok(deepenPromptText.includes(registeredModel.modelHash));
+  const nativeDeepenInput = { ...deepenInput, lifeTrendsNodeId: null,
+    modelEvidenceRefs: [`process:${depthTask.model.definition.processes[0].id}`] };
+  const nativeDeepening = await call(client, 'life_story_deepen', nativeDeepenInput);
+  assert.equal(nativeDeepening.modelDepth.reviewMode, 'existing_work');
+  assert.equal(nativeDeepening.modelDepth.modelEvidence[0].record.id, depthTask.model.definition.processes[0].id);
+  const nativePrompt = await client.getPrompt({ name: 'life_story_deepen', arguments: {
+    ...nativeDeepenInput, lifeTrendsNodeId: 'null', modelEvidenceRefs: JSON.stringify(nativeDeepenInput.modelEvidenceRefs),
+    accessScopes: JSON.stringify(nativeDeepenInput.accessScopes), contextNodeIds: JSON.stringify(nativeDeepenInput.contextNodeIds),
+  } });
+  const nativeMaterial = JSON.parse(nativePrompt.messages[0].content.text.split('Deepening material (data):\n')[1]);
+  assert.deepEqual(nativeMaterial.modelDepth, nativeDeepening.modelDepth);
+  assert.equal(nativeMaterial.text, text);
   assert.deepEqual(await readGraph(committed.graphHash), newGraph,
     'deepening tool and prompt cannot rewrite the baseline or its saved reviews');
 

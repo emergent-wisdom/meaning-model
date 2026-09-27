@@ -5,11 +5,29 @@ body.inspector { display: block; height: 100vh; overflow: auto; color: #ecebe6; 
 .inspection-eyebrow { color: #a6a39b; font-size: 13px; }
 .inspection-meta { color: #a6a39b; font-size: 13px; overflow-wrap: anywhere; margin: 6px 0; }
 .inspection-notice { border-left: 3px solid #9fc3ff; padding-left: 12px; }
-.inspection-nav { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 24px 0; }
-.inspection-nav a { color: #a9ceff; text-underline-offset: 3px; }
+.inspection-nav { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 24px 0; padding: 10px 0; background: #090a0c; border-bottom: 1px solid #36363a; }
+.inspection-nav a { padding: 6px 8px; color: #a9ceff; text-underline-offset: 3px; white-space: nowrap; }
+.inspection-content > section { scroll-margin-top: 104px; }
 .inspection-record { margin: 8px 0; border: 1px solid #36363a; border-radius: 8px; background: #141417; }
 .inspection-record summary { padding: 12px 14px; cursor: pointer; overflow-wrap: anywhere; }
 .inspection-record summary:focus-visible { outline: 2px solid #9fc3ff; outline-offset: 2px; }
 .inspection-record pre { margin: 0; padding: 0 14px 14px; max-height: 60vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 12.5px/1.5 ui-monospace, monospace; }
-.inspection-prose { max-width: 760px; margin: 20px 0; white-space: pre-wrap; font: 19px/1.65 Georgia, serif; }
-@media (max-width: 640px) { .inspection-content { padding: 24px 16px 64px; } }
+.inspection-section { margin: 14px 0; padding: 0 12px 10px; border: 1px solid #494953; border-radius: 8px; }
+.inspection-section > summary { cursor: pointer; padding: 14px 0; font-size: 17px; font-weight: 600; }
+.inspection-body { padding: 0 14px 14px; }
+.inspection-body p { overflow-wrap: anywhere; }
+.inspection-body > .inspection-record { background: #0e0f12; }
+.inspection-branch { padding-left: 14px; margin: 16px 0; border-left: 2px solid #4b5669; }
+.inspection-branch h4 { margin: 10px 0; font-size: 14px; font-weight: 600; }
+.inspection-badge { display: inline-block; margin: 5px 0 0 7px; padding: 1px 6px; border: 1px solid #475166; border-radius: 4px; font-size: 11px; font-weight: 400; color: #b8d1f2; }
+.inspection-edge { margin: 8px 0 0; font-size: 11px; color: #a6a39b; overflow-wrap: anywhere; }
+.inspection-reference { padding: 10px 12px; margin: 8px 0; border-left: 2px solid #a7a081; background: #19191c; color: #d0ccc0; font-size: 13px; overflow-wrap: anywhere; }
+.inspection-reference button { display: block; margin-top: 6px; padding: 4px 8px; color: #a9ceff; border: 1px solid #475166; border-radius: 4px; background: transparent; cursor: pointer; }
+.inspection-answers { padding-left: 24px; }
+.inspection-answers > li { padding: 6px 0; overflow-wrap: anywhere; }
+.inspection-weight { display: inline-block; margin-left: 16px; color: #dfcd94; font-variant-numeric: tabular-nums; }
+.inspection-prose { max-width: 760px; margin: 20px 0; font: 19px/1.65 Georgia, serif; }
+.inspection-prose h1 { margin-top: 40px; font-size: 30px; }
+.inspection-prose h2 { margin-top: 36px; font-size: 25px; }
+.inspection-prose p { margin: 18px 0; }
+@media (max-width: 640px) { .inspection-content { padding: 24px 16px 64px; } .inspection-body { padding: 0 8px 10px; } .inspection-branch { padding-left: 8px; } .inspection-record summary { padding: 10px; } }

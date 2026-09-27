@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Meaning Model Viewer</title>
 <style>
+  [hidden] { display: none !important; }
+  body[data-representation="graph"] [data-temporal], body[data-representation="structure"] [data-temporal] { display: none !important; }
+  body:not([data-representation="graph"]) [data-graph], body:not([data-representation="structure"]) #structure-surface { display: none !important; }
+  #graph-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  #structure-surface { position: fixed; inset: 160px 0 0; overflow: auto; background: #090a0c; }
+  #structure-surface .inspection-content { padding-top: 12px; }
+  body[data-representation="structure"] .side { z-index: 12; }
+  #selection-label { overflow-wrap: anywhere; }
   :root { --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781; --panel: rgba(18, 18, 17, 0.74); --ring: rgba(255, 255, 255, 0.10); --love: #ffb057; --fear: #58b4ff; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: #050608; overflow: hidden; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); }
@@ -25,6 +33,8 @@
   /* A separate reading position, with segment width proportional to prose length. */
   .strip { left: 28px; right: 28px; bottom: 74px; display: grid; gap: 5px; padding: 8px 10px; border-radius: 10px; background: var(--panel); box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); pointer-events: auto; }
   .strip[hidden] { display: none; }
+  #reading-hide { position: absolute; top: 6px; right: 8px; }
+  .strip-head, .document-spans summary { padding-right: 26px; }
   .reading-track { display: grid; gap: 5px; } .reading-track[hidden] { display: none; }
   .document-spans { color: var(--ink-2); font-size: 12px; }
   .document-spans summary { cursor: pointer; color: #fff; }
@@ -39,13 +49,18 @@
 
   .strip-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
   .strip-label { flex: none; color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
-  .strip-position { color: var(--ink-2); font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
+  .strip-position { flex: 1; color: var(--ink-2); font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
   .reading-selection { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; }
   .reading-current { font-size: 13px; line-height: 1.3; color: #fff3dc; overflow-wrap: anywhere; }
   .reading-nav { border: 0; border-radius: 5px; padding: 4px 7px; color: #fff; background: rgba(255, 255, 255, 0.1); font: inherit; font-size: 11px; cursor: pointer; }
   .reading-nav:disabled { opacity: 0.35; cursor: default; }
   .reading-nav:focus-visible, .part:focus-visible { outline: 2px solid #ffe6ae; outline-offset: 2px; }
   .strip-help { font-size: 10.5px; color: var(--muted); }
+  .part.ancestor { box-shadow: 0 0 0 1px #ffe6ae inset; }
+  .reading-children { display: grid; gap: 5px; border-top: 1px solid var(--ring); padding-top: 5px; }
+  .reading-children[hidden], #reading-overview-row[hidden], #reading-expand[hidden], #reading-overview[hidden], #reading-hierarchy-warning[hidden] { display: none; }
+  .reading-child-head { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-2); }
+  #reading-parent { overflow-wrap: anywhere; } #reading-expand { justify-self: start; }
   .part.selected { outline: 2px solid #ffe6ae; outline-offset: 1px; background: rgba(255, 224, 160, 0.34); color: #fff; }
   .label.selected-document { color: #fff3dc; background: #151517; border: 1px solid #ffe6ae; border-radius: 6px; padding: 5px 8px; max-width: 260px; white-space: normal; font-size: 13px; }
   .part-events { margin-top: 10px; } .part-events summary { cursor: pointer; color: #fff; }
@@ -114,6 +129,7 @@
   /* The toolbar on the view, as in the understanding graph: each control opens its choices below it. */
   .side { position: fixed; top: 94px; right: 30px; z-index: 4; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; width: calc(50vw - 44px); max-width: 980px; pointer-events: none; }
   .side > * { pointer-events: auto; }
+  .toolbar-visibility { align-self: flex-end; }
   .side [hidden], .toggle[hidden] { display: none !important; }
   .side .legend { position: static; }
   .tools { position: relative; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; width: 100%; }
@@ -124,6 +140,12 @@
   .tool.switch[aria-pressed="true"] { background: rgba(159, 195, 255, 0.24); box-shadow: 0 0 0 1px rgba(159, 195, 255, 0.45) inset; }
   select.tool { appearance: none; -webkit-appearance: none; min-width: 0; max-width: 100%; padding-right: 28px; font-weight: 600; background-image: linear-gradient(45deg, transparent 50%, #898781 50%), linear-gradient(135deg, #898781 50%, transparent 50%); background-position: calc(100% - 15px) 14px, calc(100% - 10px) 14px; background-size: 5px 5px; background-repeat: no-repeat; }
   select.tool option { background: #151517; color: #fff; }
+  .model-picker { display: flex; align-items: center; gap: 8px; flex: 1 1 100%; color: var(--muted); font-size: 13px; }
+  .model-picker select { flex: 1; max-width: 360px; min-width: 0; }
+  .process-focus { display: flex; align-items: center; gap: 8px; flex: 1 1 100%; min-width: 0; color: var(--muted); font-size: 13px; }
+  .process-focus select { flex: 1; min-width: 0; }
+  #process-detail-status { flex: 1 1 100%; margin: 0; font-size: 12px; color: var(--muted); }
+  .tool:disabled { opacity: 0.4; cursor: default; }
   .pop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 6; width: 300px; max-width: 100%; background: #121214; border-radius: 12px; padding: 11px 13px; box-shadow: 0 0 0 1px var(--ring) inset, 0 12px 30px rgba(0,0,0,0.55); font-size: 13px; color: var(--ink-2); }
   .pop { overflow-y: auto; scrollbar-width: thin; }
   .pop[hidden] { display: none; } .pop.wide { width: 330px; max-height: calc(100vh - 230px); }
@@ -176,10 +198,10 @@
     .title { position: relative; top: auto; left: auto; max-width: none; margin: 16px 16px 0; flex: none; }
     .side { position: relative; top: auto; right: auto; width: auto; max-width: none; margin: 12px 16px 0; flex: none; align-items: stretch; }
     .tools { justify-content: flex-start; }
-    .bar { left: 16px; right: 16px; bottom: 16px; height: auto; display: grid; grid-template-columns: 36px repeat(3, minmax(0, 1fr)); gap: 10px 8px; }
+    .bar { left: 16px; right: 16px; bottom: 16px; height: auto; display: grid; grid-template-columns: 36px repeat(2, minmax(0, 1fr)); gap: 10px 8px; }
     .bar button.read { min-width: 0; padding: 0 8px; font-size: 12px; }
     .track { grid-row: 2; grid-column: 1 / 3; min-width: 0; }
-    .clock { grid-row: 2; grid-column: 3 / 5; min-width: 0; font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; }
+    .clock { grid-row: 2; grid-column: 3 / 4; min-width: 0; font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; }
     .strip { left: 16px; right: 16px; bottom: 104px; }
   }
 </style>
@@ -191,15 +213,22 @@
   <div class="repos" id="repos"></div></div>
 <div class="hud stats" id="stats"></div>
 <div class="hud caption"><div class="kind" id="kind">The story</div><div class="text" id="text"></div></div>
-<div class="hud strip" id="strip" hidden><div class="reading-track" id="reading-track"><div class="strip-head"><div class="strip-label">Reading position</div><div class="strip-position" id="reading-position"></div></div><div class="reading-selection"><button class="reading-nav" id="reading-prev" aria-label="Select previous part" disabled>← Previous</button><div class="reading-current" id="reading-current" aria-live="polite"></div><button class="reading-nav" id="reading-next" aria-label="Select next part">Next →</button></div><div class="parts" id="parts" role="group" aria-label="Parts in reading order, sized by prose length"></div><div class="strip-help">Width = prose words · Selecting keeps world time unchanged</div></div></div>
-<div class="hud bar"><button id="play" aria-label="Play the story's years">▶</button><button id="read" class="read">Read full story</button><button id="thoughts" class="read">Documents &amp; notes</button><button id="qr" class="read" hidden>QR code</button><div class="track" id="track"><div class="fill" id="fill"></div></div><div class="clock" id="clock"></div></div>
+<div class="hud strip" id="strip" hidden><button class="reading-nav" id="reading-hide" aria-label="Hide reading position" title="Hide reading position">✕</button><div class="reading-track" id="reading-track"><div class="strip-head"><div class="strip-label">Reading position</div><div class="strip-position" id="reading-position"></div></div><div class="reading-child-head" id="reading-overview-row" hidden><span id="reading-overview-label"></span><button class="reading-nav" id="reading-overview" hidden>Enclosing groups</button></div><div class="reading-selection"><button class="reading-nav" id="reading-prev" aria-label="Select previous part" disabled>← Previous</button><div class="reading-current" id="reading-current" aria-live="polite"></div><button class="reading-nav" id="reading-next" aria-label="Select next part">Next →</button></div><div class="parts" id="parts" role="group" aria-label="Parts in reading order, sized by prose length"></div><button class="reading-nav" id="reading-expand" hidden>Expand children</button><div class="reading-children" id="reading-children" hidden><div class="reading-child-head"><button class="reading-nav" id="reading-parent-back">↑ Parent</button><span id="reading-parent"></span></div><div class="parts" id="child-parts" role="group" aria-label="Child passages in native render order"></div></div><div class="strip-help" id="reading-hierarchy-warning" hidden></div><div class="strip-help">Width = prose words · Selecting keeps world time unchanged</div></div></div>
+<div class="hud bar"><button id="play" aria-label="Play the story's years">▶</button><button id="read" class="read">Read full story</button><button id="qr" class="read" hidden>QR code</button><div class="track" id="track"><div class="fill" id="fill"></div></div><div class="clock" id="clock"></div></div>
 <div id="labels2"></div>
 <!-- The controls sit in a small toolbar on the view, as in the understanding graph: click one and its choices appear. -->
 <div class="side" id="side">
+  <button class="tool toolbar-visibility" id="toolbar-visibility" aria-expanded="true" aria-controls="tools">Hide controls</button>
   <div class="tools" id="tools">
     <select class="tool story" id="story" hidden aria-label="Which story"></select>
     <span class="tool-wrap"><button class="tool" data-pop="pop-show"><i>Show</i> <b id="t-show">Processes</b><span class="caret">▾</span></button>
-      <div class="pop" id="pop-show" hidden><h2>Show it as</h2><div class="seg" id="layouts"><button data-layout="together">Processes</button><button data-layout="layers">Tree</button><button data-layout="terrain">Terrain</button></div><div class="note" id="layout-note"></div><div class="whose" id="whose"></div></div></span>
+      <div class="pop" id="pop-show" hidden><h2>Show it as</h2><div class="seg" id="layouts"><button data-layout="together">Processes</button><button data-layout="layers">Tree</button><button data-layout="terrain">Terrain</button><button data-layout="graph">Graph</button><button data-layout="structure">Structure</button></div><div class="note" id="layout-note"></div><div class="note" id="selection-label" hidden></div><div class="whose" id="whose" data-temporal></div><div id="graph-controls" data-graph></div></div></span>
+    <button class="tool switch" id="coarse-view" aria-pressed="false" title="Return to a coarse overview of the selected whole">Coarse</button>
+    <button class="tool" id="recenter-view" title="Recenter the current view (Home)" aria-keyshortcuts="Home" disabled>Recenter</button>
+    <button class="tool" id="less-detail" aria-label="Less detail" title="Collapse one level of subprocesses">− Detail</button>
+    <button class="tool" id="more-detail" aria-label="More detail" title="Expose another level of subprocesses">+ Detail</button>
+    <label class="process-focus" id="process-focus-label">Focus <select class="tool" id="process-focus" aria-label="Character or process"><option value="">Whole model</option></select></label>
+    <div id="process-detail-status" role="status" hidden></div>
     <span class="tool-wrap"><button class="tool" data-pop="pop-time"><i>Time</i> <b id="t-time">Story</b><span class="caret">▾</span></button>
       <div class="pop" id="pop-time" hidden><h2>Time</h2><div class="seg" id="presets"><button data-preset="story">Story</button><button data-preset="life">A life</button><button data-preset="centuries">Centuries</button><button data-preset="world">World history</button></div><div class="note" id="span"></div></div></span>
     <span class="tool-wrap"><button class="tool" data-pop="pop-play"><i>Play</i> <b id="t-play">The story's years</b><span class="caret">▾</span></button>
@@ -209,12 +238,14 @@
       <div class="pop" id="pop-camera" hidden><h2>Camera</h2><div class="seg" id="cameras"><button data-camera="spin">Spinning</button><button data-camera="free">Free</button><button data-camera="locked">Locked</button></div><div class="note" id="camera-note"></div></div></span>
     <button class="tool switch" id="shine" aria-pressed="true" title="Switch between the shining look and a less shining one (G)">Shining</button>
     <button class="tool switch" id="edges" aria-pressed="true" title="Show or hide the lines that link one thing to another: thoughts to their moments, documents to each other, causal links, the tree (K)">Edges</button>
+    <button class="tool switch" id="thoughts" aria-pressed="false" title="Show or hide documents and notes in the model">Documents &amp; notes</button>
+    <button class="tool switch" id="reading-toggle" hidden aria-pressed="true" aria-controls="strip" title="Show or hide the reading position panel">Reading position</button>
     <span class="tool-wrap"><button class="tool" data-pop="pop-details"><i>Details</i><span class="caret">▾</span></button>
       <div class="pop wide" id="pop-details" hidden>
         <section id="show-section"><h2>Show <button id="all">All</button></h2><div id="kinds"></div></section>
         <section id="depth-section"><h2>Depth of the tree</h2><div class="seg" id="depths"></div><div class="note" id="depth-note"></div></section>
         <section id="lenses-section"><h2>Lenses <button id="lenses-all">All</button></h2><div id="lenses"></div></section>
-        <section class="keys-help"><b>W</b> <b>A</b> <b>S</b> <b>D</b> walk · <b>Q</b> <b>E</b> down and up · arrows look around · <b>Shift</b> faster · <b>1</b>–<b>4</b> the scales · <b>T</b> processes · <b>L</b> tree · <b>R</b> terrain · <b>Space</b> play · <b>C</b> the camera · <b>G</b> shining · <b>K</b> edges · <b>X</b> everything. Locked: scroll or pinch zooms in time, drag pans, <b>Shift</b>+scroll moves a tall view up and down. Otherwise drag turns, right-drag moves, scroll comes closer, <b>Shift</b>+scroll zooms in time. Click anything to read what it is.</section>
+        <section class="keys-help"><b>Home</b> recenter · <b>W</b> <b>A</b> <b>S</b> <b>D</b> walk · <b>Q</b> <b>E</b> down and up · arrows look around · <b>Shift</b> faster · <b>1</b>–<b>4</b> the scales · <b>T</b> processes · <b>L</b> tree · <b>R</b> terrain · <b>Space</b> play · <b>C</b> the camera · <b>G</b> shining · <b>K</b> edges · <b>X</b> everything. Locked: scroll or pinch zooms in time, drag pans, <b>Shift</b>+scroll moves a tall view up and down. Otherwise drag turns, right-drag moves, scroll comes closer, <b>Shift</b>+scroll zooms in time. Click anything to read what it is.</section>
       </div></span>
     <button class="tool switch" id="everything" aria-pressed="false" title="Show every kind of record, every lens and the whole tree (X)">Show everything</button>
   </div>

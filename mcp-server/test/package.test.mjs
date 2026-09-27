@@ -46,7 +46,8 @@ test('a clean source export retains every input needed to stage the npm package'
   const root = fileURLToPath(new URL('../../', import.meta.url));
   const exported = await exportRelease(root, join(temporary, 'source'));
   const { packageDirectory } = await stageNpmPackage(exported.destination, join(temporary, 'npm'));
-  for (const name of ['rust-engine/MEANING_MODEL_CONFORMANCE.md', 'mcp-server/viewer/public/index.html', 'mcp-server/viewer/public/vendor/three/LICENSE']) {
+  for (const name of ['rust-engine/MEANING_MODEL_CONFORMANCE.md', 'mcp-server/viewer/public/index.html', 'mcp-server/viewer/public/vendor/three/LICENSE',
+    'docs/examples/BOOK-OF-CONDITIONS-MODELING.md']) {
     assert.equal(await readFile(join(packageDirectory, name), 'utf8'), await readFile(join(root, name), 'utf8'));
   }
   for (const name of ['.local-work', 'build', '.git']) {
@@ -62,7 +63,7 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
   const { packageDirectory } = await stageNpmPackage(root, temporary);
   const metadata = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'));
   assert.equal(metadata.name, '@emergent-wisdom/meaning-model-mcp');
-  assert.equal(metadata.version, '0.4.0');
+  assert.equal(metadata.version, '0.5.0');
   assert.equal(metadata.mcpName, 'io.github.emergent-wisdom/meaning-model');
   const registry = JSON.parse(await readFile(join(packageDirectory, 'server.json'), 'utf8'));
   assert.equal(registry.name, metadata.mcpName);
@@ -123,12 +124,13 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
   assert.equal(parsed.status, 0, parsed.stderr);
   for (const path of ['rust-engine/Cargo.toml', 'rust-engine/Cargo.lock', 'rust-engine/src/main.rs', 'LICENSE', 'LICENSE-CONTENT', 'NOTICE',
     'mcp-server/src/viewer-server.mjs', 'mcp-server/src/viewer-data.mjs', 'mcp-server/viewer/public/index.html',
-    'mcp-server/viewer/public/view.js', 'mcp-server/viewer/public/vendor/three/LICENSE']) {
+    'mcp-server/viewer/public/view.js', 'mcp-server/viewer/public/playback-time.js', 'mcp-server/viewer/public/structure-model.js', 'mcp-server/viewer/public/inspector.js', 'mcp-server/viewer/public/inspector.css', 'mcp-server/viewer/public/vendor/three/LICENSE']) {
     assert.ok((await stat(join(packageDirectory, path))).isFile(), path);
   }
   for (const path of [
     'rust-engine/examples/category_revision.rs',
     'docs/examples/APPLICATION-CATEGORIES.md',
+    'docs/examples/BOOK-OF-CONDITIONS-MODELING.md',
     'profiles/STORYTELLING_ADDON.md',
     'profiles/ALIEN_ADDON.md',
     'docs/companions/ontology-of-the-alien/ontology_of_the_alien.tex',

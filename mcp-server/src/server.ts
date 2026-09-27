@@ -15,8 +15,10 @@ import { constructionRecordInstructions, registerConstructionRecordTools } from 
 import { registerLensTools } from './lenses.mjs';
 import { registerRevisionCheckTools } from './revision-check.mjs';
 import { registerViewerTools } from './viewer-server.mjs';
+import { registerSavedWorkTools } from './saved-work.mjs';
 import { narrativeRebindSchema, rebindNarrativeGraph } from './narrative-rebind.mjs';
 import { narrativeEditSchema, editNarrativeGraph } from './narrative-editing.mjs';
+import { registerNarrativeGroundingTools } from './narrative-grounding-tools.mjs';
 import { documentProjectSchema, projectNarrativeDocument } from './document-projection.mjs';
 import {
   LifeSimulationService,
@@ -45,7 +47,9 @@ const enabledAddons = parseEnabledAddons(process.env.MEANING_MODEL_ADDONS);
 const estimator = createEstimator(parseEstimatorConfig(process.env));
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.4.0',
+  version: '0.5.0',
+}, {
+  instructions: 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.',
 });
 const service = new LifeSimulationService();
 const requestIdSchema = z.string().min(1).max(256);
@@ -594,7 +598,7 @@ server.registerTool(
 server.registerTool(
   'life_narrative_edit',
   {
-    description: 'Atomically split, merge, move, reorder or edit existing narrative/understanding graph passages. Available for any modeled domain, without the storytelling add-on. Supply the exact predecessor graphHash, scopes covering its complete graph, a reason and ordered operations; the service preserves untouched records and constructs one immutable Rust-validated successor. Splits preserve exact rendered text. Existing testimony and model anchors are not automatically reinterpreted; inspect affected review IDs and re-review changed text or order. Read life-sim://protocol/narrative-understanding-graph for operation contracts and conservative topology limits.',
+    description: 'Atomically split, merge, move, reorder or edit existing narrative/understanding graph passages. Available for any modeled domain, without the storytelling add-on. Supply the exact predecessor graphHash, scopes covering its complete graph, a reason and ordered operations; the service preserves untouched records and constructs one immutable Rust-validated successor. Splits preserve exact rendered text and retain the original as a container; children can be subdivided again when finer independent attention is useful. Whole-part links can stay on the parent; linkAssignments can connect selected children, with keepOriginal:false to move a connection. Existing testimony and model anchors are not automatically reinterpreted; inspect affected review IDs and re-review changed text or order. Read life-sim://protocol/narrative-understanding-graph for operation contracts and conservative topology limits.',
     inputSchema: narrativeEditSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
@@ -976,8 +980,10 @@ server.registerTool(
 registerJevProcessEstimationTools(server, service, estimator, { toolResult });
 registerGeneralModelingTools(server, service, estimator, { toolResult });
 registerConstructionRecordTools(server, service, { toolResult });
+registerSavedWorkTools(server, service, { toolResult });
 registerLensTools(server, service, { toolResult, estimator });
 registerRevisionCheckTools(server, service, { toolResult });
+registerNarrativeGroundingTools(server, service, { toolResult });
 const viewer = registerViewerTools(server, service);
 
 if (enabledAddons.includes('storytelling')) {

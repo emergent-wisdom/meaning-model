@@ -27,6 +27,15 @@ Preserve competing explanations instead of assigning unsupported causal laws.
 Connect models through explicit referents and supported relationships; the tool
 does not automatically reconcile separately modeled systems.
 
+Explore recursively: open a process or meaning, discover its sub-processes,
+relationships and possible distinctions, follow fruitful new questions, then
+revise and revisit connected parts of the model. Curiosity can open a sufficient
+account without a defect to repair. Invent and compare categories where useful;
+the supplied questions are starting points, not the limits of inquiry. Record
+speculative connections as hypotheses rather than observations or accepted
+history. Continue within the existing delegation; only decisions the user
+reserved need their agreed approval.
+
 ## Think in the model
 
 The model is where the account is thought, and the forecast or explanation is
@@ -40,18 +49,33 @@ not lived in the system it describes; the model gives it one.
   Events that instantiate no concept; no regularity linking Events that recur.
   Take them between every step. A question that needs no more here is answered
   by saying so: an Understanding Node about the records it concerns, with data
-  { schema: meaning-model-sufficient/v1, kind, reason, reopenIf }. It is not
-  asked again while the note stands.
-- **Standing questions.** Ask them all the time. Is there a macro aspect I must
+  { schema: meaning-model-sufficient/v1, kind, reason, reopenIf }. It suppresses
+  matching reminders while the note stands, not further exploration. With a
+  graph selected, `sufficiencyNotes` returns the visible notes' reasons,
+  `reopenIf` conditions, linked targets (`records` and `aboutNodeIds`), and
+  `writtenAgainstModel` provenance when present. Read them when a discovery
+  touches the subject. The calling LLM judges whether to reopen it: the server
+  does not evaluate `reopenIf` text or invalidate every note after any model
+  change. Record the reassessment with a `supersedes` link to the old note;
+  an explicitly superseded note no longer suppresses questions in that visible
+  graph. Curiosity or a fresh connection can prompt reassessment even without
+  a defect in the earlier account.
+  Inline metadata includes at most `min(limit, 16)` whole notes within 32 KiB;
+  `sufficiencyNotesOmitted` counts omissions, and `sufficiencyNotesRead` gives
+  a skeleton-to-neighborhood read route for complete notes at depth 0 using
+  the same graph and access scopes, without excerpting their content.
+- **Standing questions.** Return to them during exploration. Is there a macro aspect I must
   model to truly understand what is going on here, a regime change, an
   institution's history, a long process behind it? What can be richer about
   this process? What is it an instance of? Climb up to the concept or law that
   explains it together with other things, and test what that abstraction
-  predicts elsewhere.
+  predicts elsewhere. What process, relationship or distinction has nobody
+  named here yet? What does opening it reveal, and which connected account
+  should that discovery lead us to revisit?
 - **Profiles add their own questions.** General modeling works on subjects,
   processes, constraints, observations, dependencies and alternatives. The
   storytelling profile adds what fiction needs: whole lives, the reasons
-  behind acts (fear or love is built in there), and drawn decisions. A draw
+  behind acts (fear/love is an optional available lens), and drawn decisions. A draw
   constructs fiction; in a model of what happened, a decision is observed, and
   what is unknown stays unresolved.
 - **Background processes.** Model far more than the question shows: the
@@ -61,7 +85,10 @@ not lived in the system it describes; the model gives it one.
   the largest shifts, the closest-run decisions and the moments actors read
   most differently. They are where an explanation or a forecast should look.
 
-The model is never finished. There is no depth at which the questions stop.
+The model is never finished. Questions can keep arising at any depth.
+A run can pause within its agreed scope, recording the promising open
+branches; a local judgment of sufficiency does not claim that inquiry is over
+or require every branch to be expanded now.
 
 ## Record what you do
 

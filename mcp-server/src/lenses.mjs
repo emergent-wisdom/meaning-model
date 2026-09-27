@@ -24,8 +24,8 @@ const scopeList = z.array(id).min(1).max(64);
 export const LENS_KINDS = Object.freeze(['act', 'period', 'life', 'event', 'inner']);
 export const LENS_SCHEMA = 'meaning-model-lens/v1';
 
-// The one lens every story starts with, when the storytelling profile is adopted: general modeling has no built-in
-// lens. Defining a lens with this id replaces it.
+// An optional template available with the storytelling profile. Its question and signature stay stable for older
+// readings. Defining a lens with this id replaces it; availability alone does not adopt it for a story.
 export const BUILT_IN_LENSES = Object.freeze([{
   id: 'fear-love', name: 'Fear or love', builtIn: true, appliesTo: ['act'],
   question: 'What kinds of reasons lie behind {subject}: is it primarily out of fear or out of love, and what does that fear or love ask of the person?',
@@ -237,6 +237,32 @@ export function readLenses(view) {
   const builtIn = storyProfile() ? BUILT_IN_LENSES : [];
   const lenses = [...builtIn.filter((lens) => !defined.some((item) => item.id === lens.id)), ...defined.map(inherit)];
   return lenses.map((lens) => ({ ...lens, about: lens.nodeId ? about.get(lens.nodeId) ?? [] : [] }));
+}
+
+// The catalog retains built-in templates for discovery and signature compatibility. An inquiry or placement uses
+// only authored lenses, explicit selections, or a built-in already evidenced by historical readings. A matching
+// decision/forecast question is not adoption of an interpretive lens; existing resolution rules keep it distinct.
+function activeLenses(view, index, lensIds = []) {
+  const requested = new Set(lensIds);
+  const drawn = new Set(readDraws(view).map((draw) => draw.cutId));
+  const forecasts = new Set(index.relations.filter((relation) => relation.kind === 'realizes_forecast' && relation.forecast_answer?.cut_id)
+    .map((relation) => relation.forecast_answer.cut_id));
+  const adopted = (lens) => index.cuts.some((cut) => {
+    const unit = String(cut.unit ?? '');
+    if (String(cut.id).startsWith(`lens.${lens.id}.`) || unit === `lens:${lens.id}`
+      || unit.startsWith(`lens:${lens.id}@`) || unit.startsWith(`lens:${lens.id}/`)) return true;
+    return Boolean(lens.matchesQuestion?.test(String(cut.question ?? ''))) && cutKind(cut) !== 'decision'
+      && !drawn.has(cut.id) && !forecasts.has(cut.id) && !(cut.provenance ?? []).includes('lens-resolved:direction');
+  });
+  return readLenses(view).filter((lens) => requested.size ? requested.has(lens.id) : !lens.builtIn || adopted(lens));
+}
+
+function availableTemplates(view, selected) {
+  const selectedIds = new Set(selected.map((lens) => lens.id));
+  return readLenses(view).filter((lens) => lens.builtIn && !selectedIds.has(lens.id)).map((lens) => ({
+    id: lens.id, name: lens.name, question: lens.question, appliesTo: lens.appliesTo, unit: lensUnit(lens),
+    select: { lensIds: [lens.id] },
+  }));
 }
 
 // ---- where a reading belongs --------------------------------------------------------------------------------
@@ -561,7 +587,7 @@ export const lensQuestionsSchema = z.object({
   graphHash: hash, accessScopes: z.array(id).max(64).default([]),
   holder: id.optional().describe('Whose understanding root a modeler lens\'s readings go under; by default the lens\'s own holder.'),
   modelHash: hash.optional().describe('Read this model instead of the one the graph is bound to, such as a revision not yet rebound; the lenses are still read from the graph.'),
-  lensIds: z.array(z.string().max(48)).max(32).default([]).describe('Only these lenses; all when empty.'),
+  lensIds: z.array(z.string().max(48)).max(32).default([]).describe('Select only these lenses, including optional built-in templates. Empty selects graph-defined lenses and built-ins already evidenced by historical readings; it does not adopt unused templates.'),
   limit: z.number().int().min(1).max(200).default(24).describe('How many open records to list per lens.'),
   maxDepth: z.number().int().min(1).max(64).default(DEFAULT_OPEN_DEPTH).describe('How deep openings are suggested: a limit of this inquiry, raised here, not a ceiling of the language.'),
 }).strict();
@@ -573,7 +599,7 @@ export async function lensQuestions(service, raw) {
   if (!modelHash) throw new Error('The graph is not bound to a model, so there are no records to ask a lens of.');
   const { model } = await service.inspectModel({ modelHash, includeDefinition: true });
   const index = indexModel(model); const people = modeledPeople(index);
-  const lenses = readLenses(view).filter((lens) => !input.lensIds.length || input.lensIds.includes(lens.id));
+  const lenses = activeLenses(view, index, input.lensIds);
   // For a revised lens, the answers the model held when the revision was written, to tell earlier answers from later ones.
   const heldAt = new Map();
   for (const hash of new Set(lenses.filter((lens) => (lens.version ?? 1) > 1 && lens.writtenAgainst).map((lens) => lens.writtenAgainst))) {
@@ -613,6 +639,8 @@ export async function lensQuestions(service, raw) {
   });
   return {
     schema: 'meaning-model-lens-questions/v1', graphHash: input.graphHash, modelHash, lenses: results, survey: lensSurvey(lenses),
+    availableTemplates: availableTemplates(view, lenses),
+    selection: 'Defined lenses are active by default. lensIds selects a built-in template for this call only; repeat that selection for later calls, or persist the intended lens through life_lens_define. Existing historical readings also retain its adoption. Empty placement Events alone do not adopt a template; do not invent numerical answers to activate one. Availability alone creates no reading backlog.',
     howToOpen: `A reading opens into kinds, level by level: fear, then fear of what. Each opening is a Cut on the same reading Event, conditioned on the answer it divides, with its own remainder: estimate it with the cutId, question, unit and conditionedOn given, and the estimator is told which answer it divides but not its weight. Shares multiply down a path, so the tree's joint shares measure answers at any depth against each other. Open where the finer kinds would change a later act, a decision, how others read it or what the prose must show, or where the remainder is heavy; stop where they would change nothing, and record the stop as an Understanding Node about the record's Event with data { schema: ${LENS_SUFFICIENCY_SCHEMA}, lensId, path, reason, reopenIf }. A level found case by case becomes comparable once it is fixed: define the lens again with those answers as children.`,
     howToAnswer: 'A reading is held by someone, so it goes beneath them: run life_lens_place first, which adds the holder\'s root and one reading Event per record (placement.eventId), linked about the record, and moves readings that still sit on the record. Then estimate with the reading Event as the target: its situation is the record\'s text (for a character reader, pass what they could know), and the Cut goes on the reading Event. Answer each open record as a Cut with life_model_revise or the estimator: the cutId given, the question asked of that record, and answers weighted to sum to 1, with a remainder for what the lens does not name. Use the lens\'s answers where it has them and find your own where it has none. Estimate the weights with the estimator where one is configured, many records in one call (every applied estimate registers a model revision), then rebind the story graph. Give each answer the unit shown, which binds it to this version of the lens: answers given to an earlier version are listed again as stale, to be answered again with replaceExisting under the same Cut id. Answers are yours to find: a lens asks, it does not decide. A record the lens does not fit is declined, not answered: record an Understanding Node about its Event with data { schema: meaning-model-lens-decline/v1, lensId, reason }, and it stops being asked. Candidates are the other moments a person is the subject of, where the lens might also fit: the model does not say which are acts, so choose, and answering a candidate with its Cut id makes it one of the lens\'s records. An act that follows a drawn decision is asked of what was done (decidedAt names the decision). An answered reading can be opened deeper, into the kinds of an answer: see howToOpen and each lens\'s openings.',
     graphMutation: false, worldMutation: false,
@@ -623,7 +651,7 @@ export async function lensQuestions(service, raw) {
 export function lensOpenQuestions(view, model) {
   const index = indexModel(model); const people = modeledPeople(index); const declines = readDeclines(view);
   const roots = model?.meaning_model?.context_roots ?? []; let unplaced = 0; const unplacedLenses = []; const drawn = new Set(readDraws(view).map((draw) => draw.cutId));
-  const questions = readLenses(view).flatMap((lens) => {
+  const questions = activeLenses(view, index).flatMap((lens) => {
     const subjects = subjectsOf(lens, index, people, null, declines.get(lens.id) ?? new Map(), { roots, holder: lens.holder ?? 'modeler', drawn });
     // Only the lens's own Cuts: one that merely matches its question may be canon, and placing leaves it where it is.
     const inWorld = subjects.filter((subject) => (subject.inWorldIds ?? []).some((cutId) => cutId.startsWith(`lens.${lens.id}.`))).length; if (inWorld) { unplaced += inWorld; unplacedLenses.push(lens.id); }
@@ -641,7 +669,7 @@ export function lensOpenQuestions(view, model) {
 export const lensPlaceSchema = z.object({
   graphHash: hash, requestId: id, accessScopes: scopeList,
   modelHash: hash.optional().describe('The model to revise; by default the one the graph is bound to.'),
-  lensIds: z.array(z.string().max(48)).max(32).default([]).describe('Only these lenses; all when empty.'),
+  lensIds: z.array(z.string().max(48)).max(32).default([]).describe('Select only these lenses, including optional built-in templates. Empty selects graph-defined lenses and built-ins already evidenced by historical readings; unused templates create no reading Events.'),
   holder: id.optional().describe('Whose understanding root modeler readings go under; by default each lens\'s holder.'),
   records: z.enum(['all', 'open', 'in-world']).default('all').describe('Which records get a reading Event: every record of a lens, the open ones, or those whose reading still sits on the record.'),
   eventIds: z.array(id).max(500).default([]).describe('Candidates to place as well, such as the moments you are about to answer: an answer on their reading Event makes them records.'),
@@ -688,7 +716,7 @@ export async function placeReadings(service, raw) {
   const chains = [...mm.normalized_cuts.filter((cut) => cut.conditioning?.cut_id).map((cut) => [cut.id, cut.conditioning.cut_id]),
     ...(mm.temporal_cut_recompositions ?? []).flatMap((item) => (item.children ?? []).map((child) => [item.parent_cut_id, child.cut_id]))];
   const chained = new Set(chains.flat());
-  const lenses = readLenses(view).filter((lens) => !input.lensIds.length || input.lensIds.includes(lens.id));
+  const lenses = activeLenses(view, index, input.lensIds);
   const declines = readDeclines(view); const drawn = new Set(readDraws(view).map((draw) => draw.cutId));
   const fallbackHolder = input.holder ?? lenses.find((lens) => lens.holder)?.holder ?? 'modeler';
   const asked = new Set(input.eventIds); const found = new Set(); const resolutions = new Map(input.resolve.map((item) => [item.cutId, item.as]));
@@ -779,16 +807,18 @@ export async function placeReadings(service, raw) {
     }
   }
   // Estimates made without an Event-text signature may predate keeping lens readings out of a person's modeled state.
-  const dependents = mm.normalized_cuts.filter((cut) => !String(cut.id).startsWith('lens.') && !index.readings?.has(cut.parent_event_id)
+  const dependents = (lenses.length ? mm.normalized_cuts : []).filter((cut) => !String(cut.id).startsWith('lens.') && !index.readings?.has(cut.parent_event_id)
     && (cut.provenance ?? []).some((item) => String(item).startsWith('estimator:')) && !(cut.provenance ?? []).some((item) => String(item).startsWith('event-text:'))).map((cut) => cut.id);
-  const common = { schema: 'meaning-model-lens-placement/v1', previousModelHash: modelHash, rootsAdded: added.roots, ...(added.worldRoot ? { worldRoot: added.worldRoot, worldContains: added.worldContains, otherRoots: added.otherRoots } : {}),
+  const common = { schema: 'meaning-model-lens-placement/v1', previousModelHash: modelHash, availableTemplates: availableTemplates(view, lenses),
+    selection: 'lensIds is a per-call selection. To keep using a template before readings exist, repeat lensIds or persist the intended lens through life_lens_define; placing empty reading Events does not adopt it, and numerical answers are not required to define it.',
+    rootsAdded: added.roots, ...(added.worldRoot ? { worldRoot: added.worldRoot, worldContains: added.worldContains, otherRoots: added.otherRoots } : {}),
     readingEventsAdded: added.events.length, relationsAdded: added.relations.length, moved: moved.length, movedCutIds: moved.slice(0, 200), ...(moved.length > 200 ? { movedCutIdsShown: `the first 200 of ${moved.length}` } : {}), resolved, kept, refused,
     ...(unknown.length ? { notRecords: unknown.slice(0, 60) } : {}),
     recheck: { count: dependents.length, cutIds: dependents.slice(0, 60), ...(dependents.length > 60 ? { cutIdsShown: `the first 60 of ${dependents.length}` } : {}),
       why: 'These were estimated without an Event-text signature, so they may predate keeping lens readings out of a person\'s modeled state, and may have read readings as state. Re-estimate the ones that matter.',
       how: 'Recheck each with the situation text it was made from, its question and its answers. The model keeps only a signature of a situation (situation: in provenance, for estimates made from now on), so for older ones use the inputs they were made from. A decision Event alone often gives the estimator almost nothing, since its description defers to its Cut.' } };
   const changed = added.events.length || moved.length || added.roots.length || added.relations.length || resolved.length;
-  if (!changed) return { ...common, modelHash, graphMutation: false, nextStep: kept.length ? 'Every lens Cut already sits beneath its holder. Resolve the kept Cuts: canon, reading or direction.' : 'Every reading of these lenses already sits beneath its holder.' };
+  if (!changed) return { ...common, modelHash, graphMutation: false, nextStep: !lenses.length ? 'No active lenses were selected; no reading Events were created. Define a useful lens or explicitly select an available template with lensIds.' : kept.length ? 'Every lens Cut already sits beneath its holder. Resolve the kept Cuts: canon, reading or direction.' : 'Every reading of these lenses already sits beneath its holder.' };
   if (input.dryRun) return { ...common, modelHash, dryRun: true, graphMutation: false, nextStep: 'Nothing was changed. Call again without dryRun to place these readings.' };
   successor.revision = { number: Number(model.revision?.number ?? 0) + 1, previous_model_hash: modelHash, provenance: [...provenance, ...(model.revision?.provenance ?? []).slice(0, 8)], reason: input.reason };
   const revised = await service.reviseModel({ requestId: input.requestId, previousModelHash: modelHash, model: successor });
@@ -809,7 +839,7 @@ export const lensRereadSchema = z.object({
   graphHash: hash, requestId: id, accessScopes: scopeList,
   modelHash: hash.optional().describe('Read this model instead of the one the graph is bound to.'),
   eventIds: z.array(id).max(64).default([]).describe('The records whose stale readings to read again, by their Event id; every stale reading when empty.'),
-  lensIds: z.array(z.string().max(48)).max(32).default([]).describe('Only these lenses; all when empty.'),
+  lensIds: z.array(z.string().max(48)).max(32).default([]).describe('Select only these lenses. Empty uses graph-defined lenses and built-ins already evidenced by historical readings; unused templates are not adopted.'),
   situationText: z.record(id, z.string().trim().min(1).max(16_000)).default({}).describe('For a reading whose holder may not read the record itself (a character, or a lens that reads the prose): their observation or the passage, by record id.'),
   samples: z.number().int().min(1).max(5).default(1).describe('How many times to read each: with more than one, the mean is applied and the spread between readings is reported, so a move within the estimator\'s own noise shows as noise.'),
   rebind: z.object({ graphHash: hash, requestId: id.optional(), accessScopes: scopeList }).strict().optional().describe('Rebind this graph to the revised model in the same call.'),
@@ -887,7 +917,7 @@ export function registerLensTools(server, service, { toolResult, estimator = nul
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await defineLens(service, input)));
   server.registerTool('life_lens_place', {
-    description: 'Place lens readings beneath whoever holds them. An interpretation is not a fact of the world, so a reading does not sit on the record it reads: this adds the holder\'s understanding root (a context root of kind understanding) and one reading Event per record, contained by that root and linked about the record, and moves readings that still sit on the record onto their reading Event with the same Cut ids and weights. An actor\'s own reasons, as canon, go on an inner Event under the actor\'s inner root at the decision; a character\'s reading under that character\'s inner root. It lists the Cuts it could not move and the estimates to recheck.',
+    description: 'Place selected lens readings beneath whoever holds them. By default use graph-defined lenses and built-ins already evidenced by historical readings; an unused built-in template creates no Events unless explicitly selected with lensIds. lensIds selects for this call only; repeat it or persist the intended lens with life_lens_define, without inventing numerical answers. An interpretation is not a fact of the world, so a reading does not sit on the record it reads: this adds the holder\'s understanding root (a context root of kind understanding) and one reading Event per record, contained by that root and linked about the record, and moves readings that still sit on the record onto their reading Event with the same Cut ids and weights. An actor\'s own reasons, as canon, go on an inner Event under the actor\'s inner root at the decision; a character\'s reading under that character\'s inner root. It lists the Cuts it could not move and the estimates to recheck.',
     inputSchema: lensPlaceSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await placeReadings(service, input)));
@@ -897,7 +927,7 @@ export function registerLensTools(server, service, { toolResult, estimator = nul
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: Boolean(estimator) },
   }, async (input) => toolResult(await rereadLenses(service, estimator, input)));
   server.registerTool('life_lens_questions', {
-    description: 'Ask every lens of the model: for each lens (defined with life_lens_define; in the storytelling profile fear or love is built in), the records it applies to that have no answer yet, with the question for each and the Cut id to answer it with; where a person\'s answer changes over their life and where it never does; and open questions that keep looking for lenses not yet found. Read-only.',
+    description: 'Ask the active lenses of the model: graph-defined lenses and built-ins already evidenced by historical readings. In the storytelling profile fear or love is an optional template, returned in availableTemplates when inactive; select it with lensIds only if useful. This selection lasts for this call; repeat lensIds or persist the intended lens with life_lens_define. No numerical answers are needed to define a lens, and an unused template creates no open backlog. For each active lens, return applicable records without answers, their questions and Cut ids, changes in readings over a life, and questions for further inquiry. Existing historical readings remain readable. Read-only.',
     inputSchema: lensQuestionsSchema,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await lensQuestions(service, input)));

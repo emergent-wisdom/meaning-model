@@ -46,7 +46,7 @@ test('a revision that changed nothing leaves nothing to check', async () => {
 test('a passage without declared depiction links is reported as unchecked', async () => {
   const unlinked = { ...view, nodes: [...view.nodes, { id: 'scene.2', node_type: 'scene', render: 'include', text: 'She walks home.' }] };
   const result = await checkRevision({ ...service, queryNarrativeGraph: async () => unlinked }, { graphHash: 'c'.repeat(64), fromModelHash: 'a'.repeat(64) });
-  assert.deepEqual(result.unlinkedPassages.nodeIds, ['scene.2']); assert.match(result.nextStep, /1 passage has no declared renders link to an Event or Cut, so it was not checked/u);
+  assert.deepEqual(result.unlinkedPassages.nodeIds, ['scene.2']); assert.match(result.nextStep, /1 passage needs an Event\/renders declaration or a current per-passage no-link reason/u);
 });
 
 const passage = (id) => ({ id, node_type: 'storytelling.passage', render: 'include', text: 'Ana weighs the choice.' });
@@ -122,7 +122,7 @@ test('declared dependencies alone determine which linked passages require review
   assert.deepEqual(result.passages.map(({ nodeId, records }) => ({ nodeId, records })), [
     { nodeId: 'changed', records: ['ana.choice'] }, { nodeId: 'cut', records: ['cut.choice'] },
   ]);
-  assert.equal(result.unlinkedPassages, undefined);
+  assert.deepEqual(result.unlinkedPassages.nodeIds, ['cut'], 'A Cut dependency alone does not place a passage in world time.');
   assert.match(result.notChecked, /whether those links cover everything it depicts/);
 });
 
@@ -133,7 +133,7 @@ test('a renders Cut dependency remains affected when the Cut is removed or moved
     else modelAfter.meaning_model.normalized_cuts[0].parent_event_id = 'ana.after';
     const result = await checkGraph([passage('cut')], [anchor('cut', 'cut.choice', { kind: 'normalized_cut' })], modelAfter);
     assert.deepEqual(result.passages.map(({ nodeId, records }) => ({ nodeId, records })), [{ nodeId: 'cut', records: ['cut.choice'] }], change);
-    assert.equal(result.unlinkedPassages, undefined, change);
+    assert.deepEqual(result.unlinkedPassages.nodeIds, ['cut'], change);
     assert.ok(result.changed[change === 'removed' ? 'removedCuts' : 'moved'].includes('cut.choice'), change);
   }
 });

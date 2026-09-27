@@ -19,7 +19,7 @@
 export const SLOW_PROCESSES = Object.freeze(['body', 'kin', 'partnership', 'work', 'place', 'means', 'knowledge', 'standing', 'meaning']);
 // The shared first-run comparison vocabulary of the Book; a person's own wants replace it.
 const SHARED_WANTS = new Set(['belonging', 'competence', 'autonomy', 'understanding', 'well_being', 'wellbeing', 'well-being', 'remainder']);
-// A Cut answer may drift by up to this much between consecutive moments; a larger shift needs a cause between them.
+// A larger shift prompts a causal review; the recognizer cannot establish that no explanation exists.
 export const MAX_UNCAUSED_SHIFT = 0.2;
 
 const push = (map, key, value) => { if (!map.has(key)) map.set(key, []); map.get(key).push(value); };
@@ -31,7 +31,7 @@ export const cutKind = (cut) => {
   if (/decision|continuation/u.test(unit) || /\.direction\./u.test(cut.parent_event_id ?? '')) return 'decision';
   if (unit.includes('motivational')) return 'wants';
   if (unit.includes('emotional')) return 'feels';
-  if (unit.includes('fulfillment')) return 'outlook';
+  if (unit.includes('fulfillment') || unit.includes('fulfilment')) return 'outlook';
   if (/deciding|framing|problem-solving/u.test(unit)) return 'how';
   if (unit.includes('health')) return 'health';
   return 'other';
@@ -40,7 +40,7 @@ const questionOf = (cut) => String(cut.question ?? cut.id ?? '');
 const answersOf = (cut) => cut.answers ?? [];
 const estimated = (cut) => (cut.provenance ?? []).some((item) => /^(estimator|supplied):/u.test(String(item)));
 
-// Whether the storytelling profile is adopted. Fear or love, whole lives and drawn decisions belong to it: general
+// Whether the storytelling profile is adopted. Optional motive lenses, whole lives and drawn decisions belong to it: general
 // modeling works on subjects, processes, constraints, observations, dependencies and alternatives, and a draw
 // constructs fiction, it does not settle an observed fact.
 export const storyProfile = (environment = process.env) => String(environment.MEANING_MODEL_ADDONS ?? '').split(',').map((item) => item.trim()).includes('storytelling');
@@ -168,7 +168,7 @@ export function readPerson(index, personId) {
 const describe = (event) => (event?.description ?? event?.boundary ?? event?.id ?? '').toString().slice(0, 160);
 const when = (event) => (start(event) === null ? 'at an untimed moment' : end(event) !== null && end(event) !== start(event) ? `from ${start(event)} to ${end(event)}` : `at ${start(event)}`);
 
-// Consecutive Cuts asking the same question must be consistent in time: a large shift needs a cause between them.
+// Consecutive Cuts asking the same question can prompt a review of a large shift and its explanation.
 function uncausedShifts(series, causes, subjectLabel, causedBy = () => false) {
   const found = [];
   for (const list of series.values()) {
@@ -181,7 +181,7 @@ function uncausedShifts(series, causes, subjectLabel, causedBy = () => false) {
       if (!moved.length || causes.some((time) => time > start(before.event) && time <= start(after.event)) || causedBy(before, after)) continue;
       const key = moved[0];
       found.push({ at: [start(before.event), start(after.event)], cuts: [before.cut.id, after.cut.id],
-        question: `${subjectLabel}"${before.cut.question}" moves ${key} from ${(a[key] ?? 0).toFixed(2)} to ${(b[key] ?? 0).toFixed(2)} between ${start(before.event)} and ${start(after.event)}, with nothing modeled between them to cause it. What happened? Model the cause and what followed from it, or make the change gradual across more moments.` });
+        question: `${subjectLabel}"${before.cut.question}" moves ${key} from ${(a[key] ?? 0).toFixed(2)} to ${(b[key] ?? 0).toFixed(2)} between ${start(before.event)} and ${start(after.event)}. This recognizer found no intervening change arc or matching causal relation; an explanation may already be present in descriptions or other model structure. Read that evidence first. Is this a changed situation, a changed assessment, or a genuinely unexplained transition? Link or refine the relevant explanation if needed; do not invent a cause or smooth the recorded values merely to remove this question.` });
     }
   }
   return found;
@@ -200,11 +200,11 @@ function personQuestions(index, person, name, principal) {
     return questions;
   }
   if (person.lifeLength === null) ask('life-untimed', `${name}'s life has no interval. When were they born, and when does the life end or the work leave it? Without time the model cannot keep their states consistent.`, 'life_model_revise');
-  if (person.processes.length < 3) ask('processes-few', `${name}'s life runs through ${person.processes.length} process${person.processes.length === 1 ? '' : 'es'}. How can you understand ${name} better? The person template suggests nine slow processes (body, kin, partnership, work, place, means, knowledge, standing, meaning); processes invented for ${name}, or subcategories of either, may explain more. Look at the template and at ${name}'s life, and choose what explains them most deeply.`, 'life_profile_compile (person_scaffold) or your own processes, then life_model_revise');
+  if (person.processes.length < 3) ask('processes-few', `This recognizer found ${person.processes.length} long-running process${person.processes.length === 1 ? '' : 'es'} directly within ${name}'s life Event. Read the existing descriptions and other model structure before concluding that a process is missing. What would explain this life better? The person template suggests body, kin, partnership, work, place, means, knowledge, standing and meaning; use these, your own processes or fewer of them where relevant. A recognized process count is not a depth requirement.`, 'life_meaning_query or life_model_inspect, then life_model_revise if needed');
   const empty = person.processes.filter((item) => item.opened === 0).map((item) => item.eventId.match(/\.is\.([a-z]+)$/u)?.[1] ?? item.what);
-  if (empty.length) ask('process-empty', `${name}'s ${empty.join(', ')} ${empty.length === 1 ? 'is' : 'are'} empty. What happened in each over their life: which episodes, shocks and changes, and when? Open the ones the causality runs through into Events and Cuts, or into subcategories of your own if they understand ${name} better.`, 'life_model_revise', { processes: empty });
+  if (empty.length) ask('process-empty', `${name}'s ${empty.join(', ')} ${empty.length === 1 ? 'has' : 'have'} no recognized child Events or Cuts. Read their descriptions and other related records before treating them as unexplained. Which episodes or changes matter to the current question? Open a process where the causality needs it; a useful qualitative account does not require numerical Cuts.`, 'life_meaning_query or life_model_inspect, then life_model_revise if needed', { processes: empty });
   if (!person.periods.length) {
-    ask('periods-missing', `What were the periods of ${name}'s life, from birth to its end? The model shows none. One way: contain each in the life Event with an interval, together covering the life.`, 'life_model_revise');
+    ask('periods-missing', `No bounded life periods were recognized directly within ${name}'s life Event. Read the existing life descriptions, dossier and other model structure first. Which periods explain the current choices, and is any relevant history still unresolved? Add or link the needed periods; a complete partition of the life is optional, not a requirement to invent its unneeded remainder.`, 'life_meaning_query or life_model_inspect, then life_model_revise if needed');
   } else if (start(person.life) !== null) {
     let cursor = start(person.life);
     const tolerance = (person.lifeLength ?? 0) * 0.02;
@@ -221,18 +221,18 @@ function personQuestions(index, person, name, principal) {
     for (const period of person.periods) {
       const inside = [period.id, ...descendants(index, period.id)];
       if (!inside.some((eventId) => (index.cutsByEvent.get(eventId) ?? []).some((cut) => !readingCut(index, cut))) && !innerWithin(period)) {
-        ask('period-uncut', `In ${name}'s period "${describe(period)}" (${when(period)}), how did they expect what they want to turn out, and what was at risk? Give the period its outlook Cut and, conditional on threat, a Cut over what was threatened.`, 'life_model_revise or life_estimate_cut_shares', { at: [start(period), end(period)] });
+        ask('period-uncut', `No Cut was recognized in ${name}'s period "${describe(period)}" (${when(period)}). Their outlook may already be described qualitatively; read it first. What did they expect, what was at risk, and does this explain the relevant choices? Add an outlook or conditional threat Cut only if a meaningful comparison and declared unit call for numerical shares.`, 'life_meaning_query or life_model_inspect, then life_model_revise if needed', { at: [start(period), end(period)] });
       }
     }
   }
   const wantCuts = person.cuts.filter((item) => cutKind(item.cut) === 'wants');
   if (!wantCuts.length) {
-    ask('wants-missing', `What does ${name} most deeply want, and which learned wants has their life taught them as ways to get it? Nothing in the model says. Model the wants, and give their key moments a Cut of motivational attention over them.`, 'life_model_revise');
+    ask('wants-missing', `No motivational-attention Cut was recognized for ${name}. Their wants may already be expressed in descriptions or other records. Read those first: what do they most deeply want, which learned wants serve it, and how do these explain their choices? Refine a missing distinction where useful; add a Cut only when a declared comparison and unit call for one.`, 'life_meaning_query or life_model_inspect, then life_model_revise if needed');
   } else if (wantCuts.every((item) => answersOf(item.cut).every((answer) => SHARED_WANTS.has(answer.key)))) {
-    ask('wants-generic', `${name}'s wants are only the shared vocabulary (belonging, competence, autonomy, understanding, well-being). What does ${name} in particular most deeply want, which learned want has become a proxy for it, and where do two of them conflict?`, 'life_model_revise');
+    ask('wants-generic', `${name}'s recognized motivational-attention Cuts use only the shared vocabulary (belonging, competence, autonomy, understanding, well-being). Their particular wants may already be described elsewhere. What does ${name} most deeply want, which learned want serves or displaces it, and where do two conflict? Inspect that account before adding categories.`, 'life_meaning_query or life_model_revise');
   }
   if (person.arcs.length < 2) {
-    ask('shocks-few', `What shocks did ${name}'s life contain, in the body, work, kin or one conversation, how did they anticipate each, and how did they adapt? The model shows ${person.arcs.length} as change arcs. One way is a change arc per shock (change_arc_scaffold), with an adaptation that changes the processes of the life.`, 'life_profile_compile (change_arc_scaffold) or your own structure, then life_model_revise');
+    ask('shocks-few', `This recognizer found ${person.arcs.length} change arcs for ${name}; changes may already be described elsewhere. Read those records first. Which changes, if any, explain their anticipation, adaptation and current choices? Use a change arc or another structure where it clarifies the account. Do not invent shocks to meet a count; a stable process can also explain a life.`, 'life_meaning_query or life_model_inspect, then life_model_revise if needed');
   }
   for (const item of person.arcs) {
     if (!item.adaptation) continue;
@@ -263,13 +263,13 @@ function personQuestions(index, person, name, principal) {
     const tolerance = Math.max(length, container / 20, (person.lifeLength ?? 0) / 1_000);
     const around = person.cuts.filter((entry) => entry !== item && ['wants', 'feels', 'how'].includes(cutKind(entry.cut))
       && start(entry.event) !== null && t !== null && start(entry.event) >= t - tolerance && start(entry.event) <= (end(item.event) ?? t) + tolerance);
-    if (!around.length) ask('moment-unmodeled', `At "${describe(item.event)}" (${when(item.event)}), before ${name} decides "${item.cut.question}": what do they want, what do they feel, and how do they decide? Give the moment those Cuts, so the decision's weights come from them.`, 'life_model_revise or life_estimate_cut_shares', { at: [t, end(item.event)], cuts: [item.cut.id] });
+    if (!around.length) ask('moment-unmodeled', `At "${describe(item.event)}" (${when(item.event)}), before ${name} decides "${item.cut.question}", no nearby wants, feelings or problem-solving Cuts were recognized. What circumstances, wants, knowledge, feelings and constraints explain this choice? Read existing descriptions and other records first; refine the causal account if needed. Numerical Cuts are useful only for declared comparisons, not required scores for a choice.`, 'life_meaning_query or life_model_revise', { at: [t, end(item.event)], cuts: [item.cut.id] });
     const outside = [...ancestors(index, item.event.id)].filter((eventId) => !person.own.has(eventId));
-    if (!outside.length) ask('why-local', `Why does "${item.cut.question}" arise for ${name} at all? Nothing longer than their own life leads to it in the model. Which developments beyond one life (institutions, money, technology, family history, a place, a war long ago) press on this moment? Model them as processes over their own long time.`, 'life_general_modeling_start or life_model_revise', { cuts: [item.cut.id] });
+    if (!outside.length) ask('why-local', `Why does "${item.cut.question}" arise for ${name}? No enclosing Event outside this person's recognized life was found through contains links. That does not rule out causes in other relations or descriptions. Inspect those first, then model any relevant wider developments (institutions, money, technology, family history or place) that the explanation still needs, at their own resolution.`, 'life_meaning_query or life_model_revise', { cuts: [item.cut.id] });
   }
-  // A principal who never chooses is only acted upon: what the work does to them, not what they do.
+  // Lack of a recognized decision Cut does not mean that a person makes no choices.
   if (principal && !person.cuts.some((entry) => cutKind(entry.cut) === 'decision')) {
-    ask('choices-missing', `${name} makes no choice the model decides. What does ${name} choose, when, between which options, and why, and what does each option serve among what they want and fear? Model the moment and the choice as a decision Cut from their state, and draw it.`, 'life_model_revise or life_estimate_cut_shares, then life_direction_draw (record)');
+    ask('choices-missing', `No decision Cut was recognized for ${name}; their choices may already be recorded as Events or in descriptions. What do they choose, between which options, and why? Read and preserve accepted outcomes, then refine any missing causal account. A decision Cut and recorded draw are optional for a still-open fictional choice whose quantitative question and uncertainty are delegated to you; never redraw retrospective history.`, 'life_meaning_query or life_model_revise');
   }
   return questions;
 }
@@ -279,21 +279,26 @@ function worldQuestions(index, lives, draws) {
   const questions = [];
   const ask = (kind, question, tool, extra = {}) => { if (asked(kind)) questions.push({ kind, subject: null, principal: false, question, tool, ...extra }); };
   const timed = [...index.events.values()].filter((event) => span(event) !== null);
-  if (index.events.size && !timed.length) ask('time-missing', 'No Event in the model has an interval. When does each happen? Without time the model cannot say what is true at a moment or keep one state consistent with the next.', 'life_model_revise');
+  if (index.events.size && !timed.length) ask('time-missing', 'No explicit Event interval was found. Does this model need to answer temporal questions? Inspect any ordering, descriptions and declared clock first; add intervals at the supported resolution where needed. A timeless conceptual model need not acquire invented dates.', 'life_meaning_query or life_model_revise');
   if (timed.length) {
     const first = Math.min(...timed.map(start));
     const last = Math.max(...timed.map(end));
     const longest = Math.max(...timed.map(span));
     const longestLife = Math.max(0, ...lives.map((item) => item.read.lifeLength ?? 0));
-    if (longest < (last - first) * 0.8 || (lives.length && longest <= longestLife * 1.2)) {
-      ask('macro-missing', `Nothing in the model encloses what it models (${first} to ${last})${lives.length ? ' or lasts longer than one life' : ''}. Which longer developments, over decades or centuries (an institution, a technology, a market regime, a family line, a city, a belief, a war), explain why things are as they are at this time? Model them first, as processes with trajectories, then what happens inside them.`, 'life_general_modeling_start or life_model_revise');
+    // A containing world need not be dated, nor extend beyond the declared scope of its contents.
+    const enclosureTargets = lives.length ? lives.map((item) => item.read.life?.id).filter(Boolean) : timed.map((event) => event.id);
+    const targetAncestors = enclosureTargets.map((eventId) => ancestors(index, eventId));
+    const hasEnclosure = targetAncestors.length > 0 && [...targetAncestors[0]].some((eventId) =>
+      targetAncestors.every((parents) => parents.has(eventId)));
+    if (!hasEnclosure && (longest < (last - first) * 0.8 || (lives.length && longest <= longestLife * 1.2))) {
+      ask('macro-missing', `Recorded intervals span ${first} to ${last}, and no shared enclosing Event was recognized through contains links. Bounded intervals do not establish that a wider world or its explanation is absent. Read the existing context, relations and descriptions: which longer or wider developments actually explain this situation, and does any consequential gap remain? Model only the relevant missing context at its own resolution.`, 'life_meaning_query or life_model_revise');
     }
   }
-  // Decisions with nothing above them are unexplained in any mode.
+  // Containment is one route to context, not an exhaustive causal account.
   const people = new Set(lives.flatMap((item) => [...item.read.own]));
   for (const cut of index.cuts.filter((item) => cutKind(item) === 'decision')) {
     if (people.has(cut.parent_event_id)) continue;
-    if (!ancestors(index, cut.parent_event_id).size) ask('why-local', `Why does "${cut.question}" arise at all? Nothing in the model contains the moment it is decided. Which longer processes lead to it, and what do they make likely?`, 'life_model_revise', { cuts: [cut.id] });
+    if (!ancestors(index, cut.parent_event_id).size) ask('why-local', `Why does "${cut.question}" arise? No contains ancestor was found for its Event. Causes or context may be expressed through other relations or descriptions; inspect them before adding anything. Which relevant circumstances explain the choice, and is that account sufficient?`, 'life_meaning_query or life_model_revise', { cuts: [cut.id] });
   }
   // Up the ladder: the model's Events should instantiate concepts, and regularities should link them.
   const { concepts, abstractRelations, laws, claims } = index.abstractions;
@@ -316,18 +321,18 @@ function worldQuestions(index, lives, draws) {
   // suggested only where the storytelling profile is adopted: in a model of what happened, a decision is observed.
   if (!storyProfile()) { /* no draws suggested outside fiction */ } else if (draws === null) {
     const decisions = index.cuts.filter((item) => cutKind(item) === 'decision');
-    if (decisions.length) ask('decision-undrawn', `The model holds ${decisions.length} decision Cut${decisions.length === 1 ? '' : 's'} (${decisions.slice(0, 4).map((cut) => cut.id).join(', ')}${decisions.length > 4 ? ', and more' : ''}). Which are drawn is recorded in the story graph, not the model: life_model_questions with graphHash, or the questions a rebind returns, name the ones still undrawn. Draw each with a recorded seed; the work follows the draw.`, 'life_model_questions (graphHash) or life_direction_draw (record)', { cuts: decisions.map((cut) => cut.id) });
+    if (decisions.length) ask('decision-undrawn', `The model holds ${decisions.length} decision Cut${decisions.length === 1 ? '' : 's'} (${decisions.slice(0, 4).map((cut) => cut.id).join(', ')}${decisions.length > 4 ? ', and more' : ''}); their draw history is unknown without the story graph. Read life_model_questions with graphHash and the accepted outcome records. Preserve accepted or retrospective outcomes: absence of a draw receipt does not make them undecided. Sample only a still-open fictional choice when its quantitative question and uncertainty are delegated to you.`, 'life_model_questions (graphHash)', { cuts: decisions.map((cut) => cut.id) });
   } else {
     const drawn = new Set(draws.map((item) => item.cutId));
     for (const cut of index.cuts.filter((item) => cutKind(item) === 'decision' && !drawn.has(item.id))) {
-      ask('decision-undrawn', `"${cut.question}" has not been drawn. Draw it with a recorded seed: the model decides what happens, and the work follows the draw.`, 'life_direction_draw (record)', { cuts: [cut.id] });
+      ask('decision-undrawn', `No recorded draw was found for "${cut.question}" in the supplied graph. Inspect its accepted outcome and provenance before treating it as open; retrospective or already authored outcomes must be preserved, not redrawn. Only for a still-open fictional choice with a meaningful quantitative question and delegated uncertainty may you choose a recorded draw.`, 'life_narrative_query or life_meaning_query; life_direction_draw only for delegated open choices', { cuts: [cut.id] });
     }
   }
-  // A drawn remainder is an open question about what else happens; writing the continuation by hand skips the model.
+  // A drawn remainder may need an opening; its later resolution can also be recorded in another form.
   for (const draw of (draws ?? []).filter((item) => item.realized === 'remainder')) {
     const cut = index.cuts.find((item) => item.id === draw.cutId);
     if (!cut || index.cuts.some((item) => item.conditioning?.cut_id === draw.cutId && item.conditioning?.answer_key === 'remainder')) continue;
-    ask('remainder-unopened', `The draw on "${cut.question}" landed on the remainder, and nothing in the model opens it. Name the admissible continuations inside it, estimate them from the modeled state and draw among them (a Cut conditioned on this Cut's remainder), rather than writing what happens yourself.`, 'life_estimate_cut_shares (conditionedOn remainder), then life_direction_draw (record)', { cuts: [cut.id] });
+    ask('remainder-unopened', `The draw on "${cut.question}" landed on the remainder, and no Cut conditioned on that answer was recognized. Read any subsequent Events and accepted outcome first. If it remains unresolved, model the admissible continuations; a conditioned Cut and further draw are optional when their quantitative question and uncertainty are delegated. Preserve a resolution already recorded in another form.`, 'life_meaning_query or life_model_revise; optional conditioned Cut and recorded draw', { cuts: [cut.id] });
   }
   // A quantity with only a starting value, which no Event observes, has no trajectory: nothing can cross a threshold.
   const observed = new Set([...index.events.values()].flatMap((event) => [...(event.process_ids ?? []), ...(event.observation_process_ids ?? [])]));
@@ -414,13 +419,25 @@ export function modelQuestions(model, { people = null, draws = null, limit = 12,
   const questions = sufficient ? asked.filter((item) => !sufficient.covers(item)) : asked;
   questions.sort((a, b) => Number(b.principal) - Number(a.principal) || ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind));
   const counts = questions.reduce((all, item) => ({ ...all, [item.kind]: (all[item.kind] ?? 0) + 1 }), {});
+  const sufficiencyNotes = [];
+  let noteBytes = 0;
+  for (const note of sufficient?.notes ?? []) {
+    if (sufficiencyNotes.length >= Math.min(16, Math.max(1, limit))) break;
+    const bytes = Buffer.byteLength(JSON.stringify(note));
+    if (noteBytes + bytes > 32 * 1024) continue;
+    sufficiencyNotes.push(note);
+    noteBytes += bytes;
+  }
+  const omittedNotes = (sufficient?.notes?.length ?? 0) - sufficiencyNotes.length;
   const depth = { events: index.events.size, processes: index.processes, cuts: index.cuts.length, ...index.abstractions,
     people: lives.map((item) => ({ id: item.id, name: item.name ?? item.id, life: Boolean(item.read.life), processes: item.read.processes.length,
       processesOpened: item.read.processes.filter((process) => process.opened > 0).length, periods: item.read.periods.length,
       shocks: item.read.arcs.length, cuts: item.read.cuts.length })) };
   return { schema: 'meaning-model-open-questions/v1', total: questions.length, counts, depth, questions: visible(questions, limit), alwaysAsk: standingQuestions(focus),
     ...(sufficient && asked.length > questions.length ? { sufficientHere: asked.length - questions.length } : {}),
-    sufficientHow: `A question that needs no more here is answered by saying so: record an Understanding Node about the records it concerns, with data { schema: ${SUFFICIENT_SCHEMA}, kind, reason, reopenIf }, or about the story's root for every question of that kind. It is not asked again while the note stands.`,
+    ...(sufficient?.notes?.length ? { sufficiencyNotes } : {}),
+    ...(omittedNotes ? { sufficiencyNotesOmitted: omittedNotes } : {}),
+    sufficientHow: `A question that needs no more here is answered by saying so: record an Understanding Node about the records it concerns, with data { schema: ${SUFFICIENT_SCHEMA}, kind, reason, reopenIf }, or about the story's root for every question of that kind. This suppresses repeated reminders, not recursive exploration. Read the returned sufficiencyNotes when new discoveries touch their subjects; reopenIf is a condition for the calling LLM to judge, not an automatically evaluated rule. A fresh question or connection can reopen the subject. Record the new understanding with a supersedes link to the old note so its suppression ends.`,
     guidance: 'The loop: find the areas worth investigating, go deeper inside the model, put your understanding inside the model, then loop again and let what the model holds lead you down different paths. These are the model\'s own open questions, read from its structure. The model is a language and none of its constructs is mandatory: the questions read common ones (a lifecycle Event, periods, change arcs, Cut units), so where you expressed the same understanding your own way a question may not see it; say so in the record and move on. Answer the rest by adding structure, in whatever form understands best, then ask again: every answer raises new questions, and there is no depth at which the model is finished. Take at least one between every step of the work.' };
 }
 
@@ -472,12 +489,12 @@ export function standingQuestions(focus = {}) {
   const about = subjects.length ? subjects.join(', ') : 'what you are working on';
   return [
     `How can you understand ${about} better, using the model? Whatever the object of investigation is (a character, an object, a concept, an era, whatever the work is about), go deeper by modeling more: its history, its parts and processes over time, what it depends on and what depends on it, and what it is an instance of.`,
-    `List all the aspects of ${about} you could understand better (for a story: the characters' choices, the author's writing and style, each voice, the technology, the time period, places, institutions, relationships, money, bodies, beliefs; for a market: its participants, instruments, rules, regimes, technology, history), then investigate each by modeling: create new processes, refine existing ones, open sub-processes, add earlier Events that explain or later Events that follow (a childhood, a war a century back, a consequence years on), add Cuts and estimate them, draw decisions, name the concepts and laws things instantiate, model how Things work and where everything is, try another decomposition, sample trajectories.`,
+    `List all the aspects of ${about} you could understand better (for a story: the characters' choices, the author's writing and style, each voice, the technology, the time period, places, institutions, relationships, money, bodies, beliefs; for a market: its participants, instruments, rules, regimes, technology, history), then investigate by modeling: read the existing evidence, create or refine processes and relationships, open sub-processes, try another decomposition, and follow earlier causes and later consequences. Name useful concepts and model how Things work. Let each discovery lead recursively to new questions and openings, including when nothing is known to be wrong; choose the depth and direction for what they reveal. Numerical Cuts and trajectories are optional: first declare a meaningful comparison, unit and supported resolution. Sample only unresolved values or fictional continuations within delegated uncertainty; preserve accepted outcomes and never reroll canon.`,
     `Is there a macro aspect you must model to truly understand what is going on in ${about}? It could be something from a character's childhood or a war a hundred years ago; you will not know unless you model it. Follow the causes back along the lives and the world's long processes, and model what you find.`,
-    ...(story ? [`What kinds of reasons lie behind what ${focus.people?.length ? focus.people.join(', ') : `the people acting in ${about}`} do${focus.people?.length === 1 ? 'es' : ''}, are they primarily out of fear or out of love, and what does that fear or love ask of them? Fear of losing one's place, of being excluded, of not being accepted, of missing out; love of oneself, expressed and given to others, and of the people, work and things cared for. The same act can come from either, and what it does to the person depends on which. Most acts mix both: model the shares and how they shift with shocks and with being seen, what the person believes the reason is, and what others read.`] : []),
-    story ? `Which ways of seeing could explain ${about}? Fear or love is one lens; there are many more (how people grow, bond and barter, what they believe they are owed, what the body, the purse, an era or an institution allows), in thinkers, traditions and disciplines, and ones no one has named. Define the ones that would change the model with life_lens_define; life_lens_questions asks each of every record it applies to.`
+    ...(story ? [`What reasons and circumstances explain what ${focus.people?.length ? focus.people.join(', ') : `the people acting in ${about}`} do${focus.people?.length === 1 ? 'es' : ''}? Fear or love is an optional lens alongside other questions about duty, habit, curiosity, knowledge, relationships and material constraints. Use it if useful to this situation, distinguish the person's own account from other readings, and leave room for motives it does not express. Do not classify every act into fear or love or require numerical shares; first explain how the relevant reasons bear on the choice and its consequences.`] : []),
+    story ? `Which ways of seeing could explain ${about}? Fear or love is one optional lens; there are many more (how people grow, bond and barter, what they believe they are owed, what the body, the purse, an era or an institution allows), in thinkers, traditions and disciplines, and ones no one has named. Define the ones that would change the model with life_lens_define, with an explicit question and scope; life_lens_questions asks each of records declared applicable, which does not establish that it fits them.`
       : `Which ways of seeing could explain ${about}? Every discipline and tradition has its own, and many have no name yet: how a system is balanced or driven, what holds it and what breaks it, what limits it, what it trades, what it remembers. Define the ones that would change the model with life_lens_define; life_lens_questions asks each of every record it applies to.`,
-    `What can be richer about ${about}? A process still coarse, a person without a life, a thing without a history, a feeling without its cause, a consequence nobody followed. Open it in the model before you use it.`,
+    `What can be richer about ${about}? A process still coarse, a person without a life, a thing without a history, a feeling whose causes are open, a consequence nobody followed, or an unexpected connection worth exploring for its own sake. Open it in the model, record what you discover and follow the new questions it raises. Keep hypotheses and exploratory drafts distinguishable from accepted facts.`,
     `What is ${about} an instance of? Climb up the ladder: which concept, pattern or law explains it together with other things in the model, and what does that abstraction predict elsewhere?`,
     `What else? These questions are a start, not a boundary: what question about ${about} has nobody asked yet, and what category would you need to invent to answer it?`,
     ...(story && focus.people?.length ? [`Can you understand ${focus.people.join(', ')} better by inventing processes or subcategories of your own for them? A template is a suggestion: look at it, and at the life, and ask what distinctions this life actually turns on.`,
@@ -563,6 +580,10 @@ export function readSufficientHere(view) {
   // A note covers every question of its kind only when it says so, by being about a document root. A note about records
   // covers questions about those records, and lapses when they are gone rather than spreading to the whole kind.
   const roots = new Set([...(view?.roots ?? []), ...(view?.nodes ?? []).filter((node) => node.role === 'document_root').map((node) => node.id)]);
+  const visible = new Set((view?.nodes ?? []).map((node) => node.id));
+  const superseded = new Set((view?.edges ?? []).filter((edge) => edge.relation === 'supersedes'
+    && edge.source?.kind === 'node' && visible.has(edge.source.node_id) && edge.target?.kind === 'node')
+    .map((edge) => edge.target.node_id));
   const about = new Map();
   for (const edge of view?.edges ?? []) if (edge.source?.kind === 'node' && edge.relation === 'about') {
     if (!about.has(edge.source.node_id)) about.set(edge.source.node_id, { records: [], nodes: [] });
@@ -571,14 +592,45 @@ export function readSufficientHere(view) {
   }
   const stops = [];
   for (const node of view?.nodes ?? []) {
-    if (!String(node.node_type ?? '').startsWith('understanding.')) continue;
+    if (superseded.has(node.id) || !String(node.node_type ?? '').startsWith('understanding.')) continue;
     let data = null; try { data = JSON.parse(node.text)?.data; } catch { continue; }
     if (data?.schema !== SUFFICIENT_SCHEMA || !data.kind) continue;
     const { records = [], nodes = [] } = about.get(node.id) ?? {};
-    stops.push({ kind: data.kind, records: new Set(records), everywhere: nodes.some((nodeId) => roots.has(nodeId)) });
+    stops.push({ nodeId: node.id, kind: data.kind, records: new Set(records), aboutNodeIds: nodes,
+      reason: data.reason ?? null, reopenIf: data.reopenIf ?? null,
+      writtenAgainstModel: (node.provenance ?? []).find((item) => String(item).startsWith('written-against-model:'))?.slice(22) ?? null,
+      everywhere: nodes.some((nodeId) => roots.has(nodeId)) });
   }
   const idsOf = (item) => [item.subject, item.cutId, item.eventId, ...(item.cuts ?? []), ...(item.eventIds ?? []), ...(item.processes ?? []), ...(item.referents ?? [])].flat().filter((value) => typeof value === 'string');
-  return { count: stops.length, covers: (item) => stops.some((stop) => stop.kind === item.kind && (stop.everywhere || idsOf(item).some((value) => stop.records.has(value)))) };
+  return { count: stops.length,
+    notes: stops.map(({ records, ...note }) => ({ ...note, records: [...records] })),
+    covers: (item) => stops.some((stop) => stop.kind === item.kind
+      && ((stop.everywhere && (!item.storyRootId || stop.aboutNodeIds.includes(item.storyRootId)))
+        || idsOf(item).some((value) => stop.records.has(value)))) };
+}
+
+// Document roots can hold metadata (including a transferred life model) as well
+// as stories. Follow visible structural prose, stopping at another document root,
+// so one work's author declaration cannot silently cover its sibling work.
+function visibleStoryRoots(view) {
+  const nodes = new Map((view?.nodes ?? []).map((node) => [node.id, node]));
+  const roots = [...nodes.values()].filter((node) => node.role === 'document_root').map((node) => node.id);
+  const rootIds = new Set(roots); const children = new Map();
+  for (const edge of view?.edges ?? []) if (edge.family === 'structural' && ['contains', 'next'].includes(edge.relation)
+    && edge.source?.kind === 'node' && edge.target?.kind === 'node' && nodes.has(edge.source.node_id) && nodes.has(edge.target.node_id)) {
+    push(children, edge.source.node_id, edge.target.node_id);
+  }
+  const stories = new Set();
+  for (const root of roots) {
+    const pending = [root]; const seen = new Set();
+    for (let index = 0; index < pending.length; index++) {
+      const nodeId = pending[index]; if (seen.has(nodeId) || (nodeId !== root && rootIds.has(nodeId))) continue;
+      seen.add(nodeId);
+      if (nodes.get(nodeId)?.role === 'story_passage') { stories.add(root); break; }
+      pending.push(...(children.get(nodeId) ?? []));
+    }
+  }
+  return stories;
 }
 
 export async function readOpenQuestions(service, { modelHash, people = null, at = null, focus = {}, graphHash = null, accessScopes = [], limit = 16, author = null }) {
@@ -590,7 +642,45 @@ export async function readOpenQuestions(service, { modelHash, people = null, at 
     draws = readDraws(view);
   }
   const named = people ?? modeledPeople(indexModel(model));
-  const questions = modelQuestions(model, { people: named, draws, limit, focus, author, sufficient: view ? readSufficientHere(view) : null });
+  const sufficient = view ? readSufficientHere(view) : null;
+  // Reopening saved work must discover its declared author, not rely on the
+  // calling agent remembering to resupply that author as an optional argument.
+  const storyRoots = visibleStoryRoots(view);
+  const declaredAuthors = new Map();
+  if (view && storyProfile()) {
+    const { readWorldState } = await import('./storytelling-world.mjs');
+    const roots = new Set(view.nodes.filter((node) => node.role === 'document_root').map((node) => node.id));
+    for (const root of roots) {
+      const record = readWorldState(view, root).authorReader;
+      const value = record?.data?.author;
+      if (value) declaredAuthors.set(root, { id: value.personId, name: value.name, lifeModelHash: value.lifeModelHash,
+        storyRootId: root, nodeId: record.node.id });
+    }
+  }
+  const matchedRoots = author ? [...declaredAuthors].filter(([, declared]) => declared.id === author.id
+    && (!author.lifeModelHash || declared.lifeModelHash === author.lifeModelHash)).map(([root]) => root) : [];
+  const explicitRoots = matchedRoots.length ? matchedRoots : storyRoots.size === 1 ? [...storyRoots] : [];
+  const authors = author ? (explicitRoots.length ? explicitRoots.map((root) => ({ ...author, storyRootId: root })) : [author]) : [...declaredAuthors.values()];
+  const declaredRootIds = new Set([...declaredAuthors.keys(), ...(author ? explicitRoots : [])]);
+  const soleAuthor = authors.length === 1 && storyRoots.size <= 1 ? authors[0] : null;
+  const questions = modelQuestions(model, { people: named, draws, limit, focus,
+    author: soleAuthor ? { ...soleAuthor, sameModel: soleAuthor.lifeModelHash ? soleAuthor.lifeModelHash === modelHash : soleAuthor.sameModel } : null, sufficient });
+  const addQuestion = (item) => {
+    if (sufficient?.covers(item)) return;
+    questions.questions.unshift(item);
+    questions.total += 1;
+    questions.counts[item.kind] = (questions.counts[item.kind] ?? 0) + 1;
+    questions.questions.length = Math.min(questions.questions.length, limit);
+  };
+  if (view && storyProfile()) for (const root of storyRoots) if (!declaredRootIds.has(root)) {
+    addQuestion({ kind: 'author-life-unrecorded', subject: null, storyRootId: root, principal: true,
+      tool: 'life_narrative_query, life_story_world_record',
+      question: `No author-and-life declaration is visible for story ${root}. Read its existing authoring notes and complete authorized graph before deciding what is absent. Who is writing it, at what point in their life, and why now? Reuse an established author model or develop a clearly fictional persona when delegated; never invent the real user's life. Connect relevant experience to actual writing choices through Understanding Nodes. An explicitly omitted author model or a bounded edit can be sufficient here; record that limit and when to revisit it.` });
+  }
+  if (questions.sufficiencyNotesOmitted) questions.sufficiencyNotesRead = {
+    tool: 'life_narrative_query', arguments: { graphHash, expectedGraphHash: graphHash, mode: 'skeleton', includeContent: false, accessScopes: [...new Set(accessScopes)].sort() },
+    next: 'Inspect visible understanding.* nodes with life_narrative_query, mode neighborhood, centerNodeId set to the chosen node, depth 0 and includeContent true, keeping the same graphHash and accessScopes. Sufficiency payloads use data.schema meaning-model-sufficient/v1; read their complete reasons, reopenIf conditions and about/supersedes links. Inline notes are limited by count and bytes, never excerpted.',
+  };
   // Lenses keep up to two places among the questions asked: readings still on their records first, then records unanswered.
   if (view) {
     const { lensOpenQuestions } = await import('./lenses.mjs');
@@ -604,12 +694,22 @@ export async function readOpenQuestions(service, { modelHash, people = null, at 
   // Understanding that holds the author and the story together: a note linked to a record of the author's life and to
   // a record of the story. The author's life may share this model or be a model of its own, reached through reference
   // nodes to any revision of it (matched by model id, since the life keeps being revised).
-  if (view && author) {
+  const authorLives = [];
+  for (const author of view ? authors : []) {
     const separate = author.lifeModelHash && author.lifeModelHash !== modelHash;
     const authorEvents = separate ? new Set() : (authorLinks(indexModel(model), author.id)?.authorEvents ?? new Set());
     let authorModelId = null;
-    if (separate) authorModelId = (await service.inspectModel({ modelHash: author.lifeModelHash }).catch(() => null))?.summary?.model_id
-      ?? (await service.inspectModel({ modelHash: author.lifeModelHash, includeDefinition: true }).catch(() => null))?.model?.id ?? null;
+    if (separate) {
+      const inspected = await service.inspectModel({ modelHash: author.lifeModelHash, includeDefinition: true }).catch(() => null);
+      authorModelId = inspected?.model?.id ?? null;
+      authorLives.push({ ...author, available: Boolean(inspected?.model),
+        ...(inspected?.model ? { inspect: { tool: 'life_model_inspect', arguments: { modelHash: author.lifeModelHash, includeDefinition: true } } } : {}) });
+      if (!inspected?.model) {
+        addQuestion({ kind: 'author-life-unavailable', subject: author.id, storyRootId: author.storyRootId, principal: true, tool: 'life_construction_import',
+          question: `${author.name ?? author.id}'s declared life model (${author.lifeModelHash}) cannot be read in this installation. Recover or import that exact model and its history before assessing how the life shapes the story. A voice summary or reference is not the life itself; do not silently replace it with a new invented biography.` });
+        continue;
+      }
+    } else authorLives.push({ ...author, available: Boolean(indexModel(model).referents.has(author.id)), lifeModelHash: modelHash });
     const authorReferenceIds = new Set(separate ? (view.nodes ?? []).filter((node) => node.node_type === 'model_reference' && (() => {
       try { const data = JSON.parse(node.text); return data.modelHash === author.lifeModelHash || (authorModelId && data.modelId === authorModelId); } catch { return false; } })()).map((node) => node.id) : []);
     const isAuthorAnchor = (target) => !separate && ((target.anchor_kind === 'event' && authorEvents.has(target.anchor_id)) || (target.anchor_kind === 'referent' && target.anchor_id === author.id));
@@ -621,10 +721,8 @@ export async function readOpenQuestions(service, { modelHash, people = null, at 
       else if (edge.target?.kind === 'anchor') mark(edge.source.node_id, isAuthorAnchor(edge.target) ? 'author' : 'story');
     }
     if (![...anchored.values()].some((sides) => sides.size === 2)) {
-      questions.questions.unshift({ kind: 'understanding-unjoined', subject: author.id, principal: true, tool: 'life_understanding_record, life_story_author_record',
+      addQuestion({ kind: 'understanding-unjoined', subject: author.id, storyRootId: author.storyRootId, principal: true, tool: 'life_understanding_record, life_story_author_record',
         question: `No note yet holds the author and the story together. Where does the author's life meet the story? A note does when it is about a record of the author's life${separate ? ' (an about target with the life model\'s modelHash)' : ''} and a record of the story: a character, an Event, a process or a Cut.` });
-      questions.total += 1;
-      questions.questions.length = Math.min(questions.questions.length, limit);
     }
   }
   // The model as the agent's mind: a model that keeps changing while its record holds few thoughts means the thinking
@@ -642,7 +740,7 @@ export async function readOpenQuestions(service, { modelHash, people = null, at 
   }
   const jumps = modelJumps(model, { people: named, limit: 8 });
   const states = at === null ? [] : named.filter((person) => person.principal !== false).map((person) => ({ name: person.name ?? displayName(person.id), ...personStateAt(model, person.id, at, { draws }) }));
-  return { ...questions, modelHash, jumps: jumps.jumps, states };
+  return { ...questions, modelHash, jumps: jumps.jumps, states, ...(view && storyProfile() ? { authorLives } : {}) };
 }
 
 // A compact copy of the open questions for the result of any tool that changed a model.

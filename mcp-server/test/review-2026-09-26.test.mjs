@@ -1,3 +1,4 @@
+import { noEventLinkDeclaration } from '../src/narrative-grounding.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LifeSimulationService } from '../src/service.mjs';
@@ -136,6 +137,7 @@ async function story(t, roots = ['story'], nodes = [scene('scene.1', 'This is th
   const [, registerRequest] = [...markdown.matchAll(/```json\n([\s\S]*?)```/g)].map((match) => JSON.parse(match[1]));
   const service = new LifeSimulationService(); t.after(() => service.close()); await service.initialize();
   const registered = await service.registerModel({ requestId: 'model', model: registerRequest.model });
+  for (const node of nodes) node.provenance = [...(node.provenance ?? []), noEventLinkDeclaration(node.text, 'Director fixture prose has no depicted Event in the sample model.', 'fixture-author')];
   const stored = await service.registerNarrativeGraph({ requestId: 'graph', narrativeGraph: { schema: 'life-sim-rust-narrative-graph/v1', id: 'release-regression',
     revision: { number: 0, reason: 'Release regression.', provenance }, source: { kind: 'model', model_hash: registered.modelHash }, roots,
     nodes: [...roots.map((root) => ({ ...scene(root, `# ${root}`, []), node_type: 'story', role: 'document_root' })), ...nodes], edges } });
@@ -146,7 +148,7 @@ test('prose rewritten after the draft direction cannot be released under it', as
   const f = await story(t);
   const reviewed = await directed(f.service, f.graphHash);
   const edited = await editNarrativeGraph(f.service, { requestId: 'rewrite', graphHash: reviewed, accessScopes: author, reason: 'Replace the manuscript after its draft direction.',
-    operations: [{ kind: 'replace_text', nodeId: 'scene.1', expectedText: 'This is the draft the director read.', text: 'An entirely different ending that no director read.' }] });
+    operations: [{ kind: 'replace_text', nodeId: 'scene.1', expectedText: 'This is the draft the director read.', text: 'An entirely different ending that no director read.', noLinkReason: 'Director fixture prose has no depicted Event in the sample model.' }] });
   await assert.rejects(release(f.service, edited.graphHash), /prose has changed since the director read it/u);
   const again = await directed(f.service, edited.graphHash);
   const released = await release(f.service, again);

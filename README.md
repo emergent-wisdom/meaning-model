@@ -34,7 +34,7 @@ evidence.
 
 ## The construction record
 
-Version 0.4.0 bundles a browser viewer. Ask the connected assistant
+Version 0.5.0 bundles a browser viewer. Ask the connected assistant
 to **“Open this model”**; `life_model_viewer_open` returns a local link to the chosen
 model or graph revision. No separate viewer checkout or special run folder is
 required. It is a read-only snapshot; reopen after changes. The browser must run on
@@ -279,12 +279,20 @@ building. [Progressive authoring in Rust](examples/progressive-authoring/README.
 opens a Cut after accepted history, rejects incompatible detail, completes a
 partial temporal contract, and explicitly revises and continues the same world.
 
-Start the MCP server after building:
+Start the MCP server after building. Create a private data directory outside the
+installation and replace the example database path with its absolute path:
 
 ```sh
 cd mcp-server
-npm start
+LIFE_SIM_STATE_FILE=/absolute/private/path/meaning-model.sqlite npm start
 ```
+
+Reuse this path across sessions and upgrades, with only one server process per
+database. Without it, models and stories are lost when the process ends. Ask the
+assistant to find saved work with `life_saved_work_list`, replay the selected
+construction, then deepen or review through the MCP tools. See
+[keep and continue your work](mcp-server/NPM-README.md#keep-and-continue-your-work)
+for scope handling, persistence limits, the local viewer, and portable backups.
 
 See the [MCP guide](mcp-server/README.md), [engine guide](rust-engine/README.md),
 and [modeling protocol](docs/MODELING_PROTOCOL.md). Existing `life-sim` command,

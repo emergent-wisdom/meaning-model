@@ -8,6 +8,7 @@ import { createModelViewer, registerViewerTools } from '../src/viewer-server.mjs
 
 const modelHash = 'a'.repeat(64);
 const graphHash = 'b'.repeat(64);
+const distinctAdditionalModels = () => Array.from({ length: 15 }, (_, index) => ({ modelHash: (index + 1).toString(16).padStart(64, '0') }));
 
 function read(url, { method = 'GET', headers = {}, path } = {}) {
   const target = new URL(url);
@@ -26,7 +27,7 @@ function read(url, { method = 'GET', headers = {}, path } = {}) {
   });
 }
 
-async function fixture(t, { model, buildData } = {}) {
+async function fixture(t, { model, models, buildData } = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'meaning-model-viewer-test-'));
   const publicDirectory = join(directory, 'public');
   await mkdir(publicDirectory);
@@ -38,7 +39,7 @@ async function fixture(t, { model, buildData } = {}) {
     time_unit: 'hour', processes: [], meaning_model: { events: [] } };
   const service = { inspectModel: async (input) => {
     inspected.push(structuredClone(input));
-    return { modelHash, model: definition, summary: { id: 'viewer-fixture' } };
+    return { modelHash: input.modelHash, model: models?.get(input.modelHash) ?? definition, summary: { id: 'viewer-fixture' } };
   } };
   const viewer = createModelViewer(service, { publicDirectory, buildData: async (...args) => {
     builds.push(args);
@@ -105,10 +106,101 @@ test('the MCP registrar exposes a bounded read-only tool with an exclusive revis
   const schema = definition.inputSchema;
   assert.deepEqual(schema.parse({ modelHash }).accessScopes, []);
   assert.equal(schema.parse({ graphHash }).graphHash, graphHash);
+  assert.deepEqual(schema.parse({ modelHash, additionalModels: [{ graphHash }] }).additionalModels[0].accessScopes, []);
+  assert.equal(schema.parse({ modelHash, additionalModels: Array(15).fill({ modelHash }) }).additionalModels.length, 15);
   for (const input of [{}, { graphHash, modelHash }, { modelHash, port: 8080 },
-    { modelHash, accessScopes: [''] }, { modelHash, accessScopes: Array(65).fill('author') }]) {
+    { modelHash, accessScopes: [''] }, { modelHash, accessScopes: Array(65).fill('author') },
+    { additionalModels: [{ modelHash }] }, { modelHash, additionalModels: Array(16).fill({ modelHash }) },
+    ...[{}, { modelHash, graphHash }, { graphHash: 'latest' }, { modelHash, accessScopes: [''] },
+      { modelHash, accessScopes: Array(65).fill('author') }, { modelHash, additionalModels: [] },
+      { modelHash, title: ' ' }].map((selection) => ({ modelHash, additionalModels: [selection] }))]) {
     assert.equal(schema.safeParse(input).success, false);
   }
+});
+
+test('a model chooser lists only its explicitly grouped immutable snapshots', async (t) => {
+  const otherHash = 'c'.repeat(64);
+  const f = await fixture(t, { buildData: ({ history, title }) => ({
+    modelHash: history.models[0].modelHash, title, marker: `SNAPSHOT_${title}`,
+  }) });
+  const unrelated = await f.viewer.open({ modelHash, title: 'Unrelated private view' });
+  const opened = await f.viewer.open({ modelHash, title: 'First model',
+    additionalModels: [{ modelHash: otherHash, title: 'Second model' }] });
+  assert.equal(opened.views.length, 2);
+  assert.equal(opened.url, opened.views[0].url);
+  assert.deepEqual(opened.views.map(({ title, modelHash, graphHash, selected }) => ({ title, modelHash, graphHash, selected })), [
+    { title: 'First model', modelHash, graphHash: null, selected: true },
+    { title: 'Second model', modelHash: otherHash, graphHash: null, selected: false },
+  ]);
+  const first = await read(new URL('data/views.json', opened.url));
+  assert.equal(first.status, 200);
+  assert.match(first.headers['content-type'], /application\/json/);
+  assert.deepEqual(JSON.parse(first.text), opened.views);
+  const second = await read(new URL('data/views.json', opened.views[1].url));
+  assert.deepEqual(JSON.parse(second.text), opened.views.map((view) => ({ ...view, selected: !view.selected })));
+  assert.doesNotMatch(first.text + second.text, /Unrelated private view/);
+  assert.ok(!first.text.includes(unrelated.url) && !second.text.includes(unrelated.url));
+  for (const view of opened.views) {
+    const snapshot = JSON.parse((await read(new URL('data/model.json', view.url))).text);
+    assert.deepEqual(snapshot, { modelHash: view.modelHash, title: view.title, marker: `SNAPSHOT_${view.title}` });
+  }
+  const unrelatedViews = JSON.parse((await read(new URL('data/views.json', unrelated.url))).text);
+  assert.equal(unrelatedViews.length, 1);
+  assert.equal(unrelatedViews[0].url, unrelated.url);
+  assert.ok(unrelatedViews.every((view) => !opened.views.some((member) => member.url === view.url)));
+});
+
+test('an inaccessible additional model rejects the whole group without issuing or evicting snapshots', async (t) => {
+  const privateHash = 'c'.repeat(64);
+  const f = await fixture(t, { models: new Map([[privateHash, { id: 'SECRET_MODEL_IDENTIFIER',
+    processes: [{ id: 'SECRET_PROCESS_IDENTIFIER', access_scopes: ['private'] }] }]]) });
+  const previous = await f.viewer.open({ modelHash, additionalModels: distinctAdditionalModels() });
+  await assert.rejects(f.viewer.open({ modelHash, accessScopes: ['private'],
+    additionalModels: [{ modelHash: privateHash }] }), (error) => {
+    assert.match(error.message, /accessScopes are insufficient/);
+    assert.doesNotMatch(error.message, /SECRET_MODEL_IDENTIFIER|SECRET_PROCESS_IDENTIFIER/);
+    return true;
+  });
+  const stillAvailable = JSON.parse((await read(new URL('data/views.json', previous.url))).text);
+  assert.deepEqual(stillAvailable, previous.views, 'a denied group cannot partially replace the retained snapshots');
+  for (const view of previous.views) assert.equal((await read(view.url)).status, 200);
+  const allowed = await f.viewer.open({ modelHash,
+    additionalModels: [{ modelHash: privateHash, accessScopes: ['private'] }] });
+  assert.equal(allowed.views.length, 2, 'each selection carries its own scope grant');
+});
+
+test('group catalogs omit evicted members and never include later unrelated snapshots', async (t) => {
+  const f = await fixture(t);
+  const group = await f.viewer.open({ modelHash, additionalModels: distinctAdditionalModels() });
+  const later = await f.viewer.open({ modelHash, title: 'Later standalone snapshot' });
+  assert.equal((await read(new URL('data/views.json', group.url))).status, 404);
+  const survivor = group.views[1].url;
+  const views = JSON.parse((await read(new URL('data/views.json', survivor))).text);
+  assert.equal(views.length, 15);
+  assert.deepEqual(views.map((view) => view.url), group.views.slice(1).map((view) => view.url));
+  assert.equal(views.filter((view) => view.selected).length, 1);
+  assert.equal(views.find((view) => view.selected).url, survivor);
+  assert.ok(views.every((view) => view.url !== later.url));
+  const standalone = JSON.parse((await read(new URL('data/views.json', later.url))).text);
+  assert.equal(standalone.length, 1);
+  assert.equal(standalone[0].url, later.url);
+});
+
+test('model chooser catalogs retain the same Host, Origin, method, token, and HEAD guards', async (t) => {
+  const f = await fixture(t);
+  const group = await f.viewer.open({ modelHash, title: 'PRIVATE_GROUP_TITLE', additionalModels: [{ modelHash }] });
+  const url = new URL('data/views.json', group.url);
+  for (const options of [{ headers: { Host: 'attacker.example' } },
+    { headers: { Origin: 'https://attacker.example' } }, { method: 'POST' }, { method: 'OPTIONS' },
+    { path: '/unissued-token/data/views.json' }]) {
+    const response = await read(url, options);
+    assert.ok(response.status >= 400 && response.status < 500);
+    assert.doesNotMatch(response.text, /PRIVATE_GROUP_TITLE/);
+    assert.equal(response.headers['access-control-allow-origin'], undefined);
+  }
+  const head = await read(url, { method: 'HEAD' });
+  assert.equal(head.status, 200);
+  assert.equal(head.text, '');
 });
 
 test('rejects foreign Host and Origin headers and exposes no cross-origin permission', async (t) => {

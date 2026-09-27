@@ -135,7 +135,7 @@ export async function direct(service, raw) {
   const findings = [...input.findings, ...input.ownFindings.map(({ name, ...finding }) => ({ principleId: `own:${name}`, ...finding }))];
   const unplanned = findings.filter((item) => item.verdict === 'fails' && !item.modelChange && !item.proseChange);
   if (unplanned.length) throw new Error(`Specify modelChange, proseChange, or both for each failure: ${unplanned.map((item) => item.principleId).join(', ')}.`);
-  if (input.stage !== 'draft' && findings.some((item) => item.proseChange)) throw new Error('A prose repair belongs to a draft direction; the world direction reviews the model before prose.');
+  if (input.stage !== 'draft' && findings.some((item) => item.proseChange)) throw new Error('A prose repair belongs to a draft direction; the world direction reviews model commitments. Exploratory drafts may already exist.');
   if (!input.nodeId || !input.summary) throw new Error('Recording a direction needs nodeId and summary.');
   const prose = input.stage === 'draft' ? { proseSignature: await proseSignature(service, input.graphHash, input.storyRootId, accessScopes), proseScopes: accessScopes } : {};
   const record = await prepareAuthorRecord(service, { graphHash: input.graphHash, requestId: input.requestId, nodeId: input.nodeId, storyRootId: input.storyRootId, exactRevision: true,

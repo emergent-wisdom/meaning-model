@@ -98,6 +98,10 @@ test('deepening binds exact canonical prose, model, selected life evidence and a
   assert.equal(task.revisionScope, 'local');
   assert.equal(task.preparation.unit, 'whole_work');
   assert.equal(task.brief, 'Deepen and improve the existing work.');
+  assert.match(task.workflowInstructions, /recursive exploration, not only gap repair/u);
+  assert.match(task.workflowInstructions, /even when the current account is sound/u);
+  assert.match(task.workflowInstructions, /candidates and drafts.*while model-depth findings remain unresolved/u);
+  assert.match(task.workflowInstructions, /within the delegated scope/u);
   assert.equal(task.assessment, null);
   assert.equal(task.evaluator, 'calling_llm');
   for (const field of ['worldMutation', 'graphMutation', 'semanticVerification']) assert.equal(task[field], false);
@@ -125,6 +129,26 @@ test('deepening task identity binds the brief, revision authority, actual prose 
   assert.deepEqual(f.writes, []);
 });
 
+test('deepening binds the selected chapter without native next-sibling overflow', async () => {
+  const f = fixture();
+  const originalText = f.rendered.text;
+  f.view.nodes.push({ id: 'later', role: 'story_passage', render: 'include', text: 'A later chapter.', access_scopes: ['author'] });
+  f.view.edges.push({ id: 'passage.next', family: 'structural', relation: 'next', source: endpoint('passage'), target: endpoint('later') },
+    { id: 'book.later', family: 'structural', relation: 'contains', source: endpoint('book'), target: endpoint('later'), order: 1 });
+  f.rendered.sequence.push('later');
+  f.rendered.units = [{ node_id: 'passage', text: originalText }, { node_id: 'later', text: 'A later chapter.' }];
+  f.rendered.join_policy = 'blank_line'; f.rendered.roots = ['chapter'];
+  f.rendered.text += '\n\nA later chapter.';
+  const task = await f.addon.prepareDeepening({ ...f.input, unit: 'chapter' });
+  assert.equal(task.text, originalText);
+  assert.equal(task.baseline.textHash, hashText(originalText));
+  assert.deepEqual(task.baseline.nodeIds, ['passage']);
+  assert.equal(task.baseline.projectionHash, task.purposeReview.target.projectionHash);
+  assert.notEqual(task.baseline.projectionHash, projectionHash);
+  assert.equal(task.baseline.nativeProjectionHash, projectionHash);
+  assert.deepEqual(f.writes, []);
+});
+
 test('deepening verifies story containment even without an author model and rejects foreign rendered passages', async () => {
   const f = fixture();
   const input = { ...f.input, authorModelNodeId: null };
@@ -135,6 +159,25 @@ test('deepening verifies story containment even without an author model and reje
   f.view.nodes.push({ id: 'foreign.passage', role: 'story_passage', render: 'include', text: 'Another story.', access_scopes: [] });
   f.rendered.sequence.push('foreign.passage');
   await assert.rejects(f.addon.prepareDeepening(input), /outside|story|render|root/iu);
+  assert.deepEqual(f.writes, []);
+});
+
+test('deepening an existing native model needs neither a converted life dossier nor an invented author profile', async () => {
+  const f = fixture();
+  f.view.nodes = f.view.nodes.filter((node) => node.id !== 'life.trends' && node.id !== 'author.model');
+  f.view.edges = f.view.edges.filter((edge) => !['life.trends', 'author.model'].includes(edge.source.node_id)
+    && !['life.trends', 'author.model'].includes(edge.target.node_id));
+  f.model.meaning_model.events.push({ id: 'Leo.life', boundary: 'His early life is unknown; existing work records his learning to check water levels.' });
+  const task = await f.addon.prepareDeepening({ ...f.input, lifeTrendsNodeId: null, authorModelNodeId: null,
+    modelEvidenceRefs: ['event:Leo.life', 'process:pump'] });
+  assert.equal(task.text, f.rendered.text);
+  assert.equal(task.authorModel, null);
+  assert.equal(task.modelDepth.preparation.lifeTrendsNodeId, null);
+  assert.deepEqual(task.modelDepth.preparation.modelEvidenceRefs, ['event:Leo.life', 'process:pump']);
+  assert.equal(task.modelDepth.modelEvidence[0].record.boundary, f.model.meaning_model.events[1].boundary);
+  assert.equal(task.modelDepth.reviewMode, 'existing_work');
+  assert.equal(task.baseline.modelHash, modelHash);
+  assert.deepEqual(task.accessScopes, ['author']);
   assert.deepEqual(f.writes, []);
 });
 

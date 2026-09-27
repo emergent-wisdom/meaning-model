@@ -1,4 +1,5 @@
-// A viewer belongs to this MCP process and opens only an explicitly selected, immutable revision.
+// A viewer belongs to this MCP process and opens selected immutable revisions
+// and the author/reader lives explicitly declared by their current story records.
 import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -7,14 +8,22 @@ import { fileURLToPath } from 'node:url';
 import * as z from 'zod/v4';
 import { exportConstructionHistory } from './construction-record.mjs';
 import { buildViewerData } from './viewer-data.mjs';
+import { readWorldState } from './storytelling-world.mjs';
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/u);
-export const modelViewerSchema = z.object({
+const selectionFields = {
   graphHash: hash.optional().describe('The exact model-bound graph revision, including its prose and construction history.'),
   modelHash: hash.optional().describe('An exact model revision to inspect without a narrative graph.'),
   accessScopes: z.array(z.string().trim().min(1).max(256)).max(64).default([]),
   title: z.string().trim().min(1).max(200).optional(),
-}).strict().refine((input) => Boolean(input.graphHash) !== Boolean(input.modelHash), {
+};
+const oneRevision = (input) => Boolean(input.graphHash) !== Boolean(input.modelHash);
+const revisionMessage = { message: 'Supply exactly one graphHash or modelHash.' };
+const additionalModelSchema = z.object(selectionFields).strict().refine(oneRevision, revisionMessage);
+export const modelViewerSchema = z.object({
+  ...selectionFields,
+  additionalModels: z.array(additionalModelSchema).max(15).optional().describe('Other exact model or graph revisions to offer in this viewer’s model chooser. Every entry needs its own complete accessScopes. Current declared author/reader life models are added automatically using the declaring graph’s scopes. The complete group is limited to 16 views.'),
+}).strict().refine(oneRevision, {
   message: 'Supply exactly one graphHash or modelHash.',
 });
 
@@ -36,6 +45,32 @@ function requireModelScopes(value, allowed) {
   }
 }
 
+// The builder retains the complete, authorized head graph in inspection. Use
+// the same current-stage selection as the story tools, never hashes found in
+// prose, arbitrary JSON, model references or earlier revisions.
+function declaredLives(data, accessScopes) {
+  const graph = data.inspection?.graph;
+  if (!graph) return [];
+  const nodes = (graph.nodes ?? []).filter((node) => {
+    if (node.node_type !== 'storytelling.world' || typeof node.subject !== 'string') return false;
+    let payload; try { payload = JSON.parse(node.text); } catch { return false; }
+    return payload?.schema === 'meaning-model-story-author-record/v1' && payload.kind === 'world'
+      && payload.data?.schema === 'meaning-model-story-world/v1' && payload.data.stage === 'author_reader';
+  });
+  const result = [], view = { nodes, edges: graph.edges ?? [] };
+  for (const storyRootId of new Set(nodes.map((node) => node.subject))) {
+    const current = readWorldState(view, storyRootId).authorReader;
+    if (!current) continue;
+    for (const role of ['author', 'reader']) {
+      const life = current.data[role]; if (role === 'reader' && life == null) continue;
+      if (!hash.safeParse(life?.lifeModelHash).success) throw new Error('A current author/reader declaration has an invalid life model reference. Repair that declaration before opening its viewer.');
+      const name = typeof life.name === 'string' && life.name.trim() ? life.name.trim() : role;
+      result.push({ modelHash: life.lifeModelHash, accessScopes: [...accessScopes], title: `${role === 'author' ? 'Author' : 'Reader'} life · ${name}`.slice(0, 200) });
+    }
+  }
+  return result;
+}
+
 export function createModelViewer(service, { buildData = buildViewerData, publicDirectory = defaultPublicDirectory } = {}) {
   const root = resolve(publicDirectory);
   const snapshots = new Map();
@@ -43,6 +78,15 @@ export function createModelViewer(service, { buildData = buildViewerData, public
   let starting = null;
   let origin = null;
   let closed = false;
+
+  function groupViews(token) {
+    const snapshot = snapshots.get(token);
+    return snapshot.group.filter((member) => snapshots.has(member)).map((member) => {
+      const item = snapshots.get(member);
+      return { url: `${origin}/${member}/`, title: item.title, modelHash: item.modelHash,
+        graphHash: item.graphHash, selected: member === token };
+    });
+  }
 
   async function serve(request, response) {
     const send = (status, body = '', type = 'text/plain; charset=utf-8') => {
@@ -62,6 +106,7 @@ export function createModelViewer(service, { buildData = buildViewerData, public
     const relative = segments.join('/') || 'index.html';
     if (relative === 'data/index.json') return send(200, snapshot.index, 'application/json; charset=utf-8');
     if (relative === 'data/model.json') return send(200, snapshot.body, 'application/json; charset=utf-8');
+    if (relative === 'data/views.json') return send(200, JSON.stringify(groupViews(token)), 'application/json; charset=utf-8');
     const file = resolve(root, relative);
     const type = types[extname(file)];
     if (!file.startsWith(`${root}${sep}`) || !type) return send(404, 'Not found');
@@ -88,33 +133,56 @@ export function createModelViewer(service, { buildData = buildViewerData, public
     if (closed) throw new Error('The viewer is closed.');
   }
 
+  async function prepareSnapshot(input) {
+    let history; let rendered = null;
+    if (input.graphHash) {
+      history = await exportConstructionHistory(service, { graphHash: input.graphHash, accessScopes: input.accessScopes });
+      requireModelScopes(history.models, new Set(input.accessScopes));
+      rendered = await service.renderNarrativeGraph({ graphHash: input.graphHash, expectedGraphHash: input.graphHash, accessScopes: input.accessScopes });
+    } else {
+      const inspected = await service.inspectModel({ modelHash: input.modelHash, includeDefinition: true });
+      if (!inspected.model) throw new Error('The model revision is unavailable.');
+      requireModelScopes(inspected.model, new Set(input.accessScopes));
+      history = { schema: 'meaning-model-construction-history/v1', headGraphHash: null,
+        models: [{ modelHash: input.modelHash, definition: inspected.model }], revisions: [] };
+    }
+    const data = await buildData({ history, rendered, calls: [], name: 'model', title: input.title });
+    const body = JSON.stringify(data);
+    if (Buffer.byteLength(body) > maximumSnapshotBytes) throw new Error('This model is too large for the local viewer snapshot (32 MiB maximum).');
+    const index = JSON.stringify({ default: 'model', runs: [{ name: 'model', title: data.title ?? input.title ?? 'Meaning Model', label: data.title ?? 'Meaning Model', generatedAt: data.generatedAt, live: false }] });
+    return { body, index, title: data.title ?? input.title ?? 'Meaning Model',
+      relatedLives: input.graphHash ? declaredLives(data, input.accessScopes) : [],
+      modelHash: data.modelHash ?? input.modelHash ?? null, graphHash: input.graphHash ?? null };
+  }
+
   return {
     async open(raw) {
       if (closed) throw new Error('The viewer is closed.');
       const input = modelViewerSchema.parse(raw);
-      let history; let rendered = null;
-      if (input.graphHash) {
-        history = await exportConstructionHistory(service, { graphHash: input.graphHash, accessScopes: input.accessScopes });
-        requireModelScopes(history.models, new Set(input.accessScopes));
-        rendered = await service.renderNarrativeGraph({ graphHash: input.graphHash, expectedGraphHash: input.graphHash, accessScopes: input.accessScopes });
-      } else {
-        const inspected = await service.inspectModel({ modelHash: input.modelHash, includeDefinition: true });
-        if (!inspected.model) throw new Error('The model revision is unavailable.');
-        requireModelScopes(inspected.model, new Set(input.accessScopes));
-        history = { schema: 'meaning-model-construction-history/v1', headGraphHash: null,
-          models: [{ modelHash: input.modelHash, definition: inspected.model }], revisions: [] };
+      const prepared = [], revisions = new Set();
+      // Scope checks and serialization must all succeed before any token is issued or evicted.
+      for (const selection of [input, ...(input.additionalModels ?? [])]) {
+        const snapshot = await prepareSnapshot(selection), key = selection.graphHash ? `graph:${selection.graphHash}` : `model:${selection.modelHash}`;
+        if (!revisions.has(key)) { prepared.push(snapshot); revisions.add(key); }
       }
-      const data = await buildData({ history, rendered, calls: [], name: 'model', title: input.title });
-      const body = JSON.stringify(data);
-      if (Buffer.byteLength(body) > maximumSnapshotBytes) throw new Error('This model is too large for the local viewer snapshot (32 MiB maximum).');
-      const index = JSON.stringify({ default: 'model', runs: [{ name: 'model', title: data.title ?? input.title ?? 'Meaning Model', label: data.title ?? 'Meaning Model', generatedAt: data.generatedAt, live: false }] });
+      // An explicit graph of a life is richer than its model-only view. Keep it
+      // (and its caller-supplied scopes/title) instead of making a duplicate.
+      const selectedModels = new Set(prepared.map((snapshot) => snapshot.modelHash));
+      const related = prepared.flatMap((snapshot) => snapshot.relatedLives);
+      for (const selection of related) {
+        if (selectedModels.has(selection.modelHash)) continue;
+        if (prepared.length >= maximumSnapshots) throw new Error('The selected books and their declared author/reader lives exceed 16 viewer choices. Open fewer additionalModels in this group.');
+        prepared.push(await prepareSnapshot(selection)); selectedModels.add(selection.modelHash);
+      }
       await start();
-      const token = randomBytes(24).toString('hex');
-      snapshots.set(token, { body, index });
+      const group = Object.freeze(prepared.map(() => randomBytes(24).toString('hex')));
+      prepared.forEach((snapshot, index) => snapshots.set(group[index], { ...snapshot, group }));
       while (snapshots.size > maximumSnapshots) snapshots.delete(snapshots.keys().next().value);
+      const token = group[0], primary = prepared[0];
       return { schema: 'meaning-model-viewer-open/v1', url: `${origin}/${token}/`, readOnly: true, mode: 'snapshot',
-        modelHash: data.modelHash ?? input.modelHash ?? null, graphHash: input.graphHash ?? null,
-        instructions: 'Open this link in a browser on the same computer as the MCP server. It shows the selected revision without changing it. Ask to open the model again after making changes. Links last while this MCP process runs; the 16 most recently opened snapshots are kept.' };
+        modelHash: primary.modelHash, graphHash: primary.graphHash,
+        ...(group.length > 1 ? { views: groupViews(token) } : {}),
+        instructions: 'Open this link in a browser on the same computer as the MCP server. It shows the selected revision without changing it. The model chooser includes the explicitly grouped revisions and current declared author/reader life models, using the declaring graph’s scopes. Ask to open the model again after making changes. Links last while this MCP process runs; the 16 most recently opened snapshots are kept.' };
     },
     async close() {
       closed = true;
@@ -130,7 +198,7 @@ export function registerViewerTools(server, service) {
   const viewer = createModelViewer(service);
   server.registerTool('life_model_viewer_open', {
     title: 'Open the model viewer',
-    description: 'Open a read-only local browser viewer of an exact model or model-bound graph revision. Use when the user asks to see, explore or read their model. The viewer is bundled with this MCP; no separate download, run transcript or website account is required. This complete author view requires accessScopes for every scoped record; it refuses partial access. Return the local URL to the user. The browser must run on the MCP server computer. Reopen after changes to see the new revision.',
+    description: 'Open a read-only local browser viewer of an exact model or model-bound graph revision. Use when the user asks to see, explore or read their model. The chooser automatically includes separate life models declared by current unsuperseded author_reader story records, using the declaring graph’s accessScopes. Optionally include additionalModels for other books or a richer graph of a declared life; identical revisions are deduplicated and the group is limited to 16 views. The viewer is bundled with this MCP; no separate download, run transcript or website account is required. This complete author view requires accessScopes for every scoped record in each selection, including declared lives; it refuses partial access. Return the local URL to the user. The browser must run on the MCP server computer. Reopen after changes to see the new revision.',
     inputSchema: modelViewerSchema,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   }, async (input) => {

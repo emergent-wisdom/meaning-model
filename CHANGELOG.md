@@ -4,7 +4,96 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
-## 0.4.0 — 2026-09-26
+## Unreleased — 0.5.0 candidate
+
+- Returning to a model in the same browser tab restores its own view, time and
+  record selection. First visits fit the new model’s time range. Model switching
+  still loads the selected snapshot; representation changes stay on one page.
+
+- Processes, Tree, Terrain, Graph and Structure share one page and retain the
+  selected record and time when switching representation. Coarse view opens a
+  broad process overview, with more detail exposing declared subprocesses.
+  Recenter (Home) fits the current view; the top controls can be hidden, and
+  Documents & notes now sits alongside the other display controls.
+- New or changed prose must declare the Events it renders or an explicit,
+  text-bound reason for having no such links. Scene defaults, narrative edits,
+  splitting and merging preserve these declarations. Grounding proposals require
+  author confirmation; story release checks reject unresolved passages.
+
+- Comparable dated Cut answers now shape numerical curtains in the original
+  3D viewer. Exact recorded shares remain inspectable; connecting segments are
+  explicitly visual interpolation, with no extrapolation beyond the readings.
+  Hide flat lines temporarily removes Event interval bars and constant numerical
+  rows so changing profiles are easier to see.
+- The viewer can hide unopened process branches while retaining recorded
+  developments and stable values. The Book of Conditions import also restores
+  its source's qualitative process developments instead of leaving them only
+  in the accompanying character notes.
+- The viewer displays recorded numerical Cuts directly from the model, with
+  their complete answer shares, units, conditioning and provenance. Dated
+  readings appear in the original time view; Numbers also exposes undated
+  readings and scalar initial values without inventing continuous trajectories.
+  Tree defaults and model switching preserve the same hierarchy controls for
+  models with and without numeric process paths.
+- Story modeling preserves recursive exploration: discoveries can lead to new
+  processes, relationships and questions even when no defect is known.
+  Provisional ideas and drafts can develop while explanations remain open;
+  depth review applies before scene commitment. Numerical sampling is optional.
+  Fear/love is an available lens rather than an automatic backlog for new stories.
+  The bundled Book of Conditions example illustrates life, institutional and
+  emotional modeling without imposing its categories on other stories.
+- Open-question responses retain local sufficiency reasons and reopening
+  conditions for the caller to reconsider. Explicitly superseded sufficiency
+  notes no longer suppress questions; unrelated model changes do not discard
+  those judgments automatically.
+- Depth reviews can select exact model records alongside a life dossier and
+  include records anchored by selected graph context, even when the full model
+  exceeds the inline budget. Omitted and frozen-runtime evidence is explicit;
+  readiness remains the calling reviewer's assessment. Changes to story-root
+  text now invalidate reviews when that text supplies the actual plan.
+- Saved work can be found through `life_saved_work_list` without remembering a
+  graph hash. It lists visible branch heads under the supplied scopes for replay
+  and continuation. Setup examples now retain work in a private SQLite file, and
+  startup warns when no state path is configured; MCP session records remain
+  process-local.
+- Existing books can use their native model records for deepening and depth
+  review with `lifeTrendsNodeId: null` and `modelEvidenceRefs`. Findings still
+  require actual evidence; this mode does not replace the life-trends dossier
+  required for committing a new scene.
+- Construction history can be exported to `destinationPath` and imported from
+  `sourcePath`, keeping substantial books out of chat/tool payloads. Local JSON
+  files are capped at 256 MiB; exports never overwrite files and return compact
+  checksum receipts. Inline exports remain available up to 1 MiB. File imports
+  check the bundle checksum before registering revisions.
+- Long histories no longer hit a 32-model MCP registration limit. Node keeps
+  32 recent model summaries and permits up to 32 concurrent model writes;
+  immutable revisions remain subject to the Rust storage limits reported by
+  `life_engine_status.engine.nativeLimits`. Model mutation receipts retain a payload
+  hash and byte count instead of duplicate model text, preserving same-process
+  retry checks without exhausting receipt storage on large histories.
+
+- The browser’s Structure view opens Event containment, process decomposition and
+  conditional Cuts as separate expandable structures. Shared references, local
+  answer weights and native clocks are preserved; the complete manuscript and
+  raw records remain available.
+
+- Playback reveals dated paths, Event bars, labels, and links only as their time
+  is reached. Process paths start at their first sample, and rewinding hides
+  future content again while keeping the complete manuscript readable.
+
+- The reading-position panel can be hidden and restored, with its visibility
+  retained in the URL.
+- Subdivided parts stay as expandable parents in the reading track. Nested
+  passages keep their own links, and opening a parent reads its current children
+  within the complete manuscript without repeating retained historical prose.
+- Split and merge link assignments can move selected links with
+  `keepOriginal: false`, preserving their predecessors in earlier revisions.
+  Split originals remain current containers; whole-part links can stay there.
+
+## 0.4.0 — unpublished candidate
+
+The v0.4.0 tag has a draft GitHub release; this version was not published to npm.
+The changes below are included in the 0.5.0 candidate.
 
 - The MCP bundles its browser viewer. Ask the assistant to open a model or
   model-bound graph; `life_model_viewer_open` returns a local link to the exact

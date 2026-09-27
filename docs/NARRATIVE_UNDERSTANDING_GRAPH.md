@@ -111,16 +111,19 @@ remain addressable.
 
 | Operation | Fields and behavior |
 | --- | --- |
-| `split` | `nodeId`, `parts: [{id, text, title?}]`, optional `linkAssignments`. Split a text leaf into at least two fresh children. Their text joined with `"\n\n"` must exactly equal the original. |
-| `merge` | `nodeIds`, `mergedNodeId`, optional `title` and `linkAssignments`. Combine at least two consecutive compatible leaf siblings into one fresh text node. |
+| `split` | `nodeId`, `parts: [{id, text, title?, renders?, noLinkReason?}]`, optional `linkAssignments`. Split a text leaf into at least two fresh children. Their text joined with `"\n\n"` must exactly equal the original. Each resulting passage needs its own Event links or reason. |
+| `merge` | `nodeIds`, `mergedNodeId`, optional `title`, `linkAssignments`, `renders`, `noLinkReason`. Combine at least two consecutive compatible leaf siblings into one fresh text node, with explicit resulting grounding. |
 | `move` | `nodeId`, `parentNodeId`, `index`. Move a node and its subtree to the requested child position, counted after removal from its old position, while preserving their identities. |
 | `reorder` | `parentNodeId`, `nodeIds`. Supply every immediate child exactly once in the desired order. |
-| `replace_text` | `nodeId`, `expectedText`, `text`. Replace text only when the existing text exactly matches `expectedText`. |
+| `replace_text` | `nodeId`, `expectedText`, `text`, optional `renders`, `noLinkReason`. Replace text only when it exactly matches `expectedText`. Existing Event links remain unless overridden; no-link reasons must be renewed for changed text. |
 
 Every operation includes its name as `kind`. Splitting keeps the original node
-as a nonrendered container and preserves its semantic and model links. The
+as a current nonrendered container and, by default, preserves its semantic and model links. The
 children inherit its metadata and receive `split_from` lineage links. An
 outgoing `next` edge moves to the last new child so rendering can continue.
+Each child can later be split again, retaining the intermediate parent IDs and
+their connections. The parents keep their original text without rendering it
+twice; edit the rendered descendants when expanding or shortening the prose.
 Merging requires matching roles, scopes, authority, timing, evidence, and
 render/training policies, and joins the selected texts with a blank line.
 Its placement metadata must also match. The combined text is restricted by
@@ -134,26 +137,71 @@ crossing-`next` arrangements, and parents with outgoing `next` links, whose
 intended placement is ambiguous. Use an explicit full revision for unsupported
 topology changes.
 
-Split and merge accept optional `linkAssignments: [{edgeId, successorNodeIds}]`.
+Split and merge accept optional `linkAssignments: [{edgeId, successorNodeIds, keepOriginal?}]`.
 Select existing incoming or outgoing `grounding`, `semantic`, or `provenance`
 edges incident to the operation's original nodes. Each selected successor must
 be a new child of this split or the new merged node. A link is copied only to
 those selected successors, replacing its one affected endpoint; its other
-endpoint, relation, explanation, and access scopes remain unchanged. Original
-edges remain as history, and copied edges receive fresh IDs and provenance
+endpoint, relation, explanation, and access scopes remain unchanged. By default,
+`keepOriginal` is true: the original edge stays in the current graph as well.
+Set it to false to move the connection to the selected successors, removing the
+original edge only from this new revision. The preceding immutable graph still
+preserves that edge. Copied edges receive fresh IDs and provenance
 naming the original link. This supports arbitrary relations and cognitive
 connections, not just Event `renders` links. It does not convert model clocks
 or recompute process timing. Structural placement and revision lineage are
 handled separately and cannot be assigned through this field.
 
 For example, a split may assign `{"edgeId":"passage.renders.event1",
-"successorNodeIds":["passage.a"]}` and separately assign an incoming
+"successorNodeIds":["passage.a"],"keepOriginal":false}` to move the connection
+from the parent to `passage.a`, and separately assign an incoming
 Understanding Node's link to `passage.b`. Omitted assignments remain on the
 originals and appear in `unresolvedSemanticLinks`; `successorNodeIds: []`
-explicitly keeps a link only as history. If both endpoints belong to the
+explicitly keeps a link on the original node without adding child links. After
+a split, this is a connection to the current parent container; after a merge,
+the original node is historical. An empty selection with `keepOriginal: false`
+is rejected: delete-only changes require an explicit graph revision.
+If both endpoints belong to the
 edited originals, copying would require choosing both ends: use an explicit
-graph revision instead, or `[]` to retain only the historical link. The helper
+graph revision instead, or `[]` to retain the original link. The helper
 does not guess a self-link or a pairing of new passages.
+
+Every newly rendered or edited prose passage needs its own `grounding` /
+`renders` edge to a native Event, or an explicit reason why it depicts no Event.
+A parent connection, `about` link, Cut-only link, or split/merge lineage does not
+supply that declaration for a child. Split parts accept `renders` and
+`noLinkReason`; merge and `replace_text` accept the same fields on the operation.
+`renders` replaces that resulting passage's Event-depiction links. An empty
+array requires a substantive `noLinkReason`. Existing precise Event links can
+also be assigned with `linkAssignments`; other connections can remain on the
+parent. Changing prose invalidates a no-link declaration until it is explicitly
+renewed for the new text. Name the calling agent in the edit's `author` field.
+
+Raw registration, revision and `life_narrative_batch` enforce this rule too.
+For raw writes an explicit reason is a native node provenance entry beginning
+`meaning-model:no-event-link/v1:` followed by JSON with `reason` (10–4000
+characters), `author`, and `textHash` (lowercase SHA-256 of the exact UTF-8 text).
+The high-level tools construct that entry. Heading-only document roots and
+nonrendered Understanding Nodes do not need depiction links. Historical imports
+preserve old graphs exactly; legacy gaps can be repaired incrementally, but
+`life_story_release` refuses any remaining gap in the released prose and lists
+all explicit no-link reasons in its decision and receipt.
+
+For existing prose, call `life_narrative_grounding_propose` with `graphHash` and
+complete `accessScopes`. One call returns every unlinked passage (up to 200;
+larger documents need explicit `nodeIds` batches), its exact text, proposed Event
+IDs, native candidates and source fingerprints. Existing ancestor declarations
+rank first; otherwise lexical overlap retrieves candidates. This is an
+**unconfirmed proposal**, not a semantic verdict, and writes nothing. Candidate
+limits and omissions are explicit. It works without an external estimator key.
+Read the passages and Events, then call `life_narrative_grounding_apply` with the
+returned `preparation`, `expectedProposalHash`, `requestId`, calling-agent
+`author`, `reason`, and one decision `{nodeId,renders:[...]}` or
+`{nodeId,noLinkReason:...}` for every proposed passage. Correct suggestions
+freely, including selecting another existing Event. The tool never accepts its
+own suggestions; it rejects changed fingerprints or a graph that ceased to be
+a current head. Application preserves prose, model, unrelated links and the
+immutable predecessor.
 
 The tool requires a complete graph read: visible node, edge, and root counts
 must match the whole graph. It refuses to construct a successor from a partial
@@ -165,9 +213,11 @@ below. The receipt includes `changedNodeIds`, `changedEdgeIds`,
 themselves; `ancestorReviewNodeIds` lists reviews linked only to their
 containers, such as whole-document assessments, which need a lighter check.
 `semanticLinkAssignments` records original edge IDs, the edited endpoints,
-selected successor node IDs, and new edge IDs. `unresolvedSemanticLinks` lists
+selected successor node IDs, new edge IDs, and `keptOriginal`.
+`unresolvedSemanticLinks` lists
 omitted incident links, the candidate successors, and whether both endpoints
-were edited. Its `operationIndex` is zero-based. `semanticLinkReassignment`
+were edited. This is a placement decision to review, not a claim that a parent
+connection is invalid. Its `operationIndex` is zero-based. `semanticLinkReassignment`
 is true only when at least one new link was created; explicit empty mappings
 remain visible in the assignments receipt.
 
@@ -289,12 +339,20 @@ four practices.
   linked to several records is shown once and named at the later ones.
 - **The construction travels.** `life_construction_export` writes a portable
   history of a model-bound graph: every model revision it was bound to with their
-  ancestors, the first graph revision in full and each later revision as its change,
+  ancestors, explicitly declared external model references and author/reader life
+  models with their ancestry, the first graph revision in full and each later revision as its change,
   with a bundle hash. `life_construction_import` rebuilds it on another engine and
   checks that every rebuilt model and graph hash equals the exported one, so the
   replay there is the same replay. A step that only added records goes in as an
   additive batch and any other as a revision by change, so the import keeps only
-  each change in its receipts.
+  each change in its receipts. External dependencies come from typed
+  `model_reference` nodes or versioned `storytelling.world` / `author_reader`
+  records, never arbitrary hashes quoted in prose. A missing declared model
+  refuses export with its referring node and a repair instruction. Complete
+  access scopes must cover external models and their ancestors too. This keeps
+  an author's separate life available after transferring the work to another
+  installation. Historical unlinked prose is imported unchanged and can then be
+  repaired through the grounding proposal/application tools.
 
 Batch related notes into one call (up to 32): every recording call creates one graph
 revision, and a session keeps at most 4,096.

@@ -176,6 +176,15 @@ const resourceDefinitions = Object.freeze([
     category: 'example',
   },
   {
+    id: 'book-of-conditions-modeling-example',
+    uri: 'life-sim://example/book-of-conditions-modeling',
+    title: 'The Book of Conditions: Modeling Lives, Constraints, and Voice',
+    description: 'Worked modeling judgments from the Book: concurrent life processes, distinct wants/outlook/appraisal Cuts, independent checking capacity, process-grounded voice, and useful opening or sufficient-here decisions. Its categories are optional.',
+    mimeType: 'text/markdown',
+    file: new URL('../../docs/examples/BOOK-OF-CONDITIONS-MODELING.md', import.meta.url),
+    category: 'example',
+  },
+  {
     id: 'minimal-model-and-graph-example',
     uri: 'life-sim://example/minimal-model-and-graph',
     title: 'Minimal Model and Graph: complete valid payloads',
@@ -327,6 +336,8 @@ export async function buildModelingContext({
       ? [{ uri: selectedProfile, required: true, reason: 'Purpose-specific modeling and output contract.' }]
       : []),
     { uri: selectedExample, required: true, reason: 'Inspect one worked representation before expanding the model.' },
+    ...(purpose === 'creative_story' ? [{ uri: 'life-sim://example/book-of-conditions-modeling', required: false,
+      reason: 'Recommended alongside the representation example: how the Book connects coexisting life processes, wants, outlook, material constraints, and voice, then chooses what to open or leave sufficient.' }] : []),
     { uri: 'life-sim://example/application-categories', required: false, reason: 'Use when choosing a starter or developing and revising application-specific categories.' },
   ];
   return {

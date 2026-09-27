@@ -7,6 +7,7 @@ import test from 'node:test';
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { expandTexInputs } from '../src/modeling-guidance.mjs';
+import { noEventLinkDeclaration } from '../src/narrative-grounding.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serverPath = join(here, '..', 'src', 'server.ts');
@@ -142,6 +143,8 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_narrative_batch',
       'life_narrative_drift_check',
       'life_narrative_edit',
+      'life_narrative_grounding_apply',
+      'life_narrative_grounding_propose',
       'life_narrative_query',
       'life_narrative_rebind',
       'life_narrative_register',
@@ -153,6 +156,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_profile_compile',
       'life_review_record',
       'life_revision_check',
+      'life_saved_work_list',
       'life_story_revision_diagnose',
       'life_trajectory_query',
       'life_trajectory_summarize',
@@ -168,6 +172,12 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_writer_contract_create',
       'life_writer_plan_evaluate',
     ]);
+    assert.match(client.getInstructions(), /life_engine_status.*process-memory/s);
+    assert.match(client.getInstructions(), /life_saved_work_list.*branch explicitly/s);
+    const catalog = await client.callTool({ name: 'life_saved_work_list', arguments: {} });
+    assert.ok(!catalog.isError, JSON.stringify(catalog));
+    assert.deepEqual(catalog.structuredContent.heads, []);
+    assert.equal(catalog.structuredContent.persistence.mode, globalThis.process.env.LIFE_SIM_STATE_FILE ? 'optional-single-writer-state-file' : 'process-memory');
     const modelingTool = tools.find(({ name }) => name === 'life_modeling_context');
     assert.match(modelingTool.description, /paper-first/);
     assert.match(modelingTool.description, /never replace reading/);
@@ -699,7 +709,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
         authority: { source: 'protocol-author', weight: 1 },
         render: 'include',
         training: 'include',
-        provenance: ['official MCP protocol integration test'],
+        provenance: ['official MCP protocol integration test', noEventLinkDeclaration('The harbor held one exact state beneath the sentence.', 'This protocol fixture models scalar state without Event records.', 'protocol-author')],
       }],
       edges: [{
         id: 'document-contains-passage',
@@ -747,7 +757,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
             authority: { source: 'protocol-author', weight: 1 },
             render: 'include',
             training: 'include',
-            provenance: ['official MCP protocol integration test'],
+            provenance: ['official MCP protocol integration test', noEventLinkDeclaration('A second node arrived in one atomic, connected batch.', 'This protocol fixture models scalar state without Event records.', 'protocol-author')],
           }],
           add_edges: [{
             id: 'document-contains-passage-2',
@@ -806,7 +816,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
           upsertNodes: [{
             id: 'passage-2', node_type: 'paragraph', role: 'story_passage', text: 'The second node, rewritten by its change.',
             epistemic_status: 'fictional_canon', evidence_type: 'fictional_canon', authority: { source: 'protocol-author', weight: 1 },
-            render: 'include', training: 'include', provenance: ['official MCP protocol integration test'],
+            render: 'include', training: 'include', provenance: ['official MCP protocol integration test', noEventLinkDeclaration('The second node, rewritten by its change.', 'This protocol fixture models scalar state without Event records.', 'protocol-author')],
           }],
         },
       },

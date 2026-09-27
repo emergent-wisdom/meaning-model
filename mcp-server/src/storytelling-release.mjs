@@ -7,6 +7,7 @@ import * as z from 'zod/v4';
 import { definitionFromCompleteView, narrativeDefinitionDelta } from './narrative-delta.mjs';
 import { assertCompleteNarrativeView } from './narrative-rebind.mjs';
 import { prepareAuthorRecord } from './storytelling-authoring.mjs';
+import { assertPassageGrounding, passageGrounding, isEventRenderEdge } from './narrative-grounding.mjs';
 
 const id = z.string().trim().min(1).max(256);
 export const storyReleaseSchema = z.object({
@@ -49,6 +50,15 @@ export async function releaseStory(service, raw) {
   }
   const rendered = [...reached].filter((nodeId) => nodes.get(nodeId)?.role === 'story_passage' && nodes.get(nodeId)?.render !== 'exclude');
   if (!rendered.length) throw new Error(`No rendered prose under ${input.storyRootId}; commit a scene before releasing it.`);
+  // Use the native rendering sequence, including next-chain continuations, for
+  // the release check rather than guessing prose coverage from containment.
+  const projection = await service.renderNarrativeGraph({ graphHash: input.graphHash, expectedGraphHash: input.graphHash,
+    rootIds: [input.storyRootId], accessScopes: scopes });
+  const renderedIds = new Set(projection.sequence);
+  const groundingGraph = { nodes: view.nodes.filter((node) => renderedIds.has(node.id)), edges: view.edges };
+  assertPassageGrounding(groundingGraph);
+  const intentionallyUnlinked = passageGrounding(groundingGraph).filter((item) => !item.eventIds.length && item.noLink)
+    .map(({ nodeId, noLink }) => ({ nodeId, ...noLink }));
   const released = new Set();
   for (const nodeId of rendered) for (let cursor = nodeId; cursor && cursor !== input.storyRootId; cursor = parent.get(cursor)) released.add(cursor);
   if (root.access_scopes?.length) released.add(root.id);
@@ -68,7 +78,8 @@ export async function releaseStory(service, raw) {
     if (hidden.includes(node.id)) { node.text = ''; clearedHiddenTextNodeIds.push(node.id); }
   }
   const within = new Set([input.storyRootId, ...released]);
-  for (const edge of graph.edges) if (edge.family === 'structural' && within.has(edge.source?.node_id) && within.has(edge.target?.node_id)) {
+  for (const edge of graph.edges) if ((edge.family === 'structural' && within.has(edge.source?.node_id) && within.has(edge.target?.node_id))
+    || (isEventRenderEdge(edge) && within.has(edge.source.node_id))) {
     const next = widen(edge.access_scopes);
     if (JSON.stringify(next) !== JSON.stringify([...(edge.access_scopes ?? [])].sort())) { edge.access_scopes = next; releasedEdgeIds.push(edge.id); }
   }
@@ -78,7 +89,7 @@ export async function releaseStory(service, raw) {
   const scenes = [...prose].filter((nodeId) => nodes.get(nodeId)?.node_type === 'storytelling.scene');
   const record = await prepareAuthorRecord(service, { graphHash: input.graphHash, requestId: `${input.requestId}.record`, nodeId: input.nodeId,
     storyRootId: input.storyRootId, authorId: input.authorId, accessScopes: scopes, kind: 'decision', text: input.reason,
-    data: { release: { storyRootId: input.storyRootId, releaseTo: input.releaseTo.length ? input.releaseTo : 'everyone', nodeIds: releasedNodeIds.sort(), edgeIds: releasedEdgeIds.sort(), clearedHiddenTextNodeIds: clearedHiddenTextNodeIds.sort() } },
+    data: { release: { storyRootId: input.storyRootId, releaseTo: input.releaseTo.length ? input.releaseTo : 'everyone', nodeIds: releasedNodeIds.sort(), edgeIds: releasedEdgeIds.sort(), clearedHiddenTextNodeIds: clearedHiddenTextNodeIds.sort(), intentionallyUnlinked } },
     links: scenes.slice(0, 64).map((nodeId) => ({ relation: 'about', targetNodeId: nodeId })) });
   graph.roots = [...graph.roots, ...record.narrativeBatch.add_roots];
   graph.nodes.push(...record.narrativeBatch.add_nodes);
@@ -91,5 +102,6 @@ export async function releaseStory(service, raw) {
   return { ...stored, schema: 'meaning-model-story-release/v1', previousGraphHash: input.graphHash, storyRootId: input.storyRootId,
     releaseTo: input.releaseTo, releasedNodeIds: releasedNodeIds.sort(), releasedEdgeIds: releasedEdgeIds.sort(), clearedHiddenTextNodeIds: clearedHiddenTextNodeIds.sort(), decisionNodeId: input.nodeId,
     graphMutation: true, worldMutation: false,
+    intentionallyUnlinked,
     nextStep: `Render with life_narrative_render and accessScopes ${JSON.stringify(input.releaseTo)} to read the story as a reader does. The dossier, drafts, reviews and author model keep their scopes; check that the prose itself reveals nothing the author meant to keep.` };
 }

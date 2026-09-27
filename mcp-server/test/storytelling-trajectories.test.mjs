@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { prepareTrajectoryExplore, reviseTrajectory, trajectoryProposalSchema }
+import { prepareTrajectoryExplore, reviseTrajectory, trajectoryGuidance, trajectoryProposalSchema }
   from '../src/storytelling-trajectories.mjs';
 
 function exploration(overrides = {}) {
@@ -39,6 +39,18 @@ function proposal(input = exploration()) {
   const task = prepareTrajectoryExplore(input);
   return { definition: task.definition, candidate: task.candidates[0] };
 }
+
+test('trajectory guidance keeps sampling optional and does not force flaws onto numerical axes', () => {
+  assert.match(trajectoryGuidance, /optional numerical exploration only for a meaningful declared quantitative question/u);
+  assert.match(trajectoryGuidance, /within delegated creative choices/u);
+  assert.match(trajectoryGuidance, /causes need not be settled before exploration/u);
+  assert.match(trajectoryGuidance, /recursive investigation.*return to the candidate and explore again/u);
+  assert.match(trajectoryGuidance, /Curiosity is a reason to explore even when there is no known defect/u);
+  assert.match(trajectoryGuidance, /flaw need not map to a numerical axis or score/u);
+  assert.match(trajectoryGuidance, /qualitative causal account may be sufficient/u);
+  assert.match(trajectoryGuidance, /does not .*authorize rerolling accepted history/u);
+  assert.doesNotMatch(trajectoryGuidance, /Locate it in the numerical categories|rather than replacing numerical modeling with vague labels|causal structure first/u);
+});
 
 test('seeded numerical exploration is reproducible, bounded and preserves its input', () => {
   const input = exploration();

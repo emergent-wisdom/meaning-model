@@ -125,6 +125,8 @@ test('depth findings persist as scoped Understanding Nodes with graph and exact 
   const original = structuredClone(f.view);
   const { result, view } = await save(f);
   assert.equal(result.readyForScene, true);
+  assert.equal(result.semanticVerification, false);
+  assert.equal(result.readinessBasis, 'caller_assessment');
   assert.equal(result.understandingNode, true);
   const node = view.nodes.find((item) => item.id === result.modelDepthReviewNodeId);
   const root = view.nodes.find((item) => item.id === result.understandingRootId);
@@ -147,6 +149,122 @@ test('depth findings persist as scoped Understanding Nodes with graph and exact 
   assert.equal(payload.authoringClock.at, 3);
   assert.equal(readModelDepthReview(view, f.scene, { dossier: f.dossier }).readyForScene, true);
   assert.deepEqual(f.view, original, 'recording preserves its immutable predecessor');
+});
+
+test('existing-work depth review reuses native model evidence without inventing a dossier or authorizing new scenes', async () => {
+  const f = fixture();
+  f.view.nodes = f.view.nodes.filter((node) => node.id !== 'life.trends');
+  f.view.edges = f.view.edges.filter((edge) => edge.source.node_id !== 'life.trends' && edge.target.node_id !== 'life.trends');
+  f.model.meaning_model.events.push({ id: 'Leo.life', boundary: 'Leo learned to check flow while apprenticed; earlier life remains unrecorded.',
+    participants: { subject: 'Leo' } });
+  const preparation = { ...f.preparation, lifeTrendsNodeId: null, modelEvidenceRefs: ['event:Leo.life', 'process:pump'] };
+  const task = await prepareModelDepthReview(f.service, preparation);
+  assert.equal(task.reviewMode, 'existing_work');
+  assert.deepEqual(task.modelEvidence.map(({ ref }) => ref), preparation.modelEvidenceRefs);
+  assert.equal(task.modelEvidence[0].record.boundary, f.model.meaning_model.events[1].boundary);
+  assert.ok(!task.nodes.some((node) => node.node_type === 'storytelling.life_trends'));
+  const input = assessment(preparation, task, { coverage: 'Review the recorded apprenticeship and pump capacity; do not claim an otherwise complete life.' });
+  input.findings[0].evidence.push({ kind: 'model', ref: 'event:Leo.life' });
+  const result = await recordModelDepthReview(f.service, input);
+  assert.equal(result.readyForRevision, true);
+  assert.equal(result.readyForScene, false);
+  const view = f.versions.get(result.graphHash);
+  const saved = JSON.parse(view.nodes.find((node) => node.id === result.modelDepthReviewNodeId).text).data;
+  assert.equal(saved.locator.lifeTrendsNodeId, null);
+  assert.deepEqual(saved.locator.modelEvidenceRefs, preparation.modelEvidenceRefs);
+  assert.ok(view.edges.some((edge) => edge.source.node_id === result.modelDepthReviewNodeId
+    && edge.target.anchor_id === modelHash && edge.target.path === '/meaning_model/events/1'));
+  assert.throws(() => readModelDepthReview(view, f.scene, { dossier: f.dossier }), /cannot authorize a new scene/);
+  const changedSelection = await prepareModelDepthReview(f.service, { ...preparation, modelEvidenceRefs: ['event:Leo.life'] });
+  assert.notEqual(changedSelection.basisHash, task.basisHash, 'native evidence selection participates in freshness');
+  f.model.meaning_model.events[1].boundary += ' Later he trained a successor.';
+  await assert.rejects(recordModelDepthReview(f.service, input), /task changed/);
+});
+
+test('direct model-evidence review requires explicit valid references and still rejects narrative-only assessments', async () => {
+  const f = fixture();
+  for (const change of [
+    { lifeTrendsNodeId: null },
+    { lifeTrendsNodeId: null, modelEvidenceRefs: [] },
+    { lifeTrendsNodeId: null, modelEvidenceRefs: ['event:missing'] },
+  ]) await assert.rejects(prepareModelDepthReview(f.service, { ...f.preparation, ...change }));
+  const preparation = { ...f.preparation, lifeTrendsNodeId: null, modelEvidenceRefs: ['process:pump'] };
+  const task = await prepareModelDepthReview(f.service, preparation);
+  const input = assessment(preparation, task);
+  input.findings[0].evidence = [{ kind: 'node', nodeId: 'capacity' }];
+  await assert.rejects(recordModelDepthReview(f.service, input), /actual model evidence/);
+  assert.equal(f.writes.length, 0);
+});
+
+test('a large-model scene review delivers exact selected records beside the life dossier', async () => {
+  const f = fixture();
+  f.model.notes = 'unrelated model material '.repeat(7000);
+  const task = await prepareModelDepthReview(f.service, { ...f.preparation,
+    modelEvidenceRefs: ['process:pump', 'event:inlet.closed'] });
+  assert.equal(task.model.definitionIncluded, false);
+  assert.equal(task.reviewMode, undefined, 'explicit records do not turn a dossier review into existing-work mode');
+  assert.deepEqual(task.modelEvidence.map(({ ref }) => ref), ['event:inlet.closed', 'process:pump', 'referent:Leo']);
+  assert.deepEqual(task.modelEvidence[1].record, f.model.processes[0]);
+  assert.deepEqual(task.omittedModelEvidence, []);
+  const stored = await recordModelDepthReview(f.service, assessment(task.preparation, task));
+  assert.equal(stored.readyForScene, true);
+  assert.equal(readModelDepthReview(f.versions.get(stored.graphHash), f.scene, { dossier: f.dossier }).readyForScene, true);
+});
+
+test('selected visible graph anchors bring complete model records including units and questions', async () => {
+  const f = fixture();
+  f.model.notes = 'x'.repeat(140 * 1024);
+  f.model.meaning_model.normalized_cuts = [{ id: 'outlook', question: 'How does expected fulfilment divide?',
+    unit: 'share of expected fulfilment', answers: [{ id: 'threat', weight: 0.3 }], provenance: ['authored example'] }];
+  f.view.edges.push(
+    { id: 'capacity.pump', source: endpoint('capacity'), target: { kind: 'anchor', anchor_kind: 'process', anchor_id: 'pump', path: '/initial_value' }, access_scopes: ['author'] },
+    { id: 'outline.cut', source: endpoint('outline'), target: { kind: 'anchor', anchor_kind: 'normalized_cut', anchor_id: 'outlook', path: '/answers/0/weight' }, access_scopes: ['author'] },
+    { id: 'private.event', source: endpoint('capacity'), target: { kind: 'anchor', anchor_kind: 'event', anchor_id: 'inlet.closed' }, access_scopes: ['private'] });
+  const task = await prepareModelDepthReview(f.service, f.preparation);
+  assert.equal(task.model.definition, null);
+  assert.deepEqual(task.modelEvidence.map(({ ref }) => ref), ['process:pump', 'referent:Leo', 'cut:outlook']);
+  assert.equal(task.modelEvidence[0].record.unit, 'volume_per_minute');
+  assert.equal(task.modelEvidence[2].record.question, f.model.meaning_model.normalized_cuts[0].question);
+  assert.deepEqual(task.modelEvidence[2].record, f.model.meaning_model.normalized_cuts[0]);
+  const changed = await prepareModelDepthReview(f.service, { ...f.preparation, contextNodeIds: [] });
+  assert.deepEqual(changed.modelEvidence.map(({ ref }) => ref), ['referent:Leo', 'cut:outlook']);
+  assert.notEqual(changed.taskHash, task.taskHash);
+});
+
+test('oversized selected records are disclosed with exact read routes rather than silently excerpted', async () => {
+  const f = fixture();
+  f.model.meaning_model.events[0].description = 'x'.repeat(140 * 1024);
+  const task = await prepareModelDepthReview(f.service, { ...f.preparation,
+    modelEvidenceRefs: ['event:inlet.closed', 'process:pump'] });
+  assert.deepEqual(task.modelEvidence.map(({ ref }) => ref), ['process:pump', 'referent:Leo']);
+  assert.equal(task.omittedModelEvidence.length, 1);
+  assert.equal(task.omittedModelEvidence[0].ref, 'event:inlet.closed');
+  assert.deepEqual(task.omittedModelEvidence[0].readMore, { tool: 'life_meaning_query', arguments: {
+    modelHash, collections: ['events'], ids: ['inlet.closed'], limit: 1 } });
+  assert.equal(task.omittedModelEvidence[0].record, undefined);
+});
+
+test('a selected model-ID anchor resolves like a model-hash anchor and returns its full record', async () => {
+  const f = fixture();
+  f.model.id = 'pump-model'; f.model.notes = 'x'.repeat(140 * 1024);
+  f.view.edges.push({ id: 'capacity.model', source: endpoint('capacity'), target: {
+    kind: 'anchor', anchor_kind: 'model', anchor_id: f.model.id, path: '/processes/0/initial_value' } });
+  const task = await prepareModelDepthReview(f.service, f.preparation);
+  assert.deepEqual(task.modelEvidence.find(({ ref }) => ref === 'process:pump').record, f.model.processes[0]);
+});
+
+test('frozen Claim anchors never substitute initial model claims or fail on later runtime claims', async () => {
+  const f = fixture();
+  f.model.initial_claims = [{ id: 'pressure', value: 'initial claim only' }];
+  for (const claimId of ['pressure', 'later-claim']) f.view.edges.push({ id: `capacity.${claimId}`,
+    source: endpoint('capacity'), target: { kind: 'anchor', anchor_kind: 'claim', anchor_id: claimId } });
+  const task = await prepareModelDepthReview(f.service, f.preparation);
+  assert.equal(task.modelEvidence.some(({ ref }) => ref?.startsWith('claim:')), false);
+  assert.deepEqual(task.omittedModelEvidence.map(({ anchor }) => anchor.anchor_id), ['later-claim', 'pressure']);
+  assert.ok(task.omittedModelEvidence.every(({ reason }) => reason.includes('frozen runtime evidence')));
+  // An explicit model ref still means the declared initial claim, as documented.
+  const explicit = await prepareModelDepthReview(f.service, { ...f.preparation, modelEvidenceRefs: ['claim:pressure'] });
+  assert.deepEqual(explicit.modelEvidence[0].record, f.model.initial_claims[0]);
 });
 
 test('explanatory gaps are saved with repairs and remain unready for scene work', async () => {
@@ -229,6 +347,19 @@ test('a title edit keeps a depth review fresh, and a stale review names the chan
   const relinked = structuredClone(view);
   relinked.edges.find((edge) => edge.id === 'outline.capacity').relation = 'contradicts';
   assert.throws(() => readModelDepthReview(relinked, f.scene, { dossier: f.dossier }), /changed edges: outline\.capacity/);
+});
+
+test('when the story root supplies the plan, changes to its text invalidate the review', async () => {
+  const f = fixture();
+  f.view.nodes.find((node) => node.id === 'book').text = 'Leo closes the inlet before the tank floods.';
+  f.preparation.focusNodeId = 'book';
+  const { view } = await save(f);
+  const changed = structuredClone(view);
+  changed.nodes.find((node) => node.id === 'book').text = 'Leo leaves the inlet open until the tank floods.';
+  assert.throws(() => readModelDepthReview(changed, f.scene, { dossier: f.dossier }), /stale.*changed nodes: book/);
+  const legacy = structuredClone(view), node = legacy.nodes.find((node) => node.id === 'depth.review');
+  const payload = JSON.parse(node.text); payload.data.basisVersion = 2; node.text = JSON.stringify(payload);
+  assert.throws(() => readModelDepthReview(legacy, f.scene, { dossier: f.dossier }), /legacy.*without tracking/);
 });
 
 test('depth checks reject missing or inaccessible focus, pending sources, and expanded scene context', async () => {

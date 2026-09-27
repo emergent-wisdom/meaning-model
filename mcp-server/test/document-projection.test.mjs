@@ -1,3 +1,4 @@
+import { noEventLinkDeclaration } from '../src/narrative-grounding.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { LifeSimulationService } from '../src/service.mjs';
@@ -5,10 +6,11 @@ import { editNarrativeGraph } from '../src/narrative-editing.mjs';
 import { projectDocument, projectNarrativeDocument } from '../src/document-projection.mjs';
 
 const provenance = ['Document-coordinate integration test'];
+const noLinkReason = 'Document-coordinate fixture text has no modeled Event depiction.';
 const endpoint = (node_id) => ({ kind: 'node', node_id });
 const node = (id, text, role = 'story_passage') => ({ id, node_type: 'passage', role, text,
   epistemic_status: 'authored', evidence_type: 'fictional_canon', authority: { source: 'author', weight: 1 },
-  render: role === 'story_passage' ? 'include' : 'exclude', provenance });
+  render: role === 'story_passage' ? 'include' : 'exclude', provenance: [...provenance, noEventLinkDeclaration(text, noLinkReason, 'fixture-author')] });
 const contains = (id, child, order) => ({ id, source: endpoint('book'), target: endpoint(child), family: 'structural', relation: 'contains', order, provenance });
 const span = (overrides = {}) => ({ ...node('span', JSON.stringify({ schema: 'meaning-model-document-span/v1',
   documentId: 'book', start: { nodeId: 'p2', boundary: 'start' }, end: { nodeId: 'p3', boundary: 'end' }, ...overrides }), 'metadata'), node_type: 'document.span' });
@@ -34,7 +36,7 @@ async function fixture(t, alter = () => {}) {
   const graph = await service.registerNarrativeGraph({ requestId: 'graph', narrativeGraph: definition });
   const project = (graphHash = graph.graphHash, accessScopes = []) => projectNarrativeDocument(service, { graphHash, rootId: 'book', accessScopes });
   const edit = (operations, overrides = {}) => editNarrativeGraph(service, { requestId: 'edit', graphHash: graph.graphHash,
-    reason: 'Change the document, not the world.', accessScopes: [], operations, ...overrides });
+    reason: 'Change the document, not the world.', accessScopes: [], operations: operations.map((op) => op.kind === 'split' ? { ...op, parts: op.parts.map((part) => ({ noLinkReason, ...part })) } : ['merge', 'replace_text'].includes(op.kind) ? { noLinkReason, ...op } : op), ...overrides });
   return { service, graph, project, edit };
 }
 

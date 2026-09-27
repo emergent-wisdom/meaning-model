@@ -13,11 +13,24 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { loadData, fillLinks, linksOf, processLabel, holderText, appendLegendNames } from './common.js';
-import { partsAtTime, measureStoryUnits } from './story-time.js';
+import { partsAtTime, measureStoryUnits, firstNamedStoryParts } from './story-time.js';
 import { appendDocumentSpans } from './document-spans.js';
+import { isPlaybackVisible, playbackSpan } from './playback-time.js';
+import { isCalendarTime, nativeTimeText, numericTimeTicks, temporalWindow, calendarDateOf, calendarTimeOf, calendarTickAt } from './temporal-layout.js';
+import { recordedCutSegments, visibleRecordedCuts, recordedCutMarker, appendRecordedCut, appendRecordedNumbers } from './recorded-numbers.js';
+import { unopenedProcessEvents } from './process-visibility.js';
+import { createProcessDetail } from './process-detail.js';
+import { cutTrajectories } from './cut-trajectories.js';
+import { buildModelGraph } from './model-graph.js';
+
+let temporalActive = !window.modelViewer, temporalFrame = null, appliedSelection = null, hoveredRecord = null;
+const temporalEvents = new AbortController();
+const addEventListener = (type, handler, options = {}) => window.addEventListener(type, (event) => { if (temporalActive) handler(event); }, { ...(typeof options === 'boolean' ? { capture: options } : options), signal: temporalEvents.signal });
+function publishRecord(record) { if (record && (!record.kind || typeof record.id !== 'string')) return; appliedSelection = JSON.stringify(record); window.modelViewer?.selectRecord(record); }
 
 const params = new URLSearchParams(location.search);
-const { name: dataName, data } = await loadData(params);
+const { name: dataName, data } = window.modelViewer?.getSnapshot() ?? await loadData(params);
+const calendarTime = isCalendarTime(data.timeUnit);
 // Earlier exports guessed passage dates from word similarity. Re-extract to obtain declared links;
 // those old guesses must not be presented as authored world time by this version of the viewer.
 if (data.story) data.story.units = data.story.units.map((unit) => unit.timing ? unit
@@ -25,6 +38,9 @@ if (data.story) data.story.units = data.story.units.map((unit) => unit.timing ? 
 const HUES = ['#3987e5', '#d95926', '#199e70']; const WORLD = '#9085e9';
 const KIND = { causes: '#ff8a4c', enables: '#3fd3c0', realizes_forecast: '#b793ff', constrains: '#ff4d6d' };
 const LENGTH = 116; const AMP = 5.6; const ROW = 2.7; const GAP = 4.4; const NX = 400;
+// Cut weights keep a fixed 0–1 scale. Their rows need enough physical height and
+// separation to read small changes; a long list scrolls in the locked camera.
+const CUT_AMP = 18; const CUT_ROW = 6;
 const clip = (text, n) => { const s = String(text ?? '').replace(/\s+/g, ' ').trim(); return s.length > n ? `${s.slice(0, n - 1)}…` : s; };
 const words = (text, n) => { const s = String(text ?? '').replace(/\s+/g, ' ').trim(); if (s.length <= n) return s; const cut = s.slice(0, n - 1); const space = cut.lastIndexOf(' '); return `${(space > n * 0.55 ? cut.slice(0, space) : cut).replace(/[,;:]$/, '')}…`; };
 const smooth = (x) => { const c = Math.max(0, Math.min(1, x)); return c * c * (3 - 2 * c); };
@@ -32,19 +48,50 @@ const push = (map, key, value) => { if (!map.has(key)) map.set(key, []); map.get
 const COLORS = new Map(); const color = (hex) => { let c = COLORS.get(hex); if (!c) { c = new THREE.Color(hex); COLORS.set(hex, c); } return c; }; // shared: clone before changing one
 
 // ---- what the view shows: the URL's choices, each defaulting to the processes view as it was ---------------------------------
-const DEFAULT_SHOW = ['processes', 'threads', 'decisions', 'lovefear', 'causal', 'notes'];
-const ALL_SHOW = [...DEFAULT_SHOW, 'events', 'subsidiary', 'prose'];
+const nativeMeasures = cutTrajectories(data);
+const hasPaths = data.measures.some((measure) => measure.points.length >= 2) || Boolean(data.numerics?.cuts?.length && nativeMeasures.length);
+const BASE_SHOW = ['processes', 'threads', 'decisions', 'lovefear', 'causal', 'notes', 'numbers'];
+const ALL_SHOW = [...BASE_SHOW, 'events', 'subsidiary', 'prose'];
+function defaultShow(layout) {
+  return [...BASE_SHOW, ...(layout === 'layers' || !hasPaths ? ['events', 'subsidiary'] : [])];
+}
+function defaultDepth(layout, maxDepth = Infinity) {
+  return Math.min(maxDepth, layout === 'layers' || !hasPaths ? 4 : 2);
+}
+const initialLayout = ({ layers: 'layers', tree: 'layers', terrain: 'terrain', together: 'together' })[params.get('view')] ?? (hasPaths ? 'together' : 'layers');
+const layerOverrides = new Map();
+if (params.has('everything') || params.has('show')) {
+  const chosen = new Set(params.has('everything') ? ALL_SHOW : params.get('show').split(',').filter(Boolean));
+  for (const key of ALL_SHOW) layerOverrides.set(key, chosen.has(key));
+} else if (params.has('nothoughts')) layerOverrides.set('notes', false);
+let explicitDepth = params.has('everything') || (params.has('depth') && Number.isFinite(Number(params.get('depth'))));
+let explicitEverything = params.has('everything');
 const opt = {
   camera: ['spin', 'free', 'locked'].includes(params.get('camera')) ? params.get('camera') : params.has('still') ? 'free' : 'spin',
   glare: params.get('glare') === 'soft' ? 'soft' : 'full',
+  readingOverview: params.get('readingOverview') === 'structure' ? 'structure' : 'named',
   edges: params.get('edges') !== 'off', // the lines that link one thing to another
+  readingPosition: params.get('reading') !== 'off',
+  hideUnopened: params.get('unopened') === 'hide',
+  hideFlat: params.get('flat') === 'hide',
   mode: params.get('mode') === 'construction' && data.constructionTiming !== 'unavailable' ? 'construction' : 'story',
   speed: [0.25, 0.5, 1, 2, 4].includes(Number(params.get('speed'))) ? Number(params.get('speed')) : 1,
-  layout: ({ layers: 'layers', tree: 'layers', terrain: 'terrain' })[params.get('view')] ?? 'together',
-  depth: Number.isFinite(Number(params.get('depth'))) && params.has('depth') ? Number(params.get('depth')) : 2,
-  show: new Set(params.has('everything') ? ALL_SHOW : params.has('show') ? params.get('show').split(',').filter(Boolean) : DEFAULT_SHOW.filter((key) => !(key === 'notes' && params.has('nothoughts')))),
+  layout: initialLayout,
+  depth: Number.isFinite(Number(params.get('depth'))) && params.has('depth') ? Number(params.get('depth')) : defaultDepth(initialLayout),
+  detailLevel: params.has('detail') && Number.isInteger(Number(params.get('detail'))) ? Math.max(0, Number(params.get('detail'))) : null,
+  processScope: params.get('scope') || null,
+  show: new Set(ALL_SHOW.filter((key) => layerOverrides.has(key) ? layerOverrides.get(key) : defaultShow(initialLayout).includes(key))),
   lenses: new Set(),
 };
+function setLayerVisibility(key, on) {
+  layerOverrides.set(key, on);
+  if (on) opt.show.add(key); else opt.show.delete(key);
+}
+function applyLayoutDefaults() {
+  const defaults = new Set(defaultShow(opt.layout));
+  opt.show = new Set(ALL_SHOW.filter((key) => layerOverrides.has(key) ? layerOverrides.get(key) : defaults.has(key)));
+  if (!explicitDepth) opt.depth = defaultDepth(opt.layout, MAX_DEPTH);
+}
 let selectedPart = null; const selectedEventIds = new Set(); let selectedLinks = [];
 let ready = false; // the panel and the URL follow the view once it has started
 let dirty = true; let relayout = true; let extrasDirty = true; let currentTicks = []; // what to redraw
@@ -52,59 +99,103 @@ let pointerAt = null; let lit = null; let litNode = null; let litReading = null;
 
 // ---- the rows: every measure with a path, grouped by whose it is -------------------------------------------------------
 // A process's name is the run's own (display.names in its viewer.json), else its id as words; display.order sets the rows.
-const NAMES = new Proxy({}, { get: (_, id) => processLabel(data, id) });
+const nativeMeasureById = new Map(nativeMeasures.map((measure) => [measure.id, measure]));
+const NAMES = new Proxy({}, { get: (_, id) => nativeMeasureById.get(id)?.label ?? processLabel(data, id) });
 const principals = data.people.filter((person) => person.principal).sort((a, b) => a.order - b.order);
 const first = (person) => person.name.split(' ')[0].toLowerCase();
-const ownerOf = (measure) => principals.find((person) => measure.id.split('.')[0] === first(person) || measure.frame === `person:${first(person)}`) ?? null;
+const ownerOf = (measure) => measure.kind === 'cut-answer' ? data.people.find((person) => person.id === measure.owner) ?? null : principals.find((person) => measure.id.split('.')[0] === first(person) || measure.frame === `person:${first(person)}`) ?? null;
 const order = data.display?.order ?? Object.keys(data.display?.names ?? {});
-const measures = data.measures.filter((measure) => measure.points.length >= 2)
+const measures = [...data.measures, ...nativeMeasures].filter((measure) => measure.points.length >= 2)
   .sort((a, b) => ((order.indexOf(a.id) + 1) || 99) - ((order.indexOf(b.id) + 1) || 99));
-const groups = [...principals.map((person, i) => ({ id: person.id, label: person.name, hue: HUES[i % HUES.length], rows: measures.filter((m) => ownerOf(m) === person) })),
-  { id: 'world', label: 'The world', hue: WORLD, rows: measures.filter((m) => !ownerOf(m)) }].filter((group) => group.rows.length);
-const times = measures.flatMap((m) => m.points.map((p) => p.t));
-// From a little before the story's own years (display.from, else the window its prose and moments span) to its last value.
-const storyStart = (data.storyWindow ?? data.window)?.start;
-const from = Number.isFinite(data.display?.from) ? data.display.from : Number.isFinite(storyStart) ? storyStart - 0.4 : -Infinity;
-const T0 = Math.max(Math.min(...times), from); const T1 = Math.max(...times) + 0.12;
+const legacyMeasures = measures.filter((measure) => measure.kind !== 'cut-answer');
+const groups = [...principals.map((person, i) => ({ id: person.id, label: person.name, hue: HUES[i % HUES.length], rows: legacyMeasures.filter((m) => ownerOf(m) === person) })),
+  { id: 'world', label: 'The world', hue: WORLD, rows: legacyMeasures.filter((m) => !ownerOf(m)) }]
+  .filter((group) => group.rows.length || !hasPaths);
+for (const measure of nativeMeasures) {
+  let group = groups.find((item) => item.id === measure.group.id);
+  if (!group) { group = { ...measure.group, hue: HUES[groups.length % HUES.length], rows: [] }; groups.push(group); }
+  group.rows.push(measure);
+}
+const initialWindow = temporalWindow(data);
+if (!initialWindow) throw new Error('This model has no recorded dated Events or numeric paths in a declared time unit for the time view.');
+const T0 = initialWindow.start; const T1 = initialWindow.end;
 const rows = []; let z = 0;
 for (const group of groups) { for (const measure of group.rows) { rows.push({ measure, group, z }); z += ROW; } z += GAP - ROW; }
 const depth = z - GAP; for (const row of rows) row.z -= depth / 2;
 // Where each row stands in Together (zT, yT) and in Layers (zL, yL), and how far its curtain has risen: always fully in
 // the story's years, and as the agent made it in the construction.
 for (const row of rows) { row.zT = row.z; row.yT = 0; row.rise = 1; row.riseTo = 1; }
-const zFront = Math.max(...rows.map((row) => row.z)); const zBack = Math.min(...rows.map((row) => row.z));
+const zFront = rows.length ? Math.max(...rows.map((row) => row.z)) : ROW;
+const zBack = rows.length ? Math.min(...rows.map((row) => row.z)) : -ROW;
 const rowOf = new Map(rows.map((row) => [row.measure.id, row]));
+const sourceEventRows = new Map();
+for (const row of rows) for (const eventId of row.measure.sourceEventIds ?? []) push(sourceEventRows, eventId, row);
 
-// Display values: linear between the parsed samples, held before the first and after the last. Each row on its own scale.
+// Display values: linear between recorded samples, held after the last; no value before the first sample.
 const valueAt = (points, t) => {
-  if (t <= points[0].t) return points[0].v; if (t >= points.at(-1).t) return points.at(-1).v;
+  if (!points.length) return null;
+  if (t < points[0].t) return null; if (t === points[0].t) return points[0].v; if (t >= points.at(-1).t) return points.at(-1).v;
   const k = points.findIndex((p) => p.t > t); const a = points[k - 1]; const b = points[k]; return a.v + (b.v - a.v) * ((t - a.t) / (b.t - a.t));
 };
 const measurePosition = (points, t) => {
-  if (t < points[0].t) return { label: 'Held before the first sample', samples: [points[0]] };
+  if (!points.length) return { label: 'No recorded readings available at this construction step', samples: [] };
+  if (t < points[0].t) return { label: 'Before the first recorded sample', samples: [] };
   if (t > points.at(-1).t) return { label: 'Held after the last sample', samples: [points.at(-1)] };
   const exact = points.find((point) => point.t === t);
   if (exact) return { label: 'At a display sample', samples: [exact] };
   const next = points.findIndex((point) => point.t > t);
   return { label: 'Linearly interpolated between samples', samples: [points[next - 1], points[next]] };
 };
+function rowValue(row, t) {
+  const points = row.points ?? row.measure.points;
+  if (row.measure.kind === 'cut-answer' && (!points.length || t > points.at(-1).t)) return null;
+  return valueAt(points, t);
+}
+function updateRowSamples(row, construction, cutoff, complete) {
+  if (row.measure.kind !== 'cut-answer') return false;
+  const points = construction ? row.measure.points.filter((point) => {
+    const made = Date.parse(point.born?.at ?? '');
+    return Number.isFinite(made) ? made <= cutoff : complete;
+  }) : row.measure.points;
+  if (row.points?.length === points.length && row.points.every((point, index) => point === points[index])) return false;
+  row.points = points;
+  row.domain = points.length ? [points[0].t, points.at(-1).t] : [Infinity, -Infinity];
+  return true;
+}
 for (const row of rows) {
   const values = row.measure.points.map((p) => p.v); const unit = String(row.measure.unit ?? '');
   const hi = Math.max(...values); const lo = Math.min(...values);
-  row.range = /0-10/.test(unit) ? [0, 10] : /0-1|share/.test(unit) ? [0, Math.max(1, hi)] : [Math.min(0, lo), hi];
-  row.height = (t) => { const v = valueAt(row.measure.points, t); return ((v - row.range[0]) / (row.range[1] - row.range[0] || 1)) * AMP; };
-  // A curtain spans the story's years, and its own path where that reaches beyond them.
-  row.domain = [Math.min(T0, row.measure.points[0].t), Math.max(T1, row.measure.points.at(-1).t)];
+  row.points = row.measure.points;
+  row.range = row.measure.kind === 'cut-answer' ? [0, 1] : /0-10/.test(unit) ? [0, 10] : /0-1|share/.test(unit) ? [0, Math.max(1, hi)] : [Math.min(0, lo), hi];
+  row.height = (t) => { const v = rowValue(row, t); if (v === null) return 0; return ((v - row.range[0]) / (row.range[1] - row.range[0] || 1)) * (row.measure.kind === 'cut-answer' ? CUT_AMP : AMP); };
+  // A curtain begins at its first recorded sample and may hold its final value afterward.
+  row.domain = row.measure.kind === 'cut-answer' ? [...row.measure.domain] : [row.measure.points[0].t, Math.max(T1, row.measure.points.at(-1).t)];
 }
 const money = (v, sign) => `${sign}${v >= 100 ? Math.round(v).toLocaleString('en-GB') : v.toFixed(2)}`;
 const format = (row, v) => {
+  if (v === null) return 'No recorded value yet';
+  if (row.measure.kind === 'cut-answer') return v.toLocaleString('en-GB', { maximumSignificantDigits: 6 });
   const unit = String(row.measure.unit ?? '');
   if (/GBP/.test(unit)) return money(v, '£'); if (/USD/.test(unit)) return money(v, '$');
   if (/hours/.test(unit)) return `${v.toFixed(1)} h`; if (/0-10/.test(unit)) return `${v.toFixed(1)} of 10`;
   if (/share of normal/.test(unit)) return `${Math.round(v * 100)}%`; if (/0-1|share/.test(unit)) return v.toFixed(2);
   return v.toLocaleString('en-GB', { maximumSignificantDigits: 6 });
 };
+function rowValueText(row, t) {
+  const value = rowValue(row, t); if (value === null) return '';
+  const interpolated = row.measure.kind === 'cut-answer' && !(row.points ?? row.measure.points).some((point) => point.t === t);
+  return `${interpolated ? '~' : ''}${format(row, value)}`;
+}
 function measureValueLines(row, t) {
+  if (row.measure.kind === 'cut-answer') {
+    const points = row.points ?? row.measure.points;
+    if (rowValue(row, t) === null) return [['a', 'No recorded value at this time. This reading series is not extrapolated.']];
+    const position = measurePosition(points, t);
+    return [['num', rowValueText(row, t)], ['a', position.samples.length === 1 ? 'Authored reading, positioned at its interval start.' : 'Visual interpolation between authored interval readings; not an additional recorded value.'],
+      ['m', row.measure.question], ['a', `Answer: ${row.measure.answerKey} · local weight from 0 to 1 · Unit: ${row.measure.unit}`],
+      ...position.samples.flatMap((point) => [['a', `${point.cut?.eventLabel ?? point.eventId}: ${format(row, point.v)} · ${timeText(point.t, 1)}${point.end !== point.t ? ` – ${timeText(point.end, 1)}` : ''}`], ['a', `Source Cut: ${point.cutId}`]])];
+  }
+  if (t < row.measure.points[0].t) return [['a', `No recorded value yet. First sample: ${month(row.measure.points[0].t)}.`]];
   const position = measurePosition(row.measure.points, t);
   const lines = [['num', format(row, valueAt(row.measure.points, t))], ['a', position.label]];
   for (const point of position.samples) {
@@ -126,10 +217,10 @@ const reachOf = (event) => (Array.isArray(event.reach) ? event.reach : [event.st
 const allReach = data.events.map(reachOf).filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
 const PRESENT = Math.max(data.extent?.end ?? T1, T1, ...allReach.map(([, b]) => b));
 const EARLIEST = Math.min(data.extent?.start ?? T0, T0, ...allReach.map(([a]) => a));
-const KNEE = 3; const BOUNDS = [EARLIEST - (PRESENT - EARLIEST) * 0.015, Math.max(PRESENT, T1)]; const MIN_SPAN = 0.004;
+const KNEE = 3; const BOUNDS = [EARLIEST - (PRESENT - EARLIEST) * 0.015, Math.max(PRESENT, T1)]; const MIN_SPAN = calendarTime ? 0.004 : Math.max(Number.EPSILON, (BOUNDS[1] - BOUNDS[0]) * 1e-6);
 const G = (t) => -Math.log(KNEE + BOUNDS[1] - Math.min(t, BOUNDS[1] + KNEE * 0.999));
 const Ginv = (g) => BOUNDS[1] + KNEE - Math.exp(-g);
-const warpOf = (span) => smooth((Math.log10(span) - 2.45) / 1.15);
+const warpOf = (span) => calendarTime ? smooth((Math.log10(span) - 2.45) / 1.15) : 0;
 const frameOf = (a, b) => ({ a, b, s: b - a, w: warpOf(b - a), ga: G(a), gb: G(b) });
 const fracOf = (V, t) => (1 - V.w) * ((t - V.a) / V.s) + (V.w ? V.w * ((G(t) - V.ga) / (V.gb - V.ga)) : 0);
 function timeAt(V, u) { if (!V.w) return V.a + u * V.s; let lo = V.a - V.s * 4; let hi = Math.min(V.b + V.s * 4, BOUNDS[1] + KNEE * 0.99); for (let i = 0; i < 64; i += 1) { const mid = (lo + hi) / 2; if (fracOf(V, mid) < u) lo = mid; else hi = mid; } return (lo + hi) / 2; }
@@ -150,34 +241,36 @@ function tabulate() { if (!F.w) { table = null; return; } const n = 720; const t
 const timeAtX = (x) => { const u = x / LENGTH + 0.5; if (!table) return F.a + u * F.s; const k = ((u + 0.05) / 1.1) * table.n; const i = Math.max(0, Math.min(table.n - 1, Math.floor(k))); return table.ts[i] + (table.ts[i + 1] - table.ts[i]) * (k - i); };
 const inView = (t, early = 0) => Number.isFinite(t) && t >= F.a - early && t <= F.b;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const dateOf = (t) => { const year = Math.floor(t); return new Date(Date.UTC(year, 0, 1) + (t - year) * 365.2425 * 86400000); };
+const dateOf = (t) => calendarDateOf(t, data.timeUnit);
 const grouped = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const yearText = (year) => (year < 0 ? `${grouped(-year)} BCE` : year === 0 ? '1 CE' : `${year}`);
 function timeText(t, span = F.s) {
+  if (!calendarTime) return nativeTimeText(t, data.timeUnit);
   if (PRESENT - t >= 5000) { const ago = PRESENT - t; const round = ago >= 100000 ? 10000 : ago >= 20000 ? 1000 : 100; return `${grouped(Math.round(ago / round) * round)} years ago`; }
   if (span > 30 || t < 1) return yearText(Math.round(t));
   const d = dateOf(t); if (span > 1.5) return `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
-const spanText = (a, b) => { const years = b - a; if (years >= 2) return `${grouped(years)} years`; if (years >= 2 / 12) return `${Math.round(years * 12)} months`; return `${Math.max(1, Math.round(years * 365.2425))} days`; };
+const spanText = (a, b) => { if (!calendarTime) return nativeTimeText(b - a, data.timeUnit); const years = b - a; if (years >= 2) return `${grouped(years)} years`; if (years >= 2 / 12) return `${Math.round(years * 12)} months`; return `${Math.max(1, Math.round(years * 365.2425))} days`; };
 // Ticks: at the story's years every year, as the view always showed them; elsewhere coarse ones first and finer ones where
 // they fit, so the axis reads at every scale, on a log scale too.
 function tickMarks() {
-  if (isStory()) { const out = []; for (let year = Math.ceil(T0); year <= Math.floor(T1); year += 1) out.push({ t: year, text: String(year), major: true }); return out; }
+  if (!calendarTime) return numericTimeTicks(F.a, F.b).map((t) => ({ t, text: nativeTimeText(t, data.timeUnit), major: true }));
+  if (isStory() && F.s < 48) { const out = []; for (let year = dateOf(T0).getUTCFullYear(); year <= dateOf(T1).getUTCFullYear(); year += 1) { const t = calendarTickAt(year, 0, 1, data.timeUnit); if (t >= T0 && t <= T1) out.push({ t, text: String(year), major: true }); } return out; }
   const out = []; const gap = 7; const taken = [];
   const room = (x) => taken.every((other) => Math.abs(other - x) >= gap);
   const legible = (t, before, after) => Math.min(Math.abs(X(t) - X(before)), Math.abs(X(after) - X(t))) >= gap * 0.9;
   const tryAdd = (t, text, major, before, after) => { if (!(t >= F.a && t <= F.b)) return; const x = X(t); if (!room(x) || !legible(t, before, after)) return; taken.push(x); out.push({ t, text: typeof text === 'function' ? text() : text, major }); };
   const ages = [300000, 100000, 30000, 10000, 5000];
   ages.forEach((age, i) => tryAdd(PRESENT - age, () => `${grouped(age)} years ago`, true, PRESENT - (ages[i - 1] ?? age * 3), PRESENT - (ages[i + 1] ?? age / 3)));
-  for (const step of [1000, 500, 100, 50, 10, 5, 1]) { const start = Math.ceil(Math.max(F.a, PRESENT - 5000) / step) * step; for (let year = start; year <= F.b && out.length < 60; year += step) if (year !== 0) tryAdd(year, () => yearText(year), step >= 100, year - step, year + step); }
+  for (const step of [1000, 500, 100, 50, 10, 5, 1]) { const start = Math.floor(Math.max(F.a, PRESENT - 5000) / step) * step; for (let year = start; year <= Math.ceil(F.b) && out.length < 60; year += step) if (year !== 0) tryAdd(calendarTickAt(year, 0, 1, data.timeUnit), () => yearText(year), step >= 100, calendarTickAt(year - step, 0, 1, data.timeUnit), calendarTickAt(year + step, 0, 1, data.timeUnit)); }
   if (F.s < 12) for (const every of [6, 3, 1]) for (let year = Math.floor(F.a); year <= Math.ceil(F.b); year += 1) for (let month = 0; month < 12; month += every) {
-    const t = year + month / 12; tryAdd(t, () => (month === 0 ? `${year}` : F.s < 2 ? `${MONTHS[month]} ${year}` : MONTHS[month]), month === 0, t - every / 12, t + every / 12);
+    const t = calendarTickAt(year, month, 1, data.timeUnit); tryAdd(t, () => (month === 0 ? `${year}` : F.s < 2 ? `${MONTHS[month]} ${year}` : MONTHS[month]), month === 0, calendarTickAt(year, month - every, 1, data.timeUnit), calendarTickAt(year, month + every, 1, data.timeUnit));
   }
-  if (F.s < 0.4) { const day = 1 / 365.2425; const start = dateOf(F.a); const day0 = Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate());
+  if (F.s < 0.4) { const day = 1 / 365.2425; const start = dateOf(F.a); start.setUTCHours(0, 0, 0, 0); const day0 = start.getTime();
     for (const every of [7, 1]) for (let ms = day0; ms <= day0 + F.s * 365.2425 * 86400000 + 86400000; ms += 86400000) {
       const date = new Date(ms); if (every === 7 && date.getUTCDay() !== 1) continue;
-      const t = date.getUTCFullYear() + (ms - Date.UTC(date.getUTCFullYear(), 0, 1)) / (365.2425 * 86400000); tryAdd(t, () => `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]}`, date.getUTCDate() === 1, t - every * day, t + every * day);
+      const t = calendarTimeOf(date, data.timeUnit); tryAdd(t, () => `${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]}`, date.getUTCDate() === 1, t - every * day, t + every * day);
     } }
   return out.sort((a, b) => a.t - b.t);
 }
@@ -199,6 +292,7 @@ const composer = new EffectComposer(renderer); composer.addPass(new RenderPass(s
 const GLARE = { full: [0.55, 0.42, 0.2], soft: [0.16, 0.3, 0.42] };
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), ...GLARE[opt.glare]); composer.addPass(bloom); composer.addPass(new OutputPass());
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); labels.setSize(innerWidth, innerHeight); if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } dirty = true; });
+addEventListener('viewer-controls-change', () => { if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } dirty = true; });
 const grid = new THREE.GridHelper(LENGTH * 1.4, 56, '#1a2030', '#0e121a'); grid.position.y = -0.02; scene.add(grid);
 // The processes and the tree live in one field; the terrain has its own, and the view shows one or the other.
 const field = new THREE.Group(); scene.add(field);
@@ -274,10 +368,16 @@ if (hasTree) for (const event of treeEvents) {
   nodes.push({ kind: sub ? 'sub' : 'event', id: event.id, event, depth: event.depth, owner: event.owner, group: groupKeyOf(event.owner), t0: event.reach[0], t1: event.reach[1], trunk: event.depth <= 1, parent: event.parent });
 }
 const nodeById = new Map(nodes.map((node) => [node.id, node]));
+const unopenedProcessIds = unopenedProcessEvents(data);
 // A row's place in the tree: its process's depth (one below the Event it belongs to) and its home.
 const processById = new Map((data.processes ?? []).map((process) => [process.id, process]));
-for (const row of rows) { const process = processById.get(row.measure.id); row.depth = process?.depth ?? 1; row.home = process?.home ?? null; }
+for (const row of rows) {
+  const process = processById.get(row.measure.id); row.home = row.measure.home ?? process?.home ?? null;
+  const home = row.measure.kind === 'cut-answer' ? treeById.get(row.home) : null;
+  row.depth = Number.isFinite(home?.depth) ? home.depth + 1 : row.measure.depth ?? process?.depth ?? 1;
+}
 const MAX_DEPTH = hasTree ? Math.max(...nodes.map((node) => node.depth), ...rows.map((row) => row.depth)) : 0;
+const processDetail = createProcessDetail(treeEvents, rows);
 opt.depth = params.has('everything') ? MAX_DEPTH : Math.max(0, Math.min(MAX_DEPTH, opt.depth));
 const lensList = (data.lenses ?? []).filter((lens) => lens.readings.length);
 const ANSWER = ['#ffb057', '#58b4ff', '#5fd39a', '#c69bff', '#ff7aa8', '#e8e27a', '#7fe0e6']; const REMAINDER = '#4a4945';
@@ -290,6 +390,8 @@ for (const lens of lensList) {
 }
 if (params.has('lenses') || params.has('everything')) opt.lenses = new Set(params.has('everything') || params.get('lenses') === 'all' ? lensList.map((lens) => lens.id) : params.get('lenses').split(',').filter(Boolean));
 const prose = (data.story?.units ?? []).filter((unit) => Number.isFinite(unit.t));
+const numericCuts = data.numerics?.cuts ?? [];
+const numericCutById = new Map(numericCuts.map((cut) => [cut.id, cut]));
 const bornAt = (item) => (item?.born?.at ? Date.parse(item.born.at) : -Infinity);
 
 // ---- layout: Together is the processes view's field; Layers stacks the tree level by level ----------------------------------
@@ -299,10 +401,22 @@ const bornAt = (item) => (item?.born?.at ? Date.parse(item.born.at) : -Infinity)
 const LANE = 1.0; const LAMP = 3.2; const MIN_DUR = 0.02;
 const blend = { now: opt.layout === 'layers' ? 1 : 0, to: opt.layout === 'layers' ? 1 : 0 };
 const visibleNode = (node, layers) => {
+  // Collapsing preserves the whole, even when flat numerical curves are hidden.
+  if (opt.detailProjection) return opt.detailProjection.eventIds.has(node.id)
+    && (opt.detailProjection.retainedEventIds.has(node.id) || !(opt.hideUnopened && unopenedProcessIds.has(node.id)));
+  if (opt.hideFlat) return false;
+  if (opt.hideUnopened && unopenedProcessIds.has(node.id)) return false;
   if (node.depth > opt.depth) return false;
   if (node.kind === 'sub') return opt.show.has('subsidiary');
   return (node.trunk && layers) || opt.show.has('events');
 };
+function visibleRow(row) {
+  if (opt.detailProjection && !opt.detailProjection.rowIds.has(row.measure.id)) return false;
+  const points = row.points ?? row.measure.points;
+  if (row.measure.kind === 'cut-answer' && (!points || points.length < 2)) return false;
+  return opt.show.has('processes') && !(opt.hideFlat && points?.length && points.every((point) => point.v === points[0].v));
+}
+const rowSpacing = (row) => row.measure.kind === 'cut-answer' ? CUT_ROW : ROW;
 function pack(items) {
   const ends = [];
   for (const item of items.sort((a, b) => a.t0 - b.t0 || (b.t1 - b.t0) - (a.t1 - a.t0))) {
@@ -313,14 +427,18 @@ function pack(items) {
 }
 let floors = []; let layersBounds = null;
 function computeLayout() {
+  opt.detailProjection = Number.isInteger(opt.detailLevel) ? processDetail.project({ scope: opt.processScope, level: opt.detailLevel }) : null;
+  if (opt.detailProjection) { opt.detailLevel = opt.detailProjection.level; opt.processScope = opt.detailProjection.scope; }
   for (const node of nodes) { node.inT = visibleNode(node, false); node.inL = visibleNode(node, true); node.shown = node.inT || node.inL; }
+  for (const row of rows) row.inT = visibleRow(row);
   // Together: the rows as they always were, and beneath each group's curtains the Events and subsidiary processes of its
   // tree, one floor further down for each level, spread across the group's rows.
   let zz = 0; const spans = [];
-  for (const group of groups) { const z0 = zz; for (const row of rows.filter((item) => item.group === group)) { row.zT = zz; zz += ROW; } spans.push({ group, z0, z1: zz - ROW }); zz += GAP - ROW; }
+  const togetherGroups = [...groups.filter((group) => rows.some((row) => row.group === group && row.inT) || nodes.some((node) => node.group === group.id && node.inT)), ...[...new Set(nodes.filter((node) => node.inT).map((node) => node.group))].filter((id) => !groups.some((group) => group.id === id)).map((id) => ({ id }))];
+  for (const group of togetherGroups) { const z0 = zz; const own = rows.filter((item) => item.group === group && item.inT); for (const row of own) { row.zT = zz; zz += rowSpacing(row); } if (!own.length) zz += ROW; spans.push({ group, z0, z1: Math.max(z0, zz - (own.length ? rowSpacing(own.at(-1)) : ROW)) }); zz += GAP - ROW; }
   const spanT = zz - GAP; for (const row of rows) row.zT -= spanT / 2;
   for (const { group, z0, z1 } of spans) {
-    const mine = nodes.filter((node) => node.inT && (node.group === group.id || (group.id === 'world' && !groups.some((other) => other.id === node.group))));
+    const mine = nodes.filter((node) => node.inT && node.group === group.id);
     for (const level of [...new Set(mine.map((node) => node.depth))].sort((a, b) => a - b)) {
       const here = mine.filter((node) => node.depth === level); const lanes = pack(here); const width = Math.max(ROW, z1 - z0);
       for (const node of here) { node.yT = -1.6 * Math.max(1, level); node.zT = z0 - spanT / 2 + (lanes > 1 ? (node.lane / (lanes - 1)) * width : width / 2); }
@@ -328,22 +446,25 @@ function computeLayout() {
   }
   // Layers: floors of the tree.
   floors = []; let y = 0; zz = 0;
-  for (let level = 0; level <= opt.depth; level += 1) {
-    const here = [...nodes.filter((node) => node.inL && node.depth === level), ...(opt.show.has('processes') ? rows.filter((row) => row.depth === level) : [])];
+  // A principal can own Events without owning any numeric trajectory rows.
+  const layerGroupIds = [...new Set([...groups.map((group) => group.id), 'world', ...nodes.filter((node) => node.inL).map((node) => node.group)])];
+  const layoutDepth = opt.detailProjection ? Math.max(0, ...nodes.filter((node) => node.inL).map((node) => node.depth), ...rows.filter(visibleRow).map((row) => row.depth)) : opt.depth;
+  for (let level = 0; level <= layoutDepth; level += 1) {
+    const here = [...nodes.filter((node) => node.inL && node.depth === level), ...rows.filter((row) => visibleRow(row) && row.depth === level)];
     if (!here.length) continue;
-    const amp = here.some((item) => item.measure) ? LAMP : 0;
+    const amp = Math.max(0, ...here.filter((item) => item.measure).map((row) => row.measure.kind === 'cut-answer' ? CUT_AMP : LAMP));
     if (floors.length) { y -= 2.6 + amp * 0.5; zz += 2.6 + amp * 0.55; }
     const z0 = zz;
-    for (const group of [...groups, { id: 'world' }].filter((item, i, all) => all.findIndex((other) => other.id === item.id) === i)) {
-      const mine = here.filter((item) => (item.measure ? item.group.id : item.group) === group.id); if (!mine.length) continue;
-      for (const row of mine.filter((item) => item.measure)) { row.zL = zz + ROW * 0.55; row.yL = y; zz += ROW * 0.9; }
+    for (const groupId of layerGroupIds) {
+      const mine = here.filter((item) => (item.measure ? item.group.id : item.group) === groupId); if (!mine.length) continue;
+      for (const row of mine.filter((item) => item.measure)) { row.zL = zz + rowSpacing(row) * 0.55; row.yL = y; zz += rowSpacing(row) * 0.9; }
       const rest = mine.filter((item) => !item.measure); const lanes = pack(rest); for (const node of rest) { node.zL = zz + node.lane * LANE + LANE * 0.5; node.yL = y; }
       zz += lanes * LANE + 1.4;
     }
     floors.push({ level, y, z0, z1: zz, roles: here, amp });
   }
   // Rows or Events in one representation only fade where they stand in it.
-  for (const row of rows) { if (row.zL === undefined || !(opt.show.has('processes') && row.depth <= opt.depth)) { row.inL = false; row.zL = row.zT; row.yL = row.yT; } else row.inL = true; }
+  for (const row of rows) { if (row.zL === undefined || !(visibleRow(row) && row.depth <= layoutDepth)) { row.inL = false; row.zL = row.zT; row.yL = row.yT; } else row.inL = true; }
   const zs = floors.flatMap((floor) => [floor.z0, floor.z1]); const ys = floors.map((floor) => floor.y);
   layersBounds = floors.length ? { z0: Math.min(...zs), z1: Math.max(...zs), y0: Math.min(...ys), y1: Math.max(...ys) } : null;
   // Centre the floors on the field.
@@ -360,6 +481,7 @@ function computeLayout() {
 // Where a row or node stands now: blended between Together and Layers.
 const rowAt = (row) => { const m = smooth(blend.now); return { y: row.yT + ((row.yL ?? row.yT) - row.yT) * m, z: row.zT + ((row.zL ?? row.zT) - row.zT) * m }; };
 const presence = (item) => { const m = smooth(blend.now); return (1 - m) * (item.inT === false ? 0 : 1) + m * (item.inL ? 1 : 0); };
+const visibleAmplitude = () => rows.some((row) => row.measure.kind === 'cut-answer' && presence(row) > 0.5) ? CUT_AMP : AMP;
 const frontOf = (rowsOf) => rowsOf.reduce((a, b) => (rowAt(b).z > rowAt(a).z ? b : a));
 
 // ---- the processes: curtains of light, each on its own scale ------------------------------------------------------------------
@@ -374,8 +496,9 @@ for (const row of rows) {
   row.crest = new THREE.Line(line, additive(c.clone().lerp(new THREE.Color('#ffffff'), 0.35), 1));
   row.wall.frustumCulled = false; row.crest.frustumCulled = false; row.sampleT = new Float64Array(NX);
   field.add(row.wall, row.crest);
-  const name = label('row', NAMES[row.measure.id] ?? row.measure.id.split('.').slice(-1)[0].replace(/_/g, ' '), new THREE.Vector3(-LENGTH / 2 - 1.2, 0.8, row.z), [1, 0.5]);
-  name.element.title = `${row.measure.role ?? ''}\n\n${row.measure.support}`.trim(); name.element.style.color = `color-mix(in srgb, ${row.group.hue} 45%, #ffffff)`;
+  const name = label('row', clip(NAMES[row.measure.id] ?? row.measure.id.split('.').slice(-1)[0].replace(/_/g, ' '), 64), new THREE.Vector3(-LENGTH / 2 - 1.2, 0.8, row.z), [1, 0.5]);
+  name.element.title = [NAMES[row.measure.id], row.measure.question, row.measure.role, row.measure.support].filter(Boolean).join('\n\n'); name.element.style.color = `color-mix(in srgb, ${row.group.hue} 45%, #ffffff)`;
+  if (row.measure.kind === 'cut-answer') Object.assign(name.element.style, { maxWidth: 'min(150px, 25vw)', overflow: 'hidden', textOverflow: 'ellipsis' });
   row.name = name; row.value = label('value', '', new THREE.Vector3(LENGTH / 2 + 1.2, 0.8, row.z), [0, 0.5]);
 }
 // Lay a curtain over the window: samples evenly across the screen, over the years the curtain spans.
@@ -387,7 +510,7 @@ function layRow(row) {
   row.name.position.set(-LENGTH / 2 - 1.2, p.y + 0.8, p.z); row.value.position.set(LENGTH / 2 + 1.2, p.y + 0.8, p.z);
   row.wall.material.opacity = vis; row.crest.material.opacity = vis;
   if (!shown) return;
-  const x0 = X(d0); const x1 = X(d1); const amp = 1 - smooth(blend.now) * (1 - LAMP / AMP);
+  const x0 = X(d0); const x1 = X(d1); const amp = row.measure.kind === 'cut-answer' ? 1 : 1 - smooth(blend.now) * (1 - LAMP / AMP);
   const positions = row.wall.geometry.attributes.position.array; const crest = row.crest.geometry.attributes.position.array;
   for (let i = 0; i < NX; i += 1) {
     const x = x0 + ((x1 - x0) * i) / (NX - 1); const t = F.w ? timeAtX(x) : d0 + ((d1 - d0) * i) / (NX - 1); const h = row.height(t) * amp * row.rise;
@@ -397,10 +520,11 @@ function layRow(row) {
   row.wall.geometry.computeBoundingSphere(); row.crest.geometry.computeBoundingSphere();
 }
 // The height of a row's curtain at a time, as drawn now.
-const heightAt = (row, t) => row.height(t) * (1 - smooth(blend.now) * (1 - LAMP / AMP)) * row.rise;
+const heightAt = (row, t) => row.height(t) * (row.measure.kind === 'cut-answer' ? 1 : 1 - smooth(blend.now) * (1 - LAMP / AMP)) * row.rise;
 const groupLabels = [];
 for (const group of groups) {
   const object = label('group', group.label, new THREE.Vector3(-LENGTH / 2 - 1.2, 0.3, 0), [1, 0.5]); object.element.style.color = group.hue; groupLabels.push({ group, object });
+  if (group.rows.some((row) => row.kind === 'cut-answer')) { Object.assign(object.element.style, { maxWidth: 'min(180px, 28vw)', overflow: 'hidden', textOverflow: 'ellipsis' }); object.element.title = group.label; }
 }
 // The time axis along the front: labels and faint lines across the field, from a pool.
 const tickPool = [];
@@ -427,26 +551,27 @@ for (const event of data.events) {
 // A thread's stems, sparks and link at the time it is drawn (its start, or the window's edge a little after it).
 function layThread(group) {
   const t = Math.max(group.userData.t, F.a); group.position.x = X(t); group.userData.tDrawn = t;
-  const ordered = [...group.userData.touched].sort((a, b) => rowAt(a).z - rowAt(b).z); const tops = [];
+  const ordered = group.userData.touched.filter((row) => presence(row) > 0.5).sort((a, b) => rowAt(a).z - rowAt(b).z); const tops = [];
   group.userData.touched.forEach((row, i) => {
     const p = rowAt(row); const top = new THREE.Vector3(0, p.y + heightAt(row, t) + 0.05, p.z);
     const stem = group.userData.lines[i].geometry.attributes.position; stem.array.set([0, p.y, p.z, top.x, top.y, top.z]); stem.needsUpdate = true; group.userData.lines[i].geometry.computeBoundingSphere();
     group.userData.sparks[i].position.copy(top);
+    group.userData.lines[i].visible = group.userData.sparks[i].visible = presence(row) > 0.5;
   });
   for (const row of ordered) { const p = rowAt(row); tops.push(new THREE.Vector3(0, p.y + heightAt(row, t) + 0.05, p.z)); }
-  if (group.userData.link) { const attr = group.userData.link.geometry.attributes.position; tops.forEach((top, i) => attr.array.set([top.x, top.y, top.z], i * 3)); attr.needsUpdate = true; group.userData.link.geometry.computeBoundingSphere(); }
-  if (group.userData.tag) { const high = tops.reduce((a, b) => (b.y > a.y ? b : a)); group.userData.tag.position.set(0, high.y + 1.3, high.z); group.userData.tag.userData.t = t; }
+  if (group.userData.link) { const attr = group.userData.link.geometry.attributes.position; tops.forEach((top, i) => attr.array.set([top.x, top.y, top.z], i * 3)); attr.needsUpdate = true; group.userData.link.geometry.setDrawRange(0, tops.length); group.userData.link.visible = tops.length > 1; group.userData.link.geometry.computeBoundingSphere(); }
+  if (group.userData.tag && tops.length) { const high = tops.reduce((a, b) => (b.y > a.y ? b : a)); group.userData.tag.position.set(0, high.y + 1.3, high.z); group.userData.tag.userData.t = t; }
 }
 
 // Decisions the model drew, and the love-or-fear split behind the acts, on each person's front row.
 const decisions = []; const lenses = [];
 principals.forEach((person) => {
-  const own = rows.filter((row) => ownerOf(row.measure) === person); if (!own.length) return;
+  const own = rows.filter((row) => ownerOf(row.measure) === person);
   const hue = HUES[principals.indexOf(person) % HUES.length];
   for (const decision of person.decisions) {
     if (!Number.isFinite(decision.t)) continue;
     const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.55), new THREE.MeshBasicMaterial({ color: decision.drawn ? '#ffffff' : hue }));
-    gem.userData = { t: decision.t, own, lift: 2.2, decision, person }; field.add(gem); decisions.push(gem);
+    gem.userData = { t: decision.t, eventId: decision.eventId, own, lift: 2.2, decision, person }; field.add(gem); decisions.push(gem);
     const answers = (decision.answers ?? []).slice(0, 6).map((answer) => `${Math.round(answer.weight * 100)}% ${answer.key.replace(/[_.-]+/g, ' ')}${decision.drawn?.realized === answer.key ? ' (drawn)' : ''}`).join(' · ');
     gem.userData.hover = { kind: `A decision · ${person.name}${decision.drawn ? ' · drawn by the model' : ''}`, title: decision.question ?? decision.label ?? 'A decision', text: answers, about: [timeText(decision.t, 2)] };
     const halo = spark(hue, 3.2); gem.add(halo); halo.position.set(0, 0, 0);
@@ -464,12 +589,14 @@ principals.forEach((person) => {
     const at = data.events.find((event) => event.id === point.eventId);
     element.title = [series.question, series.unit, ...point.answers.map((answer) => `${answer.key.replace(/_/g, ' ')}: ${Math.round(answer.weight * 100)}%`),
       at ? `At: ${at.label}` : null, `Whose: ${holderText({ holder: null })}`].filter(Boolean).join('\n');
-    const object = new CSS2DObject(element); object.center.set(0.5, 1); object.userData = { t: point.t, cutId: point.cutId, act, names: [person.name.split(' ')[0]], own, lift: 4.2, born: point.born }; field.add(object); lenses.push(object);
+    const object = new CSS2DObject(element); object.center.set(0.5, 1); object.userData = { t: point.t, eventId: point.eventId, cutId: point.cutId, act, names: [person.name.split(' ')[0]], own, lift: 4.2, born: point.born }; field.add(object); lenses.push(object);
     element.addEventListener('click', () => { const [question, unit, ...rest] = element.title.split('\n'); showDetails([tipLine('k', 'Love or fear'), tipLine('v', element.querySelector('.act').textContent), element.querySelector('.split').cloneNode(true), tipLine('m', question), ...rest.map((line) => tipLine('a', line)), tipLine('a', unit)]); });
   }
 });
 function layOnFront(item) {
-  const { own, lift, t } = item.userData; const front = frontOf(own); const p = rowAt(front);
+  const { lift, t, eventId } = item.userData; const own = item.userData.own.filter((row) => presence(row) > 0.5 && rowValue(row, t) !== null);
+  if (!own.length) { const p = anchor(eventId, t); item.userData.placed = Boolean(p); if (p) item.position.set(p.x, p.y + lift, p.z + 0.8); return; }
+  const front = frontOf(own); const p = rowAt(front); item.userData.placed = presence(front) > 0.5;
   const top = Math.max(...own.map((row) => heightAt(row, t)));
   item.position.set(xOf(t), p.y + top + lift, p.z + 0.8);
 }
@@ -483,9 +610,13 @@ const NOTE = { root: ['Document', '#ffe6ae', 6], thought: ['Thought', '#c9d4ff',
 const hoverable = []; const notes = []; const mind = new THREE.Group(); mind.visible = opt.show.has('notes'); field.add(mind);
 const mindLines = new Lines(); const noteLinks = new Lines(); field.remove(mindLines.object, noteLinks.object); mind.add(mindLines.object, noteLinks.object);
 const graphNodes = data.graph.nodes;
-const neighbours = new Map(); const moments = new Map();
+const neighbours = new Map(); const moments = new Map(); const noteScopeEvents = new Map();
 for (const edge of data.graph.edges) {
   if (edge.target.node) { for (const [a, b] of [[edge.source, edge.target.node], [edge.target.node, edge.source]]) push(neighbours, a, b); }
+  // A declared process/referent home establishes scope, without assigning a
+  // date to the note or changing the dated moments used for its placement.
+  const home = edge.target.event ?? edge.target.home;
+  if (byId.has(home)) push(noteScopeEvents, edge.source, home);
   const event = byId.get(edge.target.event); if (event && Number.isFinite(event.start)) push(moments, edge.source, event);
 }
 const noteLayer = (node) => NOTE[node.category]?.[2] ?? 2;
@@ -517,10 +648,11 @@ const selectedDocumentLabel = label('selected-document', '', new THREE.Vector3()
 const noteEdges = []; { const seen = new Set(); for (const edge of data.graph.edges) { if (!edge.target.node) continue; const key = [edge.source, edge.target.node].sort().join('|'); if (seen.has(key) || !noteById.has(edge.source) || !noteById.has(edge.target.node)) continue; seen.add(key); noteEdges.push([edge.source, edge.target.node]); } }
 // Where the moments a note is about meet the processes.
 const meet = (event) => {
-  const t = Math.max(F.a, Math.min(F.b, event.start)); const touched = (event.processIds ?? []).map((id) => rowOf.get(id)).filter(Boolean);
+  const t = Math.max(F.a, Math.min(F.b, event.start)); const touched = rowsForEvent(event, t);
   if (touched.length) return touched.map((row) => { const p = rowAt(row); return new THREE.Vector3(xOf(t), p.y + heightAt(row, t) + 0.05, p.z); });
+  const node = nearestShown(event.id); if (node && (!rows.length || opt.layout === 'layers')) { const p = nodeAt(node); return [new THREE.Vector3(xOf(t), p.y + BAR, p.z)]; }
   const person = principals.find((p) => event.participants?.includes(p.id)); const group = groups.find((g) => g.id === person?.id); if (!group) return [];
-  const own = rows.filter((row) => row.group === group); const p = rowAt(own[Math.floor(own.length / 2)]); return [new THREE.Vector3(xOf(t), p.y + 0.1, p.z)];
+  const own = rows.filter((row) => row.group === group && presence(row) > 0.5); if (!own.length) return []; const p = rowAt(own[Math.floor(own.length / 2)]); return [new THREE.Vector3(xOf(t), p.y + 0.1, p.z)];
 };
 function placeNotes() {
   const place = new Map(); const top = mindTop(); const back = (node, x) => new THREE.Vector3(x, top.y + noteLayer(node) * 1.6, top.z - noteLayer(node) * 2.2);
@@ -541,13 +673,14 @@ function placeNotes() {
 }
 // The layer of thoughts sits above and behind whatever the view holds.
 function mindTop() {
-  const m = smooth(blend.now); const together = { y: AMP + 8, z: zBackNow() - 9 };
+  const m = smooth(blend.now); const together = { y: visibleAmplitude() + 8, z: zBackNow() - 9 };
   if (!layersBounds || m < 0.001) return together;
-  const layers = { y: layersBounds.y1 + LAMP + 8, z: layersBounds.z0 - 9 };
+  const layers = { y: Math.max(...floors.map((floor) => floor.y + floor.amp)) + 8, z: layersBounds.z0 - 9 };
   return { y: together.y + (layers.y - together.y) * m, z: together.z + (layers.z - together.z) * m };
 }
-const zBackNow = () => Math.min(...rows.map((row) => rowAt(row).z));
-const zFrontNow = () => { const fronts = [...rows.map((row) => rowAt(row).z), ...nodes.filter((node) => node.shown && presence(node) > 0.5).map((node) => nodeAt(node).z)]; return Math.max(...fronts); };
+const visibleZ = () => [...rows.filter((row) => presence(row) > 0.5).map((row) => rowAt(row).z), ...nodes.filter((node) => node.shown && presence(node) > 0.5).map((node) => nodeAt(node).z)];
+const zBackNow = () => { const zs = visibleZ(); return zs.length ? Math.min(...zs) : -ROW; };
+const zFrontNow = () => { const zs = visibleZ(); return zs.length ? Math.max(...zs) : ROW; };
 function drawNotes() {
   mindLines.begin(); noteLinks.begin();
   const shown = new Set();
@@ -555,11 +688,13 @@ function drawNotes() {
     const selected = light.userData.id === selectedPart?.unit.id;
     light.scale.setScalar((light.userData.node.category === 'passage' ? 2.6 : 2.0) * (selected ? 1.8 : 1));
     if (!light.visible) continue; shown.add(light.userData.id); const on = lit === light || selected; if (!opt.edges && !on) continue;
-    for (const event of light.userData.moments) if (shownByPlay(event.start, bornAt(event))) for (const point of meet(event)) mindLines.add(light.position.x, light.position.y, light.position.z, point.x, point.y, point.z, light.userData.color, on ? 0.95 : 0.13);
+    for (const event of light.userData.moments) if ((!opt.detailProjection || opt.detailProjection.eventIds.has(event.id)) && shownByPlay(event.start, bornAt(event))) for (const point of meet(event)) mindLines.add(light.position.x, light.position.y, light.position.z, point.x, point.y, point.z, light.userData.color, on ? 0.95 : 0.13);
     // Pointed at, a document also shows the people and processes it is attached to.
     if (on) for (const item of light.userData.attached) {
-      const own = item.kind === 'process' ? [rowOf.get(item.id)].filter(Boolean) : item.kind === 'referent' ? rows.filter((row) => row.group.id === item.id || ownerOf(row.measure)?.id === item.id) : [];
-      if (!own.length) continue; const row = frontOf(own); const p = rowAt(row); const t = timeAtX(light.position.x); const target = new THREE.Vector3(X(Math.max(F.a, Math.min(F.b, t))), p.y + heightAt(row, Math.max(F.a, Math.min(F.b, t))) + 0.05, p.z);
+      const own = (item.kind === 'process' ? [rowOf.get(item.id)].filter(Boolean) : item.kind === 'referent' ? rows.filter((row) => row.group.id === item.id || ownerOf(row.measure)?.id === item.id) : []).filter((row) => presence(row) > 0.5);
+      if (!own.length) continue; const row = frontOf(own); const p = rowAt(row); const t = timeAtX(light.position.x);
+      if (rowValue(row, t) === null || !shownByPlay(t, bornAt(row.measure))) continue;
+      const target = new THREE.Vector3(X(Math.max(F.a, Math.min(F.b, t))), p.y + heightAt(row, Math.max(F.a, Math.min(F.b, t))) + 0.05, p.z);
       mindLines.add(light.position.x, light.position.y, light.position.z, target.x, target.y, target.z, item.kind === 'process' ? color(row.group.hue) : WHITE, 0.9, 0.5);
     }
   }
@@ -569,7 +704,7 @@ function drawNotes() {
   const labelParent = terrain.on ? terrain.group : mind;
   if (labelParent && selectedDocumentLabel.parent !== labelParent) labelParent.add(selectedDocumentLabel);
   selectedDocumentLabel.visible = Boolean(selected?.visible);
-  if (selectedDocumentLabel.visible) { selectedDocumentLabel.position.copy(selected.position).add(new THREE.Vector3(0, terrain.on ? 2 * TS : 2, 0)); selectedDocumentLabel.element.textContent = `Selected document · ${selectedPart.n} ${selectedPart.title}`; }
+  if (selectedDocumentLabel.visible) { selectedDocumentLabel.position.copy(selected.position).add(new THREE.Vector3(0, terrain.on ? 2 * TS : 2, 0)); selectedDocumentLabel.element.textContent = `Selected document · ${partDisplayPath(selectedPart)} ${selectedPart.title}`; }
   mindLines.end(); noteLinks.end();
 }
 
@@ -585,12 +720,21 @@ const laneAt = () => { const m = smooth(blend.now); const together = { y: 0.15, 
 // Each causal link runs as an arc from where one event stands to where the other does: the top of its thread through the
 // highest process it moves, else the top of its person's front row, else the world's. Hover one to read it, click to keep it.
 const KIND_WORDS = { causes: ['Causes', 'causes'], enables: ['Enables', 'enables'], realizes_forecast: ['Fulfils a forecast', 'fulfils a forecast made in'], constrains: ['Constrains', 'constrains'], other: ['A link', 'is linked to'] };
+function rowsForEvent(event, t) {
+  const candidates = [...(event.processIds ?? []).map((id) => rowOf.get(id)), ...(sourceEventRows.get(event.id) ?? [])];
+  return [...new Set(candidates)].filter((row) => row && presence(row) > 0.5 && rowValue(row, t) !== null && shownByPlay(t, bornAt(row.measure)));
+}
 function eventPoint(event) {
   const t = Math.max(F.a, Math.min(F.b, event.start)); let best = null;
-  for (const row of (event.processIds ?? []).map((id) => rowOf.get(id)).filter((item) => item?.wall.visible)) { const p = rowAt(row); const y = p.y + heightAt(row, t) + 0.05; if (!best || y > best.y) best = new THREE.Vector3(X(t), y, p.z); }
+  for (const row of rowsForEvent(event, t)) { const p = rowAt(row); const y = p.y + heightAt(row, t) + 0.05; if (!best || y > best.y) best = new THREE.Vector3(X(t), y, p.z); }
   if (best) return best;
+  const eventNode = nearestShown(event.id);
+  if (eventNode && (!rows.length || opt.layout === 'layers')) { const p = nodeAt(eventNode); return new THREE.Vector3(X(t), p.y + BAR, p.z); }
   const person = principals.find((item) => item.id === event.owner || event.participants?.includes(item.id));
-  const own = rows.filter((row) => (person ? ownerOf(row.measure) === person : !ownerOf(row.measure))); const list = own.length ? own : rows; const front = frontOf(list); const p = rowAt(front);
+  const available = rows.filter((row) => presence(row) > 0.5 && rowValue(row, t) !== null);
+  const own = available.filter((row) => (person ? ownerOf(row.measure) === person : !ownerOf(row.measure))); const list = own.length ? own : available;
+  if (!list.length) return null;
+  const front = frontOf(list); const p = rowAt(front);
   return new THREE.Vector3(X(t), p.y + heightAt(front, t) + 0.05, p.z);
 }
 let arcTargets = [];
@@ -598,8 +742,10 @@ function drawArcs() {
   arcsBuffer.begin(); let s = 0; arcTargets = []; const on = opt.show.has('causal') && opt.edges; laneTag.visible = false;
   if (on) for (const relation of causalAll) {
     const source = byId.get(relation.source); const target = byId.get(relation.target);
-    if (!inView(source.start, 0.05) || !inView(target.start, 0.05) || !seen(relation, Math.max(source.start, target.start))) continue;
-    const a = eventPoint(source); const b = eventPoint(target); const hex = KIND[relation.kind] ?? '#9a9a9a'; const c = color(hex); const lit3 = litArc?.relation === relation;
+    if (opt.detailProjection && (!opt.detailProjection.eventIds.has(source.id) || !opt.detailProjection.eventIds.has(target.id))) continue;
+    if (!inView(source.start, 0.05) || !inView(target.start, 0.05) || !seen(relation, Math.max(source.start, target.start))
+      || !shownByPlay(source.start, bornAt(source)) || !shownByPlay(target.start, bornAt(target))) continue;
+    const a = eventPoint(source); const b = eventPoint(target); if (!a || !b) continue; const hex = KIND[relation.kind] ?? '#9a9a9a'; const c = color(hex); const lit3 = litArc?.relation === relation;
     const mid = new THREE.Vector3((a.x + b.x) / 2, Math.max(a.y, b.y) + 1.2 + Math.abs(b.x - a.x) * 0.12, (a.z + b.z) / 2); const pts = new THREE.QuadraticBezierCurve3(a, mid, b).getPoints(40);
     for (let i = 1; i < pts.length; i += 1) arcsBuffer.add(pts[i - 1].x, pts[i - 1].y, pts[i - 1].z, pts[i].x, pts[i].y, pts[i].z, lit3 ? WHITE : c, lit3 ? 1 : 0.8);
     for (const point of [a, b]) { if (s >= arcSparks.length) { const sprite = spark('#ffffff', 1.1); field.add(sprite); arcSparks.push(sprite); } const sprite = arcSparks[s]; sprite.material.color.set(hex); sprite.position.copy(point); sprite.visible = true; s += 1; }
@@ -625,14 +771,15 @@ const extraWalls = new Tris(); const extraCrests = new Lines(); const extraGrid 
 const nodeAt = (node) => { const m = smooth(blend.now); return { y: (node.yT ?? 0) + ((node.yL ?? node.yT ?? 0) - (node.yT ?? 0)) * m, z: (node.zT ?? 0) + ((node.zL ?? node.zT ?? 0) - (node.zT ?? 0)) * m }; };
 const nodeVis = (node) => { const m = smooth(blend.now); return (1 - m) * (node.inT ? 1 : 0) + m * (node.inL ? 1 : 0); };
 const shownNow = (node) => (smooth(blend.now) < 0.5 ? node.inT : node.inL);
-const nearestShown = (id) => { for (let current = id, hops = 0; current && hops < 16; current = treeById.get(current)?.parent, hops += 1) { const node = nodeById.get(current); if (node?.shown && shownNow(node)) return node; } return null; };
+const nearestShown = (id) => { for (let current = id, hops = 0; current && hops < 16; current = treeById.get(current)?.parent, hops += 1) { const node = nodeById.get(current); if (node?.shown && shownNow(node) && shownByPlay(node.event.start ?? node.t0, bornAt(node.event))) return node; } return null; };
 const BAR = 0.3; const WHITE = color('#ffffff'); const RIM = color('#101114');
 // The point readings and prose hang from: the top of an Event's bar at its time, or of the nearest shown Event holding it,
 // else the front of its person's rows.
 function anchor(eventId, t) {
   const node = nearestShown(eventId);
   if (!node) {
-    const event = byId.get(eventId); const person = principals.find((p) => p.id === event?.owner); const own = rows.filter((row) => ownerOf(row.measure) === person);
+    const event = byId.get(eventId); const explicit = event ? rowsForEvent(event, t) : [];
+    const person = principals.find((p) => p.id === event?.owner); const own = explicit.length ? explicit : rows.filter((row) => ownerOf(row.measure) === person && presence(row) > 0.5 && rowValue(row, t) !== null);
     if (!own.length || !Number.isFinite(t)) return null; const p = rowAt(frontOf(own)); const top = Math.max(...own.map((row) => heightAt(row, t)));
     return { x: X(t), y: p.y + top + 1.2, z: p.z + 0.8, node: null, own: false };
   }
@@ -653,7 +800,8 @@ function drawExtras() {
   for (const node of nodes) {
     if (!node.shown) continue; const vis = nodeVis(node) * shownByPlay(node.event.start ?? node.t0, bornAt(node.event)); if (vis < 0.01) continue;
     const p = nodeAt(node); const hue = color(hueOfOwner(node.owner)); const sub = node.kind === 'sub'; const own = node.event.context === 'inner';
-    const x0 = X(node.t0); const x1 = X(node.t1); if (x1 < left - 1 || x0 > right + 1) continue;
+    const span = playbackSpan(node.t0, node.t1, playbackClock(bornAt(node.event))); if (!span) continue;
+    const x0 = X(span.start); const x1 = X(span.end); if (x1 < left - 1 || x0 > right + 1) continue;
     const a = clampX(x0); const b = clampX(x1); const wide = b - a; const top = p.y + (sub ? BAR * 1.6 : BAR); const tint = hue.clone().lerp(WHITE, sub ? 0.15 : 0.3);
     const lit2 = litChain.has(node.id); const alpha = (sub ? 0.05 : node.depth <= 1 ? 0.1 : 0.2) * (lit2 ? 2.5 : 1) * vis; const live = shownNow(node);
     if (wide > 0.12) {
@@ -673,35 +821,70 @@ function drawExtras() {
   // Lens readings: a small bar of each reading's answers over its record, one row per lens.
   lensList.filter((lens) => opt.lenses.has(lens.id)).forEach((lens, row) => {
     for (const reading of lens.readings) {
+      if (opt.detailProjection && !opt.detailProjection.eventIds.has(reading.eventId)) continue;
       if (!shownByPlay(reading.t, bornAt(reading))) continue;
       const place = anchor(reading.eventId, reading.t); if (!place || place.x < left || place.x > right) continue;
       const w = 3.1; const h = 0.62; const y = place.y + 0.9 + row * 0.95; let x = place.x - w / 2; const alpha = reading.earlier ? 0.4 : 1; const on = litReading === reading;
       chips.quad(x - 0.12, x + w + 0.12, y - 0.12, y + h + 0.12, y - 0.12, y + h + 0.12, place.z, on ? WHITE : RIM, 0.95, 0.95);
-      for (const answer of reading.answers.filter((item) => item.weight > 0).sort((a, b) => (a.key === 'remainder') - (b.key === 'remainder'))) { const width = w * answer.weight; chips.quad(x, x + width, y, y + h, y, y + h, place.z, color(lens.colorOf(answer.key)), alpha, alpha); x += width; }
+      const answers = numericCutById.get(reading.cutId)?.answers ?? reading.answers;
+      for (const answer of answers.filter((item) => item.weight > 0).sort((a, b) => (a.key === 'remainder') - (b.key === 'remainder'))) { const width = w * answer.weight; chips.quad(x, x + width, y, y + h, y, y + h, place.z, color(lens.colorOf(answer.key)), alpha, alpha); x += width; }
       extraTargets.push({ kind: 'lens', lens, reading, wpt: [place.x, y + h / 2, place.z], r: 20 });
     }
   });
+  if (opt.show.has('numbers')) drawRecordedNumbers();
   // Prose: each part of the story over the moments it tells.
   if (opt.show.has('prose')) {
     const top = mindTop(); const y = top.y - 4.5; const zz = top.z + 4; const c = color('#fff0d0');
     for (const unit of prose) {
+      if (opt.detailProjection && !(unit.tells ?? []).some((tell) => opt.detailProjection.eventIds.has(tell.eventId))) continue;
       if (!shownByPlay(unit.t, bornAt(unit))) continue; const x = X(unit.t); if (x < left - 1 || x > right + 1) continue; const on = litUnit === unit;
       chips.quad(x - 0.35, x + 0.35, y, y + 0.9, y, y + 0.9, zz, c, on ? 0.9 : 0.55, on ? 0.9 : 0.55);
-      if (opt.edges || on) for (const tell of unit.tells ?? []) { const place = anchor(tell.eventId, byId.get(tell.eventId)?.start); if (place) proseLines.add(x, y, zz, place.x, place.y, place.z, c, on ? 0.9 : 0.16, on ? 0.7 : 0.05); }
+      if (opt.edges || on) for (const tell of unit.tells ?? []) { if (opt.detailProjection && !opt.detailProjection.eventIds.has(tell.eventId)) continue; const event = byId.get(tell.eventId); if (!event || !shownByPlay(event.start, bornAt(event))) continue; const place = anchor(tell.eventId, event.start); if (place) proseLines.add(x, y, zz, place.x, place.y, place.z, c, on ? 0.9 : 0.16, on ? 0.7 : 0.05); }
       extraTargets.push({ kind: 'prose', unit, wpt: [x, y + 0.45, zz], r: 14 });
     }
   }
-  // A selected document and its declared links remain inspectable without changing either playback clock.
+  drawSelectedStoryLinks();
+  for (const buffer of [extraWalls, extraCrests, extraGrid, connectors, chips, extraGlows, proseLines]) buffer.end();
+}
+function drawRecordedNumbers() {
+  const drawnCutIds = new Set(extraTargets.filter((target) => target.kind === 'lens').map((target) => target.reading.cutId));
+  const readings = visibleRecordedCuts(numericCuts, playbackClock(), { enabled: opt.show.has('numbers'), drawnCutIds }).sort((a, b) => a.t - b.t);
+  const lanes = new Map(); const width = 2.8; const height = 0.42;
+  for (const reading of readings) {
+    if (opt.detailProjection && !opt.detailProjection.eventIds.has(reading.parentEventId ?? reading.eventId)) continue;
+    const marker = recordedCutMarker(reading, F.a, F.b); if (!marker) continue;
+    const x = X(marker.time); if (x < -LENGTH / 2 || x > LENGTH / 2) continue;
+    const eventId = reading.parentEventId ?? reading.eventId;
+    const attached = anchor(eventId, reading.t);
+    // Unplaced contexts keep a neutral lane, never a guessed person's identity.
+    const place = attached ?? { y: 0.5, z: zFrontNow() + 3.5 };
+    const key = `${place.y.toFixed(3)}:${place.z.toFixed(3)}`;
+    if (!lanes.has(key)) lanes.set(key, []);
+    const occupied = lanes.get(key); let lane = occupied.findIndex((end) => end < x - width / 2 - 0.2);
+    if (lane < 0) lane = occupied.length;
+    occupied[lane] = x + width / 2;
+    const y = place.y + 0.75 + (lane % 8) * 0.7; const z = place.z + Math.floor(lane / 8) * 1.1;
+    const on = litReading === reading;
+    chips.quad(x - width / 2 - 0.08, x + width / 2 + 0.08, y - 0.08, y + height + 0.08, y - 0.08, y + height + 0.08, z, on ? WHITE : RIM, 0.95, 0.95);
+    for (const segment of recordedCutSegments(reading)) {
+      if (!(segment.weight > 0)) continue;
+      chips.quad(x - width / 2 + width * segment.start, x - width / 2 + width * segment.end, y, y + height, y, y + height, z, color(segment.color), 0.95, 0.95);
+    }
+    if (opt.edges && attached) connectors.add(x, place.y, place.z, x, y, z, color('#a5bce8'), on ? 0.9 : 0.2);
+    extraTargets.push({ kind: 'number', reading, marker, wpt: [x, y + height / 2, z], r: 17 });
+  }
+}
+// Document selection is independent of world time; its world connections wait for their Events.
+function drawSelectedStoryLinks() {
   const selectedDocument = noteById.get(selectedPart?.unit.id);
   if (selectedDocument?.visible) for (const eventId of selectedEventIds) {
-    const event = byId.get(eventId); if (!Number.isFinite(event?.start) || !inView(event.start)) continue;
+    const event = byId.get(eventId); if (!Number.isFinite(event?.start) || !inView(event.start) || !shownByPlay(event.start, bornAt(event))) continue;
     const point = anchor(eventId, event.start) ?? meet(event)[0]; if (!point) continue;
     const from = selectedDocument.position; const c = color('#ffe6ae');
     proseLines.add(from.x, from.y, from.z, point.x, point.y, point.z, c, 0.95, 0.8);
     extraGlows.add(point.x, point.y, point.z, c, 1, 18);
     selectedLinks.push({ event, point });
   }
-  for (const buffer of [extraWalls, extraCrests, extraGrid, connectors, chips, extraGlows, proseLines]) buffer.end();
 }
 
 // Labels of what the panel adds: placed by priority, never over each other or the panels.
@@ -711,7 +894,8 @@ const labels2 = (() => {
     let item = pool.get(key);
     if (!item) { const el = document.createElement('div'); el.className = `lbl ${className}`; layer.append(el); item = { el, html: null, w: 0, h: 0 }; pool.set(key, item); }
     if (item.html !== html) { item.el.innerHTML = html; item.html = html; item.w = 0; }
-    if (item.el.className !== `lbl ${className}`) { item.el.className = `lbl ${className}`; item.w = 0; }
+    const classes = `lbl ${className}${item.hidden === true ? ' hide' : ''}`;
+    if (item.el.className !== classes) { item.el.className = classes; item.w = 0; }
     return item;
   };
   const esc = (text) => String(text).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -719,7 +903,8 @@ const labels2 = (() => {
     if (terrain.on) { for (const item of pool.values()) if (item.hidden !== true) { item.el.classList.add('hide'); item.hidden = true; } return; }
     const wanted = []; const m = smooth(blend.now); const left = -LENGTH / 2; const right = LENGTH / 2;
     if (m > 0.5) for (const floor of floors) {
-      const counts2 = new Map(); for (const item of floor.roles) { const key = item.measure ? 'processes' : item.event.role; counts2.set(key, (counts2.get(key) ?? 0) + 1); }
+      const counts2 = new Map(); for (const item of floor.roles) { if (!shownByPlay(item.measure ? (item.points ?? item.measure.points)[0]?.t : item.event.start ?? item.t0, bornAt(item.measure ?? item.event))) continue; const key = item.measure ? item.measure.kind === 'cut-answer' ? 'answer curves' : 'processes' : item.event.role; counts2.set(key, (counts2.get(key) ?? 0) + 1); }
+      if (!counts2.size) continue;
       const names = { world: 'the world', development: 'developments', life: 'lives', inner: 'inner lives', period: 'periods', arc: 'change arcs', part: 'parts', moment: 'moments', slow: 'slow processes', phase: 'phases', processes: 'processes' };
       const text = [...counts2].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([key, n]) => (key === 'world' ? names[key] : `${n} ${names[key] ?? key}`)).join(' · ');
       // A floor's name heads it on the left, above its first row.
@@ -727,19 +912,20 @@ const labels2 = (() => {
     }
     for (const node of nodes) {
       if (!node.shown || !shownNow(node) || !shownByPlay(node.event.start ?? node.t0, bornAt(node.event))) continue; const p = nodeAt(node);
-      const x0 = Math.max(left, X(node.t0)); const x1 = Math.min(right, X(node.t1)); if (x1 < left || x0 > right) continue;
+      const span = playbackSpan(node.t0, node.t1, playbackClock(bornAt(node.event))); if (!span) continue;
+      const x0 = Math.max(left, X(span.start)); const x1 = Math.min(right, X(span.end)); if (x1 < left || x0 > right) continue;
       const wide = x1 - x0; const top = p.y + (node.kind === 'sub' ? BAR * 1.6 : BAR); const big = node.depth <= 1 || wide > LENGTH * 0.25;
-      const pri = 400 + Math.min(200, wide * 3) - node.depth * 20 + (node.event.cuts ?? 0) * 4 + (litChain.has(node.id) ? 400 : 0);
+      const pri = 400 + Math.min(200, wide * 3) - node.depth * 20 + (node.event.cuts ?? 0) * 4 + (litChain.has(node.id) ? 400 : 0) + (opt.processScope === node.id ? 1000 : 0);
       wanted.push({ key: `ev:${node.id}`, cls: `event${big ? ' big' : ''}${node.event.context === 'inner' ? ' inner' : ''}`, html: esc(words(node.event.name, big ? 52 : 40)), p: [wide > 1.2 ? x0 + 0.25 : (x0 + x1) / 2, top + 0.12, p.z], ax: wide > 1.2 ? 0 : 0.5, ay: 1, pri });
     }
-    if (opt.show.has('prose')) { const top = mindTop(); for (const unit of prose) { if (!shownByPlay(unit.t, bornAt(unit))) continue; const x = X(unit.t); if (x >= left && x <= right) wanted.push({ key: `prose:${unit.id}`, cls: 'prose', html: esc(unit.title ?? ''), p: [x, top.y - 3.35, top.z + 4], ax: 0.5, ay: 1, pri: 800 }); } }
+    if (opt.show.has('prose')) { const top = mindTop(); for (const unit of prose) { if (opt.detailProjection && !(unit.tells ?? []).some((tell) => opt.detailProjection.eventIds.has(tell.eventId))) continue; if (!shownByPlay(unit.t, bornAt(unit))) continue; const x = X(unit.t); if (x >= left && x <= right) wanted.push({ key: `prose:${unit.id}`, cls: 'prose', html: esc(unit.title ?? ''), p: [x, top.y - 3.35, top.z + 4], ax: 0.5, ay: 1, pri: 800 }); } }
     for (const { event, point } of selectedLinks) wanted.push({ key: `selected-event:${event.id}`, cls: 'event', html: esc(words(event.label, 45)), p: [point.x, point.y + 0.4, point.z], ax: 0.5, ay: 1, pri: 1200 });
     const panels = [...document.querySelectorAll('.hud.caption, .hud.bar, .hud.legend, .hud.title, .hud.stats, #tools, .pop:not([hidden]), #details:not([hidden])')].map((el) => el.getBoundingClientRect()).filter((r) => r.width);
     const placed = [...panels.map((r) => ({ l: r.left - 6, r: r.right + 6, t: r.top - 4, b: r.bottom + 4 }))];
     for (const el of labels.domElement.querySelectorAll('.label.row, .label.group, .label.year, .label.lane')) { if (el.style.display === 'none') continue; const r = el.getBoundingClientRect(); if (r.width) placed.push({ l: r.left, r: r.right, t: r.top, b: r.bottom }); }
     wanted.sort((a, b) => b.pri - a.pri);
     const items = wanted.map((want) => element(want.key, want.cls, want.html));
-    const fresh = items.filter((item) => !item.w); for (const item of fresh) item.el.style.transform = 'translate(-9999px,0)';
+    const fresh = items.filter((item) => !item.w); for (const item of fresh) { item.el.style.transform = 'translate(-9999px,0)'; item.transform = null; }
     for (const item of fresh) { item.w = item.el.offsetWidth; item.h = item.el.offsetHeight; }
     const next = new Map();
     wanted.forEach((want, i) => {
@@ -767,7 +953,7 @@ const TS = LENGTH / 96; const TNX = 420; const TAMP = 8.5 * TS; const TROW = 2.1
 const TERRAIN_GLARE = { full: [0.95, 0.55, 0.12], soft: [0.3, 0.4, 0.35] };
 const shortName = (text, n = 40) => { const head = String(text ?? '').replace(/\s+/g, ' ').split(/[:;,]| from | since | built /)[0].trim(); if (head.length <= n) return head; const cut = head.slice(0, n - 1); const space = cut.lastIndexOf(' '); return `${space > n * 0.6 ? cut.slice(0, space) : cut}…`; };
 const hashOf = (text) => { let h = 2166136261; for (const c of String(text)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return ((h >>> 0) % 10000) / 10000; };
-const fieldRows = () => rows; // the processes' rows, for the terrain's named processes
+const fieldRows = () => rows.filter((row) => row.measure.kind !== 'cut-answer'); // Native Cut curves belong to the Processes/Tree view; Terrain keeps its existing recipes.
 const TERRAIN_KINDS = new Set(['processes', 'threads', 'decisions', 'causal', 'notes']); // the details the terrain shows
 function buildTerrain() {
   terrain.built = true;
@@ -787,41 +973,43 @@ function buildTerrain() {
   const P = deep ? (t) => Math.min(1.02, 1 - Math.log10(1 + Math.max(0, present - t)) / uMax) : (t) => (t - domain[0]) / (domain[1] - domain[0]);
   const sigma = (domain[1] - domain[0]) / 160; const sigmaP = 1 / 170;
   const born = (items) => Math.min(...items.map((item) => (item?.at ? Date.parse(item.at) : Infinity)));
-  // The named processes (the curtains of the processes view) as ridges: each authored path on its own scale, fading in and
-  // out at its first and last value. They show with Details' named processes.
+  const firstTime = (times) => { const dated = times.filter(Number.isFinite); return dated.length ? Math.min(...dated) : null; };
+  // Named paths begin at their first recorded sample and hold their last value, as in Processes.
   const namedRows = (person) => fieldRows().filter((row) => (person ? ownerOf(row.measure) === person : !ownerOf(row.measure))).map((row) => ({
-    id: `named:${row.measure.id}`, label: NAMES[row.measure.id], kind: 'named', amp: 0.8, born: bornAt(row.measure),
-    recipe: () => { const samples = new Float32Array(TNX); const first = row.measure.points[0].t; const last = row.measure.points.at(-1).t; const a = fracOf(F, first); const b = fracOf(F, last);
-      for (let i = 0; i < TNX; i += 1) { const q = terrain.ps[i]; const d = q < a ? a - q : q > b ? q - b : 0; const t = Math.max(first, Math.min(last, terrain.ts[i])); samples[i] = (row.height(t) / AMP) * Math.exp(-(d * d) / (2 * sigmaP * sigmaP)); }
+    id: `named:${row.measure.id}`, label: NAMES[row.measure.id], kind: 'named', flat: row.measure.points.every((point) => point.v === row.measure.points[0].v), amp: 0.8, born: bornAt(row.measure), firstTime: row.measure.points[0].t,
+    recipe: () => { const samples = new Float32Array(TNX); const first = row.measure.points[0].t;
+      for (let i = 0; i < TNX; i += 1) { if (terrain.ts[Math.max(0, i - 1)] < first) continue; samples[i] = row.height(terrain.ts[i]) / AMP; }
       return samples; } }));
+  // Positive vertices wait until the previous vertex reaches a source's start, so a triangle cannot slope backward across it.
+  // The sampled terrain may therefore begin up to one cell late; it never anticipates a dated source.
   // A row's height at each sample comes from a recipe run over the samples of the years on screen.
   const rows = [];
-  const plateau = (samples, start, end, height) => { if (!Number.isFinite(start)) return; const a = fracOf(F, start); const b = fracOf(F, Number.isFinite(end) ? end : start);
-    for (let i = 0; i < TNX; i += 1) { const q = terrain.ps[i]; const d = q < a ? a - q : q > b ? q - b : 0; const v = height * Math.exp(-(d * d) / (2 * sigmaP * sigmaP)); if (v > samples[i]) samples[i] = v; } };
+  const plateau = (samples, start, end, height) => { if (!Number.isFinite(start)) return; const b = fracOf(F, Number.isFinite(end) ? end : start);
+    for (let i = 0; i < TNX; i += 1) { if (terrain.ts[Math.max(0, i - 1)] < start) continue; const q = terrain.ps[i]; const d = q > b ? q - b : 0; const v = height * Math.exp(-(d * d) / (2 * sigmaP * sigmaP)); if (v > samples[i]) samples[i] = v; } };
   const density = (ids, cutWeight = 0.35) => { const samples = new Float32Array(TNX);
-    for (const id of ids) { const event = byEvent.get(id); if (!event || !Number.isFinite(event.start)) continue; const weight = 1 + cutWeight * (event.cuts ?? 0); const a = fracOf(F, event.start); const b = fracOf(F, Number.isFinite(event.end) ? event.end : event.start);
-      for (let i = 0; i < TNX; i += 1) { const q = terrain.ps[i]; const d = q < a ? a - q : q > b ? q - b : 0; if (d < sigmaP * 6) samples[i] += weight * Math.exp(-(d * d) / (2 * sigmaP * sigmaP)); } }
+    for (const id of ids) { const event = byEvent.get(id); if (!event || !Number.isFinite(event.start)) continue; const weight = 1 + cutWeight * (event.cuts ?? 0); const b = fracOf(F, Number.isFinite(event.end) ? event.end : event.start);
+      for (let i = 0; i < TNX; i += 1) { if (terrain.ts[Math.max(0, i - 1)] < event.start) continue; const q = terrain.ps[i]; const d = q > b ? q - b : 0; if (d < sigmaP * 6) samples[i] += weight * Math.exp(-(d * d) / (2 * sigmaP * sigmaP)); } }
     const max = Math.max(...samples, 1e-6); for (let i = 0; i < TNX; i += 1) samples[i] /= max; return samples; };
   persons.forEach((person, order) => {
     const hue = HUES[order % HUES.length]; const owner = { id: person.id, label: person.name, hue };
-    rows.push({ id: `${person.id}:life`, label: 'life, periods and shocks', group: owner, hue, kind: 'life', born: born([person.life?.born, ...person.periods.map((period) => period.born), ...person.arcs.map((arc) => arc.born)]),
+    rows.push({ id: `${person.id}:life`, label: 'life, periods and shocks', group: owner, hue, kind: 'life', firstTime: firstTime([...person.periods.map((period) => period.start), ...person.arcs.map((arc) => arc.focal)]), born: born([person.life?.born, ...person.periods.map((period) => period.born), ...person.arcs.map((arc) => arc.born)]),
       recipe: () => { const life = new Float32Array(TNX); for (const period of person.periods) plateau(life, period.start, period.end, 0.28);
         for (const arc of person.arcs) { if (!Number.isFinite(arc.focal)) continue; const fall = Math.max((arc.adaptationEnd ?? arc.focal) - arc.focal, sigma * 2);
-          for (let i = 0; i < TNX; i += 1) { const d = terrain.ts[i] - arc.focal; const v = d >= 0 ? Math.exp(-d / fall) : Math.exp(-(d * d) / (2 * sigma * sigma)); if (v > life[i]) life[i] = v; } }
+          for (let i = 0; i < TNX; i += 1) { if (terrain.ts[Math.max(0, i - 1)] < arc.focal) continue; const d = terrain.ts[i] - arc.focal; const v = Math.exp(-d / fall); if (v > life[i]) life[i] = v; } }
         return life; } });
     for (const row of namedRows(person)) rows.push({ ...row, group: owner, hue });
     for (const process of person.processes ?? []) {
       const ids = descendants(process.eventId); if (!ids.length) continue;
-      rows.push({ id: process.eventId, label: clip(String(process.what ?? '').replace(/^.*?\bis\b\s*/i, ''), 34) || process.eventId.split('.').at(-1), group: owner, hue, kind: 'process', ids, born: born(ids.map((id) => byEvent.get(id)?.born)), recipe: () => density(ids) });
+      rows.push({ id: process.eventId, label: clip(String(process.what ?? '').replace(/^.*?\bis\b\s*/i, ''), 34) || process.eventId.split('.').at(-1), group: owner, hue, kind: 'process', ids, firstTime: firstTime(ids.map((id) => byEvent.get(id)?.start)), born: born(ids.map((id) => byEvent.get(id)?.born)), recipe: () => density(ids) });
     }
     for (const series of person.series ?? []) {
       const counts = new Map(); for (const point of series.points) { const key = point.answers[0]?.key; if (key) counts.set(key, (counts.get(key) ?? 0) + 1); }
       const key = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]; if (!key) continue;
       const points = series.points.filter((point) => Number.isFinite(point.t)).map((point) => ({ t: point.t, v: point.answers.find((answer) => answer.key === key)?.weight ?? 0 })).sort((a, b) => a.t - b.t); if (!points.length) continue;
-      rows.push({ id: `${person.id}:${series.question}`, label: `${series.kind}: ${clip(key.replace(/[_.-]+/g, ' '), 22)}`, group: owner, hue, kind: 'series', born: born(series.points.map((point) => point.born)),
+      rows.push({ id: `${person.id}:${series.question}`, label: `${series.kind}: ${clip(key.replace(/[_.-]+/g, ' '), 22)}`, group: owner, hue, kind: 'series', firstTime: points[0].t, born: born(series.points.map((point) => point.born)),
         recipe: () => { const samples = new Float32Array(TNX);
           if (points.length === 1) plateau(samples, points[0].t, points[0].t + sigma * 20, points[0].v);
-          else for (let i = 0; i < TNX; i += 1) { const t = terrain.ts[i]; if (t < points[0].t) continue; const next = points.findIndex((point) => point.t > t);
+          else for (let i = 0; i < TNX; i += 1) { const t = terrain.ts[i]; if (terrain.ts[Math.max(0, i - 1)] < points[0].t) continue; const next = points.findIndex((point) => point.t > t);
             if (next < 0) samples[i] = points.at(-1).v; else { const a = points[next - 1]; const b = points[next]; const f = (t - a.t) / Math.max(1e-9, b.t - a.t); samples[i] = a.v + (b.v - a.v) * (0.5 - Math.cos(Math.PI * f) / 2); } }
           return samples; } });
     }
@@ -833,7 +1021,7 @@ function buildTerrain() {
   const span = domain[1] - domain[0]; const world = { id: 'world', label: 'The world', hue: WORLD };
   const tops = events.filter((event) => !owned.has(event.id) && !inLives.has(event.id) && Number.isFinite(event.start) && Number.isFinite(event.end) && P(event.end) - P(event.start) > 0.02 && (event.end - event.start) < span * 3)
     .map((event) => ({ event, ids: [event.id, ...descendants(event.id)] })).sort((a, b) => (b.event.end - b.event.start) - (a.event.end - a.event.start)).slice(0, 12);
-  rows.unshift(...worldNamed.map((row) => ({ ...row, group: world, hue: WORLD })), ...tops.map(({ event, ids }) => ({ id: event.id, label: clip(event.label, 34), name: shortName(event.label), group: world, hue: WORLD, kind: 'world', amp: 0.6, ids, born: born(ids.map((id) => byEvent.get(id)?.born)),
+  rows.unshift(...worldNamed.map((row) => ({ ...row, group: world, hue: WORLD })), ...tops.map(({ event, ids }) => ({ id: event.id, label: clip(event.label, 34), name: shortName(event.label), group: world, hue: WORLD, kind: 'world', amp: 0.6, ids, firstTime: event.start, born: born(ids.map((id) => byEvent.get(id)?.born)),
     recipe: () => { const inside = ids.slice(1); const samples = inside.length ? density(inside, 0.2) : new Float32Array(TNX); for (let i = 0; i < TNX; i += 1) samples[i] *= 0.9; plateau(samples, event.start, event.end, 0.16); return samples; } })));
   let zz = 0; let last = null; for (const row of rows) { if (last && last !== row.group.id) zz += TGAP; row.z = zz; zz += TROW; last = row.group.id; }
   const depth = Math.max(zz - TROW, 1); for (const row of rows) { row.z -= depth / 2; row.scale = 1; row.target = 1; row.color = new THREE.Color(row.hue); }
@@ -908,13 +1096,11 @@ function layTerrain() {
   for (let i = 0; i < TNX; i += 1) { const u = i / (TNX - 1); terrain.ps[i] = u; terrain.ts[i] = F.w ? timeAtX((u - 0.5) * LENGTH) : F.a + u * F.s; }
   for (const row of terrain.rows) row.samples = row.recipe();
   for (const beam of terrain.beams) { const { t, row, y } = beam.userData; beam.userData.inWindow = inView(t); beam.position.set(X(Math.max(F.a, Math.min(F.b, t))), y ?? 0, row.z); }
-  const positions = terrain.threads.geometry.attributes.position; let n = 0;
   for (const point of terrain.mind) {
     const { at, z, y, order, jitter } = point.userData; const x = at ? X(Math.max(F.a, Math.min(F.b, at.event.start))) : order * LENGTH * 0.9; point.position.set(x + jitter, y, z);
     point.userData.t = at ? at.event.start : timeAtX(x); // a note about no moment arrives when the play reaches where it stands
-    if (at && inView(at.event.start, 0.3)) { positions.array.set([point.position.x, point.position.y, point.position.z, X(Math.max(F.a, Math.min(F.b, at.event.start))), 0.3, z], n * 6); n += 1; }
   }
-  terrain.threadCount = n; positions.needsUpdate = true; heightsTerrain();
+  heightsTerrain();
 }
 // Heights from each row's samples and how far it has risen; colour from the row that rises highest at each point.
 function heightsTerrain() {
@@ -930,7 +1116,23 @@ function heightsTerrain() {
     for (let i = 0; i < TNX; i += 1) line.setXYZ(i, -LENGTH / 2 + (i / (TNX - 1)) * LENGTH, row.samples[i] * scale * TAMP + 0.06, row.z);
     line.needsUpdate = true; row.ridge.visible = scale > 0.01;
   }
-  for (const name of terrain.ridgeNames) { const first = name.row.samples.findIndex((value) => value > 0.05); name.object.visible = first >= 0 && name.row.scale > 0.35; if (first >= 0) name.object.position.set(-LENGTH / 2 + (first / (TNX - 1)) * LENGTH, name.row.samples[first] * TAMP * (name.row.amp ?? 1) * name.row.scale + 1.1 * TS, name.row.z); }
+  syncTerrainLabels();
+}
+function syncTerrainLabels() {
+  for (const name of terrain.ridgeNames) {
+    const first = name.row.samples.findIndex((value) => value > 0.05);
+    name.object.visible = first >= 0 && name.row.scale > 0.35 && shownByPlay(Math.max(name.row.firstTime ?? -Infinity, terrain.ts[first]), name.row.born);
+    if (first >= 0) name.object.position.set(-LENGTH / 2 + (first / (TNX - 1)) * LENGTH, name.row.samples[first] * TAMP * (name.row.amp ?? 1) * name.row.scale + 1.1 * TS, name.row.z);
+  }
+}
+function drawTerrainNoteLinks() {
+  const positions = terrain.threads.geometry.attributes.position; let n = 0;
+  if (opt.edges && opt.show.has('notes')) for (const point of terrain.mind) {
+    const { at, z } = point.userData;
+    if (!point.visible || !at || !inView(at.event.start, 0.3) || !shownByPlay(at.event.start, bornAt(at.event))) continue;
+    positions.array.set([point.position.x, point.position.y, point.position.z, X(Math.max(F.a, Math.min(F.b, at.event.start))), 0.3, z], n * 6); n += 1;
+  }
+  terrain.threadCount = n; positions.needsUpdate = true; terrain.threads.geometry.setDrawRange(0, n * 2); terrain.threads.visible = n > 0;
 }
 // What shows at the play's position: in the story's years the ground up to its moment, in the construction what the agent had made.
 function applyTerrain() {
@@ -938,7 +1140,13 @@ function applyTerrain() {
   const construction = building(); const whole = construction || (atEnd && !playing);
   terrain.clip.constant = whole ? LENGTH : X(Math.max(F.a, Math.min(F.b, now)));
   // Details choose here as in the processes: the named processes, the events, the decisions, the thoughts and the causal links.
-  for (const row of terrain.rows) row.target = (construction && row.born > tau) || (row.kind === 'named' && !opt.show.has('processes')) ? 0 : 1;
+  let hideFuture = false;
+  for (const row of terrain.rows) {
+    const arrived = shownByPlay(row.firstTime, row.born);
+    row.target = !arrived || (row.kind === 'named' && (!opt.show.has('processes') || (opt.hideFlat && row.flat))) ? 0 : 1;
+    if (!arrived && row.scale !== 0) { row.scale = 0; hideFuture = true; }
+  }
+  if (hideFuture) heightsTerrain();
   const events2 = opt.show.has('threads') || opt.show.has('events'); const thoughts = opt.show.has('notes');
   for (const beam of terrain.beams) beam.visible = beam.userData.inWindow && shownByPlay(beam.userData.t, beam.userData.born) && (beam.userData.decision ? opt.show.has('decisions') : events2);
   for (const point of terrain.mind) {
@@ -946,7 +1154,7 @@ function applyTerrain() {
     point.visible = thoughts && (selected || (construction ? point.userData.born <= tau : whole || point.userData.t <= now));
     point.scale.setScalar(point.userData.size * (selected ? 1.8 : 1));
   }
-  terrain.threads.geometry.setDrawRange(0, terrain.threadCount * 2); terrain.threads.visible = opt.edges && thoughts;
+  drawTerrainNoteLinks(); syncTerrainLabels(); hoveredAt = null;
   drawTerrainArcs();
 }
 // The number a ridge stands for where the pointer is: a named process's displayed value, a series' share of its main answer, a
@@ -969,7 +1177,8 @@ function drawTerrainArcs() {
   const buffer = terrain.arcs; buffer.begin(); terrainArcTargets = [];
   if (opt.edges && opt.show.has('causal')) for (const relation of causalAll) {
     const source = byId.get(relation.source); const target = byId.get(relation.target);
-    if (!inView(source.start, 0.05) || !inView(target.start, 0.05) || !seen(relation, Math.max(source.start, target.start))) continue;
+    if (!inView(source.start, 0.05) || !inView(target.start, 0.05) || !seen(relation, Math.max(source.start, target.start))
+      || !shownByPlay(source.start, bornAt(source)) || !shownByPlay(target.start, bornAt(target))) continue;
     const a = terrainPoint(source); const b = terrainPoint(target); if (!a || !b) continue; const lit4 = litArc?.relation === relation; const c = lit4 ? WHITE : color(KIND[relation.kind] ?? '#9a9a9a');
     const mid = new THREE.Vector3((a.x + b.x) / 2, Math.max(a.y, b.y) + 2 * TS + Math.abs(b.x - a.x) * 0.1, (a.z + b.z) / 2); const pts = new THREE.QuadraticBezierCurve3(a, mid, b).getPoints(32);
     for (let i = 1; i < pts.length; i += 1) buffer.add(pts[i - 1].x, pts[i - 1].y, pts[i - 1].z, pts[i].x, pts[i].y, pts[i].z, c, lit4 ? 1 : 0.75);
@@ -994,14 +1203,16 @@ function declutterTerrain() {
 // How to show the run: its processes in one field (as the stage showed them), its tree in layers, or every function as
 // terrain (as the landscape showed it). Each field keeps where its camera was.
 function setLayout(layout) {
+  if (globalThis.window?.modelViewer && window.modelViewer.getState().view !== layout) return window.modelViewer.switchView(layout);
   if (layout === opt.layout) return; const toTerrain = layout === 'terrain'; const switching = toTerrain !== terrain.on;
   if (switching && opt.camera !== 'locked') poses[fieldKey()] = { position: camera.position.clone(), target: controls.target.clone() };
   opt.layout = layout; blend.to = layout === 'layers' ? 1 : 0;
+  applyLayoutDefaults(); showThoughts(opt.show.has('notes'), false);
   if (switching) {
     showTerrain(toTerrain);
     if (opt.camera !== 'locked') { const back = poses[fieldKey()] ?? homeOf(fieldKey()); camera.position.copy(back.position); controls.target.copy(back.target); if (!toTerrain && !poses.field) framed = HOME_FRAME; }
   }
-  computeLayout(); syncPanel(); syncURL();
+  computeLayout(); syncPanel(); syncURL(true);
 }
 function showTerrain(on) {
   if (on && !terrain.built) { buildTerrain(); const d = terrain.depth; terrain.home = { position: new THREE.Vector3(-LENGTH * 0.36, 47 * TS, d * 0.62 + 56 * TS), target: new THREE.Vector3(12 * TS, 2 * TS, d * 0.05) }; terrain.homeDistance = terrain.home.position.distanceTo(terrain.home.target); }
@@ -1037,8 +1248,10 @@ function hoverTerrain() {
     else if (u.node) lines.push(['k', NOTE[u.node.category]?.[0] ?? u.node.category], ['v', u.node.title || clip(u.node.text, 90)], ['m', clip(u.node.text, 360)]);
   } else {
     const ground = ray.intersectObject(terrain.mesh, false)[0];
-    if (ground) { row = terrain.rows.reduce((best, other) => (Math.abs(other.z - ground.point.z) < Math.abs((best?.z ?? Infinity) - ground.point.z) ? other : best), null);
-      if (row) { const u = ground.point.x / LENGTH + 0.5; const t = timeAt(F, u); lines.push(['k', row.group.label], ['v', row.label], ...terrainNumber(row, t, u), ['m', timeText(t, 2)]); } }
+    if (ground) { const u = ground.point.x / LENGTH + 0.5; const t = timeAt(F, u);
+      if (shownByPlay(t, -Infinity)) row = terrain.rows.filter((item) => item.scale > 0.01 && item.target > 0 && (item.firstTime == null || t >= item.firstTime) && shownByPlay(item.firstTime, item.born))
+        .reduce((best, other) => (Math.abs(other.z - ground.point.z) < Math.abs((best?.z ?? Infinity) - ground.point.z) ? other : best), null);
+      if (row) { lines.push(['k', row.group.label], ['v', row.label], ...terrainNumber(row, t, u), ['m', timeText(t, 2)]); } }
   }
   highlightRow(row);
   if (!lines.length) { tip.hidden = true; renderer.domElement.style.cursor = ''; return; }
@@ -1061,11 +1274,12 @@ const activeClock = (() => {
 let now = T1; let atEnd = true; let tau = C1; let playing = false; let timer = null;
 const building = () => opt.mode === 'construction';
 // Whether an item shows at the play position: in story time once its moment has come, in the construction once it was made.
-const shownByPlay = (t, born) => (building() ? born <= tau : (atEnd && !playing) || !Number.isFinite(t) || t <= now);
+const playbackClock = (born = -Infinity) => ({ construction: building(), overview: atEnd && !playing, now, tau, born });
+const shownByPlay = (t, born) => isPlaybackVisible(t, playbackClock(born));
 const seen = (item, t) => shownByPlay(t, bornAt(item));
-const month = (t) => new Date(Date.UTC(Math.floor(t), Math.floor((t % 1) * 12), 1)).toLocaleString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+const month = (t) => calendarTime ? dateOf(t).toLocaleString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : nativeTimeText(t, data.timeUnit);
 // A moment in words: a month and year across history, a year before it, years ago in deep time.
-const momentText = (t) => (PRESENT - t >= 5000 ? timeText(t) : t < 1000 ? yearText(Math.floor(t)) : month(t));
+const momentText = (t) => (!calendarTime || PRESENT - t >= 5000 ? timeText(t) : t < 1000 ? yearText(Math.floor(t)) : month(t));
 const setText = (id, text) => { const element = document.getElementById(id); if (element.textContent !== text) element.textContent = text; };
 // Words without their markdown: a heading on a line of its own goes, a heading run into its text keeps its words.
 const plain = (text) => String(text ?? '').replace(/^#{1,4}\s+[^\n]*\n/gm, ' ').replace(/^#{1,4}\s+/gm, '').replace(/[*_]{1,2}([^*_]+)[*_]{1,2}/g, '$1').replace(/\s+/g, ' ').trim();
@@ -1081,34 +1295,53 @@ function showStats() {
       ['Functions', terrain.rows.filter((row) => !building() || row.born <= tau).length], ['Thoughts', nodesMade.filter((node) => node.category !== 'passage').length], ['Words of prose', nodesMade.reduce((sum, node) => sum + (node.words ?? 0), 0).toLocaleString('en-GB')]];
     const html = counts.map(([name, value]) => tile(name, value)).join(''); if (html !== statsShown) { document.getElementById('stats').innerHTML = html; statsShown = html; } return;
   }
-  const counts = [['Processes', measures.filter(made).length], ['Events moving them', inStoryThreads.filter((thread) => made(thread.userData.event)).length], ['Causal links', causal.filter(made).length],
+  const counts = [...(hasPaths ? [['Numerical curves', rows.filter((row) => row.measure.kind === 'cut-answer' ? row.points.length >= 2 : made(row.measure)).length], ['Events moving them', inStoryThreads.filter((thread) => made(thread.userData.event)).length]]
+    : [['Events', treeEvents.filter(made).length], ['Process records', data.processes.filter(made).length]]), ['Causal links', causal.filter(made).length],
     ['Decisions drawn', decisions.filter((gem) => gem.userData.t >= T0 && gem.userData.t <= T1 && made(gem.userData.decision)).length], ['Love or fear', lenses.filter((chip) => made(chip.userData)).length]];
   const html = counts.map(([name, value]) => tile(name, value)).join(''); if (html !== statsShown) { document.getElementById('stats').innerHTML = html; statsShown = html; }
 }
 let readerShown = null;
+function placeNativeValue(row, t) {
+  const p = rowAt(row); const at = Math.max(F.a, Math.min(F.b, t));
+  const right = fracOf(F, at) > 0.6;
+  row.value.center.set(right ? 1 : 0, 0.5);
+  row.value.position.set(X(at) + (right ? -0.7 : 0.7), p.y + heightAt(row, at) + 0.3, p.z);
+}
 function apply() {
   if (atEnd && !playing) now = F.b;
-  const construction = building();
+  const construction = building(); hoveredAt = null;
+  let samplesChanged = false;
+  for (const row of rows) if (updateRowSamples(row, construction, tau, atEnd && !playing)) samplesChanged = true;
+  if (samplesChanged) { computeLayout(); for (const row of rows) layRow(row); }
   for (const row of rows) {
-    row.riseTo = construction && bornAt(row.measure) > tau ? 0 : 1;
+    const native = row.measure.kind === 'cut-answer';
+    row.riseTo = native ? (row.points.length >= 2 ? 1 : 0) : construction && bornAt(row.measure) > tau ? 0 : 1;
     if (row.wall.visible) {
       let upto = NX; if (!construction && !(atEnd && !playing)) { let lo = 0; let hi = NX; while (lo < hi) { const mid = (lo + hi) >> 1; if (row.sampleT[mid] <= now) lo = mid + 1; else hi = mid; } upto = lo; }
       if (construction && row.rise < 0.002 && row.riseTo === 0) upto = 0;
       row.wall.geometry.setDrawRange(0, Math.max(0, (upto - 1) * 6)); row.crest.geometry.setDrawRange(0, upto);
     }
-    row.value.element.textContent = format(row, valueAt(row.measure.points, Math.min(construction ? F.b : now, T1)));
-    // In the construction a process the agent has not made yet keeps its name, faintly, and no value.
-    const unmade = construction && !row.riseTo; row.value.element.style.visibility = unmade ? 'hidden' : ''; row.name.element.style.opacity = unmade ? '0.3' : '';
+    const t = Math.min(construction ? F.b : now, T1); const last = row.points.at(-1);
+    const afterLast = native && last && t > last.t;
+    const value = rowValue(row, afterLast ? last.t : t);
+    row.value.element.textContent = value === null ? '' : `${rowValueText(row, afterLast ? last.t : t)}${afterLast ? ' · last' : ''}`;
+    row.value.element.title = afterLast ? `Last authored reading: ${timeText(last.t, 1)}. No value is extrapolated after it.` : native ? 'A ~ value is visual interpolation between authored interval readings.' : '';
+    if (native && last) placeNativeValue(row, afterLast ? last.t : t);
+    // Construction keeps an unmade process's name faintly; world playback waits for its first sample.
+    const unmade = construction && !row.riseTo; const arrived = native ? row.points.length >= 2 && shownByPlay(row.points[0].t, -Infinity) : construction || shownByPlay(row.measure.points[0].t, bornAt(row.measure));
+    row.name.visible = presence(row) > 0.5 && opt.show.has('processes') && arrived; row.value.visible = row.name.visible && value !== null && (!native || row.wall.visible);
+    row.value.element.style.visibility = unmade ? 'hidden' : ''; row.name.element.style.opacity = unmade ? '0.3' : '';
   }
+  for (const entry of groupLabels) syncGroupLabel(entry);
   for (const thread of threads) {
-    const on = opt.show.has('threads') && inView(thread.userData.t, 0.2) && (construction ? bornAt(thread.userData.event) <= tau : thread.userData.t <= now) && thread.userData.touched.some((row) => row.wall.visible);
+    const on = (!opt.detailProjection || opt.detailProjection.eventIds.has(thread.userData.event.id)) && opt.show.has('threads') && inView(thread.userData.t, 0.2) && (construction ? bornAt(thread.userData.event) <= tau : thread.userData.t <= now) && thread.userData.touched.some((row) => row.wall.visible);
     thread.visible = on; if (thread.userData.tag) thread.userData.tag.visible = on;
   }
-  for (const gem of decisions) gem.visible = opt.show.has('decisions') && inView(gem.userData.t) && (construction ? bornAt(gem.userData.decision) <= tau : gem.userData.t <= now) && presence(frontOf(gem.userData.own)) > 0.5;
+  for (const gem of decisions) gem.visible = (!opt.detailProjection || opt.detailProjection.eventIds.has(gem.userData.decision.eventId)) && opt.show.has('decisions') && inView(gem.userData.t) && shownByPlay(gem.userData.t, bornAt(gem.userData.decision)) && gem.userData.placed;
   // Across the story's years the love-or-fear chips before them wait at their start, as they always did.
-  for (const chip of lenses) chip.visible = opt.show.has('lovefear') && (isStory() || inView(chip.userData.t)) && (construction ? bornAt(chip.userData) <= tau : chip.userData.t <= now) && presence(frontOf(chip.userData.own)) > 0.5;
+  for (const chip of lenses) chip.visible = (!opt.detailProjection || opt.detailProjection.eventIds.has(chip.userData.eventId)) && opt.show.has('lovefear') && (isStory() || inView(chip.userData.t)) && shownByPlay(chip.userData.t, bornAt(chip.userData)) && chip.userData.placed;
   mind.visible = opt.show.has('notes');
-  for (const light of notes) light.visible = light.userData.id === selectedPart?.unit.id || (construction ? bornAt(light.userData) <= tau : light.userData.t <= now);
+  for (const light of notes) light.visible = light.userData.id === selectedPart?.unit.id || ((!opt.detailProjection || (noteScopeEvents.get(light.userData.id) ?? []).some((id) => opt.detailProjection.eventIds.has(id))) && (construction ? bornAt(light.userData) <= tau : light.userData.t <= now));
   sweep.position.x = xOf(now); sweep.visible = playing && !construction;
   const fill = construction ? activeClock(tau) / activeClock.total : fracOf(F, now);
   document.getElementById('fill').style.width = `${Math.max(0, Math.min(1, fill)) * 100}%`;
@@ -1122,7 +1355,8 @@ function apply() {
       setText('text', clip(plain(unit?.text ?? newest.text) || plain(newest.title ?? unit?.title), 330));
     } else { setText('kind', step ? `The agent · ${step.kind === 'model' ? 'model' : 'story graph'} revision ${step.rev}` : 'The construction'); setText('text', clip(step?.label ?? '', 330)); }
   } else {
-    setText('clock', isStory() ? month(Math.min(now, T1 - 0.01)) : momentText(Math.min(now, F.b - 0.01)));
+    const clockInset = calendarTime ? 0.01 : 0;
+    setText('clock', isStory() ? month(Math.min(now, T1 - clockInset)) : momentText(Math.min(now, F.b - clockInset)));
     const drawn = (thread) => Math.max(thread.userData.t, F.a);
     const latest = threads.filter((thread) => thread.userData.t <= now && inView(thread.userData.t, 0.2)).sort((a, b) => drawn(b) - drawn(a))[0];
     const currentParts = partsNow().map((i) => storyParts[i]);
@@ -1141,11 +1375,11 @@ function play() {
   playing = true; setText('play', '❚❚');
   if (building()) {
     if (atEnd || tau >= C1) { tau = C0; for (const row of rows) row.rise = bornAt(row.measure) <= C0 ? 1 : 0; }
-    atEnd = false;
+    atEnd = false; apply();
     const step = activeClock.total / (48000 / 60);
     timer = setInterval(() => { tau = Math.min(C1, activeClock.invert(Math.min(activeClock.total, activeClock(tau) + step * opt.speed))); apply(); if (tau >= C1) { atEnd = true; stop(); } }, 60);
   } else {
-    if (atEnd || now >= F.b) now = F.a; atEnd = false;
+    if (atEnd || now >= F.b) now = F.a; atEnd = false; apply();
     // 45 seconds across the window. Across years the play steps evenly in time, as it always did; on a log scale it steps
     // evenly across the screen.
     timer = setInterval(() => {
@@ -1179,13 +1413,16 @@ function freeRoom() {
 }
 // The whole view fits the free room when it can. A tall one (a deep tree in layers) is never shrunk below three quarters
 // of the size that fills the width: it runs on below, and scrolls (shift and scroll, drag up and down, or the arrow keys).
+function visibleLabelWidth(objects, limit) {
+  return Math.min(limit, Math.max(0, ...objects.filter((object) => object.visible && object.element.style.visibility !== 'hidden').map((object) => object.element.offsetWidth || 0)));
+}
 function fitLocked() {
   const box = boundsNow(); const center = new THREE.Vector3(0, (box.y0 + box.y1) / 2, (box.z0 + box.z1) / 2);
   const dir = new THREE.Vector3(0, Math.sin(LOCKED.elevation), Math.cos(LOCKED.elevation)); const room = freeRoom();
   // The names on the left and the values on the right keep their width in pixels, whatever the distance.
   const width = (elements) => Math.max(0, ...elements.map((el) => el.offsetWidth || 0));
   if (terrain.on) { room.l += width(terrain.groupNames.map((item) => item.element)) || 140; room.r -= width(terrain.sectionNames.map((item) => item.object.element)) || 170; }
-  else { room.l += width([...rows.map((row) => row.name.element), ...groupLabels.map((item) => item.object.element), laneTag.element]) || 180; room.r -= width(rows.map((row) => row.value.element)) || 70; }
+  else { room.l += visibleLabelWidth([...rows.map((row) => row.name), ...groupLabels.map((item) => item.object), laneTag], Math.min(160, innerWidth * 0.28)); room.r -= visibleLabelWidth(rows.filter((row) => row.measure.kind !== 'cut-answer').map((row) => row.value), Math.min(90, innerWidth * 0.18)); }
   const corners = []; for (const x of [-LENGTH / 2 - 1.2, LENGTH / 2 + 1.2]) for (const y of [box.y0, box.y1]) for (const zz of [box.z0, box.z1]) corners.push(new THREE.Vector3(x, y, zz));
   const probe = new THREE.PerspectiveCamera(LOCKED.fov, innerWidth / innerHeight, 0.1, 10000);
   const measure = (d) => { probe.position.copy(center).addScaledVector(dir, d); probe.lookAt(center); probe.updateMatrixWorld();
@@ -1193,7 +1430,8 @@ function fitLocked() {
     return { l: Math.min(...sx), r: Math.max(...sx), t: Math.min(...sy), b: Math.max(...sy) }; };
   const nearest = (fits) => { let lo = 20; let hi = 4000; for (let i = 0; i < 36; i += 1) { const d = (lo + hi) / 2; if (fits(measure(d))) hi = d; else lo = d; } return hi; };
   const W = room.r - room.l; const H = room.b - room.t;
-  const d = Math.min(nearest((m) => m.r - m.l <= W && m.b - m.t <= H), nearest((m) => m.r - m.l <= W) * 1.35); const m = measure(d);
+  const native = !terrain.on && rows.some((row) => row.measure.kind === 'cut-answer' && presence(row) > 0.5);
+  const d = Math.min(nearest((m) => m.r - m.l <= W && m.b - m.t <= H), nearest((m) => m.r - m.l <= W) * (native ? 1 : 1.35)); const m = measure(d);
   const overflow = Math.max(0, m.b - m.t - H);
   LOCKED.pose = { center, d, position: center.clone().addScaledVector(dir, d), ox: (m.l + m.r) / 2 - (room.l + room.r) / 2, oy: overflow ? m.t - room.t : (m.t + m.b) / 2 - (room.t + room.b) / 2, overflow };
   LOCKED.scroll = Math.max(0, Math.min(overflow, LOCKED.scroll ?? 0));
@@ -1216,7 +1454,8 @@ function fieldFrame() {
   const m = smooth(blend.now); const layers = layersBounds && m > 0.01;
   const below = Math.min(0, ...nodes.filter((node) => node.inT && presence(node) > 0.5).map((node) => node.yT));
   const z0 = Math.min(zBackNow(), layers ? layersBounds.z0 : Infinity); const z1 = Math.max(laneAt().z, zFrontNow()); const y0 = Math.min(layers ? layersBounds.y0 * m : 0, below * (1 - m));
-  return { size: Math.hypot(LENGTH * 0.6, z1 - z0, (AMP - y0) * 1.5), cz: (z0 + z1) / 2, cy: (y0 + AMP) / 2 };
+  const amp = visibleAmplitude();
+  return { size: Math.hypot(LENGTH * 0.6, z1 - z0, (amp - y0) * 1.5), cz: (z0 + z1) / 2, cy: (y0 + amp) / 2 };
 }
 const HOME_FRAME = { size: Math.hypot(LENGTH * 0.6, zFront + 6.5 - zBack, AMP * 1.5), cz: (zBack + zFront + 6.5) / 2, cy: AMP / 2 };
 let framed = HOME_FRAME;
@@ -1235,38 +1474,82 @@ function setCamera(mode, first = false) {
     camera.clearViewOffset(); camera.fov = terrain.on ? 42 : 40; camera.far = 900; scene.fog.density = terrain.on ? TFOG : FOG; camera.updateProjectionMatrix();
     if (was === 'locked' && !first) { const back = poses[fieldKey()] ?? homeOf(fieldKey()); camera.position.copy(back.position); controls.target.copy(back.target); if (!poses.field && !terrain.on) framed = HOME_FRAME; reframe(); }
   }
-  document.getElementById('camera-note').textContent = mode === 'locked' ? 'A steady framing. Scroll or pinch zooms in time, drag pans; A and D move through time, W and S zoom it.' : `${mode === 'free' ? 'Held where you leave it.' : 'Turning slowly, as it always did.'} Drag to turn it, right-drag to move it, scroll to come closer to what is under the pointer. W A S D walk through it, Q and E go down and up, the arrows look around, Shift goes faster.`;
+  document.getElementById('camera-note').textContent = mode === 'locked' ? 'A steady framing. Shift+scroll or ↑/↓ moves through the rows. Scroll or pinch zooms in time, drag pans; A and D move through time, W and S zoom it.' : `${mode === 'free' ? 'Held where you leave it.' : 'Turning slowly, as it always did.'} Drag to turn it, right-drag to move it, scroll to come closer to what is under the pointer. W A S D walk through it, Q and E go down and up, the arrows look around, Shift goes faster.`;
   syncPanel(); syncURL(); dirty = true;
+}
+function fitFree() {
+  const home = homeOf(fieldKey()), box = boundsNow(), room = freeRoom();
+  const hudBottom = Math.max(document.querySelector('.hud.title').getBoundingClientRect().bottom,
+    document.getElementById('stats').getBoundingClientRect().bottom, document.getElementById('tools').getBoundingClientRect().bottom);
+  room.t = Math.min(Math.max(room.t, hudBottom + 16), room.b - 80);
+  room.r = Math.max(room.l + 80, room.r);
+  const center = new THREE.Vector3(0, (box.y0 + box.y1) / 2, (box.z0 + box.z1) / 2);
+  const direction = home.position.clone().sub(home.target).normalize();
+  const right = new THREE.Vector3().crossVectors(camera.up, direction).normalize();
+  const up = new THREE.Vector3().crossVectors(direction, right);
+  camera.clearViewOffset(); camera.fov = terrain.on ? 42 : 40;
+  const vertical = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), horizontal = vertical * camera.aspect;
+  // Shift the target as well as backing away: the useful screen area is below
+  // the toolbar and beside the inspector, not necessarily the viewport centre.
+  const left = (room.l + 12) / innerWidth * 2 - 1, top = 1 - (room.t + 12) / innerHeight * 2;
+  const r = Math.max(left + .04, (room.r - 12) / innerWidth * 2 - 1);
+  const bottom = Math.min(top - .04, 1 - (room.b - 12) / innerHeight * 2);
+  const cx = (left + r) / 2, cy = (bottom + top) / 2;
+  let distance = 30;
+  for (const x of [-LENGTH / 2 - 1.2, LENGTH / 2 + 1.2]) for (const y of [box.y0, box.y1]) for (const z of [box.z0, box.z1]) {
+    const offset = new THREE.Vector3(x, y, z).sub(center);
+    const dx = offset.dot(right) / horizontal, dy = offset.dot(up) / vertical, dz = offset.dot(direction);
+    distance = Math.max(distance, dz + 1, (dx + r * dz) / (r - cx), (-dx - left * dz) / (cx - left),
+      (dy + top * dz) / (top - cy), (-dy - bottom * dz) / (cy - bottom));
+  }
+  controls.target.copy(center).addScaledVector(right, -cx * distance * horizontal).addScaledVector(up, -cy * distance * vertical);
+  camera.position.copy(controls.target).addScaledVector(direction, distance);
+  camera.far = Math.max(900, distance * 4); camera.updateProjectionMatrix();
+  scene.fog.density = terrain.on ? TFOG * (terrain.homeDistance / distance) : FOG * (HOME_DISTANCE / distance);
+  controls.update();
+  if (!terrain.on) framed = fieldFrame();
+}
+function recenterView() {
+  // Consume any remaining orbit inertia before restoring the current field.
+  const damping = controls.enableDamping, rotating = controls.autoRotate;
+  controls.enableDamping = false; controls.autoRotate = false; controls.update();
+  held.clear(); LOCKED.scroll = 0; delete poses[fieldKey()];
+  if (opt.camera === 'locked') { fitLocked(); placeLocked(true); }
+  else fitFree();
+  controls.enableDamping = damping; controls.autoRotate = rotating;
+  dirty = true; extrasDirty = true; syncURL(true);
 }
 // The camera's pose, kept in the URL when it is free.
 controls.addEventListener('end', () => { if (opt.camera === 'free') syncURL(); });
 // The space the view's content takes now, for framing it.
 function boundsNow() {
   if (terrain.on) return { y0: -1, y1: TAMP + 14 * TS, z0: terrain.zMin - 1, z1: terrain.zMax + 3 };
-  const m = smooth(blend.now); const zs = [zBackNow(), zFrontNow() + 2.2, laneAt().z]; const ys = [0, AMP + 2.2];
-  if (layersBounds && m > 0.01) { zs.push(layersBounds.z0, layersBounds.z1 + 2.2); ys.push(layersBounds.y0, layersBounds.y1 + LAMP); }
+  const m = smooth(blend.now); const zs = [zBackNow(), zFrontNow() + 2.2, laneAt().z]; const ys = [0, visibleAmplitude() + 2.2];
+  if (layersBounds && m > 0.01) { zs.push(layersBounds.z0, layersBounds.z1 + 2.2); ys.push(layersBounds.y0, ...floors.map((floor) => floor.y + floor.amp)); }
+  if (opt.show.has('numbers')) for (const target of extraTargets) if (target.kind === 'number') { ys.push(target.wpt[1] + 0.5); zs.push(target.wpt[2] + 0.5); }
   if (opt.show.has('notes')) { const top = mindTop(); const layer = Math.max(0, ...graphNodes.map(noteLayer)); ys.push(top.y + layer * 1.6 + 3); zs.push(top.z - layer * 2.2 - 1); }
   return { y0: Math.min(...ys) - 1, y1: Math.max(...ys) + 1, z0: Math.min(...zs) - 2, z1: Math.max(...zs) + 3 };
 }
 
 // ---- zoom and pan in time --------------------------------------------------------------------------------------------------------
 let animation = null;
-const lives = principals.filter((person) => person.life).map((person) => ({ name: person.name.split(' ')[0], start: person.life.start, end: person.life.end }));
+const lives = principals.filter((person) => Number.isFinite(person.life?.start) && Number.isFinite(person.life?.end) && person.life.start < person.life.end).map((person) => ({ name: person.name.split(' ')[0], start: person.life.start, end: person.life.end }));
 let lifeTurn = Math.max(0, lives.findIndex((life) => life.name.toLowerCase() === String(params.get('life') ?? '').toLowerCase()));
 const centuries = (() => { const starts = treeEvents.filter((event) => event.depth === 1 && event.reach[0] >= 1000).map((event) => event.reach[0]); return starts.length ? Math.min(...starts) : PRESENT - 600; })();
 const PRESETS = {
   story: () => [T0, T1],
-  life: () => { const life = lives[lifeTurn % lives.length] ?? { start: PRESENT - 80, end: PRESENT }; const pad = (life.end - life.start) * 0.04; return [life.start - pad, Math.min(BOUNDS[1], life.end + pad)]; },
+  life: () => { const life = lives[lifeTurn % lives.length]; if (!life) return [T0, T1]; const pad = (life.end - life.start) * 0.04; return [life.start - pad, Math.min(BOUNDS[1], life.end + pad)]; },
   centuries: () => [centuries - (PRESENT - centuries) * 0.04, BOUNDS[1]],
   world: () => [BOUNDS[0], BOUNDS[1]],
 };
-let currentPreset = ['story', 'life', 'centuries', 'world'].includes(params.get('zoom')) ? params.get('zoom') : (params.has('t0') ? null : 'story');
+let currentPreset = ['story', 'life', ...(calendarTime ? ['centuries'] : []), 'world'].includes(params.get('zoom')) ? params.get('zoom') : (params.has('t0') ? null : 'story');
 function setView(a, b) { F = frameOf(a, b); tabulate(); relayout = true; dirty = true; }
 function animateTo(a, b, ms = 1400) {
   const fromG = [G(F.a), G(F.b)]; const toG = [G(a), G(b)]; const t0 = performance.now();
   animation = (clock) => { const k = smooth(Math.min(1, (clock - t0) / ms)); setView(Ginv(fromG[0] + (toG[0] - fromG[0]) * k), Math.min(BOUNDS[1], Ginv(fromG[1] + (toG[1] - fromG[1]) * k))); if (k >= 1) { animation = null; setView(a, b); syncURL(); } };
 }
 function preset(name, animate = true) {
+  if (name === 'centuries' && !calendarTime) return;
   if (name === 'life' && animate && currentPreset === 'life') lifeTurn += 1;
   currentPreset = name; const [a, b] = PRESETS[name](); if (animate) animateTo(a, b); else setView(a, b); syncPanel();
 }
@@ -1316,19 +1599,24 @@ const titleText = params.get('title') ?? data.title ?? 'Processes';
 fillLinks(document.getElementById('repos'), data);
 document.getElementById('title').textContent = titleText; document.title = titleText;
 const inStoryThreads = threads.filter((thread) => thread.userData.t >= T0 - 0.2 && thread.userData.t <= T1);
-const FIELD_SUB = `${measures.length} processes the agent modeled for the story, each on its own scale, `
-  + `and the ${inStoryThreads.length} events that move them. The heights interpolate samples parsed from each process's source wording.`;
+const FIELD_SUB = hasPaths ? `${measures.length} numerical curves${nativeMeasures.length ? `, including ${nativeMeasures.length} recorded Cut-answer series on a fixed 0–1 scale` : ', each on its own scale'}. `
+  + (nativeMeasures.length ? 'A ~ value is visual interpolation between authored readings; no Cut value is extrapolated beyond them.' : `Heights interpolate samples parsed from process source wording; ${inStoryThreads.length} Events move these processes.`)
+  : `${treeEvents.length} Events in their declared containment structure. Bars show time spans; the model has no numeric process paths to draw as curves.`;
 document.getElementById('sub').textContent = FIELD_SUB;
 const tile = (name, value) => `<div class="stat"><div class="value">${value}</div><div class="name">${name}</div></div>`;
 showStats();
 const keyRow = (glyph, text) => `<div class="key-row"><span class="glyph">${glyph}</span><span>${text}</span></div>`;
-const FIELD_LEGEND = '<div class="key-head">How to read it</div>'
-  + keyRow('<svg width="28" height="14"><path d="M1 12 C8 12 9 3 15 4 S23 9 27 2" stroke="#9fc3ff" stroke-width="2" fill="none"/></svg>', 'A curtain is one process over the years, on its own scale; the value is on the right')
+const FIELD_LEGEND = '<div class="key-head">How to read it</div>' + (!hasPaths
+  ? keyRow('<svg width="28" height="10"><path d="M1 8V2H27V8" stroke="#9fc3ff" stroke-width="2" fill="none"/></svg>', 'A bar is an Event over time; layers follow declared containment, not a numeric process value')
+    + keyRow('<svg width="14" height="14"><path d="M7 1 L13 7 L7 13 L1 7Z" fill="#fff"/></svg>', 'A diamond marks a recorded decision Cut; inspect it for its question and weights')
+    + keyRow('<svg width="16" height="16"><circle cx="8" cy="8" r="4" fill="#c9d4ff"/></svg>', 'Lights are document and note nodes; select a passage to follow its declared Event links')
+  : ''
+  + keyRow('<svg width="28" height="14"><path d="M1 12 C8 12 9 3 15 4 S23 9 27 2" stroke="#9fc3ff" stroke-width="2" fill="none"/></svg>', nativeMeasures.length ? 'A curtain compares recorded values. Cut answers use 0–1; ~ marks visual interpolation. Hover for the question, context and exact readings' : 'A curtain is one process over the years, on its own scale; the value is on the right')
   + keyRow('<svg width="10" height="16"><line x1="5" y1="1" x2="5" y2="15" stroke="#fff" stroke-width="2"/></svg>', 'A thread is an event, through every process it moves')
   + keyRow('<svg width="14" height="14"><path d="M7 1 L13 7 L7 13 L1 7Z" fill="#fff"/></svg>', 'A diamond is a decision the model drew from its weights')
   + keyRow('<svg width="28" height="8"><rect width="15" height="8" rx="3" fill="#ffb057"/><rect x="15" width="10" height="8" fill="#58b4ff"/></svg>', 'How much of an act comes from love and how much from fear')
   + keyRow('<svg width="28" height="12"><path d="M1 11 Q14 -4 27 11" stroke="#ff8a4c" stroke-width="2" fill="none"/></svg>', 'An arc is a causal link from one event to another: causes, enables, fulfils a forecast')
-  + keyRow('<svg width="16" height="16"><circle cx="8" cy="8" r="4" fill="#c9d4ff"/><circle cx="8" cy="8" r="7.5" fill="none" stroke="#c9d4ff" stroke-opacity="0.35"/></svg>', `Documents & notes shows ${notes.length} book, passage and note nodes above the processes. A selected passage is labeled; its gold links point to the Events it depicts`);
+  + keyRow('<svg width="16" height="16"><circle cx="8" cy="8" r="4" fill="#c9d4ff"/><circle cx="8" cy="8" r="7.5" fill="none" stroke="#c9d4ff" stroke-opacity="0.35"/></svg>', `Documents & notes shows ${notes.length} book, passage and note nodes above the processes. A selected passage is labeled; its gold links point to the Events it depicts`));
 
 // ---- the story, as the tool renders it from the graph ------------------------------------------------------------------------
 const setLegend = (html, names = groups.map((group) => [group.label, group.hue])) => {
@@ -1356,14 +1644,15 @@ const inline = (text) => text.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&
 const readerUnits = () => data.story?.units ?? [];
 function renderReader(unitId = null) {
   const body = document.getElementById('reader-body'); body.replaceChildren(); let target = null; const units = readerUnits(unitId); readerShown = units.length;
+  const findPart = (parts) => { for (const part of parts) { if (part.unit.id === unitId) return part; const found = findPart(part.children ?? []); if (found) return found; } return null; };
+  const part = findPart(storyRoots); const targetId = part?.renderedUnitIds?.[0] ?? unitId;
   for (const unit of units) unit.text.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean).forEach((block, i) => {
     const heading = block.match(/^(#{1,4})\s+([\s\S]*)$/);
     const element = document.createElement(heading ? `h${heading[1].length}` : 'p');
     element.innerHTML = inline(heading && heading[1].length === 1 && unit.role === 'document_root' ? titleText : heading ? heading[2] : block).replace(/\n/g, '<br>'); body.append(element);
-    if (unit.id === unitId && i === 0) target = element;
+    if (unit.id === targetId && i === 0) target = element;
   });
-  const part = storyParts.find((item) => item.unit.id === unitId);
-  document.getElementById('reader-status').textContent = part ? `Full story · Part ${part.n} of ${storyParts.length}` : `Full story · All ${storyParts.length} parts`;
+  document.getElementById('reader-status').textContent = part ? `Full story · ${part.title ?? part.unit.title ?? part.unit.id}` : 'Full story · Complete manuscript';
   if (target) target.scrollIntoView({ block: 'start' }); else document.getElementById('reader').scrollTop = 0;
 }
 document.getElementById('read').addEventListener('click', () => { document.getElementById('reader').hidden = false; renderReader(); });
@@ -1388,34 +1677,93 @@ document.getElementById('reader-download').addEventListener('click', () => {
 // ---- the story's own time: its parts in reading order -----------------------------------------------------------------------------
 // The reading track follows render order and prose length. Its selection is independent of both playback clocks.
 // Selecting a part inspects its document and declared links without moving world or construction time.
-const storyParts = measureStoryUnits((data.story?.units ?? []).filter((unit) => unit.role !== 'document_root' && String(unit.text ?? '').trim()), data.events)
-  .map((part, i) => ({ ...part, n: i + 1, title: String(part.unit.title ?? '').replace(/^[A-Za-z]+:\s*/, '') || `Part ${i + 1}` }));
-const totalProseWords = storyParts.at(-1)?.wordEnd ?? 0;
+const decorateParts = (parts, parent = null) => parts.map((part, i) => {
+  const entry = { ...part, parent, n: i + 1, path: parent ? `${parent.path}.${i + 1}` : String(i + 1),
+    title: String(part.unit.title ?? '').replace(/^[A-Za-z]+:\s*/, '') || part.unit.id };
+  entry.children = decorateParts(part.children ?? [], entry); return entry;
+});
+const storyRoots = decorateParts(data.story?.hierarchy?.status === 'available' ? data.story.hierarchy.roots
+  : measureStoryUnits((data.story?.units ?? []).filter((unit) => unit.role !== 'document_root' && String(unit.text ?? '').trim()), data.events)
+    .map((part) => ({ ...part, children: [], renderedUnitIds: [part.unit.id] })));
+const namedStoryParts = firstNamedStoryParts(storyRoots);
+const hasEnclosingGroups = namedStoryParts.length !== storyRoots.length || namedStoryParts.some((part, i) => part !== storyRoots[i]);
+let storyParts = opt.readingOverview === 'structure' ? storyRoots : namedStoryParts;
+let expandedPart = null;
+const readingSiblings = () => storyParts.includes(selectedPart) ? storyParts : selectedPart?.parent?.children ?? storyParts;
+const partDisplayPath = (part) => {
+  const suffix = []; let at = part;
+  while (at && !storyParts.includes(at)) { suffix.unshift(at.n); at = at.parent; }
+  return at ? [storyParts.indexOf(at) + 1, ...suffix].join('.') : part.unit.id;
+};
+const totalProseWords = storyRoots.at(-1)?.wordEnd ?? 0;
 const proseNumber = (n) => n.toLocaleString('en-GB');
 let overStrip = false; let partShown;
 function selectReadingPart(part) {
   if (!part) return;
+  expandedPart = storyParts.includes(part) ? null : part.parent; drawReadingChildren();
   selectStoryPart(part); tip.hidden = true; overStrip = false; pointerAt = null;
 }
 function stepReadingPart(direction) {
-  const index = selectedPart ? storyParts.indexOf(selectedPart) : -1;
-  selectReadingPart(storyParts[index + direction]);
+  const siblings = readingSiblings(); const index = selectedPart ? siblings.indexOf(selectedPart) : -1;
+  selectReadingPart(siblings[index + direction]);
 }
+function partButton(part, child = false) {
+  const button = document.createElement('button'); button.className = 'part'; button.style.flex = `${Math.max(1, part.words)} 1 0`; button.textContent = partDisplayPath(part); button.readingPart = part;
+  button.title = `${hasEnclosingGroups && opt.readingOverview === 'structure' && !part.parent ? 'Group' : 'Part'} ${partDisplayPath(part)}: ${part.title} · ${proseNumber(part.words)} prose words`; button.setAttribute('aria-label', button.title);
+  button.addEventListener('mousemove', (event) => { overStrip = true; showPartTip(part, event); }); button.addEventListener('mouseleave', () => { overStrip = false; tip.hidden = true; });
+  button.addEventListener('click', () => selectReadingPart(part)); return button;
+}
+function drawReadingChildren() {
+  const section = document.getElementById('reading-children'); const list = document.getElementById('child-parts'); list.replaceChildren();
+  section.hidden = !expandedPart;
+  if (expandedPart) {
+    document.getElementById('reading-parent').textContent = `Children of ${partDisplayPath(expandedPart)} · ${expandedPart.title}`;
+    for (const child of expandedPart.children) list.append(partButton(child, true));
+  }
+  partShown = undefined;
+}
+
 document.getElementById('reading-prev').addEventListener('click', () => stepReadingPart(-1));
 document.getElementById('reading-next').addEventListener('click', () => stepReadingPart(1));
-if (storyParts.length) {
-  document.getElementById('strip').hidden = false; document.body.classList.add('has-strip');
-  for (const part of storyParts) {
-    const button = document.createElement('button'); button.className = 'part'; button.style.flex = `${Math.max(1, part.words)} 1 0`; button.textContent = String(part.n); part.el = button;
-    button.title = `Part ${part.n}: ${part.title} · ${proseNumber(part.words)} prose words`; button.setAttribute('aria-label', button.title);
-    button.addEventListener('mousemove', (event) => { overStrip = true; showPartTip(part, event); }); button.addEventListener('mouseleave', () => { overStrip = false; tip.hidden = true; });
-    button.addEventListener('click', () => selectReadingPart(part)); document.getElementById('parts').append(button);
-  }
+function drawReadingOverview() {
+  const list = document.getElementById('parts'); list.replaceChildren();
+  for (const part of storyParts) list.append(partButton(part));
+  const toggle = document.getElementById('reading-overview'); toggle.hidden = !hasEnclosingGroups;
+  document.getElementById('reading-overview-row').hidden = !hasEnclosingGroups;
+  document.getElementById('reading-overview-label').textContent = hasEnclosingGroups ? opt.readingOverview === 'structure' ? `Enclosing groups (${storyRoots.length})` : `Named parts (${namedStoryParts.length})` : '';
+  toggle.textContent = opt.readingOverview === 'structure' ? `Named parts (${namedStoryParts.length})` : `Enclosing groups (${storyRoots.length})`;
+  partShown = undefined;
+}
+document.getElementById('reading-overview').addEventListener('click', () => {
+  opt.readingOverview = opt.readingOverview === 'structure' ? 'named' : 'structure';
+  storyParts = opt.readingOverview === 'structure' ? storyRoots : namedStoryParts;
+  expandedPart = selectedPart && !storyParts.includes(selectedPart) ? selectedPart.parent : null;
+  drawReadingOverview(); drawReadingChildren(); syncStrip(); dirty = true; syncURL();
+});
+drawReadingOverview();
+document.getElementById('reading-expand').addEventListener('click', () => { if (!selectedPart?.children.length) return; expandedPart = selectedPart; drawReadingChildren(); syncStrip(); });
+document.getElementById('reading-parent-back').addEventListener('click', () => selectReadingPart(expandedPart));
+const hierarchyWarning = document.getElementById('reading-hierarchy-warning');
+if (data.story?.hierarchy?.status === 'unavailable') {
+  hierarchyWarning.hidden = false; hierarchyWarning.textContent = `Hierarchy unavailable (${data.story.hierarchy.reason}); showing native render order.`;
 }
 document.getElementById('reading-track').hidden = !storyParts.length;
-if (appendDocumentSpans(document.getElementById('strip'), data.documentProjection)) {
-  document.getElementById('strip').hidden = false; document.body.classList.add('has-strip');
+const hasDocumentSpans = appendDocumentSpans(document.getElementById('strip'), data.documentProjection);
+const hasReadingPosition = storyParts.length > 0 || hasDocumentSpans;
+const readingToggle = document.getElementById('reading-toggle');
+readingToggle.hidden = !hasReadingPosition;
+function showReadingPosition(on) {
+  opt.readingPosition = on;
+  const visible = hasReadingPosition && on;
+  document.getElementById('strip').hidden = !visible;
+  document.body.classList.toggle('has-strip', visible);
+  readingToggle.setAttribute('aria-pressed', String(visible));
+  overStrip = false; tip.hidden = true;
+  dirty = relayout = true; syncURL();
 }
+readingToggle.addEventListener('click', () => showReadingPosition(!opt.readingPosition));
+document.getElementById('reading-hide').addEventListener('click', () => { showReadingPosition(false); readingToggle.focus(); });
+showReadingPosition(opt.readingPosition);
 function partsNow() {
   if (building()) { let at = -1; storyParts.forEach((part, i) => { if (bornAt(part.unit) <= tau) at = i; }); return at < 0 ? [] : [at]; }
   if (atEnd && !playing) return [];
@@ -1423,13 +1771,20 @@ function partsNow() {
 }
 function syncStrip() {
   const key = selectedPart?.unit.id ?? ''; if (key === partShown) return; partShown = key;
-  storyParts.forEach((part) => { part.el.classList.toggle('selected', part === selectedPart); part.el.setAttribute('aria-pressed', String(part === selectedPart)); });
-  document.getElementById('reading-current').textContent = selectedPart ? `${selectedPart.n} of ${storyParts.length} · ${selectedPart.title}` : `Choose one of ${storyParts.length} parts`;
+  const ancestors = new Set(); for (let at = selectedPart?.parent; at; at = at.parent) ancestors.add(at);
+  for (const button of document.querySelectorAll('#parts .part, #child-parts .part')) {
+    const part = button.readingPart;
+    button.classList.toggle('selected', part === selectedPart); button.classList.toggle('ancestor', ancestors.has(part)); button.setAttribute('aria-pressed', String(part === selectedPart));
+  }
+  document.getElementById('reading-current').textContent = selectedPart ? `${partDisplayPath(selectedPart)} · ${selectedPart.title}` : `Choose one of ${storyParts.length} ${hasEnclosingGroups && opt.readingOverview === 'structure' ? 'groups' : 'parts'}`;
+  const expand = document.getElementById('reading-expand'); expand.hidden = !selectedPart?.children.length || expandedPart === selectedPart;
+  expand.textContent = selectedPart?.children.length ? `Expand ${selectedPart.children.length} children` : 'Expand children';
   document.getElementById('reading-position').textContent = selectedPart
     ? selectedPart.words ? `Prose words ${proseNumber(selectedPart.wordStart + 1)}–${proseNumber(selectedPart.wordEnd)} / ${proseNumber(totalProseWords)}` : `No prose words · boundary ${proseNumber(selectedPart.wordStart)} / ${proseNumber(totalProseWords)}`
     : `${proseNumber(totalProseWords)} prose words`;
-  document.getElementById('reading-prev').disabled = !selectedPart || selectedPart.n <= 1;
-  document.getElementById('reading-next').disabled = !storyParts.length || selectedPart?.n === storyParts.length;
+  const siblings = readingSiblings();
+  document.getElementById('reading-prev').disabled = !selectedPart || siblings.indexOf(selectedPart) <= 0;
+  document.getElementById('reading-next').disabled = !siblings.length || siblings.indexOf(selectedPart) === siblings.length - 1;
 }
 function partLines(part, hint = true, includeEvents = false) {
   const { timing } = part; const [a, b] = timing.range ?? [null, null];
@@ -1445,7 +1800,7 @@ function partLines(part, hint = true, includeEvents = false) {
     + (timing.missing ? ` · ${timing.missing} unavailable` : '');
   const eventTime = (event) => !event ? 'Unavailable' : !Number.isFinite(event.start) ? 'Undated'
     : `${timeText(event.start, 2)}${Number.isFinite(event.end) ? event.end > event.start ? ` to ${timeText(event.end, 2)}` : '' : ' · end undated'}`;
-  return [['k', `Part ${part.n} of ${storyParts.length} · ${part.words.toLocaleString('en-GB')} prose words`], ['v', part.unit.title || part.title],
+  return [['k', `${hasEnclosingGroups && opt.readingOverview === 'structure' && !part.parent ? 'Group' : 'Part'} ${partDisplayPath(part)} · ${part.words.toLocaleString('en-GB')} prose words`], ['v', part.unit.title || part.title],
     ['m', timing.range ? `Dated linked Events: ${month(a)}${b > a ? ` to ${month(b)}` : ''}`
       : timing.linked ? 'No complete linked Event dates are available' : 'World time is unlinked; this part remains in reading order'],
     ...(timing.linked ? [['a', coverage]] : []),
@@ -1459,6 +1814,7 @@ function showPartTip(part, event) {
   tip.style.left = `${Math.min(innerWidth - w - 12, Math.max(12, event.clientX - w / 2))}px`; tip.style.top = `${Math.max(12, event.clientY - h - 18)}px`;
 }
 function selectStoryPart(part) {
+  publishRecord({ kind: 'narrative', id: part.unit.id });
   stop(); selectedPart = part; selectedEventIds.clear();
   for (const tell of part.unit.tells ?? []) selectedEventIds.add(tell.eventId);
   document.getElementById('reader').hidden = true;
@@ -1467,8 +1823,9 @@ function selectStoryPart(part) {
   read.addEventListener('click', () => { document.getElementById('reader').hidden = false; renderReader(part.unit.id); });
   const partInfo = partLines(part, false);
   const lines = partInfo.slice(0, 2).map(([cls, text]) => tipLine(cls, text));
-  lines.push(read, tipLine('a', terrain.on
-    ? 'This passage is highlighted above the terrain. World time is unchanged.'
+  lines.push(read, tipLine('a', part.children.length
+    ? 'This parent keeps its own Event links. Child links remain separate. World time is unchanged.'
+    : terrain.on ? 'This passage is highlighted above the terrain. World time is unchanged.'
     : 'Gold links connect this passage to the Events it depicts. World time is unchanged.'));
   const disclosure = document.createElement('details'); disclosure.className = 'part-events';
   const summary = document.createElement('summary'); summary.textContent = `Linked Events (${part.timing.linked})`; disclosure.append(summary);
@@ -1485,8 +1842,8 @@ function selectStoryPart(part) {
 if (params.has('read')) { document.getElementById('read').click(); if (params.get('read') === 'full') fullReader(true); }
 
 const thoughtsButton = document.getElementById('thoughts');
-const showThoughts = (on) => { if (on) opt.show.add('notes'); else opt.show.delete('notes'); mind.visible = on; thoughtsButton.classList.toggle('on', on); thoughtsButton.textContent = on ? 'Hide documents & notes' : 'Documents & notes'; if (!on) tip.hidden = true; syncPanel(); syncURL(); dirty = true; };
-thoughtsButton.addEventListener('click', () => showThoughts(!mind.visible)); showThoughts(mind.visible);
+const showThoughts = (on, explicit = true) => { if (explicit) setLayerVisibility('notes', on); else if (on) opt.show.add('notes'); else opt.show.delete('notes'); mind.visible = on; thoughtsButton.classList.toggle('on', on); thoughtsButton.setAttribute('aria-pressed', String(on)); thoughtsButton.textContent = on ? 'Hide documents & notes' : 'Documents & notes'; if (!on) tip.hidden = true; syncPanel(); syncURL(); dirty = true; };
+thoughtsButton.addEventListener('click', () => showThoughts(!mind.visible)); showThoughts(mind.visible, false);
 
 // The bundled local viewer does not offer QR-code hosting.
 const qrPanel = document.getElementById('qr-panel');
@@ -1495,10 +1852,11 @@ if (data.constructionTiming === 'unavailable') document.querySelector('[data-mod
 
 // ---- the toolbar ------------------------------------------------------------------------------------------------------------------
 const KINDS = [
-  ['processes', 'Named processes', '#9fc3ff', () => measures.length],
+  ['processes', 'Numerical curves', '#9fc3ff', () => measures.length],
   ['threads', 'Events moving them', '#ffffff', () => threads.length],
   ['decisions', 'Decisions', '#ffffff', () => decisions.length],
   ['lovefear', 'Love or fear of the acts', '#ffb057', () => lenses.length],
+  ['numbers', 'Numerical readings', '#7fe0e6', () => numericCuts.length],
   ['causal', 'Causal links', '#ff8a4c', () => causalAll.length],
   ['notes', 'Documents & notes', '#c9d4ff', () => notes.length],
   ['events', 'The tree of Events', '#e9e8e2', () => nodes.filter((node) => node.kind === 'event').length],
@@ -1508,23 +1866,14 @@ const KINDS = [
 const depthNote = { 0: 'The world alone.', 1: 'The world and what it holds: long developments, lives, places and institutions.', 2: 'With the periods, change arcs and parts of each.', 3: 'With the phases of each change and the moments in them.', 4: 'With the moments within moments.', 5: 'Deeper still.', 6: 'The whole tree.' };
 // The toolbar, the legend and what was clicked stand together on the right.
 const panel = document.getElementById('side');
-// Each control of the toolbar opens its choices below it, one at a time; a click elsewhere or Escape closes them.
-let popOpen = null;
+// Keep the temporal detail panel within the viewport; the shell owns popups.
 function fitOpenPanels() {
   for (const panel of document.querySelectorAll('.pop:not([hidden]), #details:not([hidden])')) {
     panel.style.maxHeight = `${Math.max(0, innerHeight - panel.getBoundingClientRect().top - 12)}px`;
   }
 }
 addEventListener('resize', fitOpenPanels);
-function togglePop(id) {
-  popOpen = popOpen === id ? null : id;
-  for (const pop of document.querySelectorAll('.pop')) pop.hidden = pop.id !== popOpen;
-  for (const button of document.querySelectorAll('.tool[data-pop]')) button.classList.toggle('open', button.dataset.pop === popOpen);
-  fitOpenPanels();
-}
-for (const button of document.querySelectorAll('.tool[data-pop]')) button.addEventListener('click', () => togglePop(button.dataset.pop));
-document.addEventListener('pointerdown', (event) => { if (popOpen && !event.target.closest?.('.tool-wrap')) togglePop(popOpen); });
-addEventListener('keydown', (event) => { if (event.key === 'Escape' && popOpen) togglePop(popOpen); });
+// The shared page shell owns popup controls for every representation.
 // Which story: every run the viewer has open, the one an agent worked on last first. Choosing one opens the view on it,
 // keeping how it is shown.
 fetch('data/index.json', { cache: 'no-store' }).then((response) => response.json()).then((index) => {
@@ -1547,24 +1896,90 @@ document.getElementById('shine').addEventListener('click', () => setShine(opt.gl
 function setEdges(on) { opt.edges = on; dirty = true; extrasDirty = true; syncPanel(); syncURL(); }
 document.getElementById('edges').addEventListener('click', () => setEdges(!opt.edges));
 // Everything: every kind of record, every lens and the whole tree; pressed again, the view as the stage showed it.
-const isEverything = () => KINDS.every(([key, , , count]) => !count() || opt.show.has(key)) && opt.lenses.size === lensList.length && opt.depth >= MAX_DEPTH;
+const isEverything = () => !opt.detailProjection && !opt.hideUnopened && !opt.hideFlat && KINDS.every(([key, , , count]) => !count() || opt.show.has(key)) && opt.lenses.size === lensList.length && opt.depth >= MAX_DEPTH;
 function setEverything(on) {
-  opt.show = new Set(on ? KINDS.map(([key]) => key) : DEFAULT_SHOW); opt.lenses = new Set(on ? lensList.map((lens) => lens.id) : []); opt.depth = on ? MAX_DEPTH : 2;
-  showThoughts(opt.show.has('notes')); computeLayout(); apply(); syncPanel(); syncURL(); extrasDirty = true;
+  opt.detailLevel = null; opt.processScope = null;
+  opt.hideUnopened = false;
+  opt.hideFlat = false;
+  layerOverrides.clear(); explicitDepth = on; explicitEverything = on;
+  if (on) for (const key of ALL_SHOW) layerOverrides.set(key, true);
+  opt.lenses = new Set(on ? lensList.map((lens) => lens.id) : []); opt.depth = on ? MAX_DEPTH : defaultDepth(opt.layout, MAX_DEPTH);
+  applyLayoutDefaults(); showThoughts(opt.show.has('notes'), false); computeLayout(); apply(); syncPanel(); syncURL(); extrasDirty = true;
 }
 document.getElementById('everything').addEventListener('click', () => setEverything(!isEverything()));
 for (const button of document.querySelectorAll('#cameras button')) button.addEventListener('click', () => setCamera(button.dataset.camera));
 for (const button of document.querySelectorAll('#modes button')) button.addEventListener('click', () => { stop(); opt.mode = button.dataset.mode; atEnd = true; tau = C1; now = F.b; apply(); syncPanel(); syncURL(); });
 for (const button of document.querySelectorAll('#speeds button')) button.addEventListener('click', () => { opt.speed = Number(button.dataset.speed); if (playing) { stop(); play(); } syncPanel(); syncURL(); });
-for (const button of document.querySelectorAll('#presets button')) button.addEventListener('click', () => preset(button.dataset.preset));
-for (const button of document.querySelectorAll('#layouts button')) button.addEventListener('click', () => setLayout(button.dataset.layout));
-{ const depths = document.getElementById('depths'); for (let level = 0; level <= MAX_DEPTH; level += 1) { const button = document.createElement('button'); button.textContent = String(level); button.addEventListener('click', () => { opt.depth = level; computeLayout(); syncPanel(); syncURL(); }); depths.append(button); } }
+for (const button of document.querySelectorAll('#presets button')) {
+  if ((!calendarTime && button.dataset.preset === 'centuries') || (!lives.length && button.dataset.preset === 'life')) button.hidden = true;
+  if (!calendarTime && button.dataset.preset === 'world') button.textContent = 'Full time range';
+  button.addEventListener('click', () => preset(button.dataset.preset));
+}
+// The shared Show it as menu calls temporalController.activate for these layouts.
+{ const depths = document.getElementById('depths'); for (let level = 0; level <= MAX_DEPTH; level += 1) { const button = document.createElement('button'); button.textContent = String(level); button.addEventListener('click', () => { opt.detailLevel = null; opt.processScope = null; explicitDepth = true; opt.depth = level; computeLayout(); syncPanel(); syncURL(); }); depths.append(button); } }
+const processFocus = document.getElementById('process-focus');
+const subjectByLife = new Map([...referents.values()].filter((referent) => referent.life).map((referent) => [referent.life, referent]));
+function focusLabel(item) {
+  const subject = subjectByLife.get(item.id);
+  if (subject) return `${subject.name} — whole`;
+  let parent = treeById.get(item.id)?.parent;
+  const seen = new Set([item.id]);
+  while (treeById.has(parent) && !seen.has(parent)) {
+    seen.add(parent);
+    const owner = subjectByLife.get(parent);
+    if (owner) return `${owner.name} › ${item.label}`;
+    parent = treeById.get(parent).parent;
+  }
+  return item.label;
+}
+for (const item of processDetail.options) {
+  const option = document.createElement('option'); option.value = item.id; option.textContent = focusLabel(item);
+  option.title = treeById.get(item.id)?.description ?? item.label; processFocus.append(option);
+}
+async function setProcessDetail(level, { scope = opt.processScope, fit = false } = {}) {
+  if (terrain.on) await setLayout('layers');
+  opt.detailLevel = level; opt.processScope = scope; explicitEverything = false;
+  computeLayout();
+  if (fit) {
+    animation = null;
+    const event = treeById.get(opt.processScope);
+    if (event?.reach) {
+      const [start, end] = event.reach, pad = Math.max((end - start) * 0.04, calendarTime ? 0.02 : 0.1);
+      currentPreset = null; setView(start - pad, end + pad);
+    } else preset('story', false);
+  }
+  apply(); syncPanel(); syncURL(true); extrasDirty = true;
+  if (opt.camera === 'locked') { fitLocked(); placeLocked(true); }
+  dispatchEvent(new Event('resize'));
+}
+processFocus.addEventListener('change', () => setProcessDetail(0, { scope: processFocus.value || null, fit: true }));
+document.getElementById('less-detail').addEventListener('click', () => setProcessDetail(Math.max(0, (opt.detailLevel ?? Math.max(1, opt.depth - 1)) - 1)));
+document.getElementById('more-detail').addEventListener('click', () => setProcessDetail((opt.detailLevel ?? Math.max(0, opt.depth - 1)) + 1));
 { const kinds = document.getElementById('kinds');
   for (const [key, name, swatch, count] of KINDS) {
     const n = count(); if (!n) continue; const row = document.createElement('div'); row.className = 'toggle'; row.dataset.key = key; row.style.setProperty('--swatch', swatch);
     row.innerHTML = '<span class="box"></span><span class="name"></span><span class="n"></span>'; row.querySelector('.name').textContent = name; row.querySelector('.n').textContent = n;
-    row.addEventListener('click', () => { if (key === 'notes') { showThoughts(!opt.show.has('notes')); return; } if (opt.show.has(key)) opt.show.delete(key); else opt.show.add(key); computeLayout(); apply(); syncPanel(); syncURL(); }); kinds.append(row);
+    row.addEventListener('click', () => { if (key === 'notes') { showThoughts(!opt.show.has('notes')); return; } setLayerVisibility(key, !opt.show.has(key)); computeLayout(); apply(); syncPanel(); syncURL(); }); kinds.append(row);
   } }
+const unopenedButton = document.createElement('button'); unopenedButton.id = 'hide-unopened'; unopenedButton.className = 'tool switch'; unopenedButton.textContent = 'Hide unopened processes';
+unopenedButton.setAttribute('aria-pressed', String(opt.hideUnopened));
+const unopenedHelp = document.createElement('div'); unopenedHelp.className = 'note';
+unopenedHelp.textContent = 'Hides concurrent process branches without child Events, Cuts, numerical paths, or other declared development. Straightness does not mean unmodeled. Constant sampled values stay visible.';
+unopenedButton.title = unopenedHelp.textContent;
+document.getElementById('show-section').append(unopenedButton, unopenedHelp);
+function setHideUnopened(on) {
+  opt.hideUnopened = on; computeLayout(); apply(); syncPanel(); syncURL(true); extrasDirty = true;
+}
+unopenedButton.addEventListener('click', () => setHideUnopened(!opt.hideUnopened));
+const flatButton = document.createElement('button'); flatButton.id = 'hide-flat'; flatButton.className = 'tool switch'; flatButton.textContent = 'Hide flat lines';
+flatButton.setAttribute('aria-pressed', String(opt.hideFlat));
+const flatHelp = document.createElement('div'); flatHelp.className = 'note';
+flatHelp.textContent = 'Hides flat numerical curves and, in the unrestricted view, Event interval bars. Coarse and focused views retain parent outlines so the whole stays visible. Flat does not mean unmodeled.';
+flatButton.title = flatHelp.textContent; document.getElementById('show-section').append(flatButton, flatHelp);
+function setHideFlat(on) {
+  opt.hideFlat = on; computeLayout(); apply(); syncPanel(); syncURL(true); extrasDirty = true;
+}
+flatButton.addEventListener('click', () => setHideFlat(!opt.hideFlat));
 { const box = document.getElementById('lenses');
   for (const lens of lensList) {
     const row = document.createElement('div'); row.className = 'toggle'; row.dataset.lens = lens.id; row.style.setProperty('--swatch', [...lens.palette.values()][0]);
@@ -1579,25 +1994,37 @@ for (const button of document.querySelectorAll('#layouts button')) button.addEve
   if (!lensList.length) box.closest('section').hidden = true; }
 if (!hasTree) { document.querySelector('#layouts [data-layout="layers"]').hidden = true; document.getElementById('depth-section').hidden = true; }
 { const whose = document.getElementById('whose'); for (const group of groups) { const item = document.createElement('span'); const dot = document.createElement('i'); dot.style.background = group.hue; item.append(dot, document.createTextNode(group.label)); whose.append(item); } }
-document.getElementById('all').addEventListener('click', () => { const all = KINDS.every(([key]) => opt.show.has(key)); opt.show = new Set(all ? DEFAULT_SHOW : KINDS.map(([key]) => key)); showThoughts(opt.show.has('notes')); computeLayout(); apply(); syncPanel(); syncURL(); });
+document.getElementById('all').addEventListener('click', () => { const all = KINDS.every(([key]) => opt.show.has(key)); layerOverrides.clear(); if (!all) for (const key of ALL_SHOW) layerOverrides.set(key, true); applyLayoutDefaults(); showThoughts(opt.show.has('notes'), false); computeLayout(); apply(); syncPanel(); syncURL(); });
 document.getElementById('lenses-all').addEventListener('click', () => { opt.lenses = opt.lenses.size === lensList.length ? new Set() : new Set(lensList.map((lens) => lens.id)); syncPanel(); syncURL(); extrasDirty = true; });
 function syncPanel() {
   if (!ready) return;
   const on = (selector, attr, value) => { for (const button of document.querySelectorAll(selector)) button.classList.toggle('on', button.dataset[attr] === String(value)); };
-  document.getElementById('play').setAttribute('aria-label', building() ? 'Play the construction' : "Play the story's years");
+  document.getElementById('play').setAttribute('aria-label', building() ? 'Play the construction' : calendarTime ? "Play the story's years" : 'Play model time');
   document.getElementById('layout-note').textContent = { together: 'Every process on its own scale in one field, as the stage showed it.', layers: "The model's tree level by level: the world, what it holds, each life and its parts, every process at the level of what holds it.", terrain: 'Every function of the model as one terrain, as the landscape showed it: the lives and their shocks, the processes they run through, what they want, feel and expect, and the world behind them.' }[opt.layout];
   const lifeName = lives.length ? `${lives[lifeTurn % lives.length].name}'s life` : 'A life';
   setText('t-show', { together: 'Processes', layers: 'Tree', terrain: 'Terrain' }[opt.layout]); setText('t-camera', { spin: 'Spinning', free: 'Free', locked: 'Locked' }[opt.camera]);
-  setText('t-time', currentPreset ? { story: 'Story', life: lifeName, centuries: 'Centuries', world: 'World history' }[currentPreset] : spanText(F.a, F.b));
-  setText('t-play', `${building() ? 'The construction' : "The story's years"}${opt.speed !== 1 ? ` · ${{ 0.25: '¼', 0.5: '½' }[opt.speed] ?? opt.speed}×` : ''}`);
+  setText('t-time', currentPreset ? { story: 'Story', life: lifeName, centuries: 'Centuries', world: calendarTime ? 'World history' : 'Full time range' }[currentPreset] : spanText(F.a, F.b));
+  setText('t-play', `${building() ? 'The construction' : calendarTime ? "The story's years" : 'Model time'}${opt.speed !== 1 ? ` · ${{ 0.25: '¼', 0.5: '½' }[opt.speed] ?? opt.speed}×` : ''}`);
   setText('mode-note', building() ? 'The model and the story graph as the agent built them, step by step, with its own reasons as captions.' : 'History plays forward: the processes draw on, and events, decisions and thoughts arrive as their moments come.');
   const shine = document.getElementById('shine'); shine.setAttribute('aria-pressed', String(opt.glare === 'full')); setText('shine', opt.glare === 'full' ? 'Shining' : 'Less shining');
   document.getElementById('everything').setAttribute('aria-pressed', String(isEverything()));
+  unopenedButton.setAttribute('aria-pressed', String(opt.hideUnopened));
+  flatButton.setAttribute('aria-pressed', String(opt.hideFlat));
+  const projected = opt.detailProjection;
+  processFocus.value = opt.processScope ?? '';
+  document.getElementById('coarse-view').setAttribute('aria-pressed', String(Boolean(projected && projected.level === 0 && !terrain.on)));
+  document.getElementById('less-detail').disabled = projected?.level === 0;
+  document.getElementById('more-detail').disabled = Boolean(projected && projected.level >= projected.maxLevel);
+  const detailStatus = document.getElementById('process-detail-status'); detailStatus.hidden = !projected || terrain.on;
+  if (projected) {
+    const shownRows = rows.filter(visibleRow).length;
+    detailStatus.textContent = `${projected.level === 0 ? 'Coarse overview' : `Detail ${projected.level}`} · ${nodes.filter((node) => node.shown).length} outlines · ${shownRows} numerical curves. ${opt.processScope ? 'The whole stays visible as its parts open.' : 'Choose a character or process to inspect its summary and subprocesses.'}`;
+  }
   document.getElementById('edges').setAttribute('aria-pressed', String(opt.edges)); setText('edges', opt.edges ? 'Edges' : 'No edges');
   on('#cameras button', 'camera', opt.camera); on('#modes button', 'mode', opt.mode); on('#speeds button', 'speed', opt.speed); on('#layouts button', 'layout', opt.layout);
   for (const button of document.querySelectorAll('#presets button')) button.classList.toggle('on', button.dataset.preset === currentPreset);
   const life = document.querySelector('#presets [data-preset="life"]'); if (life) life.textContent = currentPreset === 'life' ? lifeName : 'A life';
-  for (const [i, button] of [...document.querySelectorAll('#depths button')].entries()) button.classList.toggle('on', i === opt.depth);
+  for (const [i, button] of [...document.querySelectorAll('#depths button')].entries()) button.classList.toggle('on', !projected && i === opt.depth);
   document.getElementById('depth-note').textContent = depthNote[opt.depth] ?? '';
   for (const row of document.querySelectorAll('#kinds .toggle')) row.classList.toggle('on', opt.show.has(row.dataset.key));
   for (const row of document.querySelectorAll('#lenses .toggle')) row.classList.toggle('on', opt.lenses.has(row.dataset.lens));
@@ -1619,33 +2046,61 @@ addEventListener('keydown', (event) => {
   if (opt.camera === 'locked' && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) { event.preventDefault(); scrollLocked(event.key === 'ArrowDown' ? 120 : -120); }
 });
 
-// The URL keeps every choice that differs from the view as it always was, so a view can be copied and captured.
+// Keep the chosen layout explicit when switching models or returning from Graph mode.
+// Layout changes save immediately; continuous camera/time changes remain debounced.
 let urlTimer = null;
-function syncURL() {
-  if (!ready) return; clearTimeout(urlTimer);
-  urlTimer = setTimeout(() => {
+function syncURL(immediate = false) {
+  if (!ready || !temporalActive) return; clearTimeout(urlTimer);
+  const save = () => {
+    if (!temporalActive) return;
     const next = new URLSearchParams(); for (const key of ['data', 'title', 'live', 'capture']) if (params.has(key)) next.set(key, params.get(key));
     if (opt.camera !== 'spin') next.set('camera', opt.camera); if (opt.glare !== 'full') next.set('glare', opt.glare); if (!opt.edges) next.set('edges', 'off');
+    if (!opt.readingPosition) next.set('reading', 'off');
+    if (opt.hideUnopened) next.set('unopened', 'hide');
+    if (opt.hideFlat) next.set('flat', 'hide');
+    if (Number.isInteger(opt.detailLevel)) next.set('detail', String(opt.detailLevel));
+    if (opt.processScope) next.set('scope', opt.processScope);
+    if (opt.readingOverview === 'structure') next.set('readingOverview', 'structure');
     if (opt.mode !== 'story') next.set('mode', opt.mode); if (opt.speed !== 1) next.set('speed', String(opt.speed));
     if (currentPreset && currentPreset !== 'story') { next.set('zoom', currentPreset); if (currentPreset === 'life' && lives.length) next.set('life', lives[lifeTurn % lives.length].name.toLowerCase()); }
     else if (!currentPreset) { const digits = Math.max(0, Math.min(6, Math.ceil(-Math.log10(F.s)) + 3)); next.set('t0', F.a.toFixed(digits)); next.set('t1', F.b.toFixed(digits)); }
-    if (opt.layout !== 'together') next.set('view', opt.layout); if (opt.depth !== 2) next.set('depth', String(opt.depth));
+    const everything = explicitEverything && isEverything();
+    next.set('view', opt.layout); if (!everything && (explicitDepth || opt.depth !== defaultDepth(opt.layout, MAX_DEPTH))) next.set('depth', String(opt.depth));
     if (opt.camera === 'free' && (camera.position.distanceTo(HOME.position) > 0.05 || controls.target.distanceTo(HOME.target) > 0.05)) next.set('pose', [...camera.position.toArray(), ...controls.target.toArray()].map((v) => v.toFixed(1)).join(','));
-    const show = [...opt.show].sort().join(','); const without = DEFAULT_SHOW.filter((key) => key !== 'notes').sort().join(',');
-    if (isEverything()) { next.set('everything', ''); next.delete('depth'); }
-    else { if (show === without) next.set('nothoughts', ''); else if (show !== [...DEFAULT_SHOW].sort().join(',')) next.set('show', show); if (opt.lenses.size) next.set('lenses', opt.lenses.size === lensList.length ? 'all' : [...opt.lenses].join(',')); }
+    const show = [...opt.show].sort().join(','); const defaults = defaultShow(opt.layout).sort().join(',');
+    if (everything) next.set('everything', '');
+    else {
+      if (layerOverrides.size === 1 && layerOverrides.get('notes') === false) next.set('nothoughts', '');
+      else if (layerOverrides.size || show !== defaults) next.set('show', show);
+      if (opt.lenses.size) next.set('lenses', opt.lenses.size === lensList.length ? 'all' : [...opt.lenses].join(','));
+    }
     if (!atEnd && !playing) next.set('at', opt.mode === 'construction' ? new Date(tau).toISOString() : now.toFixed(4)); else if (!atEnd && opt.mode === 'construction') next.set('at', new Date(tau).toISOString());
     if (!document.getElementById('reader').hidden) next.set('read', document.getElementById('reader').classList.contains('full') ? 'full' : ''); if (!qrPanel.hidden) next.set('qr', '');
-    const query = next.toString().replace(/%2C/g, ',').replace(/%3A/g, ':').replace(/\+/g, '%20').replace(/=(&|$)/g, '$1');
-    history.replaceState(null, '', `${location.pathname}${query ? `?${query}` : ''}`);
-  }, 400);
+    const retained = new URLSearchParams(location.search); for (const key of ['record', 'timeView']) if (retained.has(key)) next.set(key, retained.get(key));
+    const keptQuery = next.toString().replace(/%2C/g, ',').replace(/%3A/g, ':').replace(/\+/g, '%20').replace(/=(&|$)/g, '$1');
+    history.replaceState(null, '', `${location.pathname}${keptQuery ? `?${keptQuery}` : ''}`);
+  };
+  if (immediate) save(); else urlTimer = setTimeout(save, 400);
 }
 
 // ---- keeping the view laid out, and hover -------------------------------------------------------------------------------------------
+function syncGroupLabel({ group, object }) {
+  const own = rows.filter((row) => row.group === group && presence(row) > 0.5);
+  const groupNodes = nodes.filter((node) => node.group === group.id && node.shown);
+  const vis = own.length ? Math.min(...own.map(presence)) : groupNodes.length ? 1 : 0;
+  const native = opt.hideFlat && smooth(blend.now) >= 0.5 ? own.filter((row) => row.measure.kind === 'cut-answer' && row.name.visible && row.wall.visible) : [];
+  object.visible = vis > 0.5 && (smooth(blend.now) < 0.5 || native.length > 0);
+  if (native.length) {
+    const first = native.map(rowAt).reduce((a, b) => a.z <= b.z ? a : b);
+    object.position.set(-LENGTH / 2 - 1.2, first.y + CUT_AMP + 1, first.z - GAP * 0.62);
+  } else {
+    const zs = own.length ? own.map((row) => rowAt(row).z) : groupNodes.map((node) => nodeAt(node).z);
+    object.position.set(-LENGTH / 2 - 1.2, 0.3, (zs.length ? Math.min(...zs) : 0) - GAP * 0.62);
+  }
+}
 function relayOut() {
   relayout = false; dirty = false;
   for (const row of rows) layRow(row);
-  for (const { group, object } of groupLabels) { const own = rows.filter((row) => row.group === group); const vis = Math.min(...own.map(presence)); const zs = own.map((row) => rowAt(row).z); object.visible = vis > 0.5 && smooth(blend.now) < 0.5; object.position.set(-LENGTH / 2 - 1.2, 0.3, Math.min(...zs) - GAP * 0.62); }
   // The axis: ticks along the front, their lines across the field.
   currentTicks = tickMarks(); const m = smooth(blend.now); const front = zFrontNow(); const back = zBackNow();
   const baseY = layersBounds && m > 0.5 ? layersBounds.y0 * m : 0; const frontZ = layersBounds ? front + (Math.max(front, layersBounds.z1) - front) * m : front;
@@ -1660,23 +2115,65 @@ function relayOut() {
   placeNotes(); reframe(); if (terrain.on) layTerrain();
   // The sweep reaches across whatever the field holds.
   const z0 = Math.min(back, layersBounds && m > 0.01 ? layersBounds.z0 : back); const z1 = Math.max(front, layersBounds && m > 0.01 ? layersBounds.z1 : front);
-  sweep.scale.set((z1 - z0 + 12) / (zFront - zBack + 12), 1, 1); sweep.position.z = (z0 + z1) / 2 + 2; sweep.position.y = (AMP + 6) / 2 - 0.5 + (layersBounds && m > 0.01 ? ((layersBounds.y0 + layersBounds.y1) / 2) * m : 0);
+  const sweepHeight = visibleAmplitude() + 6;
+  sweep.scale.set((z1 - z0 + 12) / (zFront - zBack + 12), sweepHeight / (AMP + 6), 1); sweep.position.z = (z0 + z1) / 2 + 2; sweep.position.y = sweepHeight / 2 - 0.5 + (layersBounds && m > 0.01 ? ((layersBounds.y0 + layersBounds.y1) / 2) * m : 0);
   apply(); syncPanel();
 }
 renderer.domElement.addEventListener('pointermove', (event) => { pointerAt = { x: event.clientX, y: event.clientY }; });
 renderer.domElement.addEventListener('pointerleave', () => { pointerAt = null; tip.hidden = true; });
 // A click on anything opens what it is beside the view, as in the understanding graph; a click on nothing closes it.
 const details = document.getElementById('details');
-function showDetails(nodes) { document.getElementById('details-body').replaceChildren(...nodes); details.hidden = false; document.body.classList.add('details-open'); fitOpenPanels(); if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } dirty = true; }
-function hideDetails() { if (details.hidden) return; selectedPart = null; selectedEventIds.clear(); extrasDirty = true; details.hidden = true; document.body.classList.remove('details-open'); if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } dirty = true; }
+function showDetails(nodes) {
+  const body = document.getElementById('details-body'); body.replaceChildren(...nodes);
+  let selected = null; try { selected = JSON.parse(appliedSelection); } catch { /* No native record selected. */ }
+  const scope = selected?.kind === 'event' ? selected.id : selected?.kind === 'process' ? processById.get(selected.id)?.home : null;
+  if (scope && processDetail.options.some((item) => item.id === scope)) {
+    const button = document.createElement('button'); button.className = 'tool'; button.textContent = 'Explore this process';
+    button.addEventListener('click', async () => {
+      details.hidden = true; document.body.classList.remove('details-open');
+      await setProcessDetail(0, { scope, fit: true });
+    }); body.append(button);
+  }
+  details.hidden = false; document.body.classList.add('details-open'); fitOpenPanels();
+  if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } dirty = true;
+}
+function hideDetails() { if (details.hidden) return; publishRecord(null); selectedPart = null; selectedEventIds.clear(); expandedPart = null; drawReadingChildren(); extrasDirty = true; details.hidden = true; document.body.classList.remove('details-open'); if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } dirty = true; }
 document.getElementById('details-close').addEventListener('click', hideDetails);
+const numbersButton = document.createElement('button'); numbersButton.id = 'numbers'; numbersButton.className = 'tool'; numbersButton.textContent = 'Numbers';
+numbersButton.dataset.temporal = '';
+numbersButton.title = 'Browse every recorded Cut and scalar initial value, including undated records';
+document.getElementById('tools').append(numbersButton);
+const numericOptions = () => ({ formatTime: (time) => timeText(time, 1), timeUnit: data.timeUnit, referentName: (id) => referents.get(id)?.name ?? id });
+function appendLensInspection(container, { lens, reading }) {
+  const exact = numericCutById.get(reading.cutId);
+  const label = `A reading · ${lens.name}${reading.earlier ? ' · asked of an earlier version' : ''}`;
+  container.append(tipLine('k', label));
+  if (exact) {
+    // A selected lens replaces this Cut's generic glyph, so it must also retain
+    // the full question, exact shares, conditional denominator and source.
+    appendRecordedCut(container, exact, numericOptions());
+    return;
+  }
+  // Older viewer snapshots do not contain the complete numerical projection.
+  const event = byId.get(reading.eventId);
+  container.append(tipLine('v', `${holderText(reading, data.people).replace(/^\w/, (c) => c.toUpperCase())}, of: ${clip(event?.label ?? reading.eventId, 110)}`), tipLine('m', reading.question ?? lens.question ?? ''));
+  if (reading.unit) { const signed = reading.unit.match(/^lens:([^@]+)@(\w+)$/); container.append(tipLine('a', `Unit: ${signed ? `a share of this lens's reading, answering its version ${signed[2].slice(0, 8)}` : reading.unit}`)); }
+  const split = document.createElement('div'); split.className = 'split';
+  for (const answer of reading.answers.filter((item) => item.weight > 0).sort((a, b) => (a.key === 'remainder') - (b.key === 'remainder'))) { const i = document.createElement('i'); i.style.width = `${answer.weight * 100}%`; i.style.background = lens.colorOf(answer.key); split.append(i); }
+  container.append(split, weightsBox(reading.answers, (key) => lens.colorOf(key)));
+  container.append(tipLine('a', `At the record's time, ${timeText(reading.t, 1)}${reading.confidence ? ` · confidence ${reading.confidence.toFixed(2)}` : ''}${reading.estimated ? ' · estimated' : ' · authored'} · evidence cutoff not recorded`));
+}
+numbersButton.addEventListener('click', () => {
+  const body = document.createElement('div'); appendRecordedNumbers(body, data.numerics, numericOptions()); showDetails([body]); tip.hidden = true;
+  quietAt = pointerAt ? { ...pointerAt } : null;
+});
 addEventListener('keydown', (event) => { if (event.key === 'Escape') hideDetails(); });
 let downAt = null; renderer.domElement.addEventListener('pointerdown', (event) => { downAt = { x: event.clientX, y: event.clientY }; });
 renderer.domElement.addEventListener('click', (event) => {
   if (downAt && Math.hypot(event.clientX - downAt.x, event.clientY - downAt.y) > 5) return; // a drag, not a click
   if (litUnit) { document.getElementById('reader').hidden = false; renderReader(litUnit.id); return; }
   pointerAt = { x: event.clientX, y: event.clientY }; hoveredAt = null; quietAt = null; hover();
-  if (!tip.hidden && tip.childNodes.length) { showDetails([...tip.childNodes].map((node) => node.cloneNode(true))); tip.hidden = true; quietAt = { ...pointerAt }; } else hideDetails();
+  if (!tip.hidden && tip.childNodes.length) { if (hoveredRecord) publishRecord(hoveredRecord); showDetails([...tip.childNodes].map((node) => node.cloneNode(true))); tip.hidden = true; quietAt = { ...pointerAt }; } else hideDetails();
 });
 // Love-or-fear chips lift clear of each other; values and event names that would cover something wait for their turn.
 function declutter() {
@@ -1700,12 +2197,14 @@ function declutter() {
   const placed = [...panels];
   // Beyond the stage's field (the tree added, layers, another scale, or held still) the names of whoever and whatever
   // would cover each other take turns, and a love-or-fear chip with no room waits; the stage's field keeps its own rules.
-  const stage = isStory() && blend.now === 0 && opt.camera !== 'locked' && !nodes.some((node) => node.inT);
+  const stage = !nativeMeasures.length && isStory() && blend.now === 0 && opt.camera !== 'locked' && !nodes.some((node) => node.inT);
   const names = [];
   for (const object of [...groupLabels.map((item) => item.object), ...rows.map((row) => row.name)]) {
     const el = object.element; if (stage || !object.visible) { if (el.style.visibility) el.style.visibility = ''; continue; }
     el.style.visibility = ''; const r = el.getBoundingClientRect(); if (!r.width) continue;
-    if (names.some((o) => r.left < o.right && r.right > o.left && r.top < o.bottom - 4 && r.bottom > o.top + 4)) el.style.visibility = 'hidden'; else names.push(r);
+    const outside = r.left < 2 || r.right > innerWidth - 2 || r.top < 2 || r.bottom > innerHeight - 2;
+    const overPanel = panels.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top < p.bottom + 2 && r.bottom > p.top - 2);
+    if (outside || overPanel || names.some((o) => r.left < o.right && r.right > o.left && r.top < o.bottom - 4 && r.bottom > o.top + 4)) el.style.visibility = 'hidden'; else names.push(r);
   }
   for (const el of labels.domElement.querySelectorAll('.label.row, .label.group, .label.year, .label.lane')) { if (el.style.visibility === 'hidden') continue; const r = el.getBoundingClientRect(); if (r.width) placed.push(r); }
   const hits = (r, lift = 0) => placed.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top - lift < p.bottom + 2 && r.bottom - lift > p.top - 2);
@@ -1725,6 +2224,7 @@ function declutter() {
 const distToSeg = (p, a, b) => { const dx = b.x - a.x; const dy = b.y - a.y; const k = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1))); return Math.hypot(p.x - a.x - k * dx, p.y - a.y - k * dy); };
 const tipLine = (cls, text) => { const el = document.createElement('div'); el.className = cls; el.textContent = text; return el; };
 function hover() {
+  hoveredRecord = null;
   curtainMark.visible = false; if (overStrip) return;
   if (terrain.on) { hoverTerrain(); return; }
   if (!pointerAt) return;
@@ -1754,12 +2254,14 @@ function hover() {
   // A causal link under the pointer, when no light or bar is nearer.
   let arc = null; if (!hit) { let bestArc = 8; for (const target of arcTargets) for (let i = 1; i < target.pts.length; i += 1) { const a = screen(target.pts[i - 1].x, target.pts[i - 1].y, target.pts[i - 1].z); const b = screen(target.pts[i].x, target.pts[i].y, target.pts[i].z); if (!a.ok || !b.ok) continue; const d = distToSeg(pointerAt, a, b); if (d < bestArc) { bestArc = d; arc = target; } } }
   if (arc !== litArc) { litArc = arc; drawArcs(); }
-  if (arc) { if (lit) { lit = null; drawNotes(); } renderer.domElement.style.cursor = 'help'; tip.replaceChildren(...arcLines(arc).map(([cls, text]) => tipLine(cls, text))); placeTip(); return; }
+  if (arc) { hoveredRecord = { kind: 'event_relation', id: arc.relation.id }; if (lit) { lit = null; drawNotes(); } renderer.domElement.style.cursor = 'help'; tip.replaceChildren(...arcLines(arc).map(([cls, text]) => tipLine(cls, text))); placeTip(); return; }
   // A curtain under the pointer: its process's display value and how it was obtained.
   const curtain = hit ? null : curtainAt(pointerAt); curtainMark.visible = Boolean(curtain) && field.visible;
-  if (curtain) { if (lit) { lit = null; drawNotes(); } renderer.domElement.style.cursor = 'crosshair'; tip.replaceChildren(...curtainLines(curtain).map(([cls, text]) => tipLine(cls, text))); placeTip(); return; }
+  if (curtain) { hoveredRecord = curtain.row.measure.kind === 'cut-answer' ? { kind: 'event', id: curtain.row.home } : { kind: 'process', id: curtain.row.measure.id }; if (lit) { lit = null; drawNotes(); } renderer.domElement.style.cursor = 'crosshair'; tip.replaceChildren(...curtainLines(curtain).map(([cls, text]) => tipLine(cls, text))); appendCurtainSources(tip, curtain); placeTip(); return; }
   if (!hit) { tip.hidden = true; renderer.domElement.style.cursor = ''; if (lit) { lit = null; drawNotes(); } return; }
   if (lit !== hit) { lit = hit; drawNotes(); }
+  if (hit.userData.node?.id) hoveredRecord = { kind: 'narrative', id: hit.userData.node.id };
+  else if (hit.userData.decision?.cutId) hoveredRecord = { kind: 'normalized_cut', id: hit.userData.decision.cutId };
   const info = hit.userData.hover; renderer.domElement.style.cursor = 'help';
   tip.replaceChildren();
   const kind = document.createElement('div'); kind.className = 'k'; kind.textContent = info.kind; tip.append(kind);
@@ -1791,16 +2293,25 @@ function curtainAt(point) {
     const hit = wallRay.intersectObjects(rows.filter((row) => row.wall.visible && presence(row) > 0.5).map((row) => row.wall), false)[0]; if (!hit) return null;
     const row = rows.find((item) => item.wall === hit.object); best = { row, t: timeAtX(hit.point.x) };
   }
-  const { row } = best; const t = Math.max(row.domain[0], Math.min(row.domain[1], best.t)); const p = rowAt(row);
+  const { row } = best; const t = Math.max(row.domain[0], Math.min(row.domain[1], best.t));
+  if (rowValue(row, t) === null || !shownByPlay(t, bornAt(row.measure))) return null;
+  const p = rowAt(row);
   curtainMark.position.set(X(t), p.y + heightAt(row, t) + 0.05, p.z); return { row, t };
 }
 function curtainLines({ row, t }) {
-  return [['k', `${row.group.label} · a named process`], ['v', NAMES[row.measure.id] ?? row.measure.id], ['m', momentText(t)], ...measureValueLines(row, t),
+  return [['k', `${row.group.label} · ${row.measure.kind === 'cut-answer' ? 'a recorded Cut answer' : 'a named process'}`], ['v', NAMES[row.measure.id] ?? row.measure.id], ['m', momentText(t)], ...measureValueLines(row, t),
     ['a', `Unit: ${row.measure.unit ?? 'not given'} · on its own scale, ${format(row, row.range[0])} to ${format(row, row.range[1])}`]];
+}
+function appendCurtainSources(container, { row, t }) {
+  if (row.measure.kind !== 'cut-answer') return;
+  const sources = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = 'Authored readings: all answers, context and conditional denominator'; sources.append(summary);
+  for (const point of measurePosition(row.points, t).samples) if (point.cut) appendRecordedCut(sources, point.cut, numericOptions());
+  container.append(sources);
 }
 function placeTip() { if (quietAt && pointerAt && quietAt.x === pointerAt.x && quietAt.y === pointerAt.y) { tip.hidden = true; return; } quietAt = null; tip.hidden = false; const w = tip.offsetWidth; const h = tip.offsetHeight; tip.style.left = `${Math.min(innerWidth - w - 12, pointerAt.x + 16)}px`; tip.style.top = `${Math.min(innerHeight - h - 12, Math.max(12, pointerAt.y + 16))}px`; }
 const weightsBox = (answers, colorOf) => { const box = document.createElement('div'); box.className = 'w'; for (const answer of answers.slice(0, 6)) { const b = document.createElement('b'); b.textContent = `${Math.round(answer.weight * 100)}%`; if (colorOf) b.style.color = colorOf(answer.key); const i = document.createElement('i'); i.textContent = answer.key.replace(/[_.-]+/g, ' '); box.append(b, i); } return box; };
 function showExtraTip(target) {
+  hoveredRecord = target.node ? { kind: 'event', id: target.node.id } : target.reading?.id || target.reading?.cutId ? { kind: 'normalized_cut', id: target.reading.cutId ?? target.reading.id } : target.unit ? { kind: 'narrative', id: target.unit.id } : null;
   renderer.domElement.style.cursor = target.kind === 'prose' ? 'pointer' : 'help'; tip.replaceChildren();
   if (target.kind === 'event' || target.kind === 'sub') {
     const { event } = target.node; const holder = event.parent ? treeById.get(event.parent) : null; const who = principals.find((person) => person.id === event.owner)?.name ?? referents.get(event.owner)?.name ?? 'The world';
@@ -1809,18 +2320,16 @@ function showExtraTip(target) {
     tip.append(tipLine('k', own ? `${who}'s own · ${event.role === 'inner' ? 'their inner process' : 'a record of their inner process'} · level ${event.depth}` : `${roles[event.role] ?? 'An Event'} · level ${event.depth} · ${who}`), tipLine('v', clip(event.label, 200)));
     if (own) tip.append(tipLine('a', `Held in ${who.split(' ')[0]}'s inner process: their own view, not a fact of the world. Where it differs from the world, it is how they see it.`));
     tip.append(tipLine('m', `${timeText(event.reach[0], Math.min(40, event.reach[1] - event.reach[0]))} – ${timeText(event.reach[1], Math.min(40, event.reach[1] - event.reach[0]))}`));
+    if (event.reachSource && event.reachSource !== 'recorded') tip.append(tipLine('a', `No recorded interval. Display span uses ${({ descendants: 'its dated descendants', ancestor: 'its containing Event', model_extent: 'the model extent' })[event.reachSource] ?? 'layout context'}; it is not an authored date.`));
     if (event.description) tip.append(tipLine('m', clip(event.description, 360)));
     const moves = (event.processIds ?? []).map((id) => processById.get(id)).filter((process) => process?.kind === 'named').map((process) => NAMES[process.id]);
     if (moves.length) tip.append(tipLine('a', `Moves: ${moves.join(' · ')}`));
     if (holder) tip.append(tipLine('a', `Within: ${clip(holder.name, 80)}`));
+  } else if (target.kind === 'number') {
+    if (target.marker.clippedStart) tip.append(tipLine('a', 'This interval began before the visible window. Its composition is marked at the window edge; no value at that edge is inferred.'));
+    appendRecordedCut(tip, target.reading, numericOptions());
   } else if (target.kind === 'lens') {
-    const { lens, reading } = target; const event = byId.get(reading.eventId);
-    tip.append(tipLine('k', `A reading · ${lens.name}${reading.earlier ? ' · asked of an earlier version' : ''}`), tipLine('v', `${holderText(reading, data.people).replace(/^\w/, (c) => c.toUpperCase())}, of: ${clip(event?.label ?? reading.eventId, 110)}`), tipLine('m', reading.question ?? lens.question ?? ''));
-    if (reading.unit) { const signed = reading.unit.match(/^lens:([^@]+)@(\w+)$/); tip.append(tipLine('a', `Unit: ${signed ? `a share of this lens's reading, answering its version ${signed[2].slice(0, 8)}` : reading.unit}`)); }
-    const split = document.createElement('div'); split.className = 'split';
-    for (const answer of reading.answers.filter((item) => item.weight > 0).sort((a, b) => (a.key === 'remainder') - (b.key === 'remainder'))) { const i = document.createElement('i'); i.style.width = `${answer.weight * 100}%`; i.style.background = lens.colorOf(answer.key); split.append(i); }
-    tip.append(split, weightsBox(reading.answers, (key) => lens.colorOf(key)));
-    tip.append(tipLine('a', `At the record's time, ${timeText(reading.t, 1)}${reading.confidence ? ` · confidence ${reading.confidence.toFixed(2)}` : ''}${reading.estimated ? ' · estimated' : ' · authored'} · evidence cutoff not recorded`));
+    appendLensInspection(tip, target);
   } else if (target.kind === 'prose') {
     const { unit } = target; tip.append(tipLine('k', `Prose · ${timeText(unit.t, 2)}`), tipLine('v', unit.title ?? ''), tipLine('m', clip(unit.text.replace(/^#+\s+.*$/m, '').trim(), 420)));
     tip.append(tipLine('a', `Depicts: ${(unit.tells ?? []).map((tell) => clip(byId.get(tell.eventId)?.label, 44)).join(' · ')}`), tipLine('a', 'Placed by its declared Event links. Click to read it.'));
@@ -1840,10 +2349,11 @@ setCamera(opt.camera, true); if (opt.glare !== 'full') applyShine();
 if (params.has('pose')) { const v = params.get('pose').split(',').map(Number); if (v.length === 6 && v.every(Number.isFinite)) { camera.position.set(v[0], v[1], v[2]); controls.target.set(v[3], v[4], v[5]); framed = fieldFrame(); } }
 relayOut();
 // Following a run an agent is still making: when it has made more, the view opens again as it is, between plays.
-if (params.has('live')) setInterval(async () => {
+const liveTimer = params.has('live') ? setInterval(async () => {
+  if (!temporalActive) return;
   if (playing) return;
   try { const next = await (await fetch(`data/${encodeURIComponent(dataName)}.json?ts=${Date.now()}`, { cache: 'no-store' })).json(); if (next.lastCall !== data.lastCall || next.headGraphHash !== data.headGraphHash) { syncURL(); setTimeout(() => location.reload(), 500); } } catch { /* keep the last view */ }
-}, 20000);
+}, 20000) : null;
 let last = performance.now();
 // Walking through the view: W and S forward and back, A and D to the sides, Q and E down and up, the arrows to look around,
 // Shift to go faster. The first step stops the spin. Locked, A and D move through time and W and S zoom in and out of it.
@@ -1886,12 +2396,13 @@ function tick(clock, dt) {
 // backwards here.
 let framesDrawn = 0;
 function frame() {
+  temporalFrame = null; if (!temporalActive) return;
   const clock = performance.now(); const dt = Math.max(0, Math.min(0.1, (clock - last) / 1000)); last = clock; tick(clock, dt);
   if (opt.camera === 'locked') placeLocked(); else controls.update();
   composer.render(); labels.render(scene, camera); declutter(); labels2.update(); hover();
   // Once the names are on the page their widths are known, and a locked view frames them.
   framesDrawn += 1; if (framesDrawn === 2 && opt.camera === 'locked') { fitLocked(); placeLocked(true); }
-  requestAnimationFrame(() => frame());
+  temporalFrame = requestAnimationFrame(() => frame());
 }
 // For captures and tests: the window on screen, and the view's state.
 window.explorer = {
@@ -1911,4 +2422,36 @@ if (params.has('capture')) {
   document.body.classList.add('capture');
   window.__frame = (t, dt, sweeping = true) => { if (opt.mode === 'construction') tau = t; else now = t; atEnd = false; playing = sweeping; tick(performance.now(), dt ?? 0.016); apply(); if (opt.camera === 'locked') placeLocked(); else controls.update(dt); composer.render(); labels.render(scene, camera); declutter(); labels2.update(); return opt.mode === 'construction' ? [C0, C1] : [F.a, F.b]; };
   window.__span = opt.mode === 'construction' ? [C0, C1] : [F.a, F.b];
-} else { frame(); if (params.has('play')) setTimeout(play, 1000); }
+} else if (temporalActive) { frame(); if (params.has('play')) setTimeout(() => { if (temporalActive) play(); }, 1000); }
+
+let selectionGraph = null;
+function useSharedSelection(selection) {
+  const key = JSON.stringify(selection); if (key === appliedSelection) return; appliedSelection = key;
+  if (!selection) { if (!details.hidden) hideDetails(); return; }
+  if (selection.kind === 'narrative') {
+    const pending = [...storyRoots]; while (pending.length) { const part = pending.pop(); if (part.unit.id === selection.id) { selectReadingPart(part); return; } pending.push(...part.children); }
+  }
+  selectionGraph ??= buildModelGraph(data.inspection);
+  const record = selectionGraph.nodes.find((node) => node.kind === selection.kind && node.nativeId === selection.id);
+  if (!record) { if (!details.hidden) { details.hidden = true; document.body.classList.remove('details-open'); } return; }
+  selectedEventIds.clear(); litChain = new Set(); const eventId = record.kind === 'event' ? record.nativeId : record.record?.parent_event_id;
+  if (eventId) { selectedEventIds.add(eventId); litChain = new Set([eventId]); }
+  const body = document.createElement('div'); body.append(tipLine('k', record.kind.replace(/_/g, ' ')), tipLine('v', record.label), tipLine('a', 'Selected in this snapshot. The time position is unchanged.'));
+  const cut = numericCutById.get(record.kind === 'normalized_cut' ? record.nativeId : record.cutId);
+  if (cut) appendRecordedCut(body, cut, numericOptions());
+  else { if (record.record?.description) body.append(tipLine('m', record.record.description)); const raw = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = 'Full native record'; const pre = document.createElement('pre'); pre.textContent = JSON.stringify(record.record, null, 2); raw.append(summary, pre); body.append(raw); }
+  showDetails([...body.childNodes]); extrasDirty = true;
+}
+export const temporalController = {
+  setDetail: setProcessDetail,
+  recenter: recenterView,
+  activate(view, state) {
+    temporalActive = true; controls.enabled = opt.camera !== 'locked'; setLayout(view); useSharedSelection(state.selection);
+    renderer.setSize(innerWidth, innerHeight); labels.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); composer.setSize(innerWidth, innerHeight);
+    if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } syncPanel(); syncURL(true); relayout = true;
+    if (temporalFrame === null && !params.has('capture')) frame();
+  },
+  deactivate() { if (playing) stop(); syncURL(true); temporalActive = false; controls.enabled = false; clearTimeout(urlTimer); cancelAnimationFrame(temporalFrame); temporalFrame = null; held.clear(); pointerAt = null; tip.hidden = true; },
+  getState() { return { timeView: opt.layout, time: { now, tau, atEnd, mode: opt.mode, start: F.a, end: F.b } }; },
+  destroy() { temporalActive = false; temporalEvents.abort(); clearInterval(timer); clearInterval(liveTimer); clearTimeout(urlTimer); cancelAnimationFrame(temporalFrame); controls.dispose(); composer.dispose(); renderer.dispose(); },
+};

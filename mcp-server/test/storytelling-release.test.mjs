@@ -8,11 +8,14 @@ import { releaseStory } from '../src/storytelling-release.mjs';
 import { direct, directorPrinciples } from '../src/storytelling-director.mjs';
 import { editNarrativeGraph } from '../src/narrative-editing.mjs';
 import { storeAuthorRecord } from '../src/storytelling-authoring.mjs';
+import { noEventLinkDeclaration, NARRATIVE_HISTORY_REPLAY } from '../src/narrative-grounding.mjs';
 
 const provenance = ['release test'];
 const author = ['story-author'];
+const noLinkReason = 'This rendering fixture uses placeholder prose outside its modeled bakery Events.';
 const scene = (id, text, scopes, extra = {}) => ({ id, node_type: 'storytelling.scene', role: 'story_passage', text, epistemic_status: 'authored_scene', evidence_type: 'fictional_canon',
-  authority: { source: 'author', weight: 1 }, access_scopes: scopes, render: 'include', training: 'exclude', provenance, ...extra });
+  authority: { source: 'author', weight: 1 }, access_scopes: scopes, render: 'include', training: 'exclude',
+  provenance: [...provenance, noEventLinkDeclaration(text, noLinkReason, 'fixture-author')], ...extra });
 const contains = (id, from, to, order, scopes) => ({ id, source: { kind: 'node', node_id: from }, target: { kind: 'node', node_id: to }, family: 'structural', relation: 'contains', order, access_scopes: scopes, provenance });
 const release = (service, graphHash, extra = {}) => releaseStory(service, { graphHash, requestId: `release-${Math.random()}`, nodeId: `author.release.${Math.random().toString(36).slice(2, 8)}`,
   storyRootId: 'story', authorId: 'author', accessScopes: author, releaseTo: ['reader'], reason: 'The human approved publishing.', ...extra });
@@ -26,14 +29,14 @@ const directed = async (service, graphHash, { failing = false, proseOnly = false
     proseChange: failing && proseOnly && item.id === 'draft.ending' ? 'Remove the redundant explanation after the action.' : null, ...(changes[item.id] ?? {}) })),
   ownFindings: [{ name: 'The door as witness', verdict: 'holds', evidence: 'The test draft keeps the door present.', modelChange: null }] })).graphHash;
 
-async function setup(t, nodes, edges) {
+async function setup(t, nodes, edges, legacy = false) {
   const markdown = await readFile(new URL('../../docs/examples/MINIMAL-MODEL-AND-GRAPH.md', import.meta.url), 'utf8');
   const [, registerRequest] = [...markdown.matchAll(/```json\n([\s\S]*?)```/g)].map((match) => JSON.parse(match[1]));
   const service = new LifeSimulationService();
   t.after(() => service.close());
   await service.initialize();
   const registered = await service.registerModel({ requestId: 'model', model: registerRequest.model });
-  const stored = await service.registerNarrativeGraph({ requestId: 'graph', narrativeGraph: { schema: 'life-sim-rust-narrative-graph/v1', id: 'release-test',
+  const stored = await service.registerNarrativeGraph({ requestId: 'graph', [NARRATIVE_HISTORY_REPLAY]: legacy, narrativeGraph: { schema: 'life-sim-rust-narrative-graph/v1', id: 'release-test',
     revision: { number: 0, reason: 'Release test.', provenance }, source: { kind: 'model', model_hash: registered.modelHash }, roots: ['story'],
     nodes: [{ ...scene('story', '# Title', []), node_type: 'story', role: 'document_root' }, ...nodes], edges } });
   const read = async (graphHash, accessScopes) => service.queryNarrativeGraph({ graphHash, mode: 'full', includeContent: true, accessScopes });
@@ -44,9 +47,9 @@ async function setup(t, nodes, edges) {
 test('text the author cut from a split scene never reaches readers', async (t) => {
   const f = await setup(t, [scene('scene.1', 'She reached the door.\n\nThe killer was her brother all along.', author)], [contains('story.s1', 'story', 'scene.1', 0, author)]);
   const split = await editNarrativeGraph(f.service, { requestId: 'split', graphHash: f.graphHash, accessScopes: author, reason: 'Split into beats.',
-    operations: [{ kind: 'split', nodeId: 'scene.1', parts: [{ id: 'scene.1.a', text: 'She reached the door.' }, { id: 'scene.1.b', text: 'The killer was her brother all along.' }] }] });
+    operations: [{ kind: 'split', nodeId: 'scene.1', parts: [{ id: 'scene.1.a', text: 'She reached the door.', noLinkReason }, { id: 'scene.1.b', text: 'The killer was her brother all along.', noLinkReason }] }] });
   const cut = await editNarrativeGraph(f.service, { requestId: 'cut', graphHash: split.graphHash, accessScopes: author, reason: 'Keep the reveal for the last chapter.',
-    operations: [{ kind: 'replace_text', nodeId: 'scene.1.b', expectedText: 'The killer was her brother all along.', text: 'Nobody answered.' }] });
+    operations: [{ kind: 'replace_text', nodeId: 'scene.1.b', expectedText: 'The killer was her brother all along.', text: 'Nobody answered.', noLinkReason }] });
   const ready = await directed(f.service, cut.graphHash);
   await assert.rejects(release(f.service, ready), /Containers scene\.1 hold text the render does not show/);
   const released = await release(f.service, ready, { clearHiddenText: true });
@@ -101,11 +104,11 @@ test('a prose-only repair releases without changing the world only after an answ
   const unchanged = await directed(f.service, answer.graphHash);
   await assert.rejects(release(f.service, unchanged), /changed prose needs a fresh passing draft direction/, 'a new passing verdict on unchanged prose does not perform the planned repair');
   const edited = await editNarrativeGraph(f.service, { requestId: 'prose-repair', graphHash: unchanged, accessScopes: author,
-    reason: 'Remove repeated explanation.', operations: [{ kind: 'replace_text', nodeId: 'scene.1', expectedText: original, text: repaired }] });
+    reason: 'Remove repeated explanation.', operations: [{ kind: 'replace_text', nodeId: 'scene.1', expectedText: original, text: repaired, noLinkReason }] });
   await assert.rejects(release(f.service, edited.graphHash), /changed prose needs a fresh passing draft direction/, 'the edit also needs a fresh read');
   const reviewed = await directed(f.service, edited.graphHash);
   const afterReview = await editNarrativeGraph(f.service, { requestId: 'unread-repair', graphHash: reviewed, accessScopes: author,
-    reason: 'Make one more wording change.', operations: [{ kind: 'replace_text', nodeId: 'scene.1', expectedText: repaired, text: 'She quietly closed the door.' }] });
+    reason: 'Make one more wording change.', operations: [{ kind: 'replace_text', nodeId: 'scene.1', expectedText: repaired, text: 'She quietly closed the door.', noLinkReason }] });
   await assert.rejects(release(f.service, afterReview.graphHash), /prose has changed since the director read it/, 'approval stays bound to the exact text and sequence');
   const current = await directed(f.service, afterReview.graphHash);
   const released = await release(f.service, current);
@@ -130,4 +133,38 @@ test('shared voices and a quiet scene can be explicitly assessed and kept withou
     assert.equal(record.findings.find((item) => item.principleId === principleId).verdict, finding.verdict);
     assert.equal(record.findings.find((item) => item.principleId === principleId).evidence, finding.evidence);
   }
+});
+
+test('release refuses legacy unlinked prose and records an explicit per-passage waiver after repair', async (t) => {
+  const f = await setup(t, [scene('legacy', 'An unmodeled textual transition.', author, { provenance })], [contains('story.legacy', 'story', 'legacy', 0, author)], true);
+  const ready = await directed(f.service, f.graphHash);
+  const before = (await f.service.listNarrativeRevisions({})).revisions.length;
+  await assert.rejects(release(f.service, ready), /legacy.*Nothing was written/);
+  assert.equal((await f.service.listNarrativeRevisions({})).revisions.length, before);
+  const repaired = await editNarrativeGraph(f.service, { graphHash: ready, requestId: 'declare-transition', author: 'calling-agent', accessScopes: author,
+    reason: 'Declare why this transition does not depict a modeled Event.', operations: [{ kind: 'replace_text', nodeId: 'legacy',
+      expectedText: 'An unmodeled textual transition.', text: 'An unmodeled textual transition.', noLinkReason: 'This is an editorial transition, without a depicted Event in the fictional world.' }] });
+  const released = await release(f.service, repaired.graphHash);
+  assert.equal(released.intentionallyUnlinked.length, 1);
+  assert.equal(released.intentionallyUnlinked[0].nodeId, 'legacy');
+  assert.equal(released.intentionallyUnlinked[0].author, 'calling-agent');
+  assert.match(released.intentionallyUnlinked[0].reason, /editorial transition/);
+});
+
+test('reader release preserves visible Event depiction links without exposing author reviews', async (t) => {
+  const f = await setup(t, [scene('scene.1', 'The offer lay beside the ovens.', author, { provenance })], [contains('story.s1', 'story', 'scene.1', 0, author),
+    { id: 'scene.event', source: { kind: 'node', node_id: 'scene.1' }, target: { kind: 'anchor', anchor_kind: 'event', anchor_id: 'event.offer' }, family: 'grounding', relation: 'renders', access_scopes: author, provenance }]);
+  const released = await release(f.service, await directed(f.service, f.graphHash));
+  const read = await f.read(released.graphHash, ['reader']);
+  assert.ok(read.edges.some((edge) => edge.id === 'scene.event'));
+  assert.ok(!read.nodes.some((node) => node.role === 'externalized_reflection'));
+  assert.deepEqual(released.intentionallyUnlinked, []);
+});
+
+test('release grounding checks native next-chain prose beyond containment children', async (t) => {
+  const f = await setup(t, [scene('first', 'An introductory transition.', author), scene('next', 'A second unlinked passage.', author, { provenance })],
+    [contains('story.first', 'story', 'first', 0, author), { ...contains('first.next', 'first', 'next', 0, author), relation: 'next' }], true);
+  const ready = await directed(f.service, f.graphHash);
+  assert.match(await f.render(ready, author), /A second unlinked passage/);
+  await assert.rejects(release(f.service, ready), /noLinkReason: next/);
 });

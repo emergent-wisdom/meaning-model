@@ -12,6 +12,14 @@ Usage:
   meaning-model-mcp --install-engine  Download and verify the matching release engine
   meaning-model-mcp --build-engine  Build the bundled Rust engine with Cargo
 
+To keep models and stories between sessions, set LIFE_SIM_STATE_FILE in your MCP
+configuration to a private absolute database path outside node_modules. Create its
+parent directory first. Reuse the same path and run only one server process per
+database. Without it, work is held in memory and is lost when this process ends.
+MCP request receipts, world handles and pending writer/estimator work are still
+process-local. Use life_saved_work_list and life_construction_replay to resume
+saved graph-backed work with the same accessScopes.
+
 Optional addons are disabled by default. Set MEANING_MODEL_ADDONS to a
 comma-separated list to enable bundled addons. Available: storytelling, alien.
 Example: MEANING_MODEL_ADDONS=storytelling,alien meaning-model-mcp
@@ -60,6 +68,9 @@ ordinary server startup never download or build an engine.`);
   console.error('Unknown arguments. Run meaning-model-mcp --help.');
   process.exitCode = 1;
 } else {
+  if (!process.env.LIFE_SIM_STATE_FILE?.trim()) {
+    console.error('Warning: LIFE_SIM_STATE_FILE is not configured. Models and stories will be lost when this process ends. Set a private absolute database path in your MCP configuration to keep work between sessions.');
+  }
   // npm packages ship JavaScript: Node does not strip TypeScript in node_modules.
   const compiled = new URL('../src/server.mjs', import.meta.url);
   await import(existsSync(compiled) ? compiled.href : new URL('../src/server.ts', import.meta.url).href);

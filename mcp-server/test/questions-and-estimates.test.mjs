@@ -46,15 +46,17 @@ test('without the story graph, decisions are named together rather than each cla
   const unknown = modelQuestions(lived({ decisions: 3 }), { people: leo, limit: 100 });
   const decisions = unknown.questions.filter((item) => item.kind === 'decision-undrawn');
   assert.equal(decisions.length, 1);
-  assert.match(decisions[0].question, /The model holds 3 decision Cuts .* Which are drawn is recorded in the story graph, not the model/);
+  assert.match(decisions[0].question, /The model holds 3 decision Cuts .*draw history is unknown without the story graph/);
+  assert.match(decisions[0].question, /Preserve accepted or retrospective outcomes/);
   const known = modelQuestions(lived({ decisions: 3 }), { people: leo, draws: [{ cutId: 'cut.choice.0', realized: 'stay' }], limit: 100 });
   assert.deepEqual(known.questions.filter((item) => item.kind === 'decision-undrawn').map((item) => item.cuts[0]), ['cut.choice.1', 'cut.choice.2']);
 });
 
-test('a principal who never chooses is asked what they choose', () => {
+test('a principal with no recognized decision Cut is asked to inspect their recorded choices', () => {
   const open = modelQuestions(lived({ decisions: 0 }), { people: leo, draws: [], limit: 100 });
   const question = open.questions.find((item) => item.kind === 'choices-missing');
-  assert.match(question.question, /^Leo makes no choice the model decides\. What does Leo choose, when, between which options, and why/);
+  assert.match(question.question, /No decision Cut was recognized for Leo; their choices may already be recorded/);
+  assert.match(question.question, /Read and preserve accepted outcomes/);
   assert.ok(!modelQuestions(lived({ decisions: 1 }), { people: leo, draws: [], limit: 100 }).questions.some((item) => item.kind === 'choices-missing'));
 });
 
@@ -88,7 +90,12 @@ test('a world changed by later draws is asked about again, and so is the directo
 });
 
 test('route parts without a choice, unplaced Events and the social life of a secret are asked about', () => {
-  assert.match(partsWithoutChoiceQuestion(['part.01', 'part.02'], 12), /^2 of 12 parts hold no decision the model draws \(part\.01, part\.02\)/);
+  const question = partsWithoutChoiceQuestion(['part.01', 'part.02'], 12);
+  assert.match(question, /^2 of 12 parts have no recognized decision Cut \(part\.01, part\.02\)/);
+  assert.match(question, /choices may already be recorded/);
+  assert.match(question, /Preserve accepted or observed outcomes/);
+  assert.match(question, /A part may contain no choice/);
+  assert.match(question, /still-open fictional choice.*delegated uncertainty.*recorded draw are optional/);
   const index = indexModel({ meaning_model: { events: [event('ev.town', 0, 10, { region: 'the town' }), event('ev.inside', 1, 2), event('ev.nowhere', 3, 4)],
     event_relations: [{ kind: 'contains', source_event_id: 'ev.town', target_event_id: 'ev.inside' }] } });
   assert.deepEqual(unplacedEvents(index, ['ev.town', 'ev.inside', 'ev.nowhere']).map((item) => item.id), ['ev.nowhere'], 'a place is inherited from an enclosing Event');
@@ -124,7 +131,8 @@ test('the route is asked where its choices, its present shocks, its largest jump
   const kinds = (items) => items.map((item) => item.kind);
   const questions = routeQuestions(model, route, { openAspects: [{ id: 'a.place' }] });
   assert.deepEqual(kinds(questions).filter((kind) => kind !== 'jumps-unrendered'), ['parts-without-choice', 'route-withdrawn', 'aspects-open'], 'Leo\'s shock at 13.3 lies inside this route\'s present');
-  assert.match(questions[0].question, /^1 of 2 parts hold no decision the model draws \(part\.1\)/);
+  assert.match(questions[0].question, /^1 of 2 parts have no recognized decision Cut \(part\.1\)/);
+  assert.match(questions[0].tool, /optional life_direction_draw/);
   assert.match(questions[1].question, /withdrawn \(cut\.gone: The chain it rested on could not have happened\.\)/);
   const later = routeQuestions(model, { parts: [{ id: 'part.1', eventIds: ['ev.choice.0'] }, { id: 'part.2', eventIds: ['ev.choice.1'] }], whyNotJumps: null });
   assert.match(later.find((item) => item.kind === 'story-shock-missing')?.question ?? '', /^Leo has no shock inside the story's time \(20 to 22\); the model's shocks for them are all earlier/);

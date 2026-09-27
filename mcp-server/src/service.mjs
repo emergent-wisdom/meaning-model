@@ -1,6 +1,7 @@
 import { stripEdgeForRevision, stripNodeForRevision, withoutProjectionFields } from './narrative-fields.mjs';
 import { descriptionCoverage } from './description-coverage.mjs';
-import { validateNarrativeDelta } from './narrative-delta.mjs';
+import { validateNarrativeDelta, applyNarrativeDefinitionDelta, definitionFromCompleteView } from './narrative-delta.mjs';
+import { assertPassageGrounding, NARRATIVE_HISTORY_REPLAY } from './narrative-grounding.mjs';
 import { createHash, randomUUID } from 'node:crypto';
 
 import {
@@ -52,7 +53,8 @@ const PROFILE_COMPILATION_SCHEMA = 'life-sim-rust-profile-compilation/v1';
 const QUERY_SCHEMA = 'life-sim-rust-model-query/v1';
 const TRAJECTORY_SUMMARY_QUERY_SCHEMA = 'life-sim-rust-trajectory-summary-query/v1';
 const MAX_WORLDS = 16;
-const MAX_MODELS = 32;
+const MAX_CACHED_MODEL_SUMMARIES = 32;
+const MAX_PENDING_MODEL_WRITES = 32;
 const MAX_CANDIDATES_PER_WORLD = 128;
 const MAX_TRAJECTORY_FIELDS = 100;
 const MAX_TRAJECTORY_SAMPLES = 256;
@@ -824,10 +826,20 @@ export class LifeSimulationService {
   }
 
   #reserveModel() {
-    if (this.models.size + this.pendingModels >= MAX_MODELS) {
-      throw new Error(`Model quota of ${MAX_MODELS} reached.`);
+    if (this.pendingModels >= MAX_PENDING_MODEL_WRITES) {
+      throw new Error(`Concurrent model-write quota of ${MAX_PENDING_MODEL_WRITES} reached.`);
     }
     this.pendingModels += 1;
+  }
+
+  #rememberModel(modelHash, summary) {
+    // Rust owns immutable definitions and storage limits. This bounded cache is
+    // only recent mutation metadata; reads always resolve through the engine.
+    this.models.delete(modelHash);
+    while (this.models.size >= MAX_CACHED_MODEL_SUMMARIES) {
+      this.models.delete(this.models.keys().next().value);
+    }
+    this.models.set(modelHash, summary);
   }
 
   #reserveWorld() {
@@ -875,11 +887,14 @@ export class LifeSimulationService {
     const key = `${operation}:${requestId}`;
     const canonicalPayload = canonicalJson(payload);
     const requestPayloadHash = canonicalPayloadHash(canonicalPayload);
+    const requestPayloadBytes = Buffer.byteLength(canonicalPayload);
+    const compactPayload = operation === 'register-model' || operation === 'revise-model';
     const existing = store.get(key);
     if (existing) {
       if (
         existing.requestPayloadHash !== requestPayloadHash ||
-        existing.canonicalPayload !== canonicalPayload
+        existing.requestPayloadBytes !== requestPayloadBytes ||
+        (!compactPayload && existing.canonicalPayload !== canonicalPayload)
       ) {
         throw new Error(
           `requestId ${requestId} is already bound to a different ${operation} payload.`,
@@ -891,7 +906,12 @@ export class LifeSimulationService {
       throw new Error(`Idempotency-receipt quota of ${MAX_RECEIPTS_PER_SCOPE} reached.`);
     }
 
-    const payloadBytes = Buffer.byteLength(canonicalPayload);
+    // Immutable model definitions already live in Rust. Keep their content
+    // identity for retry binding without retaining another full history in JS.
+    // Other receipts retain the canonical payload for operation-specific reads.
+    const payloadBytes = compactPayload
+      ? Buffer.byteLength(canonicalJson({ requestPayloadHash, requestPayloadBytes }))
+      : requestPayloadBytes;
     const resultAllowance = receiptResultAllowance(operation);
     const initialReservation = payloadBytes + resultAllowance;
     if (this.receiptBytes + initialReservation > this.maxReceiptBytes) {
@@ -903,8 +923,9 @@ export class LifeSimulationService {
     this.receiptBytes += initialReservation;
 
     const entry = {
-      canonicalPayload,
+      canonicalPayload: compactPayload ? null : canonicalPayload,
       requestPayloadHash,
+      requestPayloadBytes,
       reservedBytes: initialReservation,
       promise: null,
     };
@@ -964,6 +985,7 @@ export class LifeSimulationService {
           edgeKinds: description.edge_kinds ?? {},
         },
         execution: description.execution ?? null,
+        nativeLimits: description.execution_limits ?? null,
         operations: description.operations,
       },
       implementationCoverage: {
@@ -1053,6 +1075,8 @@ export class LifeSimulationService {
         privacyBoundary: 'scope-filtered projection, not authenticated confidentiality',
       },
       controlPlaneUsage: {
+        cachedModelSummaries: this.models.size,
+        pendingModelWrites: this.pendingModels,
         retainedAndPendingReceiptBytes: this.receiptBytes,
         maxReceiptBytes: this.maxReceiptBytes,
         retainedEstimationBytes: this.estimationBytes,
@@ -1114,7 +1138,7 @@ export class LifeSimulationService {
           const result = await this.backend.call('register_model', { model });
           const modelHash = modelHashFromResult(result);
           const summary = compactModelMutationSummary(result.summary);
-          this.models.set(modelHash, {
+          this.#rememberModel(modelHash, {
             modelHash,
             summary,
           });
@@ -1158,7 +1182,7 @@ export class LifeSimulationService {
           const result = await this.backend.call('revise_model', { model });
           const modelHash = modelHashFromResult(result);
           const summary = compactModelMutationSummary(result.summary);
-          this.models.set(modelHash, {
+          this.#rememberModel(modelHash, {
             modelHash,
             summary,
           });
@@ -1708,7 +1732,7 @@ export class LifeSimulationService {
         const result = await this.backend.call('register_model', { model });
         const modelHash = modelHashFromResult(result);
         const summary = compactModelMutationSummary(result.summary);
-        this.models.set(modelHash, {
+        this.#rememberModel(modelHash, {
           modelHash,
           summary,
           presetId,
@@ -2103,9 +2127,10 @@ export class LifeSimulationService {
     });
   }
 
-  async registerNarrativeGraph({ requestId, narrativeGraph }) {
+  async registerNarrativeGraph({ requestId, narrativeGraph, [NARRATIVE_HISTORY_REPLAY]: historyReplay = false }) {
     if (Array.isArray(narrativeGraph?.nodes)) narrativeGraph = { ...narrativeGraph, nodes: narrativeGraph.nodes.map(withoutProjectionFields) };
     validateNarrativeGraphInput(narrativeGraph);
+    if (!historyReplay) assertPassageGrounding(narrativeGraph);
     if (narrativeGraph.revision.number !== 0) {
       throw new Error('Narrative registration requires revision 0.');
     }
@@ -2150,6 +2175,9 @@ export class LifeSimulationService {
       requestId,
       { previousGraphHash, narrativeGraph, ...(preserveSourceSnapshot ? { preserveSourceSnapshot } : {}) },
       async () => {
+        const scopes = [...new Set([...narrativeGraph.nodes, ...narrativeGraph.edges].flatMap((record) => record.access_scopes ?? []))];
+        const previous = await this.queryNarrativeGraph({ graphHash: previousGraphHash, mode: 'full', includeContent: true, accessScopes: scopes });
+        assertPassageGrounding(narrativeGraph, { previous });
         const result = await this.backend.call('revise_narrative_graph', {
           narrative_graph: narrativeGraph,
           ...(preserveSourceSnapshot ? { preserve_narrative_source_snapshot: true } : {}),
@@ -2172,7 +2200,7 @@ export class LifeSimulationService {
   // stores. The engine applies the change to the stored predecessor, refuses a caller whose scopes
   // hide any of it, and validates the successor as a complete revision. Neither the call nor the
   // receipt carries the whole graph, so long sessions and imported histories stay small.
-  async reviseNarrativeGraphByDelta({ requestId, previousGraphHash, delta, accessScopes = [], preserveSourceSnapshot = false }) {
+  async reviseNarrativeGraphByDelta({ requestId, previousGraphHash, delta, accessScopes = [], preserveSourceSnapshot = false, [NARRATIVE_HISTORY_REPLAY]: historyReplay = false }) {
     ensureHash(previousGraphHash, 'previousGraphHash');
     if (typeof preserveSourceSnapshot !== 'boolean') throw new Error('preserveSourceSnapshot must be a boolean.');
     ensureBoundedStringArray(accessScopes, 'accessScopes', MAX_VIEW_ACCESS_SCOPES);
@@ -2188,6 +2216,11 @@ export class LifeSimulationService {
       requestId,
       { previousGraphHash, delta, accessScopes: scopes, ...(preserveSourceSnapshot ? { preserveSourceSnapshot } : {}) },
       async () => {
+        if (!historyReplay) {
+          const view = await this.queryNarrativeGraph({ graphHash: previousGraphHash, mode: 'full', includeContent: true, accessScopes: scopes });
+          const previous = definitionFromCompleteView(view, 'Narrative grounding check');
+          assertPassageGrounding(applyNarrativeDefinitionDelta(previous, delta), { previous });
+        }
         const result = await this.backend.call('revise_narrative_graph_by_change', {
           narrative_change: {
             schema: 'life-sim-rust-narrative-change/v1',
@@ -2218,10 +2251,11 @@ export class LifeSimulationService {
     );
   }
 
-  async applyNarrativeBatch({ requestId, previousGraphHash, narrativeBatch }) {
+  async applyNarrativeBatch({ requestId, previousGraphHash, narrativeBatch, [NARRATIVE_HISTORY_REPLAY]: historyReplay = false }) {
     ensureHash(previousGraphHash, 'previousGraphHash');
     if (Array.isArray(narrativeBatch?.add_nodes)) narrativeBatch = { ...narrativeBatch, add_nodes: narrativeBatch.add_nodes.map(withoutProjectionFields) };
     validateNarrativeBatchInput(narrativeBatch);
+    if (!historyReplay) assertPassageGrounding({ nodes: narrativeBatch.add_nodes, edges: narrativeBatch.add_edges });
     if (narrativeBatch.previous_graph_hash !== previousGraphHash) {
       throw new Error(
         'Additive narrative batch must link previous_graph_hash to previousGraphHash.',
@@ -2255,6 +2289,12 @@ export class LifeSimulationService {
   // The revision an additive batch with this request id was written against, if it already succeeded here.
   narrativeBatchReceipt(requestId) {
     const existing = this.narrativeReceipts.get(`apply-narrative-batch:${requestId}`);
+    if (!existing) return null;
+    try { return { previousGraphHash: JSON.parse(existing.canonicalPayload).previousGraphHash }; } catch { return null; }
+  }
+
+  narrativeRevisionReceipt(requestId) {
+    const existing = this.narrativeReceipts.get(`revise-narrative-graph-by-delta:${requestId}`);
     if (!existing) return null;
     try { return { previousGraphHash: JSON.parse(existing.canonicalPayload).previousGraphHash }; } catch { return null; }
   }
@@ -3029,7 +3069,8 @@ export class LifeSimulationService {
 
 export const serviceLimits = Object.freeze({
   maxWorlds: MAX_WORLDS,
-  maxModels: MAX_MODELS,
+  maxCachedModelSummaries: MAX_CACHED_MODEL_SUMMARIES,
+  maxPendingModelWrites: MAX_PENDING_MODEL_WRITES,
   maxCandidatesPerWorld: MAX_CANDIDATES_PER_WORLD,
   maxTrajectoryFields: MAX_TRAJECTORY_FIELDS,
   maxTrajectorySamples: MAX_TRAJECTORY_SAMPLES,

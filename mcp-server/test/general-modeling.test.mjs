@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readNoEventLinkDeclaration } from '../src/narrative-grounding.mjs';
 import { LifeSimulationService } from '../src/service.mjs';
 import { buildWorldModel, compileWorldModel } from '../src/general-modeling.mjs';
 import { retainEstimatorProposal } from '../src/estimator-receipts.mjs';
@@ -75,6 +76,9 @@ test('general bootstrap stores a multi-process market model, source graph and re
   assert.equal(graph.nodes.filter((node) => node.node_type === 'source_evidence').length, 3);
   assert.ok(graph.edges.some((edge) => edge.family === 'grounding' && edge.target.anchor_kind === 'process'));
   assert.equal(graph.nodes.some((node) => node.role === 'story_passage'), false);
+  const scopeDeclaration = readNoEventLinkDeclaration(graph.nodes.find((node) => node.id === 'general.node.scope'));
+  assert.match(scopeDeclaration.reason, /modeling scope, question and time conventions/);
+  assert.ok(!graph.edges.some((edge) => edge.source.node_id === 'general.node.scope' && edge.relation === 'renders'), 'scope metadata does not invent an Event depiction');
   assert.equal(applied.summary.reflectionCount, 6, 'one authored note plus five explicit modeling considerations');
   const again = await buildWorldModel({ ...request, apply: true, expectedProposalHash: preview.proposalHash }, service);
   assert.equal(again.worldId, applied.worldId);

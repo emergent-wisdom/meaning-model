@@ -129,6 +129,8 @@ test('every modeling purpose receives the application-choice guidance without by
   for (const purpose of modelingPurposes) {
     const context = await buildModelingContext({ purpose, sessionMode: 'first_use' });
     assert.equal(context.modelingFreedom, modelingFreedom);
+    assert.match(context.modelingFreedom, /Then loop again, and let whatever the model holds lead you down different paths/u, purpose);
+    assert.match(context.modelingFreedom, /It is not a strict workflow: the steps come in any order/u, purpose);
     assert.equal(context.starterSelection, starterSelection);
     assert.match(context.scaleReview, /Start macro to micro/);
     assert.match(context.scaleReview, /Understanding Nodes/);
@@ -149,6 +151,31 @@ test('application-category example is available as a complete MCP resource', asy
   const resource = await readModelingResource('life-sim://example/application-categories');
   assert.equal(resource.text, await readFile(new URL('../../docs/examples/APPLICATION-CATEGORIES.md', import.meta.url), 'utf8'));
   assert.ok(resource.text.includes('cargo run --manifest-path rust-engine/Cargo.toml --example category_revision'));
+});
+
+test('the Book method is served whole and supplements creative-story reading without replacing its example or theory gate', async () => {
+  const uri = 'life-sim://example/book-of-conditions-modeling';
+  const file = await readFile(new URL('../../docs/examples/BOOK-OF-CONDITIONS-MODELING.md', import.meta.url), 'utf8');
+  for (const reading of ['papers', 'guides']) {
+    const resource = await readModelingResource(uri, reading);
+    assert.equal(resource.text, file);
+    assert.equal(resource.category, 'example', 'reading an example must not count as access to theory');
+    assert.equal(listModelingResources(reading).filter((entry) => entry.uri === uri).length, 1);
+    const context = await buildModelingContext({ purpose: 'creative_story', sessionMode: 'first_use', reading });
+    const resources = context.orderedResources;
+    const representation = resources.findIndex((entry) => entry.uri === 'life-sim://example/everest-meaning-model');
+    assert.ok(representation >= 0);
+    assert.equal(resources[representation].required, true);
+    assert.equal(resources[representation + 1].uri, uri);
+    assert.equal(resources[representation + 1].required, false);
+    assert.deepEqual(context.theoryAccessGate.requiredUris, reading === 'papers' ? modelingTheoryUris : []);
+    assert.equal(context.theoryAccessGate.satisfied, reading === 'guides');
+    assert.ok((await buildModelingPrompt({ purpose: 'creative_story', sessionMode: 'first_use', reading })).includes(uri));
+  }
+  for (const purpose of modelingPurposes.filter((purpose) => purpose !== 'creative_story')) {
+    const context = await buildModelingContext({ purpose, sessionMode: 'first_use' });
+    assert.ok(!context.orderedResources.some((entry) => entry.uri === uri), 'the Book profile is not imposed on other purposes');
+  }
 });
 
 test('the guides reading mode makes the guides the entry and the papers a reference, and papers stays the default', async () => {

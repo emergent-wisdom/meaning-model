@@ -6,6 +6,7 @@ import { canonicalEstimationJson, validateProcessValue } from './estimation-exch
 import { jevProcessQuestionSchema, buildJevProcessQuestion, mapJevProcessAnswer } from './jev-process-estimation.mjs';
 import { MAX_ESTIMATOR_REQUEST_CHARS } from './estimator-config.mjs';
 import { runEstimatorRequest, retainEstimatorProposal, readEstimatorProposal, readEstimatorProposalById } from './estimator-receipts.mjs';
+import { noEventLinkDeclaration } from './narrative-grounding.mjs';
 
 const id = z.string().trim().min(1).max(128);
 const prose = z.string().trim().min(1).max(8_000);
@@ -268,7 +269,9 @@ export function compileWorldModel(raw) {
   const ground = (nodeId, kind, recordId) => addEdge(endpoint(nodeId), anchor(kind, recordId), 'grounding', 'about');
   const metadata = (nodeId, nodeType, text, kind = 'estimate', holder = 'model-builder') => ({ id: nodeId, node_type: nodeType, role: 'metadata', text, epistemic_status: epistemic(kind), evidence_type: kind, holder, authority: { source: holder, weight: 1 } });
 
-  addNode({ ...metadata(scopeRoot, 'world_model_scope', JSON.stringify({ scope: input.scope, question: input.question, time: input.time, initialTime: 0, proposalHash, limitation: 'Scoped evidence and attributed estimates; no executable causal laws are inferred by this builder.' })), role: 'document_root', render: 'include', epistemic_status: 'modeling_scope' });
+  const scopeText = JSON.stringify({ scope: input.scope, question: input.question, time: input.time, initialTime: 0, proposalHash, limitation: 'Scoped evidence and attributed estimates; no executable causal laws are inferred by this builder.' });
+  addNode({ ...metadata(scopeRoot, 'world_model_scope', scopeText), role: 'document_root', render: 'include', epistemic_status: 'modeling_scope',
+    provenance: [...provenance, noEventLinkDeclaration(scopeText, 'This document root declares the modeling scope, question and time conventions; it is not prose depicting an Event.', 'model-builder')] });
   addNode({ ...metadata(understandingRoot, 'understanding_process_root', JSON.stringify({ name: 'World model understanding', clock: 'authoring_step', purpose: 'Externalized reviews, modeling questions and revisions.' })), epistemic_status: 'authored_process' });
   for (const source of input.evidence) {
     const nodeId = generated('evidence', source.id);

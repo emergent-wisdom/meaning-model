@@ -1,13 +1,29 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { StorytellingAddon } from '../src/storytelling-addon.mjs';
-import { lifeTrendsSchema, verifyLifeTrajectoryRecords } from '../src/storytelling-life-trends.mjs';
+import { lifeTrendsInstructions, lifeTrendsSchema, verifyLifeTrajectoryRecords } from '../src/storytelling-life-trends.mjs';
 import { prepareTrajectoryExplore } from '../src/storytelling-trajectories.mjs';
 import { refreshDepthFixture, lifeConnections, lifeTrendsDossier, lifeTrendsEdges, lifeTrendsNode } from './storytelling-life-fixture.mjs';
 import { withLives } from './storytelling-life-fixture.mjs';
 
 const graphHash = 'a'.repeat(64);
 const snapshotHash = 'b'.repeat(64);
+
+test('life guidance supports causal accounts without scores and reserves sampling for delegated quantitative questions', () => {
+  const dossier = lifeTrendsDossier();
+  assert.ok(dossier.characters.every((character) => character.trajectoryProposal === undefined));
+  assert.deepEqual(lifeTrendsSchema.parse(dossier), dossier);
+  assert.doesNotThrow(() => verifyLifeTrajectoryRecords({ nodes: [] }, dossier));
+  assert.match(lifeTrendsInstructions, /explore .*processes.*causes recursively/u);
+  assert.match(lifeTrendsInstructions, /current account has no defect/u);
+  assert.match(lifeTrendsInstructions, /causes need not be settled before exploration/u);
+  assert.match(lifeTrendsInstructions, /Exploratory drafts and candidates can help discover/u);
+  assert.match(lifeTrendsInstructions, /trajectory_explore only when .*meaningful quantitative question.*units.*delegated/u);
+  assert.match(lifeTrendsInstructions, /Sampling is optional/u);
+  assert.match(lifeTrendsInstructions, /no numerical score is required for a flaw/u);
+  assert.match(lifeTrendsInstructions, /never reroll an accepted outcome or an observed history/u);
+  assert.doesNotMatch(lifeTrendsInstructions, /automatically use life_story_trajectory_explore|Ground this in numerical distinctions|first model .*causes/u);
+});
 
 test('life dossiers bind numerical meanings and lifetime coverage to the stored graph proposal', () => {
   const dossier = lifeTrendsDossier();

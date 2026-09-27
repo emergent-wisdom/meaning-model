@@ -2,7 +2,7 @@
 
 ## Browser viewer
 
-With version 0.4.0, ask the connected assistant to **“Open this model.”**
+With version 0.5.0, ask the connected assistant to **“Open this model.”**
 The core `life_model_viewer_open` tool accepts exactly one `modelHash` or
 `graphHash`, optional `title`, and `accessScopes`. It returns a local browser URL
 for an immutable, read-only snapshot. The viewer is bundled with the MCP package;
@@ -15,15 +15,45 @@ model projection. Reopen after a revision to inspect the new state. The browser
 must be on the MCP server's computer, and links expire when that process stops or
 when they fall outside its sixteen most recent snapshots.
 
-Calendar-based stories with numeric paths use the existing visual viewer. Other
-models use a record inspector that preserves their units and does not invent a
-story, calendar or numeric trajectory.
+To switch between models in the same viewer, ask **“Open these models together.”**
+Pass the first selection as usual and the others in `additionalModels` (up to 15),
+each with its own model or graph hash, title, and scopes. The **Model** selector
+lists only this explicitly opened group. First visits keep the view and display
+controls and fit the new model’s own time range. Returning to an exact snapshot
+in the same tab restores its view, time, camera and record selection. Switching
+models loads that snapshot; switching representations stays on the same page.
 
-The reading-position track follows document order, with segment widths based on
-prose words. Click a part or use Previous/Next to highlight its document node and
-linked Events without moving world time. Open **Read this part** separately, or
-**Read full story** from the beginning. The reader always contains the complete
-selected manuscript. Linked date ranges remain separate and may have gaps.
+The original **Processes / Tree / Terrain** viewer is the main view for models
+with recorded time positions. It uses dated Events when numeric paths are absent;
+process curves appear only where the model supplies them. A model without declared
+time positions remains inspectable in Graph mode without inventing a clock.
+
+The alternative **Graph mode** displays the native records and links. Filter record
+types, find a record by name or ID, and select it to inspect its declared incoming
+and outgoing links, local answer weights, and full native record. **Neighbors only**
+focuses its connections; **Recenter** restores an overview. Positions are a graph
+layout, not time or measured values.
+
+When the graph contains prose, **Read full document** opens the complete manuscript.
+**Read this passage** opens that same document at a selected passage. **Back to
+graph** returns to exploration, and **Show this passage in the graph** locates its
+record. Selecting a graph record does not open the reader automatically.
+
+The optional **Structure** view expands declared Event containment, process
+decomposition and conditional Cut answers. Shared nodes remain references and
+answer weights remain local to each question. Use **Show it as** to switch among
+Processes, Tree, Terrain, Graph and Structure on the same page. The selected record
+and time position remain available across these representations. **Coarse view**
+returns to the broadest process overview; expose subprocesses with more detail.
+**Recenter** (or Home outside text fields) fits the current representation.
+**Documents & notes** is with the other top controls. **Hide controls** clears
+the toolbar for exploration; **Show controls** restores it.
+
+In the original viewer, the reading-position track follows document order, with
+segment widths based on prose words. Click a part or use Previous/Next to highlight
+its document node and linked Events without moving world time. **Read this part**
+and **Read full story** open the complete selected manuscript. Linked date ranges
+remain separate and may have gaps.
 
 Optional **Document spans** show authored passage-boundary attachments using their
 own UTF-8 byte coordinate. `life_document_project` resolves those positions from an
@@ -456,8 +486,10 @@ a subtree, reorder all children of a parent, or replace text with an exact
 `expectedText` guard. It reads the complete graph and submits one atomic
 successor through the existing Rust revision operation, preserving untouched
 records and the source binding. An incomplete scoped view is refused. Splits
-preserve the exact joined text and original links; merges retain source nodes
-as history. Choose useful independently changeable units, without a required
+preserve the exact joined text and keep the original node as a current parent
+container. Children can later be split again. Links stay on the parent by default;
+explicit link assignments can copy them to selected children or move them with
+`keepOriginal: false`. Merges retain source nodes as history. Choose useful independently changeable units, without a required
 subdivision count or word quota.
 
 Edits do not automatically reinterpret semantic links or update earlier
@@ -787,16 +819,37 @@ and outcomes in the graph first. The model hash comes from the graph's frozen
 source snapshot. Review actual evidence, choosing relevant subjects rather
 than filling a fixed taxonomy or meeting a depth quota.
 
+`modelEvidenceRefs` can also select exact records alongside a life dossier.
+The packet includes records reached by the selected graph nodes' model anchors,
+preserving questions, units and provenance rather than showing isolated weights.
+Large-model summaries retain this focused evidence; omissions and unavailable
+frozen-runtime anchors are explicit. Follow relevant dependencies before judging
+adequacy. Readiness is the caller's assessment, not independent semantic proof.
+The worked method is available at `life-sim://example/book-of-conditions-modeling`.
+Numerical sampling is optional for meaningful quantitative questions; new lives
+need no sampled scores. Fear/love is an optional lens selected explicitly or
+retained from existing authored readings, not a new story's automatic backlog.
+
+For existing work with lives and causes already represented in native model
+records, set `lifeTrendsNodeId: null` and provide `modelEvidenceRefs`, such as
+`event:<id>`, `process:<id>`, or `referent:<id>`. This mode reads the selected
+records from the bound model without requiring a duplicate life-trends dossier.
+Inspect further evidence when needed and report inadequate coverage honestly.
+A sufficient assessment supports the reviewed existing-work revision; it cannot
+authorize new-scene commitment, which still needs a life dossier and matching
+depth review.
+
 Save the assessment with `life_story_model_depth_record`: supply
 `preparation`, `expectedTaskHash`, `requestId`, `nodeId`, `reviewer`, a
 `coverage` explanation, and `findings`. Each finding supplies `subject`,
 `status` (`sufficient`, `needs_opening`, or `unclear`), `explanation`,
 `evidence`, and `smallestRepair` (nullable for sufficient findings). Evidence
-uses `{kind: "node", nodeId}` or `{kind: "model", path}` with a JSON Pointer
-into the bound model; the assessment must cite actual model evidence, not
-only narrative summaries. Follow the task's explicit read-more route if a
-large definition is not included inline. Inspect relevant lives and flaws, concepts, physical or
-institutional constraints, causes, and author disclosure processes. If an
+uses `{kind: "node", nodeId}`, `{kind: "model", ref: "event:<id>"}`, or
+`{kind: "model", path}` with a JSON Pointer into the bound model; the assessment
+must cite actual model evidence, not only narrative summaries. Follow the task's
+explicit read-more route if a large definition is not included inline. Inspect
+relevant lives and flaws, concepts, physical or institutional constraints, causes,
+and author disclosure processes. If an
 explanation is inadequate, make the smallest useful refinement and reassess.
 The tool validates bindings and references, not the LLM's semantic judgment.
 
@@ -851,6 +904,11 @@ the after-analysis within the combined task's returned `accessScopes`, even
 when a nested task permits broader scopes. Evidence limits and justified keep decisions are valid;
 there is no reroll, rewrite or length quota.
 
+Deepening also accepts `lifeTrendsNodeId: null` with `modelEvidenceRefs` for the
+existing-work review mode described above. In the same-named prompt, use the
+string `"null"` and a JSON-encoded array of references. The tool uses JSON null
+and an ordinary array. Neither mode bypasses the new-scene dossier requirement.
+
 Scene commit appends new material. Use shared `life_narrative_edit` operations
 for targeted text replacement or structural changes to existing passages,
 then inspect retained semantic links and refresh reviews whose text, order,
@@ -890,11 +948,12 @@ Read the [storytelling add-on guide](../profiles/STORYTELLING_ADDON.md) for
 the workflow and client configuration. To enable it from a source checkout:
 
 ```sh
-MEANING_MODEL_ADDONS=storytelling npm start
+LIFE_SIM_STATE_FILE=/absolute/private/path/meaning-model.sqlite MEANING_MODEL_ADDONS=storytelling npm start
 ```
 
 Restart the MCP server after changing its environment. The add-on is bundled
-with the server and uses the existing Rust narrative store.
+with the server and uses the existing Rust narrative store. Reuse your existing
+database path; see [keep and continue your work](#keep-and-continue-your-work).
 
 ## Opt-in alien add-on
 
@@ -1014,14 +1073,16 @@ existing compatible engine through `LIFE_SIM_ENGINE_BIN`.
 
 ## Build and run from source
 
-Build the Rust machine before starting MCP:
+Build the Rust machine before starting MCP. Create a private data directory
+outside the installation and replace the example database path with its absolute
+path:
 
 ```sh
 cd mcp-server
 npm ci
 npm run build:engine
 npm test
-npm start
+LIFE_SIM_STATE_FILE=/absolute/private/path/meaning-model.sqlite npm start
 ```
 
 By default the adapter checks the deterministic repository-relative release
@@ -1029,20 +1090,32 @@ path and then the debug path. Set `LIFE_SIM_ENGINE_BIN` to an explicit executabl
 when the binary lives elsewhere:
 
 ```sh
-LIFE_SIM_ENGINE_BIN=/absolute/path/to/life-sim-engine npm start
+LIFE_SIM_ENGINE_BIN=/absolute/path/to/life-sim-engine LIFE_SIM_STATE_FILE=/absolute/private/path/meaning-model.sqlite npm start
 ```
 
 An unavailable, malformed, oversized, timed-out, or unexpectedly terminated
 Rust process fails explicitly. The adapter bounds each command to 16 MiB, each
 response line to 64 MiB, aggregate pending command bytes to 32 MiB, pending
-calls to 32, and a call to 30 seconds. It also caps model/world/candidate
-handles, receipts and retained receipt bytes, trajectory fields/samples,
+calls to 32, and a call to 30 seconds. Node caches only 32 recent model summaries
+and permits up to 32 concurrent model writes; cache eviction leaves immutable
+revisions in Rust available for inspection and continuation. The Rust engine
+currently allows 512 model revisions and 256 MiB of model definitions per
+session, including loaded history. Read the live native storage limits from
+`life_engine_status.engine.nativeLimits`.
+
+The adapter also caps world/candidate handles, receipts and retained receipt
+bytes, trajectory fields/samples,
 annotations, evaluations, and writer inputs within the current Node lifetime;
 capacity is reserved before concurrent mutations. Rust separately rejects
 queries whose step count, law/process work, retained-state or activity-byte
 estimate, or cumulative restart-replay work exceeds its machine-described
 limits. The exact live limits are returned by `life_engine_status`; hosted
 tenant isolation still needs authenticated principals and a scheduler.
+
+Model registration and revision receipts retain the payload's SHA-256 and byte
+count instead of its complete text. Same request IDs with the same payload return
+the recorded result; changed payloads are refused. These receipts are still
+process-local and do not provide a retry record after restart.
 
 Example client configuration:
 
@@ -1053,12 +1126,60 @@ Example client configuration:
       "command": "node",
       "args": ["/absolute/path/to/meaning-model/mcp-server/bin/meaning-model-mcp.mjs"],
       "env": {
-        "LIFE_SIM_ENGINE_BIN": "/absolute/path/to/life-sim-engine"
+        "LIFE_SIM_ENGINE_BIN": "/absolute/path/to/life-sim-engine",
+        "LIFE_SIM_STATE_FILE": "/absolute/private/path/meaning-model.sqlite"
       }
     }
   }
 }
 ```
+
+## Keep and continue your work
+
+Set `LIFE_SIM_STATE_FILE` in every client configuration to the same private
+absolute database path, outside `node_modules`. Its parent directory must exist;
+the engine creates the database on its first successful write. Keep that path
+when upgrading and run only one server process per database. Check
+`life_engine_status` to confirm durable storage before creating work you want to
+keep. Starting without the variable is an in-memory session that ends with the
+process.
+
+Ask the assistant to call `life_saved_work_list` with the work's original
+`accessScopes`, page through visible graph-backed branch heads, and select the
+intended exact revision. Use `life_construction_replay` and `life_model_outline`
+before continuing. The catalog does not enumerate models without a graph or work
+hidden by those scopes; reuse the same scopes on subsequent reads and edits.
+Develop and review through MCP, including `life_story_deepen` when the storytelling
+add-on is enabled. Save text, model refinements, and reasoning in the graph, then
+open the resulting revision with `life_model_viewer_open`. Opening a local viewer
+does not publish the model, and its link lasts only for that MCP process.
+
+For a portable backup of a substantial book, call `life_construction_export`
+with its exact `graphHash`, scopes covering the complete retained graph history,
+and `destinationPath`, for example
+`/absolute/private/path/backups/story-2026-09-27.json`. The destination must be an
+absolute path without `..`, its parent must exist, and the file must be new.
+Export writes private JSON, up to 256 MiB, and returns its path, byte count,
+checksums and revision counts instead of echoing the bundle through MCP.
+
+Restore it with `life_construction_import`, supplying `requestId` and
+`sourcePath` on the destination machine. Import requires a regular JSON file
+(not a symbolic link), checks its bundle checksum before any mutation, and
+leaves it unchanged. Revisions are registered sequentially, not as one atomic
+transaction; a later engine refusal can leave earlier successful registrations.
+Replay the returned exact revision before continuing.
+
+The bundle retains the selected model-bound graph and its model/graph history.
+It does not back up worlds, candidates, process-local MCP records, or other models
+mentioned only through external references. Keep exports private and outside the
+installation; they are exports of the authoring record, not a parallel manuscript
+to edit separately. Construction history includes historical drafts and reviews
+and is a private backup/transfer, not a publication-ready artifact. Publish the
+manuscript rendered by `life_narrative_render` and only deliberately reviewed
+model or companion material. Advanced callers may omit `destinationPath` for
+inline export (maximum 1 MiB) and pass that result to import as `history`; supply
+exactly one of `history` or `sourcePath`. See [persistence limits](#honest-boundary)
+below.
 
 ## Prepare an npm tarball
 
@@ -1086,18 +1207,20 @@ decision; no registry availability is implied by the package name.
 ## Honest boundary
 
 This is an experimental local process. Without the Rust machine's optional
-single-writer state file, Rust-held models, worlds, candidates, and narrative
-graphs disappear on restart. Even with that file, the present MCP-owned world index, request
-receipts, annotations, writer plans, and estimation exchange are process-local
-and are not recovered after restart. Durable multi-user use still needs an append-only store,
-authentication and authorization, principal-scoped handles, and resource
-endpoints for large paths.
+single-writer SQLite state file, Rust-held models and revisions, worlds,
+candidates, narrative/Understanding Graphs and their recorded history disappear
+on restart. Even with that file, the present MCP-owned world handles/index,
+request receipts, annotations, writer plans, and estimation exchange are
+process-local and are not recovered after restart. Store authoring decisions and
+results in the graph to retain them; pending proposals are not restored. Durable
+multi-user use still needs authentication and authorization, principal-scoped
+handles, and resource endpoints for large paths.
 
-The Rust state file contains complete model and world data. On Unix its
-replacement temp files use mode `0600`; operators must still place it in a
-trusted directory, protect backups, and treat `persistence_uncertain` as an
-indeterminate acknowledgement requiring lineage inspection rather than a safe
-blind retry.
+The Rust database contains complete model and world data and commits changes in
+SQLite transactions using WAL journaling. On Unix the database and present WAL/SHM
+sidecars use mode `0600`; operators must still place them in a trusted directory,
+protect backups, and treat `persistence_uncertain` as an indeterminate
+acknowledgement requiring lineage inspection rather than a safe blind retry.
 
 The typed IR represents scalar, vector, categorical, distributional, graph,
 object-pose, and regime values; distinct decomposition and dependency edges;

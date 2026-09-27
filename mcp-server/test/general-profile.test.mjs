@@ -43,6 +43,60 @@ test('a question judged sufficient here is not asked again while the note stands
   const after = await readOpenQuestions(service(view), { modelHash: 'a'.repeat(64), graphHash: 'b'.repeat(64), limit: 60 });
   assert.equal(after.questions.some((item) => item.kind === 'shift-uncaused'), false);
   assert.equal(after.sufficientHere, 1); assert.match(after.sufficientHow, /meaning-model-sufficient\/v1/u);
+  assert.deepEqual(after.sufficiencyNotes, [{ nodeId: 'note.enough', kind: 'shift-uncaused', aboutNodeIds: [],
+    reason: "The strain follows the plant's new rota, modeled elsewhere.", reopenIf: 'the rota changes',
+    writtenAgainstModel: null, everywhere: false, records: ['feel.b'] }]);
+  assert.match(after.sufficientHow, /not an automatically evaluated rule/u);
+});
+
+test('a new understanding supersedes a sufficiency note and reopens its questions', async () => {
+  const note = { id: 'note.enough', node_type: 'understanding.note', text: JSON.stringify({ data: {
+    schema: SUFFICIENT_SCHEMA, kind: 'shift-uncaused', reason: 'The rota explains the change.', reopenIf: 'another process affects the response',
+  } }) };
+  const opening = { id: 'question.new', node_type: 'understanding.question', text: 'The changed reporting relationship may alter what the same shift means. Explore that process next.' };
+  const edges = [{ source: { kind: 'node', node_id: note.id }, target: { kind: 'node', node_id: 'doc' }, relation: 'about' },
+    { source: { kind: 'node', node_id: opening.id }, target: { kind: 'node', node_id: note.id }, relation: 'supersedes' }];
+  const ask = async (nodes) => readOpenQuestions(service(graph(nodes, edges)), { modelHash: 'a'.repeat(64), graphHash: 'b'.repeat(64), limit: 60 });
+  const reopened = await ask([note, opening]);
+  assert.ok(reopened.questions.some((item) => item.kind === 'shift-uncaused'));
+  assert.equal(reopened.sufficiencyNotes, undefined);
+  const inaccessible = await ask([note]);
+  assert.ok(!inaccessible.questions.some((item) => item.kind === 'shift-uncaused'), 'an absent or inaccessible source cannot silently supersede the visible judgment');
+  assert.equal(inaccessible.sufficiencyNotes[0].nodeId, note.id);
+});
+
+test('an unrelated model revision preserves local sufficiency and exposes its original basis for reassessment', async () => {
+  const beforeHash = 'a'.repeat(64);
+  const afterHash = 'c'.repeat(64);
+  const note = { id: 'note.local', node_type: 'understanding.note', provenance: [`written-against-model:${beforeHash}`],
+    text: JSON.stringify({ data: { schema: SUFFICIENT_SCHEMA, kind: 'shift-uncaused', reason: 'The rota explains this shift.', reopenIf: 'the rota changes' } }) };
+  const view = graph([note], [{ source: { kind: 'node', node_id: note.id }, target: { kind: 'anchor', anchor_kind: 'normalized_cut', anchor_id: 'feel.b' }, relation: 'about' }]);
+  view.graph.source.model_hash = afterHash;
+  const expanded = structuredClone(model);
+  expanded.meaning_model.events.push({ id: 'unrelated', boundary: 'A distant survey with no change to the plant.' });
+  const after = await readOpenQuestions({ inspectModel: async () => ({ model: expanded }), queryNarrativeGraph: async () => view },
+    { modelHash: afterHash, graphHash: 'b'.repeat(64), limit: 60 });
+  assert.ok(!after.questions.some((item) => item.kind === 'shift-uncaused'));
+  assert.equal(after.sufficiencyNotes[0].writtenAgainstModel, beforeHash);
+  assert.equal(after.sufficiencyNotes[0].reopenIf, 'the rota changes');
+  assert.match(after.alwaysAsk.join(' '), /discovery lead recursively to new questions/u);
+});
+
+test('many or oversized sufficiency notes have bounded inline metadata and an explicit scoped read route', async () => {
+  const nodes = Array.from({ length: 80 }, (_, i) => ({ id: `note.${i}`, node_type: 'understanding.note', text: JSON.stringify({ data: {
+    schema: SUFFICIENT_SCHEMA, kind: 'shift-uncaused', reason: `Reason ${i}: ${'x'.repeat(i === 0 ? 40_000 : 4_000)}`, reopenIf: 'new relevant evidence',
+  } }) }));
+  const view = graph(nodes, nodes.map((node) => ({ source: { kind: 'node', node_id: node.id }, target: { kind: 'node', node_id: 'doc' }, relation: 'about' })));
+  for (const limit of [1, 60]) {
+    const result = await readOpenQuestions(service(view), { modelHash: 'a'.repeat(64), graphHash: 'b'.repeat(64), limit, accessScopes: ['author'] });
+    assert.ok(result.sufficiencyNotes.length <= Math.min(limit, 16));
+    assert.ok(Buffer.byteLength(JSON.stringify(result.sufficiencyNotes)) < 33 * 1024);
+    assert.equal(result.sufficiencyNotesOmitted, nodes.length - result.sufficiencyNotes.length);
+    assert.equal(result.sufficiencyNotes[0].nodeId, 'note.1', 'an oversized note is omitted, not excerpted');
+    assert.equal(result.sufficiencyNotes[0].reason, JSON.parse(nodes[1].text).data.reason);
+    assert.deepEqual(result.sufficiencyNotesRead.arguments, { graphHash: 'b'.repeat(64), expectedGraphHash: 'b'.repeat(64), mode: 'skeleton', includeContent: false, accessScopes: ['author'] });
+    assert.match(result.sufficiencyNotesRead.next, /centerNodeId.*depth 0.*includeContent true/u);
+  }
 });
 
 test('openings stop at the default depth, which is reported as a limit and can be raised', async () => {

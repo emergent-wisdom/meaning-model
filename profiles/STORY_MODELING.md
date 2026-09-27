@@ -24,6 +24,23 @@ treated as authoritative. The model should preserve character continuity,
 causal pressure, hidden history, viewpoint, and the distinction between world
 chronology and narrated order.
 
+Explore the model recursively. Open a process, relationship, concept, voice,
+world or authoring choice; notice the sub-processes, connections, categories
+and questions it reveals; follow the promising ones, revise the account, and
+revisit connected regions. Curiosity, play, surprise and formal experiments
+are reasons to explore even when the current account has no known defect.
+Invent and compare new distinctions instead of treating the existing questions
+or categories as a complete inventory.
+
+Discovery, model refinement and prose can inform one another. Save provisional
+scenes and alternatives as drafts while their implications are still being
+explored; an evocative line or an unexpected action can open a new modeling
+question. Before accepting a scene, reconcile its commitments with the model
+and complete the applicable typed reviews. A locally sufficient account may
+be reopened by a fresh question. This is not a requirement for exhaustive
+detail or endless expansion: pause within the agreed scope, retaining useful
+open questions and alternatives for later work.
+
 ## Initial settings and involvement
 
 For a new story project, establish two independent choices with the human
@@ -57,6 +74,10 @@ review findings do not grant permission for a reserved creative decision.
 
 ## Modeling sequence
 
+Revisit these steps as discoveries change the work; they are not a one-way
+sequence from a finished explanation to prose. Exploration within the existing
+delegation does not need a new human approval at each opening.
+
 Apply the shared conceptual review during construction and later depth reviews,
 without waiting for the human author to request it. Consider numerical scales
 for relevant judgments, open broad concepts such as attachment or flexibility
@@ -85,12 +106,14 @@ questions are valid; additional scores or detail are not an end in themselves.
    insufficient: show the longer direction of attachments, work, beliefs,
    capacities, pressures, or other dimensions that matter to this person.
    Leave the later life open when no future has been authored.
-3. With the add-on, use `life_story_trajectory_explore` to sample numerical
-   candidate points for whole lives and consequential events. Define each
-   dimension's meaning, comparison, unit, and bounds; include emotional
-   dimensions where relevant. Declare fixed values and any allocation totals.
+3. Explore and refine the relevant processes, circumstances and connections.
+   Candidates may suggest explanations and new questions that are not yet known.
+   When a meaningful quantitative question and delegated uncertainty would
+   benefit from numerical candidates, use `life_story_trajectory_explore`.
+   Define each dimension's comparison, unit and bounds; declare fixed values
+   and any allocation totals. Life modeling does not require sampled scores.
    Separate the amount of randomness from the number of candidates explored.
-4. Evaluate candidate coherence and storytelling potential. Prefer local
+4. When exploring candidates, evaluate coherence and storytelling potential. Prefer local
    repairs through `life_story_trajectory_revise` when a character or event is
    promising: revise the weak point or explanation without discarding sound
    material. Record concise assessments and revision reasons as Understanding
@@ -98,13 +121,14 @@ questions are valid; additional scores or detail are not an end in themselves.
 5. Decompose the accepted history into acts, chapters, and scenes. Refine from
    the frozen accepted parent; do not silently contradict the life-scale path.
 6. Advance relevant off-screen actors as well as the focal character.
-7. Before prose, automatically review whether the model explains the intended
-   consequential choices and outcomes. With the add-on, use
+7. Before preparing a scene for acceptance, automatically review whether the
+   model supports the consequential commitments it makes. With the add-on, use
    `life_story_model_depth_review` and save the findings through
    `life_story_model_depth_record`. Ground the judgment in the actual bound
-   model and stored story focus, life trends, and context. Open only the
-   detail needed to repair an explanation; record the result as an
-   Understanding Node and reassess unresolved gaps before committing scenes.
+   model and stored story focus, life trends, and context. For a necessary
+   repair, open the detail needed to address it; curiosity may also lead to
+   further openings. Record the result as an Understanding Node and reassess
+   relevant unresolved gaps before committing scenes.
 8. Build a writer packet containing hard facts, important
    trajectories, causal explanations, viewpoint-indexed beliefs, hidden
    backstory, and soft or renegotiable fields.
@@ -221,7 +245,8 @@ account of what sustains it; a reversal needs circumstances that make it
 credible. Multiple dimensions can move differently, and a character need not
 have a single lesson, fixed personality, or continuous growth.
 
-The calling LLM performs this step automatically before drafting scenes. Do
+The calling LLM develops this account iteratively and supplies it before
+preparing scenes for acceptance. Provisional drafting may help discover it. Do
 not wait for the user to request deeper characters or ask them to fill in a
 life-history form. Reuse a sufficient existing life model; otherwise construct
 one. Author needed life details within the agreed delegation, label them as
@@ -314,14 +339,17 @@ while world history and character knowledge remain coherent.
 
 ## Review checkpoints
 
-Before prose and after consequential model, trajectory, causal, or disclosure
-revisions, review whether the model is deep enough to explain the story. Choose
-subjects from the actual dependency: life trends and flaws, concepts,
+Before preparing scenes for acceptance and after consequential model,
+trajectory, causal, or disclosure revisions, review whether the model supports
+the story's commitments. Choose subjects from the actual dependency: life
+trends and flaws, concepts,
 physical constraints, institutional rules or incentives, causal events, and
 author disclosure processes may matter. No story needs a fixed taxonomy or a
 quota of decompositions. An abstraction is never final: record what it
-explains now, open it where the causality runs through it, and take the
-model's open questions (`life_model_questions`) for what to open next.
+explains now, open it where the causality runs through it, and use the
+model's open questions (`life_model_questions`) alongside questions discovered
+through exploration. Follow new branches and revisit earlier boundaries where
+fruitful; a review's local sufficiency judgment does not close the model.
 
 With the add-on, `life_story_model_depth_review` reads the bound model and
 selected graph records. `life_story_model_depth_record` saves the coverage
@@ -334,6 +362,32 @@ source, or relevant story evidence require reassessment; review the affected
 prose after a repair. Unresolved findings produce a packet with a commitment
 blocker; missing or stale assessments fail preparation. Assessments, drafts,
 and gaps can always be saved while their resolution is developed.
+
+Distinguish an unsupported commitment from an intentionally unresolved matter.
+The model may retain competing interpretations, unreliable testimony, unknown
+motives or an open future without selecting a hidden answer merely to pass a
+review. Explain why that uncertainty supports the intended scene. If a claim
+the scene relies on lacks support, retain the gap honestly and refine the
+model or draft before commitment. Sufficiency concerns the reviewed focus,
+not whether every mystery has been solved.
+
+Use `modelEvidenceRefs` alongside the dossier to select the actual model
+records behind the focus. The packet also follows model anchors from the
+selected graph nodes. Large models retain these exact records, with explicit
+omissions and read routes when they exceed the inline budget. Follow relevant
+dependencies before judging sufficiency; this selection does not establish
+complete explanatory coverage. Frozen runtime evidence is identified separately
+and is never replaced by initial model values.
+
+Where the story commits to an explanation of a consequential choice, examine
+how the circumstances and history bear on what a person knows, wants or can do,
+the action, and its consequences. A plausible alternative and the difference
+that would change it can help investigate the account. Mark unsupported claimed
+connections as gaps without requiring a settled explanation before exploring
+possibilities. This is a cited explanation supplied by the reviewer, not a
+simulated counterfactual or automatic proof. The
+[Book modeling example](../docs/examples/BOOK-OF-CONDITIONS-MODELING.md) demonstrates
+this method without making its categories compulsory.
 
 When an explicit model revision changes the graph's bound model, use
 `life_narrative_revise` to rebind it. Retain earlier depth-review nodes as

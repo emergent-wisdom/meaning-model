@@ -5,6 +5,7 @@ import { StorytellingAddon } from '../src/storytelling-addon.mjs';
 import { editNarrativeGraph } from '../src/narrative-editing.mjs';
 import { lifeConnections, lifeTrendsDossier } from './storytelling-life-fixture.mjs';
 import { recordWorldProcess } from './world-process-fixture.mjs';
+import { readNoEventLinkDeclaration } from '../src/narrative-grounding.mjs';
 
 const passages = [
   { id: 'scene.arrival', text: 'Leo stopped by the door.\nThe rain followed him inside.', renders: ['ev.arrival'] },
@@ -157,6 +158,7 @@ test('passage identities, boundaries and Event mappings are bound to the whole-s
   delete uncheckedMapping.passages[0].renders;
   const emptyMapping = structuredClone(f.input);
   emptyMapping.passages[0].renders = [];
+  emptyMapping.passages[0].noLinkReason = 'This passage is intentionally left outside the selected modeled Events for review.';
   for (const input of [changedId, changedBoundary, omitted, changedMapping, uncheckedMapping, emptyMapping]) {
     assert.notEqual((await f.addon.review(input)).reviewHash, report.reviewHash);
     await assert.rejects(f.addon.commit({ ...input, requestId: 'stale-segmentation', expectedReviewHash: report.reviewHash }),
@@ -165,18 +167,22 @@ test('passage identities, boundaries and Event mappings are bound to the whole-s
   assert.deepEqual(f.writes, []);
 });
 
-test('omitted passage mappings remain unchecked and explicit empty mappings create no links', async (t) => {
+test('omitted passage mappings inherit route and scene Events; intentional empty mappings require a reason', async (t) => {
   const f = await fixture(t);
   f.input.passages[0].renders = [];
   delete f.input.passages[1].renders;
+  await assert.rejects(f.addon.review(f.input), /explicit noLinkReason/);
+  f.input.passages[0].noLinkReason = 'This passage supplies an unmodeled transitional image rather than depicting an Event.';
   const { report, result } = await commit(f);
-  assert.equal(report.readyToCommit, true, 'missing grounding is reported without claiming semantic verification');
-  assert.deepEqual(report.grounding.uncheckedPassageIds, ['scene.arrival', 'scene.reply'], 'intentional empty mappings still have no dependency coverage');
+  assert.equal(report.readyToCommit, true);
+  assert.deepEqual(report.grounding.uncheckedPassageIds, []);
+  assert.deepEqual(report.grounding.intentionallyUnlinked, [{ nodeId: 'scene.arrival', reason: f.input.passages[0].noLinkReason }]);
   assert.deepEqual(report.passages[0].renders, []);
   assert.equal('renders' in report.passages[1], false, 'the hashed review preserves intentional empty versus omitted selections');
-  assert.deepEqual(report.grounding.passages, [{ id: 'scene.arrival', eventIds: [] }, { id: 'scene.reply', eventIds: [] }]);
   const graph = await f.read(result.graphHash);
-  assert.ok(!graph.edges.some((edge) => edge.relation === 'renders'), 'the scene union must not leak onto any leaf');
+  assert.deepEqual(graph.edges.filter((edge) => edge.relation === 'renders').map((edge) => [edge.source.node_id, edge.target.anchor_id]).sort(),
+    [['scene.reply', 'ev.arrival'], ['scene.reply', 'ev.reply']]);
+  assert.equal(readNoEventLinkDeclaration(graph.nodes.find((node) => node.id === 'scene.arrival')).reason, f.input.passages[0].noLinkReason);
   assert.equal((await f.render(result.graphHash)).text, draftText);
 });
 
