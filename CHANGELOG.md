@@ -6,6 +6,8 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+## 0.5.2 — 2026-09-28
+
 - Shining starts off; an explicit choice to enable it survives shared links.
   Public viewers can retain readable model addresses when switching models.
 - The time views can lay Events side by side or nested by declared containment,
@@ -19,6 +21,8 @@ unpublished work stays under Unreleased. This is not a development transcript.
   on the right end above the time bar.
 
 ## 0.5.1 — 2026-09-27
+
+GitHub release; not published to npm. Its changes are included in 0.5.2.
 
 - MCP graph viewers can follow saved revisions with `mode: "live"`, including
   bound model changes and prose. Guarded refreshes retain reading and camera
