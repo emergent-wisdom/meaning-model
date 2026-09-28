@@ -4,6 +4,18 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## Unreleased
+
+- The time views can lay Events side by side or nested by declared containment,
+  and place documents and notes as originally, nearby, overhead or centered
+  above, optionally with every attachment shown without hovering.
+- The viewer's controls give the scene the window. The model's name, which is
+  also its picker, and its counts share one row with the controls; time has one
+  row at the bottom, with the caption and reading position just above it.
+  Rarer switches sit in the Layers, Camera and ? menus, the description, links
+  and keys in the last. Graph and Space controls join the same row, and panels
+  on the right end above the time bar.
+
 ## 0.5.1 — 2026-09-27
 
 - MCP graph viewers can follow saved revisions with `mode: "live"`, including

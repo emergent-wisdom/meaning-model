@@ -79,7 +79,11 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   addEventListener('keydown', (event) => { if (active && event.key === 'Escape') { reader.hidden = true; letGo(); } }, { signal: abort.signal });
 
   // An open inspector ends above the window's edge and scrolls, so everything in it can be reached.
-  const fitDetail = () => { if (!detail.hidden) detail.style.maxHeight = `${Math.max(120, innerHeight - detail.getBoundingClientRect().top - 12)}px`; };
+  const fitDetail = () => {
+    if (detail.hidden) return;
+    const bar = document.querySelector('.hud.bar')?.getBoundingClientRect(), floor = bar?.height ? bar.top - 8 : innerHeight - 12;
+    detail.style.maxHeight = `${Math.max(120, floor - detail.getBoundingClientRect().top)}px`;
+  };
   function showRecord(node, back = null) {
     if (!node) return;
     const record = node.record ?? {}, text = node.displayText ?? spatialRecordText(record);
@@ -431,7 +435,8 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     const titleRect = document.querySelector('.title').getBoundingClientRect(), toolsRect = document.getElementById('tools').getBoundingClientRect();
     // Without the panel below, the map reaches down to the play bar.
     const floor = showSummary ? summary.getBoundingClientRect().top : document.getElementById('track')?.closest?.('.bar')?.getBoundingClientRect().top ?? innerHeight;
-    const narrow = innerWidth <= 760, top = Math.max(titleRect.bottom, narrow ? toolsRect.bottom : 0) + 12, bottom = floor - 10;
+    // The map fills the window below the row of controls.
+    const narrow = innerWidth <= 760, top = Math.max(titleRect.bottom, toolsRect.bottom) + 10, bottom = floor - 10;
     // The map stays wide when only controls are visible; an open inspector reserves a genuine reading column.
     const left = 12, right = !narrow && !detail.hidden ? detail.getBoundingClientRect().left - 16 : innerWidth - 12;
     const width = Math.max(120, right - left), height = Math.max(100, bottom - top);

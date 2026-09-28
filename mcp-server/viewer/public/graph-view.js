@@ -280,10 +280,11 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
     // An open inspector ends above the window's edge and scrolls, so its last connections can be reached.
     if (!detail.hidden) detail.style.maxHeight = `${Math.max(120, innerHeight - detail.getBoundingClientRect().top - 12)}px`;
     const titleRect = document.querySelector('.title').getBoundingClientRect(), toolsRect = document.getElementById('tools').getBoundingClientRect(), toggleRect = document.getElementById('toolbar-visibility').getBoundingClientRect();
-    const narrow = innerWidth <= 760, top = Math.max(titleRect.bottom, narrow ? Math.max(toolsRect.bottom, toggleRect.bottom) : 0) + 12;
+    // The graph fills the window below the row of controls, and beside an open inspector.
+    const narrow = innerWidth <= 760, top = Math.max(titleRect.bottom, toolsRect.bottom, toggleRect.bottom) + 10;
     const bottom = Math.min(summary.getBoundingClientRect().top, narrow && !detail.hidden ? detail.getBoundingClientRect().top : innerHeight) - 10;
-    const sidebar = !detail.hidden ? detail.getBoundingClientRect() : toolsRect;
-    const left = 12, right = !narrow && sidebar.width ? sidebar.left - 16 : innerWidth - 12;
+    const sidebar = !detail.hidden ? detail.getBoundingClientRect() : null;
+    const left = 12, right = !narrow && sidebar?.width ? sidebar.left - 16 : innerWidth - 12;
     const width = Math.max(120, right - left), height = Math.max(100, bottom - top);
     Object.assign(host.style, { position: 'fixed', left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
     camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height); labels.setSize(width, height);

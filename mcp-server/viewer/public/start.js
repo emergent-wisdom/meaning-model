@@ -23,7 +23,9 @@ for (const element of document.getElementById('tools').children) {
 }
 const structureHost = document.createElement('div'); structureHost.id = 'structure-surface'; document.body.append(structureHost);
 function fitPanels() {
-  for (const panel of document.querySelectorAll('.pop:not([hidden]), .details:not([hidden])')) panel.style.maxHeight = `${Math.max(0, innerHeight - panel.getBoundingClientRect().top - 12)}px`;
+  // A panel that opens from the top row ends above the time bar, when there is one; a menu opening up from the bar keeps its height.
+  const bar = document.querySelector('.hud.bar')?.getBoundingClientRect(), floor = bar?.height ? bar.top - 8 : innerHeight - 12;
+  for (const panel of document.querySelectorAll('.pop:not([hidden]), .details:not([hidden])')) if (!panel.closest('.bar')) panel.style.maxHeight = `${Math.max(0, floor - panel.getBoundingClientRect().top)}px`;
   const title = document.querySelector('.title').getBoundingClientRect(), tools = document.getElementById('tools').getBoundingClientRect(), visibility = document.getElementById('toolbar-visibility').getBoundingClientRect();
   structureHost.style.top = `${Math.max(title.bottom, tools.bottom, visibility.bottom) + 12}px`;
 }

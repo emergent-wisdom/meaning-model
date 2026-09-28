@@ -23,7 +23,8 @@ export function modelSwitchURL(current, target, remembered = null) {
 }
 
 export async function mountModelPicker() {
-  const parent = document.querySelector('#tools') ?? document.querySelector('.inspection-nav');
+  // The picker names the model where its title stands; the standalone inspector keeps it in its navigation.
+  const title = document.querySelector('.hud.title'), parent = title ?? document.querySelector('#tools') ?? document.querySelector('.inspection-nav');
   if (!parent) return;
   let views;
   try {
@@ -49,6 +50,7 @@ export async function mountModelPicker() {
     } catch { /* Private browsing may disable tab storage; switching still works. */ }
     location.assign(modelSwitchURL(location.href, target.href, remembered));
   });
-  label.append(name, select); parent.prepend(label);
+  label.append(name, select);
+  if (title) { title.querySelector('h1')?.before(label); document.body.classList.add('has-model-picker'); } else parent.prepend(label);
   dispatchEvent(new Event('resize'));
 }

@@ -1605,7 +1605,8 @@ function apply() {
       : currentParts.length ? `Parts ${currentParts.map((part) => part.n).join(', ')}` : '';
     setText('kind', `${latest ? momentText(drawn(latest)) : hasStory ? 'The story' : ''}${partCaption ? ` · ${partCaption}` : ''}`);
     setText('text', latest ? clip(`${latest.userData.event.label} ${latest.userData.event.description ?? ''}`, 330) : '');
-    if (captionBox) captionBox.hidden = !latest && !hasStory && !partCaption;
+    // Nothing at this moment leaves nothing to caption.
+    if (captionBox) captionBox.hidden = !latest && !partCaption;
   }
   showStats();
   // Keep the complete manuscript available through both playback clocks.
@@ -1650,7 +1651,8 @@ function freeRoom() {
   const title = document.querySelector('.hud.title').getBoundingClientRect(); const stats = document.getElementById('stats').getBoundingClientRect(); const bar = document.querySelector('.hud.bar').getBoundingClientRect();
   const side = [document.getElementById('details'), document.getElementById('legend')].map((el) => el.getBoundingClientRect()).find((r) => r.width && r.left > innerWidth * 0.5);
   const tools = document.getElementById('tools').getBoundingClientRect();
-  const caption = document.querySelector('.hud.caption').getBoundingClientRect();
+  // The caption and the reading position stand together above the time bar; the scene's room ends above them both.
+  const dock = document.getElementById('dock')?.getBoundingClientRect(); const caption = dock?.height ? dock : document.querySelector('.hud.caption').getBoundingClientRect();
   return { l: 28, r: side ? side.left - 20 : innerWidth - 28, t: Math.min(Math.max(title.bottom, stats.bottom, tools.bottom) + 24, innerHeight * 0.35), b: (caption.height ? caption.top : bar.top || innerHeight - 66) - 16 };
 }
 // The whole view fits the free room when it can. A tall one (a deep tree in layers) is never shrunk below three quarters
@@ -2112,7 +2114,7 @@ function selectStoryPart(part) {
 if (params.has('read')) { document.getElementById('read').click(); if (params.get('read') === 'full') fullReader(true); }
 
 const thoughtsButton = document.getElementById('thoughts');
-const showThoughts = (on, explicit = true) => { if (explicit) setLayerVisibility('notes', on); else if (on) opt.show.add('notes'); else opt.show.delete('notes'); mind.visible = on; thoughtsButton.classList.toggle('on', on); thoughtsButton.setAttribute('aria-pressed', String(on)); thoughtsButton.textContent = on ? 'Hide documents & notes' : 'Documents & notes'; if (!on) tip.hidden = true; syncPanel(); syncURL(); dirty = true; };
+const showThoughts = (on, explicit = true) => { if (explicit) setLayerVisibility('notes', on); else if (on) opt.show.add('notes'); else opt.show.delete('notes'); mind.visible = on; thoughtsButton.classList.toggle('on', on); thoughtsButton.setAttribute('aria-pressed', String(on)); thoughtsButton.textContent = 'Documents & notes'; if (!on) tip.hidden = true; syncPanel(); syncURL(); dirty = true; };
 thoughtsButton.addEventListener('click', () => showThoughts(!mind.visible)); showThoughts(mind.visible, false);
 thoughtsButton.hidden = !notes.length;
 function setNoteLayout(layout) {
@@ -2165,9 +2167,12 @@ const depthNote = { 0: 'The root Events alone.', 1: 'With the Events the roots c
 // The toolbar, the legend and what was clicked stand together on the right.
 const panel = document.getElementById('side');
 // Keep the temporal detail panel within the viewport; the shell owns popups.
+// A panel that opens from the top row ends above the time bar; a menu that opens up from the bar keeps its own height.
 function fitOpenPanels() {
+  const bar = document.querySelector('.hud.bar')?.getBoundingClientRect(), floor = bar?.height ? bar.top - 8 : innerHeight - 12;
   for (const panel of document.querySelectorAll('.pop:not([hidden]), #details:not([hidden])')) {
-    panel.style.maxHeight = `${Math.max(0, innerHeight - panel.getBoundingClientRect().top - 12)}px`;
+    if (panel.closest('.bar')) continue;
+    panel.style.maxHeight = `${Math.max(0, floor - panel.getBoundingClientRect().top)}px`;
   }
 }
 addEventListener('resize', fitOpenPanels);
@@ -2338,7 +2343,7 @@ function syncPanel() {
   setText('t-time', currentPreset ? { story: presetNames.story, life: lifeName, centuries: 'Centuries', world: presetNames.world }[currentPreset] : spanText(F.a, F.b));
   setText('t-play', `${building() ? 'The construction' : playLabel}${opt.speed !== 1 ? ` · ${{ 0.25: '¼', 0.5: '½' }[opt.speed] ?? opt.speed}×` : ''}`);
   setText('mode-note', building() ? 'The model and the story graph as the agent built them, step by step, with its own reasons as captions.' : 'History plays forward: the processes draw on, and events, decisions and thoughts arrive as their moments come.');
-  const shine = document.getElementById('shine'); shine.setAttribute('aria-pressed', String(opt.glare === 'full')); setText('shine', opt.glare === 'full' ? 'Shining' : 'Less shining');
+  const shine = document.getElementById('shine'); shine.setAttribute('aria-pressed', String(opt.glare === 'full')); setText('shine', 'Shining');
   document.getElementById('everything').setAttribute('aria-pressed', String(isEverything()));
   unopenedButton.setAttribute('aria-pressed', String(opt.hideUnopened));
   flatButton.setAttribute('aria-pressed', String(opt.hideFlat));
@@ -2353,7 +2358,7 @@ function syncPanel() {
     const shownRows = rows.filter(visibleRow).length;
     detailStatus.textContent = `${projected.level === 0 ? 'Coarse overview' : `Detail ${projected.level}`} · ${nodes.filter((node) => (opt.layout === 'layers' ? node.inL : node.inT)).length} outlines · ${shownRows} numerical curves${opt.processScope ? ' · the whole stays visible as its parts open' : ''}`;
   }
-  document.getElementById('edges').setAttribute('aria-pressed', String(opt.edges)); setText('edges', opt.edges ? 'Edges' : 'No edges');
+  document.getElementById('edges').setAttribute('aria-pressed', String(opt.edges)); setText('edges', 'Edges');
   on('#cameras button', 'camera', opt.camera); on('#modes button', 'mode', opt.mode); on('#speeds button', 'speed', opt.speed); on('#layouts button', 'layout', opt.layout);
   for (const button of document.querySelectorAll('#presets button')) button.classList.toggle('on', button.dataset.preset === currentPreset);
   const life = document.querySelector('#presets [data-preset="life"]'); if (life) { life.textContent = currentPreset === 'life' ? lifeName : 'A life'; life.hidden = !lives.length; }

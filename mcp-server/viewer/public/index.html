@@ -11,36 +11,61 @@
   body:not([data-representation="space"]) [data-space] { display: none !important; }
   body:not([data-representation="graph"]) [data-graph], body:not([data-representation="structure"]) #structure-surface { display: none !important; }
   body[data-representation="graph"] [data-playback], body[data-representation="structure"] [data-playback] { display: none !important; }
-  #graph-controls { display: flex; flex-wrap: wrap; gap: 6px; }
+  /* The Graph's and Space's own controls join the one row of controls instead of stacking below it. */
+  #graph-controls, #space-controls { display: contents; }
   #structure-surface { position: fixed; inset: 160px 0 0; overflow: auto; background: #090a0c; }
   #structure-surface .inspection-content { padding-top: 12px; }
+  /* Embedded, Structure is named by the row above it; the standalone inspector keeps its own heading. */
+  #structure-surface .inspection-content > h1, #structure-surface .inspection-eyebrow { display: none; }
   body[data-representation="structure"] .side { z-index: 12; }
   #selection-label { overflow-wrap: anywhere; }
   body[aria-busy="true"], body[aria-busy="true"] * { cursor: progress !important; }
   body.no-text .scene-labels, body.no-text #labels2 { display: none; }
-  :root { --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781; --panel: rgba(18, 18, 17, 0.74); --ring: rgba(255, 255, 255, 0.10); --love: #ffb057; --fear: #58b4ff; }
+  :root { --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781; --panel: rgba(18, 18, 17, 0.74); --ring: rgba(255, 255, 255, 0.10); --love: #ffb057; --fear: #58b4ff;
+    /* One scale for the whole HUD: its distance from the edge, the height of a control, its corners, the width of the side panels. */
+    --edge: 14px; --control: 30px; --radius: 8px; --panel-width: 360px; --title-width: min(640px, 30vw); }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: #050608; overflow: hidden; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); }
   #scene { position: fixed; inset: 0; }
-  .hud { position: fixed; pointer-events: none; }
-  .title { top: 22px; left: 28px; max-width: calc(50vw - 44px); }
-  .eyebrow { color: var(--muted); font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; }
-  h1 { margin: 4px 0 2px; font-size: 44px; font-weight: 600; letter-spacing: -0.01em; }
-  .sub { color: var(--ink-2); font-size: 15px; line-height: 1.4; }
-  .repos { margin-top: 12px; display: grid; grid-template-columns: max-content minmax(0, 1fr); justify-content: start; gap: 4px 12px; font-size: 14px; pointer-events: auto; }
+  .hud { position: fixed; z-index: 3; pointer-events: none; }
+  /* Soft shade behind the top and bottom rows keeps them legible over a bright scene without boxing them in. */
+  body[data-representation="temporal"]::before, body[data-representation="temporal"]::after { content: ""; position: fixed; left: 0; right: 0; z-index: 2; pointer-events: none; }
+  body[data-representation="temporal"]::before { top: 0; height: 96px; background: linear-gradient(to bottom, rgba(5, 6, 8, 0.9), rgba(5, 6, 8, 0.5) 55%, rgba(5, 6, 8, 0)); }
+  body[data-representation="temporal"]::after { bottom: 0; height: 120px; background: linear-gradient(to top, rgba(5, 6, 8, 0.92), rgba(5, 6, 8, 0.45) 55%, rgba(5, 6, 8, 0)); }
+  /* The model: its name (or the picker that switches it) and what it holds, on one quiet line below. */
+  .title { top: 10px; left: var(--edge); max-width: var(--title-width); display: flex; flex-direction: column; gap: 2px; }
+  .eyebrow { display: none; }
+  h1 { margin: 0; font-size: 17px; line-height: 26px; font-weight: 600; letter-spacing: -0.005em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .title .stats { position: static; display: flex; flex-wrap: wrap; gap: 0 14px; }
+  .stat { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+  .stat .value { font-size: 12px; font-weight: 600; line-height: 18px; font-variant-numeric: tabular-nums; } .stat .name { color: var(--muted); font-size: 12px; }
+  .hud.title .model-picker { align-self: flex-start; max-width: var(--title-width); height: 26px; margin-left: -1px; padding: 0; background: none; box-shadow: none; backdrop-filter: none; pointer-events: auto; }
+  .hud.title .model-picker i { display: none; }
+  .hud.title .model-picker select { height: 26px; max-width: var(--title-width); padding: 0 20px 0 0; font-size: 17px; background-position: calc(100% - 10px) 11px, calc(100% - 5px) 11px; }
+  body.has-model-picker .title h1 { display: none; }
+  /* What the view is and where it comes from, in the ? menu. */
+  .sub { color: var(--ink-2); font-size: 12.5px; line-height: 1.45; }
+  .repos { margin: 8px 0 4px; display: grid; grid-template-columns: max-content minmax(0, 1fr); justify-content: start; gap: 3px 10px; font-size: 12px; }
   .repos span { color: var(--muted); } .repos a { color: #fff; font-weight: 500; text-decoration: none; overflow-wrap: anywhere; } .repos a:hover { text-decoration: underline; }
-  .stats { top: 26px; right: 30px; display: flex; gap: 26px; text-align: right; }
-  .stat .value { font-size: 34px; font-weight: 600; line-height: 1; } .stat .name { color: var(--muted); font-size: 12px; margin-top: 5px; }
-  .legend { top: 112px; right: 30px; width: 370px; display: flex; flex-direction: column; gap: 8px; color: var(--ink-2); font-size: 13px; background: var(--panel); border-radius: 12px; padding: 12px 14px; box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); }
+  .legend { width: var(--panel-width); display: flex; flex-direction: column; gap: 7px; color: var(--ink-2); font-size: 12.5px; background: var(--panel); border-radius: 12px; padding: 11px 13px; box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); }
   .key-head { color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 2px; }
   .key-row { display: flex; align-items: center; gap: 10px; line-height: 1.3; } .key-row .glyph { flex: none; width: 30px; display: flex; justify-content: center; }
-  .caption { left: 28px; bottom: 86px; max-width: min(1000px, 62vw); background: var(--panel); border-radius: 12px; padding: 12px 16px; box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); }
+  /* Just above the time bar: what is happening now, and where the reading is. They stack, so neither covers the other. */
+  .dock { position: fixed; left: var(--edge); right: var(--edge); bottom: 54px; z-index: 3; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: none; }
+  .dock > .hud { position: relative; }
+  /* An open panel on the right keeps its column; the dock ends beside it. */
+  body:has(#details:not([hidden])) .dock, body:has(#legend:not([hidden])) .dock { right: calc(var(--panel-width) + 2 * var(--edge)); }
+  .caption { max-width: min(820px, 60vw); display: flex; align-items: baseline; gap: 10px; padding: 5px 11px; border-radius: var(--radius); background: rgba(12, 12, 14, 0.72); box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); pointer-events: auto; }
   /* A separate reading position, with segment width proportional to prose length. */
-  .strip { left: 28px; right: 28px; bottom: 74px; display: grid; gap: 5px; padding: 8px 10px; border-radius: 10px; background: var(--panel); box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); pointer-events: auto; }
+  .strip { align-self: stretch; display: grid; gap: 5px; padding: 6px 36px 7px 10px; border-radius: 10px; background: var(--panel); box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); pointer-events: auto; }
   .strip[hidden] { display: none; }
-  #reading-hide { position: absolute; top: 6px; right: 8px; }
-  .strip-head, .document-spans summary { padding-right: 26px; }
-  .reading-track { display: grid; gap: 5px; } .reading-track[hidden] { display: none; }
+  #reading-hide { position: absolute; top: 5px; right: 6px; }
+  /* One line to read and step through the parts, and the parts themselves below it. */
+  .reading-track { display: grid; grid-template-columns: auto auto auto minmax(0, 1fr) auto auto; align-items: center; gap: 5px 10px; } .reading-track[hidden] { display: none; }
+  .strip-head, .reading-selection { display: contents; }
+  .strip-label { grid-area: 1 / 1; } #reading-overview-row { grid-area: 1 / 2; } #reading-prev { grid-area: 1 / 3; } #reading-current { grid-area: 1 / 4; } #reading-next { grid-area: 1 / 5; } #reading-position { grid-area: 1 / 6; }
+  .reading-track > .parts, #reading-expand, .reading-children, #reading-hierarchy-warning { grid-column: 1 / -1; }
+  .reading-track > .strip-help:not(#reading-hierarchy-warning) { display: none; }
   .document-spans { color: var(--ink-2); font-size: 12px; }
   .document-spans summary { cursor: pointer; color: #fff; }
   .document-spans-body { max-height: min(180px, 25vh); overflow-y: auto; overscroll-behavior: contain; padding-right: 5px; }
@@ -52,11 +77,9 @@
   .document-span-band { position: absolute; height: 100%; background: #c9b4f4; border-radius: 3px; }
   .document-span-band.point { border-left: 2px solid #c9b4f4; border-radius: 0; transform: translateX(-1px); }
 
-  .strip-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-  .strip-label { flex: none; color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
-  .strip-position { flex: 1; color: var(--ink-2); font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
-  .reading-selection { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; }
-  .reading-current { font-size: 13px; line-height: 1.3; color: #fff3dc; overflow-wrap: anywhere; }
+  .strip-label { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+  .strip-position { color: var(--ink-2); font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .reading-current { min-width: 0; font-size: 12.5px; line-height: 1.3; color: #fff3dc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .reading-nav { border: 0; border-radius: 5px; padding: 4px 7px; color: #fff; background: rgba(255, 255, 255, 0.1); font: inherit; font-size: 11px; cursor: pointer; }
   .reading-nav:disabled { opacity: 0.35; cursor: default; }
   .reading-nav:focus-visible, .part:focus-visible { outline: 2px solid #ffe6ae; outline-offset: 2px; }
@@ -71,34 +94,41 @@
   .part-events { margin-top: 10px; } .part-events summary { cursor: pointer; color: #fff; }
   .part-read { margin-top: 8px; background: #2866a8; }
   .reader-location { flex: 1 1 100%; font-size: 13px; color: var(--ink-2); }
-  .parts { min-width: 0; display: flex; gap: 3px; height: 24px; }
-  .part { min-width: 0; border: 0; border-radius: 4px; background: rgba(255, 240, 208, 0.10); color: var(--ink-2); font: inherit; font-size: 11.5px; padding: 0; overflow: hidden; white-space: nowrap; cursor: pointer; }
+  .parts { min-width: 0; display: flex; gap: 3px; height: 20px; }
+  .part { min-width: 0; border: 0; border-radius: 4px; background: rgba(255, 240, 208, 0.10); color: var(--ink-2); font: inherit; font-size: 11px; padding: 0; overflow: hidden; white-space: nowrap; cursor: pointer; }
   .part:hover { background: rgba(255, 240, 208, 0.22); color: #fff; }
-  body.has-strip .caption { bottom: 198px; }
-  .caption .kind { color: var(--muted); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
-  .caption .text { font-size: 18px; line-height: 1.45; margin-top: 4px; max-height: 4.4em; overflow: hidden; }
-  .bar { left: 28px; right: 28px; bottom: 26px; height: 40px; display: flex; align-items: center; gap: 14px; pointer-events: auto; }
-  .bar button { background: #3987e5; color: #fff; border: 0; border-radius: 50%; width: 36px; height: 36px; font-size: 14px; cursor: pointer; flex: none; }
-  .track { flex: 1; height: 6px; background: rgba(255,255,255,0.10); border-radius: 3px; position: relative; cursor: pointer; }
-  .fill { position: absolute; inset: 0 auto 0 0; width: 100%; background: linear-gradient(90deg, #3987e5, #9085e9); border-radius: 3px; }
-  .clock { color: #fff; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 150px; text-align: right; }
+  /* One line: the moment, then what happens in it; the whole of it on hover. */
+  .caption .kind { flex: none; color: var(--muted); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+  .caption .kind:empty { display: none; }
+  .caption .text { min-width: 0; font-size: 13px; line-height: 1.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .caption .text:empty { display: none; }
+  .caption:hover .text { white-space: normal; }
+  /* Time in one row: play, which span, what plays, the track, the moment, and the story to read. */
+  .bar { left: var(--edge); right: var(--edge); bottom: 10px; height: 36px; display: flex; align-items: center; gap: 8px; pointer-events: auto; }
+  .bar > .play { flex: none; width: 32px; height: 32px; border: 0; border-radius: 50%; background: #3987e5; color: #fff; font-size: 12px; cursor: pointer; }
+  .bar > .play:hover { background: #4b95ea; } .bar > .play:focus-visible { outline: 2px solid #ffe6ae; outline-offset: 2px; }
+  .bar .tool-wrap { position: relative; flex: none; }
+  .bar .pop { top: auto; bottom: calc(100% + 8px); left: 0; right: auto; max-width: calc(100vw - 2 * var(--edge)); }
+  .track { flex: 1; min-width: 80px; height: 18px; position: relative; cursor: pointer; }
+  .track::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.12); }
+  .fill { position: absolute; left: 0; top: 7px; height: 4px; width: 100%; background: linear-gradient(90deg, #3987e5, #9085e9); border-radius: 2px; }
+  .clock { flex: none; color: #fff; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 96px; text-align: right; white-space: nowrap; }
   .qr { position: fixed; inset: 0; z-index: 8; display: flex; align-items: center; justify-content: center; gap: 48px; background: rgba(5, 6, 8, 0.9); backdrop-filter: blur(6px); cursor: pointer; }
   .qr[hidden] { display: none; }
   .qr figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 14px; }
   .qr .code { width: 240px; height: 240px; border-radius: 14px; background: #fff; padding: 10px; display: block; image-rendering: pixelated; }
   .qr .big .code { width: min(460px, 60vh); height: min(460px, 60vh); }
   .qr figcaption { text-align: center; color: var(--ink-2); font-size: 16px; } .qr figcaption b { display: block; color: #fff; font-size: 22px; margin-bottom: 4px; }
-  body.capture .bar button { display: none; }
+  body.capture .bar button, body.capture .bar .tool-wrap { display: none; }
   .tip { position: fixed; z-index: 5; pointer-events: none; max-width: 440px; background: #151517; border-radius: 10px; padding: 10px 12px; font-size: 13px; line-height: 1.45; box-shadow: 0 0 0 1px var(--ring) inset, 0 10px 30px rgba(0,0,0,0.6); }
   .tip[hidden] { display: none; }
   .tip .k { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 3px; }
   .tip .num, .details .num { font-size: 24px; font-weight: 700; color: #fff; line-height: 1.15; margin: 2px 0 4px; font-variant-numeric: tabular-nums; }
   .tip .num-line, .details .num-line { color: #fff; font-size: 12.5px; font-variant-numeric: tabular-nums; margin-top: 2px; }
   .tip .v { font-weight: 600; color: #fff; margin-bottom: 4px; } .tip .m { color: var(--ink-2); max-height: 16em; overflow: hidden; } .tip .a { color: var(--muted); font-size: 12px; margin-top: 6px; }
-  .bar button.read { width: auto; height: 36px; border-radius: 18px; padding: 0 16px; background: rgba(255,255,255,0.12); font-size: 14px; font-weight: 500; }
-  .bar button.read:hover { background: rgba(255,255,255,0.2); }
-  .bar button.read.on { background: rgba(201,212,255,0.28); }
-  .caption { max-width: min(760px, 46vw); }
+  .bar > .read { flex: none; height: var(--control); padding: 0 12px; border: 0; border-radius: var(--radius); background: var(--panel); box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); color: #fff; font: inherit; font-size: 13px; cursor: pointer; }
+  .bar > .read:hover { background: rgba(40, 40, 44, 0.9); }
+  .bar > .read.on { background: rgba(201,212,255,0.28); }
   .reader { position: fixed; top: 0; right: 0; bottom: 0; z-index: 6; width: min(720px, 100vw); overflow: hidden; isolation: isolate; contain: paint; background: #090a0c; box-shadow: -1px 0 0 var(--ring); color: #ecebe6; font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; font-size: 19px; line-height: 1.62; }
   /* Keep the opaque panel fixed while its inner layer scrolls over the 3D scene. */
   .reader-scroll { height: 100%; overflow-y: auto; overscroll-behavior: none; padding: 0 64px 96px; }
@@ -130,30 +160,28 @@
   .lens .words { display: flex; justify-content: space-between; margin-top: 3px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
   .lens .words b { font-weight: 600; }
   .lens .kinds { margin-top: 2px; color: var(--muted); font-size: 10.5px; line-height: 1.25; }
-  /* Small windows keep the title, the links and the story; the caption and subtitle step aside. */
-  @media (max-width: 1100px), (max-height: 760px) {
-    h1 { font-size: 30px; } .sub, .caption { display: none; }
-    /* How to read it appears only when asked for, so a small window shows it too, scrolling if it must. */
-    .legend { max-height: 50vh; overflow-y: auto; }
-    .stats { gap: 16px; } .stat .value { font-size: 22px; } .repos { font-size: 13px; }
-  }
-  @media (max-width: 760px), (max-height: 520px) { .stats { display: none; } .eyebrow { display: none; } .clock { font-size: 15px; min-width: 110px; } }
+  /* How to read it appears only when asked for, so a small window shows it too, scrolling if it must. */
+  @media (max-width: 1100px), (max-height: 760px) { .legend { max-height: 50vh; overflow-y: auto; } }
+  @media (max-width: 760px), (max-height: 520px) { .title .stats { display: none; } .caption { display: none; } }
   /* The toolbar on the view, as in the understanding graph: each control opens its choices below it. */
-  .side { position: fixed; top: 94px; right: 30px; z-index: 4; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; width: calc(50vw - 44px); max-width: 980px; pointer-events: none; }
+  /* The controls share the top row with the title; what was clicked and how to read it open below them on the right. */
+  .side { position: fixed; top: 10px; right: var(--edge); z-index: 4; display: grid; grid-template-columns: minmax(0, auto) auto; align-items: start; justify-items: end; gap: 8px 6px;
+    max-width: calc(100vw - var(--title-width) - 3 * var(--edge)); pointer-events: none; }
   .side > * { pointer-events: auto; }
-  .toolbar-visibility { align-self: flex-end; }
+  #tools { grid-column: 1; grid-row: 1; } .toolbar-visibility { grid-column: 2; grid-row: 1; }
+  .side > .legend, .side > .details { grid-column: 1 / -1; }
+  .side > .legend { max-height: calc(100vh - 110px); overflow-y: auto; scrollbar-width: thin; }
   .side [hidden], .toggle[hidden] { display: none !important; }
   .side .legend { position: static; }
   .tools { position: relative; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; width: 100%; }
   .tool-wrap { position: static; }
-  .tool { height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 11px; border: 0; border-radius: 9px; background: var(--panel); box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); color: #fff; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .tool { height: var(--control); display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 0; border-radius: var(--radius); background: var(--panel); box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); color: #fff; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
   .tool:hover, .tool.open { background: rgba(40, 40, 44, 0.9); }
   .tool i { font-style: normal; color: var(--muted); } .tool b { font-weight: 600; } .tool .caret { color: var(--muted); font-size: 11px; }
   .tool.switch[aria-pressed="true"] { background: rgba(159, 195, 255, 0.24); box-shadow: 0 0 0 1px rgba(159, 195, 255, 0.45) inset; }
   select.tool { appearance: none; -webkit-appearance: none; min-width: 0; max-width: 100%; padding-right: 28px; font-weight: 600; background-image: linear-gradient(45deg, transparent 50%, #898781 50%), linear-gradient(135deg, #898781 50%, transparent 50%); background-position: calc(100% - 15px) 14px, calc(100% - 10px) 14px; background-size: 5px 5px; background-repeat: no-repeat; }
   select.tool option { background: #151517; color: #fff; }
-  /* The controls in rows by purpose: what is shown, how much of it, when and how, and the layers. */
-  .tools .row-break { flex-basis: 100%; height: 0; }
+  .tool.icon { width: var(--control); padding: 0; justify-content: center; font-weight: 600; }
   .tool.picker { gap: 7px; padding: 0 3px 0 11px; cursor: default; min-width: 0; max-width: 100%; }
   .tool.picker select { appearance: none; -webkit-appearance: none; height: 28px; min-width: 0; max-width: 190px; padding: 0 24px 0 0; border: 0; border-radius: 7px; color: #fff; font: inherit; font-size: 13px; font-weight: 600; text-overflow: ellipsis; cursor: pointer;
     background-color: transparent; background-image: linear-gradient(45deg, transparent 50%, #898781 50%), linear-gradient(135deg, #898781 50%, transparent 50%);
@@ -167,16 +195,13 @@
   .tool.stepper button:hover { background: rgba(255, 255, 255, 0.1); } .tool.stepper button:disabled { opacity: 0.35; cursor: default; }
   .tool.stepper .stepper-value { padding: 0 3px; }
   #process-detail-status { flex: 1 1 100%; margin: 0; font-size: 11.5px; color: var(--muted); text-align: right; }
-  #graph-controls { flex: 1 1 100%; justify-content: flex-end; }
   #layouts { flex-wrap: wrap; }
   /* The physical view: its controls, its things and axes, and what it says about what it cannot place. */
-  #space-controls { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 100%; justify-content: flex-end; }
-  #space-controls select { height: 32px; background: var(--panel); border: 0; box-shadow: 0 0 0 1px var(--ring) inset; border-radius: 9px; color: var(--ink); padding: 0 9px; font: inherit; font-size: 12px; max-width: 245px; }
+  #space-controls select { height: var(--control); background: var(--panel); border: 0; box-shadow: 0 0 0 1px var(--ring) inset; border-radius: var(--radius); color: var(--ink); padding: 0 9px; font: inherit; font-size: 12px; max-width: 245px; }
   #space-controls select option { background: #151517; color: var(--ink); }
   #space-controls .tool[aria-pressed="true"] { background: rgba(125, 162, 213, .19); box-shadow: 0 0 0 1px rgba(159,195,255,.28) inset; }
   .space-mode .bar .track { touch-action: none; }
-  .space-mode .side { width: min(410px, 40vw); }
-  #space-details { width: 100%; }
+  #space-details { width: min(400px, 38vw); }
   #space-scene { isolation: isolate; }
   #space-scene canvas { border-radius: 16px; }
   .space-context-label { position: absolute; top: 3px; left: 16px; z-index: 2; display: grid; gap: 5px; pointer-events: none; max-width: 60%; text-shadow: 0 2px 15px #050608; }
@@ -190,7 +215,7 @@
   .space-layers-pop { width: 320px; } .space-layers-pop .toggle { width: 100%; border: 0; background: none; font: inherit; text-align: left; color: inherit; }
   .space-layers-pop .toggle:focus-visible { outline: 2px solid rgba(159, 195, 255, 0.7); outline-offset: 1px; }
   .space-axis { font-size: 10px; color: #697b91; white-space: nowrap; }
-  .space-summary { position: fixed; bottom: 82px; left: 28px; right: 28px; z-index: 3; display: flex; flex-direction: column; gap: 10px; color: var(--ink-2); background: linear-gradient(130deg, rgba(18,24,32,.94), rgba(16,17,22,.94)); padding: 13px 16px; box-shadow: 0 0 0 1px rgba(154,179,212,.12) inset, 0 15px 55px #0006; backdrop-filter: blur(14px); border-radius: 13px; font-size: 12px; line-height: 1.45; }
+  .space-summary { position: fixed; bottom: 54px; left: var(--edge); right: var(--edge); z-index: 3; display: flex; flex-direction: column; gap: 10px; color: var(--ink-2); background: linear-gradient(130deg, rgba(18,24,32,.94), rgba(16,17,22,.94)); padding: 13px 16px; box-shadow: 0 0 0 1px rgba(154,179,212,.12) inset, 0 15px 55px #0006; backdrop-filter: blur(14px); border-radius: 13px; font-size: 12px; line-height: 1.45; }
   .space-overview-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 18px; align-items: baseline; }
   .space-summary strong { color: #e1e7ee; font-weight: 550; font-size: 13px; }
   .space-overview-note { color: #8d9bac; font-size: 11px; }
@@ -228,9 +253,13 @@
   .space-record-text { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; font-size: 13px; line-height: 1.65; }
   .space-raw { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 10px; }
   .space-label:focus-visible, .space-life-period:focus-visible, .space-person:focus-visible, .space-related:focus-visible { outline: 2px solid #ffe6ae; outline-offset: 2px; }
-  @media (max-width: 760px) { .space-mode .side { width: auto; } .space-summary { left: 12px; right: 12px; bottom: 100px; padding: 9px 10px; } .space-overview-note { font-size: 10px; } .space-life-row { grid-template-columns: 75px 1fr; gap: 5px; } .space-life-axis { padding-left: 122px; } .space-context-label { display: none; } .space-journeys { max-height: 23vh; } #space-controls { gap: 4px; justify-content: flex-start; } #space-controls select { max-width: 170px; } }
+  @media (max-width: 760px) { #space-details { width: auto; } .space-summary { left: 12px; right: 12px; bottom: 96px; padding: 9px 10px; } .space-overview-note { font-size: 10px; } .space-life-row { grid-template-columns: 75px 1fr; gap: 5px; } .space-life-axis { padding-left: 122px; } .space-context-label { display: none; } .space-journeys { max-height: 23vh; } #space-controls { gap: 4px; justify-content: flex-start; } #space-controls select { max-width: 170px; } }
 
-  .toolbar-visibility { height: 26px; padding: 0 9px; font-size: 12px; color: var(--ink-2); }
+  .toolbar-visibility { padding: 0 9px; font-size: 12px; color: var(--ink-2); }
+  /* While the controls show, their switch is a small chevron; hidden, it says how to bring them back. */
+  .toolbar-visibility[aria-expanded="true"] { width: var(--control); padding: 0; justify-content: center; font-size: 0; }
+  .toolbar-visibility[aria-expanded="true"]::before { content: ""; width: 7px; height: 7px; margin-top: 3px; border: solid var(--ink-2); border-width: 1.5px 0 0 1.5px; transform: rotate(45deg); }
+  @media (max-width: 1440px) { .tool.picker.process-focus select { max-width: 140px; } }
   .tool:disabled { opacity: 0.4; cursor: default; }
   .pop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 6; width: 300px; max-width: 100%; background: #121214; border-radius: 12px; padding: 11px 13px; box-shadow: 0 0 0 1px var(--ring) inset, 0 12px 30px rgba(0,0,0,0.55); font-size: 13px; color: var(--ink-2); }
   .pop { overflow-y: auto; scrollbar-width: thin; }
@@ -239,7 +268,15 @@
   .pop h2:not(:first-child) { margin-top: 11px; }
   .pop h2 button { background: none; border: 0; color: var(--muted); font: inherit; font-size: 11.5px; cursor: pointer; padding: 0; letter-spacing: 0.04em; text-transform: none; } .pop h2 button:hover { color: #fff; }
   .pop section + section { margin-top: 11px; }
-  .details { position: relative; width: 370px; max-width: 100%; max-height: calc(100vh - 260px); overflow-y: auto; background: var(--panel); border-radius: 12px; padding: 12px 14px; box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); font-size: 13px; line-height: 1.45; color: var(--ink-2); scrollbar-width: thin; }
+  /* Inside a menu a switch is a row with its state on the right; a plain button opens what it names. */
+  .pop-switches { display: grid; gap: 1px; margin: 0 -6px 2px; }
+  .pop .tool { width: 100%; height: 30px; justify-content: space-between; padding: 0 8px; background: none; box-shadow: none; backdrop-filter: none; color: #fff; font-weight: 500; }
+  .pop .tool:hover, .pop .tool.switch[aria-pressed="true"]:hover { background: rgba(255, 255, 255, 0.07); }
+  .pop .tool.switch[aria-pressed="true"] { background: none; box-shadow: none; }
+  .pop .tool.switch::after { content: ""; flex: none; width: 26px; height: 15px; border-radius: 8px; background: radial-gradient(circle at 7.5px 50%, #fff 0 4.5px, transparent 5px), rgba(255, 255, 255, 0.2); }
+  .pop .tool.switch[aria-pressed="true"]::after { background: radial-gradient(circle at 18.5px 50%, #fff 0 4.5px, transparent 5px), #3987e5; }
+  .pop .tool:not(.switch)::after { content: "›"; color: var(--muted); font-size: 16px; line-height: 1; }
+  .details { position: relative; width: var(--panel-width); max-width: 100%; max-height: calc(100vh - 260px); overflow-y: auto; background: var(--panel); border-radius: 12px; padding: 12px 14px; box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); font-size: 13px; line-height: 1.45; color: var(--ink-2); scrollbar-width: thin; }
   .details[hidden] { display: none; }
   .details .close { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border: 0; border-radius: 50%; background: rgba(255,255,255,0.08); color: #fff; cursor: pointer; font-size: 12px; }
   .details .k { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; margin: 0 30px 3px 0; } .details .v { color: #fff; font-weight: 600; font-size: 15px; margin-bottom: 6px; padding-right: 26px; }
@@ -278,34 +315,44 @@
   .label.section .body { display: flex; flex-direction: column; gap: 1px; transition: opacity 0.25s; } .label.section b { color: #fff; font-size: 13px; font-weight: 600; } .label.section span { color: var(--muted); font-size: 11px; }
   .label.group-count { color: var(--muted); font-size: 11px; } .label.ridge-name { color: #fff; font-size: 13px; font-weight: 500; opacity: 0.92; } .label.ridge-name span { display: inline-block; transition: opacity 0.25s; }
   #scene canvas.locked { cursor: grab; } #scene canvas.locked.dragging { cursor: grabbing; }
-  @media (max-width: 1100px), (max-height: 760px) { .side { top: 70px; } .tool { height: 30px; font-size: 12.5px; padding: 0 9px; } .seg button { font-size: 12px; padding: 5px 4px; } .details { width: 320px; max-height: calc(100vh - 200px); } }
+  @media (max-width: 1100px), (max-height: 760px) { :root { --control: 28px; --panel-width: 320px; } .tool { font-size: 12.5px; padding: 0 9px; } .seg button { font-size: 12px; padding: 5px 4px; } .details { max-height: calc(100vh - 200px); } }
   /* Let a narrow heading and its links set the toolbar's position; give playback its own second row. */
   @media (max-width: 760px) {
+    :root { --title-width: calc(100vw - 32px); }
     body { display: flex; flex-direction: column; }
-    .title { position: relative; top: auto; left: auto; max-width: none; margin: 16px 16px 0; flex: none; }
-    .side { position: relative; top: auto; right: auto; width: auto; max-width: none; margin: 12px 16px 0; flex: none; align-items: stretch; }
-    .tools { justify-content: flex-start; }
-    .bar { left: 16px; right: 16px; bottom: 16px; height: auto; display: grid; grid-template-columns: 36px repeat(2, minmax(0, 1fr)); gap: 10px 8px; }
-    .bar button.read { min-width: 0; padding: 0 8px; font-size: 12px; }
-    .track { grid-row: 2; grid-column: 1 / 3; min-width: 0; }
-    .clock { grid-row: 2; grid-column: 3 / 4; min-width: 0; font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; }
-    .strip { left: 16px; right: 16px; bottom: 104px; }
+    .title { position: relative; top: auto; left: auto; max-width: none; margin: 12px 16px 0; flex: none; }
+    .side { position: relative; top: auto; right: auto; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; max-width: none; margin: 8px 16px 0; flex: none; }
+    .tools { flex: 1 1 0; justify-content: flex-start; } .toolbar-visibility { order: 2; } .side > .legend, .side > .details { order: 3; flex: 1 1 100%; }
+    .bar { left: 16px; right: 16px; bottom: 12px; height: auto; flex-wrap: wrap; row-gap: 8px; }
+    .bar > .read { padding: 0 9px; font-size: 12px; }
+    .track { flex: 1 1 100%; order: 5; }
+    .clock { min-width: 0; font-size: 13px; }
+    .dock { left: 16px; right: 16px; bottom: 96px; }
   }
 </style>
 <script type="importmap">{ "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }</script>
 </head>
 <body>
 <div id="scene"></div>
-<div class="hud title"><div class="eyebrow">The processes an agent modeled with the Meaning Model</div><h1 id="title">Processes</h1><div class="sub" id="sub"></div>
-  <div class="repos" id="repos"></div></div>
-<div class="hud stats" id="stats"></div>
+<!-- The HUD frames the scene: the model and its controls in one row at the top, time in one row at the bottom. -->
+<header class="hud title"><div class="eyebrow">The processes an agent modeled with the Meaning Model</div><h1 id="title">Processes</h1><div class="hud stats" id="stats"></div></header>
+<!-- What is happening now and where the reading is, stacked just above the time bar. -->
+<div class="dock" id="dock">
 <div class="hud caption"><div class="kind" id="kind">The story</div><div class="text" id="text"></div></div>
 <div class="hud strip" id="strip" hidden><button class="reading-nav" id="reading-hide" aria-label="Hide reading position" title="Hide reading position">✕</button><div class="reading-track" id="reading-track"><div class="strip-head"><div class="strip-label">Reading position</div><div class="strip-position" id="reading-position"></div></div><div class="reading-child-head" id="reading-overview-row" hidden><span id="reading-overview-label"></span><button class="reading-nav" id="reading-overview" hidden>Enclosing groups</button></div><div class="reading-selection"><button class="reading-nav" id="reading-prev" aria-label="Select previous part" disabled>← Previous</button><div class="reading-current" id="reading-current" aria-live="polite"></div><button class="reading-nav" id="reading-next" aria-label="Select next part">Next →</button></div><div class="parts" id="parts" role="group" aria-label="Parts in reading order, sized by prose length"></div><button class="reading-nav" id="reading-expand" hidden>Expand children</button><div class="reading-children" id="reading-children" hidden><div class="reading-child-head"><button class="reading-nav" id="reading-parent-back">↑ Parent</button><span id="reading-parent"></span></div><div class="parts" id="child-parts" role="group" aria-label="Child passages in native render order"></div></div><div class="strip-help" id="reading-hierarchy-warning" hidden></div><div class="strip-help">Width = prose words · Selecting keeps world time unchanged</div></div></div>
-<div class="hud bar"><button id="play" aria-label="Play the story's years">▶</button><button id="read" class="read">Read full story</button><button id="qr" class="read" hidden>QR code</button><div class="track" id="track"><div class="fill" id="fill"></div></div><div class="clock" id="clock"></div></div>
+</div>
+<div class="hud bar"><button id="play" class="play" aria-label="Play the story's years">▶</button>
+  <span class="tool-wrap" data-temporal><button class="tool" data-pop="pop-time"><i>Time</i> <b id="t-time">Story</b><span class="caret">▾</span></button>
+    <div class="pop" id="pop-time" hidden><h2>Time</h2><div class="seg" id="presets"><button data-preset="story">Story</button><button data-preset="life">A life</button><button data-preset="centuries">Centuries</button><button data-preset="world">World history</button></div><div class="note" id="span"></div></div></span>
+  <span class="tool-wrap" data-temporal><button class="tool" data-pop="pop-play"><i>Play</i> <b id="t-play">The story's years</b><span class="caret">▾</span></button>
+    <div class="pop" id="pop-play" hidden><h2>What plays</h2><div class="seg" id="modes"><button data-mode="story">The story's years</button><button data-mode="construction">The construction</button></div><div class="note" id="mode-note"></div>
+      <h2>Speed</h2><div class="seg" id="speeds"><button data-speed="0.25">¼×</button><button data-speed="0.5">½×</button><button data-speed="1">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button></div></div></span>
+  <div class="track" id="track"><div class="fill" id="fill"></div></div><div class="clock" id="clock"></div>
+  <button id="read" class="read">Read full story</button><button id="qr" class="read" hidden>QR code</button></div>
 <div id="labels2"></div>
-<!-- The controls sit in a small toolbar on the view, as in the understanding graph: click one and its choices appear. -->
+<!-- One row of controls on the right: what is shown and how much, then menus for the layers, the camera and the view itself. -->
 <div class="side" id="side">
-  <button class="tool toolbar-visibility" id="toolbar-visibility" aria-expanded="true" aria-controls="tools">Hide controls</button>
+  <button class="tool toolbar-visibility" id="toolbar-visibility" aria-expanded="true" aria-controls="tools" title="Hide or show the controls">Hide controls</button>
   <div class="tools" id="tools">
     <select class="tool story" id="story" hidden aria-label="Which story"></select>
     <span class="tool-wrap"><button class="tool" data-pop="pop-show"><i>Show</i> <b id="t-show">Processes</b><span class="caret">▾</span></button>
@@ -314,33 +361,24 @@
         <section id="note-layout-section" data-temporal><h2>Documents &amp; notes layout</h2><div class="seg" id="note-layouts" role="group" aria-label="Documents and notes layout"><button type="button" data-note-layout="original" aria-pressed="true">Original</button><button type="button" data-note-layout="nearby" aria-pressed="false">Nearby</button><button type="button" data-note-layout="overhead" aria-pressed="false">Overhead</button><button type="button" data-note-layout="centered" aria-pressed="false">Centered above</button></div><div class="note" id="note-layout-note"></div><div class="seg"><button type="button" id="note-links-all" aria-pressed="false" title="Show every thought's connections to visible Events, people, processes and notes without hovering">All attachments</button></div><div class="note" id="note-links-note"></div></section>
       </div></span>
     <label class="tool picker process-focus" id="process-focus-label"><i>Focus</i><select id="process-focus" aria-label="Character or process"><option value="">Whole model</option></select></label>
-    <span class="row-break" aria-hidden="true"></span>
     <span class="tool stepper" id="detail-stepper" role="group" aria-label="Detail"><button type="button" id="less-detail" aria-label="Less detail" title="Collapse one level of subprocesses">−</button><span class="stepper-value"><i>Detail</i> <b id="t-detail"></b></span><button type="button" id="more-detail" aria-label="More detail" title="Expose another level of subprocesses">+</button></span>
     <button class="tool switch" id="coarse-view" aria-pressed="false" title="Return to a coarse overview of the selected whole">Coarse</button>
-    <button class="tool" id="recenter-view" title="Recenter the current view (Home)" aria-keyshortcuts="Home" disabled>Recenter</button>
-    <span class="tool-wrap"><button class="tool" data-pop="pop-time"><i>Time</i> <b id="t-time">Story</b><span class="caret">▾</span></button>
-      <div class="pop" id="pop-time" hidden><h2>Time</h2><div class="seg" id="presets"><button data-preset="story">Story</button><button data-preset="life">A life</button><button data-preset="centuries">Centuries</button><button data-preset="world">World history</button></div><div class="note" id="span"></div></div></span>
-    <span class="tool-wrap"><button class="tool" data-pop="pop-play"><i>Play</i> <b id="t-play">The story's years</b><span class="caret">▾</span></button>
-      <div class="pop" id="pop-play" hidden><h2>What plays</h2><div class="seg" id="modes"><button data-mode="story">The story's years</button><button data-mode="construction">The construction</button></div><div class="note" id="mode-note"></div>
-        <h2>Speed</h2><div class="seg" id="speeds"><button data-speed="0.25">¼×</button><button data-speed="0.5">½×</button><button data-speed="1">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button></div></div></span>
-    <span class="row-break" aria-hidden="true"></span>
-    <span class="tool-wrap"><button class="tool" data-pop="pop-camera"><i>Camera</i> <b id="t-camera">Spinning</b><span class="caret">▾</span></button>
-      <div class="pop" id="pop-camera" hidden><h2>Camera</h2><div class="seg" id="cameras"><button data-camera="spin">Spinning</button><button data-camera="free">Free</button><button data-camera="locked">Locked</button></div><div class="note" id="camera-note"></div></div></span>
-    <button class="tool switch" id="shine" aria-pressed="true" title="Switch between the shining look and a less shining one (G)">Shining</button>
-    <button class="tool switch" id="edges" aria-pressed="true" title="Show or hide the lines that link one thing to another: thoughts to their moments, documents to each other, causal links, the tree (K)">Edges</button>
-    <button class="tool switch" id="text-toggle" aria-pressed="true" title="Show or hide the text in the view: names, values, dates and cards. Hovering still reads anything (N)">Text</button>
-    <button class="tool switch" id="thoughts" aria-pressed="false" title="Show or hide documents and notes in the model">Documents &amp; notes</button>
-    <button class="tool switch" id="reading-toggle" hidden aria-pressed="true" aria-controls="strip" title="Show or hide the reading position panel">Reading position</button>
-    <span class="row-break" aria-hidden="true"></span>
-    <span class="tool-wrap"><button class="tool" data-pop="pop-details"><i>Details</i><span class="caret">▾</span></button>
+    <button class="tool icon" id="recenter-view" title="Recenter the current view (Home)" aria-label="Recenter the current view" aria-keyshortcuts="Home" disabled><svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true"><path d="M1.5 5V1.5H5M10 1.5h3.5V5M13.5 10v3.5H10M5 13.5H1.5V10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <span class="tool-wrap"><button class="tool" data-pop="pop-details"><i>Layers</i><span class="caret">▾</span></button>
       <div class="pop wide" id="pop-details" hidden>
+        <section class="pop-switches" id="layer-switches"><button class="tool switch" id="thoughts" aria-pressed="false" title="Show or hide documents and notes in the model">Documents &amp; notes</button><button class="tool switch" id="reading-toggle" hidden aria-pressed="true" aria-controls="strip" title="Show or hide the reading position panel">Reading position</button><button class="tool switch" id="everything" aria-pressed="false" title="Show every kind of record, every lens and the whole tree (X)">Show everything</button></section>
         <section id="show-section"><h2>Show <button id="all">All</button></h2><div id="kinds"></div></section>
         <section id="depth-section"><h2>Depth of the tree</h2><div class="seg" id="depths"></div><div class="note" id="depth-note"></div></section>
         <section id="lenses-section"><h2>Lenses <button id="lenses-all">All</button></h2><div id="lenses"></div></section>
-        <section class="keys-help"><b>Home</b> recenter · <b>W</b> <b>A</b> <b>S</b> <b>D</b> walk · <b>Q</b> <b>E</b> down and up · arrows look around · <b>Shift</b> faster · <b>1</b>–<b>4</b> the scales · <b>T</b> processes · <b>L</b> tree · <b>R</b> terrain · <b>Space</b> play · <b>C</b> the camera · <b>G</b> shining · <b>K</b> edges · <b>N</b> text · <b>H</b> how to read it · <b>X</b> everything. Locked: scroll or pinch zooms in time, drag pans, <b>Shift</b>+scroll moves a tall view up and down. Otherwise drag turns, right-drag moves, scroll comes closer, <b>Shift</b>+scroll zooms in time. Click anything to read what it is.</section>
       </div></span>
-    <button class="tool switch" id="everything" aria-pressed="false" title="Show every kind of record, every lens and the whole tree (X)">Show everything</button>
-    <button class="tool switch" id="legend-toggle" aria-pressed="false" aria-controls="legend" title="Show or hide how to read the view (H)">How to read it</button>
+    <span class="tool-wrap"><button class="tool" data-pop="pop-camera"><i>Camera</i> <b id="t-camera">Spinning</b><span class="caret">▾</span></button>
+      <div class="pop" id="pop-camera" hidden><h2>Camera</h2><div class="seg" id="cameras"><button data-camera="spin">Spinning</button><button data-camera="free">Free</button><button data-camera="locked">Locked</button></div><div class="note" id="camera-note"></div>
+        <h2>Display</h2><div class="pop-switches"><button class="tool switch" id="shine" aria-pressed="true" title="Switch between the shining look and a less shining one (G)">Shining</button><button class="tool switch" id="edges" aria-pressed="true" title="Show or hide the lines that link one thing to another: thoughts to their moments, documents to each other, causal links, the tree (K)">Edges</button><button class="tool switch" id="text-toggle" aria-pressed="true" title="Show or hide the text in the view: names, values, dates and cards. Hovering still reads anything (N)">Text</button></div></div></span>
+    <span class="tool-wrap"><button class="tool icon" data-pop="pop-about" aria-label="About this view, how to read it and its keys" title="About this view, how to read it and its keys">?</button>
+      <div class="pop wide" id="pop-about" hidden><h2>About this view</h2><div class="sub" id="sub"></div><div class="repos" id="repos"></div>
+        <div class="pop-switches"><button class="tool switch" id="legend-toggle" aria-pressed="false" aria-controls="legend" title="Show or hide how to read the view (H)">How to read it</button></div>
+        <h2>Keys</h2><section class="keys-help"><b>Home</b> recenter · <b>W</b> <b>A</b> <b>S</b> <b>D</b> walk · <b>Q</b> <b>E</b> down and up · arrows look around · <b>Shift</b> faster · <b>1</b>–<b>4</b> the scales · <b>T</b> processes · <b>L</b> tree · <b>R</b> terrain · <b>Space</b> play · <b>C</b> the camera · <b>G</b> shining · <b>K</b> edges · <b>N</b> text · <b>H</b> how to read it · <b>X</b> everything. Locked: scroll or pinch zooms in time, drag pans, <b>Shift</b>+scroll moves a tall view up and down. Otherwise drag turns, right-drag moves, scroll comes closer, <b>Shift</b>+scroll zooms in time. Click anything to read what it is.</section>
+      </div></span>
     <div id="process-detail-status" role="status" hidden></div>
     <div id="graph-controls" data-graph></div>
     <div id="space-controls" data-space></div>

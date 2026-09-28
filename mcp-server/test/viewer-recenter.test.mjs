@@ -201,7 +201,7 @@ test('Graph recenter handles an empty filtered result without invalid camera coo
   assert.equal(context.filter.value, 'event');
 });
 
-test('Graph uses the space freed by hidden controls without resetting camera position or selection', () => {
+test('Graph uses the room freed by hidden controls without resetting camera position or selection', () => {
   let toolbarHidden = false;
   const camera = new THREE.PerspectiveCamera(42, 1, .1, 20000); camera.position.set(14, 22, 180);
   const before = camera.position.clone(), sizes = [];
@@ -213,10 +213,11 @@ test('Graph uses the space freed by hidden controls without resetting camera pos
     renderer: { setSize: (...value) => sizes.push(value) }, labels: { setSize() {} },
   });
   vm.runInContext(functionSource(graphSource, 'resize'), context);
-  context.resize(); assert.equal(context.host.style.width, '772px');
-  toolbarHidden = true; context.resize(); assert.equal(context.host.style.width, '1256px');
+  // The controls share the top row with the title, so the graph always spans the window and starts below them.
+  context.resize(); assert.equal(context.host.style.width, '1256px'); assert.equal(context.host.style.top, '190px');
+  toolbarHidden = true; context.resize(); assert.equal(context.host.style.top, '136px', 'hidden controls give their rows back to the graph');
   closeVector(camera.position, before, 'hiding controls leaves the chosen camera pose intact');
   assert.equal(context.dirty, true);
-  toolbarHidden = false; context.resize(); assert.equal(context.host.style.width, '772px');
-  assert.deepEqual(sizes.map(size => size[0]), [772, 1256, 772]);
+  toolbarHidden = false; context.resize(); assert.equal(context.host.style.top, '190px');
+  assert.deepEqual(sizes, [[1256, 420], [1256, 474], [1256, 420]]);
 });

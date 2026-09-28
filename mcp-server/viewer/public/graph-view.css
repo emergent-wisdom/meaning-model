@@ -1,26 +1,26 @@
 .graph-mode [hidden] { display: none !important; }
 .graph-mode .repos { display: none; }
-.graph-mode .side { width: min(450px, 44vw); }
 .graph-mode .tools { justify-content: flex-end; }
-.graph-mode .details { width: 100%; max-height: calc(100vh - 250px); }
+.graph-mode .details { width: min(420px, 40vw); max-height: calc(100vh - 250px); }
 .graph-mode .details pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.5 ui-monospace, monospace; max-height: 280px; overflow: auto; }
 .graph-mode .details .v, .graph-mode .details p { overflow-wrap: anywhere; }
 .graph-mode .details summary { cursor: pointer; margin: 12px 0 6px; color: var(--ink); }
-.graph-mode .graph-control { height: 32px; background: var(--panel); border: 0; box-shadow: 0 0 0 1px var(--ring) inset; border-radius: 9px; color: var(--ink); padding: 0 9px; font: inherit; font-size: 13px; min-width: 0; }
+.graph-mode .graph-control { height: var(--control); background: var(--panel); border: 0; box-shadow: 0 0 0 1px var(--ring) inset; border-radius: var(--radius); color: var(--ink); padding: 0 9px; font: inherit; font-size: 13px; min-width: 0; }
 .graph-mode .graph-control::placeholder { color: var(--muted); }
 .graph-mode .graph-control option { background: #151517; color: var(--ink); }
 .graph-mode #graph-controls .tool[aria-pressed="true"] { background: rgba(159, 195, 255, .24); box-shadow: 0 0 0 1px rgba(159, 195, 255, .45) inset; }
-.graph-mode .graph-search { display: flex; gap: 6px; flex: 1 1 100%; }
+.graph-mode .graph-search { display: flex; gap: 6px; flex: 0 1 260px; min-width: 160px; }
 .graph-mode .graph-search input { flex: 1; width: 0; }
 .graph-mode .graph-filter { max-width: 190px; }
-.graph-mode .graph-results { width: 100%; max-height: min(230px, 30vh); overflow: auto; padding: 6px 0; color: var(--ink-2); scrollbar-width: thin; }
+/* Matches open under the row, as a menu does, instead of pushing the graph down. */
+.graph-mode .graph-results { position: absolute; top: calc(100% + 6px); right: 0; z-index: 6; width: min(380px, calc(100vw - 28px)); max-height: min(320px, 45vh); overflow: auto; padding: 8px 10px; color: var(--ink-2); background: #121214; border-radius: 12px; box-shadow: 0 0 0 1px var(--ring) inset, 0 12px 30px rgba(0,0,0,.55); scrollbar-width: thin; }
 .graph-result, .graph-neighbor { display: block; width: 100%; text-align: left; padding: 8px 10px; margin: 4px 0; color: var(--ink); background: rgba(255, 255, 255, .06); border: 0; border-radius: 7px; font: inherit; line-height: 1.4; cursor: pointer; overflow-wrap: anywhere; }
 .graph-neighbor small { display: block; color: var(--muted); margin-bottom: 4px; }
 .graph-result:hover, .graph-neighbor:hover { background: rgba(255, 255, 255, .12); }
 .graph-mode button:focus-visible, .graph-mode a:focus-visible, .graph-mode input:focus-visible, .graph-mode select:focus-visible { outline: 2px solid #ffe6ae; outline-offset: 3px; }
-.graph-mode .graph-summary { position: fixed; bottom: 18px; left: 28px; right: 28px; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; color: var(--ink-2); background: var(--panel); padding: 12px 14px; box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); border-radius: 12px; font-size: 12px; pointer-events: none; }
+.graph-mode .graph-summary { position: fixed; bottom: 12px; left: 14px; right: 14px; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; color: var(--ink-2); background: var(--panel); padding: 12px 14px; box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); border-radius: 12px; font-size: 12px; pointer-events: none; }
 /* With a record open, the summary ends where the inspector column begins, as the scene does. */
-@media (min-width: 761px) { .graph-mode.graph-selection .graph-summary { right: calc(min(450px, 44vw) + 46px); } }
+@media (min-width: 761px) { .graph-mode.graph-selection .graph-summary { right: calc(min(420px, 40vw) + 28px); } }
 .graph-mode .graph-summary strong { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 .graph-mode .graph-key { display: flex; flex-wrap: wrap; gap: 5px 13px; flex: 1 1 100%; }
 .graph-mode .graph-key span { display: inline-flex; gap: 5px; align-items: center; }
@@ -35,7 +35,6 @@
 .graph-mode .reader .graph-reveal { font: 12px system-ui,sans-serif; margin: 12px 0; background: var(--panel); color: var(--ink); border: 0; box-shadow: 0 0 0 1px var(--ring) inset; border-radius: 9px; padding: 7px 10px; cursor: pointer; }
 .graph-mode .reader .graph-reveal:hover { background: rgba(40, 40, 44, .9); }
 @media (max-width: 760px) {
-  .graph-mode .side { width: auto; }
   .graph-mode .tools { justify-content: flex-start; }
   .graph-mode .details { position: fixed; bottom: 12px; left: 16px; right: 16px; width: auto; height: 28vh; max-height: 28vh; margin: 0; }
   .graph-mode .graph-summary { left: 12px; right: 12px; bottom: 12px; padding: 8px 10px; font-size: 11px; gap: 5px 10px; }
