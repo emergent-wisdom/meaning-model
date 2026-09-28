@@ -182,7 +182,9 @@ test('templates are suggestions: a life of the modeler\'s own processes is read 
 });
 
 test('the jumps of the Book of Conditions are where its story is', async () => {
-  const model = JSON.parse(await readFile(new URL('../../examples/book-of-conditions/rust-construction/model.json', import.meta.url), 'utf8'));
+  const edition = JSON.parse(await readFile(new URL('../../examples/book-of-conditions/PUBLICATION-MANIFEST.json', import.meta.url), 'utf8'));
+  const bundle = JSON.parse(await readFile(new URL('../../examples/book-of-conditions/the-book-of-conditions.meaning-model.json', import.meta.url), 'utf8'));
+  const model = bundle.models.find(entry => entry.modelHash === edition.modelHash).definition;
   const { jumps } = modelJumps(model, { limit: 6 });
   assert.ok(jumps.some((item) => /four_jobs/u.test(item.what)), 'the four-job decision is among the largest jumps');
   assert.ok(jumps.some((item) => /Halden/u.test(item.what) && /0\.78 to 0\.18/u.test(item.what)), 'Halden\'s collapse is among them');

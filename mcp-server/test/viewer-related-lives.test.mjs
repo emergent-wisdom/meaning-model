@@ -53,6 +53,9 @@ test('opening a book automatically offers its declared author and reader life mo
   assert.deepEqual(opened.views.slice(1).map(({ title, graphHash }) => ({ title, graphHash })), [
     { title: 'Author life · Mira Writer', graphHash: null }, { title: 'Reader life · Sam Reader', graphHash: null },
   ]);
+  assert.deepEqual(opened.views[0].relatedViews, [
+    { url: opened.views[1].url, role: 'author' }, { url: opened.views[2].url, role: 'reader' },
+  ]);
   assert.ok(calls.filter(([kind]) => kind === 'query' || kind === 'render').every(([, input]) => input.accessScopes.join() === 'story-author'));
   for (const view of opened.views) {
     const data = await (await fetch(new URL('data/model.json', view.url))).json();
@@ -82,6 +85,30 @@ test('richer explicit life graphs and additional books are retained while automa
   ] });
   assert.deepEqual(opened.views.map(({ modelHash, graphHash }) => [modelHash, graphHash]), [[book, bookGraph], [author, authorGraph], [secondBook, secondGraph]]);
   assert.equal(opened.views[1].title, 'The author’s life and notes');
+  assert.deepEqual(opened.views[0].relatedViews, [
+    { url: opened.views[1].url, role: 'author' }, { url: opened.views[1].url, role: 'reader' },
+  ]);
+  assert.deepEqual(opened.views[2].relatedViews, [{ url: opened.views[1].url, role: 'author' }]);
+});
+
+test('each book groups with its own declared author even when the authors have the same display name', async (t) => {
+  const secondGraph = hash(103), secondBook = hash(5);
+  const { viewer } = setup(t, {
+    models: new Map([[secondBook, model('second-book')]]),
+    graphs: new Map([[secondGraph, graph('second-book-graph', secondBook, [declaration('second-author', reader)])]]),
+  });
+  const opened = await viewer.open({ graphHash: bookGraph, title: 'First book', additionalModels: [{ graphHash: secondGraph, title: 'Second book' }] });
+  const [first, second, firstAuthor, secondAuthor] = opened.views;
+  assert.deepEqual(first.relatedViews, [{ url: firstAuthor.url, role: 'author' }]);
+  assert.deepEqual(second.relatedViews, [{ url: secondAuthor.url, role: 'author' }]);
+  assert.equal(firstAuthor.title, secondAuthor.title);
+  assert.notEqual(firstAuthor.modelHash, secondAuthor.modelHash);
+  assert.equal(firstAuthor.relatedViews, undefined);
+  for (const choice of opened.views) {
+    const catalog = await (await fetch(new URL('data/views.json', choice.url))).json();
+    assert.deepEqual(catalog.filter((view) => view.selected).map((view) => view.url), [choice.url]);
+    assert.deepEqual(catalog.map((view) => view.relatedViews), opened.views.map((view) => view.relatedViews));
+  }
 });
 
 test('an author living in the selected model adds no duplicate, and model-only opens do not scan unrelated graphs', async (t) => {

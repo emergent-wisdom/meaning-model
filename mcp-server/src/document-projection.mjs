@@ -1,4 +1,5 @@
 import * as z from 'zod/v4';
+import { projectDocumentProcesses } from './document-processes.mjs';
 
 const id = z.string().trim().min(1).max(1024);
 const boundary = z.object({ nodeId: id, boundary: z.enum(['start', 'end']) }).strict();
@@ -100,10 +101,12 @@ export function projectDocument({ rendered, nodes, edges, rootId }) {
     const links = edges.filter((edge) => nodeId(edge.source) === node.id || nodeId(edge.target) === node.id).map((edge) => structuredClone(edge));
     spans.push({ ...base, definition, status: 'resolved', start, end, length: end - start, links });
   }
-  return { schema: 'meaning-model-document-projection/v1', graphHash: rendered.graph_hash,
+  const projection = { schema: 'meaning-model-document-projection/v1', graphHash: rendered.graph_hash,
     projectionHash: rendered.projection_hash, documentId: rootId, coordinate: 'utf8_byte',
     interval: 'half_open', byteLength: Buffer.byteLength(rendered.text, 'utf8'), units, spans,
     worldMutation: false, semantics: 'Document positions only. Process values, world intervals, and reader interpretations are not inferred or retimed.' };
+  projection.processes = projectDocumentProcesses({ projection, nodes, edges });
+  return projection;
 }
 
 export async function projectNarrativeDocument(service, raw) {

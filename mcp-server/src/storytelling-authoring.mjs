@@ -6,6 +6,8 @@ import { trajectoryExploreSchema, trajectoryReviseSchema, prepareTrajectoryExplo
 import { externalRecordNode, isExternalTarget, recordAnchorEndpoint, targetSchema } from './construction-record.mjs';
 import { constructionRecordInstructions } from './construction-principles.mjs';
 import { disclosureInstructions } from './storytelling-disclosure.mjs';
+import { prepareDocumentProcess } from './document-processes.mjs';
+import { projectNarrativeDocument } from './document-projection.mjs';
 
 const id = z.string().trim().min(1).max(256);
 const prose = z.string().min(1).max(64_000).refine((text) => text.trim().length > 0, 'Authored text must not be blank.');
@@ -42,7 +44,8 @@ export const storedTrajectoryReviseSchema = z.object({
   changes: trajectoryReviseSchema.shape.changes,
 }).strict();
 
-export const graphAuthoringInstructions = `Keep the complete authoring record inside Meaning Model. Once the initial brief and human involvement are settled, store them through life_story_author_record with explicit author-only scopes (context for the brief, selection for the agreement); record later changes with supersedes links. Distinguish human decisions from LLM choices made under delegation. The narrative graph is authoritative for story text, draft alternatives, numerical proposals, seed draws and naming alternatives, assessments, selection decisions, revision reasons, context and disclosure plans. Create the model and story graph before developing them. Files, chat summaries and PDFs are exports, never a parallel source of story facts or decisions.
+export const graphAuthoringInstructions = `Let the work choose its form. A book may be fiction, nonfiction, poetry, letters, a field guide or an unfamiliar form; these examples are not a taxonomy. Do not require a protagonist, conflict, climax, resolution or a tension curve. Use the scene workflow for scenes and its existing checks when that workflow fits; the shared narrative graph and editing tools also support other forms. Do not invent a cast or fictional author merely to satisfy a scene template. Explore processes of language, attention, explanation, arrangement or other discoveries when useful, with the same evidence and revision discipline.
+Keep the complete authoring record inside Meaning Model. Once the initial brief and human involvement are settled, store them through life_story_author_record with explicit author-only scopes (context for the brief, selection for the agreement); record later changes with supersedes links. Distinguish human decisions from LLM choices made under delegation. The narrative graph is authoritative for story text, draft alternatives, numerical proposals, seed draws and naming alternatives, assessments, selection decisions, revision reasons, context and disclosure plans. Create the model and story graph before developing them. Files, chat summaries and PDFs are exports, never a parallel source of story facts or decisions.
 Use life_story_author_record to save draft/seed alternatives and author-process material, and concise assessments or decisions as actual Understanding Nodes. Save the exact task and result in data when reviewing or exploring; link the result to the relevant candidate, draft or passage. Use the current graphHash returned by each write. Reuse/query those graph records as context; do not continue from an unrecorded external plan. The author understanding root and its authoring_step clock are distinct from world time and reader order. Record authored explanations, not hidden internal reasoning.
 When a scene contains independently changeable beats, images, exchanges or paragraphs, pass ordered passages to scene review and commit. Their exact blank-line join is the stored draft; review binds their IDs and text as well as the whole scene. Keep naturally coupled prose together; there is no quota. Use the shared life_narrative_edit operation for later splitting, merging, movement, reordering and local text replacement. Preserve the returned predecessor identity, inspect affected review IDs, and review the newly rendered scene and its context after substantive changes; existing review text does not certify a changed passage.
 life_story_trajectory_explore and life_story_trajectory_revise persist their numerical results directly; revise reads an existing graph record and preserves its predecessor. Then record your keep/revise/discard assessment with life_story_author_record. A promising character should usually receive the smallest useful repair, preserving identity and unaffected points. Keep proposals distinct from accepted model facts. Store scene drafts before review, including rejected alternatives; scene_commit stores the reviewed story text. Record purpose-review outcomes and deliberate suspense/disclosure processes in the graph. After narrative revision, update the graph and export the rendered text again; never patch the exported manuscript independently. Tool validation checks structure and references, not whether every unwritten thought was recorded or every literary judgment is correct.
@@ -70,6 +73,20 @@ export async function prepareAuthorRecord(service, raw) {
   const input = authorRecordSchema.parse(raw);
   const view = await readAuthorGraph(service, input);
   const authorModel = input.kind === 'author_model' ? authorModelSchema.parse(input.data) : null;
+  let scopeBasisIds = [];
+  if (input.data?.schema === 'meaning-model-document-process/v1') {
+    if (input.data.documentId !== input.storyRootId) throw new Error('The document process must belong to this story root.');
+    const projection = await projectNarrativeDocument(service, { graphHash: input.graphHash,
+      rootId: input.storyRootId, accessScopes: input.accessScopes });
+    const process = prepareDocumentProcess(input.data, projection, view.nodes);
+    input.data = process.data;
+    scopeBasisIds = process.scopeBasisIds;
+    for (const targetNodeId of process.targetIds) {
+      if (!input.links.some((link) => link.relation === 'about' && link.targetNodeId === targetNodeId)) {
+        input.links.push({ relation: 'about', targetNodeId });
+      }
+    }
+  }
   if (authorModel) {
     validateAuthorModelSources(view, authorModel);
     input.data = authorModel;
@@ -80,12 +97,15 @@ export async function prepareAuthorRecord(service, raw) {
     }
   }
   if (input.links.length > 128) throw new Error('Author record links and cited evidence exceed 128 targets.');
+  bounded(input);
   const rootId = `story.understanding.${createHash('sha256').update(input.storyRootId).digest('hex').slice(0, 24)}`;
   const root = view.nodes.find((node) => node.id === rootId);
   if (root && (root.node_type !== 'understanding_process_root' || root.subject !== input.storyRootId
     || root.render !== 'exclude' || root.training !== 'exclude')) throw new Error('Author understanding root has incompatible semantics.');
   if (input.nodeId === rootId || view.nodes.some((node) => node.id === input.nodeId)) throw new Error('Author record already exists; use a new node ID for an explicit revision.');
-  const targets = [...new Set([input.storyRootId, ...input.links.map((link) => link.targetNodeId), ...input.about.filter((target) => target.nodeId).map((target) => target.nodeId), ...(root ? [rootId] : [])])];
+  // The reading-order basis can mention passages outside the selected spans.
+  // Their visibility constrains the record without making them semantic links.
+  const targets = [...new Set([input.storyRootId, ...scopeBasisIds, ...input.links.map((link) => link.targetNodeId), ...input.about.filter((target) => target.nodeId).map((target) => target.nodeId), ...(root ? [rootId] : [])])];
   let scopes = [...new Set(input.accessScopes)].sort();
   for (const targetId of targets) {
     const target = view.nodes.find((node) => node.id === targetId);

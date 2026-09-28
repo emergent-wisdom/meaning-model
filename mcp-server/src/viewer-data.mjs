@@ -7,8 +7,9 @@ import { placeStoryUnits, countProseWords, buildStoryHierarchy } from '../viewer
 import { projectDocument } from './document-projection.mjs';
 import { temporalWindow } from '../viewer/public/temporal-layout.js';
 import { projectNumerics } from './viewer-numerics.mjs';
+import { declaredViewerLives } from './viewer-snapshot.mjs';
 
-export async function buildViewerData({ history, rendered = null, calls = [], name = null, title: requestedTitle = null,
+export async function buildViewerData({ history, rendered = null, documentRendered = null, calls = [], name = null, title: requestedTitle = null,
   display = null, meaningModelVersion = null, generatedAt = new Date().toISOString() } = {}) {
   if (!Array.isArray(history?.models) || !history.models.length || !Array.isArray(history.revisions)
     || history.models.some((entry) => !entry?.definition || typeof entry.definition !== 'object')) {
@@ -448,8 +449,9 @@ export async function buildViewerData({ history, rendered = null, calls = [], na
   const storyWindow = proseTimes.length >= 2 ? { start: Math.min(...proseTimes), end: Math.max(...proseTimes) } : window;
   const storyTitle = story?.units.map((unit) => unit.text.match(/^#\s+(.+)$/m)?.[1]?.trim()).find(Boolean) ?? null;
   const storyWords = story ? story.units.reduce((sum, unit) => sum + countProseWords(unit.text), 0) : null;
-  const documentProjection = rendered?.join_policy === 'blank_line' && rendered.roots?.length === 1
-    ? projectDocument({ rendered, nodes: [...nodes.values()], edges: [...edges.values()], rootId: rendered.roots[0] }) : null;
+  const documentRender = documentRendered ?? rendered;
+  const documentProjection = documentRender?.join_policy === 'blank_line' && documentRender.roots?.length === 1
+    ? projectDocument({ rendered: documentRender, nodes: [...nodes.values()], edges: [...edges.values()], rootId: documentRender.roots[0] }) : null;
   const numerics = projectNumerics(model, { toDisplayTime: toYear });
   for (const reading of numerics.cuts) { reading.eventId = reading.parentEventId; reading.born = birthOf('cuts', reading.id); }
   const data = {
@@ -479,5 +481,6 @@ export async function buildViewerData({ history, rendered = null, calls = [], na
   };
   data.constructionTiming = data.capabilities.construction ? 'available' : 'unavailable';
   data.inspection = structuredClone({ modelHash: selectedModelEntry.modelHash, model, graph: { id: history.graphId ?? null, nodes: [...nodes.values()], edges: [...edges.values()] } });
+  data.relatedModels = declaredViewerLives(data).map(({ modelHash, role }) => ({ modelHash, role }));
   return data;
 }

@@ -104,6 +104,14 @@ own UTF-8 byte coordinate. `life_document_project` resolves those positions from
 exact render after edits; missing or reversed endpoints remain unresolved. See
 [document coordinates](../docs/NARRATIVE_UNDERSTANDING_GRAPH.md#document-coordinates-and-optional-spans).
 
+When the model contains telling-process assessments, **Reading position → Story
+processes** shows their phases, questions and exact passage evidence. These are
+authored interpretations, not measured reader responses or a required dramatic
+formula. Locate or read a passage without moving world time. Attachments follow
+the text; changed passages or reading order are marked for review. The
+[storytelling guide](../profiles/STORYTELLING_ADDON.md) explains how an LLM records
+these optional qualitative processes through the existing authoring tools.
+
 `@emergent-wisdom/meaning-model-mcp` is the stdio interface and control plane for the
 authoritative Rust machine in the Meaning Model repository. It is not a second simulation
 engine. A single long-lived `life-sim-engine --ndjson` process validates and

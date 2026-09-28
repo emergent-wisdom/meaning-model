@@ -2,6 +2,8 @@
 // keys become normalized Cuts. Proposals are AI inference; with apply they enter the model as
 // an explicit immutable revision that carries estimator provenance.
 import { createHash } from 'node:crypto';
+import { eventTextSignature } from './reading-evidence.mjs';
+export { eventTextSignature } from './reading-evidence.mjs';
 import * as z from 'zod/v4';
 import { rebindNarrativeGraph, preflightNarrativeRebind } from './narrative-rebind.mjs';
 
@@ -113,7 +115,6 @@ const isReading = (item) => String(item.cutId ?? '').startsWith('lens.') || /\bf
 // Text that reads like a note to the modeler rather than what happens in the world: record ids, draws, revisions.
 const NOTE_LIKE = /\b(?:cut|draw|lens)\.[a-z0-9_-]+\.[a-z0-9_.-]+|\bdrawn from\b|\brevision \d+\b|\bunderstanding node\b|\bTODO\b|\bsee (?:the )?note\b/iu;
 // The text of an Event as an estimate reads it, signed, so a reading can tell when its Event has been rewritten since.
-export const eventTextSignature = (event) => createHash('sha256').update(JSON.stringify([event?.boundary ?? '', event?.description ?? ''])).digest('hex').slice(0, 16);
 export const constructionNoteIn = (text) => String(text ?? '').match(NOTE_LIKE)?.[0] ?? null;
 
 // The estimator reads the model, not only the words written for it: each person taking part in the Event, as the model

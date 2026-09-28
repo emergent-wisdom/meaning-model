@@ -216,7 +216,9 @@ test('empty and disconnected models keep every authoritative graph record withou
 });
 
 test('the Book exposes its native numerical compositions even without prose-format process paths', async () => {
-  const definition = JSON.parse(await readFile(new URL('../../examples/book-of-conditions/rust-construction/model.json', import.meta.url), 'utf8'));
+  const edition = JSON.parse(await readFile(new URL('../../examples/book-of-conditions/PUBLICATION-MANIFEST.json', import.meta.url), 'utf8'));
+  const bundle = JSON.parse(await readFile(new URL('../../examples/book-of-conditions/the-book-of-conditions.meaning-model.json', import.meta.url), 'utf8'));
+  const definition = bundle.models.find(entry => entry.modelHash === edition.modelHash).definition;
   const data = await buildViewerData({ history: history(definition), rendered: render(), generatedAt });
   assert.equal(data.viewKind, 'graph');
   assert.deepEqual(data.capabilities, { graph: true, temporal: true, trajectories: false, story: true, construction: false });

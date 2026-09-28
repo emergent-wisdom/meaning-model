@@ -1,6 +1,7 @@
 import { isPlaybackVisible } from './playback-time.js';
 
 const PALETTE = ['#ffb057', '#58b4ff', '#5fd39a', '#c69bff', '#ff7aa8', '#e8e27a', '#7fe0e6'];
+export const readingNeedsReview = (cut) => ['needs_review', 'unresolved'].includes(cut.evidence?.status);
 export function answerColor(key) {
   if (key === 'remainder') return '#77746c';
   let hash = 0;
@@ -50,6 +51,9 @@ export function appendRecordedCut(container, cut, options = {}) {
   const document = container.ownerDocument;
   const line = (className, text) => container.append(element(document, 'div', className, text));
   line('k', cut.withdrawn || cut.record?.withdrawn ? 'Historical numerical reading · withdrawn' : 'Recorded numerical reading');
+  if (readingNeedsReview(cut)) line('m', `Needs review: ${cut.evidence.reason}`);
+  else if (cut.evidence?.status === 'untracked') line('a', 'No recorded Event-text dependency; freshness has not been checked.');
+  else if (cut.evidence?.status === 'unchanged') line('a', 'The recorded Event text is unchanged. This does not verify the interpretation.');
   line('v', cut.question || cut.id);
   line('m', `Event: ${cut.eventLabel || cut.parentEventId || cut.eventId}`);
   if (cut.eventDescription && cut.eventDescription !== cut.eventLabel) line('m', cut.eventDescription);
@@ -140,7 +144,8 @@ export function appendRecordedNumbers(container, numerics = {}, options = {}) {
     container.append(section);
   };
   const cutTitle = (cut) => `${cut.question || cut.id} · ${cut.eventLabel || cut.parentEventId || cut.eventId} · ${recordedIntervalText(cut, options)}`;
-  group('Current Cuts', numerics.cuts ?? [], cutTitle, (body, cut) => appendRecordedCut(body, cut, options));
+  group('Needs review · changed or unresolved evidence', (numerics.cuts ?? []).filter(readingNeedsReview), cutTitle, (body, cut) => appendRecordedCut(body, cut, options));
+  group('Current Cuts', (numerics.cuts ?? []).filter((cut) => !readingNeedsReview(cut)), cutTitle, (body, cut) => appendRecordedCut(body, cut, options));
   group('Scalar initial values · no recorded time', numerics.scalarRecords ?? [], (record) => `${record.label || record.processId || record.id}: ${record.value} ${record.unit ?? ''}`, appendScalar);
   const historical = Array.isArray(numerics.historical) ? numerics.historical : numerics.historical?.cuts ?? [];
   group('Historical Cuts', historical, cutTitle, (body, cut) => appendRecordedCut(body, cut, options));

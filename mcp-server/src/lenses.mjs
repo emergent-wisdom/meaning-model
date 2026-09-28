@@ -16,6 +16,7 @@ import { recordUnderstanding, targetSchema } from './construction-record.mjs';
 import { resolveAppendHead } from './graph-head.mjs';
 import { rebindNarrativeGraph } from './narrative-rebind.mjs';
 import { constructionNoteIn, eventTextSignature, proposeCutShares } from './cut-shares.mjs';
+import { readingTextEvidence } from './reading-evidence.mjs';
 import { READING_MARK, contextKindOf, cutKind, eventDescendants, indexModel, modeledPeople, readDraws, readPerson, storyProfile } from './model-questions.mjs';
 
 const id = z.string().trim().min(1).max(256);
@@ -391,8 +392,9 @@ function subjectsOf(lens, index, people, before = null, declines = new Map(), pl
   const sameAnswers = (a, b) => JSON.stringify((a.answers ?? []).map((x) => [x.key, x.weight]).sort()) === JSON.stringify((b.answers ?? []).map((x) => [x.key, x.weight]).sort());
   const staleness = (cut) => {
     // A reading of an Event rewritten since it was read is stale, whichever version of the lens it answers.
-    const read = (cut.provenance ?? []).find((item) => String(item).startsWith('event-text:'))?.slice(11);
-    if (read && read !== eventTextSignature(index.events.get(readOf.get(cut.parent_event_id) ?? cut.parent_event_id))) return 'its Event has been rewritten since it was read';
+    const evidence = readingTextEvidence(cut, index);
+    if (evidence.status === 'needs_review') return 'its Event has been rewritten since it was read';
+    if (evidence.status === 'unresolved') return evidence.reason;
     const cutUnit = String(cut.unit ?? '');
     if (cutUnit === unit) return null;
     if (cutUnit.startsWith(`lens:${lens.id}@`)) {

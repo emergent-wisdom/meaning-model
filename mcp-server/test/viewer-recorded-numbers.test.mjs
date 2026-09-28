@@ -75,6 +75,18 @@ test('Cut details preserve complete answers, context, local denominator and lite
   assert.match(text, /native start 1, end 2 machine_cycles/);
 });
 
+test('readings needing review are visibly separated from current and withdrawn records', () => {
+  const f = dom();
+  const stale = reading('changed', 1, { evidence: { status: 'needs_review', reason: 'The Event text changed.' } });
+  appendRecordedNumbers(f.root, { cuts: [stale, reading('untracked', 2)], historical: { cuts: [] } });
+  assert.match(f.text(), /Needs review · changed or unresolved evidence \(1\)/);
+  assert.match(f.text(), /Current Cuts \(1\)/);
+  assert.doesNotMatch(f.text(), /Historical Cuts/);
+  for (const item of f.all().filter((node) => node.listeners.toggle)) f.open(item);
+  assert.match(f.text(), /Needs review: The Event text changed/);
+  assert.match(f.text(), /0.75/);
+});
+
 test('Numbers browses all current, undated and historical Cuts plus scalar initial values without creating times', () => {
   const f = dom(); const numerics = { cuts: [reading('future', 999), reading('undated', null)],
     scalarRecords: [{ processId: 'reservoir.capacity', value: 0, unit: 'litres', referenceFrame: 'Design limit, not an observation', support: ['Declared capacity'], provenance: ['Source retained'] }],

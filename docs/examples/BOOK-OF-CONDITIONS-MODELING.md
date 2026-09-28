@@ -1,12 +1,17 @@
 # Modeling with The Book of Conditions
 
-The Book's first accepted construction develops a counterfactual world through
+The Book develops a counterfactual world through
 coarse history, whole lives, selected scenes, and explicit revisions. Its method
 is useful beyond this story: explore what a process or choice opens onto,
 follow its connections, and let discoveries change the model and the writing.
 Its categories are replaceable choices, not a required ontology for people.
 The characters' invented interiors are fiction, including those of historical
 people.
+
+The current example uses the revised native model and manuscript in
+`examples/book-of-conditions/`, with a publication manifest identifying the
+edition. The paper separately reports the first construction's historical
+measurements; those earlier results are not new evaluations of this revision.
 
 ## Keep a life wider than the scene's emotional composition
 
@@ -86,7 +91,8 @@ only how existing facts reach the reader.
 
 ## Apply the method through the MCP
 
-For continuing work, use `life_construction_replay` and `life_model_outline`
+Import the example's portable model with `life_construction_import`. For
+continuing work, use `life_construction_replay` and `life_model_outline`
 before changing it, then inspect the records needed for the current question.
 For new work, the bundled
 [minimal model and graph example](MINIMAL-MODEL-AND-GRAPH.md) supplies valid

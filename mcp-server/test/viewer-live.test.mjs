@@ -40,7 +40,7 @@ function fixture(t) {
   };
   const viewer = createModelViewer(service); t.after(() => viewer.close());
   const json = async (opened, path) => { const response = await fetch(new URL(`data/${path}.json`, opened.url)); assert.equal(response.status, 200); return response.json(); };
-  return { viewer, add, models, calls, json };
+  return { viewer, add, models, graphs, calls, json };
 }
 
 test('live mode requires an explicit graph; default and model-only views remain exact snapshots', () => {
@@ -79,6 +79,28 @@ test('a later fork from an already passed ancestor pauses without choosing eithe
   assert.deepEqual(await f.json(live, 'model'), before);
   const chosen = await f.viewer.open({ graphHash: hash(102), mode: 'live' });
   assert.equal((await f.json(chosen, 'live')).graphHash, hash(104), 'opening an explicit branch defines a new unambiguous lineage');
+});
+
+test('live revision following retains declared book/life groups and exact life snapshots', async (t) => {
+  const f = fixture(t), authorModel = hash(20);
+  f.models.set(authorModel, { ...structuredClone(f.models.get(modelHash)), id: 'author-world' });
+  const declaration = { id: 'author-life', node_type: 'storytelling.world', role: 'metadata', subject: 'story',
+    render: 'exclude', training: 'exclude', access_scopes: [], text: JSON.stringify({
+      schema: 'meaning-model-story-author-record/v1', kind: 'world',
+      data: { schema: 'meaning-model-story-world/v1', stage: 'author_reader',
+        author: { lifeModelHash: authorModel, personId: 'author', name: 'The writer', mode: 'invented' }, reader: null },
+    }) };
+  f.graphs.get(rootHash).nodes.push(declaration);
+  const opened = await f.viewer.open({ graphHash: rootHash, mode: 'live' });
+  const before = await f.json(opened, 'views');
+  assert.deepEqual(before[0].relatedViews, [{ url: before[1].url, role: 'author' }]);
+  const next = f.add(hash(102), rootHash, { text: 'A new saved passage' }); next.nodes.push(declaration);
+  assert.equal((await f.json(opened, 'live')).graphHash, hash(102));
+  const after = await f.json(opened, 'views');
+  assert.equal(after[0].graphHash, hash(102));
+  assert.deepEqual(after[0].relatedViews, before[0].relatedViews);
+  assert.deepEqual(after[1], before[1]);
+  assert.equal((await f.json(after[1], 'live')).mode, 'snapshot');
 });
 
 for (const hidden of ['graph', 'model']) test(`new private ${hidden} records retain the last authorized revision and never widen scopes`, async (t) => {

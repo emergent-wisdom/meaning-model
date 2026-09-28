@@ -1,0 +1,10 @@
+.document-process-overview { margin: 10px 0 6px; }
+.document-process-map-labels { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 5px; color: var(--muted); font-size: 10px; }
+.document-process-map-labels[hidden], .document-process-map[hidden] { display: none; }
+.document-process-map { position: relative; margin: 0 2px; border-inline: 1px solid var(--ring); background: repeating-linear-gradient(to right, transparent 0, transparent calc(25% - 1px), var(--ring) calc(25% - 1px), var(--ring) 25%); }
+.document-process-map-phase { position: absolute; box-sizing: border-box; height: 23px; min-width: 0; overflow: hidden; padding: 0; border: 1px solid #9685af; border-radius: 4px; background: #3c344a; color: #f1eafc; font: inherit; font-size: 10px; cursor: pointer; }
+.document-process-map-phase[aria-pressed="true"] { background: #a592c2; color: #12101a; border-color: #eadffc; }
+.document-process-map-phase[data-status="needs_review"] { border-style: dashed; border-color: #e5bc85; }
+.document-process-map-phase.point { min-width: 2px; transform: translateX(-1px); border-radius: 0; }
+.document-process-map-phase:focus-visible, .document-process-phases button:focus-visible, .document-process-actions button:focus-visible { outline: 2px solid #ffe6ae; outline-offset: 2px; }
+.document-process-phases button::before { content: attr(data-phase) ". "; color: var(--muted); font-variant-numeric: tabular-nums; }

@@ -5,6 +5,7 @@
 // its dependence on the modeled state is not tracked until a model needs it.
 import { z } from 'zod';
 import { eventTextSignature } from './cut-shares.mjs';
+import { readingTextEvidence } from './reading-evidence.mjs';
 import { indexModel } from './model-questions.mjs';
 import { passageGrounding } from './narrative-grounding.mjs';
 
@@ -56,9 +57,8 @@ export async function checkRevision(service, raw) {
   const readings = [];
   for (const cut of cutsB.values()) {
     if (cut.withdrawn) continue;
-    const text = (cut.provenance ?? []).find((item) => String(item).startsWith('event-text:'))?.slice(11);
-    const target = index.readings?.has(cut.parent_event_id) ? (index.relations.find((relation) => relation.source_event_id === cut.parent_event_id && relation.kind === 'about')?.target_event_id ?? cut.parent_event_id) : cut.parent_event_id;
-    if (text && rewritten.includes(target) && text !== eventTextSignature(eventsB.get(target))) readings.push({ cutId: cut.id, eventId: target, why: 'it read the Event\'s text, which has been rewritten' });
+    const evidence = readingTextEvidence(cut, index);
+    if (evidence.status === 'needs_review' || evidence.status === 'unresolved') readings.push({ cutId: cut.id, eventId: evidence.eventId ?? null, changedInRevision: rewritten.includes(evidence.eventId), why: evidence.reason });
   }
   const later = (b.event_relations ?? []).filter((relation) => causal.has(relation.kind) && changedEvents.has(relation.source_event_id) && eventsB.has(relation.target_event_id))
     .map((relation) => ({ eventId: relation.target_event_id, from: relation.source_event_id, relation: relation.kind, why: 'it follows from an Event that changed: check its description, interval and placement still hold' }));
@@ -103,7 +103,7 @@ export async function checkRevision(service, raw) {
 
 export function registerRevisionCheckTools(server, service, { toolResult }) {
   server.registerTool('life_revision_check', {
-    description: 'After a revision, inspect recorded dependencies that need review. Given the model before and after, it names detected changes (Events rewritten, retimed, relocated through region/substrate edits or removed; Cuts reweighted, withdrawn, removed or moved), dependent Cuts and draws, stale text readings, directly related later Events, passages with grounding/renders links, and notes anchored to changed records. Passages without a declared renders link are unchecked. Placement changes flag dependencies without claiming that a text-based estimate read changed text. This does not verify prose meaning, dependency completeness, or character knowledge.',
+    description: 'After a revision, inspect recorded dependencies that need review. Given the model before and after, it names detected changes (Events rewritten, retimed, relocated through region/substrate edits or removed; Cuts reweighted, withdrawn, removed or moved), dependent Cuts and draws, outstanding stale text readings, directly related later Events, passages with grounding/renders links, and notes anchored to changed records. Text readings include earlier unresolved changes: changedInRevision distinguishes this revision from an older backlog. Passages without a declared renders link are unchecked. Placement changes flag dependencies without claiming that a text-based estimate read changed text. This does not verify prose meaning, dependency completeness, or character knowledge.',
     inputSchema: revisionCheckSchema,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await checkRevision(service, input)));

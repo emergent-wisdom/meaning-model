@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { eventTextSignature } from '../src/reading-evidence.mjs';
 import { projectNumerics } from '../src/viewer-numerics.mjs';
 
 const event = (id, interval = null, extra = {}) => ({ id, interval, boundary: `Event ${id}`, participants: {}, ...extra });
@@ -123,6 +124,25 @@ test('withdrawn Cuts remain inspectable history and never become current composi
   assert.equal(projection.historical.count, 1);
   assert.deepEqual(projection.historical.cuts[0].record.withdrawn, withdrawal);
   assert.equal(projection.counts.historicalCuts, 1);
+});
+
+test('changed reading evidence is flagged through its declared subject without withdrawing or altering the numbers', () => {
+  const old = { ...event('subject'), description: 'An earlier account.' };
+  const source = model({ events: [{ ...old, description: 'A revised account.' }, event('reader'), event('reading')],
+    context_roots: [{ event_id: 'reader', kind: 'understanding' }],
+    event_relations: [contains('reader', 'reading'), { kind: 'about', source_event_id: 'reading', target_event_id: 'subject' }],
+    normalized_cuts: [cut('estimate', 'reading', { provenance: [`event-text:${eventTextSignature(old)}`] }), cut('untracked', 'subject')] });
+  const original = structuredClone(source);
+  const projection = projectNumerics(source);
+  assert.equal(projection.cuts[0].evidence.status, 'needs_review');
+  assert.equal(projection.cuts[0].evidence.eventId, 'subject');
+  assert.equal(projection.cuts[1].evidence.status, 'untracked');
+  assert.equal(projection.historical.count, 0);
+  assert.deepEqual(source, original);
+  source.meaning_model.events[0] = old;
+  assert.equal(projectNumerics(source).cuts[0].evidence.status, 'unchanged');
+  source.meaning_model.event_relations.push({ kind: 'about', source_event_id: 'reading', target_event_id: 'reader' });
+  assert.equal(projectNumerics(source).cuts[0].evidence.status, 'unresolved', 'do not silently select one of several subjects');
 });
 
 test('invalid intervals or a failed display conversion remain explicitly unplaced', () => {

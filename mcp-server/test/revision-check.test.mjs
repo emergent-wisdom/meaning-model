@@ -43,6 +43,15 @@ test('a revision that changed nothing leaves nothing to check', async () => {
   assert.equal(result.unlinkedPassages, undefined);
 });
 
+test('an older stale reading remains visible even when the most recent revision did not rewrite its Event', async () => {
+  const same = { ...service, inspectModel: async () => ({ model: after }) };
+  const result = await checkRevision(same, { graphHash: 'c'.repeat(64), fromModelHash: 'b'.repeat(64), toModelHash: 'b'.repeat(64) });
+  assert.deepEqual(result.changed.rewritten, []);
+  assert.deepEqual(result.readings.map((reading) => reading.cutId), ['lens.x.ana.choice']);
+  assert.equal(result.readings[0].changedInRevision, false);
+  assert.match(result.readings[0].why, /not been reassessed/);
+});
+
 test('a passage without declared depiction links is reported as unchecked', async () => {
   const unlinked = { ...view, nodes: [...view.nodes, { id: 'scene.2', node_type: 'scene', render: 'include', text: 'She walks home.' }] };
   const result = await checkRevision({ ...service, queryNarrativeGraph: async () => unlinked }, { graphHash: 'c'.repeat(64), fromModelHash: 'a'.repeat(64) });
@@ -65,7 +74,7 @@ test('Event region and substrate edits flag declared prose and notes without inv
     const modelBefore = structuredClone(before), modelAfter = structuredClone(before);
     modelBefore.meaning_model.events[1][field] = from;
     modelAfter.meaning_model.events[1][field] = to;
-    // Even an older stale text signature is not evidence that this placement edit rewrote text.
+    // An older stale signature remains outstanding, without attributing it to this placement edit.
     modelBefore.meaning_model.normalized_cuts.at(-1).provenance = ['estimator:t', 'event-text:older-text'];
     modelAfter.meaning_model.normalized_cuts.at(-1).provenance = ['estimator:t', 'event-text:older-text'];
     const result = await checkGraph([
@@ -81,10 +90,10 @@ test('Event region and substrate edits flag declared prose and notes without inv
     assert.deepEqual(result.passages.map(({ nodeId, records }) => ({ nodeId, records })), [{ nodeId: 'scene', records: ['ana.choice'] }]);
     assert.deepEqual(result.notes.map(({ nodeId, records }) => ({ nodeId, records })), [{ nodeId: 'note', records: ['ana.choice'] }]);
     assert.deepEqual(result.later.map(({ eventId }) => eventId), ['ana.after']);
-    assert.deepEqual(result.readings, []);
+    assert.deepEqual(result.readings.map(({ cutId, changedInRevision }) => ({ cutId, changedInRevision })), [{ cutId: 'lens.x.ana.choice', changedInRevision: false }]);
     assert.deepEqual(result.draws, []);
     assert.deepEqual(result.conditioned, []);
-    assert.equal(result.toCheck, 3);
+    assert.equal(result.toCheck, 4);
     assert.equal(result.graphMutation, false);
   }
 });

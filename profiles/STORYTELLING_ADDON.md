@@ -17,9 +17,17 @@ including emotional ones. It does not prescribe a fixed psychology, the
 experimental numerical `story` profile, or a universal story-quality score.
 The existing low-level narrative and writer tools remain available.
 
-The calling LLM models the author's life, the world and the principals through
-the recursive process below, letting model discoveries and provisional prose
-inform one another. Supply the required life dossier and current depth review
+Let the work choose its form. Fiction, nonfiction, poetry, letters, field guides
+and unfamiliar forms need not share a plot structure. A protagonist, conflict,
+climax, resolution or tension curve is not compulsory. Use the scene workflow
+where scenes fit, and the shared narrative graph and editing tools for other
+forms; do not invent a cast or fictional author to fill a template. Explore
+language, attention, explanation, arrangement or other processes when useful,
+with the same evidence and revision discipline.
+
+For work using the scene workflow, the calling LLM models the relevant lives and
+world through the recursive process below, letting model discoveries and
+provisional prose inform one another. Supply the required life dossier and current depth review
 before preparing scenes for acceptance; exploration need not wait for a
 finished account. The user need not request the step, remember its tool
 name, or fill in a dossier. Within the human author's delegated scope, the LLM
@@ -28,6 +36,40 @@ agreed decision checkpoints before adopting those details. For existing canon,
 reuse established facts, distinguish inferences, and ask only about gaps whose
 resolution truly requires the user's choice. This responsibility is part of
 the storytelling workflow, not an optional depth setting.
+
+From the first exploration, consider how the telling develops as well as what
+happens in the world: anticipation, rhythm, disclosure, humor, intimacy, or a
+process discovered in this particular work. Follow useful questions recursively;
+let exploratory prose change the model and let the model suggest new writing.
+These are invitations, not required tracks, a dramatic formula, or a reason to
+remove quietness and pleasure. Review the actual prose before treating an intended
+effect as achieved.
+
+When useful, record a qualitative telling process through
+`life_story_author_record` with `kind: "assessment"` and optional
+`data.schema: "meaning-model-document-process/v1"`. Supply `documentId`, `label`,
+`question`, `summary`, and `states` containing a label, description, existing
+`document.span` ID as `spanId`, and exact passage evidence as `{nodeId, excerpt}`.
+The tool checks the quotations within their spans and automatically records the
+reviewed passage hashes, reading order, and explicit links. The viewer exposes
+these authored interpretations under **Reading position → Story processes**.
+Document position follows the ordered text, separately from world time, the
+author's life, and the authoring history. A numeric rubric is optional: use the
+existing numerical grammar with a declared holder, anchors, units and uncertainty
+when it answers a useful question; do not imply measured reader psychology.
+
+Stable spans follow their passages through edits, but do not establish that an
+earlier interpretation still holds. Changed passages or reading order mark phases
+for review; missing attachments remain unresolved. Re-read the affected text and
+record a new assessment with `supersedes` when replacing the earlier account.
+
+After model revisions, use `life_revision_check` and, for adopted lenses,
+`life_lens_questions` to revisit numerical readings. The revision check retains
+older unresolved text dependencies as well as new ones. The viewer separates
+readings whose recorded Event text changed into **Needs review**, preserving
+their exact values and attribution. Unchanged text is not proof that an
+interpretation is correct; do not invent fresh measurements or alter historical
+values simply to clear a warning.
 
 The narrative graph is the authoritative authoring record. Create the model
 and graph before developing story material; store candidates, seed draws and

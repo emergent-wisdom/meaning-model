@@ -23,6 +23,23 @@ export function modelSwitchURL(current, target, remembered = null) {
   return after.href;
 }
 
+// Catalog relationships describe related worlds, never a merge of their data
+// or clocks. Public exports can retain the same metadata as a local MCP viewer.
+export function modelPickerGroups(views, current) {
+  const key = (url) => { try { return new URL(url, current).href; } catch { return null; } };
+  const byURL = new Map(views.map((view) => [key(view.url), view]));
+  const children = new Set();
+  const related = new Map(views.map((view) => {
+    const entries = [...new Set((Array.isArray(view.relatedViews) ? view.relatedViews : [])
+      .map((item) => byURL.get(key(item?.url))).filter((item) => item && item !== view))];
+    for (const item of entries) children.add(item);
+    return [view, entries];
+  }));
+  return views.flatMap((view) => related.get(view).length
+    ? [{ title: view.title ?? 'Untitled model', views: [view, ...related.get(view)] }]
+    : children.has(view) ? [] : [{ title: null, views: [view] }]);
+}
+
 export async function mountModelPicker() {
   // The picker names the model where its title stands; the standalone inspector keeps it in its navigation.
   const title = document.querySelector('.hud.title'), parent = title ?? document.querySelector('#tools') ?? document.querySelector('.inspection-nav');
@@ -38,9 +55,18 @@ export async function mountModelPicker() {
   const label = document.createElement('label'); label.className = 'tool picker model-picker';
   const name = document.createElement('i'); name.textContent = 'Model';
   const select = document.createElement('select'); select.setAttribute('aria-label', 'Model');
-  for (const view of views) {
-    const option = document.createElement('option'); option.value = view.url;
-    option.textContent = view.title ?? 'Untitled model'; option.selected = view.selected === true; select.append(option);
+  let selected = false;
+  for (const group of modelPickerGroups(views, location.href)) {
+    const parent = group.title === null ? select : document.createElement('optgroup');
+    if (parent !== select) { parent.label = group.title; select.append(parent); }
+    for (const view of group.views) {
+      const option = document.createElement('option'); option.value = view.url;
+      option.textContent = view.title ?? 'Untitled model';
+      // One declared life can belong to several books. Reuse its URL in each
+      // group, with only one selected option in the native single-select.
+      option.selected = !selected && view.selected === true; selected ||= option.selected;
+      parent.append(option);
+    }
   }
   select.addEventListener('change', () => {
     const target = new URL(modelSwitchURL(location.href, select.value));

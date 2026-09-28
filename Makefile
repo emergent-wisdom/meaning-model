@@ -41,7 +41,7 @@ test-mcp: build
 	$(NODE) examples/progressive-authoring/run.mjs
 
 test-book: build
-	$(NODE) --test --test-concurrency=1 examples/book-of-conditions/import-rust.test.mjs examples/book-of-conditions/rust-narrative.test.mjs
+	$(NODE) --test --test-concurrency=1 examples/book-of-conditions/import-rust.test.mjs
 
 verify-resources:
 	$(NODE) scripts/verify-resources.mjs

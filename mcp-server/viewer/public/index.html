@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Meaning Model Viewer</title>
+<link rel="stylesheet" href="./document-processes.css">
 <script src="live-transition.js"></script>
 <style>
   [hidden] { display: none !important; }
@@ -76,6 +77,22 @@
   .document-span-axis { position: relative; height: 7px; margin: 5px 1px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
   .document-span-band { position: absolute; height: 100%; background: #c9b4f4; border-radius: 3px; }
   .document-span-band.point { border-left: 2px solid #c9b4f4; border-radius: 0; transform: translateX(-1px); }
+  .document-processes { color: var(--ink-2); font-size: 12px; }
+  .document-processes summary { cursor: pointer; color: #fff; }
+  .document-processes-body { max-height: min(320px, 38vh); overflow: auto; overscroll-behavior: contain; padding: 6px 4px 4px 0; }
+  .document-processes-body select { width: 100%; background: var(--panel, #171923); color: var(--ink, #eee); border: 1px solid var(--ring); border-radius: 5px; padding: 6px; }
+  .document-process-question { color: #fff; font-weight: 600; }
+  .document-process-summary, .document-process-detail p { line-height: 1.45; }
+  .document-process-help { color: var(--muted); font-size: 11px; line-height: 1.4; }
+  .document-process-phases { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+  .document-process-phases button, .document-process-actions button { color: var(--ink-2); background: rgba(255,255,255,.04); border: 1px solid var(--ring); border-radius: 5px; padding: 5px 8px; cursor: pointer; font: inherit; }
+  .document-process-phases button[aria-pressed="true"] { color: #fff; border-color: #9c89b4; background: rgba(156,137,180,.16); }
+  .document-process-detail { border-top: 1px solid var(--ring); padding-top: 8px; }
+  .document-process-detail blockquote { margin: 6px 0; padding-left: 9px; border-left: 2px solid #9c89b4; line-height: 1.5; color: var(--ink-2); }
+  .document-process-status { color: #e5bc85; }
+  .document-process-axis { position: relative; height: 6px; background: rgba(255,255,255,.1); border-radius: 3px; margin: 8px 0; }
+  .document-process-extent { position: absolute; height: 100%; background: #b5a4cc; border-radius: 3px; }
+  .document-process-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 
   .strip-label { color: var(--muted); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
   .strip-position { color: var(--ink-2); font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }

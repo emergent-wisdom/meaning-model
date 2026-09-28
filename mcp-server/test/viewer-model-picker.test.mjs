@@ -1,6 +1,72 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { modelSwitchURL } from '../viewer/public/model-picker.js';
+import { modelPickerGroups, modelSwitchURL, mountModelPicker } from '../viewer/public/model-picker.js';
+
+test('the chooser groups declared related worlds without title matching or extra model requests', () => {
+  const current = 'https://example.com/models/first/';
+  const first = { url: '../first/', title: 'First story', relatedViews: [{ url: '/models/writer/', role: 'author' }] };
+  const second = { url: '../second/', title: 'Second story', relatedViews: [{ url: '../other-writer/', role: 'author' }] };
+  const writer = { url: '../writer/', title: 'Author life · A writer' };
+  const otherWriter = { url: '../other-writer/', title: 'Author life · A writer', selected: true };
+  const unrelated = { url: '../unrelated/', title: 'First story', selected: false };
+  assert.deepEqual(modelPickerGroups([first, second, unrelated, writer, otherWriter], current), [
+    { title: 'First story', views: [first, writer] }, { title: 'Second story', views: [second, otherWriter] },
+    { title: null, views: [unrelated] },
+  ]);
+  assert.equal(otherWriter.selected, true);
+});
+
+test('shared lives reuse one world beneath each declared book and malformed or absent relationships add no choices', () => {
+  const current = 'https://example.com/models/first/';
+  const first = { url: '/models/first/', title: 'First', relatedViews: [
+    { url: '/models/writer/', role: 'author' }, { url: '/models/writer/', role: 'reader' },
+    { url: '/models/first/' }, { url: '/models/not-in-catalog/' }, { url: 'https://outside.test/models/writer/' }, null,
+  ] };
+  const second = { url: '/models/second/', title: 'Second', relatedViews: [{ url: '/models/writer/', role: 'author' }] };
+  const writer = { url: '/models/writer/', title: 'Writer', selected: true };
+  assert.deepEqual(modelPickerGroups([first, second, writer], current), [
+    { title: 'First', views: [first, writer] }, { title: 'Second', views: [second, writer] },
+  ]);
+  assert.deepEqual(modelPickerGroups([{ ...writer, relatedViews: {} }, { url: '/models/old/', title: 'Old export' }], current)
+    .map((group) => group.title), [null, null], 'old flat catalogs remain usable');
+});
+
+test('the mounted native chooser preserves selection and per-world navigation in grouped catalogs', async (t) => {
+  const current = 'https://example.com/models/writer/?view=space&at=2001';
+  const views = [
+    { url: '/models/first/', title: 'First story', relatedViews: [{ url: '/models/writer/', role: 'author' }] },
+    { url: '/models/second/', title: 'Second story', relatedViews: [{ url: '/models/writer/', role: 'author' }] },
+    { url: '/models/writer/', title: 'Author life · Mira', selected: true },
+  ];
+  const node = (tag) => ({ tag, children: [], attributes: {}, handlers: {}, append(...nodes) { this.children.push(...nodes); },
+    prepend(...nodes) { this.children.unshift(...nodes); }, setAttribute(key, value) { this.attributes[key] = value; },
+    addEventListener(key, handler) { this.handlers[key] = handler; } });
+  const parent = node('nav'), addresses = [], storage = new Map();
+  storage.set('meaning-model-view:/models/second/', 'https://example.com/models/second/?view=layers&at=1843&record=second-event');
+  const replacements = {
+    document: { querySelector: (selector) => selector === '.inspection-nav' ? parent : null, createElement: node },
+    location: { href: current, pathname: '/models/writer/', assign: (url) => addresses.push(url) },
+    sessionStorage: { setItem: (key, value) => storage.set(key, value), getItem: (key) => storage.get(key) },
+    dispatchEvent: () => {},
+    fetch: async () => ({ ok: true, json: async () => views }),
+  };
+  for (const [key, value] of Object.entries(replacements)) {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, key);
+    Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
+    t.after(() => previous ? Object.defineProperty(globalThis, key, previous) : delete globalThis[key]);
+  }
+  await mountModelPicker();
+  const select = parent.children[0].children[1];
+  assert.equal(select.attributes['aria-label'], 'Model');
+  assert.deepEqual(select.children.map((group) => [group.tag, group.label, group.children.map((option) => option.textContent)]), [
+    ['optgroup', 'First story', ['First story', 'Author life · Mira']],
+    ['optgroup', 'Second story', ['Second story', 'Author life · Mira']],
+  ]);
+  assert.equal(select.children.flatMap((group) => group.children).filter((option) => option.selected).length, 1);
+  select.value = '/models/second/'; select.handlers.change();
+  assert.deepEqual(addresses, ['https://example.com/models/second/?view=layers&at=1843&record=second-event']);
+  assert.equal(storage.get('meaning-model-view:/models/writer/'), current);
+});
 
 test('switching models keeps the chosen view and display controls but fits the new model', () => {
   const source = `http://127.0.0.1:1234/${'a'.repeat(48)}/?view=layers&camera=free&glare=soft&reading=off&edges=off&at=2022&t0=2020&t1=2023&pose=1,2,3&data=old&title=Old&depth=4&show=events,subsidiary&unopened=hide&flat=hide&nothoughts&readingOverview=structure&lenses=old-lens&life=OldPerson&focus=old-event&zoom=life&mode=construction&speed=4#old-passage`;

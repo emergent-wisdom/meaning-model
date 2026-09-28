@@ -16,15 +16,17 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { loadData, fillLinks, linksOf, processLabel, holderText, appendLegendNames } from './common.js';
 import { partsAtTime, measureStoryUnits, firstNamedStoryParts } from './story-time.js';
 import { appendDocumentSpans } from './document-spans.js';
+import { appendDocumentProcesses } from './document-processes.js';
 import { isPlaybackVisible, playbackSpan } from './playback-time.js';
 import { isCalendarTime, nativeTimeText, numericTimeTicks, temporalWindow, calendarDateOf, calendarTimeOf, calendarTickAt } from './temporal-layout.js';
-import { recordedCutSegments, visibleRecordedCuts, recordedCutMarker, appendRecordedCut, appendRecordedNumbers } from './recorded-numbers.js';
+import { recordedCutSegments, visibleRecordedCuts, recordedCutMarker, appendRecordedCut, appendRecordedNumbers, readingNeedsReview } from './recorded-numbers.js';
 import { unopenedProcessEvents } from './process-visibility.js';
 import { createProcessDetail } from './process-detail.js';
 import { nestedEventLayout } from './nested-event-layout.js';
 import { cutTrajectories } from './cut-trajectories.js';
 import { buildModelGraph } from './model-graph.js';
 import { readingActs, actShares, actCounts } from './lens-readings.js';
+import { readerInline } from './reader-markdown.js';
 import { onPlainClick } from './pointer-click.js';
 
 let temporalActive = !window.modelViewer, temporalFrame = null, appliedSelection = null, hoveredRecord = null;
@@ -1918,7 +1920,7 @@ function renderReader(unitId = null) {
   for (const unit of units) unit.text.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean).forEach((block, i) => {
     const heading = block.match(/^(#{1,4})\s+([\s\S]*)$/);
     const element = document.createElement(heading ? `h${heading[1].length}` : 'p');
-    element.innerHTML = inline(heading && heading[1].length === 1 && unit.role === 'document_root' ? titleText : heading ? heading[2] : block).replace(/\n/g, '<br>'); element.dataset.nodeId = unit.id; body.append(element);
+    element.innerHTML = readerInline(heading && heading[1].length === 1 && unit.role === 'document_root' ? titleText : heading ? heading[2] : block); element.dataset.nodeId = unit.id; body.append(element);
     if (unit.id === targetId && i === 0) target = element;
   });
   document.getElementById('reader-status').textContent = part ? `Full story · ${part.title ?? part.unit.title ?? part.unit.id}` : 'Full story · Complete manuscript';
@@ -2021,7 +2023,11 @@ if (data.story?.hierarchy?.status === 'unavailable') {
 }
 document.getElementById('reading-track').hidden = !storyParts.length;
 const hasDocumentSpans = appendDocumentSpans(document.getElementById('strip'), data.documentProjection);
-const hasReadingPosition = storyParts.length > 0 || hasDocumentSpans;
+const hasDocumentProcesses = appendDocumentProcesses(document.getElementById('strip'), data.documentProjection, {
+  onSelect: (id) => window.modelViewer?.selectRecord({ kind: 'narrative', id }),
+  onRead: (id) => { document.getElementById('reader').hidden = false; renderReader(id); },
+});
+const hasReadingPosition = storyParts.length > 0 || hasDocumentSpans || hasDocumentProcesses;
 const readingToggle = document.getElementById('reading-toggle');
 readingToggle.hidden = !hasReadingPosition;
 function showReadingPosition(on) {
@@ -2490,6 +2496,8 @@ function showDetails(nodes, target = null) {
 function hideDetails() { if (details.hidden && !selectedPart && !selectedEventIds.size && [null, 'null'].includes(appliedSelection)) return; pinnedTarget = null; publishRecord(null); selectedPart = null; selectedEventIds.clear(); expandedPart = null; drawReadingChildren(); extrasDirty = true; details.hidden = true; document.body.classList.remove('details-open'); if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } dirty = true; }
 document.getElementById('details-close').addEventListener('click', hideDetails);
 const numbersButton = document.createElement('button'); numbersButton.id = 'numbers'; numbersButton.className = 'tool'; numbersButton.textContent = 'Numbers';
+const readingsToReview = (data.numerics?.cuts ?? []).filter(readingNeedsReview).length;
+if (readingsToReview) numbersButton.textContent = `Numbers · ${readingsToReview} to review`;
 numbersButton.dataset.temporal = '';
 numbersButton.title = 'Browse every recorded Cut and scalar initial value, including undated records';
 document.getElementById('everything').before(numbersButton);

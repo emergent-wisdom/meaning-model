@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { appendDocumentSpans } from '../viewer/public/document-spans.js';
+import { readerInline } from '../viewer/public/reader-markdown.js';
 
 function fixture() {
   const document = { createElement(tag) {
@@ -71,7 +72,7 @@ test('opening a part renders the whole manuscript including its root, and beginn
     querySelector: (selector) => selector === '#reader .reader-head' ? { getBoundingClientRect: () => ({height: 84}) } : null,
     createElement: (tag) => ({ tag, dataset: {}, innerHTML: '', scrollIntoView() { this.scrolledIntoView = true; } }),
   }, storyParts: [{ n: 1, unit: units[1] }, { n: 2, unit: units[2] }], titleText: 'The whole book', inline: (text) => text,
-  readerShown: 0, building: () => true, bornAt: () => 100, tau: 0 };
+  readerInline, readerShown: 0, building: () => true, bornAt: () => 100, tau: 0 };
   context.storyRoots = context.storyParts;
   vm.createContext(context); vm.runInContext(`${readerCode}\nrenderReader('p2');`, context);
   assert.deepEqual(elements['reader-body'].children.map((node) => node.innerHTML), ['The whole book', 'First passage.', 'Second passage.']);

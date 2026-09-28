@@ -1,6 +1,10 @@
 // Project recorded numbers without reconstructing them from prose or treating separate Cuts as a simulation.
 // Every Cut is its own question-relative composition. Time comes only from its owning Event's declared interval.
+import { indexModel } from './model-questions.mjs';
+import { readingTextEvidence } from './reading-evidence.mjs';
+
 export function projectNumerics(model, { toDisplayTime = (value) => value } = {}) {
+  const index = indexModel(model);
   const mm = model?.meaning_model ?? {};
   const events = new Map((mm.events ?? []).map((event) => [event.id, event]));
   const cuts = new Map((mm.normalized_cuts ?? []).map((cut) => [cut.id, cut]));
@@ -80,7 +84,7 @@ export function projectNumerics(model, { toDisplayTime = (value) => value } = {}
       eventLabel: event?.boundary ?? event?.description ?? cut.parent_event_id,
       eventDescription: event?.description ?? null, eventProvenance: copy(event?.provenance ?? []),
       participants: copy(event?.participants ?? {}), bindings: copy(bindings.get(cut.parent_event_id) ?? []),
-      ...contextOf(cut.parent_event_id), provenance: copy(cut.provenance ?? []), record: copy(cut) };
+      ...contextOf(cut.parent_event_id), evidence: readingTextEvidence(cut, index), provenance: copy(cut.provenance ?? []), record: copy(cut) };
   };
   const current = [], historical = [];
   for (const cut of mm.normalized_cuts ?? []) (cut.withdrawn ? historical : current).push(projectCut(cut));

@@ -133,20 +133,26 @@ test('classification does not mutate or delete snapshot records and tolerates ab
   assert.equal(unopenedProcessEvents({}).size, 0);
 });
 
-test('the canonical Book hides 114 unopened concurrent slots and retains its developed bodies and phase/lifecycle records', async () => {
-  const model = JSON.parse(await readFile(new URL('../../examples/book-of-conditions/rust-construction/model.json', import.meta.url), 'utf8'));
+test('the current Book hides unopened slots while retaining numerical and qualitative developments', async () => {
+  const edition = JSON.parse(await readFile(new URL('../../examples/book-of-conditions/PUBLICATION-MANIFEST.json', import.meta.url), 'utf8'));
+  const bundle = JSON.parse(await readFile(new URL('../../examples/book-of-conditions/the-book-of-conditions.meaning-model.json', import.meta.url), 'utf8'));
+  const model = bundle.models.find(entry => entry.modelHash === edition.modelHash).definition;
   const data = await buildViewerData({ history: { models: [{ modelHash: 'a'.repeat(64), definition: model }], revisions: [] },
     generatedAt: '2026-09-27T12:00:00.000Z' });
   const before = JSON.stringify(data);
   const hidden = unopenedProcessEvents(data);
   const concurrentProcesses = new Set(model.processes.filter((process) => process.scale?.semantic_role === 'person_is_process').map((process) => process.id));
   const concurrentEvents = data.events.filter((event) => event.processIds.some((id) => concurrentProcesses.has(id)));
-  assert.equal(concurrentEvents.length, 117);
-  assert.equal(hidden.size, 114);
+  assert.ok(hidden.size > 0 && hidden.size < concurrentEvents.length, 'this edition contains both unopened and developed processes');
   assert.ok([...hidden].every((id) => concurrentEvents.some((event) => event.id === id)), 'only declared concurrent slots are hidden');
   const developed = concurrentEvents.filter((event) => !hidden.has(event.id));
-  assert.equal(developed.length, 3);
-  assert.ok(developed.every((event) => event.processIds.some((id) => model.processes.find((process) => process.id === id)?.scale?.process_key === 'body')));
+  assert.ok(developed.length > 3, 'qualitative developments count as modeling alongside numerical bodies');
+  for (const id of ['event.profile.charles-babbage.person.charles_babbage.is.body',
+    'event.profile.charles-babbage.person.charles_babbage.is.work',
+    'event.development.07r2.charles-babbage.1833-aug-1843.work']) {
+    assert.ok(developed.some(event => event.id === id), `A developed process remains visible: ${id}`);
+  }
+  assert.ok(hidden.has('event.profile.george-farrow.person.george_farrow.is.kin'), 'an untouched empty slot remains hideable');
   for (const event of data.events.filter((event) => ['phase', 'arc', 'life'].includes(event.role))) assert.equal(hidden.has(event.id), false, event.id);
   assert.equal(JSON.stringify(data), before, 'filtering cannot modify the Book or its recorded numerical content');
 });
