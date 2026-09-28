@@ -235,8 +235,7 @@ textual thought experiments and transfers are ideas, not evidence. See the
 
 ## Read first
 
-The paper was revised on September 27, 2026, and the grammar appendix on
-September 12, 2026.
+The paper and grammar appendix were revised on September 28, 2026.
 The [Zenodo series](https://doi.org/10.5281/zenodo.22313515) provides the
 archived versions.
 
@@ -245,8 +244,9 @@ archived versions.
 - [Grammar appendix](output/pdf/meaning-model-grammar.pdf) - a focused reference
   to the same rules, not a separate theory or additional set of requirements.
 - [The Book of Conditions](output/pdf/the-book-of-conditions.pdf)
-  - the completed story; [Markdown and model sources](examples/book-of-conditions/README.md)
-  are also included.
+  - the current revised story; [Markdown, an importable model and verification](examples/book-of-conditions/README.md)
+  are included. The [story repository](https://github.com/emergent-wisdom/story#readme)
+  also distributes the books; each edition has a publication manifest.
 
 The six world-record forms are Concept, Thing, Event, Binding, Cut, and
 Realization. A Cut divides one declared unit among exclusive sibling answers
@@ -350,7 +350,7 @@ truth, psychological validity, or an advantage over ordinary writing.
 | `docs/` | Operational documentation and implementation limits |
 | `examples/refinement-trial/` | Small standalone construction example |
 | `examples/progressive-authoring/` | Native temporal refinement, explicit revision, and continued world history |
-| `examples/book-of-conditions/` | Accepted Book, model sources, rationale nodes, and reproducible export |
+| `examples/book-of-conditions/` | Current Book, portable native model, author life, and reproducible import |
 | `output/pdf/` | Ready-to-read paper, grammar appendix, and Book PDFs |
 
 Meaning Model owns the representation and joint construction method. The
