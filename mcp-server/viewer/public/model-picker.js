@@ -6,8 +6,9 @@ const sharedOptions = ['view', 'visualView', 'timeView', 'glare', 'reading', 're
 export function modelSwitchURL(current, target, remembered = null) {
   const before = new URL(current), after = new URL(target, before);
   // Public exports may live below a site path. Keep switches inside the same
-  // snapshot collection, with the same opaque snapshot directory convention.
-  const collection = (path) => path.match(/^(.*\/)[a-f0-9]{48}\/$/)?.[1];
+  // snapshot collection. A server may name its snapshots with opaque tokens or
+  // readable slugs; both use one directory below the collection.
+  const collection = (path) => path.match(/^(.*\/)[a-z0-9]+(?:-[a-z0-9]+)*\/$/)?.[1];
   const currentCollection = collection(new URL('.', before).pathname);
   if (after.origin !== before.origin || after.username || after.password
     || currentCollection === undefined || collection(after.pathname) !== currentCollection) throw new Error('Invalid model snapshot link');

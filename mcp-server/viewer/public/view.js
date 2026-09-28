@@ -84,7 +84,7 @@ let explicitDepth = params.has('everything') || (params.has('depth') && Number.i
 let explicitEverything = params.has('everything');
 const opt = {
   camera: ['spin', 'free', 'locked'].includes(params.get('camera')) ? params.get('camera') : params.has('still') ? 'free' : 'spin',
-  glare: params.get('glare') === 'soft' ? 'soft' : 'full',
+  glare: params.get('glare') === 'full' ? 'full' : 'soft',
   readingOverview: params.get('readingOverview') === 'structure' ? 'structure' : 'named',
   noteLayout: ['nearby', 'overhead', 'centered'].includes(params.get('noteLayout')) ? params.get('noteLayout') : 'original',
   allNoteAttachments: params.get('noteLinks') === 'all',
@@ -2394,7 +2394,7 @@ function syncURL(immediate = false) {
   const save = () => {
     if (!temporalActive) return;
     const next = new URLSearchParams(); for (const key of ['data', 'title', 'live', 'capture']) if (params.has(key)) next.set(key, params.get(key));
-    if (opt.camera !== 'spin') next.set('camera', opt.camera); if (opt.glare !== 'full') next.set('glare', opt.glare); if (!opt.edges) next.set('edges', 'off');
+    if (opt.camera !== 'spin') next.set('camera', opt.camera); if (opt.glare !== 'soft') next.set('glare', opt.glare); if (!opt.edges) next.set('edges', 'off');
     if (!opt.readingPosition) next.set('reading', 'off');
     if (opt.legend) next.set('legend', ''); if (opt.text === false) next.set('text', 'off');
     if (opt.hideUnopened) next.set('unopened', 'hide');

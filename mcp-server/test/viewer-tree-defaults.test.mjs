@@ -55,6 +55,19 @@ function saveURL(context) {
   return new URL(saved[0], 'http://127.0.0.1:1234');
 }
 
+test('Shining defaults off and explicit on or off choices survive saved URLs', () => {
+  for (const query of ['', 'glare=unknown', 'glare=soft', 'glare=full']) {
+    const context = fixture(query);
+    const expected = query === 'glare=full' ? 'full' : 'soft';
+    assert.equal(context.opt.glare, expected);
+    const saved = saveURL(context);
+    assert.equal(saved.searchParams.get('glare'), expected === 'full' ? 'full' : null);
+    assert.equal(fixture(saved.search).opt.glare, expected);
+    context.opt.glare = expected === 'full' ? 'soft' : 'full';
+    assert.equal(fixture(saveURL(context).search).opt.glare, context.opt.glare);
+  }
+});
+
 test('opening Tree includes Events and subsidiary processes through depth four with or without numeric paths', () => {
   for (const hasPaths of [true, false]) {
     const context = fixture('view=layers', hasPaths);

@@ -6,6 +6,8 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Shining starts off; an explicit choice to enable it survives shared links.
+  Public viewers can retain readable model addresses when switching models.
 - The time views can lay Events side by side or nested by declared containment,
   and place documents and notes as originally, nearby, overhead or centered
   above, optionally with every attachment shown without hovering.

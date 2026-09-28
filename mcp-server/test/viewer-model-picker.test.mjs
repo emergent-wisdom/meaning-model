@@ -90,6 +90,26 @@ test('hosted collections switch below a site path without leaving that collectio
   }
 });
 
+test('readable model addresses stay inside their hosted collection and preserve display preferences', () => {
+  const origin = 'https://example.com';
+  const current = `${origin}/models/first-example/?view=layers&glare=full&noteLayout=centered&noteLinks=all&at=1843`;
+  const target = '/models/second-example/';
+  const switched = new URL(modelSwitchURL(current, target));
+  assert.equal(switched.pathname, target);
+  assert.equal(switched.searchParams.get('view'), 'layers');
+  assert.equal(switched.searchParams.get('glare'), 'full');
+  assert.equal(switched.searchParams.get('noteLayout'), 'centered');
+  assert.equal(switched.searchParams.get('noteLinks'), 'all');
+  assert.equal(switched.searchParams.has('at'), false);
+  const saved = `${origin}${target}?view=space&at=2022`;
+  assert.equal(modelSwitchURL(current, target, saved), saved);
+  assert.equal(new URL(modelSwitchURL(`${origin}/models/${'a'.repeat(48)}/`, target)).pathname, target);
+  assert.equal(new URL(modelSwitchURL(current, `/models/${'b'.repeat(48)}/`)).pathname, `/models/${'b'.repeat(48)}/`);
+  for (const outside of ['/second-example/', '/other/second-example/', '/models/data/model.json', '/models/%2fsecret/', 'https://elsewhere.test/models/second-example/']) {
+    assert.throws(() => modelSwitchURL(current, outside), /Invalid model snapshot link/);
+  }
+});
+
 test('a saved position must belong to the exact same snapshot and origin', () => {
   const current = `http://127.0.0.1:1234/${'a'.repeat(48)}/?view=layers`;
   const target = `http://127.0.0.1:1234/${'b'.repeat(48)}/`;

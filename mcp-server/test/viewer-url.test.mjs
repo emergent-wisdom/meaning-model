@@ -39,7 +39,7 @@ test('saving any trajectory layout keeps its explicit route across refresh and l
       `${layout} must not return to the default graph on refresh`);
     assert.equal(url.searchParams.get('title'), 'Example');
     assert.equal(url.searchParams.get('camera'), 'locked');
-    assert.equal(url.searchParams.get('glare'), 'soft');
+    assert.equal(url.searchParams.get('glare'), null, 'the quieter default does not need a URL override');
     assert.equal(url.searchParams.get('reading'), 'off');
     // A layout choice must be visible to a navigation click before the debounce runs.
     context.opt.layout = layout === 'terrain' ? 'layers' : 'terrain';
