@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { createProcessDetail } from '../viewer/public/process-detail.js';
+import { nestedEventLayout } from '../viewer/public/nested-event-layout.js';
 
 const source = readFileSync(new URL('../viewer/public/view.js', import.meta.url), 'utf8');
 // Run the viewer's real initialization, controls and layout with rendering replaced.
@@ -67,6 +68,68 @@ test('opening Tree includes Events and subsidiary processes through depth four w
   assert.equal(processes.opt.depth, 2);
   assert.equal(processes.opt.show.has('events'), false);
   assert.equal(processes.opt.show.has('subsidiary'), false);
+});
+
+test('note layout defaults to Original and deliberate choices survive URL saves and temporal layout changes', () => {
+  for (const query of ['', 'noteLayout=unknown', 'noteLayout=original']) {
+    const context = fixture(query);
+    assert.equal(context.opt.noteLayout, 'original');
+    assert.equal(saveURL(context).searchParams.has('noteLayout'), false, 'Original remains the implicit live default');
+  }
+  for (const noteLayout of ['nearby', 'overhead', 'centered']) {
+    const context = fixture(`view=together&noteLayout=${noteLayout}`);
+    assert.equal(context.opt.noteLayout, noteLayout);
+    for (const layout of ['layers', 'terrain', 'together']) {
+      context.setLayout(layout);
+      assert.equal(context.opt.noteLayout, noteLayout, 'switching the main representation must retain the note preference');
+    }
+    const saved = saveURL(context);
+    assert.equal(saved.searchParams.get('noteLayout'), noteLayout);
+    assert.equal(fixture(saved.search).opt.noteLayout, noteLayout);
+    context.opt.noteLayout = 'original';
+    assert.equal(saveURL(context).searchParams.has('noteLayout'), false, 'returning to Original removes the previous preference from the URL');
+  }
+});
+
+test('All attachments is an independent opt-in URL preference across temporal layouts', () => {
+  for (const query of ['', 'noteLinks=', 'noteLinks=unknown', 'noteLinks=true']) {
+    const context = fixture(query);
+    assert.equal(context.opt.allNoteAttachments, false);
+    assert.equal(saveURL(context).searchParams.has('noteLinks'), false);
+  }
+  for (const noteLayout of ['original', 'nearby', 'overhead', 'centered']) {
+    const context = fixture(`noteLayout=${noteLayout}&noteLinks=all`);
+    for (const layout of ['layers', 'terrain', 'together']) {
+      context.setLayout(layout);
+      assert.equal(context.opt.allNoteAttachments, true);
+      assert.equal(context.opt.noteLayout, noteLayout);
+    }
+    const saved = saveURL(context);
+    assert.equal(saved.searchParams.get('noteLinks'), 'all');
+    assert.equal(fixture(saved.search).opt.allNoteAttachments, true);
+    context.opt.allNoteAttachments = false;
+    assert.equal(saveURL(context).searchParams.has('noteLinks'), false);
+  }
+});
+
+test('nested Events are an opt-in URL preference retained across temporal representations', () => {
+  for (const query of ['', 'eventLayout=unknown', 'eventLayout=traditional']) {
+    const context = fixture(query);
+    assert.equal(context.opt.eventLayout, 'traditional');
+    assert.equal(saveURL(context).searchParams.has('eventLayout'), false);
+  }
+  const context = fixture('view=together&eventLayout=nested&noteLayout=overhead&noteLinks=all');
+  for (const layout of ['layers', 'terrain', 'together']) {
+    context.setLayout(layout);
+    assert.equal(context.opt.eventLayout, 'nested');
+    assert.equal(context.opt.noteLayout, 'overhead');
+    assert.equal(context.opt.allNoteAttachments, true);
+  }
+  const saved = saveURL(context);
+  assert.equal(saved.searchParams.get('eventLayout'), 'nested');
+  assert.equal(fixture(saved.search).opt.eventLayout, 'nested');
+  context.opt.eventLayout = 'traditional';
+  assert.equal(saveURL(context).searchParams.has('eventLayout'), false);
 });
 
 test('switching from Processes to Tree applies Tree defaults without replacing deliberate layer or depth choices', () => {
@@ -149,4 +212,124 @@ test('tree Events without numeric rows receive finite positions in both layout r
     for (const coordinate of ['yT', 'zT', 'yL', 'zL']) assert.ok(Number.isFinite(item[coordinate]), `${item.id ?? item.measure.id}.${coordinate}: ${item[coordinate]}`);
   }
   assert.ok(context.floors.some((floor) => floor.level === 4 && floor.roles.includes(nodes.at(-1))), 'the visible descendant is included in its tree floor');
+});
+
+function nestedFixture({ collision = false, lifeOnPerson = false } = {}) {
+  const raw = [
+    { id: 'world', parent: null, depth: 0, owner: null },
+    { id: 'ana.life', parent: 'world', depth: 1, owner: 'ana' },
+    { id: 'ana.work', parent: 'ana.life', depth: 2, owner: 'ana', role: 'slow' },
+    // Inner contexts can restart their recorded depth. Containment still wins.
+    { id: 'ana.inner', parent: 'ana.work', depth: 0, owner: null },
+    { id: 'ana.choice', parent: 'ana.inner', depth: 1, owner: 'bo' },
+    { id: 'bo.life', parent: 'world', depth: 1, owner: 'bo' },
+    { id: 'bo.work', parent: 'bo.life', depth: 2, owner: null, role: 'slow' },
+    { id: 'meeting', parent: 'world', depth: 1, owner: null, participants: ['ana', 'bo'] },
+    ...(collision ? [{ id: 'viewer-row:0', parent: 'bo.work', depth: 3, owner: 'bo' }] : []),
+  ].map((event, index) => Object.freeze({ ...event, reach: Object.freeze([index / 10, 10]) }));
+  const people = ['ana', 'bo'].map((id) => Object.freeze({ id, name: id, ...(lifeOnPerson ? { life: Object.freeze({ eventId: `${id}.life` }) } : {}) }));
+  const group = { id: 'ana', label: 'Ana', rows: [] };
+  const rows = [
+    ['ana.cut.answer', 'ana.inner', 'cut-answer'],
+    ['ana.cut.remainder', 'ana.inner', 'cut-answer'],
+    ['ana.capacity', 'ana.work', 'scalar'],
+    ['ana.unparented', 'unavailable-home', 'scalar'],
+  ].map(([id, home, kind]) => ({ group, home, depth: 3, yT: 0, measure: Object.freeze({
+    id, home, kind, points: Object.freeze([Object.freeze({ t: 0, v: 0 }), Object.freeze({ t: 10, v: 1 })]),
+  }) }));
+  const nodes = raw.map((event) => ({ ...node(event.id, event.depth, event.owner ?? 'world', event.role === 'slow' ? 'sub' : 'event'),
+    event, parent: event.parent, owner: event.owner, t0: event.reach[0], t1: event.reach[1] }));
+  const context = {
+    data: { people, events: raw }, nodes, rows, groups: [group], principals: people,
+    referents: new Map(lifeOnPerson ? [] : people.map((person) => [person.id, { life: `${person.id}.life` }])),
+    nestedEventLayout, processDetail: createProcessDetail(raw, rows), unopenedProcessIds: new Set(),
+    opt: { depth: 6, camera: 'free', eventLayout: 'traditional', layout: 'layers', show: new Set(layers), detailLevel: null, processScope: null },
+    ROW: 2.7, CUT_ROW: 6, GAP: 4.4, LANE: 1, LAMP: 3.2, CUT_AMP: 18, MIN_DUR: 0.02,
+    floors: [], layersBounds: null, dirty: false, relayout: false, extrasDirty: false,
+    WORLD: '#9085e9', hueOfOwner: () => '#9085e9', fitLocked() {},
+    push(map, key, value) { if (!map.has(key)) map.set(key, []); map.get(key).push(value); },
+    syncPanel() {}, syncURL() {},
+  };
+  vm.createContext(context);
+  vm.runInContext([
+    between('const visibleNode =', 'function pack('), functionSource('pack'),
+    functionSource('computeNestedLayout'), functionSource('computeLayout'), functionSource('setEventLayout'),
+  ].join('\n'), context);
+  return context;
+}
+const coordinates = (context) => [...context.nodes, ...context.rows].map((item) => ({
+  id: item.id ?? item.measure.id, inT: item.inT, inL: item.inL,
+  yT: item.yT, zT: item.zT, yL: item.yL, zL: item.zL,
+}));
+
+test('nested layout follows actual parents across depth resets and restores traditional coordinates exactly', () => {
+  const context = nestedFixture(), modelBefore = JSON.stringify(context.data);
+  const semanticBefore = context.nodes.map(({ id, parent, owner, group, depth, t0, t1 }) => ({ id, parent, owner, group, depth, t0, t1 }));
+  context.computeLayout();
+  const traditional = coordinates(context);
+  context.setEventLayout('nested');
+  const byId = new Map(context.nodes.map((item) => [item.id, item]));
+  for (const item of context.nodes) {
+    const parent = byId.get(item.parent);
+    if (parent) for (const coordinate of ['yT', 'yL']) assert.ok(item[coordinate] < parent[coordinate], `${item.id} is below ${parent.id} in ${coordinate}`);
+    for (const coordinate of ['yT', 'zT', 'yL', 'zL']) assert.ok(Number.isFinite(item[coordinate]), `${item.id}.${coordinate}`);
+  }
+  assert.equal(byId.get('ana.choice').displayGroup, 'ana', 'declared ancestry has priority over a conflicting owner hint');
+  assert.equal(byId.get('bo.work').displayGroup, 'bo', 'a character without numeric rows still has an event group');
+  assert.equal(byId.get('meeting').displayGroup, 'world', 'a shared Event stays once beneath its actual parent');
+  assert.equal(context.nodes.filter((item) => item.id === 'meeting').length, 1);
+  assert.equal(new Set(context.floors.flatMap((floor) => floor.roles)).size, context.nodes.length + context.rows.length);
+  for (const row of context.rows) {
+    for (const coordinate of ['yT', 'zT', 'yL', 'zL']) assert.ok(Number.isFinite(row[coordinate]), `${row.measure.id}.${coordinate}`);
+    assert.equal(row.yT, 0, 'Together keeps numeric trajectories at their original baseline');
+    const home = byId.get(row.home);
+    if (home) assert.ok(row.yL + (row.measure.kind === 'cut-answer' ? context.CUT_AMP : context.LAMP) < home.yL, `${row.measure.id} fits beneath its home Event`);
+  }
+  assert.notEqual(context.rows[0].zL, context.rows[1].zL, 'sibling numerical leaves receive separate lanes');
+  const once = coordinates(context); context.computeLayout();
+  assert.deepEqual(coordinates(context), once, 'repeated layout does not accumulate offsets');
+  context.setEventLayout('traditional');
+  assert.deepEqual(coordinates(context), traditional);
+  assert.equal(JSON.stringify(context.data), modelBefore);
+  assert.deepEqual(context.nodes.map(({ id, parent, owner, group, depth, t0, t1 }) => ({ id, parent, owner, group, depth, t0, t1 })), semanticBefore);
+});
+
+test('nested integration accepts lifecycle records on people and keeps synthetic row IDs separate from real Events', () => {
+  const context = nestedFixture({ collision: true, lifeOnPerson: true });
+  context.setEventLayout('nested');
+  const byId = new Map(context.nodes.map((item) => [item.id, item]));
+  assert.equal(byId.get('ana.choice').displayGroup, 'ana');
+  assert.equal(byId.get('bo.work').displayGroup, 'bo');
+  const real = byId.get('viewer-row:0'), row = context.rows[0];
+  assert.ok(row.yL < byId.get(row.home).yL, 'the numerical leaf remains under its own declared home');
+  assert.notEqual(row.zL, real.zL, 'an Event whose ID resembles a display leaf stays in its own character group');
+  assert.equal(context.floors.flatMap((floor) => floor.roles).filter((item) => item === real).length, 1);
+  assert.equal(context.floors.flatMap((floor) => floor.roles).filter((item) => item === row).length, 1);
+});
+
+for (const camera of ['free', 'locked']) test(`the Event layout control retains time, selection, detail and layers with a ${camera} camera`, () => {
+  const context = nestedFixture();
+  Object.assign(context, { now: 5, tau: 123, playing: true, selectedPart: { unit: { id: 'passage' } },
+    selectedEventIds: new Set(['ana.choice']), selectedLinks: [{ from: 'passage', to: 'ana.choice' }], pinnedTarget: {} });
+  Object.assign(context.opt, { camera, detailLevel: 1, processScope: 'ana.inner', noteLayout: 'overhead', allNoteAttachments: true, edges: false });
+  const placements = []; context.placeLocked = (immediate) => placements.push(immediate);
+  context.opt.show.delete('notes'); context.opt.show.delete('causal');
+  context.computeLayout();
+  const before = { now: context.now, tau: context.tau, playing: context.playing, selectedPart: context.selectedPart,
+    selectedEventIds: context.selectedEventIds, selectedLinks: context.selectedLinks, pinnedTarget: context.pinnedTarget,
+    show: context.opt.show, detailLevel: context.opt.detailLevel, processScope: context.opt.processScope };
+  const calls = [];
+  context.syncURL = (immediate) => calls.push(['url', immediate]); context.syncPanel = () => calls.push(['panel']);
+  for (const layout of ['nested', 'traditional']) {
+    context.setEventLayout(layout);
+    assert.equal(context.opt.eventLayout, layout);
+    for (const [key, value] of Object.entries(before)) assert.equal(key in context.opt ? context.opt[key] : context[key], value, key);
+    assert.deepEqual([...context.opt.show], layers.filter((key) => !['notes', 'causal'].includes(key)));
+    assert.equal(context.opt.noteLayout, 'overhead'); assert.equal(context.opt.allNoteAttachments, true); assert.equal(context.opt.edges, false);
+  }
+  assert.deepEqual(calls, [['panel'], ['url', true], ['panel'], ['url', true]]);
+  context.setEventLayout('unknown'); context.setEventLayout('traditional');
+  assert.equal(calls.length, 4, 'invalid and already selected layouts do not refresh state');
+  assert.deepEqual(placements, camera === 'locked' ? [true, true] : [], 'a locked camera applies the new fitted geometry immediately');
+  assert.equal(context.dirty, true); assert.equal(context.extrasDirty, true);
 });

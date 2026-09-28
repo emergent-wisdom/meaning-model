@@ -1,7 +1,7 @@
 // A picker contains only snapshots explicitly grouped by the MCP or a public export.
 // First visits fit the new model. Returning to an exact snapshot restores that
 // model's own view, time and selection instead of copying another world's clock.
-const sharedOptions = ['view', 'visualView', 'timeView', 'glare', 'reading', 'readingOverview', 'camera', 'edges', 'depth', 'detail', 'show', 'nothoughts', 'everything', 'unopened', 'flat'];
+const sharedOptions = ['view', 'visualView', 'timeView', 'glare', 'reading', 'readingOverview', 'camera', 'edges', 'depth', 'detail', 'show', 'nothoughts', 'noteLayout', 'noteLinks', 'eventLayout', 'everything', 'unopened', 'flat'];
 
 export function modelSwitchURL(current, target, remembered = null) {
   const before = new URL(current), after = new URL(target, before);

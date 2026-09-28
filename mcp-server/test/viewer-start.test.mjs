@@ -119,7 +119,7 @@ test('startup selects Processes with paths, Tree with dated Events, and Graph wi
 });
 
 test('all six Show choices stay on one page and reuse renderers with the exact loaded snapshot', () => {
-  const result = run({ view: 'layers', data: snapshot(true), steps: [
+  const result = run({ view: 'layers', data: snapshot(true), query: { noteLayout: 'overhead', noteLinks: 'all' }, steps: [
     { view: 'graph', button: true }, { view: 'structure', button: true }, { view: 'together', button: true },
     { view: 'terrain', button: true }, { view: 'layers', button: true }, { view: 'space', button: true }, { view: 'graph' }, { view: 'space' }, { view: 'structure' },
   ] });
@@ -135,7 +135,7 @@ test('all six Show choices stay on one page and reuse renderers with the exact l
   assert.deepEqual(result.errors, []); assert.equal(result.sharedToolbarRetained, true); assert.equal(result.representation, 'structure');
   for (const address of result.replacements) {
     const url = new URL(address); assert.equal(url.pathname, '/token/');
-    for (const [key, value] of [['reading', 'off'], ['flat', 'hide'], ['unopened', 'hide'], ['at', '2022.25']]) assert.equal(url.searchParams.get(key), value);
+    for (const [key, value] of [['reading', 'off'], ['flat', 'hide'], ['unopened', 'hide'], ['at', '2022.25'], ['noteLayout', 'overhead'], ['noteLinks', 'all']]) assert.equal(url.searchParams.get(key), value);
   }
   const graph = mounts(result).find((mount) => mount.surface === 'graph');
   assert.deepEqual([graph.host, graph.tools, graph.detail, graph.reader], ['graph-scene', 'graph-controls', 'graph-details', 'graph-reader']);

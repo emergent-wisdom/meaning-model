@@ -293,7 +293,16 @@ export async function buildViewerData({ history, rendered = null, calls = [], na
   const treeRoots = (mm.events ?? []).filter((event) => !index.parents.has(event.id)).map((event) => event.id);
   const arcIds = new Set([...index.arcsOf.values()].flat());
   const phaseOf = (id) => { const match = id.match(/^(.*)\.(anticipation|focal_change|adaptation)$/); return match && arcIds.has(match[1]) ? match[2] : null; };
-  const ownerOf = (id) => { for (let at = id, hops = 0; at && hops < 64; at = parentOf(at), hops += 1) { if (lifeOf.has(at)) return lifeOf.get(at); if (innerRoots.has(at)) return innerRoots.get(at); } return null; };
+  const ownerOf = (id) => {
+    for (let at = id, hops = 0; at && hops < 64; at = parentOf(at), hops += 1) {
+      if (lifeOf.has(at)) return lifeOf.get(at);
+      const innerOwner = innerRoots.get(at);
+      if (innerOwner != null) return innerOwner;
+      // An inner root need not repeat its enclosing lifecycle's subject. Keep
+      // looking for that display owner without changing its inner context.
+    }
+    return null;
+  };
   const reach = new Map();
   const reachOf = (id) => {
     // Explicit stack keeps arbitrary model containment from overflowing JS's

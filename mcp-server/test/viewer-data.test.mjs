@@ -381,3 +381,50 @@ test('native reflection roles are thoughts without a required node-type naming c
     ['reason', 'thought'], ['observation', 'thought'], ['review', 'review'], ['ordinary', 'other'],
   ]);
 });
+
+function innerContextModel(participants = {}, referents = [{ id: 'actor', boundary: 'The actor', lifecycle_event_id: 'life' }]) {
+  return {
+    id: 'inner-context-example', time_unit: 'year', processes: [], meaning_model: {
+      events: ['world', 'life', 'inner', 'appraisal'].map((id) => ({ id, boundary: id,
+        interval: { start: 2000, end: 2001 }, participants: id === 'inner' ? participants : {} })),
+      referents,
+      event_relations: [['world', 'life'], ['life', 'inner'], ['inner', 'appraisal']].map(([from, to]) => ({
+        id: `${from}-contains-${to}`, kind: 'contains', source_event_id: from, target_event_id: to,
+      })),
+      context_roots: [{ event_id: 'world', kind: 'accepted_world' }, { event_id: 'inner', kind: 'inner' }],
+    },
+  };
+}
+
+test('inner Events inherit the enclosing lifecycle display owner when their root has no subject', async () => {
+  for (const participants of [{}, { subject: null }]) {
+    const definition = freezeDeep(innerContextModel(participants));
+    const data = await buildViewerData({ history: history(definition), generatedAt });
+    for (const id of ['inner', 'appraisal']) {
+      const event = data.events.find((item) => item.id === id);
+      assert.equal(event.owner, 'actor');
+      assert.equal(event.context, 'inner', 'display grouping must not promote an appraisal to world fact');
+    }
+    assert.deepEqual(data.inspection.model, definition, 'no native subject metadata is invented');
+  }
+});
+
+test('an inner root explicit subject keeps precedence over an enclosing lifecycle display owner', async () => {
+  const definition = innerContextModel({ subject: 'observer' });
+  definition.meaning_model.events.push({ id: 'observer-life', boundary: 'The observer life', interval: { start: 2000, end: 2001 } });
+  definition.meaning_model.referents.push({ id: 'observer', boundary: 'The observer', lifecycle_event_id: 'observer-life' });
+  const data = await buildViewerData({ history: history(definition), generatedAt });
+  assert.equal(data.events.find((event) => event.id === 'life').owner, 'actor');
+  for (const id of ['inner', 'appraisal']) {
+    assert.equal(data.events.find((event) => event.id === id).owner, 'observer');
+    assert.equal(data.events.find((event) => event.id === id).context, 'inner');
+  }
+});
+
+test('an inner context without a declared subject or enclosing referent lifecycle keeps an unknown display owner', async () => {
+  const data = await buildViewerData({ history: history(innerContextModel({}, [])), generatedAt });
+  for (const id of ['inner', 'appraisal']) {
+    assert.equal(data.events.find((event) => event.id === id).owner, null);
+    assert.equal(data.events.find((event) => event.id === id).context, 'inner');
+  }
+});

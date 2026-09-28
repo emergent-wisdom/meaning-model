@@ -27,6 +27,17 @@ test('switching models preserves an explicitly empty layer selection and depth z
   assert.equal(next.searchParams.has('lenses'), false);
 });
 
+test('note and Event layout preferences survive model switching from every representation', () => {
+  for (const view of ['together', 'layers', 'terrain', 'graph', 'structure', 'space']) for (const noteLayout of ['original', 'nearby', 'overhead', 'centered']) for (const eventLayout of ['traditional', 'nested']) {
+    const current = `http://127.0.0.1:1234/${'a'.repeat(48)}/?view=${view}&noteLayout=${noteLayout}&noteLinks=all&eventLayout=${eventLayout}`;
+    const next = new URL(modelSwitchURL(current, `/${'b'.repeat(48)}/`));
+    assert.equal(next.searchParams.get('view'), view);
+    assert.equal(next.searchParams.get('noteLayout'), noteLayout);
+    assert.equal(next.searchParams.get('noteLinks'), 'all');
+    assert.equal(next.searchParams.get('eventLayout'), eventLayout);
+  }
+});
+
 test('legacy Everything remains a global choice while model-specific lens IDs are dropped', () => {
   const current = `http://127.0.0.1:1234/${'a'.repeat(48)}/?view=layers&everything&lenses=old-lens&at=2022&pose=1,2,3`;
   const next = new URL(modelSwitchURL(current, `/${'b'.repeat(48)}/`));
