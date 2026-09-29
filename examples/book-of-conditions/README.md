@@ -26,26 +26,27 @@ copy is not a second authoring source.
   model from separate Markdown tables.
 - `story.tex` and `build-story-body.mjs` typeset the manuscript.
 
-The 28 September 2026 edition has 401 Events, 238 processes, 108 Cuts, and
-34 rendered passage leaves across twelve chapters (11,675 whitespace-delimited
-words). Every leaf explicitly links to the Events it depicts. Three qualitative
-telling processes have 22 phases attached to positions in the text. Spatial
+The 29 September 2026 edition has 581 Events, 256 processes, 120 Cuts, and
+34 rendered passage leaves across twelve chapters (13,020 whitespace-delimited
+words). Every leaf explicitly links to the Events it depicts. Nine qualitative
+telling processes have 63 phases attached to positions in the text. Spatial
 records distinguish declared geography, scene staging and unknown journeys.
 Nora's life belongs to a separate world and time; the viewer groups her with
 the Book through explicit declarations.
 
-The manuscript and model remain open to revision. The latest literary pass
-clarifies supervised lessons versus protected training, gives production's
-interruption of teaching a concrete scene, and reduces repeated explanation.
-Independent readers compared complete baseline and candidate texts, followed
-by targeted repairs. This was not a blind evaluation of the exact final edition.
-All 108 numerical compositions are preserved. A subsequent content review
-resolved six succession-Cut flags, replaced four question-only assessment
-descriptions with scene-specific accounts, and recorded why the existing
-values still fit. The six Cuts retain their earlier provenance and now track
-their current assessment texts; the review also links to the succession Event
-and supporting passages. The other 102 Cuts retain untracked text freshness.
-This is an attributed reassessment, not calibration of the quantities.
+The latest pass develops the characters' beginnings, the undertaking's mechanisms,
+shared pleasure and the household's exposure. Independent readings led to bounded
+model and prose repairs. A three-question read-back used a frozen key and one
+isolated model reader per condition: the revised passage made the undisclosed
+household authorization recoverable, while the other two points were already
+recoverable in the control. Two small copyedits followed that reading. This is
+limited qualitative evidence, not the planned comparative evaluation.
+
+Fifty of the 120 current Cuts record a textual basis; the other 70 retain
+untracked text freshness. Reassessments preserve their attributed reasons and
+history. Recorded text matching does not calibrate the quantities or establish
+psychological truth. All current telling phases have been checked against their
+passages; their interpretations remain authored and revisable.
 
 ## Open or continue with the MCP
 

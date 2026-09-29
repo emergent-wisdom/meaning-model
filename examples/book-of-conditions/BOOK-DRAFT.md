@@ -18,10 +18,15 @@ sounded like six metal cupboards being locked in sequence.
 
 Davies's letter contained three sentences.
 
-The figures in the enclosed table did not agree with Guardian's independent
-calculation from age forty-seven onward. The office was to suspend the related
-work. Mr Davies requested the source sheets, the operation cards, both checking
+The figures in the enclosed table did not agree with Guardian's own
+calculation, by hand, of the ages from forty-seven onward, which Davies kept as
+a check on every table he bought. The office was to suspend the related work.
+Mr Davies requested the source sheets, the operation cards, both checking
 signatures, and an account of the discrepancy under clause eleven.
+
+That explained the cut. Davies had opened the packet along its far edge so that
+the office's own tape and seal would come back as they had gone out: evidence,
+not courtesy.
 
 Halden read the letter twice and placed it flat upon his desk. He did not call
 for Babbage. He did not yet call for the clerk who had prepared the cards. First
@@ -47,9 +52,10 @@ returned sheets in the other.
 
 “The table is wrong.”
 
-“Wrong, yes, but see where.” Babbage set down his spectacles and ran one finger
-along the trace. “The first supplied value. After that, every transfer is true.
-No wheel introduced this. The Engine carried what it was given.”
+“Wrong, yes; but observe where.” Babbage set down his spectacles and ran one
+finger along the trace. “The first value supplied for forty-seven, and nowhere
+after it. Every transfer that follows is true. No wheel introduced this. The
+Engine carried, as it was built to carry, precisely what it was given.”
 
 Halden knew that relief. He had felt it himself on finding the seal unbroken.
 Now Babbage was looking only at the trace.
@@ -84,7 +90,7 @@ while he stood.
 
 “To whom?”
 
-The young man looked toward the checking room.
+The young man looked towards the checking room.
 
 “Mr Neale had the Lothbury packet. I read it back to myself.”
 
@@ -106,15 +112,16 @@ There should have been two marks beside the Guardian job: the preparer's and an
 independent checker's. There was one. Beneath it, in the margin reserved for an
 exception, was a short authorization in Halden's own hand.
 
-Second comparison to follow. Delivery permitted to preserve date.
+*Second comparison to follow. Delivery permitted to preserve date.*
 
-E. H.
+*E. H.*
 
-He remembered the morning. The wages had been due on Friday. Guardian's
+He had not forgotten the morning. The wages had been due on Friday. Guardian's
 delivery date fell that day; missing it would make its one hundred and eighty
-pounds returnable. Neale had been checking another table whose delay would also
-have cost the office money. Halden had told himself that a single delivery
-could borrow two days from its own conditions and repay them on Monday.
+pounds returnable. Neale had been checking the Lothbury office's table, whose
+delay would also have cost the office money. Halden had told himself that a
+single delivery could borrow two days from its own conditions and repay them on
+Monday.
 
 He had seen the other choices. He could have asked Davies for an extension and
 admitted that the office had sold a date it could not safely keep. He could have
@@ -131,9 +138,10 @@ Babbage read the authorization without sitting down.
 “It remains a human failure,” he said. “The apparatus received three thousand
 four hundred and seventy-two and treated it with perfect fidelity. To charge
 the mechanism with the table is to confuse obedience to an operation with
-judgment upon its premise.”
+judgment upon its premise. I have met that confusion before, Mr Halden, in a
+member of the Upper House. I had not expected to meet it here.”
 
-“Of course it is.”
+“Of course it is a human failure.”
 
 The answer surprised him. Babbage turned.
 
@@ -161,19 +169,19 @@ There was no second signature.
 
 ## II. Thirty Days
 
-Eleven years earlier, Charles Babbage received Ada Lovelace's proposal as one
-receives a map drawn by another person of one's own house: with admiration for
-the accuracy and indignation at the implied right to enter.
+Eleven years earlier, in August 1843, Charles Babbage received Ada Lovelace's
+proposal as one receives a map drawn by another person of one's own house: with
+admiration for the accuracy and indignation at the implied right to enter.
 
-The paper had arrived after the Notes, after the Turin account had been turned
-inside out and enlarged until Menabrea's sketch seemed almost an introduction
-to her footnotes. Babbage had praised the work freely. Praise cost him nothing
-that diminished the Engine. The proposal was different. It asked for powers,
-money, duties, and a division of authority around an object that existed most
-completely in his mind.
+The paper had arrived after the Notes were finished, after the Turin account
+had been turned inside out and enlarged until Menabrea's sketch seemed almost
+an introduction to her footnotes. Babbage had praised the work freely. Praise
+cost him nothing that diminished the Engine. The proposal was different. It
+asked for powers, money, duties, and a division of authority around an object
+that existed most completely in his mind.
 
 He read it on the fifteenth of August and again the next morning. On the
-eighteenth, Lovelace came to his rooms in Dorset Street.
+eighteenth, Lovelace came to his house in Dorset Street.
 
 Models and loose drawings occupied the surfaces that books had not conquered.
 A segment of mechanism stood near the window, its polished faces catching a
@@ -189,29 +197,36 @@ The proposal was her attempt to make admiration incur an obligation. She knew
 how readily that could be described as ambition in a woman and governance in a
 man. Knowing did not make the risk smaller.
 
-“You have written a constitution around the Treasury's refusal and called it
-an answer to the Engine,” he said.
+“You have written a constitution around the Treasury's refusal,” he said, “and
+called it an answer to the Engine. The Treasury answered me in fewer words. I
+have not forgiven it the economy.”
 
-“Then it should be easy to refuse.”
+“Then it should be easy to refuse,” she said.
 
-“You suppose that because the government would not continue, a committee of
-private persons may be made wiser by clauses.”
+“You suppose, if I follow you, that because the government would not continue,
+a committee of private persons may be made wiser by clauses. I have sat on
+committees, Lady Lovelace. I have not seen the clauses improve them.”
 
-“No. I suppose that if one person holds the money, another the design, and a
-third the right to refuse a claim, each may be made answerable to the others.”
+“No. I suppose that if one person holds the money, a second the design, and a
+third the right to refuse a claim, then each becomes a function of the other
+two, and none of us can be solved alone.”
 
-He moved toward the model. “The machine cannot be governed as if its proper
-form were already known.”
+He moved towards the model. “The machine cannot be governed as if its proper
+form were already known. I did not know it in 1834, I do not know it this
+morning, and I shall not know it on the day your committee requires me to swear
+to it.”
 
-“A machine being paid for must be governed as if somebody can say what is being
-paid for.”
+“If it is to be paid for,” she said, “it must be governed as if somebody can
+say what is being paid for.”
 
 He had made much the same argument against Clement and against the Treasury.
 He lifted a wheel from the table. His thumb found a nick in one tooth and
 stopped there.
 
-“If I sign an inferior arrangement into permanence, you will have protected the
-undertaking by preventing the Engine.”
+“And whatever I sign becomes permanent the moment the ink is dry. I learned
+that from Clement, who kept the tools and called it the custom of his trade. If
+I sign an inferior arrangement, you will have protected the undertaking by
+preventing the Engine.”
 
 “Then do not sign an arrangement whose inferiority you can already see. Sign
 the method by which an arrangement is proposed, tried, and refused without
@@ -219,28 +234,26 @@ carrying the undertaking down with it.”
 
 “With you holding the purse?”
 
-“With no purse at all, at present. That omission is not disguised in the
-paper.”
+“With no purse at all, at present. I have been perfectly explicit about that.”
 
 That checked him. The document had the architecture of command without its
 means. Lovelace could name conditions, and he could name mechanisms, but the
 proposal contained no person whose ordinary occupation was to convert either
 into prices, stages, suppliers, and liabilities. He had taken that absence as
 evidence that the whole scheme was unreal. Now he saw that it was simply an
-empty office in it.
+office left empty.
 
 “You have omitted the man who can say no,” he said.
 
 She turned back through the numbered pages. The office was not there.
 
-“I had assigned that labor to you.”
+“I had assigned that labour to you.”
 
 “Without asking me.”
 
 “Yes.”
 
-He laughed despite himself. The laughter did not settle anything, but it
-altered what could be said next.
+He laughed despite himself.
 
 Lovelace approached the model at last. “Do not accept my proposal,” she said.
 “Bind us only to the question: is there one finite obligation which does not
@@ -248,8 +261,8 @@ falsify the general design?”
 
 “And if there is not?”
 
-“Then write the refusal and its reason. Any later proposal must answer it before
-anyone is asked to build a metaphor.”
+“Then write the refusal and its reason. Any later proposal must answer it
+before anyone is asked to cast a metaphor in brass.”
 
 Babbage squared the pages again. Between accepting authority he had not tested
 and repeating the refusal he already knew, he found a smaller unit.
@@ -297,21 +310,25 @@ The drawings in the packet were more truthful than most and more dangerous.
 They showed a mind able to answer questions no contractor had yet been asked,
 surrounded by questions no drawing could answer for him.
 
-The next afternoon he met Babbage and Lovelace in Dorset Street. Babbage began
-with the general architecture. Halden let him speak for twenty minutes, then
-placed a blank sheet over the largest drawing.
+The next afternoon, the twenty-sixth of Babbage's thirty days, he met Babbage
+and Lovelace in Dorset Street. Babbage began with the general architecture.
+Halden let him speak for twenty minutes, then placed a blank sheet over the
+largest drawing.
 
 “Which object am I to price?” he asked.
 
-Babbage looked at the sheet as if Halden had covered a portrait during a
-funeral. “The practicability of the Engine.”
+Babbage looked at the sheet as if Halden had draped the Engine for its funeral.
+“The practicability of the Engine.”
 
-“I cannot put practicability on a bill.”
+“I can't put practicability on a bill, sir. The man who pays it will want to
+know what it weighs.”
 
-“The Engine can be resolved into orders of mechanism. One of those orders can
-be priced without being mistaken for the whole.”
+“The Engine can be resolved into orders of mechanism: the store, the mill, the
+reading of the cards, the printing, and so down. One of those orders might be
+priced, I suppose, without anyone mistaking it for the whole, though I have
+seldom met the man who would not.”
 
-“Which one? I need its limits before I can begin.”
+“Which one? Tell me where it stops. I can't price a thing without an edge.”
 
 Lovelace turned away to hide a smile. Babbage saw it.
 
@@ -330,11 +347,11 @@ line may be: build nothing.”
 
 “Twenty-five pounds.”
 
-It was more than Babbage expected and less than Halden could afford to waste.
-His eldest child would begin school that autumn. Two railway accounts remained
-unpaid. If he accepted a vague commission, every later hour would be disputed;
-if he refused it outright, another man might promise what could not be delivered
-and be paid first.
+It was more than Babbage had expected to pay for an opinion and less than
+Halden could afford to waste. His eldest child would begin school that autumn.
+Two railway accounts remained unpaid. If he accepted a vague commission, every
+later hour would be disputed; if he refused it outright, another man might
+promise what could not be delivered and be paid first.
 
 Lovelace asked, “What authority would the fee purchase?”
 
@@ -345,27 +362,28 @@ holds all five, the paper is theatre.”
 
 Babbage walked to the window. “You speak as if division produced competence.”
 
-“Division makes no one competent. It tells me whose hours enter the price and
-whose refusal stops the wages.”
+“It doesn't make anybody competent. It tells me whose hours go on the bill, and
+whose word stops the wages.”
 
-For the first week Halden tried to bound the Engine by selecting a portion of
-its proposed use. That failed. Every portion pulled upon machinery whose final
-form remained elsewhere.
+Babbage paid the fee that evening from his own purse, four days inside his
+term. No refusal was written.
 
-He discovered the reversal after covering the largest drawing with unpaid
+For six evenings Halden tried to bound the Engine by selecting a portion of its
+proposed use, and each boundary opened upon machinery whose final form remained
+elsewhere.
+
+The reversal came after he had covered the largest drawing with unpaid
 accounts. Only the edges remained: a shaft at one corner, a run of figures at
-another, arrows entering the paper and not returning. He had spent six evenings
-drawing smaller boundaries around the mechanism, and each boundary had opened
-upon something outside it. That night he put the drawing away. He set one of
-Lovelace's worked operations beside a blank bill of quantities and began with
-the answer instead.
+another, arrows entering the paper and not returning. That night he put the
+drawing away. He set one of Lovelace's worked operations beside a blank bill of
+quantities and began with the answer instead.
 
 For the first time the list grew shorter as he worked. A register could be
 counted. A card could be prepared. A recurrence could be calculated elsewhere
 and sealed. Conditional branches went back into Babbage's packet; printing went
 with them. Near dawn Halden found himself smiling at six empty columns on a
 sheet of paper. He numbered them twice, blotted the first row, and carried the
-sheet toward the window before noticing that the street was still dark.
+sheet towards the window before noticing that the street was still dark.
 
 The Notes supplied the route. Cards might direct operations upon symbols; the
 full consequence was immense, but the smallest material question was not. Could
@@ -378,10 +396,10 @@ object was the Analytical Engine.
 
 When Halden presented the proposal, Babbage read the exclusions first.
 
-“You have defined the apparatus by subtracting every power that makes the
-architecture general.”
+“You have defined the apparatus by subtracting from it every power that makes
+the architecture worth defining. It is an engine as a keyhole is a house.”
 
-“I have defined what another person may be asked to finish.”
+“I've defined what another man can be asked to finish.”
 
 “And the rest?”
 
@@ -395,7 +413,7 @@ Lovelace opened the thin book. Its pages were numbered before they had content.
 
 “Then it succeeds at the question we gave it.”
 
-“People will say more.”
+“People will say more. I have had more said about me all my life.”
 
 Halden looked at Babbage, who had already begun correcting one of the register
 arrangements in pencil. Lovelace drew a recurrence down the margin and passed
@@ -403,10 +421,10 @@ the sheet back. Babbage altered the third operation, objected to the six-digit
 limit, and then forgot the objection while repairing the fifth.
 
 They worked until the room had to be lit. Halden crossed out an automatic
-return that required machinery he could not price. Babbage began another line
-below the thirtieth operation. Lovelace moved his pencil to the first numbered
-page of the successor register. He looked at her hand, then continued writing
-there.
+return, the cards backing to repeat a sequence, because he could not price the
+machinery it required. Babbage began another line below the thirtieth
+operation. Lovelace moved his pencil to the first numbered page of the
+successor register. He looked at her hand, then continued writing there.
 
 ## IV. What Can Be Bought
 
@@ -414,7 +432,7 @@ Griffith Davies did not object to the Engine. He objected to being asked to have
 an opinion of it.
 
 “If Mr Babbage has made a new principle,” he told Halden, “then I wish him every
-honor due to principles. Guardian purchases calculations.”
+honour due to principles. Guardian purchases calculations.”
 
 They sat beneath shelves of mortality tables in a room where every abstraction
 had eventually acquired a price. Davies had agreed to see Halden because
@@ -438,8 +456,8 @@ sealed copies.”
 Davies closed the Notes upon his finger. “Then at present you are pricing a
 machine without a use.”
 
-Davies turned the pages. He paused at the exclusions, as Halden had known he
-would. “No printing.”
+He turned the pages of the proposal and paused at the exclusions, as Halden had
+known he would. “No printing.”
 
 “A clerk transcribes the result.”
 
@@ -457,12 +475,12 @@ to my directors.”
 It was the first condition on which they agreed.
 
 Guardian possessed a useful inconvenience: a set of recurrence calculations
-whose inputs could be sealed and whose answers could be produced by experienced
-human computers without reference to Babbage's mechanism. Davies selected
-twelve, not because they were the most impressive but because disagreement
-could be located. Guardian would pay for a feasibility comparison and reserve
-a further payment for a witnessed test. It would acquire no share of the
-architecture and promise no recurring business.
+whose inputs could be sealed and whose answers could be produced by Guardian's
+own computers, working by hand, without reference to Babbage's mechanism.
+Davies selected twelve, not because they were the most impressive but because
+disagreement could be located. Guardian would pay for a feasibility comparison
+and reserve a further payment for a witnessed test. It would acquire no share
+of the architecture and promise no recurring business.
 
 “If your apparatus differs from our figures?” Davies asked.
 
@@ -471,19 +489,19 @@ architecture and promise no recurring business.
 “Before or after I pay?”
 
 Davies had made a profession from promises that matured after the people who
-sold them were gone. An assurance office could survive eloquence only by
-turning it into assumptions another calculator could inspect. Halden glanced
-at the folded corners of the Notes. Davies had followed the operations far
-enough to write in the margin. He had reopened none of those pages to settle
-the payment.
+sold them were gone. Halden glanced at the folded corners of the Notes. Davies
+had followed the operations far enough to write in the margin. He had reopened
+none of those pages to settle the payment.
 
 “Before final payment,” Halden said. “You keep the right to reject it. The
 protocol must still tell us whether the difference entered with your source,
 our preparation, the mechanism, our transcription, or your comparison.”
 
-Davies reopened the proposal.
+Davies repeated “protocol” as though it were a foreign coin, and reopened the
+proposal.
 
-The second refusal arrived from Manchester in a wooden box.
+Guardian had refused to buy an Engine. The second refusal arrived from
+Manchester in a wooden box.
 
 Halden had sent drawings of the reduced interfaces to Whitworth's works with a
 request for a review, not a blessing. The returned box contained gauges, three
@@ -512,7 +530,8 @@ and stop if a stage failed.
 Babbage objected that the second column contained no machinery.
 
 “It contains the reason anyone may believe the machinery,” she answered when
-they next met.
+they next met. “Without it you have a very beautiful clock that nobody is
+obliged to consult.”
 
 Halden placed Davies's memorandum beside Whitworth's report. For the first
 time, he could draw a line beneath them and write a total.
@@ -535,19 +554,20 @@ necessary to the truth of the larger design.
 “You have put an architectural necessity in the same class as a discretionary
 enlargement,” he said.
 
-“In an account,” Halden replied, “both require money.”
+“In an account,” Halden said, “they both cost money.”
 
 They met in a solicitor's room whose table was too small for Babbage's drawings.
-The inconvenience favored Halden. Only the configuration register lay open.
+The inconvenience favoured Halden. Only the configuration register lay open.
 
 Architecture belonged to Babbage. The operational examples, comparison method,
 and language of any resulting claim required Lovelace's signature. Price,
 schedule, supplier obligation, and the consequences of an accepted change
-belonged to Halden. Farrow's works would be paid to manufacture and was entitled
-to reject a drawing that supplied no inspectable condition. Guardian retained
-its source data and the right to accept or refuse the test result. Subscription
-money would be held separately and released only after four stages: accepted
-configuration, inspected components, composed assembly, and witnessed test.
+belonged to Halden. Farrow's works would be paid to manufacture and would be
+entitled to reject a drawing that supplied no inspectable condition. Guardian
+retained its source data and the right to accept or refuse the test result.
+Subscription money would be held separately and released only after four
+stages: accepted configuration, inspected components, composed assembly, and
+witnessed test.
 
 The solicitor had left a line beneath Lovelace's name: *deputy, if required*.
 
@@ -591,12 +611,14 @@ not require the permission demanded by an alteration.
 
 “Then we have written sixteen pages to arrive at your memory.”
 
-Lovelace placed an empty ruled volume on the table. “Every proposed change is
-entered here first. If it enters the present configuration, the affected price,
-date, interface, and test are accepted again. If not, it remains a successor.”
+Lovelace set the thin book from Halden's report on the table. “Every proposed
+change is entered here first. If it enters the present configuration, the
+affected price, date, interface, and test are accepted again. If not, it
+remains a successor.”
 
-“Successor is the wrong relation,” Babbage said. “The later arrangements belong
-to the Engine; they do not descend from this instrument.”
+“Successor is the wrong relation,” Babbage said. “You make the Engine sound
+like this instrument's grandson. The later arrangements belong to the Engine;
+they do not descend from a box of six registers.”
 
 He turned several of its numbered leaves. His other hand remained upon the
 drawing, as if the blank book might remove it. The pages made every future
@@ -606,27 +628,28 @@ He left the book open. A change refused here would survive there. Since the
 government's withdrawal, no one had offered him a refusal that did not also end
 the undertaking.
 
-The capital page named three thousand pounds. Babbage supplied half. Outside
-subscribers supplied one thousand through the trust. Guardian's feasibility
-and test payments supplied four hundred. Halden supplied one hundred, nearly
-half his savings.
+The page of funds named three thousand pounds. Babbage supplied half. Outside
+subscribers supplied one thousand through the trust. Guardian's feasibility and
+test payments supplied four hundred. Halden supplied one hundred, nearly half
+his savings.
 
 Lovelace noticed the figure.
 
-“You charge for refusing risk and then purchase some yourself.”
+“You charge us for refusing risk, Mr Halden, and then you buy some yourself. I
+should like to know which of you to believe.”
 
-“Otherwise I would be paid for delay and you for hope.”
+“If I didn't, I'd be paid for delay and you for hope.”
 
 “And Mr Babbage?”
 
-Halden glanced toward him. Babbage was reading the change clause again.
+Halden glanced towards him. Babbage was reading the change clause again.
 
 “Mr Babbage purchases the chance to be contradicted by matter.”
 
 Babbage looked up. “It may contradict this arrangement, Mr Halden. I am paying
 to learn exactly what it contradicts.”
 
-“That is why it receives its own signature.”
+“That's why it gets its own signature.”
 
 The solicitor turned the agreement to the final page. Halden signed first,
 because he had drafted the order. Lovelace signed beside the conditions of test
@@ -679,8 +702,8 @@ again, they bound before a complete revolution.
 “Nothing by itself. Coupled, the drive takes up before one turn. I can show the
 load. The drawings do not tell me which interface owns it.”
 
-Farrow shut the wage book. “Then leave the finding so. I won't have him condemn
-a sound shaft to make this week's account easier.”
+Farrow shut the wage book. “Then leave the finding so. I won't have Mr Babbage
+condemn a sound shaft to make this week's account easier.”
 
 Babbage entered while they were repeating the test. He watched half a turn,
 asked for chalk, and began drawing upon a blackened board. Within minutes he had
@@ -690,16 +713,17 @@ had disliked from the beginning.
 “I have three accepted interfaces crossed out,” Halden said, “a bearing not
 priced, and a transfer not inspected.”
 
-“It removes the cause,” Babbage said. “The failure proves those alterations
-necessary.”
+“It removes the cause,” Babbage said. “I disliked that transfer from the first
+drawing, and I have the drawing to prove it. The failure proves those
+alterations necessary.”
 
 Halden tapped the accepted drawing. “It proves this arrangement binds. Farrow
 can re-machine the interface named here.”
 
 Babbage's chalk stopped. “Would you have us reproduce the defect faithfully?”
 
-“I would have Farrow correct the shared drive we paid him to make. Your proposal
-may be better. It is not yet this machine.”
+“I'd have Farrow correct the drive we paid him to make. Your way may be better.
+It isn't this machine yet.”
 
 The workmen had become very interested in tasks that required them to face away
 from the argument.
@@ -718,8 +742,8 @@ Neither proposal had yet turned the handle.
 “She decides without touching the metal,” Babbage said when Halden read the
 letter aloud.
 
-“She has chosen no bearing,” Halden said. “She has told me which repair this
-test permits me to order.”
+“She hasn't chosen a bearing,” Halden said. “She's told me which repair I can
+order and still call it a test.”
 
 “The distinction becomes very fine when it delays the correct answer.”
 
@@ -730,11 +754,11 @@ pounds and eleven weeks. For six of those weeks, Babbage visited less often. His
 successor drawings grew rapidly.
 
 When the assemblies were joined again, the handle completed one revolution,
-then ten. The men at the bench looked toward Halden. Halden looked toward
+then ten. The men at the bench looked towards Halden. Halden looked towards
 Babbage.
 
 The foreman laid two fingers on the bearing cap. At the next turn he removed
-them and grinned toward nobody in particular. Farrow opened the wage book to
+them and grinned towards nobody in particular. Farrow opened the wage book to
 enter the date, missed the line, and had to begin again. Halden took the handle
 himself. Where the load had risen against his shoulder eleven weeks earlier,
 there was now only the repeating weight of the mechanism. He turned it once
@@ -778,8 +802,8 @@ solicitor's seal remained visible.
 “Not admitting it,” he said. “Circulating it. Men who hesitate before a small
 apparatus may subscribe to the larger consequence once they see it.”
 
-“Then I enter their subscriptions against machinery we have not promised and
-cannot yet price,” Halden said.
+“Then I book their money against machinery we haven't promised and can't
+price,” Halden said.
 
 “Their money would purchase participation in a design whose importance has
 never been confined to six registers.”
@@ -790,18 +814,18 @@ post laid her hand upon the table in its place.
 Her first page kept its usual close hand. On the second the lines stood farther
 apart, and the three directions—pay, stop, publish nothing—each began a line.
 
-The credit shock, she wrote, did not alter what the current subscribers had
-been shown. If the promise were enlarged when money grew scarce, then scarcity
-would become a machine for manufacturing claims. Pay the work already earned.
-Stop before the next stage. Publish neither reassurance nor catastrophe until
-the account changed.
+The panic in the money market, she wrote, did not alter what the current
+subscribers had been shown. If the promise were enlarged when money grew
+scarce, then scarcity would become a machine for manufacturing claims. Pay the
+work already earned. Stop before the next stage. Publish neither reassurance
+nor catastrophe until the account changed.
 
-Halden calculated what delay would do to his own household. His coordination
-fee would stop with the works. Margaret could take additional stationer's
-accounts, but only at night and only if one of the children gave up the room in
-which she worked. The hundred pounds he had subscribed was already beyond
-recovery unless the test was reached. Every private consequence pressed toward
-continuation.
+Halden calculated what delay would do to his own household. His fee for
+managing the works would stop with them. Margaret could take additional
+stationer's accounts, but only at night and only if one of the children gave up
+the room in which she worked. The hundred pounds he had subscribed was already
+beyond recovery unless the test was reached. Every private consequence pressed
+towards continuation.
 
 That evening he carried the ledger home.
 
@@ -886,27 +910,29 @@ before it.
 
 The test began with everyone forbidden to improve it.
 
-That prohibition had taken nearly seven years to earn. After the subscription
+That prohibition had taken seven years to earn. After the subscription
 pause, Farrow's men resumed one paid stage at a time. The re-machined interface
 remained in the present apparatus; Babbage's more general bearing remained in
 the successor book. By the end of 1850 the six registers, reader, and shared
 drive composed into one configuration whose parts, order, and exclusions could
 all be named.
-Only then did Davies permit the prospective packet to close.
+Only then did Davies permit the packet to be sealed.
 
 The twelve Guardian cases had been sealed in February. Davies held the source
 copies and the independently calculated answers. Lovelace held the wording of
 the question and its exclusions. Halden held the configuration register and
-the stopping rule. Farrow's foreman held the inspection record. Babbage held
+the right to call the stop. Farrow's foreman held the inspection record. Babbage held
 nothing that permitted him to alter the apparatus that morning.
 
 He moved around it restlessly.
 
-The frame occupied less of the room than its reputation did. Six register
-faces showed through glass. A prepared stack of operation and variable cards
-stood in its box. There was no printer to dramatize the answer, only a clerk
-who would transcribe the final values after each run. Visitors expecting a
-metal intelligence found instead an exact arrangement of limitations.
+The frame occupied less of the room than its reputation did. Six register faces
+showed through glass. A prepared stack of operation and variable cards stood in
+its box. There was no printer to dramatize the answer, only a clerk who would
+transcribe the final values after each run. Visitors expecting a metal
+intelligence found instead an exact arrangement of limitations. That month half
+London was going to Hyde Park to see the Exhibition's engines. Nine people had
+come to watch this one.
 
 Lovelace arrived before Davies. The journey had tired her, though she hid it by
 studying the seals while the others greeted one another.
@@ -919,19 +945,21 @@ the supplied number from an error in the operation before we condemn the
 sequence that follows it. Inspection of the source is not an improvement to
 the machine.”
 
-“After recording the disagreement,” she said. “If we first alter the source,
-the answer will have changed the question by which we meant to judge it.”
+“After we record the disagreement,” she said, and waited for her breath. “Alter
+the source first, and the answer has chosen its own question.”
 
 “A misplaced source figure is not a trial of the Engine.”
 
-“It is a trial of whether we can discover what has been tried.”
+“Then it is a trial of us.”
 
 Davies entered with two clerks and a locked case. He and Halden compared seals.
 The source values were copied once for the apparatus and once for the room's
 record. Thomas Neale read each prepared value against Davies's copy before the
 cards entered the box.
 
-The first attempt consumed the morning.
+The first attempt consumed the morning, most of it spent by people: each value
+read aloud and entered by hand, each result transcribed and read back before
+the next case began. The apparatus itself turned for less than an hour.
 
 Lovelace sat very still and timed each deeper breath to the fall of the card
 reader. William had opposed the journey and then arranged it carefully when
@@ -947,7 +975,7 @@ The first case agreed. Then the second.
 
 At the sixth, one register failed to clear completely. Halden called the stop
 before anyone could decide that the remaining digit was harmless. The card was
-marked and the incomplete run was voided. Davies had already leaned toward the
+marked and the incomplete run was voided. Davies had already leaned towards the
 glass. Irritation crossed his face before he told one clerk to note the card and
 the other to leave the locked case shut. Under observation the register was
 reset, the inputs were restored, and the full twelve-case sequence began again
@@ -965,7 +993,8 @@ following day. The seals were renewed. Halden locked the cards away. Babbage
 stood beside the silent apparatus after the others had gone.
 
 “The whole declared sequence has agreed once,” he said. “The second run tests
-recurrence; the apparatus has already shown that it can execute the cards.”
+only repetition; the apparatus has already shown that it can execute the
+cards.”
 
 Lovelace was resting in a chair near the window. “Tomorrow,” she said. She did
 not rise. “That was the condition.”
@@ -974,7 +1003,7 @@ The next morning Davies waited until every seal had been called aloud before he
 unlocked the independent case; the result sheets remained covered. Neale laid
 his checking strip beneath the first source line. Halden opened the
 configuration register at the signed page. Lovelace's chair stood closer to the
-trace than it had the day before. No one remarked upon the change.
+trace than it had the day before.
 
 Babbage began the second run standing behind the reader. At the third case he
 moved to the register faces; at the fifth he returned to the cards. He had
@@ -1018,12 +1047,12 @@ and smiled before either of them spoke.
 Davies returned the independent answers to their case and closed it.
 
 Davies signed the comparison statement. Farrow's foreman signed the
-configuration. Neale signed both preparation checks. Halden signed the account
-of stops and restarts. Lovelace read the public sentence aloud:
+configuration. Neale signed the preparation check for each run. Halden signed
+the account of stops and restarts. Lovelace read the public sentence aloud:
 
-The frozen apparatus had executed the declared card sequences upon twelve
+*The frozen apparatus had executed the declared card sequences upon twelve
 sealed recurrence cases and had reproduced the independently calculated values
-on two complete runs under the recorded conditions.
+on two complete runs under the recorded conditions.*
 
 Babbage held out his hand for the sheet. Lovelace kept it upon her lap.
 
@@ -1053,7 +1082,7 @@ For those three strokes no one watched the register faces.
 ## IX. Four Deposits
 
 The first inquiry arrived before the apparatus was covered. A messenger
-brought a letter from an office that had heard the first day's rumor and wished
+brought a letter from an office that had heard the first day's rumour and wished
 to know the price of a calculation. Halden turned the unopened letter over in
 his hand. It was the first request he had received for something that had not
 existed when he began to price it.
@@ -1062,14 +1091,34 @@ In July the signed sentence was published without the larger conclusions
 Babbage had proposed for it. He published those interpretations separately,
 under his own authority. By December the first inquiry had become four.
 
+The calculation office was constituted in January 1852, in the solicitor's room
+where the compact had been signed. Babbage put in six hundred and fifty pounds.
+Halden put in a hundred and fifty, most of what his household had saved since
+the first venture, and the hundred pounds left unspent from the construction
+account made nine hundred. The apparatus came to the office in its frozen
+configuration. The stopping clauses were copied from the compact, and every
+customer was to receive two signatures beneath each table: the preparer's and
+an independent checker's.
+
+Lovelace read the articles at Ockham and returned them with a question
+pencilled beside the fourth, which gave the acceptance of customer work to the
+manager.
+
+*And who may refuse the manager?*
+
+Halden wrote beneath it, *The account*, and sent the page back. She signed the
+article that governed published claims and left the fourth without her name.
+
 By February 1852, Halden's capacity sheet allowed eighty independent
 checker-hours in a quarter.
 
-Thomas Neale was retained for ten hours a week, which made the theoretical
-quarter larger. But late sources, corrected preparations, customer questions,
-and ordinary absence consumed the difference. Halden therefore entered eighty
-independent checker-hours as the quantity he was willing to promise. At forty
-hours per verified packet, the office could deliver two.
+Thomas Neale would not leave an assurance post that carried a pension for an
+office a month old. His employer spared him ten hours a week, a hundred and
+thirty in a quarter on paper. But late sources, corrected preparations,
+customer questions, and ordinary absence consumed the difference. Halden
+therefore entered eighty independent checker-hours as the quantity he was
+willing to promise. At an average of forty hours per verified packet, the office could
+deliver two.
 
 The proposed tables were due between April and June 1854. Customers would close
 their accounts at the end of 1853, reconcile them through March, and release
@@ -1086,10 +1135,10 @@ illegible original, how a correction at the third line required a second reading
 of the thirtieth, and how fatigue made familiar figures more dangerous than
 strange ones. None of that appeared in the apparatus's operation count.
 
-He had cut Wills a checking strip from a rejected card. When the younger man
-tried to compare a whole column at once, Neale covered everything below the
-current line and made him begin again. “A strange figure stops you,” he said,
-moving the strip down. “Watch the one you expect.”
+He had cut Wills a checking strip from a rejected card, the twin of his own.
+When the younger man tried to compare a whole column at once, Neale covered
+everything below the current line and made him begin again. “A strange figure
+stops you,” he said, moving the strip down. “Watch the one you expect.”
 
 Wills read the next line and reached for his pencil. Neale kept the strip where
 it was.
@@ -1104,7 +1153,7 @@ Wills put the pencil down. At the corresponding place on the specimen sheet the
 ink had thickened. He knew what the figure ought to be: the other copy gave it
 plainly. He bent closer to the source, then straightened.
 
-“I cannot read that one.”
+“I can't read that one.”
 
 Neale drew the sheet towards the light. For a moment Wills wished he had given
 the figure after all; Neale was taking longer over it than he had.
@@ -1120,25 +1169,27 @@ unmarked. He had spent the lesson trying to give Neale no reason to stop him;
 now he had a question he would have to carry back to the preparation desk.
 Neale moved his own chair aside so the younger man could get out.
 
-Babbage believed that the estimate described the office they
-had, while the deposits described the office they might create.
+In Halden's new office that February, Babbage held that the estimate described
+the office they had, while the deposits described the office they might create.
 
-“We are not dividing eighty hours among four fixed objects,” he said. “We are
-using four obligations to purchase more hours.”
+“We are not dividing eighty hours among four fixed objects, as though hours
+were loaves,” he said. “We are using four obligations to purchase more hours.
+The railways built themselves on exactly that principle, and nobody asks them
+to apologize.”
 
 “From whom?” Lovelace asked.
 
-They were in Halden's new office, two rooms adjoining the calculating room.
-Through the wall came the intermittent motion of the apparatus. On the table
-lay four letters and the capacity sheet. Lovelace had marked one line twice:
-independent checking, not preparation, set the boundary.
+The office was two rooms adjoining the calculating room. Through the wall came
+the intermittent motion of the apparatus. On the table lay four letters and the
+capacity sheet. Lovelace had marked one line twice: independent checking, not
+preparation, set the boundary.
 
 Halden laid the letters around the capacity sheet. Their corners covered the
 marked line.
 
-Halden had advertised for another checker. None could yet challenge a prepared
-deck without Neale's supervision, and training consumed the same scarce hours
-it was meant to increase.
+Halden had advertised for another checker. Two men answered; neither could yet
+challenge a prepared set of cards without Neale's supervision, and training
+consumed the same scarce hours it was meant to increase.
 
 “The deposits keep Wills paid while Neale trains him,” Halden said.
 
@@ -1155,17 +1206,18 @@ corrected the word in his reply, but not before reading the salutation twice.
 Now he looked at the four deposits covering the line.
 
 Babbage stood at the apparatus-room door. “The objection assumes that the
-present method of checking is itself fixed. A machine exists precisely to free
-us from the pace of human repetition.”
+present method of checking is fixed for ever, like the tides. A machine exists
+precisely to free us from the pace of human repetition. I have argued that for
+twenty years, and I did not expect to argue it in this room.”
 
 “It has freed the operation,” Lovelace said. “It has not freed us from deciding
-what operation we asked for.”
+what operation we asked for. If it had, I should go home and leave you both to
+it.”
 
 “A second apparatus—”
 
-Halden interrupted him. “Is in no contract and no account.”
+Halden interrupted him. “Isn't in any contract or any account.”
 
-For a moment, the old alliance between conditions and limits reappeared. Then
 Halden looked again at the four deposits.
 
 “Four deposits are not four deliveries,” he said. “They pay Wills, retain
@@ -1184,7 +1236,8 @@ remained over the line Lovelace had marked.
 Lovelace asked Neale to join them. He stood awkwardly at the end of the table
 while Halden described the schedule.
 
-“Can you independently check four packets by the final dates?” she asked.
+“Four packets at forty hours make a hundred and sixty,” she said. “Can you
+check them independently by the final dates?”
 
 “Not if all four require the hours in the account.”
 
@@ -1199,10 +1252,10 @@ No one altered the figure.
 Lovelace asked that her objection be entered with the capacity sheet. Babbage
 would support the four. Neither could sign a customer's acceptance for Halden.
 
-He held the office pen. He dated the first acceptance and laid it aside for the second.
-By the fourth he no longer looked at the capacity sheet. He checked the
-customer's name, the deposit, and the delivery date. All three were correct.
-He initialled it and laid down the pen.
+Halden held the office pen. He dated the first acceptance and laid it aside for
+the second. By the fourth he no longer looked at the capacity sheet. He checked
+the customer's name, the deposit, and the delivery date. All three were
+correct. He initialled it and laid down the pen.
 
 During March the four preparations began to overlap. Wills's lessons continued
 among them.
@@ -1225,15 +1278,25 @@ Halden put the unfinished lesson beside the next day's work. The card order
 was complete. It could be entered in the week's account; the lesson could wait
 for another afternoon. He did not cancel it.
 
-In April Lovelace returned to the office decision. She had not resigned. That possibility had been feared
-by both men and would have allowed them to treat her absence as consent obtained
-by exhaustion. Instead she took a sheet of the venture's paper and wrote a
-qualification beneath the February decision.
+In April Lovelace returned to the office decision. She had not resigned. Both
+men had feared it, and both would have found it convenient: her absence could
+have been treated as consent obtained by exhaustion. Instead she took a sheet
+of the venture's paper and wrote a qualification beneath the February decision.
+It began in her usual close hand.
 
-The 1851 trial established one frozen operation under prospective comparison,
-not the rate at which customer work could be prepared and independently
+*The 1851 trial established one frozen operation under comparison fixed
+beforehand, not the rate at which customer work could be prepared and independently
 checked. The four obligations depended upon capacity not present when they were
-accepted.
+accepted.*
+
+Below that the lines stood farther apart, and each direction began at the
+margin.
+
+*Accept no fifth.*
+
+*Pay for Mr Wills's instruction in hours of its own.*
+
+*Before the first return arrives, name Mr Neale's deputy.*
 
 She signed and dated it.
 
@@ -1256,8 +1319,8 @@ three letters spread over the bed.
 
 “You promised both.”
 
-He removed none of the papers. He set the water within her reach and drew the
-curtains against the light.
+He left the papers where they were. He set the water within her reach and drew
+the curtains against the light.
 
 “They have made checking depend upon a single man,” she said.
 
@@ -1265,9 +1328,9 @@ curtains against the light.
 
 “It depends upon my continuing to insist that he is single.”
 
-Her signature stood alone beside the claim clauses in the copy before her.
-Beneath it, *deputy, if required* was still legible through the line she had
-drawn. She set one finger on it.
+Her signature stood alone beside the claim clauses in the copy of the compact
+before her. Beneath it, *deputy, if required* was still legible through the
+line she had drawn. She set one finger on it.
 
 “Would you have signed it?” she asked.
 
@@ -1291,16 +1354,17 @@ Wills still learned from Neale between preparations. She had proposed taking
 him off that work for part of each week: some time under Neale, some with an
 assurance clerk outside the office. His absence from the preparation desk would
 have to be paid for as well as the instruction. During training, output would
-fall further. The additional wages and external review would cost approximately one
-hundred and twenty pounds in the first year. Halden's answer praised the plan
-and asked whether it might begin after the four current packets were delivered.
-Babbage's answer proposed that recurrent portions of comparison might later be
-mechanized.
+fall further. The additional wages and external review would cost approximately
+one hundred and twenty pounds in the first year. Halden's answer praised the
+plan and asked whether it might begin after the four current packets were
+delivered. Babbage's answer proposed that recurrent portions of comparison
+might later be mechanized.
 
 She read Halden's answer again, looking for a date she could put beside the
-cost. Babbage offered a route through machinery that did not yet exist. Neither paper gave her a day when Wills's hours would be reserved for the instruction.
+cost. Babbage offered a route through machinery that did not yet exist. Neither
+paper gave her a day when Wills's hours would be reserved for the instruction.
 
-Lovelace began another page with three headings: competence, paid time,
+Lovelace began a page on succession with three headings: competence, paid time,
 authority to refuse. She entered Wills, Neale, Halden, Babbage, Davies, and
 herself. No row was complete. She sent the unfinished table to both men and
 asked them to accept no work beyond Neale's demonstrated reach until one was.
@@ -1321,17 +1385,17 @@ same earlier value. He stared at the lines, rubbed one away with his thumb, and
 sent the second path through another register. She moved the delayed sign one
 operation farther. He saw why before she explained it.
 
-She left one finger where the two paths had inherited the same value. “If a
-later apparatus compared enough of its own operations, would you call that
+She held the drawing flat where the two paths had inherited the same value. “If
+a later apparatus compared enough of its own operations, would you call that
 judgment?”
 
 “Judgment is often the name we give an operation whose conditions have not yet
 been exposed,” he said. “If the apparatus compares its own proceedings and
 changes what follows, at what exact line would you deny it the word?”
 
-“I wrote that an Engine might compose music if the relations of harmony could
-be given to its operations. It might carry them to a passage no composer had
-set down note by note.”
+“I wrote that an Engine might compose music, if the relations of harmony could
+be given to its operations: that it might weave them, as the loom weaves
+flowers, into a passage no composer had set down note by note.”
 
 “Would it not have invented the passage?”
 
@@ -1345,20 +1409,20 @@ she completed it; she crossed out his correction and he laughed. Their old
 speed returned so suddenly that neither acknowledged it. For those minutes
 William's hour ceased to exist for both of them. Then she reached for the
 pencil and had to wait for her breath. When she shifted in the chair, the edge
-of Guardian's source sheet slipped from beneath the roll.
+of Guardian's specimen sheet slipped from beneath the roll.
 
 “It is good,” she said.
 
 He waited for the rest.
 
-“It does not read Guardian's source sheet.”
+“It does not read Guardian's sheet.”
 
 She drew the successor register from beneath the roll and closed it over his
-letter.
+earlier answer.
 
-He did not consent or refuse. He recommended that the office wait. Halden
-adopted the recommendation, deferring the paid release and outside instruction
-until the present contracts produced their next payments.
+He did not consent to her table or refuse it. He recommended that the office
+wait. Halden adopted the recommendation, deferring the paid release and outside
+instruction until the present contracts produced their next payments.
 
 After he left, Lovelace attached his answer and Halden's to her question. She
 left the page unclosed, so the unanswered place remained visible.
@@ -1368,8 +1432,8 @@ that had once replaced her presence now had difficulty reaching her at all. She
 died there on the twenty-seventh.
 
 News reached Halden at the office before noon. He closed the preparation room
-for the day and left the apparatus uncovered, because nobody could agree who
-possessed the authority to alter the schedule. Neale stood beside four waiting
+for the day and left the apparatus uncovered. Nobody could say who now held her
+signature over what the office might claim. Neale stood beside four waiting
 packets, his blank strip arrested beneath the first line. Babbage came late and
 went first to the machine. He pressed his palm against the frame and left it
 there. No motion returned through the metal. It was cold and still.
@@ -1382,27 +1446,85 @@ packet to packet. The edge of Neale's blank strip darkened with use. No single
 day announced failure; each exception was carried forward until one could leave
 the room.
 
-On 1 April 1854 Guardian's signed return arrived. Wills laid it beside the
-specimen sheets. Much of the card order could be kept. Neale put the old
-checking sheets aside; their ticks belonged to different figures. He drew the
-first new source beneath his strip.
+On 1 April 1854 Guardian's signed return arrived, and the Lothbury office's
+with it. Wills laid Guardian's beside the specimen sheets. Much of the card
+order could be kept. Neale put the old checking sheets aside; their ticks
+belonged to different figures. The Lothbury copy was ready first, and he drew
+its first line beneath his strip. Lothbury's and Guardian's were the two small
+packets, a week of Neale's hours apiece; the two large ones would need the rest
+of the quarter and more.
+
+On Friday the seventh both dates fell due, the first the office had ever had
+to keep.
+
+The Guardian cards were ready a little after nine. Wills brought the cards and
+his copy to Halden's desk. There was one mark in the checking column, his own.
+
+“Mr Neale?” Halden asked.
+
+“The Lothbury comparison, sir. He hopes to finish it by four.”
+
+Through the glass Neale sat with his strip beneath a line of another office's
+figures. He had perhaps six of his week's hours left. Halden could walk twenty
+feet and put the Guardian copy on top of the Lothbury sheets, and one of the
+two offices would receive its table late.
+
+The wage envelopes lay filled in their box on the corner of the desk.
+Guardian's deposit had paid for some of them; if the date passed, the deposit
+became returnable. On the shelf above, beside the test packet, lay Lady
+Lovelace's qualification.
+
+He opened the delivery ledger at the Guardian line. No line in it had yet been
+marked delivered. He wrote in the margin reserved for an exception.
+
+*Second comparison to follow. Delivery permitted to preserve date.*
+
+*E. H.*
+
+“Release them,” he said. “Mr Neale will compare the copy on Monday.”
+
+Wills looked at the single mark and then at the margin. He squared the cards
+against his palm and carried them to the reader.
+
+The cards began to fall at ten. By four the table had gone to Guardian in
+Lombard Street, and Lothbury's had followed it with both signatures and a
+quarter of an hour to spare.
+
+On Monday, with the papers full of the war, the third office's signed return
+arrived with a query in its covering letter, and Neale's hours went to the
+query. Halden had meant to tell him about Guardian's copy once the query was
+answered. On Tuesday the fourth arrived. Neale worked, as he had all year, to
+the nearest promised date, and a delivered table had none. The Guardian line in
+the ledger carried its single mark forward from week to week, as the year's exceptions had, until
+the packet came back tied with the office's own green tape.
 
 ## XI. The Seller's Conditions
 
 Halden's reply to Guardian contained the source sheet, the preparation copy,
-the cards, both run traces, the delivery ledger, and the sentence with which he
-had begun: there was no second signature.
+the cards, both run traces, the page of the delivery ledger, and the sentence
+with which he had begun: there was no second signature.
 
-Davies accepted the trace and rejected the table.
+Davies accepted the trace and rejected the table. “I do not doubt your
+mechanism,” he wrote. “Guardian did not purchase it.”
 
-Clause eleven required correction at the seller's expense. The following
-clause permitted cancellation if the error had passed a promised independent
-check or if no such check had occurred. Guardian invoked both. Its deposit of
+Clause eleven required correction at the seller's expense. The following clause
+permitted cancellation if the error had passed a promised independent check or
+if no such check had occurred. Guardian invoked both clauses. Its deposit of
 one hundred and eighty pounds was to be returned. The corrected table would be
 received as evidence of performance under the clause, not as completion of a
 continuing contract.
 
-The office recomputed the deck. Wills copied the source under Neale's voice,
+Neale had come in at two on the day the packet returned. He read the margin of
+the delivery ledger before he took off his coat, and Wills told him what had
+been said at the desk that Friday.
+
+“You promised my Monday, sir.”
+
+“I did.”
+
+Neale hung the coat on its peg and asked for the source sheet.
+
+The office recomputed the table. Wills copied the source under Neale's voice,
 then Neale copied it again under Wills's. The apparatus produced the corrected
 values. The work took four days. By the third evening Neale's voice had
 roughened, and Wills read while Neale followed with the grey-edged strip.
@@ -1415,7 +1537,8 @@ Wills found the place. He read the figure once. Neale moved the strip, and they
 went on.
 
 When they exchanged sheets, Wills asked for a repetition. The request came out
-too softly; Neale had already begun the next figure. Wills put his pencil across the copy.
+too softly; Neale had already begun the next figure. Wills put his pencil
+across the copy.
 
 “The one before, Mr Neale.”
 
@@ -1435,11 +1558,20 @@ first card.”
 “The trace makes it clear,” Halden said.
 
 “A trace in a cancelled office will not govern what people say. They will say
-the Engine made a wrong table.”
+the Engine made a wrong table. I began the first engine because tables
+computed and copied by hand were wrong, Mr Halden. I gave it a printer so that
+no hand need copy a figure between the machine and the page, and you struck the
+printer from your first report.”
 
-“Guardian paid us to stop that table leaving,” Halden said. “The clerk has his
-line in the trace. Mine is in the ledger. I won't answer cancellation with a
-paragraph about the Engine.”
+“The figure went in by hand. A printer would have printed it.”
+
+“I know it,” Babbage said. “I have twice been asked, by members of both
+Houses, whether the machine gives right answers when it is given wrong figures.
+They will not need to ask again. They will think this table has answered them.”
+
+“What did Guardian purchase?” Halden said. “It paid us to stop that table
+leaving. The clerk has his line in the trace. Mine is in the ledger. I won't
+answer cancellation with a paragraph about the Engine.”
 
 Halden opened the office account.
 
@@ -1452,7 +1584,7 @@ the remaining work without new capital.
 
 “Then raise new capital on the investigation,” Babbage said.
 
-“Upon what statement?”
+“On what statement?”
 
 “That the calculating mechanism executed every operation supplied to it;
 preparation and checking failed outside it.”
@@ -1467,11 +1599,17 @@ sentence could be defended. Together they would invite a new subscriber to
 finance obligations the present account could not meet.
 
 Margaret had sorted the figures the night before into sums already owed, money
-still in hand, and money a new circular only hoped to attract. When Halden began
-to call the third rescue, she put one finger beneath the first.
+still in hand, and money a new circular only hoped to attract. When Halden
+began to call the third column a rescue, she had put one finger beneath the first.
 
-“Before you send another circular,” she had said, “show me what leaves this
+“Before you send any circular,” she had said, “show me what leaves this
 house before the first new subscription comes in.”
+
+She had found his capacity sheet among the office papers, the line marked twice.
+“You showed me the articles in January, when you asked for the savings,” she
+had said. “Not this.”
+
+He had not.
 
 New money might preserve Halden's standing and keep Wills and Neale employed.
 He looked again at the sums already owed.
@@ -1497,7 +1635,7 @@ Wills asked to see him after the staff were told.
 
 “The reference will state both the error and what you did afterward.”
 
-Wills looked toward the preparation room. “A new master may stop at the error.”
+Wills looked towards the preparation room. “A new master may stop at the error.”
 
 Neale had waited at the door with his wooden case. “Put my name beneath the
 correction, sir. He read the second copy. I followed.”
@@ -1512,7 +1650,7 @@ Neale lowered his wooden case to the floor.
 
 “Is there something wrong?” Halden asked.
 
-“Could you put the order in, sir?”
+“Could you put the order in, sir?” Wills asked.
 
 “The order?”
 
@@ -1539,10 +1677,11 @@ initialled his sentence again.
 Wills put the ruler beneath the first line. When he came to the new sentence
 he read it twice. Then he moved the ruler down.
 
-On the last day of March 1855, the shaft beneath the calculating room stopped.
-Farrow's men removed the card reader first, then the registers. Neale carried
-his checking books away in a wooden case. Wills left with a reference that
-described both the error and his conduct during correction.
+The remaining obligations took until the spring to close. On the last day of
+March 1855, the shaft beneath the calculating room stopped. Farrow's men
+removed the card reader first, then the registers. Neale carried his checking
+books away in a wooden case. Wills left with a reference that described both
+the error and his conduct during correction.
 
 Halden locked the account and gave one key to the subscriber trust's solicitor
 and one to Babbage.
@@ -1561,31 +1700,30 @@ Halden waited. Babbage closed his hand around the key.
 
 ## XII. The Complete Record
 
-In 1871, Henry Babbage found the returned table among his father's successful
-papers.
+In 1871, Henry Babbage found the returned table filed with his father's
+successes.
 
-It had remained there for sixteen years. At first Charles pencilled *mechanism
-trace exact* upon the wrapper. Later he asked Halden for the reconciled account
-and tied it beneath the same green tape. The tape had been opened often enough
-to soften at the knot. Each time, proof and failure returned beneath one
-fastening.
+It had remained there since the office closed, sixteen years. At first Charles
+pencilled *mechanism trace exact* upon the wrapper. Later he asked Halden for
+the reconciled account and tied it beneath the same green tape. The tape had
+been opened often enough to soften at the knot.
 
 Charles had asked him to inventory what would pass into his custody. The work
-occupied several autumn afternoons. Drawings had multiplied beyond cabinets.
-Mechanisms stood beneath covers. Notes on improvements continued into the
-present year, written in the same hand that had marked changes before Henry was
-born.
+occupied several afternoons of that last autumn. Drawings had multiplied beyond
+cabinets. Mechanisms stood beneath covers. Notes on improvements continued into
+the present year, written in the same hand that had marked changes before Henry
+was born.
 
 The packet from the old undertaking was different. It had been assembled as if
 for a dispute whose parties might all be dead. The frozen configuration came
 first, then the successor register, inspection corrections, sealed cases, run
-traces, and the signed statement of 1851. After them lay Lady Lovelace's
+traces, the second smudged at its last operation, and the signed statement of 1851. After them lay Lady Lovelace's
 capacity qualification, her unanswered succession question, the source sheet,
 the transposed copy, the delivery exception, Davies's cancellation, the
 corrected table, and Halden's closure account.
 
-Her qualification began in the close hand Henry knew from the Notes. Its final
-directions stood farther apart, each beginning at the margin.
+Her qualification began in the close hand Henry knew from her letters to his
+father. Its final directions stood farther apart, each beginning at the margin.
 
 Henry lifted the returned table. “This is filed with the Engine papers.”
 
@@ -1602,7 +1740,7 @@ Henry set it beside the office accounts.
 Henry left the sheet between the two piles. “Then the inventory needs a heading
 that takes both.”
 
-For several seconds, only the fire answered.
+His father looked from one pile to the other.
 
 “That was Halden's question,” Charles said at last. “What had the customer
 purchased?”
@@ -1610,7 +1748,7 @@ purchased?”
 Henry kept his pencil above the blank line.
 
 “I distinguished the general machine from a temporary arrangement of persons.”
-Charles looked toward the covered mechanisms. “The distinction was true.”
+Charles looked towards the covered mechanisms. “The distinction was true.”
 
 Henry waited.
 
@@ -1630,7 +1768,8 @@ Charles noticed him looking towards the drawings.
 
 “Not that sheet. The alteration is on the next.”
 
-Henry lifted it. Underneath lay a drawing crowded with pencilled corrections.
+Henry lifted it. Underneath lay a drawing of the mill, its carriage crowded
+with pencilled corrections of several dates.
 
 “Here?”
 
@@ -1658,8 +1797,8 @@ His father noticed. “You disapprove?”
 Charles asked for the inventory. His hand was unsteady, and Henry expected him
 to strike out the first line. Instead he added another.
 
-Bounded apparatus and calculation office: configuration, proof, qualification,
-error, correction, and closure, complete.
+*Bounded apparatus and calculation office: configuration, proof, qualification,
+error, correction, and closure, complete.*
 
 “Complete,” Henry read.
 
@@ -1678,11 +1817,11 @@ The packet passed into Henry's custody with the drawings and workshop material
 after his father's death. He copied both headings into the inventory and placed
 the packet beside the drawings.
 
-In 1900, Henry opened the packet again.
+In 1900, deciding what should pass after him, Henry opened the packet again.
 
 The green tape had faded. The wrong table and the corrected one lay side by
 side. Between them was Lovelace's qualification, its final lines still widening
-toward the end.
+towards the end.
 
 Henry returned her sheet between the two tables and tied the faded tape around
 all three.

@@ -2146,38 +2146,41 @@ authored appraisals, not forecast probabilities or a measured recovery curve.
 \label{sec:story-continuations}
 
 The current example in \texttt{examples/book-of-conditions/} supplies the
-28 September 2026 manuscript, a portable native construction, and a publication
-manifest. The manuscript is \texttt{BOOK-DRAFT.md}; the manifest identifies the
-bundle and this revision's
-model, graph, and rendered text. This current-state export contains one graph
-revision and two model roots; private development predecessors are excluded.
-It preserves reproducible state and prose, not replay of the excluded history.
-The accompanying \texttt{import-rust.mjs}
-uses the public MCP construction import and checks the recovered rendering;
-it no longer reconstructs the active example from the first construction's
-separate ledgers. This repository and the story repository publish revisions
-from the same canonical authoring state, identified by their manifests.
+29 September 2026 manuscript, a portable native construction, and a publication
+manifest identifying its model, graph, and rendered text. This current-state
+export contains one graph revision and two model roots; private development
+predecessors are excluded. It preserves reproducible state and prose, not replay
+of the excluded history. The accompanying importer uses the public MCP tools
+and checks the recovered rendering. This repository and the story repository
+publish revisions from the same canonical authoring state, identified by their
+manifests.
 
-The Book now has twelve chapters, 34 rendered passage leaves, and 11,675
-whitespace-delimited words. Its native model contains 401 Events, 238 processes,
-and 108 Cuts. Every rendered leaf has declared Event anchors. Coarse location
-histories, spatial understanding, and three qualitative telling tracks with
-22 passage-bound phases are included. Nora Vale's fictional author life is
+The Book now has twelve chapters, 34 rendered passage leaves, and 13,020
+whitespace-delimited words. Its native model contains 581 Events, 256 processes,
+and 120 Cuts. Every rendered leaf has declared Event anchors. Coarse location
+histories, spatial understanding, and nine qualitative telling tracks with
+63 passage-bound phases are included. Nora Vale's fictional author life is
 linked separately; it is not part of the nineteenth-century story world.
 These inventory counts describe the current artifact, not the historical
 footprint in Table~\ref{tab:book-footprint}.
 
-Later development used the public MCP revision workflow, first adding spatial
-structure without changing prose and then revising both passages and their
-supporting Events. All 108 numerical compositions are retained. A subsequent
-content review resolved six succession-Cut flags by grounding four assessment
-Events in the scene and recording why the existing values remain compatible
-with it. Those six Cuts now track their current assessment texts; the other
-102 retain untracked text freshness. This attributed reassessment does not
-calibrate the quantities. Independent readers compared complete baseline and
-candidate manuscripts, followed by local repairs and self-review. That labeled
-comparison is neither a blind test of the exact final text nor the controlled
-evaluation proposed below, and it does not recertify historical claims.
+Later development used the public MCP revision workflow to deepen the lives,
+background processes, and telling, and to revise passages together with their
+supporting Events. The six succession-Cut flags discussed above were resolved
+by an attributed content review; subsequent revisions extended the numerical
+account and reassessed readings affected by changed descriptions. Fifty of the
+120 current Cuts have a recorded textual basis; the other 70 retain untracked
+text freshness. These records support checking whether a reading's basis has
+changed, not calibration of its quantities.
+
+Independent readers compared complete baseline and candidate manuscripts,
+followed by local repairs. A subsequent narrow read-back used a fixed key and
+one isolated language-model reader per condition: two of three points were
+already recovered in the control, while the revised text also conveyed the
+household authorization missing from the closing account. Two final copyedits
+followed that check. These limited readings are neither a blind test of every
+claim in the final artifact nor the controlled evaluation proposed below, and
+they do not recertify historical claims.
 
 \subsection{A separate executable refinement example}
 \label{sec:reference-refinement}

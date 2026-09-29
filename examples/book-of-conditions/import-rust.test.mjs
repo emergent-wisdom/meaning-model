@@ -17,15 +17,15 @@ test('a fresh public MCP import contains the current complete Book and Nora, wit
   assert.equal(receipt.graphHash, manifest.graphHash);
   assert.equal(receipt.modelHash, manifest.modelHash);
   assert.equal(receipt.graphRevisionCount, 1);
-  assert.equal(receipt.tellingProcessCount, 3);
-  assert.equal(receipt.tellingPhaseCount, 22);
+  assert.equal(receipt.tellingProcessCount, manifest.inventory.tellingProcesses);
+  assert.equal(receipt.tellingPhaseCount, manifest.inventory.tellingPhases);
   assert.equal(fs.readFileSync(path.join(out, 'rendered.md'), 'utf8'), fs.readFileSync(path.join(directory, 'BOOK-DRAFT.md'), 'utf8'));
   assert(fs.statSync(path.join(out, 'construction.sqlite')).size > 0);
 
   const model = readJson(path.join(out, 'model.json'));
   assert.equal(model.revision.number, 0);
   assert(!model.revision.previous_model_hash);
-  assert.equal(model.meaning_model.normalized_cuts.length, 108, 'Published numbers must survive import');
+  assert.equal(model.meaning_model.normalized_cuts.length, manifest.inventory.normalizedCuts, 'Published numbers must survive import');
   const graph = readJson(path.join(out, 'graph.json'));
   assert.equal(graph.graph.revision.number, 0);
   assert(!graph.graph.revision.previous_graph_hash);
@@ -33,7 +33,7 @@ test('a fresh public MCP import contains the current complete Book and Nora, wit
   const byId = new Map(graph.nodes.map(node => [node.id, node]));
   const eventIds = new Set(model.meaning_model.events.map(event => event.id));
   const passages = projection.units.map(unit => byId.get(unit.nodeId)).filter(node => node?.role === 'story_passage');
-  assert.equal(passages.length, 34);
+  assert.equal(passages.length, manifest.inventory.renderedLeaves);
   for (const passage of passages) {
     const renders = graph.edges.filter(edge => edge.family === 'grounding' && edge.relation === 'renders'
       && edge.source.kind === 'node' && edge.source.node_id === passage.id && edge.target.kind === 'anchor' && edge.target.anchor_kind === 'event');
