@@ -7,7 +7,9 @@ import test from 'node:test';
 import { modelQuestions, unplacedEvents, indexModel, VISIBLE_QUESTIONS } from '../src/model-questions.mjs';
 import { modeledStateText, proposeCutShares } from '../src/cut-shares.mjs';
 import { drawnSinceQuestions, partsWithoutChoiceQuestion } from '../src/storytelling-world.mjs';
-import { storyInterest } from '../src/storytelling-interest.mjs';
+import { storyInterest, interestInstructions } from '../src/storytelling-interest.mjs';
+import { voiceReviewInstructions } from '../src/storytelling-author-model.mjs';
+import { directorPrinciples } from '../src/storytelling-director.mjs';
 import { withLives } from './storytelling-life-fixture.mjs';
 import { spatialDiagnostics } from '../src/spatial-diagnostics.mjs';
 import { constructionRecordInstructions } from '../src/construction-principles.mjs';
@@ -102,6 +104,55 @@ test('route parts without a choice, unplaced Events and the social life of a sec
     event_relations: [{ kind: 'contains', source_event_id: 'ev.town', target_event_id: 'ev.inside' }] } });
   assert.deepEqual(unplacedEvents(index, ['ev.town', 'ev.inside', 'ev.nowhere']).map((item) => item.id), ['ev.nowhere'], 'a place is inherited from an enclosing Event');
   assert.match(storyInterest.find((item) => item.id === 'secrets').investigate, /A secret has a social life: model a knowledge or belief process for everyone who could know or suspect it/);
+  // A voice and a style change like any other process; the catalog asks for their course, not a fixed description.
+  assert.match(storyInterest.find((item) => item.id === 'voice').investigate, /Model each voice as a process of its own.*how it changes across the years/);
+  assert.match(storyInterest.find((item) => item.id === 'style').investigate, /Model the writing style as a process: across the author's modeled life and across the telling/);
+});
+
+test('craft tips widen existing catalog elements and leave exploration to curiosity', () => {
+  // Tips from writing practice are folded into existing elements, so the aspects stage asks for no new element and
+  // nothing becomes a required test. A new element would add an aspect to every story; add one only when a tip cannot
+  // live in an existing element. Each element stays short enough to read as questions, not as a manual.
+  assert.equal(storyInterest.length, 31);
+  for (const item of storyInterest) assert.ok(item.investigate.split(/\s+/u).length <= 140, `${item.id} reads as questions, not a manual`);
+  const tip = (id) => storyInterest.find((item) => item.id === id).investigate;
+  assert.match(tip('wants'), /In a scene, what does each person present want there, how do they go after it, how do they see the others, what will they not say, and where does the scene leave them\?/);
+  assert.match(tip('tension'), /What stands in each principal's way: something tied to the want itself, an opponent who defeats their strength, someone who shares their method\? Near a decisive moment, do time and room narrow\?/);
+  assert.match(tip('place'), /Does it work against someone's aim, show who keeps it, or read differently to two people, or to one who has changed\?/);
+  assert.match(tip('residue'), /what people handle when they cannot say what they feel, or as a conversation turns/);
+  assert.match(tip('change'), /and what each has lost.*Does a changed understanding show in a costly choice\? If a skill comes fast, what explains it\?/);
+  assert.match(tip('flaws'), /to themselves or to others.*whether they see it and who around them does/);
+  assert.match(tip('shock'), /and what the shock interrupts/);
+  assert.match(tip('surprise'), /and where the reader meets them, in plain sight, before the turn/);
+  assert.match(tip('mystery'), /What does each scene ask, and does it answer\? In what order do questions close\? Who narrates shapes what can be known, and when/);
+  assert.match(tip('reversals'), /How are the turns spaced across the reading\? A long stretch without one may be rest, or a sag/);
+  assert.match(tip('causality'), /nothing happens without a modeled cause/);
+  // Convenient tropes are asked about as causes, not banned.
+  assert.match(tip('secrets'), /Lies and omissions belong here too: who tells them, what they protect, what finding them costs/);
+  assert.match(tip('secrets'), /If a misunderstanding outlives one conversation, or someone reveals what their interests would keep, what explains it\?/);
+  assert.match(tip('secrets'), /What the telling shows is true in the world unless the model holds a deception or a mistaken belief/);
+  assert.match(tip('secrets'), /A secret has a social life/, 'the older account of secrets is kept');
+  assert.match(tip('theme'), /where two threads echo by realizing the same concept in different lives/);
+  assert.match(tip('era'), /Its everyday particulars, what people buy, eat, watch and use, also mark class and place/);
+  assert.match(tip('era'), /fix a documentary cutoff/, 'the older rules for a real era are kept');
+  assert.match(tip('voice'), /shape it and its images, how it changes across the years/);
+  assert.match(tip('buttons'), /What does the opening promise, and how soon is it kept\?/);
+  assert.match(tip('style'), /Tone, distance and person can be telling processes too, each shift with its reason, and so can the cuts between scenes/);
+  // A book communicates specific ideas: the goal names them, asks for each idea's strategy, and tests what reached a
+  // reader. Compression tests interest: the one-sentence account is the coarsest description the telling must fit.
+  assert.match(interestInstructions, /^A book is a way of communicating specific ideas\. The goal is to use the model to create something unique that conveys them: a story only this model could produce\./);
+  assert.match(interestInstructions, /Write down what ideas you want to convey, often one for a short form and several for a long one, and for each idea the strategy for conveying it: where the reader meets it, where the story tests it and where it lands\./);
+  assert.match(interestInstructions, /a blind read-back shows which ideas actually reached a reader/);
+  assert.match(interestInstructions, /Compress the story as you go: say it in one sentence, then in a paragraph, then in a page, and record them as an author record about the story root \(a compression is not an opening of the world\)\. If the sentence does not make it interesting, go back to the model until it does; as the story grows, check that it still fits its sentence, and revise one or the other\./);
+  // If the ideas are not written down, the director names it at the world stage, and the draft stage asks whether
+  // they reached a reader.
+  const principle = (id) => directorPrinciples.find((item) => item.id === id)?.principle ?? '';
+  assert.match(principle('world.ideas'), /The ideas the work means to convey are written down, and for each idea the strategy for conveying it/);
+  assert.match(principle('world.ideas'), /If none is settled yet, the record says why/);
+  assert.match(principle('draft.ideas'), /Each recorded idea reaches the reader through its strategy in this draft\. A blind read-back shows which do/);
+  assert.match(interestInstructions, /The questions under each element are tips, not tests to pass\. Use your curiosity and your own knowledge of what makes a good story as well, and the unique shape of this model/);
+  assert.match(interestInstructions, /its particular lives, processes, jumps and concepts show where this story's interest lies in a way no general list can/);
+  assert.match(voiceReviewInstructions, /a blind attribution check is one useful test.*with the denominator\. A resemblance can be intended; the check locates it and does not grade it/);
 });
 
 test('a substrate must resolve to a placed host, not merely name a person or form a cycle', () => {
@@ -311,6 +362,18 @@ test('spatial inspection respects process access scopes and remains in automatic
 });
 
 test('shared spatial guidance permits authored layouts without requiring them in every model', () => {
+  // Every workflow is asked to discover what can be tracked, to model anything that changes as a process (a voice or a
+  // style included) in the time it changes in, and to build on it once it is explicit.
+  assert.match(constructionRecordInstructions, /Discover what can be tracked/);
+  assert.match(constructionRecordInstructions, /Anything that changes over time can be modeled as a process, including qualities usually written as fixed descriptions/);
+  assert.match(constructionRecordInstructions, /A fixed description records one moment; where the quality can change, model its course/);
+  assert.match(constructionRecordInstructions, /a character's speech in world time, a narrator's manner across the reading, an author's style across the author's life/);
+  assert.match(constructionRecordInstructions, /Once a structure is explicit, build on it/);
+  // A person to be understood is modeled from their beginning, in every mode, without inventing unknown years.
+  assert.match(constructionRecordInstructions, /A person you want to understand is the result of processes too: model how they came to be, from where their life began through what they were taught and what else they lived through, as far as the evidence reaches or the work needs, and leave unknown years unknown\./);
+  // A deeper structure also tests the work built on the earlier account, where no declared dependency yet points.
+  assert.match(constructionRecordInstructions, /read what was built on the earlier account against it, prose included, and revise that work where it no longer fits, or record why it stands/);
+  assert.match(constructionRecordInstructions, /naming it does not make it a world fact/);
   assert.match(constructionRecordInstructions, /Distinguish qualitative places and relations, declared numerical positions, and evaluated movement/);
   assert.match(constructionRecordInstructions, /author fictional room layouts or movements when delegated/);
   assert.match(constructionRecordInstructions, /representative town point from a building/);

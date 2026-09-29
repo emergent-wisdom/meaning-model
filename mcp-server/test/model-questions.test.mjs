@@ -179,6 +179,7 @@ test('templates are suggestions: a life of the modeler\'s own processes is read 
   assert.match(questions.guidance, /none of its constructs is mandatory/);
   assert.match(thinkInTheModelInstructions, /the model is a language with no mandatory constructs/);
   assert.match(thinkInTheModelInstructions, /find all the areas that could be important to investigate; go deeper inside the model; put all your understanding inside the model\. Then loop again/);
+  assert.match(thinkInTheModelInstructions, /people and things, and whatever about them changes, as processes over time/);
 });
 
 test('the jumps of the Book of Conditions are where its story is', async () => {
@@ -335,4 +336,14 @@ test('a separately modeled author does not inherit a same-ID story character lif
   const result = await readOpenQuestions(service, { modelHash, graphHash: 'c'.repeat(64), limit: 100 });
   assert.equal(result.authorLives[0].lifeModelHash, lifeModelHash);
   assert.ok(!result.questions.some((item) => item.kind === 'author-unlinked'), 'same-model shaping guidance must not conflate cross-model identities');
+});
+
+// Turing: to understand an adult mind, think about the process that brought it to its state: its initial state, its
+// education and its other experience. The gap before a person's first period is that beginning.
+test('the first gap in a life asks what formed the person: where they began, what they were taught, what else they lived through', () => {
+  const model = lived();
+  model.meaning_model.events.find((item) => item.id === 'event.life.leo.period.0').interval = { start: -20, end: 0 };
+  const questions = modelQuestions(model, { people: [{ id: 'leo', name: 'Leo' }], limit: 200 });
+  const gaps = questions.questions.filter((item) => item.kind === 'period-gap');
+  assert.ok(gaps.some((item) => /their beginning\. Where did their processes start, what were they taught, and what else did they live through\? Model what explains who they became, and leave unknown years unknown\./u.test(item.question)), JSON.stringify(gaps));
 });

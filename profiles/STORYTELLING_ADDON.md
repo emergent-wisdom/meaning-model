@@ -279,8 +279,9 @@ now. So model the author's life first, as its own life model:
   Overview"](https://www.lesswrong.com/posts/xqkGmfikqapbJ2YMj/shard-theory-an-overview)).
 - A shock changes many of a person's functions at once: what they want and
   believe, their habits, relationships, body, work and voice. Any concept can
-  be a process over time (love, self-worth, grief, faith, a self-image), and
-  meaning is temporal: one state must be consistent with the next.
+  be a process over time (love, self-worth, grief, faith, a self-image, a voice,
+  a style), and meaning is temporal: one state must be consistent with the
+  next. A fixed description records one moment of such a process.
 
 Ask whether the author lives in this world or a separate one. A memoir or a
 story among the author's own people lives in this world; an invented world
@@ -333,8 +334,20 @@ it. Where living people and real organizations would appear, invent the people
 and companies that take their place, and keep the real world in the
 background: its events, technology, prices and laws.
 
-**3b. Aspects** (stage `aspects`). Find all the things that make this story
-interesting, and investigate each in the model. The opening stage returns a
+**3b. Aspects** (stage `aspects`). A book is a way of communicating specific
+ideas. The goal is to use the model to create something unique that conveys
+them: a story only this model could produce. Write down what ideas you want to
+convey, often one for a short form and several for a long one, and for each idea
+the strategy for conveying it: where the reader meets it, where the story tests
+it and where it lands. A telling process can follow a strategy through the text,
+and a blind read-back shows which ideas actually reached a reader. Compress the
+story as you go: say it in one sentence, then in a paragraph, then in a page,
+and record them as an author record about the story root (a compression is not
+an opening of the world). If the sentence does not make it interesting, go back to the
+model until it does; as the story grows, check that it still fits its sentence,
+and revise one or the other. Find all the things
+that make this story interesting, and investigate each in the model. The
+opening and aspects stages return a
 catalog (`interestCatalog`) of elements that often make a story interesting,
 each with why it does and how to investigate it by modeling:
 - people: flaws, conflicting wants, fear or love, choices, change,
@@ -346,7 +359,13 @@ each with why it does and how to investigate it by modeling:
 - meaning: the author, style, theme, what it presses in the reader, moral
   weight, joy and competence, humor, the ending.
 
-The catalog is a beginning, not a boundary. The aspects stage records every
+The catalog is a beginning, not a boundary. Its questions are tips, not tests
+to pass, such as what each person present wants in a scene, what stands in a
+principal's way, how a place works against someone's aim, or what people handle
+when they cannot say what they feel. Use your curiosity and your own knowledge
+of what makes a good story as well, and the unique shape of this model: its
+particular lives, processes, jumps and concepts show where this story's
+interest lies in a way no general list can. The aspects stage records every
 element, a flaw for each principal of the chosen world, and at least one
 element of your own that no list names, with its category and why it makes
 this story interesting. An element that turns out absent is still
@@ -409,6 +428,8 @@ its questions:
 the first scene, the director holds the world to what makes a good story.
 Examples:
 - the story comes out of what the author is figuring out;
+- the ideas it means to convey are written down, each with its strategy for
+  conveying it;
 - every principal is necessary to the causality;
 - the central shock changes wants in different directions;
 - no death or accident does the plot's work;
@@ -444,7 +465,9 @@ each completed part. The draft principles come from the Book's own passes:
 - sensory detail comes from the Things taking part;
 - a fresh reader finds no causal gap;
 - each person matches the model's state at each moment;
-- every principal pays for the ending.
+- every principal pays for the ending;
+- each recorded idea reaches the reader through its strategy, as a blind
+  read-back can show.
 
 The principles are a start, not a boundary: every direction also records at
 least one finding of the director's own, about what the work needs that no
@@ -558,7 +581,11 @@ relationships and present situation. Where emotion, anticipation, surprise or
 adaptation changes a response, examine that connection. A voice adjective,
 accent or catchphrase is not an explanation. Characters can share language or
 change register without becoming interchangeable, and author, narrator and
-character remain separate roles.
+character remain separate roles. Where distinct voices matter, a blind
+attribution check is one useful test: give a fresh reader an exchange with
+speaker names and tags removed and report how many lines they attribute
+correctly, with the denominator. A resemblance can be intended; the check
+locates it and does not grade it.
 
 Save this analysis with `life_story_author_record`, `kind: "assessment"`, as
 an actual `externalized_reflection` Understanding Node. Link `about` the exact
@@ -1218,6 +1245,10 @@ and author model keep their scopes. Render with the reader scopes afterwards
 and read what a reader sees; the release does not check what the prose itself reveals.
 Release refuses any rendered passage lacking an Event/renders link or a
 current text-bound no-link reason; its recorded decision lists all such reasons.
+It also names any telling phase whose reviewed passages or reading order have
+changed since it was recorded, in its result and in the recorded decision.
+Telling phases are author-only, so a stale phase does not stop the release;
+re-read it and record a superseding assessment, or record why it stands.
 
 Excluded containers included in the release may still hold text that a reader
 could retrieve through a graph query, even though it is absent from the render.

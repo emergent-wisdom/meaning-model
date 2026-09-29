@@ -226,7 +226,11 @@ function personQuestions(index, person, name, principal) {
     let cursor = start(person.life);
     const tolerance = (person.lifeLength ?? 0) * 0.02;
     for (const period of person.periods) {
-      if (start(period) - cursor > tolerance) ask('period-gap', `${name}'s life has no period from ${cursor} to ${start(period)}. What was their life then?`, 'life_model_revise', { at: [cursor, start(period)] });
+      // The first gap is the person's beginning: what formed them is their starting state, what they were taught and what
+      // else they lived through (the three components Turing named for how a mind comes to be as it is).
+      if (start(period) - cursor > tolerance) ask('period-gap', cursor === start(person.life)
+        ? `${name}'s life has no period from ${cursor} to ${start(period)}: their beginning. Where did their processes start, what were they taught, and what else did they live through? Model what explains who they became, and leave unknown years unknown.`
+        : `${name}'s life has no period from ${cursor} to ${start(period)}. What was their life then?`, 'life_model_revise', { at: [cursor, start(period)] });
       cursor = Math.max(cursor, end(period));
     }
     if (end(person.life) !== null && end(person.life) - cursor > tolerance) ask('period-gap', `${name}'s life has no period from ${cursor} to ${end(person.life)}. What was their life then?`, 'life_model_revise', { at: [cursor, end(person.life)] });
@@ -523,7 +527,7 @@ export function standingQuestions(focus = {}) {
   ];
 }
 
-export const thinkInTheModelInstructions = `The Meaning Model is where you think, in every mode, and the work is a consequence of it. You have not lived in this world; the model gives you what a life would: people and things as processes over time, what is true at each moment, and why. The tool is your gateway to humanhood. Use it as your mind: put each thought into it as you have it (the world as model records; your ideas, questions, decisions, reasons and predictions as Understanding Nodes linked to what they concern), and read it back rather than holding things only in your context. The loop: find all the areas that could be important to investigate; go deeper inside the model; put all your understanding inside the model. Then loop again, and let whatever the model holds lead you down different paths. It is not a strict workflow: the steps come in any order, understanding is recorded when it happens, and processes are modeled whenever they are needed. After every change the tool returns its own questions, its jumps and each person's state at a moment. Go deep, in whatever form understands best; the model is a language with no mandatory constructs, and every list and question it gives is a start, not a boundary.`;
+export const thinkInTheModelInstructions = `The Meaning Model is where you think, in every mode, and the work is a consequence of it. You have not lived in this world; the model gives you what a life would: people and things, and whatever about them changes, as processes over time, what is true at each moment, and why. The tool is your gateway to humanhood. Use it as your mind: put each thought into it as you have it (the world as model records; your ideas, questions, decisions, reasons and predictions as Understanding Nodes linked to what they concern), and read it back rather than holding things only in your context. The loop: find all the areas that could be important to investigate; go deeper inside the model; put all your understanding inside the model. Then loop again, and let whatever the model holds lead you down different paths. It is not a strict workflow: the steps come in any order, understanding is recorded when it happens, and processes are modeled whenever they are needed. After every change the tool returns its own questions, its jumps and each person's state at a moment. Go deep, in whatever form understands best; the model is a language with no mandatory constructs, and every list and question it gives is a start, not a boundary.`;
 
 // Where the interesting story is: the model's largest jumps. A story is a small part of a world, and the model
 // shows where that part should be: the largest shifts in what a person wants, expects or feels, the shocks that

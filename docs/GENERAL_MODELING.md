@@ -29,7 +29,20 @@ does not automatically reconcile separately modeled systems.
 
 Explore recursively: open a process or meaning, discover its sub-processes,
 relationships and possible distinctions, follow fruitful new questions, then
-revise and revisit connected parts of the model. Curiosity can open a sufficient
+revise and revisit connected parts of the model. Discover what can be tracked:
+implicit patterns, distinctions and processes that nobody has named or measured
+but that can be followed across situations and time. Anything that changes over
+time can be modeled as a process, including qualities usually written as fixed
+descriptions, such as how a person speaks or decides, a narrator's manner, a
+style, a belief, an institution's culture or a market's mood. A fixed description records one moment; where the quality
+can change, model its course in the time it changes in. A person you want to
+understand is the result of processes too: model how they came to be, from where
+their life began through what they were taught and what else they lived
+through, as far as the evidence reaches or the work needs. Make each explicit, then
+build on it: the new structure anchors further relationships, processes and
+concepts, and is revised when exploration shows a better account. Read what was
+built on the earlier account against the new structure, prose included, and
+revise that work or record why it stands. Curiosity can open a sufficient
 account without a defect to repair. Invent and compare categories where useful;
 the supplied questions are starting points, not the limits of inquiry. Record
 speculative connections as hypotheses rather than observations or accepted
