@@ -1,6 +1,7 @@
 import { loadData } from './common.js';
 import { showInspector } from './inspector.js';
 import { mountModelPicker } from './model-picker.js';
+import { defaultViewURL, forgetSavedView } from './default-view.js';
 import { createViewerSession } from './viewer-session.js';
 import { takeLiveContext, mountLiveViewer } from './live-viewer.js';
 
@@ -19,7 +20,7 @@ for (const element of document.querySelectorAll('.bar, #reader')) element.datase
 // Only a model whose graph renders prose has a story to read.
 { const read = document.getElementById('read'); if (read) read.hidden = !(data?.story?.units ?? []).some((unit) => String(unit.text ?? '').trim()); }
 for (const element of document.getElementById('tools').children) {
-  if (!element.querySelector?.('[data-pop="pop-show"]') && !['story', 'coarse-view', 'recenter-view', 'graph-controls', 'space-controls'].includes(element.id)) element.dataset.temporal = '';
+  if (!element.querySelector?.('[data-pop="pop-show"]') && !['story', 'default-view', 'coarse-view', 'recenter-view', 'graph-controls', 'space-controls'].includes(element.id)) element.dataset.temporal = '';
 }
 const structureHost = document.createElement('div'); structureHost.id = 'structure-surface'; document.body.append(structureHost);
 function fitPanels() {
@@ -29,6 +30,13 @@ function fitPanels() {
   const title = document.querySelector('.title').getBoundingClientRect(), tools = document.getElementById('tools').getBoundingClientRect(), visibility = document.getElementById('toolbar-visibility').getBoundingClientRect();
   structureHost.style.top = `${Math.max(title.bottom, tools.bottom, visibility.bottom) + 12}px`;
 }
+// Default: forget this tab's saved view of the model and open it as it first opens (the same model, nothing chosen).
+function backToDefault() {
+  try { forgetSavedView(globalThis.sessionStorage, location.href); } catch { /* storage can be unavailable: the address alone is enough */ }
+  location.assign(defaultViewURL(location.href));
+}
+document.getElementById('default-view')?.addEventListener('click', backToDefault);
+addEventListener('keydown', (event) => { if (event.key === '0' && !event.metaKey && !event.ctrlKey && !event.altKey && !event.target.closest?.('input, textarea, select')) backToDefault(); });
 let openPanel = null;
 function togglePanel(id) {
   openPanel = openPanel === id ? null : id;

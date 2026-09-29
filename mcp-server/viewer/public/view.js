@@ -1158,7 +1158,7 @@ const labels2 = (() => {
     for (const { event, point } of selectedLinks) wanted.push({ key: `selected-event:${event.id}`, cls: 'event', html: esc(words(event.label, 45)), p: [point.x, point.y + 0.4, point.z], ax: 0.5, ay: 1, pri: 1200 });
     const panels = [...document.querySelectorAll('.hud.caption, .hud.bar, .hud.legend, .hud.title, .hud.stats, #tools, .pop:not([hidden]), #details:not([hidden])')].map((el) => el.getBoundingClientRect()).filter((r) => r.width);
     const placed = [...panels.map((r) => ({ l: r.left - 6, r: r.right + 6, t: r.top - 4, b: r.bottom + 4 }))];
-    for (const el of labels.domElement.querySelectorAll('.label.row, .label.series, .label.group, .label.year, .label.lane')) { if (el.style.display === 'none') continue; const r = el.getBoundingClientRect(); if (r.width) placed.push({ l: r.left, r: r.right, t: r.top, b: r.bottom }); }
+    for (const el of labels.domElement.querySelectorAll('.label.row, .label.series, .label.group, .label.year, .label.lane, .label.lens-host .lens')) { if (el.style.display === 'none' || el.style.visibility === 'hidden') continue; const r = el.getBoundingClientRect(); if (r.width) placed.push({ l: r.left, r: r.right, t: r.top, b: r.bottom }); }
     wanted.sort((a, b) => b.pri - a.pri);
     const items = wanted.map((want) => element(want.key, want.cls, want.html));
     const fresh = items.filter((item) => !item.w); for (const item of fresh) { item.el.style.transform = 'translate(-9999px,0)'; item.transform = null; }
@@ -2577,13 +2577,15 @@ function declutter() {
   const hits = (r, lift = 0) => placed.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top - lift < p.bottom + 2 && r.bottom - lift > p.top - 2);
   // Where there is room for only some, the acts nearest the playhead take it, so playing the years shows the acts as they come.
   const nearNow = (item) => Math.abs(item.userData.t - (building() ? T1 : now));
+  // In a big window the stage keeps every card, as it always did; in a smaller one a card with no room waits, rather than covering the scene.
+  const roomy = innerWidth >= 1500 && innerHeight >= 950;
   // Every card is measured before any is moved, so one layout serves them all.
   const cards = lenses.filter((item) => item.visible).sort((a, b) => nearNow(a) - nearNow(b) || a.userData.t - b.userData.t)
     .map((lens) => ({ inner: lens.element.firstElementChild, r: lens.element.getBoundingClientRect(), lift: 0, room: false }));
   for (const card of cards) {
     if (!card.r.width) continue; const { r } = card;
     while (card.lift <= 150 && hits(r, card.lift)) card.lift += 6;
-    card.room = stage || card.lift <= 150; if (card.room) placed.push({ left: r.left, right: r.right, top: r.top - card.lift, bottom: r.bottom - card.lift });
+    card.room = (stage && roomy) || card.lift <= 150; if (card.room) placed.push({ left: r.left, right: r.right, top: r.top - card.lift, bottom: r.bottom - card.lift });
   }
   for (const card of cards) if (card.r.width) { card.inner.style.visibility = card.room ? '' : 'hidden'; card.inner.style.transform = `translateY(${-card.lift}px)`; }
   for (const row of rows) { const el = row.value.element; el.style.opacity = ''; const r = el.getBoundingClientRect(); if (!r.width) continue; if (hits(r)) el.style.opacity = '0'; else placed.push(r); }

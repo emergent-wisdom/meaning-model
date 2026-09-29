@@ -6,6 +6,10 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- The viewer has a **Default** button (and the `0` key) that forgets this tab's saved view, camera, time and reading
+  position and reopens the model as it first opens. Event names and level labels keep clear of the love-or-fear
+  cards, and in a window smaller than 1500 by 950 a card with no room waits instead of covering the scene.
+
 ## 0.6.0 — 2026-09-29
 
 - Modeling guidance encourages discovering implicit trackable concepts, opening
