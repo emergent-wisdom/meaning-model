@@ -37,16 +37,19 @@
 \maketitle
 
 \begin{abstract}
-The Meaning Model proposes a shared medium for jointly constructing a world, its
-meanings and interpretations, and related artifacts such as stories or reports.
-The long-term aim is to model reality computationally through interrelated
-processes, from physical and social
-histories to attributed inner life, at a declared finite resolution. A world can
+The Meaning Model proposes a shared medium for jointly constructing a world, its meanings and
+interpretations, and related artifacts such as stories or reports. Its long-term
+aim is to model reality computationally through interrelated processes, from
+physical and social histories to attributed inner life, at a declared finite
+resolution. Its two linked architectural contributions, progressive resolution
+and a shared construction medium, form one construction method: world
+commitments, concept interpretations, authoring reasons, and prose are refined
+and revised together, and each opening preserves declared commitments or
+explicitly revises them, including their dependent accounts and passages. A world can therefore
 be constructed coherently at a coarse resolution for a declared purpose, then
-recursively opened into finer detail. Each opening must preserve declared
-commitments or explicitly revise them, including their dependent accounts and
-passages. The contribution is this coordinated authoring method, not a new
-record type or the storage of prose beside a graph.
+opened recursively where that purpose needs detail. The contribution is this
+coordinated authoring method, not a new record type or the storage of prose
+beside a graph.
 
 Six record forms---Concept, Thing, Event, Binding, Cut, and Realization---support
 the method. Abstract meaning uses the same world machinery: a Concept may
@@ -61,18 +64,17 @@ Each Cut names an Event parent, question, and unit, allocating one unit among
 exclusive answers and an explicit remainder for the unallocated share. Ordinary
 process links remain unweighted; measurements retain external units.
 
-The workspace supports human or AI construction and supplies a candidate
-training language. An agent can turn implicit knowledge into explicit process
-models, then use those models to support further inference, abstraction, and
-refinement. Developing and revising the categories themselves is part of
-the construction method. A learner could acquire these practices: choosing,
-deepening, and repairing representations, not only predicting content within a
-fixed schema.
-Life Simulation develops the construction-to-learning loop and its tests; this
-paper specifies the representation and preservation contracts. The completed
-manuscript, \emph{The Book of Conditions}, partially demonstrates construction
-feasibility but does not validate the full method; learning gains, computational
-savings, and alignment remain untested.
+The medium supports human or AI construction and supplies a candidate training
+language. An agent can turn implicit knowledge into explicit process models,
+then use those models to support further inference, abstraction, and
+refinement. Developing and revising the categories themselves is part of the
+construction method. A learner could acquire these practices:
+choosing, deepening, and repairing representations, not only predicting content
+within a fixed schema. Life Simulation develops the construction-to-learning
+loop and its tests; this paper specifies the representation and preservation
+contracts. The completed manuscript, \emph{The Book of Conditions}, partially
+demonstrates construction feasibility but does not validate the full method;
+learning gains, computational savings, and alignment remain untested.
 \end{abstract}
 
 \keywords{Meaning Model, Recursive World Grammar, Concept Grounding,
@@ -92,12 +94,11 @@ A revolution or the growth of a city can be represented with the same grammar
 as a single evening: participants, phases, and processes that change one another
 at different timescales. A century of city growth can open into migrations,
 building projects, and individual decisions; each can be decomposed again where
-the inquiry needs it. These accounts do not require a standard physical unit
-for trust or legitimacy. Relations can remain unweighted; where numerical
-comparison is useful, shares answer a declared question about a divided whole.
-Money, population counts, and duration retain their own units.
-Quantities with real units can also be added through measurement, inference,
-or fictional authorship during construction.
+the inquiry needs it. Trust and legitimacy need no standard physical unit.
+Relations can remain unweighted; where numerical comparison is useful, shares
+answer a declared question about a divided whole. Money, population counts, and
+duration keep their own units, whether they are measured, inferred, or authored
+during construction.
 
 A boundary alone does not preserve reference. The same person may participate
 in a life, an expedition, a rescue, and a later conversation; those events need
@@ -117,85 +118,16 @@ among answers to a question: for example, how a character's attention is shared
 among current concerns, with a remainder for unresolved allocation. A Concept
 may remain lightly specified or have a process-based model written in the same
 grammar. Finer articulation reuses the same identities and respects existing
-commitments.
-
-The \emph{modeler} is the person or AI system constructing, interpreting, or
-revising this account. \emph{Constructor} names its role when proposing changes.
-The \emph{generator} is the component producing candidates. Authorship may be
-performed by a human writer or a delegated agent. The human who commissions and
-is responsible for the work is distinct from a modeled fictional author
-persona, which is a represented person, not a role. The persona's life may
-inform the work without making it the actual generator, narrator, or character
-viewpoint. Modeler, constructor, and generator name roles, not additional
-record forms.
-
-The representation is intended as a general-purpose modeling medium. Narrative
-worlds, simulation and knowledge systems, corpus annotation, and
-perspective-separated accounts of people are applications of the same grammar.
-Storytelling supplies the first worked application here, not a boundary on the
-method. Each use needs stable reference, attributed claims, and compatible
-resolutions; the grammar alone does not guarantee their practical benefit.
-
-The long-term theoretical aim is a representation that could model reality
-computationally through interrelated processes, including people's inner lives,
-at a declared finite resolution.
-The grammar is a representational substrate rather than an annotation shell
-around a finished simulator. A model is complete only relative to a declared
-question and resolution. Domain-specific processes, measurements, and laws may
-be attached without becoming new universal record forms. The larger research
-aim is representational compression: to describe everything meaningfully
-distinguishable at declared finite resolution with as few domain-neutral
-operations as possible. A new domain should add content, not require a new
-universal primitive. This ambition concerns progressive articulation of any
-part of reality or possibility that a purpose makes relevant, not computation
-of all reality at maximum detail. Minimality concerns the responsibilities a
-validator must preserve, not the world's ultimate furniture.
-
-The immediate value is a working model that helps a modeler investigate what
-happens and why, and decide what to construct next. In storytelling, it guides
-decisions before prose rather than merely cataloguing a finished story. A whole
-life or institution can be sketched first, then opened where its decisions and
-consequences matter; incompatible detail prompts revision of the larger account.
-This external semantic workspace supports human or AI construction, exercised
-by the Book at a bounded resolution.
-
-The intended agentic use is to give an intelligent system a small, recursively
-reusable toolbox for building an explicit world model. A language model can
-draw on learned world knowledge to infer and make explicit the processes,
-motives, relationships, and quantities behind events, including what people
-know implicitly but have not recorded or measured. Each explicit record becomes
-an anchor for further inference: the constructor can connect records, infer
-higher-level concepts from their relationships, and open those concepts into
-finer processes. The resulting structure anchors another round of abstraction
-and refinement; neither the domain, conceptual vocabulary, nor depth is fixed
-in advance.
-
-The system can discover where its current account is inadequate, propose finer structure or a better
-decomposition, and test the change against observations or generated
-consequences. Useful changes should survive without losing the identities,
-meanings, and history already accepted; conflicts require explicit revision.
-The toolbox supports the growth of the conceptual space, not just relationships
-among concepts supplied in advance. Discovering and revising person categories
-through joint human and AI construction is part of this work, not merely an
-option to replace a finished inventory.
-
-The running example is \emph{The Book of Conditions}, a completed alternate
-history in which Babbage's bounded calculating apparatus is built and put to
-work by a calculation office. Its commercial organizer, Edward Halden, accepts
-orders beyond the office's independent checking capacity, while Lovelace seeks
-a successor to sustain that checking. In 1854 an unchecked, erroneous table is
-delivered: the story concerns the human and institutional conditions of a
-computational claim, not just whether the machine works.
-
-Refinement should preserve \emph{semantic continuity}. Starting from the coarse
-claim that Babbage builds an Engine, a construction may later expose the
-machine's parts, its workforce, or competing accounts of the work without
-changing which Babbage, Engine, or building process earlier records addressed.
-Unopened regions can remain coarse; openings must fit the accepted boundary
-or revise it visibly.
+commitments. The \emph{modeler} is the person or AI system constructing,
+interpreting, or revising this account; \emph{constructor} names its role when
+proposing changes, and the \emph{generator} is the component producing
+candidates. These name roles, not additional record forms.
 
 Progressive resolution and a shared construction medium are the proposal's two
-linked architectural contributions. They organize four representational changes:
+linked architectural contributions. Together they form one construction method,
+in which world commitments, concept interpretations, authoring reasons, and prose
+are refined and revised together, and each opening preserves declared
+commitments or revises them explicitly. Four representational changes carry it:
 
 \begin{itemize}
   \item \textbf{Construct detail under commitments.} A useful world can precede
@@ -218,71 +150,137 @@ linked architectural contributions. They organize four representational changes:
     merely because they describe one person or world.
 \end{itemize}
 
-These changes connect a character's modeled concerns to decisions and scenes.
-Comparative numerical accounts of wants and appraisals should guide decisions
-before a scene is written. If these commitments change, dependent world records
-and passages must be rechecked and revised where they no longer fit.
-Opening a decision can expose a conflict with those concerns or with what the
-character knows. The modeler can then revise the action, or revise the concept
-used to interpret it, while retaining the reasons and rechecking the scene.
+The running example is \emph{The Book of Conditions}, a completed alternate
+history in which Babbage's bounded calculating apparatus is built and put to
+work by a calculation office. Its commercial organizer, Edward Halden, accepts
+orders beyond the office's independent checking capacity, while Lovelace seeks
+a successor to sustain that checking. In 1854 an unchecked, erroneous table is
+delivered: the story concerns the human and institutional conditions of a
+computational claim, not just whether the machine works.
 
-Consider an illustrative construction cycle around an apparatus trial. Suppose
-the coarse account calls it successful under a criterion requiring every case
-to pass on the first uninterrupted run. Its explanation and passage depend on
-that assessment. Opening the trial into phases introduces a stopped run followed
-by a successful restart. Those phases cannot be accepted as mere detail: they
-contradict the protected criterion. The constructor must reject that opening or
-propose an explicit revision. A narrower claim, complete agreement after restart,
-would require a new grounding version, a revised assessment, a reason for the
-change, and rechecking the dependent passage. The earlier account remains
+Refinement should preserve \emph{semantic continuity}. Starting from the coarse
+claim that Babbage builds an Engine, a construction may later expose the
+machine's parts, its workforce, or competing accounts of the work without
+changing which Babbage, Engine, or building process earlier records addressed.
+Unopened regions can remain coarse; openings must fit the accepted boundary
+or revise it visibly. Suppose a coarse account calls an apparatus trial
+successful under a criterion requiring every case to pass on the first
+uninterrupted run, and its explanation and passage depend on that assessment.
+Opening the trial into phases introduces a stopped run followed by a successful
+restart. Those phases cannot be accepted as mere detail: they contradict the
+protected criterion, so the constructor must reject the opening or propose an
+explicit revision. A narrower claim, complete agreement after restart, would
+require a new grounding version, a revised assessment, a reason for the
+change, and rechecking the dependent passage, while the earlier account remains
 addressable. This hypothetical cycle shows the contract; it is not a recovered
-transaction from the Book. Section~\ref{sec:construction-protocol} states the
-record-level acceptance rules.
+transaction from the Book. Section~\ref{sec:construction-protocol} states the record-level
+acceptance rules.
 
-For interactive worlds, the same method could leave much of the world coarse
-but consequential. A regional harvest failure can constrain a town's supply
-before its warehouses and households are constructed. A player's visit opens
-one warehouse, then a worker's experience of the shortage, under the protected
-supply commitments and domain rules. This is construction of previously absent
-detail, not merely selective display of a finished simulation. Distant events
-can still require coarse updates, and later visitors must encounter a history
-compatible with recorded observations and intervening changes. Shared facts
-cannot silently change between players. Whether this saves computation at
-comparable fidelity remains untested by the Book.
+The same contract connects a character's modeled concerns to decisions and
+scenes. Comparative numerical accounts of wants and appraisals should guide a
+decision before its scene is written. Opening the decision can expose a
+conflict with those concerns or with what the character knows; the modeler can
+then revise the action, or revise the concept used to interpret it, while
+retaining the reasons and rechecking the scene. The immediate value is a
+working model that helps a modeler investigate what happens and why, and decide
+what to construct next. In storytelling, it guides decisions before prose rather
+than merely cataloguing a finished story. A whole life or institution can be sketched first, then
+opened where its decisions and consequences matter; incompatible detail prompts
+revision of the larger account.
 
-These uses admit two complementary deployment modes. An intelligent system
-can read and update the records as an explicit semantic workspace. By returning
-to earlier numerical accounts and the questions or explanations linked to them,
-it could develop continuity of understanding across interactions: what changed,
-what might explain it, and whether the change belongs to the world or to its
-own estimate.
+Construction is also a method of discovery. The intended agentic use is to give an intelligent system a small, recursively
+reusable toolbox for building an explicit world model. A language model can
+draw on learned world knowledge to infer and make explicit the processes,
+motives, relationships, and quantities behind events, including what people
+know implicitly but have not recorded or measured. Each explicit record becomes
+an anchor for further inference: the constructor can connect records, infer
+higher-level concepts from their relationships, and open those concepts into
+finer processes. Beginning from an institution that is losing legitimacy, for
+example, it may infer inconsistent decisions, unequal access, and failed
+expectations that nobody has measured. Those records can support a concept of
+procedural betrayal, which may then guide the study of another institution or
+explain a character's changing loyalties. The resulting structure anchors
+another round of abstraction and refinement; neither the domain, conceptual
+vocabulary, nor depth is fixed in advance. The system can also discover where
+its current account is inadequate, propose finer structure or a better
+decomposition, and test the change against observations or generated
+consequences. Useful changes should survive without losing the identities,
+meanings, and history already accepted; conflicts require explicit revision.
+The toolbox supports the growth of the conceptual space, not just
+relationships among concepts supplied in advance. Discovering and revising
+person categories through joint human and AI construction is part of this work,
+not merely an option to replace a finished inventory.
 
+\subsection{Uses and long-term aims}
+
+The long-term theoretical aim is a representation that could model reality
+computationally through interrelated processes, including people's inner lives,
+at a declared finite resolution. The grammar is a representational substrate
+rather than an annotation shell around a finished simulator, and a model is
+complete only relative to a declared question and resolution. Domain-specific
+processes, measurements, and laws may be attached without becoming new universal
+record forms. The larger aim is representational compression: to describe
+everything meaningfully distinguishable at declared finite resolution with as
+few domain-neutral operations as possible, so that a new domain adds content
+rather than a universal primitive. This ambition concerns progressive
+articulation of any part of reality or possibility that a purpose makes
+relevant, not computation of all reality at maximum detail. Minimality concerns
+the responsibilities a validator must preserve, not the world's ultimate
+furniture.
+
+The representation is intended as a general-purpose modeling medium. Narrative worlds,
+simulation and knowledge systems, corpus annotation, and perspective-separated
+accounts of people are applications of the same grammar; storytelling supplies
+the first worked application here, not a boundary on the method. Each use needs
+stable reference, attributed claims, and compatible resolutions; the grammar
+alone does not guarantee their practical benefit. For interactive worlds, the
+same method could leave much of the world coarse but consequential. A
+regional harvest failure can constrain a town's supply before its warehouses and
+households are constructed. A player's visit opens one warehouse, then a
+worker's experience of the shortage, under the protected supply commitments and
+domain rules. This is construction of previously absent detail, not selective
+display of a finished simulation. Distant events can still require coarse
+updates, later visitors must encounter a history compatible with recorded
+observations and intervening changes, and shared facts cannot silently change
+between players. Whether this saves computation at comparable fidelity
+remains untested by the Book.
+
+These uses admit two complementary deployment modes. An intelligent system can read and update the
+records as an explicit semantic workspace. By returning to earlier numerical
+accounts and the questions or explanations linked to them, it could develop
+continuity of understanding across interactions: what changed, what might
+explain it, and whether the change belongs to the world or to its own estimate.
 The same distinctions and construction histories can also become prediction and
 reconstruction targets: a candidate training language for learning to choose
 useful distinctions and revise an account, not only assign values within a
 fixed vocabulary. Operating such models could become partly internal to the
 learner, while explicit records remain available for persistence, correction,
-and inspection. The learner need not reproduce their syntax internally.
-Whether those practices improve generation, prediction, or transfer is a
-further empirical question.
+and inspection; the learner need not reproduce their syntax internally.
 
 The scope includes attributed inner life. Beliefs, feelings, wants, and private
 interpretations may be represented without turning a character's report, an
-observer's estimate, and accepted public state into one claim. Accepted world
-Events descend from History; an attributed interior Event additionally descends
-through the relevant person's lifecycle and inner-process root. This ancestry
-preserves the boundary without making private experience directly observable or
-selecting one universal psychology.
-
-The long-term ambition is a model with increasingly accurate intuitions for a
+observer's estimate, and accepted public state into one claim: accepted world
+Events descend from History, while an attributed interior Event additionally
+descends through the relevant person's lifecycle and inner-process root. This
+ancestry preserves the boundary without making private experience directly
+observable or selecting one universal psychology. The
+long-term ambition is a model with increasingly accurate intuitions for a
 person's inner life: what someone wants, fears, believes, and feels, and how
-those processes shape decisions over time. Better measurement data and more
-capable models should make those estimates closer to the person being modeled,
-with improvement assessed against later evidence. Each person's account of
-the world can be represented beside the accounts others hold of that person
-and a shared, evidence-supported world model. The aim is to understand how
-people decide from the worlds they perceive, including what they misunderstand
-or leave unsaid, rather than treating a shared description as everyone's view.
+those processes shape decisions over time. Considering how to imitate an adult
+mind, Turing pointed to ``the process which has brought it to the state that it
+is in'': the mind's initial state, the education it received, and its other
+experience~\cite{turing1950computing}. The representation models a person the
+same way, from where their life processes begin, through what they were taught,
+to what else they lived through, and construction asks for that history where it
+explains who the person became. Better measurement data and more capable models
+should make those estimates closer to the person being modeled, with
+improvement assessed against later evidence. Each person's account of the world
+can be represented beside the accounts others hold of that person and a shared,
+evidence-supported world model. The aim is to understand how people decide from
+the worlds they perceive, including what they misunderstand or leave unsaid,
+rather than treating a shared description as everyone's view.
+
+\subsection{Scope of the claim}
 
 The claim has two parts that must not be confused.
 
@@ -297,26 +295,35 @@ The claim has two parts that must not be confused.
     representation is unique, complete at every resolution, or mechanically true.
 \end{itemize}
 
-The paper also owns the construction discipline: frozen-parent whole candidates,
-direction rolls, atomic commit or rejection, explicit revision, rendering
-routes, and read-back. Life Simulation develops methods for generating,
-advancing, inferring, and learning process histories, including when to open
-detail and how to test its predictive value \cite{westerbergLifeSimulation2026}.
-Compact temporal laws are optional. The two proposals operate throughout an
-ongoing construction: Life Simulation can propose a change, while Meaning
-Model specifies how to represent, accept, or revise its commitments.
-
-The proposal combines explicit character-state modeling before prose with
+The construction discipline belongs to this paper: frozen-parent whole
+candidates, direction rolls, atomic commit or rejection, explicit revision,
+rendering routes, and read-back. Life Simulation develops methods for
+generating, advancing, inferring, and learning process histories, including when
+to open detail and how to test its predictive value; compact temporal laws are
+optional~\cite{westerbergLifeSimulation2026}. The two proposals operate
+throughout an ongoing construction: Life Simulation can propose a change, while
+the Meaning Model specifies how to represent, accept, or revise its commitments.
+The proposal also combines explicit character-state modeling before prose with
 recursive conceptual decomposition from Fractal Intelligence
 \cite{westerbergFractal2026}. Fractal Intelligence decomposes capabilities and
-problems: child Solvers inherit constraints, and their combined result is
-evaluated against the caller's acceptance criteria. A failure may challenge the
-parent's framing. Meaning Model applies a related responsibility to world
-accounts: finer records must reconstruct protected coarse answers or revise
-the commitments explicitly. Both permit recursive decomposition without a
-fixed depth limit, while each actual construction or execution remains finite.
-The six forms below retain their different responsibilities within that shared
-approach.
+problems: child Solvers inherit constraints, their
+combined result is evaluated against the caller's acceptance criteria, and a
+failure may challenge the parent's framing. The Meaning Model applies a related
+responsibility to world accounts: finer records must reconstruct protected
+coarse answers or revise the commitments explicitly. Both permit recursive
+decomposition without a fixed depth limit, while each actual construction or
+execution remains finite.
+
+Section~\ref{sec:grammar} states the grammar and its progressive construction,
+Section~\ref{sec:concepts} concepts and their grounding, and
+Section~\ref{sec:interop} the linked surfaces, transactions, rendering, and
+read-back. Section~\ref{sec:closure} turns recursive refinement into a
+finite-resolution sufficiency test. Section~\ref{sec:book-construction} reports
+the Book and the prospective evaluation, and
+Section~\ref{sec:modeling-workflows} the current workflows.
+Sections~\ref{sec:related} and~\ref{sec:limitations} relate the proposal to
+prior work and state its limits, and Section~\ref{sec:companion} places it in
+the wider research program.
 
 \begin{center}
 \fbox{\begin{minipage}{0.90\linewidth}
@@ -326,6 +333,23 @@ approach.
 \end{center}
 
 \section{Grammar and Progressive Construction}
+\label{sec:grammar}
+
+In the Book's current model, the apparatus trial of May 1851 shows the six
+forms together. Babbage, Lovelace, the apparatus, and the sealed test packet are
+Things with continuing identities. The trial is an Event, opened into a first run
+that stops and is begun again, a second complete run that agrees with the sealed
+independent results, and a few idle cycles of shared pleasure; Bindings
+place it at its site, and a spatial child Event binds the people and objects
+present. An Event beneath Babbage's inner process carries a Cut dividing his
+outlook toward his active wants into assurance (.76), threat (.18), and a
+remainder (.06), an authored reading rather than a probability.
+\emph{Valid computational claim} is a Concept, and a Realization records the
+claim that the trial instantiates it. The trial's protocol required the stop and
+voided the incomplete run, so no commitment had to be revised; the
+Introduction's hypothetical cycle shows what the contract requires when one
+must be. The rest of this section states what each form is responsible for and
+how a world built from them is opened.
 
 The core is minimized at the level of record forms, not vocabulary labels. It
 uses six forms---Concept, Thing, Event, Binding, Cut, and Realization---and
@@ -334,10 +358,9 @@ a distinction that a validator must enforce. This is relative minimality under
 the declared contract, not a proof of globally minimal syntax or metaphysical
 primitives.
 
-The definitions and rules needed to use this account are stated in this paper.
-The separately typeset \emph{Minimized Grammar} collects them as a compact
-reference; it does not add requirements. Core obligations and selected-profile
-rules retain the same status in both presentations.
+The definitions and rules needed to use this account are stated in this paper;
+the separately typeset \emph{Minimized Grammar} collects them as a compact
+reference without adding requirements or changing their status.
 
 Each form answers a question that the others cannot answer without erasing a
 distinction or relocating its responsibility. A Concept says which reusable
@@ -525,17 +548,15 @@ Five cross-record rules govern this profile.
     the corresponding typed root and another Cut.
 \end{enumerate}
 
-Every authored profile record carries provenance, and every derived view
-carries derivation lineage. A concrete construction may add stronger gates,
-including co-presence checks and a rationale requirement for selected changes.
-Those gates must be declared by that construction; they are not universal laws
-of every domain represented by the core.
+A concrete construction may add stronger gates, such as co-presence checks or
+a rationale requirement for selected changes, provided it declares them; they
+are not universal laws of every domain represented by the core.
 
 \subsection{Progressive world construction}
 
 The optional profile used here adds lifecycle anchoring and conservative
-refinement to the core. It illustrates one way to build a world; its conventions
-are not required of every Meaning Model.
+refinement to the core. It is one way to build a world, not a requirement of
+every Meaning Model.
 
 \subsubsection{Roots, identity, and relations}
 
@@ -726,8 +747,8 @@ law, or learned predictor. Such domain models are content attached to the
 grammar. How they are proposed, compared, and trained belongs to Life
 Simulation; their presence does not enlarge the six-form ontology.
 
-The slogan that children define their parent is consequently qualified. Cut
-children divide one stated unit; a direction Cut describes alternatives, not
+The composition principle that children define their parent is consequently
+qualified. Cut children divide one stated unit; a direction Cut describes alternatives, not
 parts of a future that has already occurred. Shorter Events may
 constitute or alter a longer process without summing, and one Event can update
 several processes at once. Dates, money, distance, and measured physical change
@@ -901,6 +922,7 @@ responses; testing temporal laws or predictors against those records belongs
 to Life Simulation.
 
 \section{Concepts and Examples}
+\label{sec:concepts}
 
 Stable Concept identities, typed relations, versioned grounding resources, and
 local fit Cuts support both light vocabularies and process-based concept models.
@@ -926,9 +948,9 @@ provides a place to refine inherited definitions and invent concepts that better
 explain the world. Concepts explicitly referenced by records still need stable
 identifiers; this does not require a detailed concept model for each one.
 
-Four compatible grounding resources are not mandatory stages.
-The first organizes identity and relations; the others add
-evidence or structure.
+Four compatible grounding resources are available, and none is a mandatory
+stage. The first organizes identity and relations; the others add evidence or
+structure.
 
 \begin{enumerate}
   \item \textbf{Relational schema.} The concept is constrained by its name,
@@ -1368,11 +1390,10 @@ Understanding links include \texttt{about}, \texttt{supports},
 \texttt{learned-from}, and \texttt{supersedes}. A DocumentNode links to Events
 through \texttt{renders} and to an UnderstandingNode through \texttt{shaped-by}.
 These links retain their surface-specific roles, not authority over their targets.
-This paper writes link names with hyphens; the implementation serializes them
-with underscores, for example \texttt{learned\_from}, \texttt{shaped\_by}, and
-\texttt{realizes\_forecast}. The original released Book import records its
-rendering links as \texttt{expresses}; the later MCP passage workflow uses
-explicit \texttt{renders} links to Events.
+The implementation writes these names with underscores, for example
+\texttt{learned\_from}. The original released Book import records its rendering
+links as \texttt{expresses}; the later MCP passage workflow uses explicit
+\texttt{renders} links to Events.
 
 For example, a software investigation could link a measured response-time
 history to a bottleneck hypothesis, the code unit changed to test it, and an
@@ -1428,6 +1449,12 @@ surface. UnderstandingNodes carry reasons; Cuts carry numerical commitments.
 A non-obvious Cut may link to its rationale node, which addresses the exact
 Cut component or Event it explains.
 
+Authorship may be performed by a human writer or a delegated agent. The human
+who commissions and is responsible for the work is distinct from a modeled
+fictional author persona, which is a represented person, not a role: the
+persona's life may inform the work without making it the actual generator,
+narrator, or character viewpoint.
+
 An optional account may also represent the modeler as a Thing
 with a declared identity, continuity criterion, lifecycle, and inner-process
 root in the reading or construction context and clock, not the story's History.
@@ -1437,23 +1464,22 @@ about the world, concepts, or itself. Character-owned roots can likewise carry
 thoughts about concepts; the subject does not determine whose thought it is.
 
 For either a character or a modeler, inner activity may be recorded as
-Event-processes, as UnderstandingNodes, through both, or not at all. A node can
-record a reaction beside the world Event, concept model, or passage it addresses
-without requiring a detailed process account. A process account likewise need
-not include a dense thought trace. The construction chooses which form to use
-and where to open more detail.
-
-A derived view can collect those reactions under their declared clocks and
-source references without adding new claims. Inferring how concern changed
-between reactions is a further modeling step: the resulting process account
-retains its attribution and evidence. Such an account can be constructed
-directly or developed from the nodes when needed; neither form is a compulsory
+Event-processes, as UnderstandingNodes, through both, or not at all; the
+construction chooses which form to use and where to open more detail. A node
+can record a reaction beside the world Event, concept model, or passage it
+addresses without a detailed process account, and a process account need not
+include a dense thought trace. A derived view can collect such reactions under
+their declared clocks and source references without adding new claims.
+Inferring how concern changed between reactions is a further modeling step whose
+process account retains its attribution and evidence; it can be constructed
+directly or developed from the nodes, and neither form is a compulsory
 replacement for the other.
 
 World processes, concept models, and modeler processes name what records
 describe, not new record forms. All can represent abstract content. This
 optional account does not establish access to hidden cognition or neural
-computation. The alignment proposal's Reader is one specific modeler role;
+computation. The Reader of the Entangled Alignment proposal
+\cite{westerbergEntangled2026} is one specific modeler role;
 the general account also covers world construction, writing, and problem solving.
 
 \subsection{Operative models and estimates}
@@ -1649,10 +1675,11 @@ are explanatory glosses, not literal Understanding Graph edge-type names.}
 \end{figure}
 
 \section{Closure and Sufficiency}
+\label{sec:closure}
 
-Closure is claimed only relative to a declared purpose and resolution. We
-first ask whether the same records can be refined recursively without erasing
-accepted commitments, then turn that capacity into a finite-resolution
+Closure is claimed only relative to a declared purpose and resolution. This
+section first asks whether the same records can be refined recursively without
+erasing accepted commitments, then turns that capacity into a finite-resolution
 sufficiency test.
 
 \subsection{Recursive refinement at a declared resolution}
@@ -1856,8 +1883,7 @@ could know at its cutoff.
 
 For principals, the Book uses the compact profile in
 Table~\ref{tab:book-person-profile}, which distinguishes accepted coverage from
-deeper preparation choices. It is one replaceable construction choice,
-not a claim that every person or story requires these questions or children.
+deeper preparation choices.
 Appendix~\ref{app:atomic-wants} explains the AtomicWant leaves and their
 conditional attention units.
 
@@ -2004,10 +2030,9 @@ loaders create openable scaffolds, not semantic scalars. Psychological numbers
 remain Cut weights; pounds, hours, dates, and counts remain world data.
 
 Table~\ref{tab:book-enforcement-boundary} states the implementation boundary.
-The development checkpoint-06 synthetic conformance suite passed all 31 positive and
-negative fixture expectations, seven report checks, and three targeted Rust
-tests; its original checkpoint is not included in this accepted-artifact release.
-These are mechanism checks, not evidence that the authored history,
+The synthetic conformance suite of development checkpoint 06 passed all 31
+positive and negative fixture expectations, seven report checks, and three
+targeted Rust tests; that checkpoint is not included in this release. These are mechanism checks, not evidence that the authored history,
 character interpretations, or prose are true or good.
 
 \begin{table}[htbp]
@@ -2272,6 +2297,13 @@ pass through those descriptions. Removing raw numbers only after that influence
 has entered the context tests continued access to numbers, not their upstream
 contribution~\cite{westerbergLifeSimulation2026}.
 
+Two further predictions follow from the design. Under matched edit scope,
+revisions guided by declared dependencies should introduce fewer new
+contradictions than unguided revisions of the same manuscript. A ranking of
+decision and state jumps, frozen before reading, should predict where
+independent readers locate the key turns; a highly ranked turn rendered only in
+retrospect should predict a report that it is told rather than shown.
+
 Cut density, remainders, direction calibration, rejection and revision rates,
 prose length, model calls, tokens, latency, human adjudication time, storage,
 and maintenance work are reported so that lower contradiction counts cannot be
@@ -2316,11 +2348,23 @@ causal relations.
 Shared instructions ask the agent to explore recursively across all three
 workflows: follow useful discoveries into subprocesses, relationships,
 competing accounts, and revised categories, then reconsider the enclosing
-whole. Physical placement and its consequences are developed where they matter
+whole. The constructor is encouraged to discover implicit but trackable
+concepts and processes, make them explicit, and use the resulting structures as
+anchors for further discovery. Qualities usually written as fixed descriptions,
+such as a voice, a style, or a belief, are modeled as processes where they can
+change. Standing questions ask what process,
+relationship, or distinction nobody has named yet, what a pattern is an
+instance of, and what that abstraction predicts elsewhere. Construction
+therefore expands both the represented account and the conceptual vocabulary
+through which it is understood. Physical placement and its consequences are developed where they matter
 to the inquiry. Diagnostics expose missing declarations and unopened structure;
 they do not certify semantic completeness. The agent chooses useful depth and
 records why it matters or why the present resolution suffices. Neither a fixed
 inventory of categories nor numerical coordinates are required of every model.
+Figure~\ref{fig:construction-loop} summarizes the loop and how its work is
+divided between the instructed agent and the tool.
+
+\input{includes/construction-loop}
 
 \subsection{MCP entry points and operations}
 
@@ -2358,18 +2402,15 @@ structured judgments for those questions. Deterministic tool code validates,
 types, and stores the results with their coordinates and provenance, avoiding a
 second language-model pass that manually transcribes each value and graph edge.
 
-The current optional provider is TypeSafe's Jev, whose
-\href{https://docs.typesafe.ai/introduction}{documented primitives} are Choice,
-Score, and Noul. Choice evaluates declared alternatives; Score evaluates an
-ordered rubric; Noul assesses a bounded truth question. Answering a bounded
-question with a classifier's decision rather than generated text predates Jev:
-SetFit, for example, fine-tunes a compact sentence encoder and fits a
-classification head for a fixed label set, without prompts~\cite{tunstall2022setfit}.
-Jev instead takes each question and its typed options at call time. Independent questions
-over a shared evidence state can be submitted together. An answer needed to
-formulate a later question requires another step. Jev does not supply the
-open-ended process descriptions, a universal ontology, or an independently
-verified account of reality. Its use is independent of enabling storytelling.
+The current optional provider is TypeSafe's
+\href{https://docs.typesafe.ai/introduction}{Jev}, which answers declared
+questions with typed options at call time. Answering a bounded question with a
+classifier's decision rather than generated text predates Jev: SetFit, for
+example, fine-tunes a compact sentence encoder and fits a classification head
+for a fixed label set, without prompts~\cite{tunstall2022setfit}. The estimator
+is a replaceable instrument. It does not supply the open-ended process
+descriptions, a universal ontology, or an independently verified account of
+reality, and its use is independent of enabling storytelling.
 
 The general workflow is:
 \begin{enumerate}
@@ -2397,22 +2438,17 @@ The general workflow is:
   as constrain proposed detail.
 \end{enumerate}
 
-The compact builder requires an attributed context review before external
-estimation or construction. Broader context and longer-term developments are
-each represented, left explicitly unknown, or excluded with a reason. A
-represented aspect must reference processes and sources; a represented
-longer-term aspect must also reference dated events and cover an interval
-containing and extending beyond the focal window. The builder stores these
-assessments as Understanding Nodes. It also requires consideration of authored
-numerical judgments, useful conceptual decomposition, and whether a concept's
-meaning differs across dates or perspectives. Each may be represented,
-unknown, or excluded with reasons;
-consideration does not require invented scores, finer categories, or a claim
-that meaning changed. Reference and interval checks do not prove
-causal relevance or historical completeness, and a long event is not a sampled
-numerical trend. Numerical histories require values at explicit coordinates
-with their evidence cutoffs. The workflow recommends reassessment during
-deepening; this construction gate does not constrain every lower-level tool.
+Before external estimation or construction, the compact builder requires an
+attributed review of the wider context and the longer-term developments behind
+the focal question. Each is represented, left explicitly unknown, or excluded
+with a reason, and the review is stored as Understanding Nodes. Recording the
+review does not establish that the account is explanatorily adequate. The
+builder also requires consideration of whether authored numerical judgments, a
+finer conceptual decomposition, or a change of meaning across dates or
+perspectives would help; that consideration does not require invented scores,
+finer categories, or a claim that meaning changed. A long event is not a sampled
+numerical trend: numerical histories require values at explicit coordinates
+with their evidence cutoffs.
 
 The compact construction tool and typed estimation exchange are distinct
 operations. Initial estimates can be explicitly adopted as estimated initial
@@ -2454,12 +2490,12 @@ declared dependencies to conditioned Cuts, draws made from changed weights,
 readings of rewritten text, and passages that render a changed record. It also
 lists for review Events connected through recognized causal relations and
 visible understanding notes directly linked to changed records; an
-\texttt{about} link does not make a note a dependent. It returns work to review,
+\texttt{about} link does not make a note a dependent. Telling phases are
+checked separately, against the current text and reading order, independently
+of which model revisions are compared. The check returns work to review,
 without repairing or certifying the construction. Coverage is limited to
-recognized changes and visible links: the current relocation check detects
-changes to an Event's region or substrate, but does not comprehensively track
-changes to position values or spatial Bindings. Semantic agreement, disclosure,
-and dependency completeness still require assessment.
+recognized changes and visible links. Semantic agreement, disclosure, and
+dependency completeness still require assessment.
 
 \subsection{Automatic storytelling over the same core}
 
@@ -2472,6 +2508,25 @@ model still writes the prose and evaluates author and character voice against
 specific text and modeled processes, recording those assessments in
 Understanding Nodes.
 
+The model is intended to do more than check prose. It supplies material:
+modeled dates, alternatives, and quantities become the content of scenes, and
+because a decision needs represented alternatives and causes, the constructor
+must supply specific constraints rather than atmosphere. It serves as the
+writer's memory across a long work: dates, sums, and who knew what at each
+point are read from the model and the disclosure records at every edit. It
+keeps revision local: declared dependencies name the facts, phases, notes, and
+passages that a change affects. Its diagnostics can also point to where the
+story turns, since a ranking of decision and state jumps is derived from the
+model before any reader responds. The guidance also asks the writer to compress
+the story into a sentence, a paragraph, and a page, and to write down the ideas
+the work means to convey with a strategy for conveying each, which a blind
+read-back can test. The sentence
+is the coarsest
+description of the work and a first test of whether it is interesting; as the
+telling grows, it should still fit that sentence, or the sentence is revised
+explicitly, as with any protected coarse answer. These are design expectations;
+the prospective comparison tests them.
+
 Before preparing a scene for commitment, the add-on requires a current
 model-depth assessment of the stored plan and its explanatory evidence.
 The server checks the referenced records and source identity; the calling
@@ -2481,6 +2536,16 @@ character's speech and actions against the modeled life and situation.
 Its literary advice is advisory, not a quality gate. Exploratory drafts and
 questions may precede either review; neither imposes a fixed character taxonomy
 or requires an explanation for every ambiguity.
+
+A director review assesses the world before the first scene, and the draft
+before release, against stated principles: for instance, that no death or
+accident does the plot's work, that the route passes through the model's
+largest jumps, and that each recorded idea reaches the reader. Each failing
+finding names the model or prose change it needs. Release requires a director
+review of the current prose and a later answer to every failure found at either
+stage, with a changed model or a fresh passing review of changed prose where the
+finding requires it. The server checks these records; whether a repair
+succeeded remains a judgment.
 
 A separate example is \emph{Twelve Words}, whose initial twelve-part manuscript
 of roughly 8,400 words was written by a language-model agent using the Meaning
@@ -2499,15 +2564,11 @@ quality, or semantic alignment merely by accepting a structurally valid record.
 General-purpose modeling does not require author personas, dramatic goals, or
 any other literary vocabulary.
 
-The passage workflow requires declared \texttt{renders} links to Events, or an
-explicit reason that a passage depicts none, for new or changed prose. A
-no-link reason is bound to the exact text and ceases to waive grounding when
-that text changes. Scene commitments supply default Event anchors that the author can
-replace per passage, for example to narrow them or to point a flashback at
-another Event in the bound model; proposals for older unlinked prose require explicit review
-before application. Revision checks follow declared dependencies, and release
-checks identify passages without current grounding. These checks do not infer
-depiction from similar words or establish that the prose is faithful.
+New or changed prose declares which Events it depicts, or records why it
+depicts none. Revision and release checks follow these declarations; they do
+not infer depiction from similar words or establish that the prose is faithful.
+The story release operation widens access to selected prose without changing
+the access scopes of other authoring records.
 
 Depicting an Event does not disclose all its facts or motives. Disclosure plans
 distinguish what a reader can already know, what a passage reveals, and what
@@ -2526,10 +2587,6 @@ its holder, reviewed text hashes, and reading order. The viewer projects these
 phases in document position, with current, needs-review, or unresolved status
 when the text, order, or accessible span changes. These are attributed readings
 of how a work unfolds, not measured reader psychology or simulated world time.
-
-The story release operation records a decision to widen reader access to
-selected prose while retaining private authoring records. It is a graph access
-change, not publication to an external website or package registry.
 
 \subsection{The construction record}
 
@@ -2553,17 +2610,11 @@ construction also travels: a full-history export holds the recorded model
 revisions and each graph revision as its change, and another engine rebuilds it with the same hashes,
 so the replay there is the same replay.
 
-The MCP also opens a bundled, read-only viewer of a chosen snapshot or a live
-view that follows saved descendant revisions. Live viewing shows saved
-model and graph changes, not a stream of unfinished prose tokens; an ambiguous
-fork or unavailable source stops automatic following. Explicit links group
-author and reader life models beneath their work in the chooser while keeping
-their worlds and times separate. Its views
-are representations of the same records: coarse and detailed views retain the
-addressed wholes; spatial views use declared positions in explicit frames, while
-other layouts claim no physical geography; connections to Events, passages, and
-understanding follow recorded links; and reading order remains distinct from
-world time.
+A bundled read-only viewer presents the same records: coarse and detailed views
+retain the addressed wholes; spatial views use declared positions in explicit
+frames, while other layouts claim no physical geography; connections to Events,
+passages, and understanding follow recorded links; author and reader lives keep
+their own worlds and times; and reading order remains distinct from world time.
 
 \subsection{Mechanism search through invented worlds}
 
@@ -2609,6 +2660,7 @@ live provider run do not establish lower total cost, faster completion,
 calibrated judgments, predictive accuracy, or superior fiction.
 
 \section{Related Work}
+\label{sec:related}
 
 Prototype and family-resemblance accounts reject the assumption that every
 category is defined by one set of necessary and sufficient surface features
@@ -2676,7 +2728,8 @@ expands hierarchical outlines and controls passages against them
 knowledge-graph memory \cite{wang2024dome}. Generative Agents combines recorded
 experiences, reflections, and plans to produce behavior \cite{park2023agents}.
 The Meaning Model therefore does not claim to introduce planning, graph-backed
-storytelling, or reflective characters. Its candidate distinction is recursive
+storytelling, or reflective characters. Among the systems compared in
+Table~\ref{tab:predecessor-contracts}, its distinction is recursive
 inference anchored in explicit world structure under a shared preservation
 contract: a coarse world remains consequential before
 its details exist; an opening must satisfy declared fine-to-coarse checks or
@@ -2724,13 +2777,54 @@ both. The relevant comparison unit is that complete operation: what may remain
 unconstructed, which commitments an opening protects, and how a revision affects
 the connected account. An antecedent for graphs, normalized allocations, or
 revision alone does not settle whether this method has already been specified;
-neither does their combination establish priority by itself. A comparison should
-ask which contracts a predecessor supplies and which additional coordination
-this proposal requires. The Book partially demonstrates feasibility, while
+neither does their combination establish priority by itself.
+Table~\ref{tab:predecessor-contracts} therefore compares the contracts of that
+operation across the closest systems, as their own papers describe them. Each
+supplies part of it: outlines and plans commit coarse structure before detail,
+a controller steers passages toward outline items, a verifier checks candidate
+chapters against stored state, republishing invalidates dependent memory,
+reflection builds higher-level thoughts on stored records, and an open schema
+infers categories for each work. Generative Agents comes nearest to the
+discovery loop: its reflection prompt asks for high-level insights together with
+the memories that support them \cite{park2023agents}. Those insights remain
+text memories. The Meaning Model asks the constructor to make discovered
+concepts and processes trackable in the grammar that holds their instances, so
+that they can be followed over time, tested elsewhere, and revised under the
+preservation contract. Narrative World Model comes closest to the whole
+operation, but it records memory only from finalized prose, in a specified set
+of narrative fields. None of those compared specifies the complete operation.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{0.12\textwidth}YYYYYY@{}}
+\toprule
+System & Coarse commitments before detail & Detail checked against them & A revision rechecks its dependents & Explicit records support further inference & Accounts kept per holder & Categories constructed and revised \\
+\midrule
+DOC \cite{yang2023doc} & Outline expanded before drafting (\S3.2) & Controller steers passages toward outline items (\S3.3) & Not described & Inferred character facts reused in later passages (\S3.2) & Not described & Not described \\
+DOME \cite{wang2024dome} & Rough outline, then detailed outlines (\S4.1) & Retrieval reduces conflicts; conflicts measured after generation (\S4.2--4.3) & Later outlines adjusted forward (\S4.1) & Extracted quadruples retrieved for planning (\S4.2) & Not described & Not described \\
+Generative Agents \cite{park2023agents} & Day plan decomposed into finer actions (\S4.3) & Reactions regenerate the remaining plan (\S4.3) & Not described for memories or reflections & Reflection trees over observations and reflections (\S4.2) & Each agent's own memory stream (\S4.1) & Not described \\
+Narrative World Model \cite{saifullah2026narrativeworld} & No: memory records finalized prose (\S3.1) & Candidate chapters checked for unsupported state changes (\S3.4) & Republishing invalidates dependent memory (\S3.1) & Recursive question answering over stored state (\S3.4) & Character knowledge and unknowns (\S3.2) & Specified narrative fields; revision not described (\S3.2) \\
+EvolvingWorld \cite{zong2026evolvingworld} & Not described & Not described & World state updated after each interaction (\S3.2) & Stored states inform scene selection and actions (\S3.2) & No: one shared objective state (Limitations) & Dimensions inferred for each book (\S1) \\
+Inform \cite{nelson2001inform} & No: world declared in the source & Actions checked against world rules (\S24) & Not described & Not described & Scope limits what the player addresses (\S24) & Not described \\
+Meaning Model & Protected coarse answers & Close, or explicit revision & Declared dependents across world, concepts, reasons, and prose & Records and concept models anchor further opening & Perspective by containment & Versioned groundings with supersession \\
+\bottomrule
+\end{tabularx}
+\caption{Contracts of the complete revision operation in the closest systems,
+as described in their own papers. ``Not described'' means the source does not
+describe the contract, not that the system could not support it. The Meaning
+Model row states specified contracts;
+Table~\ref{tab:book-enforcement-boundary} gives what the prototype
+implements.}
+\label{tab:predecessor-contracts}
+\end{table}
+
+The Book partially demonstrates feasibility, while
 comparative literary benefit, learning gains, and computational savings remain
 untested.
 
 \section{Limitations and Research Boundary}
+\label{sec:limitations}
 
 Normalization enforces accounting consistency, not truth. A cut can ask the
 wrong question, choose misleading children, or encode an LLM's bias with false
@@ -2770,7 +2864,8 @@ may already maintain equivalent structure implicitly. The Book comparison must
 establish whether explicit records improve coherence and read-back enough to
 justify their construction and maintenance cost.
 
-\subsection{Bridge to Life Simulation}
+\section{Relation to Life Simulation and the Wider Program}
+\label{sec:companion}
 
 Life Simulation uses completed or ongoing worlds to study the generation,
 inference, and learning of process histories. Continuations may come from an
@@ -2788,7 +2883,6 @@ acceptance, and effects on dependent records and text. Meaning Model read-back
 checks what a passage says about its source world. Life Simulation's inverse
 task asks what hidden processes observations support, and whether inferred
 accounts predict later evidence or transfer beyond their construction setting.
-
 Together the two proposals support a feedback loop: construct a world, render
 observations, infer an account from the available evidence, compare its
 predictions with later evidence, and revise the account before constructing
@@ -2805,82 +2899,75 @@ modeler builds and revises those character models, recording its own estimates
 and reasons separately. \emph{In the long run}, a trained system could use the
 same distinctions to estimate real people's changing perspectives from
 available evidence. The first two levels supply candidate learning material
-for the third.
-
-At each level, an estimate retains whose account it is, what it concerns, and
-what evidence was available when it was made. In a constructed world, it can
-be scored against the stipulated character state when that target becomes
-available. For real people, later reports, actions, and observations provide
-fallible evidence against which predictions and uncertainty can be assessed;
-they do not reveal a complete private state. Preserving the original estimate
-and its cutoff makes inner-state estimation improvable, instead of replacing
-an earlier guess with a more convincing retrospective account.
+for the third. At each level, an estimate retains whose account it is, what it
+concerns, and what evidence was available when it was made. In a constructed
+world, it can be scored against the stipulated character state when that target
+becomes available. For real people, later reports, actions, and observations
+provide fallible evidence against which predictions and uncertainty can be
+assessed; they do not reveal a complete private state. Preserving the original
+estimate and its cutoff makes inner-state estimation improvable, instead of
+replacing an earlier guess with a more convincing retrospective account.
 
 A connected Meaning Model of actual world history and geography can deepen as
 evidence arrives. Sources share supported identities while retaining separate
 claims, evidence, and disagreements. Regions and centuries can open into
-institutions and lives without equal detail everywhere. New evidence can
-revise earlier accounts, not merely add detail. Corrections preserve distinct
-event and revision times. Acceptance does not establish historical truth;
-fictional worlds retain separate contexts. Meaning Model supplies the
-representation and revision contract; Life Simulation develops corpus-wide
-construction, interpretation, and training.
-
-At corpus scale, the tool would need incremental ingestion, selective retrieval,
-and dependency-aware revision over one logically connected address space,
-potentially distributed across storage systems. New material would link to
-supported identities and source records; refinement would open only the
-processes needed for an inquiry. Versioned dependencies would identify derived
-views affected by a correction for explicit revision or stale marking, while
-preserving their source records and prior versions. Access rules, perspective
-boundaries, temporal cutoffs, and the selected profile's commitment and
-recomposition contracts must hold across storage boundaries. These are
-proposed extensions of the tool, not additional grammar forms or an implemented
-corpus-scale system.
+institutions and lives without equal detail everywhere, and new evidence can
+revise earlier accounts, not merely add detail, with event and revision times
+kept distinct. Acceptance does not establish historical truth; fictional worlds
+retain separate contexts. Meaning Model supplies the representation and
+revision contract; Life Simulation develops corpus-wide construction,
+interpretation, and training. At corpus scale, the tool would need incremental
+ingestion, selective retrieval, and dependency-aware revision over one logically
+connected address space, potentially distributed across storage systems. New
+material would link to supported identities and source records; refinement
+would open only the processes needed for an inquiry. Versioned dependencies
+would identify derived views affected by a correction for explicit revision or
+stale marking, while preserving their source records and prior versions. Access rules, perspective boundaries, temporal
+cutoffs, and the selected profile's commitment and recomposition contracts must
+hold across storage boundaries. These are proposed extensions of the tool, not
+additional grammar forms or an implemented corpus-scale system.
 
 Imagining the Corpus pairs source text with visual sequences and persistent
-state updates for joint prediction \cite{westerbergImagining2026}.
-Entangled Alignment supplies the recommended Reader-based training approach:
-a Teacher generates questions, interpretations, and revisions from the source
-prefix and the Reader's prior Understanding Graph. A Student would be trained to predict
-selected source continuations, Reader updates, or graph operations
-\cite{westerbergEntangled2026}. Life Simulation proposes supplying permitted world
-records as context or training the queries and edits used to retrieve and revise
-them. Parallel track prediction and interleaved
-Reader updates expose targets in different orders, which each training regime
-must declare \cite{westerbergLifeSimulation2026}.
+state updates for joint prediction \cite{westerbergImagining2026}. Entangled
+Alignment supplies the recommended Reader-based training approach: a Teacher
+generates questions, interpretations, and revisions from the source prefix and
+the Reader's prior Understanding Graph, and a Student would be trained to
+predict selected source continuations, Reader updates, or graph operations
+\cite{westerbergEntangled2026}. In its full proposed alignment treatment, each Reader
+thinking block starts with the same complete Reader Core, seven first-person
+commitments including care and wisdom, and their application to the situation is
+called Refraction. Before judging a debt payment, care might lead the Reader to
+query household income and upcoming obligations. UnderstandingNodes retain this
+inquiry without making its interpretation a world fact, and training is intended
+to make that orientation consequential in the model's later writing, dialogue,
+and action \cite{westerbergEntangled2026,westerbergLifeSimulation2026}. Life
+Simulation proposes supplying permitted world records as context or training
+the queries and edits used to retrieve and revise them. Parallel track
+prediction and interleaved Reader updates expose targets in different orders,
+which each training regime must declare \cite{westerbergLifeSimulation2026}.
 
-In the full proposed alignment treatment, each Reader thinking block starts with
-the same complete Reader Core, seven first-person commitments including care and wisdom.
-Their application to the situation is called Refraction. Before judging a debt
-payment, care might lead the Reader to query household income and upcoming
-obligations. UnderstandingNodes retain this inquiry without making its
-interpretation a world fact. Training is intended to make that orientation consequential
-in the model's later writing, dialogue, and action
-\cite{westerbergEntangled2026,westerbergLifeSimulation2026}.
-
-Training need not be restricted to a modeler reading a source. Selected
-modeler histories can also record constructing worlds, writing books, and
-solving problems through Fractal Intelligence. A construction example pairs the
-task and current model with a next refinement, repair, or stopping decision.
-Solver calls invoke reusable problem-solving capabilities through declared
-interfaces; their checks and repairs also supply learning material
-\cite{westerbergLifeSimulation2026,westerbergFractal2026}. Examples preserve the
-inputs available at that step, operations and revisions made, and separately
-recorded outcomes. Later evidence may justify a target without entering an
-earlier forecast's input. The same Core can orient inquiry during these
-activities; merely recording a modeler's work does not make it aligned. Whether
-training improves empathy or aligned conduct remains an empirical question.
+Training need not be restricted to a modeler reading a source. Selected modeler
+histories can also record constructing worlds, writing books, and solving
+problems through Fractal Intelligence, whose Solver calls invoke reusable
+problem-solving capabilities through declared interfaces and whose checks and
+repairs also supply learning material
+\cite{westerbergLifeSimulation2026,westerbergFractal2026}. A construction
+example pairs the task and current model with a next refinement, repair, or
+stopping decision. It preserves the inputs available at that step, the
+operations and revisions made, and separately recorded outcomes; later evidence
+may justify a target without entering an earlier forecast's input. The same Core
+can orient inquiry during these activities, but merely recording a modeler's
+work does not make it aligned. Whether training improves empathy or aligned
+conduct remains an empirical question.
 
 \section{Conclusion}
 
 The Meaning Model makes the developing account of a world the working object
-of authorship. A coarse life, institution, or physical process can constrain
-detail that has not yet been constructed. An opening preserves its declared
-commitments or prompts explicit revision. Concept models, Event descriptions,
-understanding histories, and narrative participate in the same operation,
-rather than becoming independently maintained accounts that must later be
-reconciled.
+of authorship. A coarse life, institution, or physical process can constrain detail that has
+not yet been constructed. An opening preserves its declared commitments or
+prompts explicit revision. Concept models, Event descriptions, understanding
+histories, and narrative participate in the same operation, rather than
+becoming independently maintained accounts that must later be reconciled.
 
 The six record forms support this coordination without prescribing a universal
 decomposition. Local Cuts give numerical judgments a comparison context;
@@ -2903,7 +2990,7 @@ The completed Book exposes both the reach and the boundary of the architecture.
 It holds one progressively resolved world, its meanings, selected understanding
 history, and its story in a linked artifact. In the first construction, the
 final pragmatic successor was not admitted through the complete atomic
-protocol. The later manuscript reviews do not establish independent read-back
+protocol, and the later manuscript reviews are not an independent read-back
 of the current manuscript. The prospective comparison must therefore
 still test misleading Cuts, inaccessible perspective paths, failed
 recomposition, maintenance cost, and distinctions the prose does not preserve.

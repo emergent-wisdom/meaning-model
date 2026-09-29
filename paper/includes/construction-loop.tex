@@ -1,0 +1,93 @@
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}[
+  x=1cm,y=1cm,>=Latex,
+  head/.style={font=\scriptsize\bfseries,align=center},
+  ask/.style={draw=black!50,rounded corners,fill=black!4,align=center,
+    font=\scriptsize,text width=4.3cm,minimum height=.95cm},
+  tool/.style={draw=black!75,fill=white,align=center,
+    font=\scriptsize,text width=3.9cm,minimum height=.95cm},
+  optional/.style={tool,dashed,draw=black!55},
+  surface/.style={rounded corners,align=center,font=\scriptsize,
+    text width=2.75cm,minimum height=1.2cm},
+  world/.style={surface,draw=blue!65!black,fill=blue!7},
+  author/.style={surface,draw=orange!75!black,fill=orange!8},
+  render/.style={surface,draw=green!55!black,fill=green!8},
+  flow/.style={->,thin,draw=black!60},
+  label/.style={font=\tiny,fill=white,inner sep=1pt,align=center}
+]
+\hyphenpenalty=10000 \exhyphenpenalty=10000
+\node[head] at (2.35,1.1) {What the agent is asked to do};
+\node[head] at (8.05,1.1) {What the tool does};
+\node[head] at (13.05,1.1) {What is kept};
+
+\node[ask] (s1) at (2.35,0) {Establish the question, boundary,\\evidence, and delegation};
+\node[ask] (s2) at (2.35,-1.4) {Explore from the question; discover
+  implicit patterns and processes, named or not};
+\node[ask] (s3) at (2.35,-2.8) {Make each explicit: a process, a concept,
+  a lens, or a Cut under a declared question};
+\node[ask] (s4) at (2.35,-4.2) {Build on it: further relations,
+  higher-level concepts, predictions elsewhere};
+\node[ask] (s5) at (2.35,-5.6) {Write from the model; record choices and
+  reasons, linked to what they concern};
+\node[ask] (s6) at (2.35,-7.0) {Review the work: a blind read-back, the
+  director, another model, or a person};
+\node[ask] (s7) at (2.35,-8.4) {Revise the model where it is wrong, then
+  reread what was built on it, prose included};
+\foreach \a/\b in {s1/s2,s2/s3,s3/s4,s4/s5,s5/s6,s6/s7}
+  \draw[flow] (\a) -- (\b);
+\draw[flow] (s7.west) -- (-.3,-8.4) --
+  node[label,rotate=90,above]{next round} (-.3,-1.4) -- (s2.west);
+
+\draw[draw=black!45,fill=black!2] (5.8,.6) rectangle (10.3,-9.0);
+\node[tool] (t0) at (8.05,0) {Requires a review of the wider context and
+  longer-term developments before construction};
+\node[tool] (t1) at (8.05,-1.4) {Returns model questions and diagnostics:
+  gaps, unopened structure, decision and state jumps};
+\node[tool] (t2) at (8.05,-2.8) {Validates, types, and stores each change;
+  refuses a Cut on an undescribed Event};
+\node[optional] (t3) at (8.05,-4.2) {Optional estimator: typed answers to
+  declared questions};
+\node[tool] (t4) at (8.05,-5.6) {Requires a current depth assessment
+  before a scene is committed};
+\node[tool] (t6) at (8.05,-7.0) {Requires the director's findings to be
+  answered before release};
+\node[tool] (t5) at (8.05,-8.4) {Revision check: dependents of a change and
+  changed telling phases, returned for review};
+\draw[flow,dashed] (t3) -- (t2);
+
+\draw[flow,<->] (s1.east) -- (t0.west);
+\draw[flow] (t1.west) -- node[label,above]{questions} (s2.east);
+\draw[flow] (s3.east) -- node[label,above]{changes} (t2.west);
+\draw[flow,<->] (s5.east) -- node[label,above]{commit} (t4.west);
+\draw[flow,<->] (s6.east) -- node[label,above]{release} (t6.west);
+\draw[flow] (t5.west) -- node[label,above]{work to\\review} (s7.east);
+
+\foreach \d in {.2,.1}
+  \draw[draw=black!35,fill=white] (11.4+\d,.6+\d) rectangle (14.7+\d,-9.0+\d);
+\draw[draw=black!55,fill=black!2] (11.4,.6) rectangle (14.7,-9.0);
+\node[world] (r1) at (13.05,-1.2) {World model\\Concepts, Things, Events,
+  Bindings, Cuts, Realizations};
+\node[author] (r2) at (13.05,-3.75) {Understanding Graph\\choices, reasons,
+  reviews, readings, telling phases};
+\node[render] (r3) at (13.05,-6.3) {Documents\\text, linked to the Events
+  it depicts};
+\node[font=\tiny,align=center,text width=2.9cm] at (13.05,-8.25)
+  {One identifier space; each revision is immutable and names its
+  predecessor, so the construction can be replayed};
+\draw[flow,<->,thick] (10.3,-4.9) -- node[label,above]{reads}
+  node[label,below]{stores} (11.4,-4.9);
+\end{tikzpicture}
+\caption{The construction loop. Left: what the shared instructions ask the
+calling language model to do. The order is a guide rather than a fixed
+sequence; any step may lead back to exploration, and each round builds on the
+account the previous one left. Middle: what deterministic tool code does. It
+validates and stores every change, returns questions after each one, refuses
+gated operations until the required reviews exist and their findings are
+answered, and lists the work a revision makes due. The estimator is optional,
+and the scene and release gates belong to the storytelling add-on. Right: the
+one versioned record that every step reads and changes through the tool. The
+tool checks records and their declared links; it does not supply the
+interpretations or certify that an account is adequate.}
+\label{fig:construction-loop}
+\end{figure}
