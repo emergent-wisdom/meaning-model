@@ -8,6 +8,7 @@ import { resolveAppendHead } from './graph-head.mjs';
 import * as z from 'zod/v4';
 import { prepareAuthorRecord } from './storytelling-authoring.mjs';
 import { readOpenQuestions } from './model-questions.mjs';
+import { readWorldState } from './storytelling-world.mjs';
 
 export const DIRECTION_SCHEMA = 'meaning-model-story-direction/v1';
 const id = z.string().trim().min(1).max(256);
@@ -18,6 +19,7 @@ const text = (min = 1, max = 16_000) => z.string().trim().min(min).max(max);
 export const directorPrinciples = Object.freeze([
   { id: 'world.author', stage: 'world', source: 'director', principle: 'The story comes out of the author\'s modeled life: what they are figuring out by writing it is the world\'s central question, and you can point to the life records it comes from.' },
   { id: 'world.buttons', stage: 'world', source: 'director', principle: 'The premise presses a button in its reader, a fear, longing, shame or hope, and the reader could learn something about their own life from it.' },
+  { id: 'world.ideas', stage: 'world', source: 'director', principle: 'The ideas the work means to convey are written down, and for each idea the strategy for conveying it: where the reader meets it, where the story tests it and where it lands. If none is settled yet, the record says why.' },
   { id: 'world.necessity', stage: 'world', source: 'U01', principle: 'Each principal carries a function the causality needs; no one exists only to supply the plot, and no one absorbs everyone else\'s roles.' },
   { id: 'world.plausibility', stage: 'world', source: 'U02', canBeInapplicable: true, principle: 'Every departure from the ordinary, historical or established world is plausible at the model\'s resolution; when one is not, shrink the departure rather than inflating the world to rescue it.' },
   { id: 'world.documented', stage: 'world', source: 'director', canBeInapplicable: true, principle: 'Where the era is real, the world holds to what the sources document up to a stated cutoff, recorded as reports with their sources, and the story invents only after it; what could not be found stays open rather than guessed. Living people and real organizations do not take part as characters: invented ones take their place, and the real world stays in the background.' },
@@ -26,7 +28,7 @@ export const directorPrinciples = Object.freeze([
   { id: 'world.agency', stage: 'world', source: 'U05', principle: 'No death, illness or accident does the plot\'s work; the outcome comes from the characters\' choices.' },
   { id: 'world.ending', stage: 'world', source: 'U06', principle: 'The ending claims only what the world earned, and what survives it means something because of how it was made.' },
   { id: 'world.macro', stage: 'world', source: 'director', principle: 'The long developments behind the world are modeled, over decades or centuries (a war a hundred years back, an institution, a technology, a family line), and each principal\'s childhood is modeled where it explains what they do.' },
-  { id: 'world.lives', stage: 'world', source: 'director', principle: 'Every principal is an authentic person in the model: a whole life, the deepest wants underneath and the learned wants that serve them, the proxy that displaces a deep aim, shocks and adaptations that change many functions, conflicting wants that bargain.' },
+  { id: 'world.lives', stage: 'world', source: 'director', principle: 'Every principal is an authentic person in the model: a whole life from its beginning (where their processes started, what they were taught, what else they lived through), the deepest wants underneath and the learned wants that serve them, the proxy that displaces a deep aim, shocks and adaptations that change many functions, conflicting wants that bargain.' },
   { id: 'world.mechanisms', stage: 'world', source: 'director', principle: 'The Things this story\'s causality runs through, whatever they are here (a machine, an institution, a house, a body, a document, a market), are modeled as they work: their parts, capacities, limits, failure modes and quantities, and how these constrain what people can do. None of those is only a name.' },
   { id: 'world.aspects', stage: 'world', source: 'director', principle: 'Every element of what makes a story interesting (the catalog: people, events, the world, meaning) has been found where it lives in this story and investigated by modeling; the list is current.' },
   { id: 'world.flaws', stage: 'world', source: 'director', principle: 'Each principal\'s flaw is modeled as a process over their life: the event that taught it, the situations in which it takes over, where the same trait is a strength and where it does harm, what it costs in the story\'s choices, and whether they see it.' },
@@ -44,6 +46,7 @@ export const directorPrinciples = Object.freeze([
   { id: 'draft.time', stage: 'draft', source: 'director', principle: 'Each person in each scene matches the model\'s state at that moment, and everything that changes between scenes has a modeled cause.' },
   { id: 'draft.richer', stage: 'draft', source: 'director', principle: 'Ask where a scene, Event, person or Thing needs deeper understanding, and investigate what remains only a name when it matters to the work. Depth does not require longer prose or maximum detail; restraint and a justified decision to keep the text are valid.' },
   { id: 'draft.ending', stage: 'draft', source: 'director', principle: 'Every principal pays for the ending.' },
+  { id: 'draft.ideas', stage: 'draft', source: 'director', principle: 'Each recorded idea reaches the reader through its strategy in this draft. A blind read-back shows which do; an idea that does not is revised, or deliberately let go.' },
 ].map((principle) => ({ ...principle, canBeInapplicable: true })));
 const principlesFor = (stage) => directorPrinciples.filter((item) => item.stage === stage);
 
@@ -59,14 +62,14 @@ export const directionSchema = z.object({
     verdict: z.enum(['holds', 'fails', 'not-this-story']),
     evidence: text(10, 4_000).describe('Where it holds or fails in this work, citing text and model records as relevant; for not-this-story, explain its inapplicability to this form, purpose or context.'),
     modelChange: text(10, 4_000).nullable().default(null).describe('For a model defect: what must change in the model. Null is valid for a prose-only repair.'),
-    proseChange: text(10, 4_000).nullable().default(null).describe('For a draft defect: the needed prose repair. A failure requires modelChange, proseChange, or both; a prose repair needs an answers record and a fresh passing read of changed prose.'),
+    proseChange: text(10, 4_000).nullable().default(null).describe('Draft stage only: the needed prose repair. A failure requires modelChange, proseChange, or both; a prose repair needs an answers record and a fresh passing read of changed prose. At the world stage, put prose observations in the evidence.'),
   }).strict()).max(40).optional().describe('Omit to receive the direction task; supply to record it.'),
   ownFindings: z.array(z.object({
     name: text(2, 200).describe('What this work needs that no principle names.'),
     verdict: z.enum(['holds', 'fails']),
     evidence: text(10, 4_000),
     modelChange: text(10, 4_000).nullable().default(null),
-    proseChange: text(10, 4_000).nullable().default(null),
+    proseChange: text(10, 4_000).nullable().default(null).describe('Draft stage only; at the world stage, put prose observations in the evidence.'),
   }).strict()).max(20).default([]).describe('The principles are a start, not a boundary: at least one finding of your own about what this work needs that no principle names.'),
   summary: text(10, 4_000).optional(),
 }).strict();
@@ -121,9 +124,28 @@ export async function direct(service, raw) {
   if (!input.findings) {
     const open = modelHash ? await readOpenQuestions(service, { modelHash, graphHash: input.graphHash, accessScopes, limit: 16 }).catch(() => null) : null;
     const rendered = input.stage === 'draft' ? await service.renderNarrativeGraph?.({ graphHash: input.graphHash, rootIds: [input.storyRootId], accessScopes }).catch(() => null) : null;
+    // What the principles need, so a reviewer need not assemble it: the recorded world stages at the world stage; at the
+    // draft stage the recorded ideas with their strategies, the full descriptions of the Events the passages render,
+    // and the attributed reviews to open where a finding needs them.
+    const world = readWorldState(view, input.storyRootId);
+    const stages = Object.fromEntries(['authorReader', 'candidates', 'opening', 'aspects', 'implications', 'route'].filter((key) => world[key])
+      .map((key) => [key, { nodeId: world[key].node.id, ...world[key].data }]));
+    let renderedEvents = null;
+    if (rendered && modelHash) {
+      const units = new Set((rendered.units ?? []).map((unit) => unit.node_id));
+      const ids = new Set((view.edges ?? []).filter((edge) => edge.family === 'grounding' && edge.relation === 'renders' && units.has(edge.source?.node_id)
+        && edge.target?.kind === 'anchor' && edge.target.anchor_kind === 'event').map((edge) => edge.target.anchor_id));
+      const model = ids.size ? (await service.inspectModel?.({ modelHash, includeDefinition: true }).catch(() => null))?.model : null;
+      renderedEvents = (model?.meaning_model?.events ?? []).filter((event) => ids.has(event.id))
+        .map(({ id, boundary, description, interval }) => ({ id, boundary, description: description ?? null, interval: interval ?? null }));
+    }
+    const ideas = world.authorReader ? { nodeId: world.authorReader.node.id, teach: world.authorReader.data.teach ?? null } : null;
+    const reviews = input.stage === 'draft' ? (view.nodes ?? []).filter((node) => node.node_type === 'review')
+      .map((node) => ({ nodeId: node.id, title: node.title ?? null, holder: node.holder ?? null })) : undefined;
     return { schema: 'meaning-model-story-direction-task/v1', stage: input.stage, directorId: input.directorId, independent: input.independent, principles,
       model: open && { questions: open.questions, jumps: open.jumps, depth: open.depth }, text: rendered?.text ?? null,
-      instructions: `${directionInstructions} For each principle, give holds, fails or not-this-story with contextual evidence. For a failure, specify the model and/or prose repair. Then call life_story_direct again with findings to record the direction.`,
+      ...(input.stage === 'world' ? { world: stages } : { ideas, renderedEvents, reviews }),
+      instructions: `${directionInstructions} For each principle, give holds, fails or not-this-story with contextual evidence. For a failure, specify the model and/or prose repair. Keep each evidence under about 1,500 characters and each repair under about 800, and record every finding in one call. The task carries what its principles need; open further records only where a finding needs them, and prefer a shallow life_model_outline to the whole Event list. Then call life_story_direct again with findings to record the direction.`,
       worked: 'The Book of Conditions example is a separate download at https://github.com/emergent-wisdom/meaning-model/tree/main/examples/book-of-conditions. Import its portable the-book-of-conditions.meaning-model.json with life_construction_import, then use life_narrative_query with the returned graphHash, mode: full, includeContent: true, and accessScopes: ["book.07r2.authoring"] to inspect its attributed UnderstandingNodes and links to Events, Cuts, and passages. The public bundle is a current-state snapshot, not the private revision history; it is not bundled with the MCP package.' };
   }
   const expected = new Set(principles.map((item) => item.id));
@@ -135,7 +157,7 @@ export async function direct(service, raw) {
   const findings = [...input.findings, ...input.ownFindings.map(({ name, ...finding }) => ({ principleId: `own:${name}`, ...finding }))];
   const unplanned = findings.filter((item) => item.verdict === 'fails' && !item.modelChange && !item.proseChange);
   if (unplanned.length) throw new Error(`Specify modelChange, proseChange, or both for each failure: ${unplanned.map((item) => item.principleId).join(', ')}.`);
-  if (input.stage !== 'draft' && findings.some((item) => item.proseChange)) throw new Error('A prose repair belongs to a draft direction; the world direction reviews model commitments. Exploratory drafts may already exist.');
+  if (input.stage !== 'draft' && findings.some((item) => item.proseChange)) throw new Error('A prose repair belongs to a draft direction; the world direction reviews model commitments. Exploratory drafts may already exist: put prose observations in the evidence, and record the repair in the next draft direction.');
   if (!input.nodeId || !input.summary) throw new Error('Recording a direction needs nodeId and summary.');
   const prose = input.stage === 'draft' ? { proseSignature: await proseSignature(service, input.graphHash, input.storyRootId, accessScopes), proseScopes: accessScopes } : {};
   const record = await prepareAuthorRecord(service, { graphHash: input.graphHash, requestId: input.requestId, nodeId: input.nodeId, storyRootId: input.storyRootId, exactRevision: true,

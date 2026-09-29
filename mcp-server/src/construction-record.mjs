@@ -34,7 +34,7 @@ export { assertDescribedEvents, constructionRecordInstructions, descriptionCover
 // ---------------------------------------------------------------------------------------------
 // Targets: model records by kind and id, or graph nodes.
 
-const recordKinds = Object.freeze({
+export const recordKinds = Object.freeze({
   model: 'model', process: 'process', claim: 'claim', law: 'law', dependency: 'dependency', decomposition: 'decomposition',
   concept: 'concept', abstract_relation: 'abstract_relation', abstract_cut: 'abstract_cut', referent: 'referent',
   encapsulation_cut: 'encapsulation_cut', event: 'event', event_relation: 'event_relation', binding: 'event_referent_binding',

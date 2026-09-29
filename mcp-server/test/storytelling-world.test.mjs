@@ -47,3 +47,11 @@ test('the world stages can be recorded in any order, each checked against whatev
   const state = readWorldState(await service.queryNarrativeGraph({ graphHash: hash, mode: 'full', includeContent: true, accessScopes: ['author'] }), 'book');
   for (const stage of ['authorReader', 'candidates', 'opening', 'aspects', 'implications', 'route']) assert.ok(state[stage], stage);
 });
+
+test('aspects and implications may cite every record kind an Understanding Node may be about', async () => {
+  const { modelReference } = await import('../src/storytelling-world.mjs');
+  assert.deepEqual(modelReference('realization:realization.book.sole_carrier.1'), { anchorKind: 'realization', recordId: 'realization.book.sole_carrier.1' });
+  assert.deepEqual(modelReference('binding:binding.1'), { anchorKind: 'event_referent_binding', recordId: 'binding.1' });
+  assert.deepEqual(modelReference('cut:cut.1'), { anchorKind: 'normalized_cut', recordId: 'cut.1' });
+  assert.deepEqual(modelReference('node.id'), { anchorKind: null, recordId: 'node.id' });
+});

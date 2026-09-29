@@ -9,7 +9,7 @@
 import { resolveAppendHead } from './graph-head.mjs';
 import * as z from 'zod/v4';
 import { prepareAuthorRecord } from './storytelling-authoring.mjs';
-import { anchoredModelRecord } from './construction-record.mjs';
+import { anchoredModelRecord, recordKinds } from './construction-record.mjs';
 import { readAuthorModel } from './storytelling-author-model.mjs';
 import { cutKind, eventDescendants, indexModel, modeledPeople, modelJumps, modelQuestions, readOpenQuestions, readPerson, VISIBLE_QUESTIONS } from './model-questions.mjs';
 import { interestInstructions, storyInterest, storyInterestIds } from './storytelling-interest.mjs';
@@ -19,11 +19,11 @@ const id = z.string().trim().min(1).max(256);
 const text = (min = 1, max = 16_000) => z.string().trim().min(min).max(max);
 const time = z.number().finite();
 const hash = z.string().regex(/^[a-f0-9]{64}$/u);
-const reference = z.string().trim().min(3).max(1_024).describe('A model record as kind:id (event:ev.x, process:p.x, cut:c.x, referent:r.x, concept:c.x) or a graph node id.');
-const anchorKinds = { event: 'event', process: 'process', cut: 'normalized_cut', referent: 'referent', concept: 'concept', abstract_cut: 'abstract_cut', event_relation: 'event_relation', law: 'law', claim: 'claim' };
-const modelReference = (ref) => {
+const reference = z.string().trim().min(3).max(1_024).describe('A model record as kind:id (event:ev.x, process:p.x, cut:c.x, referent:r.x, concept:c.x, realization:x, binding:x and the other record kinds) or a graph node id.');
+// The same record kinds Understanding Nodes accept, so any model record an aspect or implication rests on can be cited.
+export const modelReference = (ref) => {
   const colon = ref.indexOf(':');
-  return colon > 0 ? { anchorKind: anchorKinds[ref.slice(0, colon)] ?? null, recordId: ref.slice(colon + 1) } : { anchorKind: null, recordId: ref };
+  return colon > 0 ? { anchorKind: recordKinds[ref.slice(0, colon)] ?? null, recordId: ref.slice(colon + 1) } : { anchorKind: null, recordId: ref };
 };
 
 // The author, and optionally a reader, are lives in their own models: the person template opened with periods,
@@ -43,7 +43,7 @@ const authorReaderStage = z.object({
     livesIn: z.enum(['this_world', 'separate_world']).describe('Does the author live in this story\'s world, or a separate one? A memoir or a story among the author\'s own people lives in this world; an invented world usually does not.'),
     writing: text(10, 4_000).nullable().default(null).describe('If the author lives in this world: when they write the book relative to the story\'s events, what they know then, and how far they stand from what they tell. It shapes what can be documented.'),
     whyThisStory: text(20, 4_000).describe('Why this person writes this story now, read from their modeled life.'),
-    teach: text(3, 4_000).describe('What they want to teach or show; say so when nothing is settled.'),
+    teach: text(3, 4_000).describe('What ideas they want to convey, and for each idea the strategy for conveying it; say so when nothing is settled.'),
     figuringOut: text(20, 4_000).describe('What they are figuring out by writing it: the question their own conflicting wants leave open.'),
     lifeRecords: z.array(reference).min(2).max(24).describe('The records of the author\'s life model this reasoning rests on (event:, cut:, process:).'),
   }).strict(),
@@ -348,6 +348,7 @@ async function validateStage(service, world, view, input, model, modelHash) {
     extra.eraQuestions = eraQuestions(world);
   }
   if (world.stage === 'aspects') {
+    extra.interestCatalog = storyInterest;
     const { node } = relatedStage(view, world.openingNodeId, input.storyRootId, 'opening');
     if (node) links.push({ relation: 'refines', targetNodeId: node.id });
     const aspectIds = world.aspects.map((item) => item.id);
@@ -362,7 +363,7 @@ async function validateStage(service, world, view, input, model, modelHash) {
     const { data: chosen } = relatedStage(view, opening?.candidatesNodeId ?? null, input.storyRootId, 'candidates');
     const principals = chosen?.candidates.find((item) => item.id === chosen.selection.chosenId)?.principals ?? [];
     const withoutFlaw = principals.filter((principal) => !world.aspects.some((item) => item.kind === 'flaws' && item.aspect.toLowerCase().includes(principal.name.toLowerCase())));
-    if (withoutFlaw.length) throw new Error(`Investigate each principal's flaw as a process over their life: ${withoutFlaw.map((principal) => principal.name).join(', ')} ${withoutFlaw.length === 1 ? 'has' : 'have'} no flaws aspect naming them.`);
+    if (withoutFlaw.length) throw new Error(`Investigate each principal's flaw as a process over their life: ${withoutFlaw.map((principal) => principal.name).join(', ')} ${withoutFlaw.length === 1 ? 'has' : 'have'} no flaws aspect naming them. Principals are matched by their names in the chosen candidate; if one was named later, mention that name as well.`);
     for (const item of world.aspects) {
       if (item.status === 'modeled' && !item.records.length) throw new Error(`Aspect ${item.id} is marked modeled but names no model record that answers it.`);
       for (const ref of item.records) {

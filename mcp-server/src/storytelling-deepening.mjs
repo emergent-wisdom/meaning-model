@@ -30,8 +30,10 @@ function canonical(value) {
 }
 const digest = (value) => createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
 const textHash = (value) => createHash('sha256').update(value, 'utf8').digest('hex');
+// A smaller unit does not lose the whole: the model, not one long prompt, holds the whole work.
+const WHOLE_WORK = 'The whole work stays in view through the model: read life_model_outline, the disclosure plans and the telling processes (life_document_project) for questions that span chapters, and bind prose only for the parts you revise.';
 function bounded(value, maximum, label) {
-  if (Buffer.byteLength(JSON.stringify(value)) > maximum) throw new Error(`${label} exceeds ${maximum} UTF-8 bytes; select a smaller coherent unit, never truncate its evidence.`);
+  if (Buffer.byteLength(JSON.stringify(value)) > maximum) throw new Error(`${label} exceeds ${maximum} UTF-8 bytes; select a smaller coherent unit, never truncate its evidence. ${WHOLE_WORK}`);
 }
 function descendants(view, rootId) {
   const children = new Map();
@@ -102,7 +104,8 @@ export async function prepareDeepening(service, raw, preparePurposeReview) {
       .sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, bytes]) => `${id} (${Math.ceil(bytes / 1024)} KiB)`);
     throw new Error(`Deepening task exceeds ${limit} UTF-8 bytes; select a smaller coherent unit, never truncate its evidence. `
       + `The prose is ${kib(task.text)} and the bound model ${kib(modelDepth.model ?? null)}.`
-      + (largest.length ? ` Largest context records: ${largest.join(', ')}; superseded reviews are usually safe to leave out of contextNodeIds.` : ''));
+      + (largest.length ? ` Largest context records: ${largest.join(', ')}; superseded reviews are usually safe to leave out of contextNodeIds.` : '')
+      + ` ${WHOLE_WORK}`);
   }
   return { ...task, taskHash: digest(task) };
 }

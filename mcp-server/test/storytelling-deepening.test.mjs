@@ -229,5 +229,6 @@ test('the combined deepening task stays small enough to preserve exactly in an a
   f.view.nodes.find(({ id }) => id === 'capacity').text = 'x'.repeat(390 * 1024);
   await assert.rejects(f.addon.prepareDeepening(f.input), /Deepening task exceeds.*smaller coherent unit/iu);
   await assert.rejects(f.addon.prepareDeepening(f.input), /Largest context records: capacity \(\d+ KiB\)/u, 'the error names what to leave out');
+  await assert.rejects(f.addon.prepareDeepening(f.input), /The whole work stays in view through the model: read life_model_outline/u, 'a smaller unit does not lose the whole');
   assert.deepEqual(f.writes, []);
 });
