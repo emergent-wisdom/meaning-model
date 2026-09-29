@@ -63,12 +63,26 @@ test('the principles are a start, not a boundary: a direction adds a finding of 
   await assert.rejects(direct(service, input({ findings: findings('world'), ownFindings: [] })), /at least one finding of your own/);
 });
 
+test('a discovered failure outside the catalog needs an answer and a fresh passing review too', () => {
+  const node = (id, signature, ownFindings, time) => ({ id, node_type: 'storytelling.direction', subject: 'book', value_time: time,
+    text: JSON.stringify({ data: { schema: DIRECTION_SCHEMA, stage: 'draft', modelHash: 'same', proseSignature: signature,
+      findings: [{ principleId: 'draft.ending', verdict: 'holds' }], ownFindings } }) });
+  const failure = { name: 'Unreliable unit of comparison', verdict: 'fails', modelChange: null, proseChange: 'Clarify which average the scene uses.' };
+  const original = node('d.1', 'before', [failure], 1);
+  const answers = [{ relation: 'answers', target: { kind: 'node', node_id: 'd.1' } }];
+  const state = (nodes, edges = answers) => directionState({ nodes, edges }, 'book', 'same');
+  assert.deepEqual(state([original], []).unanswered[0].failing, ['own:Unreliable unit of comparison']);
+  assert.equal(state([original]).unanswered[0].proseReviewed, false);
+  assert.equal(state([original, node('d.2', 'after', [failure], 2)]).unanswered[0].proseReviewed, false);
+  assert.equal(state([original, node('d.2', 'after', [{ ...failure, verdict: 'holds', proseChange: null }], 2)]).unanswered.length, 0);
+});
+
 // A reviewer should not have to assemble what the principles ask about (the Book's draft director of 29 September
 // ran past its output limit on a hand-built 475K packet): the world task carries the recorded world stages, and the
 // draft task carries the recorded ideas, the Events the passages render, and the reviews to open.
 test('the direction task carries what its principles need and asks for concise findings', async () => {
   const worldNode = { id: 'world.author', node_type: 'storytelling.world', subject: 'book', value_time: 1,
-    text: JSON.stringify({ data: { schema: 'meaning-model-story-world/v1', stage: 'author_reader', teach: 'That a check needs paid time of its own, conveyed through the returned table.' } }) };
+    text: JSON.stringify({ data: { schema: 'meaning-model-story-world/v1', stage: 'author_reader', author: { teach: 'That a check needs paid time of its own, conveyed through the returned table.' } } }) };
   const review = { id: 'review.readback', node_type: 'review', title: 'Blind read-back of the ideas', holder: 'reader' };
   const renders = { family: 'grounding', relation: 'renders', source: { kind: 'node', node_id: 'p1' }, target: { kind: 'anchor', anchor_kind: 'event', anchor_id: 'ev.1' } };
   const stocked = { async queryNarrativeGraph() { return { graph_hash: graphHash, content_included: true, nodes: [worldNode, review], edges: [renders], graph: { source: { kind: 'model', model_hash: 'f'.repeat(64) } } }; },
@@ -80,7 +94,7 @@ test('the direction task carries what its principles need and asks for concise f
   assert.deepEqual(draft.reviews, [{ nodeId: 'review.readback', title: 'Blind read-back of the ideas', holder: 'reader' }]);
   assert.match(draft.instructions, /Keep each evidence under about 1,500 characters and each repair under about 800, and record every finding in one call/);
   const world = await direct(stocked, input({ nodeId: undefined, summary: undefined }));
-  assert.match(world.world.authorReader.teach, /paid time of its own/);
+  assert.match(world.world.authorReader.author.teach, /paid time of its own/);
   assert.equal(world.renderedEvents, undefined);
   assert.ok(directorPrinciples.some((item) => item.id === 'world.ideas') && directorPrinciples.some((item) => item.id === 'draft.ideas'));
 });

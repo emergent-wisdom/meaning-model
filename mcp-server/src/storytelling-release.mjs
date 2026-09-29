@@ -61,8 +61,8 @@ export async function releaseStory(service, raw) {
   assertPassageGrounding(groundingGraph);
   const intentionallyUnlinked = passageGrounding(groundingGraph).filter((item) => !item.eventIds.length && item.noLink)
     .map(({ nodeId, noLink }) => ({ nodeId, ...noLink }));
-  // Telling phases are authoring records that readers never see, so a stale phase does not stop a release. It is named
-  // in the result and in the recorded decision, so a release cannot pass it silently.
+  // Releasing prose does not widen telling-record scopes. A stale phase is advisory; report it only to
+  // authorized scopes, including when the author has separately made a telling record readable.
   let tellingPhases = []; let tellingNotChecked = null;
   try {
     tellingPhases = phasesNeedingReview(projectDocument({ rendered: projection, nodes: view.nodes, edges: view.edges, rootId: input.storyRootId }).processes);

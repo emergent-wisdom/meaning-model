@@ -31,7 +31,7 @@ or continuation, rather than another modeling workflow.
 
 ## Browser viewer
 
-With version 0.5.2, ask the connected assistant to **“Open this model.”**
+With version 0.6.0, ask the connected assistant to **“Open this model.”**
 The core `life_model_viewer_open` tool accepts exactly one `modelHash` or
 `graphHash`, optional `title`, `accessScopes`, and `mode` (`snapshot` or `live`).
 It returns a local browser URL; the default is an immutable, read-only snapshot. The viewer is bundled with the MCP package;
@@ -1278,6 +1278,19 @@ model or companion material. Advanced callers may omit `destinationPath` for
 inline export (maximum 1 MiB) and pass that result to import as `history`; supply
 exactly one of `history` or `sourcePath`. See [persistence limits](#honest-boundary)
 below.
+
+Large tool replies keep the complete result in `structuredContent`. Small replies
+also include the existing formatted JSON text; when duplicating it would exceed
+the server's 9 MiB response budget, the text instead explains where the complete
+structured result is. This leaves room below the MCP SDK's default 10 MiB stdio
+buffer. Clients should read `structuredContent` when present. Text-only clients
+can request a narrative `skeleton` or bounded `neighborhood`, omit content, or
+export construction history with `destinationPath` as above.
+
+If the structured result alone cannot fit, the tool returns an explicit error,
+not a partial graph. Narrow the query or use file export. The size check happens
+after the operation returns, so a write may already have completed; inspect the
+saved state before retrying a write.
 
 ## Prepare an npm tarball
 

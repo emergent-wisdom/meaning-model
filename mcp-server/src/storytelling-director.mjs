@@ -96,15 +96,17 @@ export async function proseSignature(service, graphHash, storyRootId, accessScop
 // a later passing draft direction, as well as the existing answers record. Release verifies that read is current.
 export function directionState(view, storyRootId, boundModelHash) {
   const all = readDirections(view, storyRootId);
+  const failuresOf = (data) => [...(data.findings ?? []), ...(data.ownFindings ?? []).map((finding) =>
+    ({ ...finding, principleId: `own:${finding.name}` }))].filter((finding) => finding.verdict === 'fails');
   const latest = (stage) => all.filter((item) => item.data.stage === stage).at(-1) ?? null;
   const draft = latest('draft');
   const unanswered = all.flatMap((item, index) => {
-    const failures = item.data.findings.filter((finding) => finding.verdict === 'fails');
+    const failures = failuresOf(item.data);
     if (!failures.length) return [];
     const modelChangeRequired = failures.some((finding) => finding.modelChange || !finding.proseChange);
     const proseChangeRequired = failures.some((finding) => finding.proseChange);
     const proseReviewed = !!(draft && all.indexOf(draft) > index && item.data.proseSignature && draft.data.proseSignature
-      && draft.data.proseSignature !== item.data.proseSignature && !draft.data.findings.some((finding) => finding.verdict === 'fails'));
+      && draft.data.proseSignature !== item.data.proseSignature && !failuresOf(draft.data).length);
     const modelUnchanged = item.data.modelHash === boundModelHash;
     return !item.answered || (modelChangeRequired && modelUnchanged) || (proseChangeRequired && !proseReviewed)
       ? [{ nodeId: item.node.id, stage: item.data.stage, failing: failures.map((finding) => finding.principleId),
@@ -139,7 +141,7 @@ export async function direct(service, raw) {
       renderedEvents = (model?.meaning_model?.events ?? []).filter((event) => ids.has(event.id))
         .map(({ id, boundary, description, interval }) => ({ id, boundary, description: description ?? null, interval: interval ?? null }));
     }
-    const ideas = world.authorReader ? { nodeId: world.authorReader.node.id, teach: world.authorReader.data.teach ?? null } : null;
+    const ideas = world.authorReader ? { nodeId: world.authorReader.node.id, teach: world.authorReader.data.author?.teach ?? null } : null;
     const reviews = input.stage === 'draft' ? (view.nodes ?? []).filter((node) => node.node_type === 'review')
       .map((node) => ({ nodeId: node.id, title: node.title ?? null, holder: node.holder ?? null })) : undefined;
     return { schema: 'meaning-model-story-direction-task/v1', stage: input.stage, directorId: input.directorId, independent: input.independent, principles,

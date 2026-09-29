@@ -4,6 +4,7 @@ import { scaffoldHint } from './scaffold-examples.mjs';
 import { McpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
+import { toolResult } from './tool-result.mjs';
 
 import { parseEnabledAddons } from './addon-config.mjs';
 import { createEstimator, parseEstimatorConfig } from './estimator-config.mjs';
@@ -47,7 +48,7 @@ const enabledAddons = parseEnabledAddons(process.env.MEANING_MODEL_ADDONS);
 const estimator = createEstimator(parseEstimatorConfig(process.env));
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.5.2',
+  version: '0.6.0',
 }, {
   instructions: 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.\n\nIn every mode, begin modeling with life_modeling_context and follow its shared construction guidance. Explore recursively where a useful question, connection or discovery warrants it; record what is sufficient and what remains uncertain without forcing extra detail. Anything that changes over time can be modeled as a process, including qualities often written as fixed descriptions, such as a voice, a style, a belief or the culture of an institution. From the first story exploration, consider how the telling itself develops across reading position: tension, pacing, disclosure or other processes that matter to this work. Follow these questions recursively, using stable passage links and authored evidence without a required dramatic formula or numerical score. Keep reading position distinct from world time and authoring history. Let the work choose its form; books need not have a protagonist, conflict, climax or resolution. Use the shared narrative graph for forms that do not fit scenes, without inventing a cast to satisfy a template. Before writing or revising prose, consider author and character voice, reader disclosure, and consequential physical placement. Use declared passage links and existing records. At meaningful milestones, use the controlled read-back guidance to compare selected output against a blind control, reporting fidelity separately from improvement over the control. Do not wait for a special user request; if independent readers are unavailable, record that limitation rather than inventing a result. These are instructions to the calling LLM, not claims that the server has assessed meaning or automatically run reviewers.',
 });
@@ -91,13 +92,6 @@ function withRefusalHint(error: unknown, extra: string | null = null): Error {
   const message = error instanceof Error ? error.message : String(error);
   const hints = [...refusalHints.filter(([pattern]) => pattern.test(message)).map(([, hint]) => hint), ...(extra && /compile_profiles failed/u.test(message) ? [extra] : [])];
   return hints.length ? Object.assign(new Error(`${message} ${hints.join(' ')}`), { cause: error }) : (error instanceof Error ? error : new Error(message));
-}
-
-function toolResult(value: Record<string, unknown>) {
-  return {
-    content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }],
-    structuredContent: value,
-  };
 }
 
 for (const resource of listModelingResources()) {

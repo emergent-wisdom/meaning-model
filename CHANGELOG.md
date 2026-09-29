@@ -6,6 +6,24 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+## 0.6.0 — 2026-09-29
+
+- Modeling guidance encourages discovering implicit trackable concepts, opening
+  their processes and building further abstractions on the explicit structure.
+  Storytelling remains an optional, open-ended use of the general grammar.
+- Story direction includes the author's recorded ideas, relevant model evidence
+  and attributed reviews. Recorded readings and telling phases identify when
+  their source text changes, so revisions can be reviewed in context.
+- Large MCP replies retain their complete structured result without duplicating
+  it in text. Oversized results fail explicitly with smaller-query and file-export
+  guidance instead of silently truncating the graph.
+- Book and author-life choices remain grouped in the shared viewer. Standalone
+  exports preserve telling processes and the rendered manuscript.
+- The paper and grammar clarify the construction method and its evidence limits.
+  The revised Book of Conditions example and both downloadable stories include
+  attributed review and revision records; full stories remain separate from the
+  npm package.
+
 ## 0.5.2 — 2026-09-28
 
 - Shining starts off; an explicit choice to enable it survives shared links.
