@@ -8,6 +8,8 @@ import { definitionFromCompleteView, narrativeDefinitionDelta } from './narrativ
 import { assertCompleteNarrativeView } from './narrative-rebind.mjs';
 import { prepareAuthorRecord } from './storytelling-authoring.mjs';
 import { assertPassageGrounding, passageGrounding, isEventRenderEdge } from './narrative-grounding.mjs';
+import { projectDocument } from './document-projection.mjs';
+import { phasesNeedingReview } from './document-processes.mjs';
 
 const id = z.string().trim().min(1).max(256);
 export const storyReleaseSchema = z.object({
@@ -59,6 +61,21 @@ export async function releaseStory(service, raw) {
   assertPassageGrounding(groundingGraph);
   const intentionallyUnlinked = passageGrounding(groundingGraph).filter((item) => !item.eventIds.length && item.noLink)
     .map(({ nodeId, noLink }) => ({ nodeId, ...noLink }));
+  // Telling phases are authoring records that readers never see, so a stale phase does not stop a release. It is named
+  // in the result and in the recorded decision, so a release cannot pass it silently.
+  let tellingPhases = []; let tellingNotChecked = null;
+  try {
+    tellingPhases = phasesNeedingReview(projectDocument({ rendered: projection, nodes: view.nodes, edges: view.edges, rootId: input.storyRootId }).processes);
+  } catch (error) { tellingNotChecked = error.message; }
+  // The decision is stored under at most the supplied scopes, so it records a phase only when every one of them can
+  // read the phase's own record: an author-only phase never reaches a wider audience through the decision. The
+  // result, returned to the caller who supplied those scopes, lists every phase.
+  const readableByAll = (phase) => {
+    const own = nodes.get(phase.processNodeId)?.access_scopes ?? [];
+    return !own.length || scopes.every((scope) => own.includes(scope));
+  };
+  const tellingResult = { tellingPhasesNeedingReview: tellingPhases, ...(tellingNotChecked ? { tellingNotChecked } : {}) };
+  const tellingRecord = { tellingPhasesNeedingReview: tellingPhases.filter(readableByAll), ...(tellingNotChecked ? { tellingNotChecked } : {}) };
   const released = new Set();
   for (const nodeId of rendered) for (let cursor = nodeId; cursor && cursor !== input.storyRootId; cursor = parent.get(cursor)) released.add(cursor);
   if (root.access_scopes?.length) released.add(root.id);
@@ -89,7 +106,7 @@ export async function releaseStory(service, raw) {
   const scenes = [...prose].filter((nodeId) => nodes.get(nodeId)?.node_type === 'storytelling.scene');
   const record = await prepareAuthorRecord(service, { graphHash: input.graphHash, requestId: `${input.requestId}.record`, nodeId: input.nodeId,
     storyRootId: input.storyRootId, authorId: input.authorId, accessScopes: scopes, kind: 'decision', text: input.reason,
-    data: { release: { storyRootId: input.storyRootId, releaseTo: input.releaseTo.length ? input.releaseTo : 'everyone', nodeIds: releasedNodeIds.sort(), edgeIds: releasedEdgeIds.sort(), clearedHiddenTextNodeIds: clearedHiddenTextNodeIds.sort(), intentionallyUnlinked } },
+    data: { release: { storyRootId: input.storyRootId, releaseTo: input.releaseTo.length ? input.releaseTo : 'everyone', nodeIds: releasedNodeIds.sort(), edgeIds: releasedEdgeIds.sort(), clearedHiddenTextNodeIds: clearedHiddenTextNodeIds.sort(), intentionallyUnlinked, ...tellingRecord } },
     links: scenes.slice(0, 64).map((nodeId) => ({ relation: 'about', targetNodeId: nodeId })) });
   graph.roots = [...graph.roots, ...record.narrativeBatch.add_roots];
   graph.nodes.push(...record.narrativeBatch.add_nodes);
@@ -102,6 +119,6 @@ export async function releaseStory(service, raw) {
   return { ...stored, schema: 'meaning-model-story-release/v1', previousGraphHash: input.graphHash, storyRootId: input.storyRootId,
     releaseTo: input.releaseTo, releasedNodeIds: releasedNodeIds.sort(), releasedEdgeIds: releasedEdgeIds.sort(), clearedHiddenTextNodeIds: clearedHiddenTextNodeIds.sort(), decisionNodeId: input.nodeId,
     graphMutation: true, worldMutation: false,
-    intentionallyUnlinked,
-    nextStep: `Render with life_narrative_render and accessScopes ${JSON.stringify(input.releaseTo)} to read the story as a reader does. The dossier, drafts, reviews and author model keep their scopes; check that the prose itself reveals nothing the author meant to keep.` };
+    intentionallyUnlinked, ...tellingResult,
+    nextStep: `Render with life_narrative_render and accessScopes ${JSON.stringify(input.releaseTo)} to read the story as a reader does. The dossier, drafts, reviews and author model keep their scopes; check that the prose itself reveals nothing the author meant to keep.${tellingPhases.length ? ` ${tellingPhases.length} telling phase${tellingPhases.length === 1 ? ' was' : 's were'} not current at release: re-read ${tellingPhases.length === 1 ? 'it' : 'them'} and record a superseding assessment, or record why ${tellingPhases.length === 1 ? 'it stands' : 'they stand'}.` : ''}${tellingNotChecked ? ` Telling phases were not checked: ${tellingNotChecked}` : ''}` };
 }

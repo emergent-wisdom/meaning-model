@@ -185,3 +185,134 @@ test('a renders Cut dependency remains affected when the Cut is removed or moved
     assert.ok(result.changed[change === 'removed' ? 'removedCuts' : 'moved'].includes('cut.choice'), change);
   }
 });
+
+// Found in the Book's revision 14: assessments about rewritten Events carried 27 untracked Cuts, and the check named none.
+test('a Cut whose Event is about a changed Event is listed for review with its own text basis', async () => {
+  const view = { id: 'ana.view', boundary: 'Ana weighs the night shifts', description: 'What she attends to before she signs.', interval: at(2005), participants: { subject: 'person.ana' } };
+  const withAssessment = (model, provenance) => {
+    const copy = structuredClone(model);
+    copy.meaning_model.events.push(structuredClone(view));
+    copy.meaning_model.event_relations.push({ id: 'r.view', kind: 'other', description: 'about: reference only, not participation', source_event_id: 'ana.view', target_event_id: 'ana.choice' });
+    copy.meaning_model.normalized_cuts.push({ id: 'cut.view', parent_event_id: 'ana.view', unit: 'attention', question: 'What does she attend to?',
+      answers: [{ key: 'money', weight: 0.5 }, { key: 'remainder', weight: 0.5 }], ...(provenance ? { provenance } : {}) });
+    return copy;
+  };
+  const untracked = await checkGraph([], [], withAssessment(after), withAssessment(before));
+  assert.deepEqual(untracked.assessments.map(({ cutId, eventId, about, textBasis }) => ({ cutId, eventId, about, textBasis })),
+    [{ cutId: 'cut.view', eventId: 'ana.view', about: ['ana.choice'], textBasis: 'untracked' }]);
+  assert.match(untracked.assessments[0].why, /still fit/u);
+  assert.match(untracked.nextStep, /check assessments about changed Events/u);
+  // A signed assessment whose own text is unchanged is still listed: its subject changed, not its carrier.
+  const signed = [`event-text:${eventTextSignature(view)}`];
+  const tracked = await checkGraph([], [], withAssessment(after, signed), withAssessment(before, signed));
+  assert.deepEqual(tracked.assessments.map(({ cutId, textBasis }) => ({ cutId, textBasis })), [{ cutId: 'cut.view', textBasis: 'unchanged' }]);
+  // Without a change to the Event it is about, nothing is listed.
+  const unchanged = await checkGraph([], [], withAssessment(before), withAssessment(before));
+  assert.deepEqual(unchanged.assessments, []);
+});
+
+// A recheck records what the judgment read; the record stays checkable on every later revision check.
+test('recorded reads clear a rechecked assessment and flag it again when what it read changes', async () => {
+  const view = { id: 'ana.view', boundary: 'Ana weighs the night shifts', description: 'What she attends to before she signs.', interval: at(2005), participants: { subject: 'person.ana' } };
+  const withAssessment = (model, provenance = []) => {
+    const copy = structuredClone(model);
+    copy.meaning_model.events.push(structuredClone(view));
+    copy.meaning_model.event_relations.push({ id: 'r.view', kind: 'about', source_event_id: 'ana.view', target_event_id: 'ana.choice' });
+    copy.meaning_model.normalized_cuts.push({ id: 'cut.view', parent_event_id: 'ana.view', unit: 'attention', question: 'What does she attend to?',
+      answers: [{ key: 'money', weight: 0.5 }, { key: 'remainder', weight: 0.5 }], provenance });
+    return copy;
+  };
+  const listed = await checkGraph([], [], withAssessment(after), withAssessment(before));
+  const { signWith, compared } = listed.assessments[0];
+  assert.deepEqual(compared, []);
+  assert.deepEqual(signWith, [`read:event:ana.view=${eventTextSignature(view)}`, `read:event:ana.choice=${eventTextSignature(after.meaning_model.events[1])}`]);
+  // Recording the returned reads answers it.
+  const rechecked = await checkGraph([], [], withAssessment(after, signWith), withAssessment(before, signWith));
+  assert.deepEqual(rechecked.assessments, []); assert.deepEqual(rechecked.readings.map((item) => item.cutId), ['lens.x.ana.choice']);
+  // A later rewrite of what it read keeps it visible, whichever revisions are compared.
+  const later = withAssessment(after, signWith); later.meaning_model.events[1].description = 'Every night in April.';
+  const stale = await checkGraph([], [], later, later);
+  const reading = stale.readings.find((item) => item.cutId === 'cut.view');
+  assert.deepEqual(reading.changedReads.map(({ kind, eventId, status }) => ({ kind, eventId, status })), [{ kind: 'event', eventId: 'ana.choice', status: 'needs_review' }]);
+  assert.match(reading.changedReads[0].compared, /the text of Event ana\.choice/u);
+});
+
+test('a recorded life read follows the coarse account to its cutoff, not finer detail or later Events', async () => {
+  const model = structuredClone(before);
+  model.meaning_model.events.push(
+    { id: 'ana.inner', boundary: 'Ana\'s inner life', interval: at(1980, 2030), participants: { subject: 'person.ana' } },
+    { id: 'ana.view', boundary: 'Ana weighs the shifts', description: 'Before she signs.', interval: at(2005), participants: { subject: 'person.ana' } },
+    { id: 'ana.late', boundary: 'Ana moves north', description: 'In 2010.', interval: at(2010), participants: { subject: 'person.ana' } });
+  model.meaning_model.event_relations.push({ id: 'r.inner', kind: 'contains', source_event_id: 'ana.life', target_event_id: 'ana.inner' },
+    { id: 'r.view', kind: 'contains', source_event_id: 'ana.inner', target_event_id: 'ana.view' },
+    { id: 'r.late', kind: 'contains', source_event_id: 'ana.life', target_event_id: 'ana.late' });
+  model.meaning_model.normalized_cuts.push({ id: 'cut.view', parent_event_id: 'ana.view', unit: 'attention', question: 'What does she attend to?', answers: [{ key: 'money', weight: 0.5 }, { key: 'remainder', weight: 0.5 }] });
+  const { readSignatures } = await import('../src/reading-evidence.mjs');
+  const { indexModel } = await import('../src/model-questions.mjs');
+  const { lifeRead } = readSignatures(model.meaning_model.normalized_cuts.at(-1), indexModel(model));
+  assert.match(lifeRead, /^read:life:ana\.life@2005\.1\/1=[0-9a-f]{16}$/u);
+  model.meaning_model.normalized_cuts.at(-1).provenance = [lifeRead];
+  const staleReads = async (changed) => (await checkGraph([], [], changed, changed)).readings.filter((item) => item.cutId === 'cut.view');
+  assert.deepEqual(await staleReads(model), []);
+  const laterEvent = structuredClone(model); laterEvent.meaning_model.events.find((event) => event.id === 'ana.late').description = 'In 2011, alone.';
+  assert.deepEqual(await staleReads(laterEvent), [], 'an Event after the cutoff does not touch the life so far');
+  const finer = structuredClone(model);
+  finer.meaning_model.events.push({ id: 'ana.choice.first', boundary: 'The first night', interval: at(2005.01), participants: { subject: 'person.ana' } });
+  finer.meaning_model.event_relations.push({ id: 'r.first', kind: 'contains', source_event_id: 'ana.choice', target_event_id: 'ana.choice.first' });
+  assert.deepEqual(await staleReads(finer), [], 'finer detail below the declared depth does not change the coarse account');
+  const revised = structuredClone(model); revised.meaning_model.events.find((event) => event.id === 'ana.choice').description = 'Every night in March, for her brother.';
+  const [flagged] = await staleReads(revised);
+  assert.equal(flagged.changedReads[0].kind, 'life'); assert.equal(flagged.changedReads[0].depth, 1); assert.equal(flagged.changedReads[0].cutoff, 2005.1);
+  assert.match(flagged.changedReads[0].compared, /the life account of ana\.life up to 2005\.1 at containment depth 1/u);
+});
+
+test('a reading under an understanding root is covered by a signature on the Event it is about', async () => {
+  const withReading = (model, signed) => {
+    const copy = structuredClone(model);
+    copy.meaning_model.context_roots = [{ event_id: 'u.root', kind: 'understanding' }];
+    copy.meaning_model.events.push({ id: 'u.root', boundary: 'Construction understanding' }, { id: 'u.reading', boundary: 'How the founders divide the work' });
+    copy.meaning_model.event_relations.push({ id: 'r.u', kind: 'contains', source_event_id: 'u.root', target_event_id: 'u.reading' },
+      { id: 'r.about', kind: 'about', source_event_id: 'u.reading', target_event_id: 'ana.choice' });
+    copy.meaning_model.normalized_cuts.push({ id: 'cut.reading', parent_event_id: 'u.reading', unit: 'u', question: 'q', answers: [{ key: 'a', weight: 1 }, { key: 'remainder', weight: 0 }],
+      provenance: [`event-text:${eventTextSignature(signed)}`] });
+    return copy;
+  };
+  const current = await checkGraph([], [], withReading(after, after.meaning_model.events[1]), withReading(before, after.meaning_model.events[1]));
+  assert.ok(!current.assessments.some((item) => item.cutId === 'cut.reading') && !current.readings.some((item) => item.cutId === 'cut.reading'));
+  const old = await checkGraph([], [], withReading(after, before.meaning_model.events[1]), withReading(before, before.meaning_model.events[1]));
+  assert.equal(old.readings.find((item) => item.cutId === 'cut.reading').compared, 'the text of Event ana.choice');
+});
+
+// A telling phase records the passages it was read against. The Book's revision 15 changed passages under nine phases
+// whose quoted excerpts all survived, and no check named them; the check now lists them whatever models it compares.
+test('telling phases whose reviewed passages changed are listed on every check until renewed', async () => {
+  const passageText = 'The offer lay beside the ovens.';
+  const rendered = (contentHash) => ({ schema: 'life-sim-rust-narrative-render/v1', join_policy: 'blank_line', roots: ['story'],
+    graph_hash: 'c'.repeat(64), projection_hash: 'p'.repeat(64), text: `# Story\n\n${passageText}`,
+    units: [{ node_id: 'story', role: 'document_root', text: '# Story', content_hash: 'r'.repeat(64) },
+      { node_id: 'story.p1', role: 'story_passage', text: passageText, content_hash: contentHash }] });
+  const phaseRecord = (basisHash) => ({ id: 'telling.offer', node_type: 'storytelling.assessment', role: 'externalized_reflection', render: 'exclude',
+    holder: 'fixture-author', text: JSON.stringify({ schema: 'meaning-model-story-author-record/v1', kind: 'assessment', text: 'How the offer is held back.',
+      data: { schema: 'meaning-model-document-process/v1', documentId: 'story', label: 'The offer', question: 'When does the reader see the offer?',
+        summary: 'It is shown before it is explained.', states: [{ label: 'Shown', spanId: 'span.offer', description: 'The offer is visible.',
+          evidence: [{ nodeId: 'story.p1', excerpt: 'The offer lay' }], basisUnits: [{ nodeId: 'story.p1', contentHash: basisHash }] }] } }) });
+  const graph = (basisHash) => ({ ...view,
+    nodes: [...view.nodes, { id: 'story', role: 'document_root', render: 'include', text: '# Story' },
+      { id: 'story.p1', role: 'story_passage', render: 'include', text: passageText },
+      { id: 'span.offer', node_type: 'document.span', role: 'metadata', render: 'exclude', text: JSON.stringify({ schema: 'meaning-model-document-span/v1',
+        documentId: 'story', start: { nodeId: 'story.p1', boundary: 'start' }, end: { nodeId: 'story.p1', boundary: 'end' } }) }, phaseRecord(basisHash)],
+    edges: [...view.edges, { id: 'story.contains.p1', family: 'structural', relation: 'contains', source: { kind: 'node', node_id: 'story' }, target: { kind: 'node', node_id: 'story.p1' } }] });
+  const same = { inspectModel: async () => ({ model: before }), renderNarrativeGraph: async () => rendered('now'.padEnd(64, '0')) };
+  const input = { graphHash: 'c'.repeat(64), fromModelHash: 'a'.repeat(64), toModelHash: 'a'.repeat(64) };
+  const stale = await checkRevision({ ...same, queryNarrativeGraph: async () => graph('then'.padEnd(64, '0')) }, input);
+  assert.deepEqual(stale.telling.map(({ processNodeId, phase, status, reason }) => ({ processNodeId, phase, status, reason })),
+    [{ processNodeId: 'telling.offer', phase: 'Shown', status: 'needs_review', reason: 'passages_changed' }], 'listed although no model changed');
+  assert.equal(stale.toCheck, 1);
+  assert.match(stale.nextStep, /renew telling phases whose passages changed/u);
+  const renewed = await checkRevision({ ...same, queryNarrativeGraph: async () => graph('now'.padEnd(64, '0')) }, input);
+  assert.deepEqual(renewed.telling, []); assert.equal(renewed.toCheck, 0);
+  // A document the check cannot project is reported, not guessed.
+  const unrendered = await checkRevision({ ...same, renderNarrativeGraph: async () => { throw new Error('render unavailable'); },
+    queryNarrativeGraph: async () => graph('then'.padEnd(64, '0')) }, input);
+  assert.deepEqual(unrendered.telling, []); assert.deepEqual(unrendered.tellingNotChecked, [{ documentId: 'story', reason: 'render unavailable' }]);
+});

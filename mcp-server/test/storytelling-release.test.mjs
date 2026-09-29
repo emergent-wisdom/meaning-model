@@ -159,6 +159,29 @@ test('reader release preserves visible Event depiction links without exposing au
   assert.ok(read.edges.some((edge) => edge.id === 'scene.event'));
   assert.ok(!read.nodes.some((node) => node.role === 'externalized_reflection'));
   assert.deepEqual(released.intentionallyUnlinked, []);
+  assert.deepEqual(released.tellingPhasesNeedingReview, []);
+});
+
+test('a release names telling phases whose passages changed since they were read, without refusing it', async (t) => {
+  const span = { id: 'span.offer', node_type: 'document.span', role: 'metadata', title: 'span.offer', epistemic_status: 'authored', evidence_type: 'fictional_canon',
+    authority: { source: 'author', weight: 1 }, access_scopes: author, render: 'exclude', training: 'exclude', provenance,
+    text: JSON.stringify({ schema: 'meaning-model-document-span/v1', documentId: 'story', start: { nodeId: 'scene.1', boundary: 'start' }, end: { nodeId: 'scene.1', boundary: 'end' } }) };
+  const f = await setup(t, [scene('scene.1', 'The offer lay beside the ovens.', author), span], [contains('story.s1', 'story', 'scene.1', 0, author),
+    { id: 'span.offer.document', source: { kind: 'node', node_id: 'span.offer' }, target: { kind: 'node', node_id: 'story' }, family: 'semantic', relation: 'about', access_scopes: author, provenance }]);
+  const recorded = await storeAuthorRecord(f.service, { graphHash: f.graphHash, exactRevision: true, requestId: 'telling', nodeId: 'telling.offer', storyRootId: 'story',
+    authorId: 'author', accessScopes: author, kind: 'assessment', text: 'How the offer is held back.',
+    data: { schema: 'meaning-model-document-process/v1', documentId: 'story', label: 'The offer', question: 'When does the reader see the offer?',
+      summary: 'It is shown before it is explained.', states: [{ label: 'Shown', spanId: 'span.offer', description: 'The offer is visible.',
+        evidence: [{ nodeId: 'scene.1', excerpt: 'The offer lay' }] }] } });
+  // The quoted excerpt survives the edit; the passage it was read in does not.
+  const edited = await editNarrativeGraph(f.service, { requestId: 'edit', graphHash: recorded.graphHash, accessScopes: author, reason: 'Tighten the line.',
+    operations: [{ kind: 'replace_text', nodeId: 'scene.1', expectedText: 'The offer lay beside the ovens.', text: 'The offer lay beside the cooling ovens.', noLinkReason }] });
+  const released = await release(f.service, await directed(f.service, edited.graphHash));
+  assert.deepEqual(released.tellingPhasesNeedingReview.map(({ processNodeId, phase, reason }) => ({ processNodeId, phase, reason })),
+    [{ processNodeId: recorded.recordNodeId, phase: 'Shown', reason: 'passages_changed' }]);
+  assert.match(released.nextStep, /1 telling phase was not current at release/u);
+  const decision = (await f.read(released.graphHash, author)).nodes.find((node) => node.id === released.decisionNodeId);
+  assert.deepEqual(JSON.parse(decision.text).data.release.tellingPhasesNeedingReview.map((phase) => phase.processNodeId), [recorded.recordNodeId]);
 });
 
 test('release grounding checks native next-chain prose beyond containment children', async (t) => {
@@ -167,4 +190,33 @@ test('release grounding checks native next-chain prose beyond containment childr
   const ready = await directed(f.service, f.graphHash);
   assert.match(await f.render(ready, author), /A second unlinked passage/);
   await assert.rejects(release(f.service, ready), /noLinkReason: next/);
+});
+
+// Reproduces a review finding of 29 September: the decision record is visible to every scope the release was given,
+// so it must not copy a telling phase that some of those scopes cannot read.
+test('a release decision never shows an author-only telling phase to a wider scope, while the caller still hears of it', async (t) => {
+  const both = ['editor', 'story-author'];
+  const span = { id: 'span.offer', node_type: 'document.span', role: 'metadata', title: 'span.offer', epistemic_status: 'authored', evidence_type: 'fictional_canon',
+    authority: { source: 'author', weight: 1 }, access_scopes: both, render: 'exclude', training: 'exclude', provenance,
+    text: JSON.stringify({ schema: 'meaning-model-document-span/v1', documentId: 'story', start: { nodeId: 'scene.1', boundary: 'start' }, end: { nodeId: 'scene.1', boundary: 'end' } }) };
+  const f = await setup(t, [scene('scene.1', 'The offer lay beside the ovens.', both), span], [contains('story.s1', 'story', 'scene.1', 0, both),
+    { id: 'span.offer.document', source: { kind: 'node', node_id: 'span.offer' }, target: { kind: 'node', node_id: 'story' }, family: 'semantic', relation: 'about', access_scopes: both, provenance }]);
+  // A record both scopes can read comes first, so the author understanding root is shared with the editor.
+  const shared = await storeAuthorRecord(f.service, { graphHash: f.graphHash, exactRevision: true, requestId: 'shared', nodeId: 'note.shared', storyRootId: 'story',
+    authorId: 'author', accessScopes: both, kind: 'idea', text: 'The editor may read this idea.', data: {}, about: [{ nodeId: 'story' }] });
+  const secret = await storeAuthorRecord(f.service, { graphHash: shared.graphHash, exactRevision: true, requestId: 'telling', nodeId: 'telling.private', storyRootId: 'story',
+    authorId: 'author', accessScopes: author, kind: 'assessment', text: 'Only the author reads this telling process.',
+    data: { schema: 'meaning-model-document-process/v1', documentId: 'story', label: 'Private telling', question: 'When does the reader see the offer?',
+      summary: 'It is shown before it is explained.', states: [{ label: 'Author-only telling phase', spanId: 'span.offer', description: 'The offer is visible.',
+        evidence: [{ nodeId: 'scene.1', excerpt: 'The offer lay' }] }] } });
+  const edited = await editNarrativeGraph(f.service, { requestId: 'edit', graphHash: secret.graphHash, accessScopes: both, reason: 'Tighten the line.',
+    operations: [{ kind: 'replace_text', nodeId: 'scene.1', expectedText: 'The offer lay beside the ovens.', text: 'The offer lay beside the cooling ovens.', noLinkReason }] });
+  const released = await releaseStory(f.service, { graphHash: await directed(f.service, edited.graphHash), requestId: 'release-both', nodeId: 'author.release.both',
+    storyRootId: 'story', authorId: 'author', accessScopes: both, releaseTo: ['reader'], reason: 'The human approved publishing.' });
+  assert.deepEqual(released.tellingPhasesNeedingReview.map((phase) => phase.phase), ['Author-only telling phase'], 'the caller, who holds both scopes, is told');
+  const asEditor = await f.read(released.graphHash, ['editor']);
+  const decision = asEditor.nodes.find((node) => node.id === released.decisionNodeId);
+  assert.ok(decision, 'the editor can read the release decision, so the test would see a leak');
+  assert.deepEqual(JSON.parse(decision.text).data.release.tellingPhasesNeedingReview, []);
+  assert.ok(!JSON.stringify(asEditor).includes('Author-only telling phase'), 'nothing the editor can read names the private phase');
 });

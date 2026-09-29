@@ -86,3 +86,11 @@ export function projectDocumentProcesses({ projection, nodes, edges }) {
   }
   return result;
 }
+
+// The phases a check surfaces for review: those whose reviewed passages or reading order changed since they were
+// recorded, or whose span no longer resolves. Superseded processes are already excluded by the projection.
+export function phasesNeedingReview(processes) {
+  return processes.flatMap((process) => process.states.filter((state) => state.status !== 'current').map((state) => ({
+    processNodeId: process.nodeId, documentId: process.documentId, holder: process.holder ?? null,
+    phase: state.label, spanId: state.spanId, status: state.status, reason: state.reason ?? null })));
+}

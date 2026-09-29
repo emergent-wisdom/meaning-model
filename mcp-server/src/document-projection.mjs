@@ -1,5 +1,5 @@
 import * as z from 'zod/v4';
-import { projectDocumentProcesses } from './document-processes.mjs';
+import { phasesNeedingReview, projectDocumentProcesses } from './document-processes.mjs';
 
 const id = z.string().trim().min(1).max(1024);
 const boundary = z.object({ nodeId: id, boundary: z.enum(['start', 'end']) }).strict();
@@ -119,4 +119,31 @@ export async function projectNarrativeDocument(service, raw) {
     throw new Error('Document projection requires matching exact graph revisions and visible content.');
   }
   return projectDocument({ rendered, nodes: view.nodes, edges: view.edges, rootId: input.rootId });
+}
+
+// Telling phases needing review in each document of a complete graph view that has telling processes. Only those
+// documents are rendered; a document that cannot be projected is reported rather than guessed.
+export async function tellingPhasesNeedingReview(service, { graphHash, view, accessScopes }) {
+  const documents = new Set();
+  for (const node of view.nodes ?? []) {
+    if (!['metadata', 'externalized_reflection'].includes(node.role) || !String(node.text ?? '').includes('meaning-model-document-process/v1')) continue;
+    try {
+      const payload = JSON.parse(node.text);
+      const data = payload?.schema === 'meaning-model-story-author-record/v1' ? payload.data : payload;
+      if (data?.schema === 'meaning-model-document-process/v1' && data.documentId) documents.add(data.documentId);
+    } catch { /* Not a telling-process record. */ }
+  }
+  const phases = []; const notChecked = [];
+  for (const rootId of [...documents].sort()) {
+    if (!(view.nodes ?? []).some((node) => node.id === rootId && node.role === 'document_root')) {
+      notChecked.push({ documentId: rootId, reason: 'The document root is not visible with these accessScopes.' }); continue;
+    }
+    try {
+      const rendered = await service.renderNarrativeGraph({ graphHash, expectedGraphHash: graphHash, rootIds: [rootId], accessScopes });
+      phases.push(...phasesNeedingReview(projectDocument({ rendered, nodes: view.nodes, edges: view.edges, rootId }).processes));
+    } catch (error) {
+      notChecked.push({ documentId: rootId, reason: error.message });
+    }
+  }
+  return { phases, notChecked };
 }

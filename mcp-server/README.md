@@ -333,9 +333,13 @@ revision, either explicitly or with the tool's `rebind` option.
 
 `life_revision_check` compares two model revisions using a scoped graph. It lists
 changed Events and Cuts, conditioned Cuts, affected draws, stale text readings,
-directly related later Events, passages with `renders` dependencies and anchored
-notes. It also identifies passages lacking Event grounding or a current no-link
-reason. It does not repair them or verify prose meaning, complete dependency
+Cuts whose Event is about a changed Event (until a recorded read covers the
+change), directly related later Events, passages with `renders` dependencies and
+anchored notes. A Cut may record the Events or the life account it read; those
+reads are compared on every check. Telling phases whose reviewed passages or
+reading order changed are listed on every check until they are renewed, since
+they depend on the text rather than on the models compared. It also identifies
+passages lacking Event grounding or a current no-link reason. It does not repair them or verify prose meaning, complete dependency
 coverage or character knowledge. Its spatial change detection currently covers
 Event `region`/`substrate` edits, not coordinate-process or location-binding changes;
 review their dependent passages and notes explicitly. This is distinct from the
