@@ -85,8 +85,9 @@ With LaTeX, `latexmk` and Libertinus installed, `make book` rebuilds
 
 ## Provenance and earlier results
 
-The Book was constructed under Henrik Westerberg's direction using GPT-5.6 Sol
-Ultra, followed by GPT-6 Astra Ultra for later development and revision. Nora is
+The Book was constructed under Henrik Westerberg's direction by Codex and Claude,
+using GPT-5.6 Sol Ultra, then GPT-6 Astra Ultra and Claude Opus 5.5 for later
+development and revision. Nora is
 an invented compositional persona for continuation, not the recovered identity
 of an original author or a character living in nineteenth-century England.
 
