@@ -179,7 +179,7 @@
   .lens .kinds { margin-top: 2px; color: var(--muted); font-size: 10.5px; line-height: 1.25; }
   /* How to read it appears only when asked for, so a small window shows it too, scrolling if it must. */
   @media (max-width: 1100px), (max-height: 760px) { .legend { max-height: 50vh; overflow-y: auto; } }
-  @media (max-width: 760px), (max-height: 520px) { .title .stats { display: none; } .caption { display: none; } }
+  @media (max-width: 760px), (max-height: 520px) { .title .stats, .title .colour-key { display: none; } .caption { display: none; } }
   /* The toolbar on the view, as in the understanding graph: each control opens its choices below it. */
   /* The controls share the top row with the title; what was clicked and how to read it open below them on the right. */
   .side { position: fixed; top: 10px; right: var(--edge); z-index: 4; display: grid; grid-template-columns: minmax(0, auto) auto; align-items: start; justify-items: end; gap: 8px 6px;
@@ -305,6 +305,8 @@
   .seg button { flex: 1 1 auto; min-width: 0; border: 0; background: none; color: var(--ink-2); font: inherit; font-size: 12.5px; padding: 5px 5px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
   .seg button:hover { color: #fff; background: rgba(255,255,255,0.07); }
   .seg button.on { background: rgba(255,255,255,0.16); color: #fff; font-weight: 600; }
+  .title .colour-key { margin-top: 5px; font-size: 11.5px; } .colour-key i { width: 8px; height: 8px; }
+  #note-layouts { flex-wrap: wrap; } #note-layouts button { flex: 1 1 30%; }
   .whose { display: flex; flex-wrap: wrap; gap: 3px 12px; margin-top: 7px; font-size: 12px; color: var(--ink-2); } .whose span { display: inline-flex; align-items: center; gap: 6px; } .whose i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
   .pop .note { margin-top: 5px; font-size: 11.5px; color: var(--muted); line-height: 1.35; }
   .toggle { display: flex; align-items: center; gap: 9px; padding: 3px 4px; margin: 0 -4px; border-radius: 7px; cursor: pointer; line-height: 1.25; user-select: none; }
@@ -352,7 +354,7 @@
 <body>
 <div id="scene"></div>
 <!-- The HUD frames the scene: the model and its controls in one row at the top, time in one row at the bottom. -->
-<header class="hud title"><div class="eyebrow">The processes an agent modeled with the Meaning Model</div><h1 id="title">Processes</h1><div class="hud stats" id="stats"></div></header>
+<header class="hud title"><div class="eyebrow">The processes an agent modeled with the Meaning Model</div><h1 id="title">Processes</h1><div class="hud stats" id="stats"></div><div class="whose colour-key" id="colour-key" data-temporal aria-label="Whose colour is whose"></div></header>
 <!-- What is happening now and where the reading is, stacked just above the time bar. -->
 <div class="dock" id="dock">
 <div class="hud caption"><div class="kind" id="kind">The story</div><div class="text" id="text"></div></div>

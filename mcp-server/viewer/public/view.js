@@ -97,7 +97,7 @@ const opt = {
   allNoteAttachments: params.get('noteLinks') === 'all',
   eventLayout: params.get('eventLayout') === 'nested' ? 'nested' : 'traditional',
   edges: params.get('edges') !== 'off', // the lines that link one thing to another
-  readingPosition: params.get('reading') !== 'off',
+  readingPosition: params.get('reading') === 'on', // the strip of the story's parts, when asked for
   legend: params.has('legend'), // how to read it, when asked for
   text: params.get('text') !== 'off', // the names, values, dates and cards in the view
   hideUnopened: params.get('unopened') === 'hide',
@@ -1052,13 +1052,28 @@ function drawArcs() {
     if (!inView(source.start, 0.05) || !inView(target.start, 0.05) || !seen(relation, Math.max(source.start, target.start))
       || !shownByPlay(source.start, bornAt(source)) || !shownByPlay(target.start, bornAt(target))) continue;
     const a = eventPoint(source); const b = eventPoint(target); if (!a || !b) continue; const hex = KIND[relation.kind] ?? '#9a9a9a'; const c = color(hex); const lit3 = litArc?.relation === relation;
-    const mid = new THREE.Vector3((a.x + b.x) / 2, Math.max(a.y, b.y) + 1.2 + Math.abs(b.x - a.x) * 0.12, (a.z + b.z) / 2); const pts = new THREE.QuadraticBezierCurve3(a, mid, b).getPoints(40);
+    const mid = new THREE.Vector3((a.x + b.x) / 2, arcControlY(a, b), (a.z + b.z) / 2); const pts = new THREE.QuadraticBezierCurve3(a, mid, b).getPoints(40);
     for (let i = 1; i < pts.length; i += 1) arcsBuffer.add(pts[i - 1].x, pts[i - 1].y, pts[i - 1].z, pts[i].x, pts[i].y, pts[i].z, lit3 ? WHITE : c, lit3 ? 1 : 0.8);
     for (const point of [a, b]) { if (s >= arcSparks.length) { const sprite = spark('#ffffff', 1.1); field.add(sprite); arcSparks.push(sprite); } const sprite = arcSparks[s]; sprite.material.color.set(hex); sprite.position.copy(point); sprite.visible = true; s += 1; }
     arcTargets.push({ kind: 'arc', relation, source, target, pts: pts.filter((_, i) => i % 3 === 0 || i === pts.length - 1) });
   }
   for (let i = s; i < arcSparks.length; i += 1) arcSparks[i].visible = false;
   arcsBuffer.end();
+}
+// A causal link that crosses other processes passes over them, not through them: its arc clears every curtain it crosses
+// in its middle stretch (by a margin that grows the farther it crosses), so in a broad model the long links stand above
+// it as bridges instead of running across it at the height of its moments. A link within one row keeps its usual arc.
+function arcControlY(a, b) {
+  let y = Math.max(a.y, b.y) + 1.2 + Math.abs(b.x - a.x) * 0.12; const dz = b.z - a.z;
+  if (Math.abs(dz) < ROW) return y;
+  const margin = 1.5 + Math.abs(dz) * 0.03;
+  for (const row of rows) {
+    if (presence(row) <= 0.5) continue; const p = rowAt(row); const s = (p.z - a.z) / dz; if (s < 0.2 || s > 0.8) continue;
+    // The curve's height where it passes this row, (1-s)^2 a + 2s(1-s) control + s^2 b, must clear the row's crest there.
+    const crest = p.y + heightAt(row, timeAtX(a.x + (b.x - a.x) * s)) + margin;
+    y = Math.max(y, (crest - (1 - s) * (1 - s) * a.y - s * s * b.y) / (2 * s * (1 - s)));
+  }
+  return y;
 }
 // What a causal link says, in words: the two events, what the one does to the other, and when.
 function arcLines(target) {
@@ -2402,6 +2417,13 @@ undatedButton.addEventListener('click', () => setHideUndated(!opt.hideUndated));
   }
   if (!lensList.length) box.closest('section').hidden = true; }
 if (!hasTree) { document.querySelector('#layouts [data-layout="layers"]').hidden = true; document.getElementById('depth-section').hidden = true; }
+// Whose colour is whose, always in view under the title: each person's processes and Events in their colour, the
+// world's in its own, and grey for what a Cut's answers leave open.
+{ const key = document.getElementById('colour-key');
+  const entry = (hue, text, about) => { const item = document.createElement('span'); const dot = document.createElement('i'); dot.style.background = hue; item.title = about; item.append(dot, document.createTextNode(text)); key.append(item); };
+  for (const group of groups) entry(group.hue, group.label, `${group.label}: processes and Events in this colour`);
+  if (rows.some((row) => row.measure.remainder)) entry('#77756f', 'left open', 'Grey: what a Cut\'s answers leave open');
+  key.hidden = !groups.length; }
 { const whose = document.getElementById('whose'); for (const group of groups) { const item = document.createElement('span'); const dot = document.createElement('i'); dot.style.background = group.hue; item.append(dot, document.createTextNode(group.label)); whose.append(item); } }
 document.getElementById('all').addEventListener('click', () => { const all = KINDS.every(([key]) => opt.show.has(key)); layerOverrides.clear(); if (!all) for (const key of ALL_SHOW) layerOverrides.set(key, true); applyLayoutDefaults(); showThoughts(opt.show.has('notes'), false); computeLayout(); apply(); syncPanel(); syncURL(); });
 document.getElementById('lenses-all').addEventListener('click', () => { opt.lenses = opt.lenses.size === lensList.length ? new Set() : new Set(lensList.map((lens) => lens.id)); syncPanel(); syncURL(); extrasDirty = true; });
@@ -2489,7 +2511,7 @@ function syncURL(immediate = false) {
     if (!temporalActive) return;
     const next = new URLSearchParams(); for (const key of ['data', 'title', 'live', 'capture']) if (params.has(key)) next.set(key, params.get(key));
     if (opt.camera !== 'spin') next.set('camera', opt.camera); if (opt.glare !== 'soft') next.set('glare', opt.glare); if (!opt.edges) next.set('edges', 'off');
-    if (!opt.readingPosition) next.set('reading', 'off');
+    if (opt.readingPosition) next.set('reading', 'on');
     if (opt.legend) next.set('legend', ''); if (opt.text === false) next.set('text', 'off');
     if (opt.hideUnopened) next.set('unopened', 'hide');
     if (opt.hideFlat) next.set('flat', 'hide');
@@ -2525,7 +2547,8 @@ function syncURL(immediate = false) {
 // ---- keeping the view laid out, and hover -------------------------------------------------------------------------------------------
 function syncGroupLabel({ group, object }) {
   const own = rows.filter((row) => row.group === group && presence(row) > 0.5);
-  const groupNodes = nodes.filter((node) => (opt.eventLayout === 'nested' ? node.displayGroup : node.group) === group.id && node.shown);
+  // Only Events drawn in this view place a whose-name: an Event hidden here keeps its place in the other view.
+  const groupNodes = nodes.filter((node) => (opt.eventLayout === 'nested' ? node.displayGroup : node.group) === group.id && node.shown && nodeVis(node) > 0.5);
   const vis = own.length ? Math.min(...own.map(presence)) : groupNodes.length ? 1 : 0;
   const native = opt.hideFlat && smooth(blend.now) >= 0.5 ? own.filter((row) => row.measure.kind === 'cut-answer' && row.name.visible && row.wall.visible) : [];
   object.visible = vis > 0.5 && (opt.eventLayout === 'nested' || smooth(blend.now) < 0.5 || native.length > 0);

@@ -40,12 +40,14 @@ test('saving any trajectory layout keeps its explicit route across refresh and l
     assert.equal(url.searchParams.get('title'), 'Example');
     assert.equal(url.searchParams.get('camera'), 'locked');
     assert.equal(url.searchParams.get('glare'), null, 'the quieter default does not need a URL override');
-    assert.equal(url.searchParams.get('reading'), 'off');
+    assert.equal(url.searchParams.get('reading'), null, 'the reading position is off unless asked for, so off needs no override');
     // A layout choice must be visible to a navigation click before the debounce runs.
     context.opt.layout = layout === 'terrain' ? 'layers' : 'terrain';
     context.syncURL(true);
     assert.equal(timers.length, 1, 'immediate saves must not wait for another timer');
     assert.equal(new URL(saved.at(-1), 'http://127.0.0.1:1234').searchParams.get('view'), context.opt.layout);
+    context.opt.readingPosition = true; context.syncURL(true);
+    assert.equal(new URL(saved.at(-1), 'http://127.0.0.1:1234').searchParams.get('reading'), 'on', 'a reading position turned on is kept');
   }
 });
 

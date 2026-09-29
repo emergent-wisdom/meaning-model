@@ -15,6 +15,12 @@ unpublished work stays under Unreleased. This is not a development transcript.
   Processes keeps the Original band; a chosen layout is kept in the address. Decisions and love-or-fear cards in
   Tree stand over the Event they decide or read.
 - **Hide undated notes** (off by default) hides documents and notes that are about no dated Event.
+- The reading position strip is off until asked for (Layers, or `reading=on`). A colour key under the title names
+  whose colour is whose, with grey for what a Cut's answers leave open. A person or the world without curves is named
+  only where its Events are drawn, so its name no longer stands among another person's rows.
+- A causal link that crosses other processes arcs over their curtains instead of running through them, so the long
+  links of a broad model stand above it. Links within one row keep their arc. The document layout choices wrap to fit
+  their menu.
 
 ## 0.6.0 — 2026-09-29
 

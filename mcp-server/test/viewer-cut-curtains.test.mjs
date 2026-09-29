@@ -163,3 +163,29 @@ test('moving native value labels turn inward at the right edge and turn back on 
   assert.equal(row.value.center.x, 0);
   assert.equal(row.value.position.x, 10.7);
 });
+
+test('a whose-name with no curves follows only its Events drawn in this view', () => {
+  const group = { id: 'world', label: 'The world' };
+  const object = { visible: true, position: { set(x, y, z) { Object.assign(this, { x, y, z }); } } };
+  // The world's Event is drawn in the tree only; in the processes it keeps its tree place, among another person's rows.
+  const event = { id: 'era', group: 'world', shown: true, inT: false, inL: true, at: { y: 0, z: 30 } };
+  const context = { rows: [], nodes: [event], opt: { eventLayout: 'traditional' }, blend: { now: 0 }, smooth: (n) => n,
+    presence: () => 1, rowAt: () => ({}), nodeAt: (node) => node.at, nodeVis: (node) => (1 - context.blend.now) * (node.inT ? 1 : 0) + context.blend.now * (node.inL ? 1 : 0),
+    LENGTH: 116, CUT_AMP: 18, AMP: 5.6, GAP: 4.4 };
+  vm.createContext(context); vm.runInContext(fn('syncGroupLabel'), context);
+  context.syncGroupLabel({ group, object });
+  assert.equal(object.visible, false, 'nothing of the world is drawn in the processes, so its name does not stand over other rows');
+});
+
+test('a causal link that crosses other curtains arcs over them; one within a row keeps its arc', () => {
+  const row = (z, height) => ({ z, height });
+  const context = { ROW: 2.7, presence: () => 1, rowAt: (item) => ({ y: 0, z: item.z }), heightAt: (item) => item.height, timeAtX: (x) => x, rows: [row(10, 18), row(20, 5.6)] };
+  vm.createContext(context); vm.runInContext(fn('arcControlY'), context);
+  const a = { x: 0, y: 2, z: 0 }, b = { x: 10, y: 3, z: 30 };
+  const control = context.arcControlY(a, b);
+  const at = (s) => (1 - s) ** 2 * a.y + 2 * s * (1 - s) * control + s ** 2 * b.y;
+  assert.ok(at(1 / 3) >= 18 + 1.5, 'the arc clears the tall curtain it crosses');
+  assert.ok(at(2 / 3) >= 5.6 + 1.5, 'and the lower one');
+  const near = { x: 10, y: 3, z: 1 };
+  assert.equal(context.arcControlY(a, near), 3 + 1.2 + 10 * 0.12, 'a link within one row keeps the usual arc');
+});
