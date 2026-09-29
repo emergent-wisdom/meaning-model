@@ -116,6 +116,20 @@ test('an Event and its recorded decision anchor correctly with no numeric proces
   assert.equal(decision.userData.placed, false, 'an unplaced decision does not get an invented position');
 });
 
+test('in the tree a decision over its person\'s curves moves onto the floor of the Event it decides', () => {
+  const position = { set(x, y, z) { Object.assign(this, { x, y, z }); }, lerp(target, m) { for (const key of ['x', 'y', 'z']) this[key] += (target[key] - this[key]) * m; } };
+  const row = { id: 'curve' }, node = { id: 'choice' };
+  const context = { xOf: (time) => time, presence: () => 1, rowValue: () => 0.5, rowAt: () => ({ y: 10, z: 20 }), heightAt: () => 2, frontOf: (own) => own[0],
+    smooth: (value) => value, blend: { now: 0 }, THREE: { Vector3: class { constructor(x, y, z) { Object.assign(this, { x, y, z }); } } },
+    anchor: (id, time) => id === 'choice' ? { x: time, y: 4.3, z: 6, node } : null };
+  vm.createContext(context); vm.runInContext(fn('layOnFront'), context);
+  const decision = { position, userData: { eventId: 'choice', t: 3, own: [row], lift: 2.2 } };
+  context.layOnFront(decision);
+  assert.deepEqual([position.x, position.y, position.z], [3, 14.2, 20.8], 'in the processes it stands over the person\'s front curve');
+  context.blend.now = 1; context.layOnFront(decision);
+  assert.deepEqual([position.x, position.y, position.z].map((value) => Math.round(value * 1e6) / 1e6), [3, 6.5, 6.8], 'in the tree it stands over its Event, as it would with no curves');
+});
+
 test('the same axis functions label a native-clock model in its declared unit', () => {
   const context = { calendarTime: false, data: { timeUnit: 'hour' }, F: { a: -1, b: 7, s: 8 }, nativeTimeText, numericTimeTicks };
   vm.createContext(context); vm.runInContext(`${fn('timeText')}\n${fn('tickMarks')}`, context);

@@ -417,3 +417,48 @@ test('all note layouts handle generic models without principals or narrative pas
   assert.equal(context.notes[1].userData.localAnchor, null);
   assert.ok(context.notes.every((note) => Number.isFinite(note.position.x) && note.position.y > context.mindTop().y && Math.abs(note.position.z - 10) <= 15));
 });
+
+test('On floors stands each document on the floor of what it belongs to without inventing dates', () => {
+  const context = fixture(); installPlacement(context);
+  const floor = { life: { id: 'life', depth: 1, y: 0, z: 0, t0: 0 }, work: { id: 'work', depth: 2, y: -3, z: 2, t0: 1 }, scene: { id: 'scene', depth: 3, y: -6, z: 4, t0: 3 } };
+  Object.assign(context, { F: { a: 0, b: 10 }, BAR: 0.3, X: (time) => time * 10, NAMES: {}, rowOf: new Map(),
+    noteById: new Map(context.notes.map((note) => [note.userData.id, note])),
+    nearestShown: (id) => floor[id] ?? null, nodeAt: (node) => ({ y: node.y, z: node.z }),
+    anchor: (id, time) => floor[id] ? { x: time * 10, y: floor[id].y + 0.3, z: floor[id].z, node: floor[id] } : null });
+  Object.assign(context.opt, { noteLayout: 'floors', detailProjection: null });
+  const place = () => { const homes = context.floorHomes(), occupied = new Map(); for (const note of context.notes) context.positionNote(note, occupied, null, homes); };
+  place();
+  const [person, process, cut, many, indirect] = context.notes;
+  assert.deepEqual({ ...cut.position }, { x: 29.5, y: -4.8, z: 3.55 }, 'a note about a dated moment stands on that Event\'s floor at its time');
+  assert.equal(cut.userData.localAnchor.event.id, 'scene');
+  assert.equal(many.userData.floorHome.event.id, 'scene', 'a note about several moments stands at the deepest of them');
+  assert.deepEqual({ ...many.position }, { x: 30, y: -4.8, z: 3.55 }, 'notes sharing a spot share its grid');
+  assert.equal(person.userData.floorHome.kind, 'slot'); assert.equal(person.userData.localAnchor, null);
+  assert.deepEqual({ ...person.position }, { x: -0.5, y: 1.2, z: -0.45 }, 'an undated person note stands where its home Event begins');
+  assert.deepEqual([process.position.x, process.position.y, process.position.z].map((value) => Math.round(value * 1e6) / 1e6), [9.5, -1.8, 1.55], 'an undated process note stands on its home Event\'s floor');
+  assert.equal(indirect.userData.floorHome.kind, 'beside'); assert.equal(indirect.userData.floorHome.beside.id, 'person-note');
+  assert.deepEqual({ ...indirect.position }, { x: 0, y: 1.2, z: -0.45 }, 'a note that only links stands beside the note it links to');
+  assert.ok(context.notes.every((note) => note.userData.t === 4), 'placement never changes when a note appears');
+  // The first layout reads every note before placing any, since a note may stand beside one read after it.
+  const before = context.notes.map((note) => ({ ...note.position }));
+  for (const note of context.notes) delete note.userData.moments;
+  Object.assign(context, { xOf: (time) => time * 10, timeAtX: (x) => x / 10, noteLayer: () => 0 });
+  const start = source.indexOf('function placeNotes('), end = source.indexOf('\n}', start);
+  vm.runInContext(source.slice(start, end + 2), context);
+  context.placeNotes();
+  assert.deepEqual(context.notes.map((note) => ({ ...note.position })), before, 'the first layout places on floors exactly as a redraw does');
+  context.nearestShown = (id) => id === 'life' ? null : floor[id] ?? null;
+  place();
+  assert.equal(person.userData.floorHome, null); assert.equal(indirect.userData.floorHome, null);
+  assert.equal(person.position.x, -55, 'a note attached to nothing shown keeps the general margin outside the time axis');
+});
+
+test('Hide undated notes leaves only notes about a dated Event, and keeps a selected document', () => {
+  const context = fixture(); context.opt.detailProjection = null;
+  context.applyVisibility();
+  assert.deepEqual(context.notes.map((note) => note.visible), [true, true, true, true, true]);
+  context.opt.hideUndated = true; context.applyVisibility();
+  assert.deepEqual(context.notes.map((note) => note.visible), [false, false, true, true, false]);
+  context.selectedPart = { unit: { id: 'indirect-note' } }; context.applyVisibility();
+  assert.equal(context.notes[4].visible, true, 'the selected document stays');
+});

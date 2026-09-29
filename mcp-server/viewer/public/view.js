@@ -82,13 +82,18 @@ if (params.has('everything') || params.has('show')) {
   const chosen = new Set(params.has('everything') ? ALL_SHOW : params.get('show').split(',').filter(Boolean));
   for (const key of ALL_SHOW) layerOverrides.set(key, chosen.has(key));
 } else if (params.has('nothoughts')) layerOverrides.set('notes', false);
+// Where documents and notes stand unless chosen: in the tree on the floor of what they belong to, in the processes in the
+// original band behind them.
+const NOTE_LAYOUTS = ['floors', 'original', 'nearby', 'overhead', 'centered'];
+const defaultNoteLayout = (layout) => (layout === 'layers' ? 'floors' : 'original');
+let explicitNoteLayout = NOTE_LAYOUTS.includes(params.get('noteLayout'));
 let explicitDepth = params.has('everything') || (params.has('depth') && Number.isFinite(Number(params.get('depth'))));
 let explicitEverything = params.has('everything');
 const opt = {
   camera: ['spin', 'free', 'locked'].includes(params.get('camera')) ? params.get('camera') : params.has('still') ? 'free' : 'spin',
   glare: params.get('glare') === 'full' ? 'full' : 'soft',
   readingOverview: params.get('readingOverview') === 'structure' ? 'structure' : 'named',
-  noteLayout: ['nearby', 'overhead', 'centered'].includes(params.get('noteLayout')) ? params.get('noteLayout') : 'original',
+  noteLayout: explicitNoteLayout ? params.get('noteLayout') : defaultNoteLayout(initialLayout),
   allNoteAttachments: params.get('noteLinks') === 'all',
   eventLayout: params.get('eventLayout') === 'nested' ? 'nested' : 'traditional',
   edges: params.get('edges') !== 'off', // the lines that link one thing to another
@@ -97,6 +102,7 @@ const opt = {
   text: params.get('text') !== 'off', // the names, values, dates and cards in the view
   hideUnopened: params.get('unopened') === 'hide',
   hideFlat: params.get('flat') === 'hide',
+  hideUndated: params.get('undated') === 'hide', // documents and notes about no dated moment
   mode: params.get('mode') === 'construction' && data.constructionTiming !== 'unavailable' ? 'construction' : 'story',
   speed: [0.25, 0.5, 1, 2, 4].includes(Number(params.get('speed'))) ? Number(params.get('speed')) : 1,
   layout: initialLayout,
@@ -114,6 +120,7 @@ function applyLayoutDefaults() {
   const defaults = new Set(defaultShow(opt.layout));
   opt.show = new Set(ALL_SHOW.filter((key) => layerOverrides.has(key) ? layerOverrides.get(key) : defaults.has(key)));
   if (!explicitDepth) opt.depth = defaultDepth(opt.layout, MAX_DEPTH);
+  if (!explicitNoteLayout) opt.noteLayout = defaultNoteLayout(opt.layout);
 }
 let selectedPart = null; const selectedEventIds = new Set(); let selectedLinks = [];
 let ready = false; // the panel and the URL follow the view once it has started
@@ -738,6 +745,10 @@ function layOnFront(item) {
   const front = frontOf(own); const p = rowAt(front); item.userData.placed = presence(front) > 0.5;
   const top = Math.max(...own.map((row) => heightAt(row, t)));
   item.position.set(xOf(t), p.y + top + lift, p.z + 0.8);
+  // In the tree a decision or a love-or-fear card stands over the Event it decides or reads, on that Event's floor, as it
+  // does when its person has no curves, rather than over the person's front curve.
+  const m = smooth(blend.now), at = m > 0.001 && eventId ? anchor(eventId, t) : null;
+  if (at?.node) { item.position.lerp(new THREE.Vector3(at.x, at.y + lift, at.z + 0.8), m); item.userData.placed = true; }
 }
 
 // The agent's thoughts: every note in the story graph (thoughts, author records, draws, world stages, references) and the
@@ -757,6 +768,8 @@ for (const edge of data.graph.edges) {
   if (byId.has(home)) push(noteScopeEvents, edge.source, home);
   const event = byId.get(edge.target.event); if (event && Number.isFinite(event.start)) push(moments, edge.source, event);
 }
+// A note is dated when it is about at least one Event with a date; Hide undated notes leaves only those.
+const undatedNote = (id) => !moments.has(id);
 const noteLayer = (node) => NOTE[node.category]?.[2] ?? 2;
 // Where each document of the graph is attached: the moments, people, processes, Cuts and concepts it is about.
 const cutQuestion = new Map(); for (const person of data.people) { for (const series of person.series ?? []) for (const point of series.points) if (point.cutId) cutQuestion.set(point.cutId, series.question); for (const decision of person.decisions ?? []) if (decision.cutId) cutQuestion.set(decision.cutId, decision.question); }
@@ -807,7 +820,66 @@ function centeredNoteBand() {
   const back = zBackNow(), front = zFrontNow();
   return { center: (back + front) / 2, halfWidth: Math.max(1, Math.min(12, (front - back) * 0.12)) };
 }
-function positionNote(light, occupied = null, centeredBand = null) {
+// On floors: each document stands on the floor of what it belongs to. One about dated moments stands at the deepest shown
+// of them, at its time. One about a process or a person, whose home has no date, stands where that process's curve or
+// that home Event begins. One that only links to other documents stands beside the one it links to that is highest in
+// the tree, on its floor. Only the first kind's place along the floor is a date; the others are display slots, and
+// their tooltips say so. Documents that share a spot share a small grid over it.
+function floorHomes() {
+  const homes = new Map(), depthOf = (at) => at.node?.depth ?? -1;
+  for (const light of notes) {
+    const dated = (light.userData.moments ?? []).filter((event) => (!opt.detailProjection || opt.detailProjection.eventIds.has(event.id)) && shownByPlay(event.start, bornAt(event)))
+      .map((event) => ({ event, at: anchor(event.id, event.start) })).filter((item) => item.at);
+    if (dated.length) {
+      const depth = Math.max(...dated.map((item) => depthOf(item.at)));
+      const deepest = dated.filter((item) => depthOf(item.at) === depth).sort((a, b) => a.event.start - b.event.start || a.event.id.localeCompare(b.event.id));
+      const { event, at } = deepest[Math.floor(deepest.length / 2)];
+      homes.set(light, { kind: 'moment', event, node: at.node, depth, point: new THREE.Vector3(at.x, at.y, at.z), key: `${at.node?.id ?? 'rows'}|${Math.round(at.x / 1.4)}` });
+      continue;
+    }
+    const slot = undatedHome(light); if (slot) homes.set(light, slot);
+  }
+  for (let pass = 0; pass < 4; pass += 1) for (const light of notes) {
+    if (homes.has(light)) continue;
+    const near = (neighbours.get(light.userData.id) ?? []).map((id) => noteById.get(id)).filter((other) => homes.has(other));
+    if (!near.length) continue;
+    const other = near.reduce((a, b) => (homes.get(b).depth < homes.get(a).depth ? b : a)), home = homes.get(other);
+    homes.set(light, { ...home, kind: 'beside', event: null, beside: other.userData.node });
+  }
+  return homes;
+}
+function undatedHome(light) {
+  for (const item of light.userData.attached) {
+    if (item.kind !== 'process') continue;
+    const row = rowOf.get(item.id), points = row ? row.points ?? row.measure.points : [];
+    if (!row || presence(row) <= 0.5 || !points?.length) continue;
+    const t = Math.max(F.a, Math.min(F.b, points[0].t)); if (!shownByPlay(t, bornAt(row.measure))) continue;
+    const p = rowAt(row);
+    return { kind: 'slot', row, depth: row.depth ?? 0, of: `the process ${NAMES[row.measure.id]}`, where: 'curve', point: new THREE.Vector3(X(t), p.y + heightAt(row, t) + 0.05, p.z), key: `${row.measure.id}|start` };
+  }
+  for (const id of noteScopeEvents.get(light.userData.id) ?? []) {
+    const node = nearestShown(id); if (!node) continue;
+    const p = nodeAt(node), t = Math.max(F.a, Math.min(F.b, Number.isFinite(node.t0) ? node.t0 : F.a));
+    return { kind: 'slot', node, depth: node.depth, of: byId.get(node.id)?.label ?? node.id, where: 'Event', point: new THREE.Vector3(X(t), p.y + BAR, p.z), key: `${node.id}|start` };
+  }
+  return null;
+}
+function placeOnFloor(light, occupied, homes) {
+  const home = (homes ?? floorHomes()).get(light) ?? null, order = noteOrder.get(light.userData.id) ?? 0;
+  light.userData.floorHome = home;
+  light.userData.localAnchor = home?.kind === 'moment' ? { event: home.event, point: home.point } : null;
+  if (!home) {
+    const top = mindTop(), columns = Math.max(1, Math.ceil(Math.sqrt(noteOrder.size)));
+    light.position.set(-LENGTH / 2 - 5, top.y + (order % columns) * 0.7, top.z + Math.floor(order / columns) * 0.7);
+    return;
+  }
+  // Three across, three deep over the spot, then a layer higher, so a crowded spot rises a little and stays on its floor.
+  const k = occupied ? occupied.get(home.key) ?? 0 : order % 9; occupied?.set(home.key, k + 1);
+  light.position.set(home.point.x + ((k % 3) - 1) * 0.5, home.point.y + 0.9 + Math.floor(k / 9) * 0.5, home.point.z + ((Math.floor(k / 3) % 3) - 1) * 0.45);
+}
+function positionNote(light, occupied = null, centeredBand = null, homes = null) {
+  if (opt.noteLayout === 'floors') { placeOnFloor(light, occupied, homes); return; }
+  light.userData.floorHome = null;
   if (opt.noteLayout === 'original') {
     light.userData.localAnchor = null;
     light.position.copy(light.userData.originalPosition);
@@ -869,8 +941,10 @@ function placeNotes() {
     light.userData.originalPosition = place.get(light.userData.id);
     light.userData.t = enters.get(light.userData.id) ?? timeAtX(light.userData.originalPosition.x);
     light.userData.moments = (moments.get(light.userData.id) ?? []).filter(within);
-    positionNote(light, occupied);
   }
+  // Every note's moments are known before any is placed: on floors a note may stand beside another.
+  const homes = opt.noteLayout === 'floors' ? floorHomes() : null;
+  for (const light of notes) positionNote(light, occupied, null, homes);
 }
 // The layer of thoughts sits above and behind whatever the view holds.
 function mindTop() {
@@ -885,12 +959,13 @@ const zFrontNow = () => { const zs = visibleZ(); return zs.length ? Math.max(...
 function drawNotes() {
   mindLines.begin(); noteLinks.begin();
   const shown = new Set(), occupied = new Map(), centeredBand = opt.noteLayout === 'centered' ? centeredNoteBand() : null;
+  const homes = opt.noteLayout === 'floors' ? floorHomes() : null;
   for (const light of notes) {
-    positionNote(light, occupied, centeredBand);
+    positionNote(light, occupied, centeredBand, homes);
     const selected = noteSelected(light);
     light.scale.setScalar((light.userData.node.category === 'passage' ? 2.6 : 2.0) * (selected ? 1.8 : 1));
     if (!light.visible) continue; shown.add(light.userData.id); const on = lit === light || selected; if (!opt.edges && !on) continue;
-    const anchors = on || opt.allNoteAttachments || opt.noteLayout === 'original' ? light.userData.moments.filter((event) => (!opt.detailProjection || opt.detailProjection.eventIds.has(event.id)) && shownByPlay(event.start, bornAt(event))).flatMap((event) => meet(event)) : light.userData.localAnchor ? [light.userData.localAnchor.point] : [];
+    const anchors = on || opt.allNoteAttachments || opt.noteLayout === 'original' ? light.userData.moments.filter((event) => (!opt.detailProjection || opt.detailProjection.eventIds.has(event.id)) && shownByPlay(event.start, bornAt(event))).flatMap((event) => meet(event)) : light.userData.localAnchor ? [light.userData.localAnchor.point] : light.userData.floorHome?.kind === 'slot' ? [light.userData.floorHome.point] : [];
     for (const point of anchors) mindLines.add(light.position.x, light.position.y, light.position.z, point.x, point.y, point.z, light.userData.color, on ? 0.95 : opt.allNoteAttachments ? 0.3 : opt.noteLayout === 'original' ? 0.13 : 0.2);
     // Inspection and All attachments include declared people/process targets, regardless of note placement.
     if (on || opt.allNoteAttachments) for (const item of light.userData.attached) {
@@ -918,10 +993,10 @@ function drawNotes() {
       mindLines.add(light.position.x, light.position.y, light.position.z, target.x, target.y, target.z, item.kind === 'process' ? color(row.group.hue) : WHITE, on ? 0.9 : 0.3, 0.5);
     }
   }
-  generalNotesLabel.visible = !terrain.on && opt.noteLayout !== 'original' && notes.some((light) => light.visible && !light.userData.localAnchor);
+  generalNotesLabel.visible = !terrain.on && opt.noteLayout !== 'original' && notes.some((light) => light.visible && !light.userData.localAnchor && !light.userData.floorHome);
   if (generalNotesLabel.visible) {
     const top = mindTop();
-    if (opt.noteLayout === 'nearby') generalNotesLabel.position.set(-LENGTH / 2 - 5, top.y + Math.ceil(Math.sqrt(noteOrder.size)) * 0.7 + 2, top.z);
+    if (opt.noteLayout === 'nearby' || opt.noteLayout === 'floors') generalNotesLabel.position.set(-LENGTH / 2 - 5, top.y + Math.ceil(Math.sqrt(noteOrder.size)) * 0.7 + 2, top.z);
     else generalNotesLabel.position.set(0, top.y + 32, centeredBand ? centeredBand.center : zBackNow());
   }
   const edge = color('#c9d4ff');
@@ -1391,7 +1466,7 @@ function applyTerrain() {
   for (const beam of terrain.beams) beam.visible = beam.userData.inWindow && shownByPlay(beam.userData.t, beam.userData.born) && (beam.userData.decision ? opt.show.has('decisions') : events2);
   for (const point of terrain.mind) {
     const selected = point.userData.node.id === selectedPart?.unit.id;
-    point.visible = thoughts && (selected || (construction ? point.userData.born <= tau : whole || point.userData.t <= now));
+    point.visible = thoughts && (selected || (!(opt.hideUndated && undatedNote(point.userData.node.id)) && (construction ? point.userData.born <= tau : whole || point.userData.t <= now)));
     point.scale.setScalar(point.userData.size * (selected ? 1.8 : 1));
   }
   drawTerrainNoteLinks(); syncTerrainLabels(); hoveredAt = null;
@@ -1583,7 +1658,7 @@ function apply() {
   // Across the story's years the love-or-fear chips before them wait at their start, as they always did.
   for (const chip of lenses) chip.visible = (!opt.detailProjection || opt.detailProjection.eventIds.has(chip.userData.eventId)) && opt.show.has('lovefear') && (isStory() || inView(chip.userData.t)) && shownByPlay(chip.userData.t, bornAt(chip.userData)) && chip.userData.placed;
   mind.visible = opt.show.has('notes');
-  for (const light of notes) light.visible = light.userData.id === selectedPart?.unit.id || ((!opt.detailProjection || (noteScopeEvents.get(light.userData.id) ?? []).some((id) => opt.detailProjection.eventIds.has(id))) && (construction ? bornAt(light.userData) <= tau : light.userData.t <= now));
+  for (const light of notes) light.visible = light.userData.id === selectedPart?.unit.id || (!(opt.hideUndated && undatedNote(light.userData.id)) && (!opt.detailProjection || (noteScopeEvents.get(light.userData.id) ?? []).some((id) => opt.detailProjection.eventIds.has(id))) && (construction ? bornAt(light.userData) <= tau : light.userData.t <= now));
   sweep.position.x = xOf(now); sweep.visible = playing && !construction;
   const fill = construction ? activeClock(tau) / activeClock.total : fracOf(F, now);
   document.getElementById('fill').style.width = `${Math.max(0, Math.min(1, fill)) * 100}%`;
@@ -2124,8 +2199,8 @@ const showThoughts = (on, explicit = true) => { if (explicit) setLayerVisibility
 thoughtsButton.addEventListener('click', () => showThoughts(!mind.visible)); showThoughts(mind.visible, false);
 thoughtsButton.hidden = !notes.length;
 function setNoteLayout(layout) {
-  if (!['original', 'nearby', 'overhead', 'centered'].includes(layout) || opt.noteLayout === layout) return;
-  opt.noteLayout = layout;
+  if (!['floors', 'original', 'nearby', 'overhead', 'centered'].includes(layout) || opt.noteLayout === layout) return;
+  explicitNoteLayout = true; opt.noteLayout = layout;
   placeNotes(); drawNotes();
   if (opt.camera === 'locked') fitLocked();
   syncPanel(); syncURL(true); dirty = true; extrasDirty = true;
@@ -2205,11 +2280,12 @@ document.getElementById('shine').addEventListener('click', () => setShine(opt.gl
 function setEdges(on) { opt.edges = on; dirty = true; extrasDirty = true; syncPanel(); syncURL(); }
 document.getElementById('edges').addEventListener('click', () => setEdges(!opt.edges));
 // Everything: every kind of record, every lens and the whole tree; pressed again, the view as the stage showed it.
-const isEverything = () => !opt.detailProjection && !opt.hideUnopened && !opt.hideFlat && KINDS.every(([key, , , count]) => !count() || opt.show.has(key)) && opt.lenses.size === lensList.length && opt.depth >= MAX_DEPTH;
+const isEverything = () => !opt.detailProjection && !opt.hideUnopened && !opt.hideFlat && !opt.hideUndated && KINDS.every(([key, , , count]) => !count() || opt.show.has(key)) && opt.lenses.size === lensList.length && opt.depth >= MAX_DEPTH;
 function setEverything(on) {
   opt.detailLevel = null; opt.processScope = null;
   opt.hideUnopened = false;
   opt.hideFlat = false;
+  opt.hideUndated = false;
   layerOverrides.clear(); explicitDepth = on; explicitEverything = on;
   if (on) for (const key of ALL_SHOW) layerOverrides.set(key, true);
   opt.lenses = new Set(on ? lensList.map((lens) => lens.id) : []); opt.depth = on ? MAX_DEPTH : defaultDepth(opt.layout, MAX_DEPTH);
@@ -2302,6 +2378,16 @@ function setHideFlat(on) {
   opt.hideFlat = on; computeLayout(); apply(); syncPanel(); syncURL(true); extrasDirty = true;
 }
 flatButton.addEventListener('click', () => setHideFlat(!opt.hideFlat));
+const undatedButton = document.createElement('button'); undatedButton.id = 'hide-undated'; undatedButton.className = 'tool switch'; undatedButton.textContent = 'Hide undated notes';
+undatedButton.setAttribute('aria-pressed', String(opt.hideUndated));
+const undatedHelp = document.createElement('div'); undatedHelp.className = 'note';
+undatedHelp.textContent = 'Hides documents and notes that are about no dated Event, such as notes on a whole process or person, and notes that only link to other notes. Off by default. A selected document stays.';
+undatedButton.title = undatedHelp.textContent; undatedButton.hidden = !notes.length || notes.every((light) => !undatedNote(light.userData.id));
+undatedHelp.hidden = undatedButton.hidden; document.getElementById('show-section').append(undatedButton, undatedHelp);
+function setHideUndated(on) {
+  opt.hideUndated = on; apply(); syncPanel(); syncURL(true); dirty = true; extrasDirty = true;
+}
+undatedButton.addEventListener('click', () => setHideUndated(!opt.hideUndated));
 { const box = document.getElementById('lenses');
   for (const lens of lensList) {
     const row = switchRow(); row.dataset.lens = lens.id; row.style.setProperty('--swatch', [...lens.palette.values()][0]);
@@ -2334,6 +2420,7 @@ function syncPanel() {
     button.classList.toggle('on', active); button.setAttribute('aria-pressed', String(active));
   }
   setText('note-layout-note', {
+    floors: 'Each document on the floor of what it belongs to: at its moment when it is about a dated Event, else where its process or home Event begins, else beside the note it links to. The default in the tree.',
     original: 'The original band behind the processes, with Event and document links visible when Edges is on.',
     nearby: 'Lights beside their processes; general notes in the margin.',
     overhead: 'Lights spread above their processes; general notes in a separate overhead area.',
@@ -2353,6 +2440,7 @@ function syncPanel() {
   document.getElementById('everything').setAttribute('aria-pressed', String(isEverything()));
   unopenedButton.setAttribute('aria-pressed', String(opt.hideUnopened));
   flatButton.setAttribute('aria-pressed', String(opt.hideFlat));
+  undatedButton.setAttribute('aria-pressed', String(opt.hideUndated)); undatedButton.classList.toggle('on', opt.hideUndated);
   const projected = opt.detailProjection;
   processFocus.value = opt.processScope ?? '';
   document.getElementById('coarse-view').setAttribute('aria-pressed', String(Boolean(projected && projected.level === 0 && !terrain.on)));
@@ -2405,10 +2493,11 @@ function syncURL(immediate = false) {
     if (opt.legend) next.set('legend', ''); if (opt.text === false) next.set('text', 'off');
     if (opt.hideUnopened) next.set('unopened', 'hide');
     if (opt.hideFlat) next.set('flat', 'hide');
+    if (opt.hideUndated) next.set('undated', 'hide');
     if (Number.isInteger(opt.detailLevel)) next.set('detail', String(opt.detailLevel));
     if (opt.processScope) next.set('scope', opt.processScope);
     if (opt.readingOverview === 'structure') next.set('readingOverview', 'structure');
-    if (opt.noteLayout !== 'original') next.set('noteLayout', opt.noteLayout);
+    if (explicitNoteLayout) next.set('noteLayout', opt.noteLayout);
     if (opt.allNoteAttachments) next.set('noteLinks', 'all');
     if (opt.eventLayout === 'nested') next.set('eventLayout', 'nested');
     if (opt.mode !== 'story') next.set('mode', opt.mode); if (opt.speed !== 1) next.set('speed', String(opt.speed));
@@ -2646,7 +2735,11 @@ function hover() {
   if (info.about?.length) { const about = document.createElement('div'); about.className = 'a'; about.textContent = hit.userData.decision ? info.about.join(' · ') : `${info.kind === 'Event' ? 'Moves' : 'About'}: ${info.about.slice(0, 6).join(' · ')}`; tip.append(about); }
   if (info.values?.length) { tip.append(tipLine('a', 'At this moment')); for (const line of info.values) tip.append(tipLine('num-line', line)); }
   if (info.attached) { if (!info.attached.length) tip.append(tipLine('a', 'Attached to nothing in the model: a note of the agent’s own.')); else { tip.append(tipLine('a', 'Attached to')); for (const line of info.attached) tip.append(tipLine('a', line)); } }
-  if (opt.noteLayout !== 'original' && noteById.get(hit.userData.id) === hit && !hit.userData.localAnchor) tip.append(tipLine('a', 'General / unplaced notes · no visible declared moment anchor. This display position has no world date.'));
+  const floorHome = opt.noteLayout === 'floors' && noteById.get(hit.userData.id) === hit ? hit.userData.floorHome : null;
+  if (floorHome?.kind === 'moment' && floorHome.node) tip.append(tipLine('a', `On the floor of ${clip(byId.get(floorHome.node.id)?.label ?? floorHome.node.id, 70)}, at its moment.`));
+  else if (floorHome?.kind === 'slot') tip.append(tipLine('a', `With ${clip(floorHome.of, 70)}, on its floor. No date of its own: it stands where that ${floorHome.where} begins.`));
+  else if (floorHome?.kind === 'beside') tip.append(tipLine('a', `Beside “${clip(floorHome.beside.title ?? floorHome.beside.id, 60)}”, which it links to, on its floor. Its place along the floor is not a date.`));
+  else if (opt.noteLayout !== 'original' && noteById.get(hit.userData.id) === hit && !hit.userData.localAnchor) tip.append(tipLine('a', 'General / unplaced notes · no visible declared moment anchor. This display position has no world date.'));
   placeTip();
 }
 let quietAt = null; // where a click opened the details: no tooltip there until the pointer moves

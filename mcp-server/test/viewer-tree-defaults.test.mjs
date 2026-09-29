@@ -83,13 +83,19 @@ test('opening Tree includes Events and subsidiary processes through depth four w
   assert.equal(processes.opt.show.has('subsidiary'), false);
 });
 
-test('note layout defaults to Original and deliberate choices survive URL saves and temporal layout changes', () => {
-  for (const query of ['', 'noteLayout=unknown', 'noteLayout=original']) {
+test('until chosen, documents stand on floors in Tree and in the Original band elsewhere; a choice survives URL saves and layout changes', () => {
+  for (const query of ['', 'noteLayout=unknown', 'view=together']) {
     const context = fixture(query);
     assert.equal(context.opt.noteLayout, 'original');
-    assert.equal(saveURL(context).searchParams.has('noteLayout'), false, 'Original remains the implicit live default');
+    assert.equal(saveURL(context).searchParams.has('noteLayout'), false, 'an implicit default is not saved');
+    context.setLayout('layers');
+    assert.equal(context.opt.noteLayout, 'floors', 'the tree puts each document on the floor of what it belongs to');
+    assert.equal(saveURL(context).searchParams.has('noteLayout'), false, 'the tree default is not saved either');
+    context.setLayout('together');
+    assert.equal(context.opt.noteLayout, 'original');
   }
-  for (const noteLayout of ['nearby', 'overhead', 'centered']) {
+  assert.equal(fixture('view=layers').opt.noteLayout, 'floors');
+  for (const noteLayout of ['floors', 'original', 'nearby', 'overhead', 'centered']) {
     const context = fixture(`view=together&noteLayout=${noteLayout}`);
     assert.equal(context.opt.noteLayout, noteLayout);
     for (const layout of ['layers', 'terrain', 'together']) {
@@ -99,8 +105,6 @@ test('note layout defaults to Original and deliberate choices survive URL saves 
     const saved = saveURL(context);
     assert.equal(saved.searchParams.get('noteLayout'), noteLayout);
     assert.equal(fixture(saved.search).opt.noteLayout, noteLayout);
-    context.opt.noteLayout = 'original';
-    assert.equal(saveURL(context).searchParams.has('noteLayout'), false, 'returning to Original removes the previous preference from the URL');
   }
 });
 
