@@ -2564,6 +2564,15 @@ function syncGroupLabel({ group, object }) {
     object.position.set(-LENGTH / 2 - 1.2, 0.3, (zs.length ? Math.min(...zs) : 0) - GAP * 0.62);
   }
 }
+// How high the sweep stands: from half a unit under the lowest row, floor or Event drawn now to well above the highest
+// curtain, so that playing the years passes through all of it.
+function sweepSpan() {
+  const ys = [], tops = [];
+  for (const row of rows) { if (presence(row) <= 0.5) continue; const y = rowAt(row).y; ys.push(y); tops.push(y + (row.measure.kind === 'cut-answer' ? CUT_AMP : AMP)); }
+  for (const node of nodes) if (node.shown && nodeVis(node) > 0.5) { const y = nodeAt(node).y; ys.push(y); tops.push(y); }
+  if (!ys.length) return { bottom: -0.5, top: visibleAmplitude() + 5.5 };
+  return { bottom: Math.min(...ys) - 0.5, top: Math.max(...tops) + 5.5 };
+}
 function relayOut() {
   relayout = false; dirty = false;
   for (const row of rows) layRow(row);
@@ -2579,10 +2588,11 @@ function relayOut() {
   for (const thread of threads) layThread(thread);
   for (const item of [...decisions, ...lenses]) layOnFront(item);
   placeNotes(); reframe(); if (terrain.on) layTerrain();
-  // The sweep reaches across whatever the field holds.
+  // The sweep reaches across whatever the field holds: from the lowest floor or Event drawn beneath the curves to above
+  // the highest crest, and across every row and floor.
   const z0 = Math.min(back, layersBounds && m > 0.01 ? layersBounds.z0 : back); const z1 = Math.max(front, layersBounds && m > 0.01 ? layersBounds.z1 : front);
-  const sweepHeight = visibleAmplitude() + 6;
-  sweep.scale.set((z1 - z0 + 12) / (zFront - zBack + 12), sweepHeight / (AMP + 6), 1); sweep.position.z = (z0 + z1) / 2 + 2; sweep.position.y = sweepHeight / 2 - 0.5 + (layersBounds && m > 0.01 ? ((layersBounds.y0 + layersBounds.y1) / 2) * m : 0);
+  const { bottom, top } = sweepSpan();
+  sweep.scale.set((z1 - z0 + 12) / (zFront - zBack + 12), (top - bottom) / (AMP + 6), 1); sweep.position.z = (z0 + z1) / 2 + 2; sweep.position.y = (top + bottom) / 2;
   apply(); syncPanel();
 }
 renderer.domElement.addEventListener('pointermove', (event) => { pointerAt = { x: event.clientX, y: event.clientY }; });

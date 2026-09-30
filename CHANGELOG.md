@@ -21,6 +21,8 @@ unpublished work stays under Unreleased. This is not a development transcript.
 - A causal link that crosses other processes arcs over their curtains instead of running through them, so the long
   links of a broad model stand above it. Links within one row keep their arc. The document layout choices wrap to fit
   their menu.
+- The play sweep stands from the lowest floor or Event drawn to above the highest curtain, so in Tree and beneath
+  the curves it passes through everything as the years play.
 
 ## 0.6.0 — 2026-09-29
 

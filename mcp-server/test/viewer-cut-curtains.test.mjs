@@ -189,3 +189,14 @@ test('a causal link that crosses other curtains arcs over them; one within a row
   const near = { x: 10, y: 3, z: 1 };
   assert.equal(context.arcControlY(a, near), 3 + 1.2 + 10 * 0.12, 'a link within one row keeps the usual arc');
 });
+
+test('the play sweep stands from the lowest floor or Event drawn to above the highest curtain', () => {
+  const row = (y, kind = 'numeric') => ({ y, measure: { kind } });
+  const context = { AMP: 5.6, CUT_AMP: 18, visibleAmplitude: () => 5.6, presence: () => 1, rowAt: (item) => ({ y: item.y }),
+    nodeAt: (node) => ({ y: node.y }), nodeVis: (node) => node.vis,
+    rows: [row(4), row(-10, 'cut-answer')], nodes: [{ shown: true, vis: 1, y: -30 }, { shown: true, vis: 0, y: -90 }] };
+  vm.createContext(context); vm.runInContext(fn('sweepSpan'), context);
+  assert.deepEqual({ ...context.sweepSpan() }, { bottom: -30.5, top: 4 + 5.6 + 5.5 }, 'the lowest floor drawn, not an Event hidden in this view');
+  context.rows = []; context.nodes = [];
+  assert.deepEqual({ ...context.sweepSpan() }, { bottom: -0.5, top: 5.6 + 5.5 }, 'an empty field keeps the usual sweep');
+});
