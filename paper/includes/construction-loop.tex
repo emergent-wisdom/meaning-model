@@ -4,7 +4,8 @@
   x=1cm,y=1cm,>=Latex,
   head/.style={font=\scriptsize\bfseries,align=center},
   ask/.style={draw=black!50,rounded corners,fill=black!4,align=center,
-    font=\scriptsize,text width=4.3cm,minimum height=.95cm},
+    font=\scriptsize,text width=4.9cm,minimum height=.95cm},
+  occasional/.style={ask,dashed,fill=white},
   tool/.style={draw=black!75,fill=white,align=center,
     font=\scriptsize,text width=3.9cm,minimum height=.95cm},
   optional/.style={tool,dashed,draw=black!55},
@@ -17,77 +18,102 @@
   label/.style={font=\tiny,fill=white,inner sep=1pt,align=center}
 ]
 \hyphenpenalty=10000 \exhyphenpenalty=10000
-\node[head] at (2.35,1.1) {What the agent is asked to do};
-\node[head] at (8.05,1.1) {What the tool does};
-\node[head] at (13.05,1.1) {What is kept};
+\node[head] at (2.1,1.25) {What the agent is asked to do};
+\node[head] at (8.05,1.25) {What the tool does};
+\node[head] at (13.05,1.25) {What is kept};
 
-\node[ask] (s1) at (2.35,0) {Establish the question, boundary,\\evidence, and delegation};
-\node[ask] (s2) at (2.35,-1.4) {Explore from the question; discover
-  implicit patterns and processes, named or not};
-\node[ask] (s3) at (2.35,-2.8) {Make each explicit: a process, a concept,
+\node[ask] (s1) at (2.1,0) {Declare the question, its boundary, evidence
+  and delegation; start from the macro-processes and long developments};
+\node[ask] (s2) at (2.1,-1.6) {Explore from the question and the model;
+  discover implicit patterns and processes, named or not};
+\node[ask] (s3) at (2.1,-3.2) {Make each explicit: a process, a concept,
   a lens, or a Cut under a declared question};
-\node[ask] (s4) at (2.35,-4.2) {Build on it: further relations,
-  higher-level concepts, predictions elsewhere};
-\node[ask] (s5) at (2.35,-5.6) {Write from the model; record choices and
-  reasons, linked to what they concern};
-\node[ask] (s6) at (2.35,-7.0) {Review the work: a blind read-back, the
-  director, another model, or a person};
-\node[ask] (s7) at (2.35,-8.4) {Revise the model where it is wrong, then
-  reread what was built on it, prose included};
+\node[ask] (s4) at (2.1,-4.8) {Build on it: structures that depend on the
+  existing ones, interpreted as concepts and laws, with predictions
+  elsewhere};
+\node[ask] (s5) at (2.1,-6.4) {Refine: open trajectories into finer
+  periods, values over time, and sub-processes};
+\node[ask] (s6) at (2.1,-8.0) {Generating: roll draws or seed a random
+  word; keep the most interesting, with a reason. Describing: ask for data,
+  infer what it supports};
+\node[ask] (s7) at (2.1,-9.6) {Write from the model: read each process's
+  state at that moment; record choices and reasons, linked to what they
+  concern};
+\node[occasional] (s8) at (2.1,-11.2) {Now and then, review: where is the
+  model thin or wrong? Deepen or revise it, then bring what depends on it,
+  prose included, into line};
 \foreach \a/\b in {s1/s2,s2/s3,s3/s4,s4/s5,s5/s6,s6/s7}
   \draw[flow] (\a) -- (\b);
-\draw[flow] (s7.west) -- (-.3,-8.4) --
-  node[label,rotate=90,above]{next round} (-.3,-1.4) -- (s2.west);
+\draw[flow,dashed] (s7) -- (s8);
+\draw[thin,draw=black!60] (s8.west) -- (-.75,-11.2);
+\draw[thin,draw=black!60] (s7.west) -- (-.75,-9.6);
+\draw[flow] (-.75,-11.2) -- node[label,rotate=90,above,pos=.5]{next round:
+  explore from what is there and build on it} (-.75,-1.6) -- (s2.west);
 
-\draw[draw=black!45,fill=black!2] (5.8,.6) rectangle (10.3,-9.0);
+\draw[draw=black!45,fill=black!2] (5.8,.85) rectangle (10.3,-12.0);
 \node[tool] (t0) at (8.05,0) {Requires a review of the wider context and
   longer-term developments before construction};
-\node[tool] (t1) at (8.05,-1.4) {Returns model questions and diagnostics:
-  gaps, unopened structure, decision and state jumps};
-\node[tool] (t2) at (8.05,-2.8) {Validates, types, and stores each change;
+\node[tool] (tq) at (8.05,-1.6) {Returns standing questions: what could be
+  understood better, what nobody has named or asked yet};
+\node[tool] (t1) at (8.05,-3.2) {Validates, types, and stores each change;
   refuses a Cut on an undescribed Event};
-\node[optional] (t3) at (8.05,-4.2) {Optional estimator: typed answers to
-  declared questions};
-\node[tool] (t4) at (8.05,-5.6) {Requires a current depth assessment
-  before a scene is committed};
-\node[tool] (t6) at (8.05,-7.0) {Requires the director's findings to be
-  answered before release};
-\node[tool] (t5) at (8.05,-8.4) {Revision check: dependents of a change and
-  changed telling phases, returned for review};
-\draw[flow,dashed] (t3) -- (t2);
+\node[tool] (t2) at (8.05,-4.8) {Returns model questions: gaps, unrelated
+  processes, thin concepts, missing laws, jumps};
+\node[optional] (t3) at (8.05,-6.4) {Optional estimator: typed answers to
+  declared questions, such as values over time};
+\node[tool] (t4) at (8.05,-8.0) {Draws with a recorded seed: proposals when
+  generating, forecasts when describing};
+\node[tool] (t5) at (8.05,-9.6) {Gates scene commits on a current depth
+  assessment and release on answered director findings};
+\node[tool] (t6) at (8.05,-11.2) {Revision check: the dependents of a
+  change; readings and telling phases renewed once the text settles};
 
 \draw[flow,<->] (s1.east) -- (t0.west);
-\draw[flow] (t1.west) -- node[label,above]{questions} (s2.east);
-\draw[flow] (s3.east) -- node[label,above]{changes} (t2.west);
-\draw[flow,<->] (s5.east) -- node[label,above]{commit} (t4.west);
-\draw[flow,<->] (s6.east) -- node[label,above]{release} (t6.west);
-\draw[flow] (t5.west) -- node[label,above]{work to\\review} (s7.east);
+\draw[flow] (tq.west) -- node[label,above]{standing\\questions} (s2.east);
+\draw[flow] (s3.east) -- node[label,above]{changes} (t1.west);
+\draw[flow] (t2.west) -- node[label,above]{model\\questions} (s4.east);
+\draw[flow,dashed] (t3.west) -- node[label,above]{answers} (s5.east);
+\draw[flow,<->] (s6.east) -- node[label,above]{draws} (t4.west);
+\draw[flow,<->] (s7.east) -- node[label,above]{commit,\\release} (t5.west);
+\draw[flow] (t6.west) -- node[label,above]{dependents} (s8.east);
 
 \foreach \d in {.2,.1}
-  \draw[draw=black!35,fill=white] (11.4+\d,.6+\d) rectangle (14.7+\d,-9.0+\d);
-\draw[draw=black!55,fill=black!2] (11.4,.6) rectangle (14.7,-9.0);
-\node[world] (r1) at (13.05,-1.2) {World model\\Concepts, Things, Events,
+  \draw[draw=black!35,fill=white] (11.4+\d,.85+\d) rectangle (14.7+\d,-12.0+\d);
+\draw[draw=black!55,fill=black!2] (11.4,.85) rectangle (14.7,-12.0);
+\node[world] (r1) at (13.05,-1.6) {World model\\Concepts, Things, Events,
   Bindings, Cuts, Realizations};
-\node[author] (r2) at (13.05,-3.75) {Understanding Graph\\choices, reasons,
+\node[author] (r2) at (13.05,-5.2) {Understanding Graph\\choices, reasons,
   reviews, readings, telling phases};
-\node[render] (r3) at (13.05,-6.3) {Documents\\text, linked to the Events
+\node[render] (r3) at (13.05,-8.8) {Documents\\text, linked to the Events
   it depicts};
-\node[font=\tiny,align=center,text width=2.9cm] at (13.05,-8.25)
+\node[font=\tiny,align=center,text width=2.9cm] at (13.05,-11.2)
   {One identifier space; each revision is immutable and names its
   predecessor, so the construction can be replayed};
-\draw[flow,<->,thick] (10.3,-4.9) -- node[label,above]{reads}
-  node[label,below]{stores} (11.4,-4.9);
+\draw[flow,<->,thick] (10.3,-5.6) -- node[label,above]{reads}
+  node[label,below]{stores} (11.4,-5.6);
 \end{tikzpicture}
 \caption{The construction loop. Left: what the shared instructions ask the
-calling language model to do. The order is a guide rather than a fixed
-sequence; any step may lead back to exploration, and each round builds on the
-account the previous one left. Middle: what deterministic tool code does. It
-validates and stores every change, returns questions after each one, refuses
-gated operations until the required reviews exist and their findings are
-answered, and lists the work a revision makes due. The estimator is optional,
-and the scene and release gates belong to the storytelling add-on. Right: the
-one versioned record that every step reads and changes through the tool. The
-tool checks records and their declared links; it does not supply the
-interpretations or certify that an account is adequate.}
+calling language model to do. Construction is the work: the model declares the
+question and starts from its macro-processes, explores and discovers implicit
+patterns and processes, named or not, makes each explicit, builds structures
+that depend on the existing ones and interprets them, and refines their
+trajectories. When it generates, draws and random words propose what it would
+not have chosen where a decision or a trajectory has real alternatives, and it
+keeps the most interesting with a recorded reason; when it describes, it asks
+for data and infers what the evidence supports. It writes from the model's
+state at each moment. Each round explores from and builds on the structure the
+last one left. Review (dashed) comes now and then, from a blind read-back, the
+director, another model, or a person, to find where the model is thin or
+wrong; the model is then deepened or revised, and what was built on it, prose
+included, is brought into line. The order is a guide rather than a fixed
+sequence; any step may lead back to exploration. Middle: what deterministic
+tool code does. It validates and stores every change, returns questions after
+each one, records draws with their seeds, refuses gated operations until the
+required reviews exist and their findings are answered, and lists the
+dependents a revision puts in question. The estimator is optional, and the
+scene and release gates and the seed-word and trajectory tools belong to the
+storytelling add-on. Right: the one versioned record that every step reads and
+changes through the tool. The tool checks records and their declared links; it
+does not supply the interpretations or certify that an account is adequate.}
 \label{fig:construction-loop}
 \end{figure}

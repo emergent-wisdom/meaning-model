@@ -24,6 +24,9 @@ unpublished work stays under Unreleased. This is not a development transcript.
   stretch back far in time to create a deeper story.
 - **Hide unopened processes** keeps life periods visible even when their duration
   also puts them in a person's process inventory.
+- The paper states the believability question and its working hypothesis,
+  distinguishes generative from descriptive work, and draws the construction
+  loop the agent is asked to perform.
 
 ## 0.6.0 — 2026-09-29
 
