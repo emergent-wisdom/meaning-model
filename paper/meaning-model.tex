@@ -31,40 +31,38 @@
 \title{The Meaning Model:\\Constructing Worlds and Stories at Progressive Resolution}
 \author{Henrik Westerberg\\Emergent Wisdom\\
   \texttt{henrik.westerberg@emergentwisdom.org}}
-\ewreviseddates{September 5, 2026}{September 29, 2026}
+\ewreviseddates{September 5, 2026}{September 30, 2026}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-The Meaning Model proposes a shared medium for constructing a world, its meanings
-and interpretations, and artifacts such as stories or reports. Its long-term aim
-is to model reality computationally through interrelated processes, from
-physical and social histories to attributed inner life, at a declared finite
-resolution. Its two linked architectural contributions, progressive resolution
-and a shared construction medium, form one coordinated authoring method, not a
-new record type or the storage of prose beside a graph: a world is built coarse
-for a declared purpose and opened recursively where it needs detail, and each
-opening preserves declared commitments or explicitly revises them, with their
-dependent accounts and passages.
+The Meaning Model proposes a shared medium for constructing a world, its meanings,
+interpretations in Understanding Graphs, and stories, reports, or programs, with
+the long-term aim of modeling reality computationally through interrelated
+processes, from physical and social histories to attributed inner life, at a
+declared finite resolution. Without prior measurement, a language model's
+implicit understanding, already attached to reality through human writing, can
+become explicit, comparatively quantified, and recursively constructible before
+evidence tests it. Unmeasured histories get comparative commitments rather than
+freestanding scores: a Cut, one of six record forms, divides a declared unit under
+a question into exclusive answers and an explicit remainder. Processes carry them
+as trajectories that generation must consult and preserve or revise, the proposed
+mechanism for consistent thinking and acting. Records and discovered concepts can
+anchor new inference and abstraction; developing and revising the categories
+themselves is part of the construction method.
 
-Six record forms support the method: Concept, Thing, Event, Binding, Cut, and
-Realization. A Concept may stay lightly specified or have a process-based model
-in the grammar of its instances. World records, Understanding Graphs of
-interpretations and reasons, and documents share one address space with distinct
-authority. Semantic numbers are comparative commitments rather than freestanding
-scores: an Event-parented Cut divides a declared unit under a question among
-exclusive answers and an explicit remainder.
-
-An agent can turn implicit knowledge into explicit process models and build
-inference and abstraction on them; developing and revising the categories
-themselves is part of the construction method. The medium is a candidate training
-language for choosing, deepening, and repairing representations, not only
-predicting content in a fixed schema. Life Simulation develops the
-construction-to-learning loop; this paper specifies the representation and
-preservation contracts. The completed \emph{Book of Conditions} partly
-demonstrates construction feasibility but does not validate the full method;
-learning gains, computational savings, and alignment remain untested.
+Its two linked architectural contributions, progressive resolution and a shared
+construction medium, form one coordinated authoring method, not a new record type
+or the storage of prose beside a graph: a world is built coarse and opened
+recursively where a declared purpose needs detail, and each opening preserves
+declared commitments or explicitly revises them, with their dependent accounts and
+passages. The medium is a candidate training language for choosing, deepening, and
+repairing representations. Life Simulation develops the construction-to-learning
+loop; this paper specifies the representation and preservation contracts. The
+completed \emph{Book of Conditions} partly demonstrates construction feasibility
+but does not validate the full method; learning gains, computational
+savings, and alignment remain untested.
 \end{abstract}
 
 \keywords{Meaning Model, Recursive World Grammar, Concept Grounding,
@@ -105,7 +103,9 @@ nor the comparison or measurement protocol that gives it meaning.
 The Meaning Model proposes one grammar for those responsibilities. Reusable
 Concepts describe continuing Things and Events. A Cut divides one stated unit
 among answers to a question: for example, how a character's attention is shared
-among current concerns, with a remainder for unresolved allocation. A Concept
+among current concerns, with a remainder for unresolved allocation. Bindings state
+which Thing fills which role in an Event, and a Realization records an attributed
+claim that a fragment of the world instantiates a Concept. A Concept
 may remain lightly specified or have a process-based model written in the same
 grammar. Finer articulation reuses the same identities and respects existing
 commitments. The \emph{modeler} is the person or AI system constructing,
@@ -113,8 +113,94 @@ interpreting, or revising this account; \emph{constructor} names its role when
 proposing changes, and the \emph{generator} is the component producing
 candidates. These name roles, not additional record forms.
 
+The central idea is that this construction is possible at all. Many world models
+admit a quantity only after measurement, so an unmeasured history, such as one
+character's trust in another over a year, stays qualitative. A language model,
+however, is already attached to reality through its implicit conceptual
+understanding, learned from human writing about the world. Because that
+understanding was learned from language, questions can draw much of it out in
+words, and the accompanying tool is built to ask them
+(Section~\ref{sec:modeling-workflows}). The model can therefore make its own
+understanding explicit and recursively constructible, including particular
+histories nobody measured and concepts nobody has named, before evidence tests
+the account. The written account need not be faithful to be useful: it is
+attributed, inspectable, and testable, so its errors can be found and corrected
+instead of staying latent.
+
+Explicit structure does more than record that understanding: it is the proposed
+mechanism for consistent thinking and acting. Processes carry trajectories over
+time; states nobody measured receive comparative shares under a declared
+question and unit, with an explicit remainder, instead of an invented absolute
+scale, as when, in the Book's authored reading, Babbage's outlook at the trial of
+May 1851 divides into assurance .76, threat .18, and an unresolved .06; and the
+grammar keeps with every claim whose account it is and what it concerns. These
+trajectories are explicit commitments that generation must consult and then
+preserve or revise: when the model writes a scene, makes a character decide, or
+changes a program, it is to read the recorded state of each relevant process at
+that moment instead of improvising from its context. The same numbers make a
+proposed refinement checkable by arithmetic, as double-entry bookkeeping catches
+an inconsistency without establishing that the books are true, and because the
+records persist, another agent or a later session can inspect, correct, and build
+on them. A language model that carries out the construction the tool instructs is
+meant to build coherent worlds and books this way. \emph{The Book of
+Conditions} was begun under the author's direction while the tool itself was being
+built, and its later revisions were made through the tool. Whether works built
+this way are more coherent than unstructured writing is what the prospective
+evaluation tests. The method is
+designed for programs too: a code unit is a DocumentNode that could be linked to
+the processes and concepts it implements, so that a change to the model would
+name the code it puts in question, though no program has yet been built this way.
+The numerical-dependence test in Section~\ref{sec:prospective-evaluation} is
+designed to measure whether the numbers actually steer what the model writes.
+
+In principle, nothing in the method needs a computer. A novelist could have written every
+character's life from childhood, tracked each voice and belief as a process with
+comparative numbers, and linked every sentence to the Events it depicts. The
+balance of costs has likely kept authors from doing so. One continuous mind can hold
+much of a novel's world implicitly, while writing that understanding down,
+keeping it current, and linking it to the text would take more work than most
+books can bear. Tacit knowledge also resists telling: ``we can know more than we
+can tell''~\cite[p.~4]{polanyi1966tacit}, which made knowledge acquisition the
+bottleneck of knowledge engineering~\cite{feigenbaum1977art}. Where one mind was not enough, as in series bibles,
+writers' rooms, and franchise continuity, the explicit record has usually been
+kept only as far as the work required. A language model changes the balance.
+Extensive articulation can become far easier for it, while it lacks a continuous
+mind to hold a long work together, so persistent records supply continuity
+across sessions and agents that its context cannot. What is new is what this makes
+possible: progressive resolution and a shared construction medium connect
+discovered concepts, quantitative commitments, recursive refinement, and
+coordinated revision in one inspectable account.
+
+Construction is also a method of discovery. The intended agentic use is to give
+an intelligent system a small, recursively
+reusable toolbox for building an explicit world model. A language model can
+draw on learned world knowledge to infer and make explicit the processes,
+motives, relationships, and quantities behind events, including what people
+know implicitly but have not recorded or measured. Each explicit record becomes
+an anchor for further inference: the constructor can connect records, infer
+higher-level concepts from their relationships, and open those concepts into
+finer processes. Beginning from an institution that is losing legitimacy, for
+example, it may infer inconsistent decisions, unequal access, and failed
+expectations that nobody has measured. Those records can support a concept of
+procedural betrayal, which may then guide the study of another institution or
+explain a character's changing loyalties. The resulting structure anchors
+another round of abstraction and refinement; neither the domain, conceptual
+vocabulary, nor depth is fixed in advance. The system can also discover where
+its current account is inadequate, propose finer structure or a better
+decomposition, and test the change against observations or generated
+consequences. Useful changes should survive without losing the identities,
+meanings, and history already accepted; conflicts require explicit revision.
+The toolbox supports the growth of the conceptual space, not just
+relationships among concepts supplied in advance. Discovering and revising
+person categories through joint human and AI construction is part of this work,
+not merely an option to replace a finished inventory.
+
 Progressive resolution and a shared construction medium are the proposal's two
-linked architectural contributions. Together they form one construction method,
+linked architectural contributions. They are also the machinery the central idea
+needs:
+progressive resolution lets an anchor be opened without losing what is already
+committed, and the shared medium lets a discovered concept be revised together
+with its instances, reasons, and prose. Together they form one construction method,
 in which world commitments, concept interpretations, authoring reasons, and prose
 are refined and revised together, and each opening preserves declared
 commitments or revises them explicitly. Four representational changes carry it:
@@ -177,29 +263,6 @@ what to construct next. In storytelling, it guides decisions before prose rather
 than merely cataloguing a finished story. A whole life or institution can be sketched first, then
 opened where its decisions and consequences matter; incompatible detail prompts
 revision of the larger account.
-
-Construction is also a method of discovery. The intended agentic use is to give an intelligent system a small, recursively
-reusable toolbox for building an explicit world model. A language model can
-draw on learned world knowledge to infer and make explicit the processes,
-motives, relationships, and quantities behind events, including what people
-know implicitly but have not recorded or measured. Each explicit record becomes
-an anchor for further inference: the constructor can connect records, infer
-higher-level concepts from their relationships, and open those concepts into
-finer processes. Beginning from an institution that is losing legitimacy, for
-example, it may infer inconsistent decisions, unequal access, and failed
-expectations that nobody has measured. Those records can support a concept of
-procedural betrayal, which may then guide the study of another institution or
-explain a character's changing loyalties. The resulting structure anchors
-another round of abstraction and refinement; neither the domain, conceptual
-vocabulary, nor depth is fixed in advance. The system can also discover where
-its current account is inadequate, propose finer structure or a better
-decomposition, and test the change against observations or generated
-consequences. Useful changes should survive without losing the identities,
-meanings, and history already accepted; conflicts require explicit revision.
-The toolbox supports the growth of the conceptual space, not just
-relationships among concepts supplied in advance. Discovering and revising
-person categories through joint human and AI construction is part of this work,
-not merely an option to replace a finished inventory.
 
 \subsection{Uses and long-term aims}
 
@@ -285,6 +348,11 @@ The claim has two parts that must not be confused.
     representation is unique, complete at every resolution, or mechanically true.
 \end{itemize}
 
+The central idea stated at the start of this Introduction rests on both and adds
+an empirical expectation: that explicit construction improves on what a language
+model does implicitly. Section~\ref{sec:prospective-evaluation} states how it is
+tested.
+
 The construction discipline belongs to this paper: frozen-parent whole
 candidates, direction rolls, atomic commit or rejection, explicit revision,
 rendering routes, and read-back. Life Simulation develops methods for
@@ -311,13 +379,14 @@ read-back. Section~\ref{sec:closure} turns recursive refinement into a
 finite-resolution sufficiency test. Section~\ref{sec:book-construction} reports
 the Book and the prospective evaluation, and
 Section~\ref{sec:modeling-workflows} the current workflows.
-Sections~\ref{sec:related} and~\ref{sec:limitations} relate the proposal to
+Section~\ref{sec:implications} considers what changes if works are constructed
+this way. Sections~\ref{sec:related} and~\ref{sec:limitations} relate the proposal to
 prior work and state its limits, and Section~\ref{sec:companion} places it in
 the wider research program.
 
 \begin{center}
 \fbox{\begin{minipage}{0.90\linewidth}
-\textbf{The minimized core.}
+\textbf{The minimized core of the grammar.}
 \MMCoreSummary
 \end{minipage}}
 \end{center}
@@ -654,7 +723,9 @@ detail from expanding merely because it can.
 \subsubsection{Cuts, Event-processes, and world data}
 \label{sec:normalized-cuts}
 
-The central numerical distinction is not between important and unimportant
+Cuts let states nobody has measured, such as one person's trust in another
+during a given month or a character's outlook at a trial, enter a computable
+account without an invented absolute scale. The central numerical distinction is not between important and unimportant
 records. It is between a divided quantity and an undivided relation. For Cut
 $K$,
 
@@ -831,7 +902,10 @@ $.30$ of the first component, exceeding the parent's $.20$. Its residual is
 $(-.10,.55,.05)$: no nonnegative completion can repair it. The constructor must
 reject that detail or explicitly revise the parent and its dependents. The
 calculation constrains what may be constructed without uniquely supplying the
-missing history; its shares are not absolute psychological measurements.
+missing history; its shares are not absolute psychological measurements. This is
+what comparative numbers on meaning buy: a proposed refinement of an unmeasured
+allocation such as a character's motivational attention can be rejected by arithmetic rather than by judgment
+alone.
 
 A modeler may retain a conceptual decomposition across timescales or use
 scale-specific decompositions. Retaining categories supports consistent
@@ -1816,7 +1890,9 @@ Five questions provide the evaluation contract:
 
 \emph{The Book of Conditions} is a completed twelve-chapter manuscript with
 an authored world, selected concept grounding, rooted UnderstandingNodes, and
-an ordered story route. The AI constructor built and revised it under my direction.
+an ordered story route. The AI constructor built it under my direction at the beginning, while the tool
+itself was being developed; later revisions were made by language-model agents
+through the tool.
 It is a partial construction witness, not a complete protocol implementation,
 built anew from a released historical prefix and an explicit counterfactual divergence. No
 discarded preliminary draft supplies evidence, accepted records, counts, or prose.
@@ -2222,6 +2298,7 @@ whole archival version series, not an immutable release. The source package's
 manifest records exact file digests.
 
 \subsection{Prospective comparative evaluation}
+\label{sec:prospective-evaluation}
 
 The completed Book does not satisfy the still-prospective comparison.
 A future scored construction must preserve source-locked accepted commits,
@@ -2296,6 +2373,24 @@ contradictions than unguided revisions of the same manuscript. A ranking of
 decision and state jumps, frozen before reading, should predict where
 independent readers locate the key turns; a highly ranked turn rendered only in
 retrospect should predict a report that it is told rather than shown.
+
+The central idea needs its own test. A concept discovered during construction,
+such as the Introduction's hypothetical concept of procedural betrayal, is frozen with its grounding version and applied to
+held-out cases that did not produce it. Explanations and predictions made with
+it are compared with those of the same model working from the same evidence
+without the explicit concept, at matched budgets. A second comparison asks
+whether explicit anchors improve later inference, by another agent or in a later
+session, over the same knowledge held only implicitly. If discovered concepts do
+not transfer, or explicit anchors add nothing beyond what a capable model does
+implicitly, that is a negative result for the paper's central idea.
+
+A direct demonstration of autonomous construction would begin from scratch. A named model,
+working through a frozen release of the tool, receives one open prompt, such as to
+write any story it wishes, and works in a small fixed number of rounds. The
+prompt, the model, the release, and the complete construction are published with
+the work, so that anyone can check what that model built with that tool from that
+prompt. This demonstrates construction feasibility; the controlled comparisons
+above test whether explicit structure improves coherence, inference, and transfer.
 
 Cut density, remainders, direction calibration, rejection and revision rates,
 prose length, model calls, tokens, latency, human adjudication time, storage,
@@ -2533,20 +2628,16 @@ or requires an explanation for every ambiguity.
 A director review assesses the world before the first scene, and the draft
 before release, against stated principles: for instance, that no death or
 accident does the plot's work, that the route passes through the model's
-largest jumps, and that each recorded idea reaches the reader. Each failing
-finding names the model or prose change it needs. Release requires a director
+largest jumps, and that each recorded idea reaches the reader. The reviewer
+judges each principle against the work's form, purpose, and context, and may
+explain why it does not apply. Each failing finding names the model or prose
+change it needs. Several of its principles
+were distilled from understanding notes recorded while the Book was
+constructed. Release requires a director
 review of the current prose and a later answer to every failure found at either
 stage, with a changed model or a fresh passing review of changed prose where the
 finding requires it. The server checks these records; whether a repair
 succeeded remains a judgment.
-
-A separate example is \emph{Twelve Words}, whose initial twelve-part manuscript
-of roughly 8,400 words was written by a language-model agent using the Meaning
-Model to construct invented characters, their world, and decisions. Later
-development adds spatial and telling-process records and substantive literary
-revisions. Published snapshots in the story repository remain distinct from
-unpublished working revisions. The initial word count does not describe the
-latest revised manuscript.
 
 Scenes can contain ordered, independently editable passages. Shared graph
 editing supports splitting, merging, moving, reordering, and local text
@@ -2652,6 +2743,61 @@ review, and repair, compared on equivalent tasks. Structural tests or a single
 live provider run do not establish lower total cost, faster completion,
 calibrated judgments, predictive accuracy, or superior fiction.
 
+\section{What Changes When Works Are Constructed}
+\label{sec:implications}
+
+If books, films, and game worlds come to be constructed this way, a work is no
+longer its text alone. A book becomes one route through a modeled world, whose
+reading order passes through Events that exist whether or not a scene shows
+them; the storytelling guidance already treats a story as a small window onto a
+world modeled far beyond it. A film, a game, a sequel, a translation, or an
+adaptation becomes another route through the same world, and continuity between
+them becomes partly checkable, where depiction and dependencies are declared,
+rather than something curated by memory. Readers and players could open the world behind a work: read a
+secondary person's life from its beginning, follow a process the story only
+glimpsed, or ask what a character knew on a given day, with each answer
+attributed to whoever holds it.
+
+Game worlds change most directly. A world could stay coarse but consequential
+everywhere and open detail where a player goes, as the harvest example in the
+Introduction describes. Its people would have modeled lives whose decisions
+consult their trajectories, and shared facts would stay the same for every
+player. Procedural generation and level-of-detail simulation already produce and run
+large worlds~\cite{brom2007,sunshine2010}; what could change is coherence at that
+scale, because progressive resolution and a shared construction medium let detail
+be constructed when it matters and checked against what is already committed.
+
+Authorship can shift toward direction. The human who commissions a work chooses
+what it should convey, the strategy for conveying it, and what makes it worth
+reading, and judges the result; the language model can construct the world and its
+telling under those commitments. Because the construction record keeps choices,
+reasons, and reviews with the records they concern, who decided what becomes
+inspectable where it is recorded, and a revision can be traced to the commitment that caused it.
+Criticism could gain further evidence: the ideas the work was built to convey,
+the strategy recorded for each, and blind read-backs that test which of them a
+reader recovers.
+
+The worlds also become learning material. Construction histories pair a
+situation with the refinement, repair, or stopping decision taken, the kind of
+example from which a system might learn to think in explicit, consistent worlds,
+as Life Simulation proposes (Section~\ref{sec:companion}). Modeling fictional people from where their lives
+begin may also be practice for the harder, evidence-bound task of understanding real
+people.
+
+The changes carry risks. One grammar and one model's implicit priors could
+narrow the range of worlds, the Median Trap that the world-diversity search of Ontology of the Alien is
+designed to counter~\cite{westerbergOntology2026}. Comparative numbers can
+lend false precision to a poor question, and a highly coherent invented world can
+persuade more than it should. Real people need protection: the storytelling
+guidance asks that living people and real organizations not take part as
+characters, and the director review checks it. Some art
+depends on what is left unsaid. The model can record a motive fully while the
+telling withholds it, which is a disclosure choice rather than an unresolved Cut;
+where the author leaves something genuinely open, that openness can be recorded as
+such. None of these
+consequences is demonstrated here beyond \emph{The Book of Conditions}; they describe
+what the method is for.
+
 \section{Related Work}
 \label{sec:related}
 
@@ -2729,6 +2875,21 @@ its details exist; an opening must satisfy declared fine-to-coarse checks or
 trigger explicit revision. Local comparative person Cuts and versioned concept
 groundings participate in that same construction rather than forming unrelated
 annotations.
+
+Making implicit knowledge explicit also has a long history. Knowledge
+engineering elicited experts' knowledge into the rules of expert
+systems~\cite{feigenbaum1977art}, and Cyc hand-encoded commonsense concepts and
+axioms from 1984 on~\cite{lenat1995cyc}. Both depended on people to articulate
+what they knew, and tacit knowledge resists that~\cite{polanyi1966tacit}. Here the
+language model is asked to articulate its own understanding, recursively and at
+the scale of a long work, under a grammar that quantifies meaning comparatively and
+preserves commitments across openings, and the result is a world and its telling built for one inquiry or work. The
+Meaning Model's two linked architectural contributions, progressive resolution
+and a shared construction medium, together connect discovered concepts,
+quantitative commitments, recursive refinement, and coordinated revision in one
+inspectable account. The comparison below locates each part among its
+precedents; to our knowledge, no earlier system specifies this complete operation
+for a language model constructing and revising its own explicit world model.
 
 The cross-scale pattern has important precedents. Holling's panarchy account
 links faster, smaller adaptive cycles with slower, larger ones: local
@@ -2955,8 +3116,18 @@ conduct remains an empirical question.
 
 \section{Conclusion}
 
-The Meaning Model makes the developing account of a world the working object
-of authorship. A coarse life, institution, or physical process can constrain detail that has
+The central idea of this paper is that a language model, already attached to
+reality through its implicit understanding of human writing, can make that
+understanding
+explicit, comparatively quantified, and recursively constructible, with its
+trajectories as explicit commitments that the model's thinking and acting must
+consult and preserve or revise, and each discovered concept anchoring the next
+round of inference and abstraction. Its two linked architectural contributions, progressive resolution and a shared
+construction medium, let that construction be revised without losing what is
+committed. If books, films, and game worlds come to be built this way, a work
+could become one route through a world whose coherence, intentions, and
+revisions can be inspected. The Meaning Model makes the developing account of a world the
+working object of authorship. A coarse life, institution, or physical process can constrain detail that has
 not yet been constructed. An opening preserves its declared commitments or
 prompts explicit revision. Concept models, Event descriptions, understanding
 histories, and narrative participate in the same operation, rather than
