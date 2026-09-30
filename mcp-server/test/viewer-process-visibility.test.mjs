@@ -59,6 +59,15 @@ test('phase, lifecycle, relationship and context records remain visible even whe
   assert.equal(unopenedProcessEvents(data).size, 0);
 });
 
+test('a qualitative life period stays visible when its duration puts it in the process inventory', () => {
+  const data = snapshot();
+  addEvent(data, 'life-period', { role: 'period', start: 1, end: 90,
+    description: 'Childhood, training, and entry into a profession.' });
+  data.people.push({ id: 'person', processes: [{ eventId: 'life-period', opened: 0 }] });
+  addSlot(data, 'unopened-slot');
+  assert.deepEqual([...unopenedProcessEvents(data)], ['unopened-slot'], 'a period is not an empty concurrent process slot');
+});
+
 test('native and projected child Events preserve a process independently of drawing depth', () => {
   const data = snapshot();
   addSlot(data, 'native-parent'); addSlot(data, 'projected-parent'); addSlot(data, 'empty-parent');
@@ -145,6 +154,9 @@ test('the current Book hides unopened slots while retaining numerical and qualit
   const concurrentEvents = data.events.filter((event) => event.processIds.some((id) => concurrentProcesses.has(id)));
   assert.ok(hidden.size > 0 && hidden.size < concurrentEvents.length, 'this edition contains both unopened and developed processes');
   assert.ok([...hidden].every((id) => concurrentEvents.some((event) => event.id === id)), 'only declared concurrent slots are hidden');
+  const daviesPeriod = data.events.find((event) => event.id === 'event.book.davies.beginning-1788');
+  assert.equal(daviesPeriod?.role, 'period', 'Davies\'s early life is a declared life period');
+  assert.equal(hidden.has(daviesPeriod.id), false, 'the qualitative period stays visible even though its span puts it in the process inventory');
   const developed = concurrentEvents.filter((event) => !hidden.has(event.id));
   assert.ok(developed.length > 3, 'qualitative developments count as modeling alongside numerical bodies');
   for (const id of ['event.profile.charles-babbage.person.charles_babbage.is.body',

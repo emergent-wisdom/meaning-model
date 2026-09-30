@@ -17,7 +17,7 @@ export function unopenedProcessEvents(data) {
     parents.get(event.id).push(event.parent);
   }
   const candidates = new Set(); const developed = new Set();
-  const excludedRole = (role) => ['phase', 'arc', 'life', 'world', 'inner'].includes(role);
+  const excludedRole = (role) => ['phase', 'arc', 'life', 'period', 'world', 'inner'].includes(role);
   const excludedMeaning = (role) => /(?:lifecycle|relationship|change_arc|phase)/.test(String(role ?? ''));
   const known = (id) => events.has(id) || nativeEvents.has(id);
   const eventProcessIds = (id) => [...new Set([...(nativeEvents.get(id)?.process_ids ?? []), ...(events.get(id)?.processIds ?? [])])];

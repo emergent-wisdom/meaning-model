@@ -9,12 +9,14 @@ unpublished work stays under Unreleased. This is not a development transcript.
 - The viewer has a **Default** button (and the `0` key) that forgets this tab's saved view, camera, time and reading
   position and reopens the model as it first opens. Event names and level labels keep clear of the love-or-fear
   cards, and in a window smaller than 1500 by 950 a card with no room waits instead of covering the scene.
+  Resetting also keeps an explicitly selected story in standalone `?data=` links.
 - In Tree, documents and notes stand on the floor of what they belong to (the new **On floors** layout, the default
   there): at its moment when a note is about a dated Event, else where its process or home Event begins, else beside
   the note it links to. Only the first kind's place along the floor is a date, and each tooltip says which it is.
   Processes keeps the Original band; a chosen layout is kept in the address. Decisions and love-or-fear cards in
   Tree stand over the Event they decide or read.
 - **Hide undated notes** (off by default) hides documents and notes that are about no dated Event.
+- **Hide unopened processes** keeps life periods visible even when their duration also puts them in a person's process inventory.
 - The reading position strip is off until asked for (Layers, or `reading=on`). A colour key under the title names
   whose colour is whose, with grey for what a Cut's answers leave open. A person or the world without curves is named
   only where its Events are drawn, so its name no longer stands among another person's rows.
