@@ -23,6 +23,8 @@ unpublished work stays under Unreleased. This is not a development transcript.
   their menu.
 - The play sweep stands from the lowest floor or Event drawn to above the highest curtain, so in Tree and beneath
   the curves it passes through everything as the years play.
+- While the years play, nothing stands past the playhead: a document whose place lies ahead (in the Original band a
+  note stands at the middle of its moments) waits for it, and every process's readout follows the playhead.
 
 ## 0.6.0 — 2026-09-29
 

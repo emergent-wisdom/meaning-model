@@ -30,7 +30,7 @@ function fixture() {
     push(map, key, value) { if (!map.has(key)) map.set(key, []); map.get(key).push(value); },
     notes: [light('person-note'), light('process-note'), light('cut-note', [scene]), light('many-events-note', [life, scene]), light('indirect-note')],
     selectedPart: null, pinnedTarget: null, opt: { noteLayout: 'overhead', allNoteAttachments: false, edges: true, detailProjection: { eventIds: new Set(['life', 'work']) } },
-    construction: false, now: 5, tau: Date.parse('2026-01-01T00:00:00.000Z'),
+    construction: false, now: 5, tau: Date.parse('2026-01-01T00:00:00.000Z'), atEnd: true, playing: false,
     bornAt: (record) => record.born?.at ? Date.parse(record.born.at) : -Infinity,
   };
   vm.createContext(context); vm.runInContext(`${mapping}\nthis.scopeEvents = noteScopeEvents; this.datedMoments = moments;`, context);
@@ -461,4 +461,15 @@ test('Hide undated notes leaves only notes about a dated Event, and keeps a sele
   assert.deepEqual(context.notes.map((note) => note.visible), [false, false, true, true, false]);
   context.selectedPart = { unit: { id: 'indirect-note' } }; context.applyVisibility();
   assert.equal(context.notes[4].visible, true, 'the selected document stays');
+});
+
+test('while the years play, a document whose place is still to come waits for the playhead', () => {
+  const context = fixture(); installPlacement(context);
+  Object.assign(context, { xOf: (time) => time * 10, now: 3, atEnd: false, playing: true });
+  const waits = (x) => vm.runInContext(`waitsForPlayhead(${x})`, context);
+  assert.equal(waits(30.5), false, 'a light at the playhead shows');
+  assert.equal(waits(40), true, 'a light years ahead waits');
+  context.playing = false; assert.equal(waits(40), true, 'paused mid-way, the future stays empty');
+  context.atEnd = true; assert.equal(waits(40), false, 'the whole view at rest shows every light');
+  context.atEnd = false; context.opt.mode = 'construction'; assert.equal(waits(40), false, 'the construction replays by when things were made, not by world time');
 });

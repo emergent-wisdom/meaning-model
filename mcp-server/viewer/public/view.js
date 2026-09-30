@@ -921,6 +921,9 @@ function positionNote(light, occupied = null, centeredBand = null, homes = null)
       back + (Math.floor(order / columns) + 0.5) / lines * (band ? front - back : Math.max(12, front - back)));
   }
 }
+// While the years play, a light whose place is still to come waits for it, whatever the layout: in the Original band a
+// note stands at the middle of its moments, which can lie after the first that reveals it.
+const waitsForPlayhead = (x) => opt.mode !== 'construction' && !(atEnd && !playing) && x > xOf(now) + 0.6;
 function placeNotes() {
   const place = new Map(); const top = mindTop(); const back = (node, x) => new THREE.Vector3(x, top.y + noteLayer(node) * 1.6, top.z - noteLayer(node) * 2.2);
   const within = (event) => event.start >= F.a - 0.3 && event.start <= F.b;
@@ -964,6 +967,7 @@ function drawNotes() {
     positionNote(light, occupied, centeredBand, homes);
     const selected = noteSelected(light);
     light.scale.setScalar((light.userData.node.category === 'passage' ? 2.6 : 2.0) * (selected ? 1.8 : 1));
+    if (light.visible && !selected && waitsForPlayhead(light.position.x)) light.visible = false;
     if (!light.visible) continue; shown.add(light.userData.id); const on = lit === light || selected; if (!opt.edges && !on) continue;
     const anchors = on || opt.allNoteAttachments || opt.noteLayout === 'original' ? light.userData.moments.filter((event) => (!opt.detailProjection || opt.detailProjection.eventIds.has(event.id)) && shownByPlay(event.start, bornAt(event))).flatMap((event) => meet(event)) : light.userData.localAnchor ? [light.userData.localAnchor.point] : light.userData.floorHome?.kind === 'slot' ? [light.userData.floorHome.point] : [];
     for (const point of anchors) mindLines.add(light.position.x, light.position.y, light.position.z, point.x, point.y, point.z, light.userData.color, on ? 0.95 : opt.allNoteAttachments ? 0.3 : opt.noteLayout === 'original' ? 0.13 : 0.2);
@@ -1658,6 +1662,9 @@ function apply() {
     row.value.element.textContent = value === null ? '' : `${rowValueText(row, afterLast ? last.t : t)}${afterLast ? ' · last' : ''}`;
     row.value.element.title = afterLast ? `Last authored reading: ${timeText(last.t, 1)}. No value is extrapolated after it.` : native ? 'A ~ value is visual interpolation between authored interval readings.' : '';
     if (native && last) placeNativeValue(row, afterLast ? last.t : t);
+    // While the years play, every readout stands at the playhead; at the end a process's readout returns to the margin.
+    else if (!construction && !(atEnd && !playing)) placeNativeValue(row, t);
+    else { const p = rowAt(row); row.value.center.set(0, 0.5); row.value.position.set(LENGTH / 2 + 1.2, p.y + 0.8, p.z); }
     // Construction keeps an unmade process's name faintly; world playback waits for its first sample.
     const unmade = construction && !row.riseTo; const arrived = native ? row.points.length >= 2 && shownByPlay(row.points[0].t, -Infinity) : construction || shownByPlay(row.measure.points[0].t, bornAt(row.measure));
     row.name.visible = presence(row) > 0.5 && opt.show.has('processes') && arrived; row.value.visible = row.name.visible && value !== null && (!native || row.wall.visible);
@@ -2910,6 +2917,32 @@ function frame() {
 window.explorer = {
   view: () => ({ a: F.a, b: F.b, warp: F.w, camera: opt.camera, glare: opt.glare, mode: opt.mode, layout: opt.layout, depth: opt.depth, now, tau, position: camera.position.toArray().map((v) => +v.toFixed(1)) }),
   walk: (keys, seconds) => { for (const key of keys) held.add(key); if (opt.camera === 'spin') setCamera('free'); for (let t = 0; t < seconds; t += 1 / 60) walk(1 / 60); held.clear(); controls.update(); return camera.position.toArray().map((v) => +v.toFixed(1)); }, zoom: (x, y, factor) => zoomAt(x, y, factor), preset: (name) => preset(name, false),
+  // What is drawn past the playhead, by kind, to check that playing the years shows nothing still to come.
+  future: (margin = 1.5) => {
+    const edge = xOf(building() ? T1 : now) + margin, v = new THREE.Vector3(), out = {};
+    const known = new Map([[arcsBuffer.object, 'causal links'], [mindLines.object, 'document lines'], [noteLinks.object, 'document links'], [extraWalls.object, 'Event walls'], [extraCrests.object, 'Event crests'], [extraGrid.object, 'Event grid'], [connectors.object, 'connectors'], [chips.object, 'chips'], [proseLines.object, 'prose lines']]);
+    for (const row of rows) for (const [key, value] of Object.entries(row)) if (value?.isObject3D) known.set(value, `row ${key}`);
+    for (const light of notes) known.set(light, 'document lights'); for (const spark of eventSparks) known.set(spark, 'Event lights'); for (const gem of decisions) known.set(gem, 'decisions'); for (const spark of arcSparks) known.set(spark, 'causal link ends');
+    const shown = (o) => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
+    const add = (name, text) => { const item = out[name] ??= { count: 0, sample: [] }; item.count += 1; if (text && item.sample.length < 4) item.sample.push(text); };
+    field.updateMatrixWorld(true);
+    field.traverse((o) => {
+      if (!shown(o)) return;
+      if (o.isCSS2DObject) {
+        const el = o.element, inner = el.firstElementChild; const hidden = (e) => e && (e.style.visibility === 'hidden' || e.style.opacity === '0' || e.style.display === 'none');
+        if (hidden(el) || hidden(inner) || !el.textContent.trim()) return;
+        field.worldToLocal(o.getWorldPosition(v)); if (v.x > edge) add(`label ${el.className.replace('label ', '')}`, el.textContent.trim().slice(0, 48)); return;
+      }
+      if (o.isSprite) { field.worldToLocal(o.getWorldPosition(v)); if (v.x > edge) add(known.get(o) ?? 'lights'); return; }
+      const pos = o.geometry?.attributes?.position; if (!pos) return;
+      const range = o.geometry.drawRange, end = Math.min(pos.count, range.start + (Number.isFinite(range.count) ? range.count : pos.count)), col = o.geometry.attributes.color; let n = 0;
+      // An indexed surface draws only the vertices its index reaches within the draw range.
+      const index = o.geometry.index, stop = index ? Math.min(index.count, range.start + (Number.isFinite(range.count) ? range.count : index.count)) : end;
+      for (let k = range.start; k < stop; k += 1) { const i = index ? index.getX(k) : k; if (col?.itemSize === 4 && col.getW(i) < 0.01) continue; v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld); field.worldToLocal(v); if (v.x > edge) n += 1; }
+      if (n) add(known.get(o) ?? o.type, `${n} vertices`);
+    });
+    return out;
+  },
   // Where each visible document stands on screen, to point at it in a test.
   documents: () => notes.filter((light) => light.visible).map((light) => { const point = screen(light.position.x, light.position.y, light.position.z); return { id: light.userData.id, attached: light.userData.attached.length, x: Math.round(point.x), y: Math.round(point.y) }; }),
   // Where each causal link crosses the screen, at its middle, to point at it in a test.
