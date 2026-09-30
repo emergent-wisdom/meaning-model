@@ -120,3 +120,18 @@ test('a draw that lands in the remainder asks for the remainder to be opened and
   assert.equal(draw.realized, 'remainder');
   assert.match(draw.nextStep, /Open the remainder rather than writing the continuation yourself: add a Cut .* conditioned on this Cut's remainder \(conditioning: \{ cut_id: 'cut\.ada\.h06\.attention', answer_key: 'remainder' \}\)/);
 });
+
+test('a draw is built only where the continuation is authored; where the model describes, it stays a hypothetical scenario', async (t) => {
+  const markdown = await readFile(new URL('../../docs/examples/MINIMAL-MODEL-AND-GRAPH.md', import.meta.url), 'utf8');
+  const [, registerRequest] = jsonBlocks(markdown);
+  const service = new LifeSimulationService();
+  t.after(() => service.close());
+  await service.initialize();
+  const { modelHash } = await service.registerModel(registerRequest);
+  const probe = await drawDirection(service, { modelHash, cutId: 'cut.ada.h06.attention', seed: 'probe' });
+  const seed = Array.from({ length: 5000 }, (_, index) => `named/${index}`).find((candidate) => drawFromAnswers(probe.answers, drawUniform(candidate)).realized !== 'remainder');
+  const draw = await drawDirection(service, { modelHash, cutId: 'cut.ada.h06.attention', seed });
+  assert.match(draw.nextStep, /^Where the continuation is yours to construct, as in a story or a game world, build \S+ as the realized continuation/);
+  assert.match(draw.nextStep, /Where the model describes something that exists, the draw only samples a hypothetical scenario: do not realize it as what happened; realize an answer when evidence shows it/);
+  assert.match(draw.nextStep, /read the Cut's weights as probabilities only where they were declared as probabilities over the outcomes before the outcome was known/);
+});

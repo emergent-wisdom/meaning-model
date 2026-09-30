@@ -206,15 +206,103 @@ test('reviews that read the current model revision are named as a signal, and ea
   assert.equal(third.sameModelReviews, undefined);
   // A review of an older version, recorded now, keeps the model it read: it is not counted as reading the current one.
   const older = await review(third.graphHash, 4, first.graphHash);
-  assert.deepEqual([older.reviewedModelHash, older.recordedAtModelHash], [modelHash, revised.modelHash]);
+  assert.deepEqual([older.reviewedModelHash, older.recordedAtModelHash, older.reviewedModelRelation], [modelHash, revised.modelHash, 'ancestor']);
   assert.equal(older.sameModelReviews, undefined);
-  assert.match(older.nextStep, /This review read a version of an earlier model revision .*check which of its findings later revisions already answer/);
+  assert.match(older.nextStep, /This review read a version bound to an earlier revision of the current model \([0-9a-f]{12}, 1 revision back\): check which of its findings the current model already answers/);
   const view = await service.queryNarrativeGraph({ graphHash: older.graphHash, mode: 'full', includeContent: true, accessScopes: scopes });
   const olderNode = view.nodes.find((node) => node.id === 'review.loop.4');
   assert.ok(olderNode.provenance.includes(`reviewed-model:${modelHash}`) && olderNode.provenance.includes(`recorded-at-model:${revised.modelHash}`));
   assert.deepEqual([JSON.parse(olderNode.text).data.reviewed.modelHash, JSON.parse(olderNode.text).data.recordedAtModelHash], [modelHash, revised.modelHash]);
   const fifth = await review(older.graphHash, 5);
   assert.deepEqual(fifth.sameModelReviews, { count: 2, modelHash: revised.modelHash, earlier: ['review.loop.3'] });
+});
+
+// One successor of the setup's model, with the graph rebound to it from the setup's revision.
+async function successorLine(service, { model, modelHash, graphHash }, label, description) {
+  const successor = structuredClone(model);
+  successor.revision = { number: 1, previous_model_hash: modelHash, reason: `Line ${label}.`, provenance: ['test'] };
+  successor.meaning_model.events.find((event) => event.id === 'event.ada.state.h06').description = description;
+  const revised = await service.reviseModel({ requestId: `line-revise-${label}`, previousModelHash: modelHash, model: successor });
+  const rebound = await rebindNarrativeGraph(service, { requestId: `line-rebind-${label}`, graphHash, modelHash: revised.modelHash, accessScopes: scopes, reason: `Follow line ${label}.` });
+  return { modelHash: revised.modelHash, graphHash: rebound.graphHash };
+}
+const reviewOf = (service, n, graphHash, reviewed, exactRevision = false) => recordReview(service, { exactRevision, graphHash, requestId: `review-${n}`, accessScopes: scopes, nodeId: `review.${n}`,
+  reviewer: { id: `reader:${n}`, kind: 'model' }, recordedBy: 'modeler', independence: 'blind', reviewed: { rootId: 'story', materials: 'rendered_text', ...reviewed },
+  review: { text: 'Why does the money come before the ovens?' }, about: [{ record: 'event:event.ada.state.h06' }] });
+
+test('a delayed review without reviewed.graphHash read the revision it names, not the newer head it is recorded at', async (t) => {
+  const start = await setup(t);
+  const { service, modelHash, graphHash } = start;
+  const line = await successorLine(service, start, 'a', 'The loan falls due before the ovens can pay it back.');
+  // The reviewer read the setup's revision; the review is recorded after the graph moved on to a new model.
+  const delayed = await reviewOf(service, 'delayed', graphHash, {});
+  assert.equal(delayed.advancedFrom, graphHash, 'the record goes to the newest head');
+  assert.equal(delayed.previousGraphHash, line.graphHash);
+  assert.equal(delayed.reviewedGraphHash, graphHash, 'the review read the revision it named');
+  assert.deepEqual([delayed.reviewedModelHash, delayed.recordedAtModelHash, delayed.reviewedModelRelation], [modelHash, line.modelHash, 'ancestor']);
+  assert.equal(delayed.sameModelReviews, undefined, 'it is not counted as a review of the current model');
+  assert.match(delayed.nextStep, /No reviewed\.graphHash was given, so the review is taken to have read the revision you named \(0\), not the newer head it is recorded at \(1\)/);
+  // Written at the older revision instead, a review of the newer one read a descendant, not an earlier model.
+  const behind = await reviewOf(service, 'behind', graphHash, { graphHash: line.graphHash }, true);
+  assert.deepEqual([behind.reviewedModelHash, behind.recordedAtModelHash, behind.reviewedModelRelation], [line.modelHash, modelHash, 'descendant']);
+  assert.match(behind.nextStep, /read a version bound to a later revision \([0-9a-f]{12}\) than the model this graph line is bound to/);
+});
+
+test('a review of a sibling branch is neither earlier nor later, and reviews on another branch are not counted here', async (t) => {
+  const start = await setup(t);
+  const { service } = start;
+  const a = await successorLine(service, start, 'a', 'The loan falls due first.');
+  const b = await successorLine(service, start, 'b', 'The ovens her grandmother lit come first.');
+  const onB = await reviewOf(service, 'on-b', b.graphHash, { graphHash: b.graphHash }, true);
+  assert.equal(onB.reviewedModelRelation, 'current');
+  const across = await reviewOf(service, 'across', a.graphHash, { graphHash: b.graphHash }, true);
+  assert.deepEqual([across.reviewedModelHash, across.recordedAtModelHash, across.reviewedModelRelation], [b.modelHash, a.modelHash, 'other']);
+  assert.match(across.nextStep, /neither an ancestor nor a descendant of the current [0-9a-f]{12} within 255 revisions back: it may come from another branch/);
+  assert.doesNotMatch(across.nextStep, /earlier revision|later revision/);
+  const onA = await reviewOf(service, 'on-a', across.graphHash, { graphHash: across.graphHash }, true);
+  assert.equal(onA.sameModelReviews, undefined, 'the review on branch b read another model and is not in this line');
+  const again = await reviewOf(service, 'again', onA.graphHash, { graphHash: onA.graphHash }, true);
+  assert.deepEqual(again.sameModelReviews, { count: 2, modelHash: a.modelHash, earlier: ['review.on-a'] });
+});
+
+test('an ancestry lookup that fails is reported as unknown, not as another branch, and the review is still recorded', async (t) => {
+  const start = await setup(t);
+  const { service, graphHash } = start;
+  const line = await successorLine(service, start, 'a', 'The loan falls due first.');
+  // The revision-chain walk reads model summaries; here those time out, while everything else answers.
+  const timingOut = new Proxy(service, { get(target, key) {
+    if (key === 'inspectModel') return (args) => (args?.includeDefinition ? target.inspectModel(args) : Promise.reject(new Error('Timed out inspecting the model.')));
+    const value = target[key];
+    return typeof value === 'function' ? value.bind(target) : value;
+  } });
+  const unsure = await reviewOf(timingOut, 'unsure', line.graphHash, { graphHash });
+  assert.equal(unsure.reviewedModelRelation, 'unknown');
+  assert.match(unsure.nextStep, /The review is recorded, but how the model it read \([0-9a-f]{12}\) relates to the current [0-9a-f]{12} could not be established \(Timed out inspecting the model\.\)/);
+  assert.doesNotMatch(unsure.nextStep, /it may come from another branch|earlier revision|later revision/);
+  const view = await service.queryNarrativeGraph({ graphHash: unsure.graphHash, mode: 'full', includeContent: true, accessScopes: scopes });
+  assert.ok(view.nodes.some((node) => node.id === 'review.unsure'), 'the review is kept');
+  // Asked again once the lookup answers, the same two models are an ancestor and its successor.
+  const retried = await reviewOf(service, 'retried', unsure.graphHash, { graphHash });
+  assert.equal(retried.reviewedModelRelation, 'ancestor');
+});
+
+test('the revision-chain walk follows at most 255 links back', async () => {
+  const { MAX_LINEAGE_LINKS, modelLineageSteps } = await import('../src/model-lineage.mjs');
+  assert.equal(MAX_LINEAGE_LINKS, 255);
+  // A chain m0 <- m1 <- ... <- m300, each revision naming its predecessor.
+  const name = (index) => index.toString(16).padStart(64, '0');
+  let lookups = 0;
+  const service = { inspectModel: async ({ modelHash }) => {
+    lookups += 1;
+    const index = Number.parseInt(modelHash, 16);
+    return { summary: { revision: { previous_model_hash: index > 0 ? name(index - 1) : null } } };
+  } };
+  assert.equal(await modelLineageSteps(service, name(45), name(300)), 255, 'an ancestor 255 links back is found');
+  lookups = 0;
+  assert.equal(await modelLineageSteps(service, name(44), name(300)), null, 'one 256 links back is beyond the bound');
+  assert.equal(lookups, 255, 'and no lookup is made past the bound');
+  assert.equal(await modelLineageSteps(service, name(7), name(7)), 0);
+  await assert.rejects(modelLineageSteps({ inspectModel: async () => { throw new Error('timeout'); } }, name(1), name(2)), /timeout/, 'a failed lookup is thrown, not read as the end of the chain');
 });
 
 test('a long history travels as changes: each revision by change keeps only its change in the receipt', async (t) => {

@@ -14,12 +14,20 @@ unpublished work stays under Unreleased. This is not a development transcript.
 - Generating and describing share one construction loop but not its strategy.
   Generative work lets draws and random words propose alternatives and keeps the
   most interesting with a recorded reason; descriptive work asks for the data the
-  model lacks, infers what the evidence supports, and treats a draw as a forecast.
+  model lacks and infers what the evidence supports. There an outcome is realized
+  from the evidence, not from a draw: a draw samples a hypothetical scenario, and
+  `life_direction_draw` says so.
 - A review that exposes an unmodeled assumption or an inadequate process is
   answered by developing the model; otherwise the agent records why the model
   stands. Each review record keeps apart the model revision of the version it
-  read and the one current when it was recorded, and names earlier reviews of
-  the current revision as a signal that the work may be circling.
+  read and the one current when it was recorded, and reads from the revision
+  chain whether the first is an ancestor, a descendant or on another branch,
+  or says the relation is unknown when the chain cannot be read.
+  Without `reviewed.graphHash`, the version read is the `graphHash` given, not
+  the newer head the record goes to. Earlier reviews of the current revision are
+  named as a signal that the work may be circling, and the guidance treats
+  independent reviewers reading one version together as one round, not a
+  repetition.
 - Storytelling asks which assumptions have not been modeled yet and which could
   stretch back far in time to create a deeper story.
 - **Hide unopened processes** keeps life periods visible even when their duration

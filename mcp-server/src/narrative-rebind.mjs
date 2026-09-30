@@ -7,8 +7,8 @@ const hash = z.string().length(64);
 import { stripEdgeForRevision, stripNodeForRevision } from './narrative-fields.mjs';
 import { definitionFromCompleteView, narrativeDefinitionDelta } from './narrative-delta.mjs';
 import { anchoredModelRecord } from './construction-record.mjs';
+import { modelLineageSteps } from './model-lineage.mjs';
 export { NODE_FIELDS, EDGE_FIELDS, stripNodeForRevision, stripEdgeForRevision } from './narrative-fields.mjs';
-const MAX_LINEAGE_STEPS = 256;
 
 export const narrativeRebindSchema = z.object({
   requestId: z.string().trim().min(1).max(256),
@@ -19,13 +19,9 @@ export const narrativeRebindSchema = z.object({
 }).strict();
 
 export async function assertModelSuccessor(service, previousModelHash, modelHash) {
-  let cursor = modelHash;
-  for (let step = 0; step < MAX_LINEAGE_STEPS && cursor; step += 1) {
-    if (cursor === previousModelHash) return step;
-    const inspected = await service.inspectModel({ modelHash: cursor });
-    cursor = inspected?.summary?.revision?.previous_model_hash ?? null;
-  }
-  throw new Error(`Model ${modelHash} is not a successor of the graph's bound model ${previousModelHash}; rebinding to an unrelated model is refused.`);
+  const steps = await modelLineageSteps(service, previousModelHash, modelHash);
+  if (steps === null) throw new Error(`Model ${modelHash} is not a successor of the graph's bound model ${previousModelHash}; rebinding to an unrelated model is refused.`);
+  return steps;
 }
 
 export function assertCompleteNarrativeView(view, graphHash) {

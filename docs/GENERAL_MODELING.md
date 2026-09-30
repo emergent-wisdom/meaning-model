@@ -41,8 +41,11 @@ addressable; a random word can seed a trajectory, a person or a process. When
 the work describes something that exists, such as a market, an institution or
 a person's own life, ask for the data the model lacks and infer what the evidence
 supports: mark what is observed, inferred or estimated, keep the uncertainty,
-and let later evidence test the account. A draw there is a forecast with its
-probabilities, not a choice made for interest.
+and let later evidence test the account. There a Cut over what may happen is a
+forecast only when its weights are declared as probabilities over the possible
+outcomes before the outcome is known; an answer is realized when the evidence
+shows it, not by a draw, and a draw only samples a scenario, which stays
+hypothetical; nothing there is chosen for interest.
 Explore recursively: open a process or meaning, discover its sub-processes,
 relationships and possible distinctions, follow fruitful new questions, then
 revise and revisit connected parts of the model. Start from the macro-processes, coarsely: the long
@@ -60,9 +63,10 @@ an unmodeled assumption or an inadequate process, answer it by developing the
 model and bringing the dependent prose into line; otherwise record why the
 existing model stands. When one finds a gap, go back and open the trajectories
 involved: finer periods and more values over time, the sub-processes and causes
-behind a change, the lives behind a decision. Do not review again what has not
-changed since the last review, and renew readings and telling phases together
-once the text settles. Discover what can be tracked:
+behind a change, the lives behind a decision. Do not repeat a review of what has
+not changed since the last one, though independent reviewers reading one version
+together make one round, not a repetition; and renew readings and telling phases
+together once the text settles. Discover what can be tracked:
 implicit patterns, distinctions and processes that nobody has named or measured
 but that can be followed across situations and time. Anything that changes over
 time can be modeled as a process, including qualities usually written as fixed
@@ -151,7 +155,13 @@ what was recorded, and a thought helps only when it is linked to what it concern
   the revision and text they saw, and link the changes that answer them, or the
   note that says why the existing model stands. Each review keeps two model
   revisions apart: the one the version it read was bound to (`reviewedModelHash`)
-  and the one current when it was recorded (`recordedAtModelHash`). When earlier
+  and the one current when it was recorded (`recordedAtModelHash`). Give the
+  version the reviewer read as `reviewed.graphHash`; without it, the review is
+  taken to have read the `graphHash` you give, even when the record goes to a
+  newer head. `reviewedModelRelation` says, from the revision chain rather than
+  the hashes, whether the model read is the current one, an ancestor, a
+  descendant, or neither (another branch); it is `unknown` when the chain could
+  not be read, which is no evidence of a branch. When earlier
   reviews also read the current model revision, the result names them
   (`sameModelReviews`). That can be right, as with a panel reading one version,
   so treat it as a signal to check whether the work is circling, not as proof that
