@@ -27,9 +27,29 @@ Preserve competing explanations instead of assigning unsupported causal laws.
 Connect models through explicit referents and supported relationships; the tool
 does not automatically reconcile separately modeled systems.
 
+The goal is to build structures on top of structures, interpret them better,
+and refine the ones already built, so that the world becomes more real: open
+processes into sub-processes and finer trajectories, build new structures that
+depend on the existing ones, relate processes through what drives them, compose
+higher-level processes, concepts and laws from what the records show, and use
+each new structure to find the next. Let chance show what you would not have
+chosen: where a decision or a trajectory has real alternatives, roll a draw and
+look at several, keep the most interesting with a recorded reason, and leave the
+others addressable; a random word can seed a trajectory, a person or a process.
 Explore recursively: open a process or meaning, discover its sub-processes,
 relationships and possible distinctions, follow fruitful new questions, then
-revise and revisit connected parts of the model. Discover what can be tracked:
+revise and revisit connected parts of the model. Start from the macro-processes, coarsely: the long
+developments, institutions, economies, technologies and environments that the
+focal lives and events sit within, then open detail inside them where the
+question or the work needs it. What someone meets in a scene, a report or a visit
+is believable when it follows from that larger structure: the world need not be
+detailed everywhere, but everything rendered must fit what the coarse account
+commits. Reviews, readings and checks show where the model is thin; the work is
+deepening the model. When one finds a gap, go back and open the trajectories
+involved: finer periods and more values over time, the sub-processes and causes
+behind a change, the lives behind a decision. Do not review again what has not
+changed since the last review, and renew readings and telling phases together
+once the text settles. Discover what can be tracked:
 implicit patterns, distinctions and processes that nobody has named or measured
 but that can be followed across situations and time. Anything that changes over
 time can be modeled as a process, including qualities usually written as fixed

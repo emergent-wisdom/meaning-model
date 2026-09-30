@@ -320,7 +320,8 @@ reading? Choose by argument.
 accounts of the same history: one paragraph, then two, then three. Build what
 each account commits to into the model, macro processes first
 (`life_general_modeling_start` models long developments before local ones).
-Backtrack when the parent history could not have happened, or when it is
+What a scene later shows is believable when it follows from that larger
+structure. Backtrack when the parent history could not have happened, or when it is
 dramatically inert.
 
 When the era is real, say so in the opening's `era`, with a documentary

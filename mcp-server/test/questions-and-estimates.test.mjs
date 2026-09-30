@@ -365,6 +365,16 @@ test('shared spatial guidance permits authored layouts without requiring them in
   // Every workflow is asked to discover what can be tracked, to model anything that changes as a process (a voice or a
   // style included) in the time it changes in, and to build on it once it is explicit.
   assert.match(constructionRecordInstructions, /Discover what can be tracked/);
+  // Macro-processes come first, because what is rendered is believable when it follows from that larger structure.
+  assert.match(constructionRecordInstructions, /Start from the macro-processes, coarsely/);
+  // The goal leads, and reviews serve it rather than replace it.
+  assert.match(constructionRecordInstructions, /the goal is to build structures on top of structures, interpret them better, and refine the ones already built, so that the world becomes more real/);
+  assert.match(constructionRecordInstructions, /build new structures that depend on the existing ones/);
+  // Chance shows what the modeler would not have chosen; the choice among draws is recorded, and the rest stays addressable.
+  assert.match(constructionRecordInstructions, /roll a draw \(life_direction_draw\) and look at several, keep the most interesting with a recorded reason, and leave the others addressable; a random word can seed a trajectory/);
+  assert.match(constructionRecordInstructions, /Reviews, readings and checks show where the model is thin; the work is deepening the model/);
+  assert.match(constructionRecordInstructions, /Do not review again what has not changed since the last review/);
+  assert.match(constructionRecordInstructions, /believable when it follows from that larger structure/);
   assert.match(constructionRecordInstructions, /Anything that changes over time can be modeled as a process, including qualities usually written as fixed descriptions/);
   assert.match(constructionRecordInstructions, /A fixed description records one moment; where the quality can change, model its course/);
   assert.match(constructionRecordInstructions, /a character's speech in world time, a narrator's manner across the reading, an author's style across the author's life/);
