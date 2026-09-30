@@ -27,9 +27,46 @@ Preserve competing explanations instead of assigning unsupported causal laws.
 Connect models through explicit referents and supported relationships; the tool
 does not automatically reconcile separately modeled systems.
 
+The goal is to build structures on top of structures, interpret them better,
+and refine the ones already built, so that the world becomes more real: open
+processes into sub-processes and finer trajectories, build new structures that
+depend on the existing ones, relate processes through what drives them, compose
+higher-level processes, concepts and laws from what the records show, and use
+each new structure to find the next. Generating and describing share this loop
+but not its strategy. When the work generates something new, such as a story, a
+game world or an idea, let chance show what you would not have chosen: roll a
+draw where a decision or a trajectory has real alternatives, look at several,
+keep the most interesting with a recorded reason, and leave the others
+addressable; a random word can seed a trajectory, a person or a process. When
+the work describes something that exists, such as a market, an institution or
+a person's own life, ask for the data the model lacks and infer what the evidence
+supports: mark what is observed, inferred or estimated, keep the uncertainty,
+and let later evidence test the account. There a Cut over what may happen is a
+forecast only when its weights are declared as probabilities over the possible
+outcomes before the outcome is known; an answer is realized when the evidence
+shows it, not by a draw, and a draw only samples a scenario, which stays
+hypothetical; nothing there is chosen for interest.
 Explore recursively: open a process or meaning, discover its sub-processes,
 relationships and possible distinctions, follow fruitful new questions, then
-revise and revisit connected parts of the model. Discover what can be tracked:
+revise and revisit connected parts of the model. Start from the macro-processes, coarsely: the long
+developments, institutions, economies, technologies and environments that the
+focal lives and events sit within, then open detail inside them where the
+question or the work needs it. What someone meets in a scene, a report or a visit
+is believable when it follows from that larger structure: the world need not be
+detailed everywhere, but everything rendered must fit what the coarse account
+commits. Reviews, readings and checks show where the model is thin; the work is
+deepening the model. Outside reviews can be useful, and a review may rightly
+confirm the account or correct only the prose; but if all you do is review and
+revise the prose, and the model and its processes never change as a consequence,
+you are not using the tool, only revising a text endlessly. When a review exposes
+an unmodeled assumption or an inadequate process, answer it by developing the
+model and bringing the dependent prose into line; otherwise record why the
+existing model stands. When one finds a gap, go back and open the trajectories
+involved: finer periods and more values over time, the sub-processes and causes
+behind a change, the lives behind a decision. Do not repeat a review of what has
+not changed since the last one, though independent reviewers reading one version
+together make one round, not a repetition; and renew readings and telling phases
+together once the text settles. Discover what can be tracked:
 implicit patterns, distinctions and processes that nobody has named or measured
 but that can be followed across situations and time. Anything that changes over
 time can be modeled as a process, including qualities usually written as fixed
@@ -115,7 +152,20 @@ what was recorded, and a thought helps only when it is linked to what it concern
   `life_understanding_record`, linked to the records they concern (`event:`, `cut:`,
   `process:` and the other kinds) or to graph nodes. Batch related notes.
 - Record outside reviews with `life_review_record` under their actual reviewer, with
-  the revision and text they saw, and link the changes that answer them.
+  the revision and text they saw, and link the changes that answer them, or the
+  note that says why the existing model stands. Each review keeps two model
+  revisions apart: the one the version it read was bound to (`reviewedModelHash`)
+  and the one current when it was recorded (`recordedAtModelHash`). Give the
+  version the reviewer read as `reviewed.graphHash`; without it, the review is
+  taken to have read the `graphHash` you give, even when the record goes to a
+  newer head. `reviewedModelRelation` says, from the revision chain rather than
+  the hashes, whether the model read is the current one, an ancestor, a
+  descendant, or neither (another branch); it is `unknown` when the chain could
+  not be read, which is no evidence of a branch. When earlier
+  reviews also read the current model revision, the result names them
+  (`sameModelReviews`). That can be right, as with a panel reading one version,
+  so treat it as a signal to check whether the work is circling, not as proof that
+  nothing else changed.
 - Put every reason you give the user into the graph before you reply; a later agent
   reads the graph, not your reply.
 - When a Cut, concept or opening no longer holds, mark it withdrawn in the next model

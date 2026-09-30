@@ -92,7 +92,8 @@ export function indexModel(model) {
   }
   const relations = mm.event_relations ?? [];
   const abstractions = { concepts: (mm.concepts ?? []).length, abstractRelations: (mm.abstract_relations ?? []).length, abstractCuts: (mm.abstract_cuts ?? []).length,
-    laws: (model?.laws ?? []).length, claims: (model?.initial_claims ?? []).length, realizations: (mm.realizations ?? []).length };
+    laws: (model?.laws ?? []).length, claims: (model?.initial_claims ?? []).length, realizations: (mm.realizations ?? []).length,
+    dependencies: (model?.dependencies ?? []).length, decompositions: (model?.decomposition ?? model?.decompositions ?? []).length };
   // Readings are held apart from the world, and what is a reading is decided by where an Event sits, not by what it
   // refers to: Events under an understanding root, and the reading Events life_lens_place makes. A world Event may be
   // about another (a letter about a death) and is still the world's.
@@ -315,6 +316,16 @@ function worldQuestions(index, lives, draws, spatial) {
       ask('macro-missing', `Recorded intervals span ${first} to ${last}, and no shared enclosing Event was recognized through contains links. Bounded intervals do not establish that a wider world or its explanation is absent. Read the existing context, relations and descriptions: which longer or wider developments actually explain this situation, and does any consequential gap remain? Model only the relevant missing context at its own resolution.`, 'life_meaning_query or life_model_revise');
     }
   }
+  // Structures on top of structures: processes that drive one another, compose higher ones and open into finer ones.
+  const { dependencies, decompositions } = index.abstractions;
+  if (index.processes >= 10 && dependencies + decompositions === 0) {
+    ask('structure-flat', `This model has ${index.processes} processes, and none is recorded as depending on another or decomposed into others. Build structures on top of them: which process drives which, and through what? Which higher-level process do several of them compose, and which consequential process should open into sub-processes? Record the dependencies and decompositions, and use each new structure to find the next.`, 'life_model_revise', { processes: index.processes });
+  }
+  // Readings show where something changes; they do not deepen the account. When they outgrow the processes, open processes.
+  const readingCount = index.cuts.filter((cut) => readingCut(index, cut)).length;
+  if (readingCount > Math.max(20, 2 * index.processes)) {
+    ask('readings-over-processes', `This model holds ${readingCount} readings and ${index.processes} process${index.processes === 1 ? '' : 'es'}. Readings show where something changes; they do not deepen the account. Before reading more, open the processes behind the largest changes the readings show: their phases, causes and sub-processes, and the values they take over time.`, 'life_model_revise', { readings: readingCount, processes: index.processes });
+  }
   // Containment is one route to context, not an exhaustive causal account.
   const people = new Set(lives.flatMap((item) => [...item.read.own]));
   for (const cut of index.cuts.filter((item) => cutKind(item) === 'decision')) {
@@ -326,7 +337,7 @@ function worldQuestions(index, lives, draws, spatial) {
   if (index.events.size >= 8 && concepts < Math.max(3, Math.floor(index.events.size / 20))) {
     ask('concepts-thin', `The model has ${index.events.size} Events and ${concepts} concept${concepts === 1 ? '' : 's'}. What are these Events instances of? Climb up: name the concepts they realize, how the concepts specialize, oppose or express one another, and which one explains several of them at once.`, 'life_model_revise');
   }
-  if (index.events.size >= 8 && laws + claims + abstractRelations === 0) {
+  if (index.events.size >= 8 && laws + claims === 0) {
     ask('laws-missing', 'What regularities hold across these Events: when one thing happens, what tends to follow, for whom, and why? State them as laws, claims or abstract relations, and test them against what the model shows.', 'life_model_revise');
   }
   const byQuestion = new Map();
@@ -382,7 +393,7 @@ function worldQuestions(index, lives, draws, spatial) {
   return questions;
 }
 
-const ORDER = ['author-separate', 'author-unlinked', 'life-missing', 'life-untimed', 'time-missing', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'choices-missing', 'macro-missing', 'period-gap',
+const ORDER = ['author-separate', 'author-unlinked', 'life-missing', 'life-untimed', 'time-missing', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'choices-missing', 'macro-missing', 'structure-flat', 'readings-over-processes', 'period-gap',
   'moment-unmodeled', 'decision-undrawn', 'remainder-unopened', 'shift-uncaused', 'adaptation-open', 'laws-missing', 'place-missing', 'spatial-declaration-incomplete', 'spatial-resolution', 'spatial-history-unopened', 'process-unobserved', 'wants-generic', 'why-local',
   'concepts-thin', 'recurring-question', 'period-uncut', 'process-empty', 'secondary-without-life', 'life-thin', 'event-undescribed', 'weights-unestimated'];
 // How many open questions come back with each model change, rebind and world record; life_model_questions gives all.
@@ -516,6 +527,7 @@ export function standingQuestions(focus = {}) {
     `How can you understand ${about} better, using the model? Whatever the object of investigation is (a character, an object, a concept, an era, whatever the work is about), go deeper by modeling more: its history, its parts and processes over time, what it depends on and what depends on it, and what it is an instance of.`,
     `List all the aspects of ${about} you could understand better (for a story: the characters' choices, the author's writing and style, each voice, the technology, the time period, places, institutions, relationships, money, bodies, beliefs; for a market: its participants, instruments, rules, regimes, technology, history), then investigate by modeling: read the existing evidence, create or refine processes and relationships, open sub-processes, try another decomposition, and follow earlier causes and later consequences. Name useful concepts and model how Things work. Let each discovery lead recursively to new questions and openings, including when nothing is known to be wrong; choose the depth and direction for what they reveal. Numerical Cuts and trajectories are optional: first declare a meaningful comparison, unit and supported resolution. Sample only unresolved values or fictional continuations within delegated uncertainty; preserve accepted outcomes and never reroll canon.`,
     `Is there a macro aspect you must model to truly understand what is going on in ${about}? It could be something from a character's childhood or a war a hundred years ago; you will not know unless you model it. Follow the causes back along the lives and the world's long processes, and model what you find.`,
+    ...(story ? [`Ask yourself about ${about}: which assumptions have I not modeled yet? Which assumptions could stretch back far in time to create a deeper story? A story rests on what it takes for granted: why a house, a debt, a rule or a silence is as it is, what people already know about one another, what the world already allows. Name those assumptions, model the consequential ones, and follow the deepest back through the lives and the world's long processes: how each began, how long it has been developing and what else it shaped, so that its history reaches into the present.`] : []),
     ...(story ? [`What reasons and circumstances explain what ${focus.people?.length ? focus.people.join(', ') : `the people acting in ${about}`} do${focus.people?.length === 1 ? 'es' : ''}? Fear or love is an optional lens alongside other questions about duty, habit, curiosity, knowledge, relationships and material constraints. Use it if useful to this situation, distinguish the person's own account from other readings, and leave room for motives it does not express. Do not classify every act into fear or love or require numerical shares; first explain how the relevant reasons bear on the choice and its consequences.`] : []),
     story ? `Which ways of seeing could explain ${about}? Fear or love is one optional lens; there are many more (how people grow, bond and barter, what they believe they are owed, what the body, the purse, an era or an institution allows), in thinkers, traditions and disciplines, and ones no one has named. Define the ones that would change the model with life_lens_define, with an explicit question and scope; life_lens_questions asks each of records declared applicable, which does not establish that it fits them.`
       : `Which ways of seeing could explain ${about}? Every discipline and tradition has its own, and many have no name yet: how a system is balanced or driven, what holds it and what breaks it, what limits it, what it trades, what it remembers. Define the ones that would change the model with life_lens_define; life_lens_questions asks each of every record it applies to.`,
@@ -527,7 +539,7 @@ export function standingQuestions(focus = {}) {
   ];
 }
 
-export const thinkInTheModelInstructions = `The Meaning Model is where you think, in every mode, and the work is a consequence of it. You have not lived in this world; the model gives you what a life would: people and things, and whatever about them changes, as processes over time, what is true at each moment, and why. The tool is your gateway to humanhood. Use it as your mind: put each thought into it as you have it (the world as model records; your ideas, questions, decisions, reasons and predictions as Understanding Nodes linked to what they concern), and read it back rather than holding things only in your context. The loop: find all the areas that could be important to investigate; go deeper inside the model; put all your understanding inside the model. Then loop again, and let whatever the model holds lead you down different paths. It is not a strict workflow: the steps come in any order, understanding is recorded when it happens, and processes are modeled whenever they are needed. After every change the tool returns its own questions, its jumps and each person's state at a moment. Go deep, in whatever form understands best; the model is a language with no mandatory constructs, and every list and question it gives is a start, not a boundary.`;
+export const thinkInTheModelInstructions = `The Meaning Model is where you think, in every mode, and the work is a consequence of it. You have not lived in this world; the model gives you what a life would: people and things, and whatever about them changes, as processes over time, what is true at each moment, and why. The tool is your gateway to humanhood. Use it as your mind: put each thought into it as you have it (the world as model records; your ideas, questions, decisions, reasons and predictions as Understanding Nodes linked to what they concern), and read it back rather than holding things only in your context. The loop: find all the areas that could be important to investigate; go deeper inside the model, building structures on top of structures, interpreting them and refining the ones you have; when you generate, roll draws and use random words where the model holds real alternatives and keep what surprises and convinces, and when you describe, ask for the data and infer what the evidence supports; put all your understanding inside the model. Then loop again, and let whatever the model holds lead you down different paths. It is not a strict workflow: the steps come in any order, understanding is recorded when it happens, and processes are modeled whenever they are needed. After every change the tool returns its own questions, its jumps and each person's state at a moment. Go deep, in whatever form understands best; the model is a language with no mandatory constructs, and every list and question it gives is a start, not a boundary.`;
 
 // Where the interesting story is: the model's largest jumps. A story is a small part of a world, and the model
 // shows where that part should be: the largest shifts in what a person wants, expects or feels, the shocks that

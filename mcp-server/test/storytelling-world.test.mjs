@@ -55,3 +55,13 @@ test('aspects and implications may cite every record kind an Understanding Node 
   assert.deepEqual(modelReference('cut:cut.1'), { anchorKind: 'normalized_cut', recordId: 'cut.1' });
   assert.deepEqual(modelReference('node.id'), { anchorKind: null, recordId: 'node.id' });
 });
+
+test('the world is opened from its macro-processes down, so what the story shows follows from a larger structure', async () => {
+  const { worldInstructions } = await import('../src/storytelling-world.mjs');
+  assert.match(worldInstructions, /successive accounts from its macro-processes down to the principals' lives, so that what the story shows follows from a larger structure/);
+});
+
+test('the implications stage asks which assumptions are unmodeled and which could stretch back far in time', async () => {
+  const { worldInstructions } = await import('../src/storytelling-world.mjs');
+  assert.match(worldInstructions, /ask yourself which assumptions you have not modeled yet and which of them could stretch back far in time to create a deeper story \(implications\)/);
+});

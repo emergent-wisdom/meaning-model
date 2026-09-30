@@ -308,7 +308,8 @@ test('telling phases whose reviewed passages changed are listed on every check u
   assert.deepEqual(stale.telling.map(({ processNodeId, phase, status, reason }) => ({ processNodeId, phase, status, reason })),
     [{ processNodeId: 'telling.offer', phase: 'Shown', status: 'needs_review', reason: 'passages_changed' }], 'listed although no model changed');
   assert.equal(stale.toCheck, 1);
-  assert.match(stale.nextStep, /renew telling phases whose passages changed/u);
+  assert.match(stale.nextStep, /First deepen the model where the revision shows a gap/u);
+  assert.match(stale.nextStep, /renew telling phases together once the text settles, not after every change/u);
   const renewed = await checkRevision({ ...same, queryNarrativeGraph: async () => graph('now'.padEnd(64, '0')) }, input);
   assert.deepEqual(renewed.telling, []); assert.equal(renewed.toCheck, 0);
   // A document the check cannot project is reported, not guessed.

@@ -4,6 +4,9 @@ import * as z from 'zod/v4';
 import { documentRootOf } from './alignment-audit.mjs';
 
 const ALGORITHM = 'sha256-first-32-bits/v1';
+// A draw is a construction choice. Where the model describes something that exists, what happens is read from the
+// evidence, and a Cut's weights are probabilities only where they were declared as such before the outcome.
+export const DESCRIBING_DRAW = 'Where the model describes something that exists, the draw only samples a hypothetical scenario: do not realize it as what happened; realize an answer when evidence shows it, and read the Cut\'s weights as probabilities only where they were declared as probabilities over the outcomes before the outcome was known.';
 const hash64 = z.string().regex(/^[a-f0-9]{64}$/);
 const id = z.string().min(1).max(256);
 
@@ -93,7 +96,7 @@ export async function drawDirection(service, raw) {
   return { ...draw, drawIndex: priorDraws.length, reroll: priorDraws.length > 0, priorDraws, recorded,
     graphHash: recorded?.graphHash ?? input.record?.graphHash ?? null, previousGraphHash: input.record?.graphHash ?? null,
     graphMutation: Boolean(recorded), worldMutation: false,
-    nextStep: draw.realizedIsRemainder
-      ? `The remainder was drawn: the model holds more possibilities here than the named answers. Open the remainder rather than writing the continuation yourself: add a Cut on ${cut.parent_event_id} conditioned on this Cut's remainder (conditioning: { cut_id: '${cut.id}', answer_key: 'remainder' }) whose answers name the continuations the remainder holds, estimate it from the modeled state, and draw it; link the realized Event with a realizes_forecast relation. Do not renormalize the named answers or draw this Cut again; a further draw over it is recorded as a reroll.`
-      : `Build ${realized} as the realized continuation and link its Event from ${cut.parent_event_id} with a realizes_forecast relation naming this Cut and ${realized}. A further draw over this Cut is recorded as a reroll.` };
+    nextStep: `${draw.realizedIsRemainder
+      ? `The remainder was drawn: the model holds more possibilities here than the named answers. Open the remainder rather than writing the continuation yourself: add a Cut on ${cut.parent_event_id} conditioned on this Cut's remainder (conditioning: { cut_id: '${cut.id}', answer_key: 'remainder' }) whose answers name the continuations the remainder holds, estimate it from the modeled state, and draw it; where the continuation is yours to construct, link the realized Event with a realizes_forecast relation. Do not renormalize the named answers or draw this Cut again; a further draw over it is recorded as a reroll.`
+      : `Where the continuation is yours to construct, as in a story or a game world, build ${realized} as the realized continuation and link its Event from ${cut.parent_event_id} with a realizes_forecast relation naming this Cut and ${realized}. A further draw over this Cut is recorded as a reroll.`} ${DESCRIBING_DRAW}` };
 }

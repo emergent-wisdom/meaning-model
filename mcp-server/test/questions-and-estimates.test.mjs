@@ -365,6 +365,23 @@ test('shared spatial guidance permits authored layouts without requiring them in
   // Every workflow is asked to discover what can be tracked, to model anything that changes as a process (a voice or a
   // style included) in the time it changes in, and to build on it once it is explicit.
   assert.match(constructionRecordInstructions, /Discover what can be tracked/);
+  // Macro-processes come first, because what is rendered is believable when it follows from that larger structure.
+  assert.match(constructionRecordInstructions, /Start from the macro-processes, coarsely/);
+  // The goal leads, and reviews serve it rather than replace it.
+  assert.match(constructionRecordInstructions, /the goal is to build structures on top of structures, interpret them better, and refine the ones already built, so that the world becomes more real/);
+  assert.match(constructionRecordInstructions, /build new structures that depend on the existing ones/);
+  // Chance shows what the modeler would not have chosen; the choice among draws is recorded, and the rest stays addressable.
+  assert.match(constructionRecordInstructions, /roll a draw \(life_direction_draw\) and look at several, keep the most interesting with a recorded reason, and leave the others addressable; a random word can seed a trajectory/);
+  // Describing something that exists asks for data and infers from evidence; its draws are forecasts, not choices for interest.
+  assert.match(constructionRecordInstructions, /Generating and describing share this loop but not its strategy/);
+  assert.match(constructionRecordInstructions, /When the work describes something that exists, such as a market, an institution or a person's own life, ask for the data the model lacks and infer what the evidence supports/);
+  assert.match(constructionRecordInstructions, /There a Cut over what may happen is a forecast only when its weights are declared as probabilities over the possible outcomes before the outcome is known; an answer is realized when the evidence shows it, not by a draw, and a draw only samples a scenario, which stays hypothetical/);
+  assert.doesNotMatch(constructionRecordInstructions, /a draw there is a forecast/, 'a draw is a construction choice, not a forecast');
+  assert.match(constructionRecordInstructions, /Reviews, readings and checks show where the model is thin; the work is deepening the model/);
+  assert.match(constructionRecordInstructions, /Outside reviews can be useful, and a review may rightly confirm the account or correct only the prose; but if all you do is review and revise the prose, and the model and its processes never change as a consequence, you are not using the tool, only revising a text endlessly/);
+  assert.match(constructionRecordInstructions, /When a review exposes an unmodeled assumption or an inadequate process, answer it by developing the model and bringing the dependent prose into line; otherwise record why the existing model stands/);
+  assert.match(constructionRecordInstructions, /Do not repeat a review of what has not changed since the last one, though independent reviewers reading one version together make one round, not a repetition/);
+  assert.match(constructionRecordInstructions, /believable when it follows from that larger structure/);
   assert.match(constructionRecordInstructions, /Anything that changes over time can be modeled as a process, including qualities usually written as fixed descriptions/);
   assert.match(constructionRecordInstructions, /A fixed description records one moment; where the quality can change, model its course/);
   assert.match(constructionRecordInstructions, /a character's speech in world time, a narrator's manner across the reading, an author's style across the author's life/);

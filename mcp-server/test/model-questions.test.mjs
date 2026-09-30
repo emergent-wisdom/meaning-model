@@ -178,7 +178,7 @@ test('templates are suggestions: a life of the modeler\'s own processes is read 
   assert.match(few.question, /template suggests.*your own processes or fewer/);
   assert.match(questions.guidance, /none of its constructs is mandatory/);
   assert.match(thinkInTheModelInstructions, /the model is a language with no mandatory constructs/);
-  assert.match(thinkInTheModelInstructions, /find all the areas that could be important to investigate; go deeper inside the model; put all your understanding inside the model\. Then loop again/);
+  assert.match(thinkInTheModelInstructions, /find all the areas that could be important to investigate; go deeper inside the model, building structures on top of structures, interpreting them and refining the ones you have; when you generate, roll draws and use random words where the model holds real alternatives and keep what surprises and convinces, and when you describe, ask for the data and infer what the evidence supports; put all your understanding inside the model\. Then loop again/);
   assert.match(thinkInTheModelInstructions, /people and things, and whatever about them changes, as processes over time/);
 });
 
@@ -197,6 +197,8 @@ test('the jumps of the Book of Conditions are where its story is', async () => {
 test('standing questions are asked about the focus', () => {
   const questions = standingQuestions({ scene: 'the returned table', people: ['Halden'] });
   assert.ok(questions.some((item) => /macro aspect .* childhood or a war a hundred years ago/u.test(item)));
+  assert.ok(questions.some((item) => /Ask yourself about this scene \(the returned table\), this character \(Halden\): which assumptions have I not modeled yet\? Which assumptions could stretch back far in time to create a deeper story\?/u.test(item)),
+    'a story asks which of its assumptions are unmodeled and which reach far back');
   assert.ok(questions.some((item) => /Can you understand Halden better by inventing processes or subcategories/u.test(item)));
   const investigation = questions.find((item) => /List all the aspects .* then investigate by modeling/u.test(item));
   assert.ok(investigation);
@@ -346,4 +348,31 @@ test('the first gap in a life asks what formed the person: where they began, wha
   const questions = modelQuestions(model, { people: [{ id: 'leo', name: 'Leo' }], limit: 200 });
   const gaps = questions.questions.filter((item) => item.kind === 'period-gap');
   assert.ok(gaps.some((item) => /their beginning\. Where did their processes start, what were they taught, and what else did they live through\? Model what explains who they became, and leave unknown years unknown\./u.test(item.question)), JSON.stringify(gaps));
+});
+
+test('a model is asked to build structures on top of its processes and to open processes when readings outgrow them', () => {
+  const flat = lived();
+  flat.processes = Array.from({ length: 12 }, (_, i) => ({ id: `p.${i}` }));
+  flat.dependencies = [];
+  const asked = new Set(modelQuestions(flat, { people: [{ id: 'leo', name: 'Leo' }], limit: 200 }).questions.map((item) => item.kind));
+  assert.ok(asked.has('structure-flat'), 'twelve unrelated processes are asked what drives what');
+  flat.dependencies = [{ id: 'dep.1', from: 'p.0', to: 'p.1' }];
+  assert.ok(!modelQuestions(flat, { people: [{ id: 'leo', name: 'Leo' }], limit: 200 }).questions.some((item) => item.kind === 'structure-flat'));
+
+  const read = lived();
+  read.processes = [{ id: 'p.only' }];
+  for (let i = 0; i < 25; i += 1) read.meaning_model.normalized_cuts.push(cut(`lens.gift.${i}`, 'ev.late', 'What does this exchange read as?', 'reading allocation', { gift: 0.5, market: 0.4, remainder: 0.1 }));
+  const reading = modelQuestions(read, { people: [{ id: 'leo', name: 'Leo' }], limit: 200 }).questions.find((item) => item.kind === 'readings-over-processes');
+  assert.ok(reading, 'twenty-five readings over one process send the agent back to the processes');
+  assert.match(reading.question, /Before reading more, open the processes behind the largest changes the readings show/);
+});
+
+test('abstract relations between concepts do not state the regularities laws ask for', () => {
+  const model = lived();
+  model.meaning_model.abstract_relations = [{ id: 'rel.1', kind: 'specialization', source: 'c.a', target: 'c.b' }];
+  assert.ok(modelQuestions(model, { people: [{ id: 'leo', name: 'Leo' }], limit: 200 }).questions.some((item) => item.kind === 'laws-missing'));
+});
+
+test('the loop names the goal: structures built on structures, and the ones already built refined', () => {
+  assert.match(thinkInTheModelInstructions, /building structures on top of structures, interpreting them and refining the ones you have/);
 });

@@ -165,7 +165,7 @@ export async function defineLens(service, raw) {
   const collisions = (lens.answers ?? []).filter((answer) => kindWords.test(answer.key.replace(/[_-]+/gu, ' ')));
   const warnings = collisions.map((answer) => `The answer "${answer.key}" shares a word with the model's own Cuts (what people want, feel, expect or decide), so an estimator told the modeled state may read, say, having wants as this answer. A key no Cut uses, with its meaning spelled out, reads cleaner.`);
   return { ...recorded, ...(head.advancedFrom ? { advancedFrom: head.advancedFrom } : {}), ...(warnings.length ? { warnings } : {}), schema: 'meaning-model-lens-definition/v1', lensId: lens.id, lensNodeId: nodeId, version: versions.length + 1, unit: lensUnit(lens), ...(current ? { supersedes: current.nodeId } : {}),
-    nextStep: `life_lens_questions asks "${lens.name}" of every record it applies to. Answer each as a Cut on the record's Event, with an id that begins lens.${lens.id}. and the unit ${lensUnit(lens)}, then keep looking: which other lenses would see what this one cannot?` };
+    nextStep: `life_lens_questions asks "${lens.name}" of the records it applies to. Answer it where a reading matters to a decision, a turn or a passage, as a Cut on the record's Event with an id that begins lens.${lens.id}. and the unit ${lensUnit(lens)}; the others can stay unread. A reading is a view of the model, not more of it: where readings show that something changes, go back and open the trajectory behind the change.` };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -909,7 +909,7 @@ export async function rereadLenses(service, estimator, raw) {
   }
   const small = report.filter((item) => item.moved <= 0.05).length;
   return { ...common, modelHash: revised.modelHash, revisionNumber: successor.revision.number, rebound, graphMutation: Boolean(rebound),
-    nextStep: `${rebound ? 'The graph is rebound.' : 'Rebind the story graph to the revised model.'} ${small} of ${report.length} moved 0.05 or less. Where a rewrite moved a reading far, the prose may need to follow.` };
+    nextStep: `${rebound ? 'The graph is rebound.' : 'Rebind the story graph to the revised model.'} ${small} of ${report.length} moved 0.05 or less. Where a rewrite moved a reading far, the prose may need to follow. Re-read only readings that a decision or passage depends on, then go back to deepening the model.` };
 }
 
 export function registerLensTools(server, service, { toolResult, estimator = null }) {
