@@ -22,6 +22,8 @@ unpublished work stays under Unreleased. This is not a development transcript.
   the current revision as a signal that the work may be circling.
 - Storytelling asks which assumptions have not been modeled yet and which could
   stretch back far in time to create a deeper story.
+- **Hide unopened processes** keeps life periods visible even when their duration
+  also puts them in a person's process inventory.
 
 ## 0.6.0 — 2026-09-29
 
