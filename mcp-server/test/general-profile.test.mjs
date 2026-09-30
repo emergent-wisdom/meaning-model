@@ -32,6 +32,7 @@ test('without the story profile there is no built-in lens, no draw suggested and
   for (const kind of ['life-missing', 'periods-missing', 'wants-missing', 'shocks-few', 'choices-missing', 'processes-few']) assert.equal(open.questions.some((item) => item.kind === kind), false, kind);
   assert.equal(open.questions.some((item) => item.kind === 'shift-uncaused'), true);
   assert.doesNotMatch(standingQuestions().join(' '), /out of fear or out of love|Fear or love is one lens/u);
+  assert.doesNotMatch(standingQuestions().join(' '), /deeper story/u, 'the story\'s question about its assumptions belongs to the story profile');
 });
 
 test('a question judged sufficient here is not asked again while the note stands', async () => {

@@ -178,7 +178,7 @@ test('templates are suggestions: a life of the modeler\'s own processes is read 
   assert.match(few.question, /template suggests.*your own processes or fewer/);
   assert.match(questions.guidance, /none of its constructs is mandatory/);
   assert.match(thinkInTheModelInstructions, /the model is a language with no mandatory constructs/);
-  assert.match(thinkInTheModelInstructions, /find all the areas that could be important to investigate; go deeper inside the model, building structures on top of structures, interpreting them and refining the ones you have; roll draws and use random words where the model holds real alternatives, and keep what surprises and convinces; put all your understanding inside the model\. Then loop again/);
+  assert.match(thinkInTheModelInstructions, /find all the areas that could be important to investigate; go deeper inside the model, building structures on top of structures, interpreting them and refining the ones you have; when you generate, roll draws and use random words where the model holds real alternatives and keep what surprises and convinces, and when you describe, ask for the data and infer what the evidence supports; put all your understanding inside the model\. Then loop again/);
   assert.match(thinkInTheModelInstructions, /people and things, and whatever about them changes, as processes over time/);
 });
 
@@ -197,6 +197,8 @@ test('the jumps of the Book of Conditions are where its story is', async () => {
 test('standing questions are asked about the focus', () => {
   const questions = standingQuestions({ scene: 'the returned table', people: ['Halden'] });
   assert.ok(questions.some((item) => /macro aspect .* childhood or a war a hundred years ago/u.test(item)));
+  assert.ok(questions.some((item) => /Ask yourself about this scene \(the returned table\), this character \(Halden\): which assumptions have I not modeled yet\? Which assumptions could stretch back far in time to create a deeper story\?/u.test(item)),
+    'a story asks which of its assumptions are unmodeled and which reach far back');
   assert.ok(questions.some((item) => /Can you understand Halden better by inventing processes or subcategories/u.test(item)));
   const investigation = questions.find((item) => /List all the aspects .* then investigate by modeling/u.test(item));
   assert.ok(investigation);

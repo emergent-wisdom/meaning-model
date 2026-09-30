@@ -304,15 +304,25 @@ export async function recordReview(service, raw) {
   const step = view.graph.revision.number;
   // A review of material outside the graph read no graph revision; it only was recorded at one.
   const external = input.reviewed.materials === 'external';
+  // The model of the version the reviewer read stays apart from the model current when the review is recorded: a review
+  // of an older version is recorded at a newer head.
+  const reviewedModelHash = external ? null : boundModelHash(reviewedView);
+  // Earlier reviews that also read a version of the current model. Several can belong together, as a panel reading one
+  // version; many can also mean the work is circling. A signal to look, not proof that nothing else changed.
+  const sameModelReviews = reviewedModelHash && reviewedModelHash === graphModelHash
+    ? view.nodes.filter((node) => node.node_type === 'review' && (node.provenance ?? []).includes(`reviewed-model:${reviewedModelHash}`))
+      .sort((a, b) => (a.value_time ?? 0) - (b.value_time ?? 0)).map((node) => node.id) : [];
   const provenance = ['Meaning Model review record v1', `reviewer:${input.reviewer.id}`, `recorded-by:${input.recordedBy}`,
-    `independence:${input.independence}`, external ? 'reviewed-material:external' : `reviewed-graph:${reviewedGraphHash}`, `written-at-graph-revision:${step}`];
+    `independence:${input.independence}`, external ? 'reviewed-material:external' : `reviewed-graph:${reviewedGraphHash}`,
+    ...(reviewedModelHash ? [`reviewed-model:${reviewedModelHash}`] : []), ...(graphModelHash ? [`recorded-at-model:${graphModelHash}`] : []), `written-at-graph-revision:${step}`];
   const rootId = `review.${slug(input.reviewer.id)}`;
   const root = ensureRoot(view, { rootId, holder: input.reviewer.id, clock: 'authoring_step', scopes, provenance,
     label: `Reviews by ${input.reviewer.label ?? input.reviewer.id}`, purpose: `Reviews held by ${input.reviewer.id}, recorded with what it was given and which revision it read.` });
   const payload = { schema: 'meaning-model-review/v1', kind: 'review', text: input.review.text,
     data: { reviewer: input.reviewer, recordedBy: input.recordedBy, independence: input.independence,
       reviewed: external ? { ...input.reviewed, recordedAtGraphHash: input.graphHash, recordedAtRevision: step }
-        : { ...input.reviewed, graphHash: reviewedGraphHash, revision: reviewedView.graph.revision.number, ...(render ? { renderSha256: render.sha256, renderWords: render.words } : {}), textMatchesRender },
+        : { ...input.reviewed, graphHash: reviewedGraphHash, revision: reviewedView.graph.revision.number, modelHash: reviewedModelHash, ...(render ? { renderSha256: render.sha256, renderWords: render.words } : {}), textMatchesRender },
+      recordedAtModelHash: graphModelHash,
       prompt: input.prompt ? { sha256: input.prompt.sha256 ?? (input.prompt.text ? sha256(input.prompt.text) : null), ...(input.prompt.text ? { text: input.prompt.text } : {}) } : null,
       verdict: input.review.verdict ?? null, findings: input.review.findings } };
   const endpoint = (nodeId) => ({ kind: 'node', node_id: nodeId });
@@ -349,8 +359,13 @@ export async function recordReview(service, raw) {
     add_roots: root.roots, add_nodes: nodes, add_edges: edges } });
   return { ...(head.advancedFrom ? { advancedFrom: head.advancedFrom } : {}), schema: 'meaning-model-review-record/v1', graphHash: stored.graphHash, previousGraphHash: input.graphHash, reviewNodeId: input.nodeId,
     reviewerRootId: rootId, reviewedGraphHash: external ? null : reviewedGraphHash, reviewedRevision: external ? null : reviewedView.graph.revision.number, render, textMatchesRender,
-    graphMutation: true, worldMutation: false,
-    nextStep: 'When a later change answers this review, record the reason with a note that links to it with answers, so the replay shows what the review changed.' };
+    reviewedModelHash, recordedAtModelHash: graphModelHash, graphMutation: true, worldMutation: false,
+    ...(sameModelReviews.length ? { sameModelReviews: { count: sameModelReviews.length + 1, modelHash: graphModelHash, earlier: sameModelReviews.slice(-8) } } : {}),
+    nextStep: [
+      sameModelReviews.length ? `${sameModelReviews.length + 1} reviews have now read versions of the current model revision (${graphModelHash.slice(0, 12)}). That can be right, as when independent reviewers read one version or a review confirms the account, but it can also mean the work is circling: check whether these reviews exposed unmodeled assumptions or inadequate processes, and if they did, develop the model before reviewing again. If all you do is review and revise the prose while the model never changes, you are not using the tool, only revising a text endlessly.` : null,
+      reviewedModelHash && graphModelHash && reviewedModelHash !== graphModelHash ? `This review read a version of an earlier model revision (${reviewedModelHash.slice(0, 12)}), and the model has changed since: check which of its findings later revisions already answer.` : null,
+      'When a review exposes an unmodeled assumption or an inadequate process, answer it by developing the model and bringing the dependent prose into line; otherwise record why the existing model stands. Either way, link the note that gives the reason to this review with answers, so the replay shows what the review changed.',
+    ].filter(Boolean).join(' ') };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1056,7 +1071,7 @@ export function registerConstructionRecordTools(server, service, { toolResult })
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await recordUnderstanding(service, input)));
   server.registerTool('life_review_record', {
-    description: 'Record a review as an Understanding Node held by its actual reviewer (another model, a blind reader, an estimator, a person or a tool), with what the reviewer was given, how independent it was, the exact graph revision it read, the prompt, a hash of the rendered text it reviewed (checked against a supplied text hash), its verdict and findings, and links to what it concerns. Later changes that answer the review link to it with answers. Add-only: graphHash may be any earlier revision of the graph; the record goes to its newest head, and advancedFrom says so.',
+    description: 'Record a review as an Understanding Node held by its actual reviewer (another model, a blind reader, an estimator, a person or a tool), with what the reviewer was given, how independent it was, the exact graph revision it read, the prompt, a hash of the rendered text it reviewed (checked against a supplied text hash), its verdict and findings, and links to what it concerns. Later changes that answer the review link to it with answers. When a review exposes an unmodeled assumption or an inadequate process, answer it by developing the model and bringing the dependent prose into line; otherwise record why the existing model stands. Each review keeps two model revisions apart: the one the version it read was bound to (reviewedModelHash) and the one current when it is recorded (recordedAtModelHash). When earlier reviews also read the current model revision, the result names them (sameModelReviews) as a signal to check whether the work is circling: reviewing and revising the prose while the model never changes only revises a text. Add-only: graphHash may be any earlier revision of the graph; the record goes to its newest head, and advancedFrom says so.',
     inputSchema: reviewRecordSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await recordReview(service, input)));

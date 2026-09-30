@@ -209,7 +209,12 @@ this tool is the depth only a model gives, so the tool keeps asking for more:
 - **Standing questions,** asked at every step about whatever is being worked
   on. Is there a macro aspect I must model to truly understand what is going
   on here? It could be something from a character's childhood or a war a
-  hundred years ago, and you will not know unless you model it. What kinds of
+  hundred years ago, and you will not know unless you model it. Which
+  assumptions have I not modeled yet? Which assumptions could stretch back far
+  in time to create a deeper story? A story rests on what it takes for granted,
+  such as why a house, a debt, a rule or a silence is as it is; model the
+  consequential assumptions and follow the deepest back through the lives and
+  the world's long processes. What kinds of
   reasons and circumstances explain what each person does? Fear/love is one
   optional lens when its question fits; duty, habit, curiosity, knowledge and
   material constraints can suggest other openings. What can be
@@ -408,7 +413,9 @@ preparation shows the aspects still open.
 
 **4. Implications and lives** (stage `implications`). Follow each consequential
 commitment into the model, and give every principal a whole life in the story
-model, the way the author's was modeled. Estimate meaningful quantities where
+model, the way the author's was modeled. Ask which assumptions under the
+commitments you have not modeled yet, and which could stretch back far in time
+to create a deeper story; open the consequential ones in the model. Estimate meaningful quantities where
 useful. For an unresolved fictional choice with a declared quantitative
 question and delegated uncertainty, `life_direction_draw` can select among
 modeled alternatives. Qualitative exploration and directly authored choices

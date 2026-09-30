@@ -372,7 +372,13 @@ test('shared spatial guidance permits authored layouts without requiring them in
   assert.match(constructionRecordInstructions, /build new structures that depend on the existing ones/);
   // Chance shows what the modeler would not have chosen; the choice among draws is recorded, and the rest stays addressable.
   assert.match(constructionRecordInstructions, /roll a draw \(life_direction_draw\) and look at several, keep the most interesting with a recorded reason, and leave the others addressable; a random word can seed a trajectory/);
+  // Describing something that exists asks for data and infers from evidence; its draws are forecasts, not choices for interest.
+  assert.match(constructionRecordInstructions, /Generating and describing share this loop but not its strategy/);
+  assert.match(constructionRecordInstructions, /When the work describes something that exists, such as a market, an institution or a person's own life, ask for the data the model lacks and infer what the evidence supports/);
+  assert.match(constructionRecordInstructions, /a draw there is a forecast with its probabilities, not a choice made for interest/);
   assert.match(constructionRecordInstructions, /Reviews, readings and checks show where the model is thin; the work is deepening the model/);
+  assert.match(constructionRecordInstructions, /Outside reviews can be useful, and a review may rightly confirm the account or correct only the prose; but if all you do is review and revise the prose, and the model and its processes never change as a consequence, you are not using the tool, only revising a text endlessly/);
+  assert.match(constructionRecordInstructions, /When a review exposes an unmodeled assumption or an inadequate process, answer it by developing the model and bringing the dependent prose into line; otherwise record why the existing model stands/);
   assert.match(constructionRecordInstructions, /Do not review again what has not changed since the last review/);
   assert.match(constructionRecordInstructions, /believable when it follows from that larger structure/);
   assert.match(constructionRecordInstructions, /Anything that changes over time can be modeled as a process, including qualities usually written as fixed descriptions/);

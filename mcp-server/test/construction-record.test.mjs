@@ -181,6 +181,42 @@ test('a thought is recorded against what it concerns, a review under its reviewe
   assert.equal(external.reviewedGraphHash, null);
 });
 
+test('reviews that read the current model revision are named as a signal, and each keeps the model it read apart from the one it was recorded at', async (t) => {
+  const { service, model, modelHash, graphHash } = await setup(t);
+  const review = (hash, n, reviewedGraphHash) => recordReview(service, { graphHash: hash, requestId: `loop-${n}`, accessScopes: scopes, nodeId: `review.loop.${n}`,
+    reviewer: { id: `reader:loop-${n}`, kind: 'model' }, recordedBy: 'modeler', independence: 'blind',
+    reviewed: { rootId: 'story', materials: 'rendered_text', ...(reviewedGraphHash ? { graphHash: reviewedGraphHash } : {}) },
+    review: { text: 'The money matters to her, and we never learn why.' }, about: [{ record: 'event:event.ada.state.h06' }] });
+  const first = await review(graphHash, 1);
+  assert.equal(first.sameModelReviews, undefined);
+  assert.deepEqual([first.reviewedModelHash, first.recordedAtModelHash], [modelHash, modelHash]);
+  assert.match(first.nextStep, /^When a review exposes an unmodeled assumption or an inadequate process, answer it by developing the model and bringing the dependent prose into line; otherwise record why the existing model stands/);
+  const second = await review(first.graphHash, 2);
+  assert.deepEqual(second.sameModelReviews, { count: 2, modelHash, earlier: ['review.loop.1'] });
+  assert.match(second.nextStep, /^2 reviews have now read versions of the current model revision/);
+  assert.match(second.nextStep, /That can be right, as when independent reviewers read one version or a review confirms the account, but it can also mean the work is circling/);
+  assert.match(second.nextStep, /If all you do is review and revise the prose while the model never changes, you are not using the tool, only revising a text endlessly/);
+  // The model changes as a consequence, the graph follows it, and the next review of the current version starts a new round.
+  const successor = structuredClone(model);
+  successor.revision = { number: 1, previous_model_hash: modelHash, reason: 'Say why the money matters.', provenance: ['test'] };
+  successor.meaning_model.events.find((event) => event.id === 'event.ada.state.h06').description = 'The loan falls due before the ovens can pay it back, and Ada knows it.';
+  const revised = await service.reviseModel({ requestId: 'loop-revise', previousModelHash: modelHash, model: successor });
+  const rebound = await rebindNarrativeGraph(service, { requestId: 'loop-rebind', graphHash: second.graphHash, modelHash: revised.modelHash, accessScopes: scopes, reason: 'Follow model revision 1.' });
+  const third = await review(rebound.graphHash, 3);
+  assert.equal(third.sameModelReviews, undefined);
+  // A review of an older version, recorded now, keeps the model it read: it is not counted as reading the current one.
+  const older = await review(third.graphHash, 4, first.graphHash);
+  assert.deepEqual([older.reviewedModelHash, older.recordedAtModelHash], [modelHash, revised.modelHash]);
+  assert.equal(older.sameModelReviews, undefined);
+  assert.match(older.nextStep, /This review read a version of an earlier model revision .*check which of its findings later revisions already answer/);
+  const view = await service.queryNarrativeGraph({ graphHash: older.graphHash, mode: 'full', includeContent: true, accessScopes: scopes });
+  const olderNode = view.nodes.find((node) => node.id === 'review.loop.4');
+  assert.ok(olderNode.provenance.includes(`reviewed-model:${modelHash}`) && olderNode.provenance.includes(`recorded-at-model:${revised.modelHash}`));
+  assert.deepEqual([JSON.parse(olderNode.text).data.reviewed.modelHash, JSON.parse(olderNode.text).data.recordedAtModelHash], [modelHash, revised.modelHash]);
+  const fifth = await review(older.graphHash, 5);
+  assert.deepEqual(fifth.sameModelReviews, { count: 2, modelHash: revised.modelHash, earlier: ['review.loop.3'] });
+});
+
 test('a long history travels as changes: each revision by change keeps only its change in the receipt', async (t) => {
   const { service, graphHash } = await setup(t);
   // A long passage makes any receipt that keeps the whole graph expensive.

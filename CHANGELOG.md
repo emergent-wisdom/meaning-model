@@ -6,6 +6,23 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Construction is the work in every mode. The shared instructions ask the agent
+  to start from the macro-processes, build structures on the existing ones and
+  open their trajectories and sub-processes; reviews and readings show where the
+  model is thin instead of being the next step after every change. Model
+  questions ask when processes stand unrelated or readings outgrow processes.
+- Generating and describing share one construction loop but not its strategy.
+  Generative work lets draws and random words propose alternatives and keeps the
+  most interesting with a recorded reason; descriptive work asks for the data the
+  model lacks, infers what the evidence supports, and treats a draw as a forecast.
+- A review that exposes an unmodeled assumption or an inadequate process is
+  answered by developing the model; otherwise the agent records why the model
+  stands. Each review record keeps apart the model revision of the version it
+  read and the one current when it was recorded, and names earlier reviews of
+  the current revision as a signal that the work may be circling.
+- Storytelling asks which assumptions have not been modeled yet and which could
+  stretch back far in time to create a deeper story.
+
 ## 0.6.0 — 2026-09-29
 
 - Modeling guidance encourages discovering implicit trackable concepts, opening
