@@ -60,7 +60,7 @@ export function contextKindOf(index, eventId) {
   return null;
 }
 // A reading's Cut is not a person's state: lens answers, and any Cut on a reading Event.
-const readingCut = (index, cut) => String(cut.id ?? '').startsWith('lens.') || Boolean(index.readings?.has(cut.parent_event_id));
+export const readingCut = (index, cut) => String(cut.id ?? '').startsWith('lens.') || Boolean(index.readings?.has(cut.parent_event_id));
 
 export function indexModel(model) {
   const mm = model?.meaning_model ?? {};
@@ -477,10 +477,61 @@ export function modelQuestions(model, { people = null, draws = null, limit = 12,
     guidance: 'The loop: find the areas worth investigating, go deeper inside the model, put your understanding inside the model, then loop again and let what the model holds lead you down different paths. These are the model\'s own open questions, read from its structure. The model is a language and none of its constructs is mandatory: the questions read common ones (a lifecycle Event, periods, change arcs, Cut units), so where you expressed the same understanding your own way a question may not see it; say so in the record and move on. Answer the rest by adding structure, in whatever form understands best, then ask again: every answer raises new questions, and there is no depth at which the model is finished. Take at least one between every step of the work.' };
 }
 
+// A person's processes at a moment, each with its declared state and the attributed accounts of its value known by
+// then. The state is the process's own record. Each account keeps its holder, evidence, cutoff and uncertainty, and none
+// is merged with the state or with another, so competing accounts stay distinguishable; an account whose evidence
+// reaches past the moment is not yet known. Values a running world computes as it advances are not read here; the world
+// holds those. Comparisons between things are Cuts.
+const plainValue = (value) => (value?.kind === 'scalar' ? value.value : value ?? null);
+const clipped = (text, limit) => (typeof text === 'string' && text.length > limit ? `${text.slice(0, limit - 1).trimEnd()}…` : text ?? null);
+function rubricOf(process) {
+  let question = null;
+  try { question = JSON.parse(process?.scale?.authored_judgment_question ?? 'null'); } catch { return null; }
+  if (!question || typeof question !== 'object') return null;
+  return { type: question.type ?? null, instructions: clipped(question.instructions, 400),
+    ...(Array.isArray(question.levels) ? { levels: question.levels.map(({ value, description }) => ({ value, description: clipped(description, 200) })) } : {}),
+    ...(question.criteria ? { criteria: question.criteria } : {}) };
+}
+export function processValuesAt(model, index, person, t, limit = 12) {
+  // A process concerns the person now when it is declared about them or bound to them, within the binding's interval,
+  // or when one of their Events that includes the moment carries or observes it.
+  const inside = (interval) => !Number.isFinite(interval?.start) || (interval.start <= t && (interval.end ?? interval.start) >= t);
+  const bound = new Map();
+  for (const binding of model?.meaning_model?.event_referent_bindings ?? []) {
+    if (binding.referent_id === person.personId && binding.target?.kind === 'process' && binding.target.process_id) push(bound, binding.target.process_id, binding);
+  }
+  const relevant = new Set();
+  for (const process of index.processList) {
+    const bindings = bound.get(process.id) ?? [];
+    if (bindings.length ? bindings.some((binding) => inside(binding.interval)) : process.scale?.subject_referent_id === person.personId) relevant.add(process.id);
+  }
+  for (const eventId of person.own) {
+    const event = index.events.get(eventId);
+    if (event && inside(event.interval)) for (const processId of [...(event.process_ids ?? []), ...(event.observation_process_ids ?? [])]) relevant.add(processId);
+  }
+  const accountsOf = new Map();
+  for (const claim of model?.initial_claims ?? []) if (relevant.has(claim.subject)) push(accountsOf, claim.subject, claim);
+  const cutoff = (claim) => (Number.isFinite(claim.evidence_cutoff) ? claim.evidence_cutoff : -Infinity);
+  const items = index.processList.filter((process) => relevant.has(process.id)).map((process) => {
+    const known = (accountsOf.get(process.id) ?? []).filter((claim) => cutoff(claim) <= t).sort((a, b) => cutoff(a) - cutoff(b));
+    const rubric = rubricOf(process);
+    return { latest: known.length ? cutoff(known[known.length - 1]) : -Infinity, item: {
+      processId: process.id, meaning: process.scale?.semantic_role ?? null, unit: process.unit ?? null, bounds: process.value_type?.bounds ?? null,
+      ...(rubric ? { rubric } : {}),
+      state: { initialValue: plainValue(process.initial_value), updateMode: process.update_mode ?? null },
+      accounts: known.slice(-4).map((claim) => ({ holder: claim.holder ?? null, value: plainValue(claim.value), at: claim.value_time ?? null,
+        evidenceType: claim.evidence_type ?? null, evidenceCutoff: claim.evidence_cutoff ?? null, uncertainty: claim.uncertainty ?? null, ...(claim.mode ? { mode: claim.mode } : {}) })),
+      ...(known.length > 4 ? { earlierAccounts: known.length - 4 } : {}) } };
+  });
+  items.sort((a, b) => b.latest - a.latest || a.item.processId.localeCompare(b.item.processId));
+  return { values: items.slice(0, limit).map(({ item }) => item), omitted: Math.max(0, items.length - limit) };
+}
+
 // A person's state at a moment, read from the model: their sense of time at that point.
 export function personStateAt(model, personId, t, { draws = [] } = {}) {
   const index = indexModel(model);
   const person = readPerson(index, personId);
+  const { values, omitted: valuesOmitted } = processValuesAt(model, index, person, t);
   const contains = (event) => start(event) !== null && start(event) <= t && (end(event) ?? start(event)) >= t;
   const latest = new Map();
   for (const item of person.cuts) {
@@ -499,6 +550,7 @@ export function personStateAt(model, personId, t, { draws = [] } = {}) {
     periods: person.periods.filter(contains).map((event) => ({ eventId: event.id, what: describe(event), start: start(event), end: end(event) })),
     latest: [...latest.values()].map((item) => ({ cutId: item.cut.id, kind: cutKind(item.cut), question: item.cut.question, at: start(item.event),
       answers: answersOf(item.cut).slice().sort((x, y) => y.weight - x.weight).slice(0, 4) })),
+    ...(values.length ? { values, ...(valuesOmitted ? { valuesOmitted } : {}) } : {}),
     adapting: person.arcs.filter((item) => start(item.focal ?? item.arc) !== null && start(item.focal ?? item.arc) <= t
       && (end(item.adaptation ?? item.arc) ?? Infinity) >= t).map((item) => ({ arcEventId: item.arcEventId, shock: describe(item.focal ?? item.arc), since: start(item.focal ?? item.arc) })),
     ...(known ? {

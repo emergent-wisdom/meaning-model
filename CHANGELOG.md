@@ -4,6 +4,25 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## 0.6.2 — 2026-10-01
+
+- `life_revision_check` follows numbers as well as text. A Cut whose weights
+  alone change changes the modeled state of its Event. For a value on a defined
+  scale, such as a rating, a process's declared state and the attributed
+  accounts of its value (claims) are kept apart: a changed state reaches every
+  Event that carries the process or that its subject takes part in, and a
+  changed account reaches the Events at the moment it is about. The scenes and
+  notes of those Events and the Events they cause are listed, with what changed
+  them. Before, a scene linked to the Event of a reweighted Cut was not named.
+- Scene preparation gives each person's values on a defined scale, where the
+  model keeps them: each process's declared state and rubric, and the accounts
+  of it known by the scene, each with its holder, evidence, cutoff and
+  uncertainty. Competing accounts stay apart, and a process with only an initial
+  value is included. These are what the model declares; values a running world
+  computes as it advances come from `life_view_query`, checked against its
+  projection time, not from this summary. A state makes a choice more or less
+  plausible; it does not dictate it.
+
 ## 0.6.1 — 2026-09-30
 
 - Construction is the work in every mode. The shared instructions ask the agent

@@ -317,3 +317,25 @@ test('telling phases whose reviewed passages changed are listed on every check u
     queryNarrativeGraph: async () => graph('then'.padEnd(64, '0')) }, input);
   assert.deepEqual(unrendered.telling, []); assert.deepEqual(unrendered.tellingNotChecked, [{ documentId: 'story', reason: 'render unavailable' }]);
 });
+
+// Found after 0.6.1: changing only a Cut's weights left a scene linked to its Event, and the later Event it causes,
+// unnamed. Numbers change an Event's state in two ways: a comparison (a Cut) or a value on a defined scale (a rating).
+test('a Cut whose weights alone change flags the scenes and notes of its Event and the Events it causes', async () => {
+  const modelAfter = structuredClone(before);
+  modelAfter.meaning_model.normalized_cuts[0].answers = [{ key: 'yes', weight: 0.4 }, { key: 'remainder', weight: 0.6 }];
+  const result = await checkGraph([passage('scene'), { id: 'note.choice', node_type: 'understanding.idea', render: 'exclude', text: 'She is torn.' }],
+    [anchor('scene', 'ana.choice'), anchor('note.choice', 'ana.choice', { family: 'semantic', relation: 'about' })], modelAfter);
+  assert.deepEqual(result.changed.rewritten, []);
+  assert.deepEqual(result.changed.stateChanged, [{ eventId: 'ana.choice', by: ['cut:cut.choice'] }]);
+  assert.deepEqual(result.passages.map(({ nodeId }) => nodeId), ['scene']);
+  assert.match(result.passages[0].why, /renders an Event whose modeled state changed \(Cut cut\.choice on it changed\)/);
+  assert.deepEqual(result.later.map(({ eventId, from }) => ({ eventId, from })), [{ eventId: 'ana.after', from: 'ana.choice' }]);
+  assert.match(result.later[0].why, /follows from an Event whose modeled state changed/);
+  assert.deepEqual(result.notes.map(({ nodeId }) => nodeId), ['note.choice']);
+  assert.doesNotMatch(result.nextStep, /No affected declared dependencies/);
+  // A reading's weights are a view of the model, not its state.
+  const reread = structuredClone(before);
+  reread.meaning_model.normalized_cuts.find((cut) => cut.id === 'lens.x.ana.choice').answers = [{ key: 'a', weight: 0.5 }, { key: 'remainder', weight: 0.5 }];
+  const reading = await checkGraph([passage('scene')], [anchor('scene', 'ana.choice')], reread);
+  assert.deepEqual([reading.changed.stateChanged, reading.passages, reading.later], [[], [], []]);
+});

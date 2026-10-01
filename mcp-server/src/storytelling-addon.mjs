@@ -589,7 +589,7 @@ export class StorytellingAddon {
       modelContext = {
         states: present.map((person) => ({ name: person.name, ...personStateAt(model, person.id, scene.worldTime, { draws }) })),
         forThisScene: forThisScene.slice(0, 12), openQuestions: everything.questions.slice(0, 10), totalOpenQuestions: everything.total, alwaysAsk: everything.alwaysAsk,
-        guidance: 'Write each person from their state at this moment, as the model gives it: the period of their life, what they want and expect now, the shock they are still adapting to, what they have decided and what is undecided. Take the open questions into the model before or after this scene.',
+        guidance: 'Write each person from their state at this moment, as the model gives it: the period of their life, what they want and expect now, the shock they are still adapting to, what they have decided and what is undecided, and, where the model keeps them, values on a defined scale (values): each process\'s declared state and the accounts of it known by now, each held by someone. These are what the model declares, not values a running world has computed since it began. For runtime values, use life_view_query with explicit requestedObservables and appropriate accessScopes, and check projection.time before using them for this scene. Keep competing accounts apart: what she reported and what her manager believes can differ. A state makes a choice more or less plausible; it does not dictate it. Take the open questions into the model before or after this scene.',
       };
     }
     const checks = [

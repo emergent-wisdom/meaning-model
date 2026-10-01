@@ -65,7 +65,11 @@ record a new assessment with `supersedes` when replacing the earlier account.
 
 After model revisions, use `life_revision_check` and, for adopted lenses,
 `life_lens_questions` to revisit numerical readings. The revision check retains
-older unresolved text dependencies as well as new ones. The viewer separates
+older unresolved text dependencies as well as new ones. It follows numbers too:
+when only a Cut's weights, a process's declared state or an account of its value
+changes, it lists the scenes and notes of the Events concerned and the Events
+they cause, so an upstream change reaches the scenes that depend on it. A state
+and the attributed accounts of it are kept apart. The viewer separates
 readings whose recorded Event text changed into **Needs review**, preserving
 their exact values and attribution. Unchanged text is not proof that an
 interpretation is correct; do not invent fresh measurements or alter historical
