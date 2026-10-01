@@ -4,6 +4,23 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## Unreleased
+
+- Author records append after existing visible sibling positions even when an
+  imported graph starts a new revision chain or edits retain higher positions.
+  The authoring clock stays separate. A collision with an inaccessible sibling
+  is refused atomically with guidance for an authorized read; scopes are never
+  widened automatically.
+- Deepening returns a compact recording basis with exact preparation arguments
+  and evidence identities, so findings need not duplicate large nested review
+  packets. Oversized preparations identify coherent child units and a read
+  route while preserving the whole-work question. Existing size limits and
+  complete-evidence requirements remain.
+- Shared exploration guidance asks agents to follow what each substantive
+  discovery opens up next and explain the scope and remaining questions when
+  stopping. A local improvement does not establish a whole-work review. The
+  guidance adds no required depth, numerical changes or review rounds.
+
 ## 0.6.3 — 2026-10-01
 
 - `life_understanding_record` takes the node kinds and relations of the

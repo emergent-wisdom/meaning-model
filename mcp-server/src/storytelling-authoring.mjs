@@ -48,7 +48,7 @@ export const storedTrajectoryReviseSchema = z.object({
 
 export const graphAuthoringInstructions = `Let the work choose its form. A book may be fiction, nonfiction, poetry, letters, a field guide or an unfamiliar form; these examples are not a taxonomy. Do not require a protagonist, conflict, climax, resolution or a tension curve. Use the scene workflow for scenes and its existing checks when that workflow fits; the shared narrative graph and editing tools also support other forms. Do not invent a cast or fictional author merely to satisfy a scene template. Explore processes of language, attention, explanation, arrangement or other discoveries when useful, with the same evidence and revision discipline.
 Keep the complete authoring record inside Meaning Model. Once the initial brief and human involvement are settled, store them through life_story_author_record with explicit author-only scopes (context for the brief, selection for the agreement); record later changes with supersedes links. Distinguish human decisions from LLM choices made under delegation. The narrative graph is authoritative for story text, draft alternatives, numerical proposals, seed draws and naming alternatives, assessments, selection decisions, revision reasons, context and disclosure plans. Create the model and story graph before developing them. Files, chat summaries and PDFs are exports, never a parallel source of story facts or decisions.
-Use life_story_author_record to save draft/seed alternatives and author-process material, and concise assessments or decisions as actual Understanding Nodes. Save the exact task and result in data when reviewing or exploring; link the result to the relevant candidate, draft or passage. Use the current graphHash returned by each write. Reuse/query those graph records as context; do not continue from an unrecorded external plan. The author understanding root and its authoring_step clock are distinct from world time and reader order. Record authored explanations, not hidden internal reasoning.
+Use life_story_author_record to save draft/seed alternatives and author-process material, and concise assessments or decisions as actual Understanding Nodes. Save the exact task identity and result in data when reviewing or exploring. If a tool returns recordingBasis, save it with your findings; recover the full evidence by re-preparing from its immutable inputs and verifying the resulting taskHash. Otherwise save the exact returned task and result. Link the result to the relevant candidate, draft or passage. Use the current graphHash returned by each write. Reuse/query those graph records as context; do not continue from an unrecorded external plan. The author understanding root and its authoring_step clock are distinct from world time and reader order. Record authored explanations, not hidden internal reasoning.
 When a scene contains independently changeable beats, images, exchanges or paragraphs, pass ordered passages to scene review and commit. Their exact blank-line join is the stored draft; review binds their IDs and text as well as the whole scene. Keep naturally coupled prose together; there is no quota. Use the shared life_narrative_edit operation for later splitting, merging, movement, reordering and local text replacement. Preserve the returned predecessor identity, inspect affected review IDs, and review the newly rendered scene and its context after substantive changes; existing review text does not certify a changed passage.
 life_story_trajectory_explore and life_story_trajectory_revise persist their numerical results directly; revise reads an existing graph record and preserves its predecessor. Then record your keep/revise/discard assessment with life_story_author_record. A promising character should usually receive the smallest useful repair, preserving identity and unaffected points. Keep proposals distinct from accepted model facts. Store scene drafts before review, including rejected alternatives; scene_commit stores the reviewed story text. Record purpose-review outcomes and deliberate suspense/disclosure processes in the graph. After narrative revision, update the graph and export the rendered text again; never patch the exported manuscript independently. Tool validation checks structure and references, not whether every unwritten thought was recorded or every literary judgment is correct.
 Record as you write, not only at milestones: ideas for later scenes, predictions, questions, decisions, references back and voice or phrasing choices (why a line sounds like its speaker) are life_story_author_record kinds idea, prediction, question, decision, reference and voice. Link each to the passages it concerns and, with about, to the model records it concerns (event:, cut:, process:, referent:), so a later agent sees the thought beside its subject. Record every outside review, from a blind reader, another model, an estimator or a person, with life_review_record under its actual reviewer, and link the changes that answer it with answers. Give every Event that carries a Cut a description; scene preparation blocks commits until it has one. ${disclosureInstructions} ${constructionRecordInstructions}`;
@@ -115,10 +115,21 @@ export async function prepareAuthorRecord(service, raw) {
     if (target.access_scopes?.length) scopes = scopes.filter((scope) => target.access_scopes.includes(scope));
   }
   if (!scopes.length) throw new Error('Author record and targets require a common explicit access scope.');
-  // Revision metadata is not scope-filtered. Counting visible children could
-  // reuse the order of a hidden assessment and make a valid write fail.
+  // The authoring clock follows graph revisions. Containment order is separate:
+  // imported roots and narrative edits can retain sibling ordinals above that clock.
   const step = view.graph.revision?.number;
   if (!Number.isSafeInteger(step) || step < 0) throw new Error('Authoring requires a safe graph-revision clock.');
+  let placementOrder = step;
+  for (const sibling of view.edges ?? []) {
+    if (sibling.family !== 'structural' || sibling.relation !== 'contains'
+      || sibling.source?.kind !== 'node' || sibling.source.node_id !== rootId) continue;
+    if (!Number.isSafeInteger(sibling.order) || sibling.order < 0 || sibling.order === Number.MAX_SAFE_INTEGER) {
+      throw new Error('Author understanding sibling order cannot be safely advanced. Inspect its ordering with authorized access before appending.');
+    }
+    placementOrder = Math.max(placementOrder, sibling.order + 1);
+  }
+  // Keep the revision floor for ordinary scoped appends. Hidden siblings can still
+  // conflict; Rust refuses the whole batch, without guessing orders or widening scopes.
   const provenance = ['Meaning Model storytelling add-on v1', `author:${input.authorId}`, 'Authoring clock: authoring_step, not world time.'];
   const common = { authority: { source: input.authorId, weight: 1 }, uncertainty: { kind: 'unknown' },
     access_scopes: scopes, render: 'exclude', training: 'exclude', provenance };
@@ -158,7 +169,7 @@ export async function prepareAuthorRecord(service, raw) {
   const edge = (suffix, source, target, family, relation, extra = {}) => ({
     id: `${input.nodeId}.${suffix}`, source: endpoint(source), target: endpoint(target),
     family, relation, access_scopes: scopes, provenance, ...extra });
-  const edges = [edge('placement', rootId, input.nodeId, 'structural', 'contains', { order: step }),
+  const edges = [edge('placement', rootId, input.nodeId, 'structural', 'contains', { order: placementOrder }),
     edge('story', input.nodeId, input.storyRootId, 'semantic', 'about'),
     ...input.links.map((link, index) => edge(`link.${index}`, input.nodeId, link.targetNodeId, 'semantic', link.relation)),
     ...input.about.map((target, index) => (isExternalTarget(target, graphModelHash)
@@ -176,8 +187,18 @@ export async function prepareAuthorRecord(service, raw) {
 export async function storeAuthorRecord(service, raw) {
   const head = await resolveAppendHead(service, raw?.graphHash, raw?.requestId, raw?.exactRevision === true);
   const { input, narrativeBatch, receipt } = await prepareAuthorRecord(service, { ...raw, graphHash: head.graphHash });
-  const stored = await service.applyNarrativeBatch({ requestId: input.requestId,
-    previousGraphHash: input.graphHash, narrativeBatch });
+  let stored;
+  try {
+    stored = await service.applyNarrativeBatch({ requestId: input.requestId,
+      previousGraphHash: input.graphHash, narrativeBatch });
+  } catch (error) {
+    const placement = narrativeBatch.add_edges[0];
+    if (error?.code === 'invalid_request' && error?.operation === 'apply_narrative_batch'
+      && error.message.includes(`contains siblings under ${receipt.understandingRootId} reuse order ${placement.order}`)) {
+      throw new Error('The author record could not be appended because its placement conflicts with an existing sibling hidden from this read. Nothing was written. Re-read the current graph with the same scopes; if siblings remain hidden, obtain a complete authorized view of the author record before retrying. Do not guess orders or add scopes you are not authorized to use.', { cause: error });
+    }
+    throw error;
+  }
   return { ...stored, ...receipt, ...(head.advancedFrom ? { advancedFrom: head.advancedFrom } : {}) };
 }
 

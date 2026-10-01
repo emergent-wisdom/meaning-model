@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
 import { StorytellingAddon } from '../src/storytelling-addon.mjs';
+import { prepareAuthorRecord } from '../src/storytelling-authoring.mjs';
 import { fictionalAuthorModel } from './storytelling-author-model-fixture.mjs';
 import { lifeTrendsDossier, lifeTrendsEdges, lifeTrendsNode } from './storytelling-life-fixture.mjs';
 
@@ -224,11 +225,71 @@ test('deepening rejects malformed selection and oversized prose instead of silen
   assert.deepEqual(f.writes, []);
 });
 
-test('the combined deepening task stays small enough to preserve exactly in an author record', async () => {
+test('the combined deepening reading packet stays bounded and identifies oversized context', async () => {
   const f = fixture();
   f.view.nodes.find(({ id }) => id === 'capacity').text = 'x'.repeat(390 * 1024);
   await assert.rejects(f.addon.prepareDeepening(f.input), /Deepening task exceeds.*smaller coherent unit/iu);
   await assert.rejects(f.addon.prepareDeepening(f.input), /Largest context records: capacity \(\d+ KiB\)/u, 'the error names what to leave out');
   await assert.rejects(f.addon.prepareDeepening(f.input), /The whole work stays in view through the model: read life_model_outline/u, 'a smaller unit does not lose the whole');
+  assert.deepEqual(f.writes, []);
+});
+
+test('compact deepening bases preserve exact retrieval without recopying nested evidence into an assessment', async () => {
+  const f = fixture();
+  f.view.nodes.find(({ id }) => id === 'capacity').text = 'Evidence: '.repeat(23_000);
+  const first = await f.addon.prepareDeepening(f.input);
+  const second = await f.addon.prepareDeepening({ ...f.input, brief: 'Follow the implications for the rest of the work.' });
+  const full = { preparations: [first, second] };
+  const compact = { preparations: [first.recordingBasis, second.recordingBasis] };
+  assert.ok(Buffer.byteLength(JSON.stringify(full)) > 512 * 1024, 'two valid reading tasks exceed the author-record limit together');
+  assert.ok(Buffer.byteLength(JSON.stringify(compact)) < 8 * 1024, 'the exact identities fit comfortably with findings');
+  for (const task of [first, second]) {
+    assert.deepEqual(task.recordingBasis, { schema: 'meaning-model-story-deepening-basis/v1',
+      taskHash: task.taskHash, preparation: task.preparation, baseline: task.baseline, accessScopes: task.accessScopes,
+      modelDepthTaskHash: task.modelDepth.taskHash, purposeReviewTaskHash: task.purposeReview.taskHash });
+    const reread = await f.addon.prepareDeepening(task.recordingBasis.preparation);
+    assert.equal(reread.taskHash, task.recordingBasis.taskHash);
+    assert.deepEqual(reread, task, 'reopening the original immutable graph returns every byte of the evidence');
+  }
+  const assessment = { graphHash, requestId: 'assessment', nodeId: 'assessment', storyRootId: 'book',
+    authorId: 'writer', accessScopes: first.accessScopes, kind: 'assessment',
+    text: 'The work keeps treating a capacity limit as a scheduling problem; follow that assumption across these units.',
+    about: [{ nodeId: 'chapter' }, { nodeId: 'capacity' }] };
+  await assert.rejects(prepareAuthorRecord(f.service, { ...assessment, data: full }), /Author record exceeds 512 KiB/u);
+  const stored = await prepareAuthorRecord(f.service, { ...assessment, data: compact });
+  const record = stored.narrativeBatch.add_nodes.find(({ id }) => id === 'assessment');
+  assert.deepEqual(JSON.parse(record.text).data, compact);
+  assert.match(first.workflowInstructions, /do not copy the full task or its nested evidence packets/u);
+  assert.match(first.workflowInstructions, /compare the returned taskHash with recordingBasis.taskHash/u);
+  assert.match(first.workflowInstructions, /not a stored task/u);
+  assert.deepEqual(f.writes, []);
+});
+
+test('an oversized whole-work purpose task gives exact coherent-unit recovery without returning an excerpt', async () => {
+  const f = fixture();
+  f.rendered.text = 'Quiet. '.repeat(45_000);
+  await assert.rejects(f.addon.prepareDeepening({ ...f.input, rootId: 'book', unit: 'whole_work' }), (error) => {
+    assert.match(error.message, /^Purpose review task;.*exceeds 262144 UTF-8 bytes/u);
+    assert.match(error.message, /No partial review task was returned/u);
+    assert.match(error.message, /Preserve the whole-work question in a linked Understanding Node/u);
+    assert.match(error.message, /Visible child units to inspect: "chapter"/u);
+    assert.match(error.message, /life_model_outline.*life_document_project/u);
+    assert.match(error.message, /Reconcile findings across the selected units/u);
+    assert.match(error.message, /identify child units by structural\/contains edges/u);
+    const route = JSON.parse(error.message.match(/life_narrative_query (\{[^\n]+?\});/u)[1]);
+    assert.deepEqual(route, { graphHash, expectedGraphHash: graphHash, mode: 'neighborhood', centerNodeId: 'book',
+      depth: 1, direction: 'descendants', includeContent: false, accessScopes: [...new Set(f.input.accessScopes)].sort() });
+    return true;
+  });
+  assert.deepEqual(f.writes, []);
+});
+
+test('an oversized nested model-depth task gives recovery guidance without masking unrelated failures', async () => {
+  const f = fixture();
+  f.view.nodes.find(({ id }) => id === 'capacity').text = 'x'.repeat(520 * 1024);
+  await assert.rejects(f.addon.prepareDeepening(f.input), /Model-depth task exceeds 512 KiB;.*No partial review task.*smaller prose alone will not shrink an oversized context record/u);
+  const unavailable = new Error('Source record could not be read.');
+  f.service.inspectModel = async () => { throw unavailable; };
+  await assert.rejects(f.addon.prepareDeepening(f.input), (error) => error === unavailable);
   assert.deepEqual(f.writes, []);
 });

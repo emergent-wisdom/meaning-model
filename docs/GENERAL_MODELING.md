@@ -80,7 +80,15 @@ build on it: the new structure anchors further relationships, processes and
 concepts, and is revised when exploration shows a better account. Read what was
 built on the earlier account against the new structure, prose included, and
 revise that work or record why it stands. Curiosity can open a sufficient
-account without a defect to repair. Invent and compare categories where useful;
+account without a defect to repair. After a substantive opening, inspect its
+connections and choose what to explore next for what it could explain or make
+possible. Follow the relevant earlier history, neighboring processes or higher
+abstractions within the delegation. At a stopping point, use the existing
+Understanding Nodes to record what was explored, why that scope is sufficient
+for the purpose and which promising questions remain. A local revision does
+not establish review of the whole work, and completed checks do not establish
+complete understanding. These choices add no quota of records, categories or
+numerical changes. Invent and compare categories where useful;
 the supplied questions are starting points, not the limits of inquiry. Record
 speculative connections as hypotheses rather than observations or accepted
 history. Continue within the existing delegation; only decisions the user

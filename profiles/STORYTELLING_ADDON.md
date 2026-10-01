@@ -247,7 +247,14 @@ or meaning, discover sub-processes, relationships and new categories or
 questions, follow the fruitful ones, and revisit connected regions as the
 account changes. Curiosity, play and surprise can start that recursion even
 when the current account is sufficient. A run may pause with open branches
-recorded; local sufficiency neither closes inquiry nor demands endless work.
+recorded; local sufficiency neither closes inquiry nor demands endless work. After
+a substantive opening, follow its connections and choose the next investigation
+for what it could explain or make possible in the story. Keep the whole work in
+view when selecting smaller units. At a stopping point, record the explored
+scope, why it is sufficient for the delegated purpose, and promising questions
+left open. A local improvement is not evidence that the whole book was deeply
+reviewed. Use the existing Understanding Nodes; there is no required count of
+openings, numerical changes or review rounds.
 
 ## The process, from author to release
 
@@ -1326,8 +1333,23 @@ still requires its life dossier even after a sufficient existing-work review.
 The task binds the baseline graph, source, model, rendered projection and
 text hashes, selected prose and node IDs, author profile when selected, and
 model-depth and purpose-review preparations. Read that evidence before
-recommending changes. Store combined findings within the returned task's
-`accessScopes`, even if an individual nested review permits broader scopes.
+recommending changes. Store the returned compact `recordingBasis` with concise
+findings in an author record, rather than copying the full task and its nested
+evidence. The basis includes the exact preparation arguments, baseline
+identities, task hashes and permitted scopes. To retrieve the evidence, call
+`life_story_deepen` with `recordingBasis.preparation` against the original
+immutable graph and compare the returned `taskHash`. A changed tool version may
+produce a different task; inspect that difference before reusing an assessment.
+The basis is a retrieval reference, not proof of review or separately stored
+evidence. Read the complete task and its explicit further-reading routes.
+
+Store combined findings within the tasks' common permitted `accessScopes`,
+even if an individual nested review permits broader scopes. The existing
+512 KiB author-record limit stays in place. When a whole-work preparation is
+too large, the error identifies visible child units and a structural query.
+Keep the whole-work question in the graph, inspect coherent units, and reconcile
+what they reveal against that question; do not truncate evidence to fit a limit.
+
 Save the baseline analysis and revision plan as
 Understanding Nodes, including author and individual character voice
 findings. Distinguish a missing causal explanation from weak prose realization,
