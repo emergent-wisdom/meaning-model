@@ -6,6 +6,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Shared guidance gives agents a concrete route to discovering categories:
+  examine differences the current grouping hides, model a useful distinction,
+  try it in other contexts and follow what it reveals. The agent chooses the
+  categories and depth; no taxonomy, quota or new validation gate is imposed.
+
 - Author records append after existing visible sibling positions even when an
   imported graph starts a new revision chain or edits retain higher positions.
   The authoring clock stays separate. A collision with an inaccessible sibling

@@ -91,7 +91,16 @@ complete understanding. These choices add no quota of records, categories or
 numerical changes. Invent and compare categories where useful;
 the supplied questions are starting points, not the limits of inquiry. Record
 speculative connections as hypotheses rather than observations or accepted
-history. Continue within the existing delegation; only decisions the user
+history.
+
+Treat inherited categories as revisable proposals. One route to discovery is
+to compare situations or periods that the current categories group together
+but that unfold differently: what unrepresented distinction could explain the
+difference? Define a candidate in the existing grammar, connect it to the
+relevant cases, and explore how it forms, varies and affects other processes.
+Try it beyond the case that suggested it, including where it may fail; keep, revise, combine or set it aside for what it helps explain or generate. Use the resulting
+structure to choose the next opening.
+Continue within the existing delegation; only decisions the user
 reserved need their agreed approval.
 
 ## Think in the model
