@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import * as z from 'zod/v4';
 import { authorModelSchema, authorModelSourceIds, validateAuthorModelSources } from './storytelling-author-model.mjs';
 import { trajectoryExploreSchema, trajectoryReviseSchema, prepareTrajectoryExplore, reviseTrajectory } from './storytelling-trajectories.mjs';
-import { externalRecordNode, isExternalTarget, recordAnchorEndpoint, targetSchema } from './construction-record.mjs';
+import { externalRecordNode, isExternalTarget, linkRelations, recordAnchorEndpoint, targetSchema } from './construction-record.mjs';
 import { constructionRecordInstructions } from './construction-principles.mjs';
 import { disclosureInstructions } from './storytelling-disclosure.mjs';
 import { prepareDocumentProcess } from './document-processes.mjs';
@@ -17,13 +17,15 @@ export const authorRecordContextSchema = z.object({
   storyRootId: id, authorId: id,
   accessScopes: z.array(id).min(1).max(64),
 }).strict();
-const reflectionKinds = ['assessment', 'selection', 'revision', 'disclosure', 'idea', 'prediction', 'question', 'voice', 'decision', 'reference'];
+// An author's reflections, with the node kinds of the Understanding Graph paper, as life_understanding_record takes them.
+const reflectionKinds = ['assessment', 'selection', 'revision', 'disclosure', 'idea', 'prediction', 'question', 'voice', 'decision', 'reference',
+  'hypothesis', 'foundation', 'surprise', 'repetition', 'consequence', 'tension', 'serendipity', 'experiment', 'analysis', 'model', 'randomness', 'library', 'evaluation'];
 export const authorRecordSchema = authorRecordContextSchema.extend({
   kind: z.enum(['candidate', 'draft', 'context', 'author_model', 'world', 'direction', ...reflectionKinds]),
   text: prose,
   data: z.json().optional(),
   links: z.array(z.object({
-    relation: z.enum(['about', 'supports', 'contradicts', 'refines', 'answers', 'learned_from', 'supersedes', 'shaped_by']),
+    relation: z.enum(linkRelations),
     targetNodeId: id,
   }).strict()).max(128).default([]),
   // Model records the note concerns, by kind:id, such as event:ev.arrival or cut:cut.d09.attention.

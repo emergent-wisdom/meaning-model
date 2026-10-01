@@ -126,3 +126,30 @@ test('a sufficiency note covers its whole kind only when it is about a document 
   // About the document root, it covers every question of its kind.
   assert.equal(await ask(graph([note('note.all')], [{ source: { kind: 'node', node_id: 'note.all' }, target: { kind: 'node', node_id: 'doc' }, relation: 'about' }])), false);
 });
+
+test('a record of thoughts that uses no exploration kinds is asked to read itself, in its own scope', async () => {
+  const ask = (nodes, edges = []) => readOpenQuestions(service(graph(nodes, edges)), { modelHash: 'a'.repeat(64), graphHash: 'b'.repeat(64), limit: 60 });
+  const contained = (ids) => ids.map((id) => ({ source: { kind: 'node', node_id: 'doc' }, target: { kind: 'node', node_id: id }, family: 'structural', relation: 'contains' }));
+  const revisions = Array.from({ length: 12 }, (_, index) => ({ id: `note.revision.${index}`, node_type: 'understanding.revision', text: 'Revised a passage.' }));
+  const held = contained(revisions.map(({ id }) => id));
+  const question = (await ask(revisions, held)).questions.find((item) => item.kind === 'understanding-forward-missing');
+  assert.equal(question?.storyRootId, 'doc', 'the notes held under the document are one record');
+  assert.match(question.question, /use none of the recognized exploration kinds/u);
+  assert.match(question.question, /Kinds are only labels: read the records before deciding anything is missing/u);
+  assert.match(question.question, /if so, say that it is sufficient here, about doc/u);
+  assert.match(question.question, /a validates or invalidates link is your judgment, not a verification/u);
+  const surprised = await ask([...revisions, { id: 'note.surprise', node_type: 'understanding.surprise', text: 'The owner believed her.' }], contained([...revisions.map(({ id }) => id), 'note.surprise']));
+  assert.equal(surprised.counts['understanding-forward-missing'], undefined, 'one surprise is a look forward');
+  assert.equal((await ask(revisions.slice(0, 5), held.slice(0, 5))).counts['understanding-forward-missing'], undefined, 'a short record is not asked');
+  // A story's author reflections count as well, and each story is its own record.
+  const book = (id) => ({ id, node_type: 'document', role: 'document_root' });
+  const reflections = (story, kind = 'revision', count = 12) => Array.from({ length: count }, (_, index) => ({ id: `${story}.${kind}.${index}`, node_type: `storytelling.${kind}`,
+    role: 'externalized_reflection', subject: story, text: 'A pass.' }));
+  const predicted = await ask([book('book.a'), ...reflections('book.a'), ...reflections('book.a', 'prediction', 1)]);
+  assert.equal(predicted.counts['understanding-forward-missing'], undefined, 'a story-author prediction is a look forward');
+  const enough = { id: 'note.enough', node_type: 'understanding.reason', text: JSON.stringify({ data: { schema: SUFFICIENT_SCHEMA, kind: 'understanding-forward-missing', reason: 'A copy-editing pass on book A.', reopenIf: 'new construction begins' } }) };
+  const two = await ask([book('book.a'), book('book.b'), ...reflections('book.a'), ...reflections('book.b'), enough],
+    [{ source: { kind: 'node', node_id: 'note.enough' }, target: { kind: 'node', node_id: 'book.a' }, relation: 'about' }]);
+  assert.deepEqual(two.questions.filter((item) => item.kind === 'understanding-forward-missing').map((item) => item.storyRootId), ['book.b'],
+    'sufficient here about one book does not silence another');
+});

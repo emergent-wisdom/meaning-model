@@ -396,6 +396,8 @@ function worldQuestions(index, lives, draws, spatial) {
 const ORDER = ['author-separate', 'author-unlinked', 'life-missing', 'life-untimed', 'time-missing', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'choices-missing', 'macro-missing', 'structure-flat', 'readings-over-processes', 'period-gap',
   'moment-unmodeled', 'decision-undrawn', 'remainder-unopened', 'shift-uncaused', 'adaptation-open', 'laws-missing', 'place-missing', 'spatial-declaration-incomplete', 'spatial-resolution', 'spatial-history-unopened', 'process-unobserved', 'wants-generic', 'why-local',
   'concepts-thin', 'recurring-question', 'period-uncut', 'process-empty', 'secondary-without-life', 'life-thin', 'event-undescribed', 'weights-unestimated'];
+// Understanding Node kinds that look forward or explore, rather than record what was done and judged.
+const FORWARD_KINDS = new Set(['question', 'hypothesis', 'prediction', 'tension', 'surprise', 'consequence', 'experiment', 'serendipity', 'randomness', 'idea']);
 // How many open questions come back with each model change, rebind and world record; life_model_questions gives all.
 export const VISIBLE_QUESTIONS = 8;
 
@@ -765,6 +767,31 @@ export async function readOpenQuestions(service, { modelHash, people = null, at 
     addQuestion({ kind: 'author-life-unrecorded', subject: null, storyRootId: root, principal: true,
       tool: 'life_narrative_query, life_story_world_record',
       question: `No author-and-life declaration is visible for story ${root}. Read its existing authoring notes and complete authorized graph before deciding what is absent. Who is writing it, at what point in their life, and why now? Reuse an established author model or develop a clearly fictional persona when delegated; never invent the real user's life. Connect relevant experience to actual writing choices through Understanding Nodes. An explicitly omitted author model or a bounded edit can be sufficient here; record that limit and when to revisit it.` });
+  }
+  // Each visible record of thoughts, read for the kinds it uses: understanding notes and a story's author reflections
+  // alike. Each record is its own scope (a story's reflections by the story they belong to, other notes by the root that
+  // holds them), so a note that one record suffices cannot silence another. Kinds are only labels: forward thought may
+  // sit under any kind, so the question asks for a reading, not a missing label. Asked after the others.
+  if (view) {
+    const parent = new Map();
+    for (const edge of view.edges ?? []) if (edge.family === 'structural' && edge.relation === 'contains' && edge.source?.kind === 'node' && edge.target?.kind === 'node') parent.set(edge.target.node_id, edge.source.node_id);
+    const rootOf = (nodeId) => { let current = nodeId; const seen = new Set([current]); while (parent.has(current) && !seen.has(parent.get(current))) { current = parent.get(current); seen.add(current); } return current; };
+    const records = new Map();
+    for (const node of view.nodes) {
+      const type = String(node.node_type ?? '');
+      const story = type.startsWith('storytelling.') && node.role === 'externalized_reflection';
+      if (!type.startsWith('understanding.') && !story) continue;
+      push(records, story && node.subject ? node.subject : rootOf(node.id), type.slice(type.indexOf('.') + 1));
+    }
+    for (const [scope, kinds] of records) {
+      if (kinds.length < 12 || kinds.some((kind) => FORWARD_KINDS.has(kind))) continue;
+      const item = { kind: 'understanding-forward-missing', subject: null, storyRootId: scope, principal: false, tool: 'life_understanding_record', notes: kinds.length,
+        question: `The ${kinds.length} thought records visible under ${scope} use none of the recognized exploration kinds (question, hypothesis, prediction, tension, surprise, consequence, experiment, serendipity, randomness, idea). Kinds are only labels: read the records before deciding anything is missing, since an analysis may already propose an experiment. A maintenance pass can rightly be all revisions; if so, say that it is sufficient here, about ${scope}. Otherwise, think ahead in the graph: what do you expect, what surprised you, what is in tension, and what would validate or invalidate each hypothesis? Record those about the records they concern. This reads only what is visible in these scopes, and a validates or invalidates link is your judgment, not a verification.` };
+      if (sufficient?.covers(item)) continue;
+      if (questions.questions.length < limit) questions.questions.push(item);
+      questions.total += 1;
+      questions.counts[item.kind] = (questions.counts[item.kind] ?? 0) + 1;
+    }
   }
   if (questions.sufficiencyNotesOmitted) questions.sufficiencyNotesRead = {
     tool: 'life_narrative_query', arguments: { graphHash, expectedGraphHash: graphHash, mode: 'skeleton', includeContent: false, accessScopes: [...new Set(accessScopes)].sort() },

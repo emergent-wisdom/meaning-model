@@ -773,7 +773,15 @@ const undatedNote = (id) => !moments.has(id);
 const noteLayer = (node) => NOTE[node.category]?.[2] ?? 2;
 // Where each document of the graph is attached: the moments, people, processes, Cuts and concepts it is about.
 const cutQuestion = new Map(); for (const person of data.people) { for (const series of person.series ?? []) for (const point of series.points) if (point.cutId) cutQuestion.set(point.cutId, series.question); for (const decision of person.decisions ?? []) if (decision.cutId) cutQuestion.set(decision.cutId, decision.question); }
-const TYPE_WORDS = { 'understanding.report': 'Report', 'understanding.plan': 'Plan', 'understanding.decision': 'Decision', 'storytelling.selection': 'Selection', 'storytelling.candidate': 'Candidate', 'storytelling.idea': 'Idea', 'storytelling.context': 'Context', 'storytelling.author_model': 'Author model', 'storytelling.world': 'World stage', 'storytelling.decision': 'Story decision', model_reference: 'Model reference', direction_draw: 'Drawn decision', story_part: 'Part of the story' };
+// A note's own kind, named from its stored type when no word below names it, so a new kind needs no list here: an
+// understanding note's kind, and a story author's reflection's. Prose, world stages and direction keep their own names.
+function typeWord(type, category) {
+  const [, family, kind] = /^(understanding|storytelling)\.([a-z_]+)$/u.exec(String(type ?? '')) ?? [];
+  const named = family === 'understanding' || (family === 'storytelling' && category === 'author');
+  return TYPE_WORDS[type] ?? (named ? kind.replace(/_/gu, ' ').replace(/^./u, (letter) => letter.toUpperCase()) : null);
+}
+const kindWords = (...words) => words.filter((word, i, all) => word && all.indexOf(word) === i).join(' · ');
+const TYPE_WORDS = { 'understanding.report': 'Report','understanding.plan': 'Plan', 'understanding.decision': 'Decision', 'storytelling.selection': 'Selection', 'storytelling.candidate': 'Candidate', 'storytelling.idea': 'Idea', 'storytelling.context': 'Context', 'storytelling.author_model': 'Author model', 'storytelling.world': 'World stage', 'storytelling.decision': 'Story decision', model_reference: 'Model reference', direction_draw: 'Drawn decision', story_part: 'Part of the story' };
 function attachmentsOf(node) {
   const out = []; const seen2 = new Set();
   for (const edge of data.graph.edges) {
@@ -791,7 +799,7 @@ const attachmentText = (list) => Object.entries(list.reduce((groups, item) => { 
 for (const node of graphNodes) {
   const [kind, hex] = NOTE[node.category] ?? ['Note', '#dddddd'];
   const light = spark(hex, node.category === 'passage' ? 2.6 : 2.0); const attached = attachmentsOf(node);
-  light.userData = { node, color: color(hex), attached, hover: { kind: [kind, TYPE_WORDS[node.type]].filter((word, i, all) => word && all.indexOf(word) === i).join(' · '), title: node.title, text: node.text, attached: attachmentText(attached) }, id: node.id, born: node.born };
+  light.userData = { node, color: color(hex), attached, hover: { kind: kindWords(kind, typeWord(node.type, node.category)), title: node.title, text: node.text, attached: attachmentText(attached) }, id: node.id, born: node.born };
   mind.add(light); notes.push(light); hoverable.push(light);
 }
 const noteById = new Map(notes.map((light) => [light.userData.id, light]));
@@ -1579,7 +1587,7 @@ function hoverTerrain() {
     const u = hit.object.userData; row = u.row ?? null; hoveredTarget = hit.object;
     if (u.event) lines.push(['v', u.event.label], ['m', timeText(u.event.start, 2)], ['m', clip(u.event.description, 260)]);
     else if (u.decision) lines.push(['k', 'A decision'], ['v', u.decision.question], ...(u.decision.answers ?? []).slice(0, 5).map((answer) => ['m', `${Math.round(answer.weight * 100)}%  ${answer.key.replace(/[_.-]+/g, ' ')}${u.decision.drawn?.realized === answer.key ? '  ← drawn' : ''}`]));
-    else if (u.node) lines.push(['k', NOTE[u.node.category]?.[0] ?? u.node.category], ['v', u.node.title || clip(u.node.text, 90)], ['m', clip(u.node.text, 360)]);
+    else if (u.node) lines.push(['k', kindWords(NOTE[u.node.category]?.[0] ?? u.node.category, typeWord(u.node.type, u.node.category))], ['v', u.node.title || clip(u.node.text, 90)], ['m', clip(u.node.text, 360)]);
   } else {
     const ground = ray.intersectObject(terrain.mesh, false)[0];
     if (ground) { const u = ground.point.x / LENGTH + 0.5; const t = timeAt(F, u);

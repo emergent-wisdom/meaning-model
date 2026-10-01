@@ -104,7 +104,11 @@ function recordEndpoint(model, target, label, modelHash = null) {
   if (!findRecord(model, kind, recordId, modelHash)) throw new Error(`${label} names ${target.record}, which is not a record of the bound model.`);
   return { kind: 'anchor', anchor_kind: recordKinds[kind], anchor_id: recordId, ...(target.path ? { path: target.path } : {}) };
 }
-export const linkRelations = Object.freeze(['about', 'supports', 'contradicts', 'refines', 'answers', 'learned_from', 'supersedes', 'shaped_by']);
+// The Understanding Graph paper's epistemic relations, with the construction record's own. validates and invalidates
+// are the holder's judgment, not a verification. A passage drawn from a thought links to it with inspired_by through
+// life_narrative_batch, since the passage, not the thought, is the source.
+export const linkRelations = Object.freeze(['about', 'supports', 'contradicts', 'refines', 'answers', 'learned_from', 'supersedes', 'shaped_by',
+  'questions', 'validates', 'invalidates', 'contextualizes', 'abstracts_from', 'diverse_from']);
 
 // ---------------------------------------------------------------------------------------------
 // Shared graph reading and writing.
@@ -159,8 +163,12 @@ export { nextOrder as nextPlacementOrder };
 // ---------------------------------------------------------------------------------------------
 // Understanding records: a thought, linked to what it is about.
 
+// The construction record's kinds, with the node families of the Understanding Graph paper: foundation, surprise and
+// repetition; consequence, tension, question and hypothesis; serendipity, decision and experiment; analysis, model,
+// randomness, reference and library; prediction and evaluation.
 export const noteKinds = Object.freeze(['question', 'hypothesis', 'prediction', 'interpretation', 'reason', 'criticism', 'revision',
-  'decision', 'idea', 'reference', 'voice', 'plan', 'observation', 'estimate', 'assessment', 'report', 'lens']);
+  'decision', 'idea', 'reference', 'voice', 'plan', 'observation', 'estimate', 'assessment', 'report', 'lens',
+  'foundation', 'surprise', 'repetition', 'consequence', 'tension', 'serendipity', 'experiment', 'analysis', 'model', 'randomness', 'library', 'evaluation']);
 // What a report rests on. A documented fact is recorded as a report of its source, dated, so the world up to a
 // documentary cutoff stays distinguishable from what the modeler supposed or invented.
 const sourceSchema = z.object({
@@ -1092,7 +1100,7 @@ export async function importConstructionHistory(service, raw) {
 
 export function registerConstructionRecordTools(server, service, { toolResult }) {
   server.registerTool('life_understanding_record', {
-    description: `Record one or more Understanding Nodes held by a named holder (the modeler, a writer, a character in story time), each linked to what it concerns: model records by kind:id (event, cut, process, claim, concept, referent and the other record kinds, optionally with a JSON Pointer path) or graph nodes. Kinds: ${noteKinds.join(', ')}. A report records what a source documents, with the source (citation, and url, published and reportsOn where known), so a documented fact stays distinct from what you believe or invent. Notes are placed under the holder's understanding root with the graph-revision clock (or world time for story_time) and stamped with the model revision they were written against. Keep one holder id for yourself for the whole session, and a new one only for a different mind (a continuing agent, a character); say a role such as writer or self-review in the note, not in the holder. A note must be about something. ${constructionRecordInstructions} Add-only: graphHash may be any earlier revision of the graph; the record goes to its newest head, and advancedFrom says so.`,
+    description: `Record one or more Understanding Nodes held by a named holder (the modeler, a writer, a character in story time), each linked to what it concerns: model records by kind:id (event, cut, process, claim, concept, referent and the other record kinds, optionally with a JSON Pointer path) or graph nodes. Kinds: ${noteKinds.join(', ')}. Links: ${linkRelations.join(', ')}. A validates or invalidates link is the holder's judgment about a hypothesis or prediction, not a verification, and a speculative connection (serendipity, randomness) stays speculative until it is examined. To record that a passage drew on a thought, add an inspired_by edge from the passage to that node with life_narrative_batch. A report records what a source documents, with the source (citation, and url, published and reportsOn where known), so a documented fact stays distinct from what you believe or invent. Notes are placed under the holder's understanding root with the graph-revision clock (or world time for story_time) and stamped with the model revision they were written against. Keep one holder id for yourself for the whole session, and a new one only for a different mind (a continuing agent, a character); say a role such as writer or self-review in the note, not in the holder. A note must be about something. ${constructionRecordInstructions} Add-only: graphHash may be any earlier revision of the graph; the record goes to its newest head, and advancedFrom says so.`,
     inputSchema: understandingRecordSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await recordUnderstanding(service, input)));

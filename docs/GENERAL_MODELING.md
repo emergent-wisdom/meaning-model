@@ -148,9 +148,12 @@ what was recorded, and a thought helps only when it is linked to what it concern
 - Give every Event that carries a Cut a `description` of what happens in it, and
   describe most other Events. Model writes report `descriptionCoverage`; the ingest
   refuses Cuts on undescribed Events before any estimate.
-- Record your choices, ideas, predictions, questions and reasons with
-  `life_understanding_record`, linked to the records they concern (`event:`, `cut:`,
-  `process:` and the other kinds) or to graph nodes. Batch related notes.
+- Record your choices, ideas, hypotheses, predictions, questions, surprises,
+  tensions and reasons with `life_understanding_record`, linked to the records they
+  concern (`event:`, `cut:`, `process:` and the other kinds) or to graph nodes.
+  Batch related notes. The kinds and relations include those of the Understanding
+  Graph paper; a `validates` or `invalidates` link is your judgment, not a
+  verification.
 - Record outside reviews with `life_review_record` under their actual reviewer, with
   the revision and text they saw, and link the changes that answer them, or the
   note that says why the existing model stands. Each review keeps two model

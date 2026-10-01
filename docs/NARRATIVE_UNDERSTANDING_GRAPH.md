@@ -299,8 +299,9 @@ four practices.
   records the situation text it judged as the description, and story scene
   preparation blocks commits until the numbers are described.
 - **Thoughts are linked to their subjects.** `life_understanding_record` stores
-  choices, ideas, predictions, questions, voice and phrasing decisions, references
-  and their reasons as Understanding Nodes held by a named holder, each linked to the
+  choices, ideas, hypotheses, predictions, questions, surprises, tensions, voice and
+  phrasing decisions, references and their reasons, in the node kinds of the
+  Understanding Graph paper as well as the construction record's own, as Understanding Nodes held by a named holder, each linked to the
   model records (`event:`, `cut:`, `process:` and the other kinds, optionally with a
   path) or nodes it concerns. A note must be about something. Each note records the
   graph revision and model revision it was written against. Story notes use

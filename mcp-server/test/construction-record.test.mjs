@@ -354,3 +354,18 @@ test('a long history travels as changes: each revision by change keeps only its 
     }
   })(), /global retained-and-pending budget/, 'the same history as whole-graph revisions does not fit');
 });
+
+test('notes take the Understanding Graph paper\'s kinds and relations; a passage records what inspired it itself', async (t) => {
+  const { service, graphHash } = await setup(t);
+  const noted = await recordUnderstanding(service, { graphHash, requestId: 'ug-kinds', accessScopes: scopes, holder: 'modeler', notes: [
+    { nodeId: 'note.hypothesis', kind: 'hypothesis', text: 'Ada will take the loan for the ovens her grandmother lit.', about: [{ record: 'event:event.offer' }] },
+    { nodeId: 'note.surprise', kind: 'surprise', text: 'She reads the loan first, not the ovens.', about: [{ record: 'event:event.ada.state.h06' }],
+      links: [{ relation: 'invalidates', targetNodeId: 'note.hypothesis' }] },
+  ] });
+  const view = await service.queryNarrativeGraph({ graphHash: noted.graphHash, mode: 'full', includeContent: true, accessScopes: scopes });
+  assert.deepEqual(['note.hypothesis', 'note.surprise'].map((id) => view.nodes.find((node) => node.id === id).node_type), ['understanding.hypothesis', 'understanding.surprise']);
+  assert.ok(view.edges.some((edge) => edge.source.node_id === 'note.surprise' && edge.target.node_id === 'note.hypothesis' && edge.relation === 'invalidates'));
+  // inspired_by runs from a passage to the thought behind it, so a note does not declare it.
+  assert.throws(() => understandingRecordSchema.parse({ graphHash, requestId: 'r', accessScopes: scopes, holder: 'modeler',
+    notes: [{ nodeId: 'n', kind: 'idea', text: 'Drawn from the passage.', about: [{ record: 'event:event.offer' }], links: [{ relation: 'inspired_by', targetNodeId: 'note.hypothesis' }] }] }));
+});

@@ -4,6 +4,26 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## 0.6.3 — 2026-10-01
+
+- `life_understanding_record` takes the node kinds and relations of the
+  Understanding Graph paper as well as the construction record's own: kinds
+  foundation, surprise, repetition, consequence, tension, serendipity,
+  experiment, analysis, model, randomness, library and evaluation; relations
+  questions, validates, invalidates, contextualizes, abstracts_from and
+  diverse_from. A validates or invalidates link is the holder's judgment, not a
+  verification. A passage records the thought behind it with an `inspired_by`
+  edge through `life_narrative_batch`. A story's author reflections take the
+  same kinds and relations.
+- Model questions ask a record of thoughts to read itself when it uses none of
+  the recognized exploration kinds, since kinds are only labels. Each record is
+  its own scope: a story's author reflections by their story, other notes by the
+  root that holds them. A maintenance pass can say that its record is sufficient
+  here, and that does not silence another record.
+- The viewer names each note and each story-author reflection by its own kind
+  beside its category, instead of showing most only as "Thought" or "Author
+  record".
+
 ## 0.6.2 — 2026-10-01
 
 - `life_revision_check` follows numbers as well as text. A Cut whose weights
