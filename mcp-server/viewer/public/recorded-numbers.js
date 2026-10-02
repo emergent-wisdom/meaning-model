@@ -20,10 +20,11 @@ export function recordedCutSegments(cut) {
   });
 }
 
-export function visibleRecordedCuts(cuts, clock = {}, { enabled = true, drawnCutIds = new Set() } = {}) {
+// madeAt turns a record's birth into the construction clock: its time, or its place in the construction order.
+export function visibleRecordedCuts(cuts, clock = {}, { enabled = true, drawnCutIds = new Set(), madeAt = (born) => (born?.at ? Date.parse(born.at) : NaN) } = {}) {
   if (!enabled) return [];
   return (cuts ?? []).filter((cut) => Number.isFinite(cut.t) && cut.displayable !== false && !cut.withdrawn && !cut.record?.withdrawn && !drawnCutIds.has(cut.id)
-    && isPlaybackVisible(cut.t, { ...clock, born: cut.born?.at ? Date.parse(cut.born.at) : -Infinity }));
+    && isPlaybackVisible(cut.t, { ...clock, born: Number.isFinite(madeAt(cut.born)) ? madeAt(cut.born) : -Infinity }));
 }
 
 // An overlapping interval can keep its composition accessible at the window

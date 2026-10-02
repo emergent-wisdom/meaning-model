@@ -34,7 +34,7 @@ function buffer() {
 function fixture(mode = 'story', points = []) {
   const geometry = { attributes: { position: { array: new Float32Array(points.length * 6), needsUpdate: false } },
     drawRange: { start: 0, count: points.length * 2 }, setDrawRange(start, count) { this.drawRange = { start, count }; } };
-  const context = { ...playback, opt: { mode, show: new Set(['notes', 'threads']), edges: true, speed: 1 },
+  const context = { madeAt: (born) => (born?.at ? Date.parse(born.at) : NaN), constructionByClock: true, ...playback, opt: { mode, show: new Set(['notes', 'threads']), edges: true, speed: 1 },
     now: 3, tau: 3, atEnd: false, playing: true, F: { a: 0, b: 10 }, LENGTH: 100, TS: 1, TAMP: 10, TNX: 3,
     terrain: { built: true, on: true, clip: {}, rows: [], beams: [], mind: points, threadCount: points.length,
       threads: { geometry, visible: true }, ridgeNames: [], sectionNames: [], ts: new Float64Array([1, 5, 9]) },
@@ -174,11 +174,32 @@ test('starting either playback mode applies the reset cursor before the first ti
   }
 });
 
+test('an undated construction counts its steps instead of inventing a clock time', () => {
+  const text = {};
+  const elements = { fill: { style: {} }, reader: { hidden: true } };
+  const clock = (value) => value; clock.total = 2;
+  const steps = [{ order: 0, at: null, kind: 'model', rev: 0, label: 'The world.' }, { order: 1, at: null, kind: 'model', rev: 1, label: 'Kieran.' }, { order: 2, at: null, kind: 'graph', rev: 0, label: 'The first part.' }];
+  const context = { madeAt: (born) => (Number.isFinite(born?.order) ? born.order : NaN), stepClock: (step) => step.order, constructionByClock: false,
+    opt: { mode: 'construction', show: new Set() }, atEnd: false, playing: false, now: 3, tau: 1, F: { a: 0, b: 10 }, T1: 10, calendarTime: false,
+    rows: [], groupLabels: [], threads: [], decisions: [], lenses: [], notes: [], mind: {}, sweep: { position: {} }, activeClock: clock, xOf: (value) => value,
+    fracOf: (frame, value) => (value - frame.a) / (frame.b - frame.a), document: { getElementById: (id) => elements[id] }, setText: (id, value) => { text[id] = value; },
+    steps, data: { graph: { nodes: [] } }, NOTE_NAMES: {}, unitOf: new Map(), clip: (value) => value,
+    isStory: () => false, momentText: String, partsNow: () => [], storyParts: [], hasStory: false,
+    captionBox: { hidden: false }, showStats() {}, applyTerrain() {}, drawNotes() {}, drawArcs() {}, syncStrip() {} };
+  context.building = () => true;
+  vm.createContext(context); vm.runInContext(functionSource('apply'), context);
+  context.apply();
+  assert.equal(text.clock, 'Step 2 of 3');
+  assert.equal(text.kind, 'The agent · model revision 1');
+  assert.equal(text.text, 'Kieran.');
+  assert.doesNotMatch(text.clock, /UTC|minutes/);
+});
+
 test('construction captions return after an empty model-time caption is hidden', () => {
   const text = {};
   const elements = { fill: { style: {} }, reader: { hidden: true } };
   const clock = (value) => value; clock.total = 10000;
-  const context = { opt: { mode: 'story', show: new Set() }, atEnd: false, playing: false,
+  const context = { madeAt: (born) => (born?.at ? Date.parse(born.at) : NaN), stepClock: (step) => Date.parse(step.at), constructionByClock: true, opt: { mode: 'story', show: new Set() }, atEnd: false, playing: false,
     now: 3, tau: 5000, F: { a: 0, b: 10 }, T1: 10, calendarTime: false,
     rows: [], groupLabels: [], threads: [], decisions: [], lenses: [], notes: [],
     mind: {}, sweep: { position: {} }, activeClock: clock, xOf: (value) => value,

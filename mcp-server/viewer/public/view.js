@@ -46,6 +46,10 @@ function publishRecord(record) { if (record && (!record.kind || typeof record.id
 const params = new URLSearchParams(location.search);
 const { name: dataName, data } = window.modelViewer?.getSnapshot() ?? await loadData(params);
 const calendarTime = isCalendarTime(data.timeUnit);
+// The construction replays by the time each step was made when a call log dates them all, and otherwise by the order
+// the model and its story graph were made in, which every exported history keeps.
+const constructionByClock = data.constructionTiming === 'available';
+const madeAt = (born) => (constructionByClock ? Date.parse(born?.at ?? '') : Number.isFinite(born?.order) ? born.order : NaN);
 // Earlier exports guessed passage dates from word similarity. Re-extract to obtain declared links;
 // those old guesses must not be presented as authored world time by this version of the viewer.
 if (data.story) data.story.units = data.story.units.map((unit) => unit.timing ? unit
@@ -184,7 +188,7 @@ function rowValue(row, t) {
 function updateRowSamples(row, construction, cutoff, complete) {
   if (row.measure.kind !== 'cut-answer') return false;
   const points = construction ? row.measure.points.filter((point) => {
-    const made = Date.parse(point.born?.at ?? '');
+    const made = madeAt(point.born);
     return Number.isFinite(made) ? made <= cutoff : complete;
   }) : row.measure.points;
   if (row.points?.length === points.length && row.points.every((point, index) => point === points[index])) return false;
@@ -434,7 +438,7 @@ if (params.has('lenses') || params.has('everything')) opt.lenses = new Set(param
 const prose = (data.story?.units ?? []).filter((unit) => Number.isFinite(unit.t));
 const numericCuts = data.numerics?.cuts ?? [];
 const numericCutById = new Map(numericCuts.map((cut) => [cut.id, cut]));
-const bornAt = (item) => (item?.born?.at ? Date.parse(item.born.at) : -Infinity);
+const bornAt = (item) => { const made = madeAt(item?.born); return Number.isFinite(made) ? made : -Infinity; };
 
 // ---- layout: Together is the processes view's field; Layers stacks the tree level by level ----------------------------------
 // Together keeps the rows where they always were; Events the panel adds get lanes in front of their group's rows. Layers are
@@ -943,7 +947,8 @@ function placeNotes() {
   const enters = new Map();
   for (const node of graphNodes) { const ts = (moments.get(node.id) ?? []).filter(within).map((e) => e.start); if (ts.length) enters.set(node.id, Math.min(...ts)); }
   for (let pass = 0; pass < 4; pass += 1) for (const node of graphNodes) { if (enters.has(node.id)) continue; const near = (neighbours.get(node.id) ?? []).map((id) => enters.get(id)).filter((t) => t !== undefined); if (near.length) enters.set(node.id, Math.min(...near)); }
-  const rest = graphNodes.filter((node) => !place.has(node.id)).sort((a, b) => String(a.born?.at ?? '').localeCompare(String(b.born?.at ?? '')));
+  const madeOrder = (node) => { const made = madeAt(node.born); return Number.isFinite(made) ? made : Infinity; };
+  const rest = graphNodes.filter((node) => !place.has(node.id)).sort((a, b) => madeOrder(a) - madeOrder(b));
   rest.forEach((node, i) => place.set(node.id, back(node, -LENGTH / 2 + ((i + 0.5) / rest.length) * LENGTH)));
   // Preserve the existing playback schedule independently of the new display positions.
   // This is a viewer reveal time, not an additional authored world-time assertion.
@@ -1186,7 +1191,7 @@ function drawExtras() {
 }
 function drawRecordedNumbers() {
   const drawnCutIds = new Set(extraTargets.filter((target) => target.kind === 'lens').map((target) => target.reading.cutId));
-  const readings = visibleRecordedCuts(numericCuts, playbackClock(), { enabled: opt.show.has('numbers'), drawnCutIds }).sort((a, b) => a.t - b.t);
+  const readings = visibleRecordedCuts(numericCuts, playbackClock(), { enabled: opt.show.has('numbers'), drawnCutIds, madeAt }).sort((a, b) => a.t - b.t);
   const lanes = new Map(); const width = 2.8; const height = 0.42;
   for (const reading of readings) {
     if (opt.detailProjection && !opt.detailProjection.eventIds.has(reading.parentEventId ?? reading.eventId)) continue;
@@ -1310,7 +1315,7 @@ function buildTerrain() {
   const deep = present - earliest > 400; const uMax = Math.log10(1 + present - earliest);
   const P = deep ? (t) => Math.min(1.02, 1 - Math.log10(1 + Math.max(0, present - t)) / uMax) : (t) => (t - domain[0]) / (domain[1] - domain[0]);
   const sigma = (domain[1] - domain[0]) / 160; const sigmaP = 1 / 170;
-  const born = (items) => Math.min(...items.map((item) => (item?.at ? Date.parse(item.at) : Infinity)));
+  const born = (items) => Math.min(...items.map((item) => { const made = madeAt(item); return Number.isFinite(made) ? made : Infinity; }));
   const firstTime = (times) => { const dated = times.filter(Number.isFinite); return dated.length ? Math.min(...dated) : null; };
   // Named paths begin at their first recorded sample and hold their last value, as in Processes.
   const namedRows = (person) => fieldRows().filter((row) => (person ? ownerOf(row.measure) === person : !ownerOf(row.measure))).map((row) => ({
@@ -1603,8 +1608,9 @@ function hoverTerrain() {
 // ---- playing: the story's years, or the model's construction ------------------------------------------------------------------
 // Story time sweeps the years on screen, as the view always did. The construction replays the order the agent built the
 // model and the graph, step by step, as the landscape replays it: the idle stretches between its calls are shortened.
-const steps = (data.steps ?? []).filter((step) => Number.isFinite(Date.parse(step.at)));
-const stepTimes = steps.map((step) => Date.parse(step.at)).sort((a, b) => a - b);
+const stepClock = (step) => (constructionByClock ? Date.parse(step.at) : step.order);
+const steps = (data.steps ?? []).filter((step) => Number.isFinite(stepClock(step)));
+const stepTimes = steps.map(stepClock).sort((a, b) => a - b);
 const C0 = stepTimes[0] ?? 0; const C1 = stepTimes.at(-1) ?? 1;
 const activeClock = (() => {
   const sorted = [...new Set(stepTimes)]; const marks = [[sorted[0] ?? 0, 0]];
@@ -1694,11 +1700,11 @@ function apply() {
   document.getElementById('fill').style.width = `${Math.max(0, Math.min(1, fill)) * 100}%`;
   if (construction) {
     if (captionBox) captionBox.hidden = false;
-    setText('clock', `${new Date(tau).toISOString().slice(11, 19)} UTC · ${Math.round(activeClock(tau) / 60000)} minutes of work`);
+    setText('clock', constructionByClock ? `${new Date(tau).toISOString().slice(11, 19)} UTC · ${Math.round(activeClock(tau) / 60000)} minutes of work` : `Step ${steps.filter((item) => stepClock(item) <= tau).length} of ${steps.length}`);
     // The newest of the agent's own words: its reason for a revision, or the thought, stage or prose it wrote.
-    const step = steps.filter((item) => item.label && Date.parse(item.at) <= tau).at(-1);
-    const newest = data.graph.nodes.filter((node) => NOTE_NAMES[node.category] && node.born?.at && Date.parse(node.born.at) <= tau).sort((a, b) => Date.parse(b.born.at) - Date.parse(a.born.at))[0];
-    if (newest && (!step || Date.parse(newest.born.at) >= Date.parse(step.at))) {
+    const step = steps.filter((item) => item.label && stepClock(item) <= tau).at(-1);
+    const newest = data.graph.nodes.filter((node) => NOTE_NAMES[node.category] && madeAt(node.born) <= tau).sort((a, b) => madeAt(b.born) - madeAt(a.born))[0];
+    if (newest && (!step || madeAt(newest.born) >= stepClock(step))) {
       const unit = unitOf.get(newest.id); setText('kind', unit?.title ? `${NOTE_NAMES[newest.category]} · ${unit.title}` : NOTE_NAMES[newest.category]);
       setText('text', clip(plain(unit?.text ?? newest.text) || plain(newest.title ?? unit?.title), 330));
     } else { setText('kind', step ? `The agent · ${step.kind === 'model' ? 'model' : 'story graph'} revision ${step.rev}` : 'The construction'); setText('text', clip(step?.label ?? '', 330)); }
@@ -2550,7 +2556,8 @@ function syncURL(immediate = false) {
       else if (layerOverrides.size || show !== defaults) next.set('show', show);
       if (opt.lenses.size) next.set('lenses', opt.lenses.size === lensList.length ? 'all' : [...opt.lenses].join(','));
     }
-    if (!atEnd && !playing) next.set('at', opt.mode === 'construction' ? new Date(tau).toISOString() : now.toFixed(4)); else if (!atEnd && opt.mode === 'construction') next.set('at', new Date(tau).toISOString());
+    const madeText = () => (constructionByClock ? new Date(tau).toISOString() : `step:${tau.toFixed(3)}`);
+    if (!atEnd && !playing) next.set('at', opt.mode === 'construction' ? madeText() : now.toFixed(4)); else if (!atEnd && opt.mode === 'construction') next.set('at', madeText());
     if (!document.getElementById('reader').hidden) next.set('read', document.getElementById('reader').classList.contains('full') ? 'full' : ''); if (!qrPanel.hidden) next.set('qr', '');
     const retained = new URLSearchParams(location.search); for (const key of ['record', 'timeView']) if (retained.has(key)) next.set(key, retained.get(key));
     const keptQuery = next.toString().replace(/%2C/g, ',').replace(/%3A/g, ':').replace(/\+/g, '%20').replace(/=(&|$)/g, '$1');
@@ -2859,7 +2866,7 @@ ready = true; tabulate(); computeLayout();
 if (params.has('t0') && params.has('t1')) { currentPreset = null; setView(Math.max(BOUNDS[0], Number(params.get('t0'))), Math.min(BOUNDS[1], Number(params.get('t1')))); }
 else if (params.has('focus') && treeById.has(params.get('focus'))) { const { reach } = treeById.get(params.get('focus')); currentPreset = null; setView(...windowAt((reach[0] + reach[1]) / 2, 0.5, Math.max(0.02, (reach[1] - reach[0]) * 1.6))); }
 else if (currentPreset && currentPreset !== 'story') preset(currentPreset, false);
-if (params.has('at')) { const at = params.get('at'); if (opt.mode === 'construction') { const t = Date.parse(at); if (Number.isFinite(t)) { tau = Math.max(C0, Math.min(C1, t)); atEnd = tau >= C1; } } else if (Number.isFinite(Number(at))) { now = Number(at); atEnd = false; } }
+if (params.has('at')) { const at = params.get('at'); if (opt.mode === 'construction') { const t = constructionByClock ? Date.parse(at) : Number(String(at).replace(/^step:/, '')); if (Number.isFinite(t)) { tau = Math.max(C0, Math.min(C1, t)); atEnd = tau >= C1; } } else if (Number.isFinite(Number(at))) { now = Number(at); atEnd = false; } }
 if (opt.layout === 'terrain') { showTerrain(true); if (opt.camera !== 'locked') { camera.position.copy(terrain.home.position); controls.target.copy(terrain.home.target); } }
 setCamera(opt.camera, true); if (opt.glare !== 'full') applyShine();
 // A kept pose was the camera's in the field as the URL has it.

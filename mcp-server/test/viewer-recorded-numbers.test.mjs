@@ -132,7 +132,7 @@ assert.ok(start >= 0 && end > start);
 const drawSource = source.slice(start, end + 2);
 function drawFixture(cuts) {
   const calls = [], links = [];
-  const context = { visibleRecordedCuts, recordedCutSegments, recordedCutMarker, numericCuts: cuts, extraTargets: [], F: { a: 0, b: 50 },
+  const context = { madeAt: (born) => (born?.at ? Date.parse(born.at) : NaN), constructionByClock: true, visibleRecordedCuts, recordedCutSegments, recordedCutMarker, numericCuts: cuts, extraTargets: [], F: { a: 0, b: 50 },
     opt: { show: new Set(['numbers']), edges: true }, now: 5, overview: false,
     X: (t) => t, LENGTH: 100, anchor: () => null, zFrontNow: () => 0,
     litReading: null, WHITE: '#fff', RIM: '#111', color: (hex) => hex,

@@ -30,6 +30,7 @@ export async function buildViewerData({ history, rendered = null, documentRender
   let boundModel = null;
   history.revisions.forEach((revision, rev) => {
     const at = hashAt.get(revision.graphHash)?.at ?? null;
+    const stamp = { rev, at }; // shared by everything this revision made; its place in the construction is added below
     const added = [];
     if (revision.definition) {
       for (const node of revision.definition.nodes ?? []) { nodes.set(node.id, node); added.push(node.id); }
@@ -43,10 +44,10 @@ export async function buildViewerData({ history, rendered = null, documentRender
       for (const edge of delta.upsertEdges ?? []) edges.set(edge.id, edge);
       if (delta.source?.model_hash) boundModel = delta.source.model_hash;
     }
-    for (const id of added) if (!nodeBorn.has(id)) nodeBorn.set(id, { rev, at });
-    for (const id of edges.keys()) if (!edgeBorn.has(id)) edgeBorn.set(id, { rev, at });
+    for (const id of added) if (!nodeBorn.has(id)) nodeBorn.set(id, stamp);
+    for (const id of edges.keys()) if (!edgeBorn.has(id)) edgeBorn.set(id, stamp);
     const reason = revision.definition?.revision?.reason ?? revision.delta?.revision?.reason ?? '';
-    graphSteps.push({ rev, graphHash: revision.graphHash, at, reason: String(reason).slice(0, 280), added: added.length, boundModel });
+    graphSteps.push({ rev, graphHash: revision.graphHash, at, stamp, reason: String(reason).slice(0, 280), added: added.length, boundModel });
   });
 
   // The model the story graph is bound to at its head, else the newest one.
@@ -76,12 +77,13 @@ export async function buildViewerData({ history, rendered = null, documentRender
       relations: new Set((mm.event_relations ?? []).map((item) => item.id ?? `${item.source_event_id}>${item.kind}>${item.target_event_id}`)),
     };
     const at = hashAt.get(entry.modelHash)?.at ?? null;
+    const stamp = { rev, at };
     const added = {};
     for (const [collection, ids] of Object.entries(now)) {
       added[collection] = [...ids].filter((id) => !previous[collection].has(id));
-      for (const id of added[collection]) if (!born.has(`${collection}:${id}`)) born.set(`${collection}:${id}`, { rev, at });
+      for (const id of added[collection]) if (!born.has(`${collection}:${id}`)) born.set(`${collection}:${id}`, stamp);
     }
-    modelSteps.push({ rev, modelHash: entry.modelHash, at, reason: String(entry.definition.revision?.reason ?? '').slice(0, 280),
+    modelSteps.push({ rev, modelHash: entry.modelHash, at, stamp, reason: String(entry.definition.revision?.reason ?? '').slice(0, 280),
       added: Object.fromEntries(Object.entries(added).map(([key, ids]) => [key, ids.length])),
       totals: Object.fromEntries(Object.entries(now).map(([key, ids]) => [key, ids.size])) });
     previous = now;
@@ -241,10 +243,20 @@ export async function buildViewerData({ history, rendered = null, documentRender
   }).filter((edge) => edge.source && keep.has(edge.source) && edge.target && ((edge.target.node && keep.has(edge.target.node)) || edge.target.anchor));
 
   // ---- construction timeline -------------------------------------------------------------------------------------------------------
-  const steps = [
-    ...modelSteps.map((step) => ({ kind: 'model', at: step.at, rev: step.rev, label: step.reason, added: step.added, totals: step.totals })),
-    ...graphSteps.map((step) => ({ kind: 'graph', at: step.at, rev: step.rev, label: step.reason, added: step.added })),
-  ].filter((step) => step.at).sort((a, b) => a.at.localeCompare(b.at));
+  // The order the model and its story graph were made in, from their own revision chains: a story-graph revision is
+  // written against the model it is bound to, so that model's revisions come before it. A time, where a call log has
+  // one, only dates a step; the order holds without it, so any exported history can replay its construction.
+  const ordered = []; const modelIndex = new Map(modelSteps.map((step, index) => [step.modelHash, index])); let nextModel = 0;
+  const modelsThrough = (index) => { while (nextModel <= index) ordered.push({ kind: 'model', step: modelSteps[nextModel++] }); };
+  for (const step of graphSteps) { if (modelIndex.has(step.boundModel)) modelsThrough(modelIndex.get(step.boundModel)); ordered.push({ kind: 'graph', step }); }
+  modelsThrough(modelSteps.length - 1);
+  ordered.forEach(({ step }, order) => { step.stamp.order = order; });
+  // A history with more than one model or graph revision, or with dated steps, has a construction to replay; the finished
+  // model and its graph alone do not.
+  const dated = (step) => Number.isFinite(Date.parse(step.at));
+  const constructed = modelSteps.length > 1 || graphSteps.length > 1 || [...modelSteps, ...graphSteps].some(dated);
+  const steps = constructed ? ordered.map(({ kind, step }) => ({ kind, order: step.stamp.order, at: step.at, rev: step.rev, label: step.reason, added: step.added,
+    ...(kind === 'model' ? { totals: step.totals } : {}) })) : [];
   const toolCalls = calls.map((entry) => ({ at: entry.at, tool: entry.command.name, error: Boolean(entry.result?.isError) }));
 
   // ---- story window and deep time -----------------------------------------------------------------------------------------------------
@@ -477,9 +489,10 @@ export async function buildViewerData({ history, rendered = null, documentRender
     temporal: Boolean(temporalWindow(data)),
     trajectories: calendarTime && Number.isFinite(viewStart) && Number.isFinite(viewEnd) && viewStart < viewEnd,
     story: story?.units.some((item) => countProseWords(item.text) > 0) ?? false,
-    construction: steps.some((step) => Number.isFinite(Date.parse(step.at))),
+    construction: steps.length > 0,
   };
-  data.constructionTiming = data.capabilities.construction ? 'available' : 'unavailable';
+  // 'available' when a call log dates every step, 'order' when only the order the steps were made in is known.
+  data.constructionTiming = !data.capabilities.construction ? 'unavailable' : steps.every(dated) ? 'available' : 'order';
   data.inspection = structuredClone({ modelHash: selectedModelEntry.modelHash, model, graph: { id: history.graphId ?? null, nodes: [...nodes.values()], edges: [...edges.values()] } });
   data.relatedModels = declaredViewerLives(data).map(({ modelHash, role }) => ({ modelHash, role }));
   return data;

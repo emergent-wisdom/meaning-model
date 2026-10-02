@@ -21,7 +21,7 @@ const points = () => [
   { t: 30, end: 31, v: 0.1, born: born(300), cutId: 'late', eventId: 'third', cut: { id: 'late' } },
 ];
 function fixture() {
-  const context = { timeText: (t) => String(t), month: (t) => String(t), AMP: 5.6, CUT_AMP: 18, T1: 40, money: () => { throw new Error('Cut weights are not physical quantities'); } };
+  const context = { madeAt: (born) => (born?.at ? Date.parse(born.at) : NaN), constructionByClock: true, timeText: (t) => String(t), month: (t) => String(t), AMP: 5.6, CUT_AMP: 18, T1: 40, money: () => { throw new Error('Cut weights are not physical quantities'); } };
   vm.createContext(context);
   vm.runInContext([arrow('valueAt'), arrow('measurePosition'), arrow('format'), fn('rowValue'), fn('rowValueText'), fn('updateRowSamples'), fn('measureValueLines')].join('\n'), context);
   return context;

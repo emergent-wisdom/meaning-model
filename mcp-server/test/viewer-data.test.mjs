@@ -103,18 +103,23 @@ test('construction steps and record births follow only the selected model lineag
 
   assert.equal(data.modelHash, bookHead);
   assert.deepEqual(data.events.map((event) => event.id), ['book-root', 'shared-event']);
-  assert.deepEqual(data.events.find((event) => event.id === 'shared-event').born, { rev: 1, at: calls[2].at });
-  assert.deepEqual(data.steps.map(({ label, rev, at, added }) => ({ label, rev, at, addedEvents: added.events })), [
-    { label: 'book revision 0', rev: 0, at: calls[0].at, addedEvents: 1 },
-    { label: 'book revision 1', rev: 1, at: calls[2].at, addedEvents: 1 },
+  assert.deepEqual(data.events.find((event) => event.id === 'shared-event').born, { rev: 1, at: calls[2].at, order: 1 });
+  // The book's two model revisions come before the graph written against the second; the graph has no logged time.
+  assert.deepEqual(data.steps.map(({ kind, label, rev, at, order }) => ({ kind, label, rev, at, order })), [
+    { kind: 'model', label: 'book revision 0', rev: 0, at: calls[0].at, order: 0 },
+    { kind: 'model', label: 'book revision 1', rev: 1, at: calls[2].at, order: 1 },
+    { kind: 'graph', label: '', rev: 0, at: null, order: 2 },
   ]);
+  assert.deepEqual(data.steps.filter((step) => step.kind === 'model').map((step) => step.added.events), [1, 1]);
+  assert.equal(data.constructionTiming, 'order', 'an undated step replays by order, and is never given a time');
   assert.equal(data.totals.modelRevisions, 2);
   assert.deepEqual(data.inspection.model, before.models[2].definition);
   assert.deepEqual(source, before, 'dependency definitions remain intact in the portable bundle');
 
   const withoutBookCalls = await buildViewerData({ history: source, calls: [calls[1], calls[3]], generatedAt });
-  assert.deepEqual(withoutBookCalls.steps, [], 'author construction timestamps do not create a book construction timeline');
-  assert.equal(withoutBookCalls.capabilities.construction, false);
+  assert.ok(withoutBookCalls.steps.every((step) => step.at === null), 'author construction timestamps never date the book');
+  assert.deepEqual(withoutBookCalls.steps.map((step) => step.order), [0, 1, 2], 'the book still replays in the order it was made');
+  assert.equal(withoutBookCalls.constructionTiming, 'order');
 });
 
 test('a model-only snapshot can begin with an available descendant without claiming its missing ancestry', async () => {
@@ -122,7 +127,7 @@ test('a model-only snapshot can begin with an available descendant without claim
   definition.revision = { number: 7, previous_model_hash: OTHER_MODEL, reason: 'Available snapshot' };
   const data = await buildViewerData({ history: history(definition), generatedAt });
   assert.equal(data.totals.modelRevisions, 1);
-  assert.deepEqual(data.events[0].born, { rev: 0, at: null });
+  assert.deepEqual(data.events[0].born, { rev: 0, at: null, order: 0 });
   assert.deepEqual(data.inspection.model, definition);
 });
 
@@ -245,6 +250,12 @@ test('story capability requires prose but permits a manuscript held entirely by 
     assert.equal(data.capabilities.story, expected);
     assert.equal(data.story.units[0].text, text);
   }
+});
+
+test('the finished model and its graph alone are no construction, and a single dated step keeps its time', async () => {
+  const data = await buildViewerData({ history: { ...history(), revisions: [graphRevision()] }, generatedAt });
+  assert.equal(data.capabilities.construction, false, 'one model revision and one graph revision replay nothing');
+  assert.deepEqual(data.steps, []);
 });
 
 test('construction capability requires a recorded step timestamp, never generation time alone', async () => {

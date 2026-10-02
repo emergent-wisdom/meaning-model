@@ -18,6 +18,7 @@ const light = (id, moments = [], time = 4) => ({ visible: false, position: new V
 function fixture() {
   const life = { id: 'life', start: 0 }, work = { id: 'work', start: null }, scene = { id: 'scene', start: 3 };
   const context = {
+    madeAt: (born) => (born?.at ? Date.parse(born.at) : NaN), constructionByClock: true,
     data: { graph: { edges: [
       { source: 'person-note', target: { anchorKind: 'referent', anchor: 'person', event: null, home: 'life' } },
       { source: 'process-note', target: { anchorKind: 'process', anchor: 'process', event: null, home: 'work' } },
