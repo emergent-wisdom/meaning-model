@@ -19,14 +19,18 @@ research history and is not a claim of completed empirical evaluation.
 ## Excluded
 
 The export does not contain Git history, private planning, research scratchpads,
-model conversations, reviewer scores, obsolete manuscripts, previous Book
-versions, earlier candidate databases, build caches, or installed dependencies.
-The Book's event-linked construction rationales are part of its public model;
-they are not transcripts of private reasoning or raw conversations.
+unrelated model conversations, standalone superseded manuscripts, candidate
+databases, build caches, or installed dependencies.
 
-The Book export includes its current text and linked model descriptions. A
-fresh release import has its own source digests; it must not be represented as
-the original authoring transaction.
+The Book export retains its selected public construction history: prior native
+model and graph revisions, attributed reviews, construction rationales, and
+prose revisions. Earlier private predecessors omitted from the initial public
+revision remain excluded. The publication manifest and its accompanying mapping
+record identify the retained lineage and any publication-path redactions.
+
+A fresh release import verifies that retained history and the exact current
+rendering. It has its own source digests and is not the original authoring
+transaction. Historical reviews remain evidence about the versions they read.
 
 ## Produce the clean tree
 

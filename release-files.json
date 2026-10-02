@@ -61,6 +61,7 @@
     "examples/book-of-conditions/import-rust.mjs",
     "examples/book-of-conditions/import-rust.test.mjs",
     "examples/book-of-conditions/the-book-of-conditions.meaning-model.json",
-    "examples/book-of-conditions/PUBLICATION-MANIFEST.json"
+    "examples/book-of-conditions/PUBLICATION-MANIFEST.json",
+    "examples/book-of-conditions/book-publication-exploration-manifest-2026-10-02.json"
   ]
 }

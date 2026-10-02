@@ -31,7 +31,7 @@ or continuation, rather than another modeling workflow.
 
 ## Browser viewer
 
-With version 0.6.3, ask the connected assistant to **“Open this model.”**
+With version 0.6.4, ask the connected assistant to **“Open this model.”**
 The core `life_model_viewer_open` tool accepts exactly one `modelHash` or
 `graphHash`, optional `title`, `accessScopes`, and `mode` (`snapshot` or `live`).
 It returns a local browser URL; the default is an immutable, read-only snapshot. The viewer is bundled with the MCP package;

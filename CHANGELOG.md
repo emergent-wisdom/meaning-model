@@ -4,7 +4,7 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
-## Unreleased
+## 0.6.4 — 2026-10-02
 
 - The repository's Book example and paper inventory now describe the reviewed
   2 October construction. The portable example preserves its public revision
