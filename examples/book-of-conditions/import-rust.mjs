@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Client } from '../../mcp-server/node_modules/@modelcontextprotocol/client/dist/index.mjs';
 import { StdioClientTransport } from '../../mcp-server/node_modules/@modelcontextprotocol/client/dist/stdio.mjs';
+import { applyNarrativeDefinitionDelta } from '../../mcp-server/src/narrative-delta.mjs';
 
 export const directory = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(directory, '../..');
@@ -30,18 +31,34 @@ function readEdition() {
   if (manifest.fileSha256) assert.equal(digest(files[bundleName]), manifest.fileSha256, 'The bundle does not match the publication manifest');
   assert.equal(bundle.schema, 'meaning-model-construction-history/v1');
   assert.equal(bundle.headGraphHash, manifest.graphHash);
-  // A public edition starts its own lineage. Private authoring predecessors are not an example input.
-  assert.equal(bundle.revisions.length, 1, 'The published edition must contain a single graph snapshot, not private revision history');
-  assert.equal(bundle.revisionCount, 1);
-  const graph = bundle.revisions[0].definition;
+  // Preserve the reviewed public lineage, including its original publication root.
+  // Import verifies every stored hash; this check rejects missing ancestry before import.
+  assert.equal(bundle.revisions.length, manifest.constructionHistory.graphRevisions);
+  assert.equal(bundle.revisionCount, bundle.revisions.length);
+  assert.equal(bundle.models.length, manifest.constructionHistory.storedModelDefinitions);
+  let graph = bundle.revisions[0].definition;
   assert(graph && !bundle.revisions[0].delta);
   assert.equal(graph.revision.number, 0);
   assert(!graph.revision.previous_graph_hash, 'The published graph must not depend on a private predecessor');
+  for (let index = 1; index < bundle.revisions.length; index += 1) {
+    const entry = bundle.revisions[index];
+    const revision = (entry.definition ?? entry.delta).revision;
+    assert.equal(revision.number, graph.revision.number + 1);
+    assert.equal(revision.previous_graph_hash, bundle.revisions[index - 1].graphHash, 'Every graph predecessor must be included');
+    graph = entry.definition ?? applyNarrativeDefinitionDelta(graph, entry.delta);
+  }
+  assert.equal(bundle.revisions.at(-1).graphHash, manifest.graphHash);
+  assert.equal(graph.revision.number, manifest.graphRevision);
   assert.equal(graph.source.model_hash, manifest.modelHash);
-  assert(bundle.models.some(entry => entry.modelHash === manifest.modelHash));
-  for (const { definition: model } of bundle.models) {
-    assert.equal(model.revision.number, 0);
-    assert(!model.revision.previous_model_hash, 'Published models must not depend on private predecessors');
+  const models = new Map(bundle.models.map(entry => [entry.modelHash, entry.definition]));
+  assert(models.has(manifest.modelHash));
+  assert.equal(models.get(manifest.modelHash).revision.number, manifest.modelRevision);
+  for (const model of models.values()) {
+    const previous = model.revision.previous_model_hash;
+    if (previous) {
+      assert(models.has(previous), 'Every native model predecessor must be included');
+      assert.equal(model.revision.number, models.get(previous).revision.number + 1);
+    } else assert.equal(model.revision.number, 0, 'Only a model root may omit its predecessor');
   }
   return { manifest, bundle, prose: files[proseName].toString('utf8'),
     sourceHashes: Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name, digest(bytes)])) };
@@ -88,6 +105,8 @@ export async function runImport(outputDirectory, binary = defaultEngine) {
     const imported = await call('life_construction_import', { requestId: 'import-published-book', sourcePath: path.join(directory, bundleName) });
     assert.equal(imported.verified, true);
     assert.equal(imported.headGraphHash, manifest.graphHash);
+    assert.equal(imported.revisions, manifest.constructionHistory.graphRevisions);
+    assert.equal(imported.models, manifest.constructionHistory.storedModelDefinitions);
     writeJson(out, 'import.json', imported);
     const model = await call('life_model_inspect', { modelHash: manifest.modelHash, includeDefinition: true });
     assert.equal(model.modelHash, manifest.modelHash);
@@ -118,8 +137,11 @@ export async function runImport(outputDirectory, binary = defaultEngine) {
       }
     }
     for (const expected of manifest.authorDependencies ?? []) assert(inspectedAuthors.some(author => author.modelHash === expected.modelHash && author.name === expected.name), 'Declared author dependency is missing');
-    const replay = await call('life_construction_replay', { graphHash: manifest.graphHash, accessScopes: manifest.accessScopes, format: 'json' });
-    assert.equal(replay.revisionCount, 1, 'The imported edition must begin a new construction lineage');
+    const replay = await call('life_construction_replay', { graphHash: manifest.graphHash, accessScopes: manifest.accessScopes,
+      level: 'outline', format: 'json', limit: 80, maxChars: 400_000 });
+    assert.equal(replay.revisionCount, manifest.constructionHistory.graphRevisions, 'The complete selected public lineage must survive import');
+    assert.equal(replay.window.nextOffset, null, 'The replay check must cover every exported revision');
+    assert.equal(replay.truncated, false);
     writeJson(out, 'construction-replay.json', replay);
     const saved = await call('life_saved_work_list', { accessScopes: manifest.accessScopes });
     assert.equal(saved.heads.length, 1);
@@ -130,6 +152,7 @@ export async function runImport(outputDirectory, binary = defaultEngine) {
       modelHash: manifest.modelHash, rootId: manifest.rootId, accessScopes: manifest.accessScopes,
       sourceHashes: edition.sourceHashes, proseSha256: digest(rendered.text),
       authors: inspectedAuthors, graphRevisionCount: replay.revisionCount,
+      storedModelCount: imported.models, currentModelCount: inspectedAuthors.length + 1,
       tellingProcessCount: projection.processes.length, tellingPhaseCount: projection.processes.reduce((count, process) => count + process.states.length, 0),
       exactManuscript: true, verified: true };
     writeJson(out, 'receipt.json', receipt);

@@ -1,327 +1,17 @@
 {
   "schema": "meaning-model-current-example/v1",
-  "editionDate": "2026-09-29",
   "title": "The Book of Conditions",
-  "graphHash": "7a52371c766ae6bffc87864e55923c6e8fe7b8ea47d76369523ba6c2d31b20df",
-  "modelHash": "a153791242320f0db13c79d498956eda64d3e3eb5ec8a6739be0fd7bd8d80c00",
   "rootId": "document.book.07r2",
   "accessScopes": [
     "book.07r2.authoring"
   ],
-  "proseSha256": "5b13a0fad46b2e63b92f5ddeab780a4ba181ffd8f31a46123311c18820d9e548",
-  "fileSha256": "dceee7bfe557b235d1c7aa98a51db8114d6562bf71f95365288c8f0165faabec",
   "bundleFile": "the-book-of-conditions.meaning-model.json",
-  "bundleSha256": "b49646e6f27516c51394884dc195513303049a8db2d6f84024c6472f5be2aaea",
-  "sourceGraphHash": "25af8029d87240b7de2fdeb5b3c795906f75ea0501629d6960c107022b762a53",
-  "sourceModelHash": "bae0b30c14614c648c0c63b55b99582e89635b3adfce251fe889b3e5871b8f64",
   "authorDependencies": [
     {
       "role": "author",
       "name": "Nora Vale",
       "modelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
     }
-  ],
-  "inventory": {
-    "events": 581,
-    "processes": 256,
-    "normalizedCuts": 120,
-    "renderedLeaves": 34,
-    "chapters": 12,
-    "words": 13020,
-    "tellingProcesses": 9,
-    "tellingPhases": 63
-  },
-  "privateHistoryIncluded": false,
-  "allBookModelContentPreservedExceptPublicationIdentity": true,
-  "proseUnchangedFromCanonical": true,
-  "publicationChanges": [
-    {
-      "subject": "Nora model",
-      "path": [
-        "meaning_model",
-        "concepts",
-        0,
-        "provenance",
-        0
-      ],
-      "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
-    },
-    {
-      "subject": "Nora model",
-      "path": [
-        "meaning_model",
-        "concepts",
-        1,
-        "provenance",
-        0
-      ],
-      "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
-    },
-    {
-      "subject": "Nora model",
-      "path": [
-        "meaning_model",
-        "concepts",
-        2,
-        "provenance",
-        0
-      ],
-      "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
-    },
-    {
-      "subject": "Nora model",
-      "path": [
-        "meaning_model",
-        "events",
-        11,
-        "description"
-      ],
-      "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
-    },
-    {
-      "subject": "Nora model",
-      "path": [
-        "meaning_model",
-        "realizations",
-        0,
-        "provenance",
-        0
-      ],
-      "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
-    },
-    {
-      "subject": "Nora model",
-      "path": [
-        "meaning_model",
-        "realizations",
-        1,
-        "provenance",
-        0
-      ],
-      "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
-    },
-    {
-      "subject": "Nora model",
-      "path": [
-        "meaning_model",
-        "realizations",
-        2,
-        "provenance",
-        0
-      ],
-      "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
-    },
-    {
-      "subject": "Nora model",
-      "path": [
-        "meaning_model",
-        "realizations",
-        3,
-        "provenance",
-        0
-      ],
-      "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
-    },
-    {
-      "subject": "Nora model",
-      "path": [
-        "meaning_model",
-        "realizations",
-        4,
-        "provenance",
-        0
-      ],
-      "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
-    },
-    {
-      "subject": "Nora model",
-      "path": [
-        "meaning_model",
-        "realizations",
-        5,
-        "provenance",
-        0
-      ],
-      "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
-    },
-    {
-      "subject": "Nora model",
-      "path": [
-        "meaning_model",
-        "realizations",
-        6,
-        "provenance",
-        0
-      ],
-      "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
-    },
-    {
-      "subject": "Nora model",
-      "path": [
-        "meaning_model",
-        "referents",
-        0,
-        "boundary"
-      ],
-      "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
-    },
-    {
-      "subject": "plan.book.branch.r23.20260929",
-      "path": [
-        "text"
-      ],
-      "reason": "Remove private coordination and personal attribution while preserving the recorded modeling plan, review limits and acceptance status."
-    },
-    {
-      "subject": "plan.book.branch.r26.20260929",
-      "path": [
-        "text"
-      ],
-      "reason": "Remove private coordination and personal attribution while preserving the recorded modeling plan, review limits and acceptance status."
-    },
-    {
-      "subject": "answers.book.draft-direction.r29",
-      "path": [
-        "text"
-      ],
-      "reason": "Remove private coordination and personal attribution while preserving the recorded modeling plan, review limits and acceptance status."
-    },
-    {
-      "subject": "status.book.r29.narrow-readback-on-hold",
-      "path": [
-        "text"
-      ],
-      "reason": "Remove private coordination and personal attribution while preserving the recorded modeling plan, review limits and acceptance status."
-    },
-    {
-      "subject": "author-model.nora-vale.20260927",
-      "path": [
-        "text"
-      ],
-      "reason": "Anonymize private human attribution; use the wording already present in the published Book snapshot. Preserve fictional-author distinction and all substantive model/review content."
-    },
-    {
-      "subject": "ref.2bd4fd1c1b0a9eeb.event_event.nora.composition",
-      "path": [
-        "summary"
-      ],
-      "reason": "Anonymize private human attribution; use the wording already present in the published Book snapshot. Preserve fictional-author distinction and all substantive model/review content."
-    },
-    {
-      "subject": "review.book.blind.fable-5-1.20260929",
-      "path": [
-        "data",
-        "prompt",
-        "text"
-      ],
-      "reason": "Omit a private local folder path from the public edition. The recorded prompt sha256 attests the unredacted prompt the reviewer received; only the two folder paths differ."
-    }
-  ],
-  "typedAuthorReferenceRemaps": [
-    {
-      "nodeId": "ref.2bd4fd1c1b0a9eeb.concept_concept.nora.partial_transfer",
-      "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "ref.2bd4fd1c1b0a9eeb.concept_concept.nora.record_as_substitute",
-      "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.body_adaptation",
-      "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.body_limit",
-      "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.care_adaptation",
-      "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.care_fatigue",
-      "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.care_quarrel",
-      "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.choir_return",
-      "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.composition",
-      "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.first_job",
-      "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.freelance",
-      "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.kit_born",
-      "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.kit_departure",
-      "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.learning_adaptation",
-      "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.writing_revision",
-      "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "ref.633db7aec9cd08f3.concept_concept.nora.shared_pleasure",
-      "previousModelHash": "633db7aec9cd08f3a4e65b4ab58f099ee56f0c708308c65aa264e9f889463359",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "world.book.nora-author-reader.20260927",
-      "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "world.book.nora-author-reader.calendar-20260927",
-      "previousModelHash": "633db7aec9cd08f3a4e65b4ab58f099ee56f0c708308c65aa264e9f889463359",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    },
-    {
-      "nodeId": "world.book.nora-author-reader.ideas-20260929",
-      "previousModelHash": "633db7aec9cd08f3a4e65b4ab58f099ee56f0c708308c65aa264e9f889463359",
-      "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
-    }
-  ],
-  "reviewLimits": [
-    "Complete independent baseline/candidate comparisons were followed by local repairs; they are not a blind test of every claim in the final artifact.",
-    "A subsequent narrow read-back used a fixed key and one isolated language-model reader per condition. Two of three points were already recovered in the control; the revised text also conveyed the household authorization missing from the closing account.",
-    "Two final copyedits followed that narrow read-back. An independent informed director read the complete preceding manuscript and reread the two corrected chapters; this was not a second blind reading.",
-    "The retainedCutReview records the 28 September review of six succession Cuts within the then-current 108-Cut edition. Subsequent revisions extended the numerical account and reassessed readings affected by changed descriptions; fifty of the current 120 Cuts have a recorded textual basis and the other 70 retain untracked text freshness.",
-    "Recorded textual bases support checking whether a reading has changed, not numerical calibration, recovered historical evidence or psychological truth.",
-    "Telling-phase currency verifies recorded text and order, not reader psychology or semantic truth.",
-    "These limited readings are not the controlled evaluation proposed in the paper and do not recertify historical claims."
   ],
   "historicalExample": "https://github.com/emergent-wisdom/meaning-model/tree/v0.5.2/examples/book-of-conditions",
   "retainedCutReview": {
@@ -348,19 +38,360 @@
     "untrackedOtherCutCount": 102,
     "scope": "The August 1852 succession episode: a current attributed content review of six retained Cuts, including their questions, conditioning, carrier scope, source Event and prose.",
     "currentTextTracking": "The six new signatures cover their assessment carrier texts. The resolving UnderstandingNode separately links to E20 and the supporting passages. Historical untracked evidence is not reconstructed.",
-    "independentReader": "Informed content review, not a blinded or calibrated numerical evaluation."
+    "independentReader": "Informed content review, not a blinded or calibrated numerical evaluation.",
+    "historical": true,
+    "historicalEditionNormalizedCuts": 108
   },
-  "currentModelAnchorRemaps": [],
-  "currentModelAnchorMeaning": "Current model anchors address identical native world records in the publication root. Historical reviewed hashes in assessment text remain unchanged; this remapping is not a new assessment.",
-  "constructionContentSha256": "b49646e6f27516c51394884dc195513303049a8db2d6f84024c6472f5be2aaea",
-  "tellingPhaseStatus": {
-    "current": 63
-  },
-  "reviewHashQualification": "Historical review hashes continue to identify their original reviewed material. The old Book blind-reader prompt retains the hash of the prompt originally received; its public text has only its two local folder prefixes removed.",
   "checksumDefinitions": {
     "fileSha256": "SHA-256 of the exact downloadable file bytes.",
     "constructionContentSha256": "Canonical construction-content checksum verified by life_construction_import; excludes the bundle checksum field.",
     "proseSha256": "SHA-256 of the exact rendered manuscript text.",
     "bundleSha256": "Legacy manifest alias for constructionContentSha256; use fileSha256 for the exact bundle-file bytes."
-  }
+  },
+  "editionDate": "2026-10-02",
+  "graphHash": "411735a38675e455b3e5088e719d38136b7c2011b296d2086a69ef87accab1e8",
+  "graphRevision": 65,
+  "modelHash": "1157d4959f6e8aad7a909d68a1bcbe46fb68e57978d85fa84a89c85aabd7f0cc",
+  "modelRevision": 5,
+  "proseSha256": "4dbe1f5caa94aba8ef9d8d2a77a75e2faf56f3fff79e617d877672748fd97bb3",
+  "fileSha256": "aabdcfab702553908f3960eb6ad190bf2a7deac9019f9d1cd638d610822267c1",
+  "bundleSha256": "ea3d4b417fba843c0d49de7a9ab0d37af6a33aeed2a381f6a22797ed4c5b9e6a",
+  "constructionContentSha256": "ea3d4b417fba843c0d49de7a9ab0d37af6a33aeed2a381f6a22797ed4c5b9e6a",
+  "sourceGraphHash": "d840d074f6712c6d56f93b79eefc06b02857c495dcb87f679daec5d33b4e303d",
+  "sourceModelHash": "1157d4959f6e8aad7a909d68a1bcbe46fb68e57978d85fa84a89c85aabd7f0cc",
+  "inventory": {
+    "events": 589,
+    "processes": 257,
+    "normalizedCuts": 120,
+    "renderedLeaves": 34,
+    "chapters": 12,
+    "words": 13342,
+    "tellingProcesses": 9,
+    "tellingPhases": 63
+  },
+  "constructionHistory": {
+    "graphRevisions": 66,
+    "storedModelDefinitions": 7,
+    "bookModelRevisions": 6,
+    "currentModels": 2,
+    "currentModelMeaning": "The selected Book revision and Nora Vale author life. The stored count includes six successive Book definitions and the one Nora definition.",
+    "scope": "Complete selected lineage exported by the reviewed continuation, beginning at its September 29 public root. No missing earlier private construction or clock times are reconstructed."
+  },
+  "publicationProjection": {
+    "manifest": "book-publication-exploration-manifest-2026-10-02.json",
+    "nativeDefinitionsUnchangedFromReviewedExploration": true,
+    "proseUnchangedFromReviewedExploration": true,
+    "unchangedGraphPrefixRevisions": 61,
+    "replayedSourceRevisions": [
+      61,
+      62,
+      63,
+      64
+    ],
+    "redactedPathOccurrences": 1,
+    "redactedReviewNodeId": "review.book.exploration.final-native.6c5047708861",
+    "addedDisclosureNodeId": "author.book.publication-path-copy.exploration.20261002",
+    "privateFilesBundled": false
+  },
+  "authoringStateQualification": "This example is an exported reviewed continuation. Synchronizing this example does not update or establish parity with a canonical Writer database or the story repository. Continue from the imported graph returned by the public import tool.",
+  "initialPublicationCleanup": {
+    "editionDate": "2026-09-29",
+    "graphHash": "7a52371c766ae6bffc87864e55923c6e8fe7b8ea47d76369523ba6c2d31b20df",
+    "modelHash": "a153791242320f0db13c79d498956eda64d3e3eb5ec8a6739be0fd7bd8d80c00",
+    "sourceGraphHash": "25af8029d87240b7de2fdeb5b3c795906f75ea0501629d6960c107022b762a53",
+    "sourceModelHash": "bae0b30c14614c648c0c63b55b99582e89635b3adfce251fe889b3e5871b8f64",
+    "publicationChanges": [
+      {
+        "subject": "Nora model",
+        "path": [
+          "meaning_model",
+          "concepts",
+          0,
+          "provenance",
+          0
+        ],
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "subject": "Nora model",
+        "path": [
+          "meaning_model",
+          "concepts",
+          1,
+          "provenance",
+          0
+        ],
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "subject": "Nora model",
+        "path": [
+          "meaning_model",
+          "concepts",
+          2,
+          "provenance",
+          0
+        ],
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "subject": "Nora model",
+        "path": [
+          "meaning_model",
+          "events",
+          11,
+          "description"
+        ],
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "subject": "Nora model",
+        "path": [
+          "meaning_model",
+          "realizations",
+          0,
+          "provenance",
+          0
+        ],
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "subject": "Nora model",
+        "path": [
+          "meaning_model",
+          "realizations",
+          1,
+          "provenance",
+          0
+        ],
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "subject": "Nora model",
+        "path": [
+          "meaning_model",
+          "realizations",
+          2,
+          "provenance",
+          0
+        ],
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "subject": "Nora model",
+        "path": [
+          "meaning_model",
+          "realizations",
+          3,
+          "provenance",
+          0
+        ],
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "subject": "Nora model",
+        "path": [
+          "meaning_model",
+          "realizations",
+          4,
+          "provenance",
+          0
+        ],
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "subject": "Nora model",
+        "path": [
+          "meaning_model",
+          "realizations",
+          5,
+          "provenance",
+          0
+        ],
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "subject": "Nora model",
+        "path": [
+          "meaning_model",
+          "realizations",
+          6,
+          "provenance",
+          0
+        ],
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "subject": "Nora model",
+        "path": [
+          "meaning_model",
+          "referents",
+          0,
+          "boundary"
+        ],
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "subject": "plan.book.branch.r23.20260929",
+        "path": [
+          "text"
+        ],
+        "reason": "Remove private coordination and personal attribution while preserving the recorded modeling plan, review limits and acceptance status."
+      },
+      {
+        "subject": "plan.book.branch.r26.20260929",
+        "path": [
+          "text"
+        ],
+        "reason": "Remove private coordination and personal attribution while preserving the recorded modeling plan, review limits and acceptance status."
+      },
+      {
+        "subject": "answers.book.draft-direction.r29",
+        "path": [
+          "text"
+        ],
+        "reason": "Remove private coordination and personal attribution while preserving the recorded modeling plan, review limits and acceptance status."
+      },
+      {
+        "subject": "status.book.r29.narrow-readback-on-hold",
+        "path": [
+          "text"
+        ],
+        "reason": "Remove private coordination and personal attribution while preserving the recorded modeling plan, review limits and acceptance status."
+      },
+      {
+        "subject": "author-model.nora-vale.20260927",
+        "path": [
+          "text"
+        ],
+        "reason": "Anonymize private human attribution; use the wording already present in the published Book snapshot. Preserve fictional-author distinction and all substantive model/review content."
+      },
+      {
+        "subject": "ref.2bd4fd1c1b0a9eeb.event_event.nora.composition",
+        "path": [
+          "summary"
+        ],
+        "reason": "Anonymize private human attribution; use the wording already present in the published Book snapshot. Preserve fictional-author distinction and all substantive model/review content."
+      },
+      {
+        "subject": "review.book.blind.fable-5-1.20260929",
+        "path": [
+          "data",
+          "prompt",
+          "text"
+        ],
+        "reason": "Omit a private local folder path from the public edition. The recorded prompt sha256 attests the unredacted prompt the reviewer received; only the two folder paths differ."
+      }
+    ],
+    "typedAuthorReferenceRemaps": [
+      {
+        "nodeId": "ref.2bd4fd1c1b0a9eeb.concept_concept.nora.partial_transfer",
+        "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "ref.2bd4fd1c1b0a9eeb.concept_concept.nora.record_as_substitute",
+        "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.body_adaptation",
+        "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.body_limit",
+        "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.care_adaptation",
+        "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.care_fatigue",
+        "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.care_quarrel",
+        "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.choir_return",
+        "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.composition",
+        "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.first_job",
+        "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.freelance",
+        "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.kit_born",
+        "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.kit_departure",
+        "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.learning_adaptation",
+        "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "ref.2bd4fd1c1b0a9eeb.event_event.nora.writing_revision",
+        "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "ref.633db7aec9cd08f3.concept_concept.nora.shared_pleasure",
+        "previousModelHash": "633db7aec9cd08f3a4e65b4ab58f099ee56f0c708308c65aa264e9f889463359",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "world.book.nora-author-reader.20260927",
+        "previousModelHash": "2bd4fd1c1b0a9eeb1f9f2bfb6a741c7654cb96efd03af16e8904e399898f5dca",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "world.book.nora-author-reader.calendar-20260927",
+        "previousModelHash": "633db7aec9cd08f3a4e65b4ab58f099ee56f0c708308c65aa264e9f889463359",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      },
+      {
+        "nodeId": "world.book.nora-author-reader.ideas-20260929",
+        "previousModelHash": "633db7aec9cd08f3a4e65b4ab58f099ee56f0c708308c65aa264e9f889463359",
+        "currentModelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      }
+    ]
+  },
+  "tellingPhaseStatus": {
+    "current": 63
+  },
+  "reviewHashQualification": "Historical review, task, source and recorded-at hashes still identify their original reviewed material. Publication mapping does not retarget old approvals or renew numerical assessments. Artifact filenames in historical notes identify private source artifacts that are not included in this example.",
+  "reviewLimits": [
+    "The latest bounded exploration refined two existing concepts and five realization readings, then added one qualitative process, three Event openings and twelve relations. It retained the already reviewed 13,342-word prose; this is not a prose-improvement claim.",
+    "The fixed latest read-back compared selected passages plus preceding context with that same context alone, using one isolated language-model reader per condition. Four targets were recovered with the selected passages; the control conveyed two and partly supported two. This is a local meaning-recovery comparison, not statistical or aesthetic validation.",
+    "The fresh 15-record depth assessment and zero affected declared dependencies cover a selected inquiry, not every implicit semantic dependency or every modeled life.",
+    "Fifty of the 120 Cuts retain recorded text bases; 70 have untracked text freshness. The latest qualitative exploration did not re-estimate their values or renew all numerical assessments. Recorded bases support text-change checks, not calibration or psychological truth.",
+    "The six-Cut review below is the historical September 28 assessment of the succession episode in the then-current 108-Cut revision. It is not a new approval of the present model.",
+    "Current telling-phase status checks stored quotations and order against the retained prose; it does not establish reader psychology or semantic truth.",
+    "Structural import, rendering and history checks do not establish historical truth, literary quality or the comparative benefits proposed in the paper."
+  ]
 }

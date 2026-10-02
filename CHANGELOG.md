@@ -6,6 +6,10 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- The repository's Book example and paper inventory now describe the reviewed
+  2 October construction. The portable example preserves its public revision
+  history, and its importer verifies that history and exact manuscript rendering.
+
 - Shared guidance gives agents a concrete route to discovering categories:
   examine differences the current grouping hides, model a useful distinction,
   try it in other contexts and follow what it reveals. The agent chooses the

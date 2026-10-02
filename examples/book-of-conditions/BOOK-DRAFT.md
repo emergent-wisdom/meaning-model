@@ -1117,8 +1117,9 @@ office a month old. His employer spared him ten hours a week, a hundred and
 thirty in a quarter on paper. But late sources, corrected preparations,
 customer questions, and ordinary absence consumed the difference. Halden
 therefore entered eighty independent checker-hours as the quantity he was
-willing to promise. At an average of forty hours per verified packet, the office could
-deliver two.
+willing to promise. His planning average of forty checker-hours per packet covered the whole
+work, including its earlier stages. Two jobs were the limit he was willing
+to promise in the delivery quarter.
 
 The proposed tables were due between April and June 1854. Customers would close
 their accounts at the end of 1853, reconcile them through March, and release
@@ -1227,8 +1228,13 @@ and accept no fifth.”
 “Mr Halden has priced every hour by which this office came into being,” Babbage
 said. “He does not mistake a receipt for capacity.”
 
+Halden looked up. He was unused to hearing his caution praised by this man.
+Before he could think what to say, he had drawn the first letter nearer.
+
 “And Mr Babbage knows which repeated hours the mechanism can remove,” Halden
 said. “We began at opposite ends and arrived at four.”
+
+Babbage came back from the doorway and drew out a chair.
 
 Halden drew the letters inward until their edges made a square. One corner
 remained over the line Lovelace had marked.
@@ -1236,8 +1242,8 @@ remained over the line Lovelace had marked.
 Lovelace asked Neale to join them. He stood awkwardly at the end of the table
 while Halden described the schedule.
 
-“Four packets at forty hours make a hundred and sixty,” she said. “Can you
-check them independently by the final dates?”
+“Four packets at forty hours make a hundred and sixty over the whole work,”
+she said. “Can you check them independently by the final dates?”
 
 “Not if all four require the hours in the account.”
 
@@ -1247,7 +1253,9 @@ Neale began to answer, stopped, and put the blank strip beneath the total.
 “Some will. Some will not. I have eighty hours, sir. If I spend them teaching
 Wills, I cannot enter them again here as his independent check.”
 
-No one altered the figure.
+No one altered the figure. Some work could be done before the returns, but
+the sheet did not show that the final comparisons would fit within the
+quarter’s eighty hours.
 
 Lovelace asked that her objection be entered with the capacity sheet. Babbage
 would support the four. Neither could sign a customer's acceptance for Halden.
@@ -1441,10 +1449,33 @@ there. No motion returned through the metal. It was cold and still.
 During 1853 the four packets passed through the office in overlapping stages.
 On most days this looked like growth. Preparers borrowed desks and reused card
 forms; Neale moved to whichever promised date was nearest; corrections that
-once had opened a margin now consumed it. Wills's ruler and pencil moved from
-packet to packet. The edge of Neale's blank strip darkened with use. No single
-day announced failure; each exception was carried forward until one could leave
-the room.
+once had opened a margin now consumed it.
+
+One afternoon another preparer called Wills over to a card form Wills had used
+before. The specimen copy for his lesson lay open beside Neale.
+
+“Can I keep this arrangement?” the man asked.
+
+“The arrangement. These are the old figures.” Wills put his ruler beneath the
+provisional table. “Begin here.”
+
+He showed him how the rows followed the form, then gave him the ruler.
+
+“You do the next.”
+
+The man set out the row and held it beside the form. Wills nodded. The other
+preparer moved his pencil to the following row without asking. Wills smiled and drew his stool nearer.
+
+Neale went on with the sheets at his own desk. When he closed his book at the
+end of his paid afternoon, Wills was still beside the other man.
+
+“Your copy next time,” Neale said.
+
+Wills looked back at the specimen. “Yes, Mr Neale.”
+
+The other preparer went on alone. Wills brought back his ruler and squared it
+beside the uncompleted comparison. The card form could be used again. He left
+the specimen open.
 
 On 1 April 1854 Guardian's signed return arrived, and the Lothbury office's
 with it. Wills laid Guardian's beside the specimen sheets. Much of the card
@@ -1598,21 +1629,35 @@ subscriptions sought for renewed operation under improved safeguards. Every
 sentence could be defended. Together they would invite a new subscriber to
 finance obligations the present account could not meet.
 
-Margaret had sorted the figures the night before into sums already owed, money
-still in hand, and money a new circular only hoped to attract. When Halden
-began to call the third column a rescue, she had put one finger beneath the first.
+The night before, Margaret had laid the figures out at the kitchen table:
+sums already owed, money still in hand, and money a new circular only hoped to
+attract. When Halden began to call the third column a rescue, she put one finger
+beneath the first.
 
-“Before you send any circular,” she had said, “show me what leaves this
-house before the first new subscription comes in.”
+“Before you send any circular,” she said, “show me what leaves this house
+before the first new subscription comes in.”
 
-She had found his capacity sheet among the office papers, the line marked twice.
+She found his capacity sheet among the office papers, the line marked twice.
 “You showed me the articles in January, when you asked for the savings,” she
-had said. “Not this.”
+said. “Not this.”
 
-He had not.
+Halden reached for the sheet. She kept her hand on it.
+
+“I meant to get another checker.”
+
+Margaret looked at him. “You asked me about the money.”
+
+“Yes.”
+
+She placed the capacity sheet beside the household book. He waited for her to
+move it back to the office pile. She went on with the sums already owed.
+
+After a while he drew his chair closer and read the payments to her, one at a
+time. She entered them in the first column. Neither of them had yet touched the
+money a new circular hoped to attract.
 
 New money might preserve Halden's standing and keep Wills and Neale employed.
-He looked again at the sums already owed.
+Back at the office, he looked again at the sums already owed.
 
 He wrote the closure resolution.
 
