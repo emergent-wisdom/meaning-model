@@ -34,7 +34,7 @@ evidence.
 
 ## The construction record
 
-Version 0.6.4 bundles a browser viewer. Ask the connected assistant
+Version 0.6.5 bundles a browser viewer. Ask the connected assistant
 to **“Open this model”**; `life_model_viewer_open` returns a local link to the chosen
 model or graph revision. No separate viewer checkout or special run folder is
 required. While writing, ask **“Keep the viewer following as we work.”** The

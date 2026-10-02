@@ -4,13 +4,13 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
-## Unreleased
+## 0.6.5 — 2026-10-02
 
 - The viewer can replay retained construction history in revision order when
   clock times are absent. It labels those steps by order without inventing
   timestamps; fully dated histories retain clock-based playback.
 
-## 0.6.4 — 2026-10-02
+## 0.6.4 — 2026-10-02 (source candidate; not published to npm)
 
 - The repository's Book example and paper inventory now describe the reviewed
   2 October construction. The portable example preserves its public revision
