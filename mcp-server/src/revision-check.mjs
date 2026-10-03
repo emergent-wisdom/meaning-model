@@ -33,6 +33,11 @@ export const revisionCheckSchema = z.object({
 }).strict();
 
 const weightsOf = (cut) => JSON.stringify((cut?.answers ?? []).map((answer) => [answer.key, +Number(answer.weight).toFixed(6)]).sort());
+// Meaning is revisioned with the shares. Answer order and provenance do not redefine an allocation.
+const definitionOf = (cut) => JSON.stringify([cut.question ?? null, cut.unit ?? null,
+  cut.conditioning ? [cut.conditioning.cut_id, cut.conditioning.answer_key] : null,
+  (cut.answers ?? []).map((answer) => [answer.key, answer.meaning ?? null]).sort()]);
+const drawHasDefinition = (draw) => ['question', 'unit', 'conditioning'].every((key) => Object.hasOwn(draw, key));
 const causal = new Set(['causes', 'enables', 'prevents', 'constrains', 'realizes_forecast']);
 
 // The parts of a process record that carry its value and the meaning of that value; labels and provenance do not.
@@ -64,21 +69,26 @@ export async function checkRevision(service, raw) {
     && ['region', 'substrate'].some((field) => (eventsA.get(event.id)[field] ?? null) !== (event[field] ?? null))).map((event) => event.id);
   const removedEvents = [...eventsA.keys()].filter((eventId) => !eventsB.has(eventId));
   const reweighted = [...cutsB.values()].filter((cut) => cutsA.has(cut.id) && weightsOf(cutsA.get(cut.id)) !== weightsOf(cut)).map((cut) => cut.id);
+  const redefined = [...cutsB.values()].filter((cut) => cutsA.has(cut.id) && definitionOf(cutsA.get(cut.id)) !== definitionOf(cut)).map((cut) => cut.id);
   const withdrawn = [...cutsB.values()].filter((cut) => cut.withdrawn && cutsA.has(cut.id) && !cutsA.get(cut.id).withdrawn).map((cut) => cut.id);
   const removedCuts = [...cutsA.keys()].filter((cutId) => !cutsB.has(cutId));
   const moved = [...cutsB.values()].filter((cut) => cutsA.has(cut.id) && cutsA.get(cut.id).parent_event_id !== cut.parent_event_id).map((cut) => cut.id);
-  const changedCuts = new Set([...reweighted, ...withdrawn, ...removedCuts]);
+  const changedCuts = new Set([...reweighted, ...redefined, ...withdrawn, ...removedCuts, ...moved]);
   const changedEvents = new Set([...rewritten, ...retimed, ...relocated, ...removedEvents]);
   // What depended on it.
   const conditioned = [...cutsB.values()].filter((cut) => !cut.withdrawn && cut.conditioning?.cut_id && changedCuts.has(cut.conditioning.cut_id))
-    .map((cut) => ({ cutId: cut.id, on: cut.conditioning.cut_id, why: withdrawn.includes(cut.conditioning.cut_id) || removedCuts.includes(cut.conditioning.cut_id) ? 'it is conditioned on a Cut that is gone: withdraw it with its parent or condition it on the new one' : 'the answer it divides changed weight, so its joint shares changed: check it still holds' }));
-  // A draw is consistent when its Cut carries the weights it was drawn from, as after a restore.
+    .map((cut) => ({ cutId: cut.id, on: cut.conditioning.cut_id, why: withdrawn.includes(cut.conditioning.cut_id) || removedCuts.includes(cut.conditioning.cut_id) ? 'it is conditioned on a Cut that is gone: withdraw it with its parent or condition it on the new one'
+      : redefined.includes(cut.conditioning.cut_id) || moved.includes(cut.conditioning.cut_id) ? 'the definition or Event of its conditioning Cut changed: check the answer it divides still means the same thing'
+        : 'the answer it divides changed weight, so its joint shares changed: check it still holds' }));
+  // A retained draw can match a restored Cut. Older draws without a complete definition cannot establish that match.
   const records = (view.nodes ?? []).filter((node) => node.node_type === 'direction_draw').map((node) => { try { const data = JSON.parse(node.text); return data?.cutId ? data : null; } catch { return null; } }).filter(Boolean);
   const draws = records.filter((draw) => changedCuts.has(draw.cutId) || moved.includes(draw.cutId))
-    .filter((draw) => !draw.answers || !cutsB.has(draw.cutId) || cutsB.get(draw.cutId).withdrawn || weightsOf(cutsB.get(draw.cutId)) !== weightsOf({ answers: draw.answers }) || moved.includes(draw.cutId))
+    .filter((draw) => !draw.answers || !cutsB.has(draw.cutId) || cutsB.get(draw.cutId).withdrawn || weightsOf(cutsB.get(draw.cutId)) !== weightsOf({ answers: draw.answers }) || moved.includes(draw.cutId)
+      || (redefined.includes(draw.cutId) && (!drawHasDefinition(draw) || definitionOf(cutsB.get(draw.cutId)) !== definitionOf(draw))))
     .map((draw) => ({ cutId: draw.cutId, realized: draw.realized ?? null, why: moved.includes(draw.cutId) && cutsB.has(draw.cutId) && draw.answers && weightsOf(cutsB.get(draw.cutId)) === weightsOf({ answers: draw.answers })
       ? 'its Cut moved to another Event: re-point the realizes_forecast relation that names it'
-      : 'it was drawn from weights that have changed: keep the draw, and mark it as drawn from a superseded state; redraw only if you decide to, as a visible reroll' }));
+      : redefined.includes(draw.cutId) ? 'its Cut definition changed, and the saved draw does not establish the same meaning: keep the draw and review its interpretation against its recorded model; redraw only if you decide to, as a visible reroll'
+        : 'it was drawn from weights that have changed: keep the draw, and mark it as drawn from a superseded state; redraw only if you decide to, as a visible reroll' }));
   const index = indexModel(after);
   // Events whose numbers changed although their text did not: through a Cut on them, through the declared state of a
   // process, or through an account of a process at their moment. A reading's Cut is a view of the model, not its state.
@@ -88,7 +98,7 @@ export async function checkRevision(service, raw) {
     if (!stateChanged.has(eventId)) stateChanged.set(eventId, new Set());
     stateChanged.get(eventId).add(reason);
   };
-  for (const cutId of [...reweighted, ...withdrawn, ...removedCuts, ...moved]) {
+  for (const cutId of changedCuts) {
     const cut = cutsB.get(cutId) ?? cutsA.get(cutId);
     if (readingCut(index, cut)) continue;
     for (const eventId of new Set([cutsA.get(cutId)?.parent_event_id, cutsB.get(cutId)?.parent_event_id].filter(Boolean))) restate(eventId, `cut:${cutId}`);
@@ -226,13 +236,13 @@ export async function checkRevision(service, raw) {
   const toCheck = conditioned.length + draws.length + readings.length + assessments.length + later.length + passages.length + notes.length + telling.length;
   return {
     schema: 'meaning-model-revision-check/v1', fromModelHash: input.fromModelHash, toModelHash: toHash, graphMutation: false,
-    changed: { rewritten: limit(rewritten), retimed: limit(retimed), relocated: limit(relocated), removedEvents: limit(removedEvents), reweighted: limit(reweighted), withdrawn: limit(withdrawn), removedCuts: limit(removedCuts), moved: limit(moved),
+    changed: { rewritten: limit(rewritten), retimed: limit(retimed), relocated: limit(relocated), removedEvents: limit(removedEvents), reweighted: limit(reweighted), redefined: limit(redefined), withdrawn: limit(withdrawn), removedCuts: limit(removedCuts), moved: limit(moved),
       processStates: limit(processStates), accounts: limit(accounts), stateChanged: limit([...stateChanged].map(([eventId, by]) => ({ eventId, by: [...new Set([...by].map(reasonLabel))] }))) },
     toCheck, conditioned: limit(conditioned), draws: limit(draws), readings: limit(readings), assessments: limit(assessments), later: limit(later), passages: limit(passages), notes: limit(notes), telling: limit(telling),
     ...(tellingState.notChecked.length ? { tellingNotChecked: tellingState.notChecked } : {}),
     ...(intentionallyUnlinked.length ? { intentionallyUnlinked: { count: intentionallyUnlinked.length, passages: limit(intentionallyUnlinked) } } : {}),
     ...(unlinked.length ? { unlinkedPassages: { count: unlinked.length, nodeIds: limit(unlinked), why: 'These passages have no declared Event/renders link or current per-passage no-link reason. Use life_narrative_grounding_propose, then confirm or correct selections with life_narrative_grounding_apply. Cut links remain useful dependencies but do not replace the passage Event declaration.' } } : {}),
-    notChecked: 'Whether the prose agrees with its declared dependencies, whether those links cover everything it depicts, and whether the revision gives anyone knowledge they did not then have. Check meaning and disclosures by hand. Passages are followed through the Events they render: one that renders only an enclosing or enclosed Event of a changed one is not listed, and process changes reach only Events that carry the process or that its subject takes part in; an account reaches the Events at the moment it is about, not later Events in which its holder acts on it. Later Events are followed one relation at a time; check again after revising them. Graph dependencies are limited to the supplied accessScopes.',
+    notChecked: 'Concept definition or withdrawal changes, abstract-Cut changes and relation changes are not compared; inspect their linked notes and other dependents manually. Whether the prose agrees with its declared dependencies, whether those links cover everything it depicts, and whether the revision gives anyone knowledge they did not then have. Check meaning and disclosures by hand. Passages are followed through the Events they render: one that renders only an enclosing or enclosed Event of a changed one is not listed, and process changes reach only Events that carry the process or that its subject takes part in; an account reaches the Events at the moment it is about, not later Events in which its holder acts on it. Later Events are followed one relation at a time; check again after revising them. Graph dependencies are limited to the supplied accessScopes.',
     nextStep: `${toCheck ? 'First deepen the model where the revision shows a gap. Then bring each dependent into line with the revision, or say why it stands: check assessments about changed Events and record their returned signWith once rechecked, re-condition or withdraw children, keep draws as drawn, review affected notes, and regenerate or mark the passages. Re-read stale readings (life_lens_reread) and renew telling phases together once the text settles, not after every change.' : 'No affected declared dependencies were found in the checked records.'}${unlinked.length ? ` ${unlinked.length} passage${unlinked.length === 1 ? ' needs' : 's need'} an Event/renders declaration or a current per-passage no-link reason.` : ''}`,
   };
 }

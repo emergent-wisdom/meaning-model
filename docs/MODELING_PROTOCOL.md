@@ -1,47 +1,89 @@
 # Meaning Model Modeling Protocol
 
-This document is the operational companion to *The Meaning Model* and *Life
-Simulation*. It is a checklist for applying the theory, not a substitute for
-understanding it.
+This document is the operational entry to Meaning Model construction. It states
+the common contracts needed to use the tools; purpose-specific guides add their
+workflows. *The Meaning Model* and *Life Simulation* explain the reasons and
+broader theory and remain optional references.
 
 The MCP resources serve the canonical Meaning Model manuscript from
 `paper/meaning-model.tex` and the frozen Life Simulation companion from
 `docs/companions/life-simulation/life-simulation.tex`. The companion's source
 file digests are recorded beside it in `SOURCE.json`.
 
-## Paper-first entry contract
+## Entry
 
-An intelligent agent must read the complete current papers before its first
-substantive modeling run, whenever the theory version changes, when entering a
-new domain, and for consequential work involving a real person. The papers
-explain why the distinctions exist, what they conserve, and where the claims
-stop. A short protocol alone can encourage formally tidy but conceptually
-wrong models.
+Call `life_modeling_context`, read this protocol and the guide or profile for the
+purpose, and inspect its worked example before expanding a model. A profile's
+categories and compiler remain optional. Open a relevant paper section when a
+distinction needs its reason or a difficult case exceeds this guidance; complete
+paper reading is not a prerequisite. Resource digests identify versions, not
+comprehension, and the server does not track reading or gate compilation on it.
+Reuse unchanged guidance that you retain. Read it again when its content changes,
+the purpose needs an unfamiliar guide, or relevant context has been lost; a new
+conversational reply does not require rereading or a compliance record.
 
-For repeated work in the same domain within one live MCP process, the agent may
-reuse the fact that both current paper resources were already accessed. The
-server deliberately does not accept caller-supplied digests as proof of prior
-reading, and the access record is not durable across restart. Resource access
-still does not prove comprehension; uncertainty about interpretation requires
-rereading the theory.
+## Common modeling contracts
 
-The order is:
+- **Identity and roles:** reuse continuing Thing and Event identities across views.
+  Changes in location, ownership, role or interpretation do not alone create a
+  new Thing. Record the identity boundary and continuity criterion; explicit
+  splits, mergers or replacements may require linked successors. Bindings state
+  time-scoped participation; an `about` link only references its target.
+- **Numbers:** a normalized Cut divides one declared unit under one question
+  among mutually exclusive answers and an explicit remainder. Nonnegative shares
+  sum to one and are local to those siblings, never an Event's global importance.
+  If increasing one answer need not reduce another and no competing unit can be
+  named, use unweighted process or concept relations. Concurrent processes and
+  overlapping lenses are not automatically allocations. Measurements and authored
+  rubric values instead retain their unit or protocol, version, question, anchors,
+  provenance and uncertainty; a zero-to-one encoding does not make a Cut. A rubric
+  must justify the comparisons or aggregation claimed for it.
+- **Perspective:** each claim or assessment belongs under its declared context
+  root; a Cut inherits its parent Event's context. Participation, `about`, grounding
+  and rendering links do not confer another record's authority. Conflicting
+  perspectives require separate claims or assessment Events and Cuts. Accepting
+  that someone believed, remembered or imagined something does not accept the
+  depicted content. Actor speech and action can use their represented beliefs,
+  wants, plans and inferences, with evidential access limited to what was available
+  to that actor by the cutoff; co-presence does not disclose every fact or another
+  person's private state.
+- **Grounding:** `define` associates a Concept with its grounding; `describe`
+  applies an exact grounding version to a target, retaining attribution, evidence
+  and role alignment. Realizations are unweighted. If useful, grade each Concept
+  independently with an assessment Event's fit Cut over matches, nonmatches and
+  remainder. Concurrent Concepts need not compete for one unit. Fit is separate
+  from confidence that the target occurred; fit remainder is not general uncertainty.
+  Preserve earlier definitions and application versions when revising a Concept;
+  a semantic split or merger normally uses linked successor Concept identities.
+- **Use the dated account:** before a consequential answer, decision or rendering,
+  read the relevant state, definitions and evidence at the intended time under the
+  relevant holder and context. Use `life_model_questions` with `at`, or inspect the
+  exact linked records; a current summary is not a historical state. Missing
+  coverage remains unknown. State whether uncertainty concerns missing evidence,
+  measurement noise, unresolved allocation, an inferred interpretation or a
+  hypothetical continuation, in the existing descriptions and records.
 
-1. Read *The Meaning Model* to understand concepts, referents, event-processes,
-   direction, grounding, viewpoint, and semantic conservation.
-2. Read *Life Simulation* to understand trajectories, claims, candidate
-   worlds, accepted chronology, inference, and the distinction between
-   sampled values and transition laws.
-3. Use this protocol as the execution checklist.
-4. Apply any relevant Story, Person, or Decision profile. Each is optional.
-5. Inspect at least one worked example before creating a large model.
-
-The MCP server exposes all five layers and the SHA-256 digest of each resource.
-It records access to both complete papers in the current process and blocks
-profile compilation until that gate is satisfied. It cannot verify that an
-agent understood what it read.
+The compatibility host has older `abstract_cuts`, `physical_cuts` and Realization
+fields alongside `normalized_cuts`; their shared names do not imply shared
+semantics. Use `normalized_cuts` for the numerical contract above. Keep legacy
+Realization `degree` at `1` for an unweighted link and record the exact grounding
+used in the available provenance and linked records; do not treat the legacy
+degree as fit. Native `context_roots` and `contains` express Event ancestry;
+when roots are declared, every Event's upward paths must agree on its nearest
+root. `holder` metadata or a target link alone does not establish that ancestry.
+These conventions do not imply that the host enforces every semantic distinction.
+See the [engine guide](../rust-engine/README.md#optional-meaning-model-layer) for
+the wire fields and *The Meaning Model*, §§2–4, for the underlying contracts.
 
 ## Common procedure
+
+The same procedure applies to general modeling, storytelling, human-author
+feedback, agent/user memory and ideation. Their authority differs; their
+recursive exploration and attributed Understanding Graph do not. For memory,
+model the ongoing processes behind useful records within the chosen scope.
+For human-author feedback, the human keeps creative decisions and the LLM
+supplies feedback unless further work is delegated. See [memory](MEMORY.md) and
+[human-author feedback](HUMAN_AUTHOR_FEEDBACK.md).
 
 ### 1. Declare purpose and authority
 
@@ -66,9 +108,10 @@ versioned boundary.
 
 State what interval is being modeled, which part of the world is in scope, what
 questions the model should answer, and the coarsest adequate resolution. Begin
-with minimum sufficient explicitness. Add detail only when it changes an
-answer, explains a residual, preserves continuity, or supports a declared
-projection.
+with minimum sufficient explicitness. Add detail to change an answer, explain a
+residual, preserve continuity, support a declared projection, or explore a
+promising conjectured structure. Exploratory detail can be developed before its
+usefulness is known; keep it provisional and follow what it reveals.
 
 Start macro to micro. Before local detail, assess the enclosing system and the
 longer-term developments that could change the interpretation. Choose a broader
@@ -92,14 +135,15 @@ Meaning Model records, Decision profiles, graph projections, reader models,
 and writer contracts are added only when they serve the declared purpose.
 Adding a view or analysis layer must not silently add canonical world state.
 
-Choose the application's own processes and categories, and go deep: a person
-who matters gets a whole life from the person template, opened with periods,
-shocks and wants; a market, an institution or a technology is modeled as
-processes over its own long time; and much is modeled that the final work never
-shows, as the background processes of reality. A browser's task history, a
-learner's changing understanding, and a relationship account may adapt the
-template's categories to what they explain. Every model change returns the
-model's open questions; take them. Structural starters and experimental
+Choose the application's own processes and categories, and explore their depth
+within the purpose and delegation. Follow the useful history of a person, market,
+institution or technology as far as the evidence and inquiry warrant, including
+background processes the final work never shows. Person templates, periods,
+shocks and wants are available starting points. A browser's task history, a
+learner's changing understanding, and a relationship account may adapt or replace
+those categories. Every model change returns open questions; use them to discover
+promising processes and concepts, without a quota between steps or a requirement
+to construct every person's whole life. Structural starters and experimental
 Story/Decision models serve different purposes: inspect the latter's authored
 numerical meanings and behavioural laws before choosing them. Reading a profile
 does not require compiling it or adopting its vocabulary.
@@ -199,6 +243,10 @@ law merely to make the series executable.
 Cover the chosen longer-term horizon as well as local changes, at the resolution
 the evidence supports. An Event with a long interval represents an extended
 episode; its duration does not by itself supply a numerical process trajectory.
+An interval is not an uncertainty window for an occurrence's date. If only a
+year or month is known, record that period separately and keep the occurrence
+undated within it, with its source and known ordering. Coarse containment does
+not establish an exact date or make the uncertainty executable by a time query.
 Distinguish dated observations, retrospective estimates and forecasts, including
 the evidence available for each assessment.
 
@@ -222,11 +270,39 @@ exhaust the parent.
 
 ### 9. Test causal use and conservation
 
-Change one relevant input while holding the parent, evidence cutoff, and other
-conditions fixed. The predicted downstream state should change for a declared
+When causal laws or predictions are introduced, change one relevant input while
+holding the parent, evidence cutoff, and other conditions fixed. The predicted
+downstream state should change for a declared
 reason. Change an irrelevant input and require stability. When opening or
 closing resolution, require identity, accepted history, authority, viewpoint,
 and query-relevant consequences to remain consistent.
+
+When opening existing commitments as a conservative refinement, fix the base
+revision, protected coarse answers, their comparison and fine-to-coarse mapping,
+with numerical tolerances where applicable. Reconstruct those answers from the
+proposed fine records; rereading cached coarse values is not a check. Keep the
+comparison fixed while checking that refinement. If it changes, record a new view
+or explicit revision and recheck affected records and prose. A new hypothesis or
+concept does not by itself require a numerical comparator.
+
+For a time-averaged Cut, disjoint children of a finite bounded parent use duration
+shares `lambda_i = child_duration / parent_duration`. Only compatible question,
+unit, answer mapping, remainder meaning and perspective may mix. Complete
+coverage requires `parent = sum(lambda_i * child_i)` within the fixed tolerance.
+For partial coverage, report the known contribution and gap; do not invent its
+composition. Against an already committed parent, the residual must be nonnegative
+in every component and total the uncovered duration share, or the refinement must
+be rejected or the parent explicitly revised. Varying resource totals require
+resource-mass weights or another justified operator, not a duration average.
+A conditional Cut's full-unit shares are its local shares times the enclosing
+answer's weight. Opening a remainder accounts for that same mass. Presence,
+identity, overlapping processes and physical parts retain their own checks.
+
+Declare `temporal_cut_recompositions` when using the host's supported duration
+mixture checks; mere containment does not request them. The engine checks those
+declared arithmetic and structural contracts, not semantic exclusivity or every
+protected query. Record any further comparison and its result as attributed
+Understanding Nodes. No general automatic Close operation is implied.
 
 ### 10. Let the person or author correct the model
 
@@ -270,9 +346,13 @@ in graph nodes; `life_narrative_render` is a derived document projection.
 New dimensions or laws require an immutable model revision. A rolled candidate
 does not become reality until explicitly accepted. The Rust state-file mode can
 persist accepted models, worlds, claims, paths, lineage, and immutable
-narrative graphs with their exact source snapshots; the MCP paper-access gate
-and other control-plane handles are not currently durable across server
-restart.
+narrative graphs with their exact source snapshots; control-plane handles are
+not all durable across server restart.
+
+Model, world and narrative revisions use separate mutation paths, not one atomic
+transaction across all three. Track the exact source versions, recheck affected
+dependents, and record any incomplete update rather than assuming co-storage
+establishes agreement.
 
 To open compatible detail after accepted history, register a direct-next model
 and use `life_world_revise` in `refine` mode against the exact current world hash.
@@ -287,11 +367,24 @@ accepted-history training exports across those boundaries are not yet supported.
 ### 13. Record the construction as you go
 
 The model and its Understanding Graph are the modeler's understanding. Give every
-Event that carries a Cut a description of what happens in it. Record choices,
-ideas, predictions, questions and reasons with `life_understanding_record`, linked to
+Event that carries a Cut a description of what happens in it. Record consequential
+choices, ideas, predictions, questions and reasons with `life_understanding_record`, linked to
 the records they concern, and outside reviews with `life_review_record` under their
-actual reviewers. When continuing existing work, read `life_construction_replay`
-from the first revision and `life_model_outline` before changing anything.
+actual reviewers. Batch related durable findings, decisions and open questions;
+no separate record is needed for each thought, reading step or reply. Reuse
+existing records when they already preserve the reasons needed to continue.
+
+When continuing existing work, reuse reading at the exact known graph head and
+inspect subsequent revisions and relevant records. If saved work may have
+advanced, establish the intended head and lineage first. For unfamiliar history,
+lost context or an ambiguous branch, read `life_construction_replay` from the first
+revision and `life_model_outline` before changing anything.
+
+Use controlled read-back for a substantial communication deliverable or a
+specific unresolved risk about what an output conveys. Routine dialogue and
+memory updates do not alone require independent readers. Where the comparison is
+needed, preserve the fixed answer key, separate blind selected/control readers,
+actual reviewer records and bounded claims about the results.
 
 ## Fear, concern, and operative motivation
 
@@ -323,21 +416,18 @@ separate governance and validated domain practice beyond this protocol.
 
 ## MCP tool sequence
 
-The required paper-grounded flow is:
+The flow is:
 
 0. When continuing existing work, use `sessionMode` `continuation`, then read
-   `life_construction_replay` from the start at outline level and
-   `life_model_outline` on the graph you are given, and record your reading and
-   plan as notes before your first change.
-1. `life_modeling_context` for ordered, version-bound reading.
-2. Read both complete theory resources, then the protocol, profile, and example.
-   The server refuses `life_profile_compile` until both paper resources have
-   been accessed in the live MCP process since the access record began. The
-   first `life_modeling_context` call, a call with a different purpose, and
-   `sessionMode` `new_domain` or `consequential` begin a new record; reads
-   made before it are not counted. Calling it again for the same purpose, or
-   with `repeat_same_domain`, keeps the record, so the call can be used to
-   check `theoryAccessGate` after reading.
+   the relevant construction history and outline on the intended graph. Reuse
+   retained reading at an exact known head; inspect subsequent revisions and
+   relevant records. Replay from the start when history is unfamiliar, context
+   is lost or the branch is ambiguous. Record consequential findings or changed
+   plans, not a separate reading-plan or compliance note on every continuation.
+1. `life_modeling_context` for the purpose's guide and versioned references.
+2. Read the protocol, relevant guide or profile, and example, reusing unchanged
+   guidance that you retain. Consult a paper
+   section when the work needs a fuller explanation; reading is not tracked.
    `life-sim://example/minimal-model-and-graph` holds complete, test-verified
    compile, register and graph payloads.
 3. For the supported Story, Person, or Decision conventions, optionally use

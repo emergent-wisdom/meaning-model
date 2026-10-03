@@ -56,8 +56,8 @@ export async function drawDirection(service, raw) {
   const u = drawUniform(input.seed);
   const { cumulative, realized } = drawFromAnswers(cut.answers, u);
   const draw = { schema: 'meaning-model-direction-draw/v1', modelHash: input.modelHash, cutId: cut.id,
-    parentEventId: cut.parent_event_id, question: cut.question, unit: cut.unit,
-    answers: cut.answers.map(({ key, weight }) => ({ key, weight })), seed: input.seed, algorithm: ALGORITHM, u,
+    parentEventId: cut.parent_event_id, question: cut.question, unit: cut.unit, conditioning: cut.conditioning ?? null,
+    answers: cut.answers.map(({ key, weight, meaning }) => ({ key, weight, ...(meaning == null ? {} : { meaning }) })), seed: input.seed, algorithm: ALGORITHM, u,
     cumulative, realized, realizedIsRemainder: realized === 'remainder' };
   let recorded = null, priorDraws = [];
   if (input.record) {

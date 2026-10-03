@@ -14,6 +14,7 @@ pub const MAX_MEANING_REALIZATION_BINDINGS: usize = 2_048;
 pub const NORMALIZED_CUT_REMAINDER_KEY: &str = "remainder";
 pub const NORMALIZED_CUT_SUM_TOLERANCE: f64 = 1e-9;
 pub const MAX_MEANING_EVENT_DESCRIPTION_BYTES: usize = 64 * 1024;
+pub const MAX_NORMALIZED_CUT_ANSWER_MEANING_BYTES: usize = 64 * 1024;
 
 /// An abstract schema in the optional Meaning Model layer.
 ///
@@ -394,6 +395,10 @@ pub struct SemanticCoverageDefinition {
 pub struct NormalizedCutAnswer {
     pub key: String,
     pub weight: f64,
+    /// The answer definition in this revision, including what the remainder covers.
+    /// Legacy records may lack it; absence does not imply a definition from the key.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub meaning: Option<String>,
 }
 
 /// An exact local component address within this immutable model revision.
@@ -994,6 +999,14 @@ fn validate_normalized_cuts<'a>(
         let mut total = 0.0;
         for answer in &cut.answers {
             validate_identifier(&answer.key, &format!("normalized cut {} answer key", cut.id))?;
+            if let Some(meaning) = &answer.meaning {
+                if meaning.trim().is_empty() || meaning.len() > MAX_NORMALIZED_CUT_ANSWER_MEANING_BYTES {
+                    return Err(error(format!(
+                        "normalized cut {} answer {} meaning must be nonempty and at most {MAX_NORMALIZED_CUT_ANSWER_MEANING_BYTES} bytes",
+                        cut.id, answer.key
+                    )));
+                }
+            }
             if !keys.insert(answer.key.as_str()) {
                 return Err(error(format!("normalized cut {} has duplicate answer key {}", cut.id, answer.key)));
             }
@@ -2644,8 +2657,8 @@ mod tests {
             question: "Where does care go next?".to_owned(),
             unit: "continuation".to_owned(),
             answers: vec![
-                NormalizedCutAnswer { key: "repair".to_owned(), weight: 0.7 },
-                NormalizedCutAnswer { key: NORMALIZED_CUT_REMAINDER_KEY.to_owned(), weight: 0.3 },
+                NormalizedCutAnswer { key: "repair".to_owned(), weight: 0.7, meaning: None },
+                NormalizedCutAnswer { key: NORMALIZED_CUT_REMAINDER_KEY.to_owned(), weight: 0.3, meaning: None },
             ],
             conditioning: None,
             provenance: vec!["unit-test".to_owned()],

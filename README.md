@@ -12,9 +12,9 @@ construction with a complete twelve-chapter manuscript.
 See the [changelog](CHANGELOG.md) for release changes, upgrade notes, and
 unreleased work.
 
-## Three workflows in one server
+## Workflows over one model
 
-One MCP server covers three kinds of work over the same engine and graph:
+One MCP server supports these workflows over the same engine and graph:
 
 - **Modeling.** General-purpose, revisable world models of whatever you choose
   to model, such as a market, an institution or a technology, with an optional
@@ -23,18 +23,30 @@ One MCP server covers three kinds of work over the same engine and graph:
 - **Narration.** The storytelling add-on writes fiction from a model, with an
   author model, whole-life character trends, scene review, alignment audits and
   deepening passes. See the [storytelling add-on guide](profiles/STORYTELLING_ADDON.md).
+- **Human authorship with feedback.** The human writes; the LLM gives evidence-based feedback and follows the human's revision decisions. The storytelling add-on's `life_story_feedback` prepares read-only feedback from supplied text or an exact project revision. See the [feedback guide](docs/HUMAN_AUTHOR_FEEDBACK.md).
+- **Agent and user memory.** Maintain the processes of ongoing work and a user's reported history, with goals, decisions, preferences and learning linked across time. Capture useful records within the chosen scope, develop the underlying model and recover it across sessions. See the [memory guide](docs/MEMORY.md).
 - **Ideation.** The alien add-on searches for solution mechanisms through
   invented worlds, following *Ontology of the Alien*, and curates them into a
   revisable map of idea families. See the [alien add-on guide](profiles/ALIEN_ADDON.md).
 
-Modeling is always available; the two add-ons are opt-in with
+Modeling and memory are always available; the two add-ons are opt-in with
 `MEANING_MODEL_ADDONS`. Each workflow keeps what it does as revisable,
 inspectable structure. None of them turns an estimate, a review or an idea into
-evidence.
+evidence. All share macro-to-micro exploration, recursive discovery and attributed
+Understanding Nodes. Their purpose and the human's delegation determine what the
+agent may infer, record or change.
+
+In memory work, begin with the project or life context, then connect reports to
+the processes they describe. As new evidence arrives, return to the earlier
+interpretations and decisions it may change. In writing feedback, read the
+whole before diagnosing a passage, distinguish what the text says from an
+interpretation or artistic alternative, and follow the consequences of the
+human's chosen revisions. Both use the same method: start with a coarse account,
+develop the parts that matter, and reconsider the whole in light of what is found.
 
 ## The construction record
 
-Version 0.6.5 bundles a browser viewer. Ask the connected assistant
+Version 0.6.6 bundles a browser viewer. Ask the connected assistant
 to **“Open this model”**; `life_model_viewer_open` returns a local link to the chosen
 model or graph revision. No separate viewer checkout or special run folder is
 required. While writing, ask **“Keep the viewer following as we work.”** The
@@ -57,7 +69,9 @@ Understanding Nodes linked to the events, Cuts and passages they concern, and ou
 reviews are recorded under their actual reviewers. `life_model_outline` shows the
 present state with its notes at a chosen depth, and `life_construction_replay` replays
 the whole development step by step, each note beside the records as they were when it
-was written. A model that continues someone else's story or model replays it first.
+was written. Recover unfamiliar work through replay and an outline. When the exact
+previously read revision and context are retained, read subsequent changes and the
+records relevant to the current task.
 `life_construction_export` and `life_construction_import` carry the whole history to
 another engine with the same hashes, so the worked examples can be replayed anywhere.
 
@@ -207,8 +221,8 @@ only what that role may see:
 - a purpose-blind solver solves the problem inside that world;
 - a compiler brings the operative mechanism back into the problem's domain.
 
-The paper is bundled and must be read before a search: the write tools refuse
-until it has been read in the MCP process. Every cell of the paper's condition
+The add-on guide and generated role tasks supply the search procedure; its
+bundled paper is an optional reference. Every cell of the paper's condition
 matrix can be run, from direct proposals with a Semantic Tabu archive or the
 curated map to map-conditioned compilation.
 
@@ -235,7 +249,7 @@ textual thought experiments and transfers are ideas, not evidence. See the
 
 ## Read first
 
-The paper was revised on October 2, 2026, and the grammar appendix on
+The paper was revised on October 3, 2026, and the grammar appendix on
 September 28, 2026.
 The [Zenodo series](https://doi.org/10.5281/zenodo.22313515) provides the
 archived versions.

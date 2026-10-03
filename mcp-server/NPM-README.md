@@ -9,7 +9,7 @@ See the [changelog](CHANGELOG.md) for release changes and upgrade notes.
 
 ## Open your model
 
-Version 0.6.5 includes the browser viewer in the MCP package.
+Version 0.6.6 includes the browser viewer in the MCP package.
 
 After installing this MCP and its matching engine, connect it to your assistant as
 usual. Ask **“Open the model we are working on”** or **“Show me this story.”** The
@@ -68,9 +68,9 @@ complete author view, requiring the supplied `accessScopes` to cover every scope
 record in the exported model and graph. Partial access is refused rather than
 presented as a complete model. Opening a viewer does not publish the model.
 
-## Three workflows in one server
+## Workflows over one model
 
-One MCP server covers three kinds of work over the same engine and graph:
+One MCP server supports these workflows over the same engine and graph:
 
 - **Modeling.** General-purpose, revisable world models of whatever you choose
   to model, such as a market, an institution or a technology, with an optional
@@ -79,14 +79,26 @@ One MCP server covers three kinds of work over the same engine and graph:
 - **Narration.** The storytelling add-on writes fiction from a model, with an
   author model, whole-life character trends, scene review, alignment audits and
   deepening passes. See the [storytelling add-on guide](profiles/STORYTELLING_ADDON.md).
+- **Human authorship with feedback.** The human writes; the LLM gives evidence-based feedback and follows the human's revision decisions. The storytelling add-on's `life_story_feedback` prepares read-only feedback from supplied text or an exact project revision. See the [feedback guide](docs/HUMAN_AUTHOR_FEEDBACK.md).
+- **Agent and user memory.** Maintain the processes of ongoing work and a user's reported history, with goals, decisions, preferences and learning linked across time. Capture useful records within the chosen scope, develop the underlying model and recover it across sessions. See the [memory guide](docs/MEMORY.md).
 - **Ideation.** The alien add-on searches for solution mechanisms through
   invented worlds, following *Ontology of the Alien*, and curates them into a
   revisable map of idea families. See the [alien add-on guide](profiles/ALIEN_ADDON.md).
 
-Modeling is always available; the two add-ons are opt-in with
+Modeling and memory are always available; the two add-ons are opt-in with
 `MEANING_MODEL_ADDONS`. Each workflow keeps what it does as revisable,
 inspectable structure. None of them turns an estimate, a review or an idea into
-evidence.
+evidence. All share macro-to-micro exploration, recursive discovery and attributed
+Understanding Nodes. Their purpose and the human's delegation determine what the
+agent may infer, record or change.
+
+In memory work, begin with the project or life context, then connect reports to
+the processes they describe. As new evidence arrives, return to the earlier
+interpretations and decisions it may change. In writing feedback, read the
+whole before diagnosing a passage, distinguish what the text says from an
+interpretation or artistic alternative, and follow the consequences of the
+human's chosen revisions. Both use the same method: start with a coarse account,
+develop the parts that matter, and reconsider the whole in light of what is found.
 
 ## The construction record
 
@@ -155,7 +167,7 @@ can use the explicit source build below.
 In a directory where you want to keep the installation, run:
 
 ```sh
-npm install @emergent-wisdom/meaning-model-mcp@0.6.5
+npm install @emergent-wisdom/meaning-model-mcp@0.6.6
 npx meaning-model-mcp --install-engine
 ```
 
@@ -497,8 +509,8 @@ only what that role may see:
 - a purpose-blind solver solves the problem inside that world;
 - a compiler brings the operative mechanism back into the problem's domain.
 
-The paper is bundled and must be read before a search: the write tools refuse
-until it has been read in the MCP process. Every cell of the paper's condition
+The add-on guide and generated role tasks supply the search procedure; its
+bundled paper is an optional reference. Every cell of the paper's condition
 matrix can be run, from direct proposals with a Semantic Tabu archive or the
 curated map to map-conditioned compilation.
 
@@ -560,7 +572,7 @@ configuration looks like this:
   "mcpServers": {
     "meaning-model": {
       "command": "npx",
-      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.6.5"],
+      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.6.6"],
       "env": {
         "LIFE_SIM_ENGINE_BIN": "/absolute/path/to/life-sim-engine",
         "LIFE_SIM_STATE_FILE": "/absolute/private/path/meaning-model.sqlite"
@@ -576,7 +588,7 @@ build the matching engine when upgrading the package. On Windows its filename
 ends in `.exe`.
 
 The [complete server guide](mcp-server/README.md) describes modeling, the
-paper-reading gate, tools, quotas, persistence limits, and the boundary between
+operational guidance, tools, quotas, persistence limits, and the boundary between
 implemented mechanisms and research proposals. This remains experimental
 software; a released package does not establish the papers' learning claims.
 
@@ -590,7 +602,7 @@ starts the real Rust engine, then checks an MCP connection and engine status.
 Only passing jobs upload the version-named executable and its `.sha256` file.
 
 Once the reviewed source, workflow and matching tag are pushed, select **Build
-engine release** in the repository's Actions tab. Run it with `tag: v0.6.5` and
+engine release** in the repository's Actions tab. Run it with `tag: v0.6.6` and
 leave `create_draft` false for a build and smoke run that only uploads workflow
 artifacts. Set it true to create a draft release after all four platforms pass.
 Pushing a new `v*` tag also runs the workflow and prepares a draft release.
@@ -634,7 +646,7 @@ for release.
 Record the reviewed tarball's checksum and inspect the publication preview:
 
 ```sh
-release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.6.5.tgz"
+release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.6.6.tgz"
 shasum -a 256 "$release_tarball"
 npm publish "$release_tarball" --dry-run --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
@@ -646,7 +658,7 @@ exact tarball, authenticate with an npm account that can publish to
 ```sh
 npm whoami --registry=https://registry.npmjs.org/
 npm publish "$release_tarball" --access public --ignore-scripts --registry=https://registry.npmjs.org/
-npm view @emergent-wisdom/meaning-model-mcp@0.6.5 version dist.integrity --registry=https://registry.npmjs.org/
+npm view @emergent-wisdom/meaning-model-mcp@0.6.6 version dist.integrity --registry=https://registry.npmjs.org/
 ```
 
 A dry run does not establish registry authentication or scope access. Any change

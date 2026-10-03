@@ -4,6 +4,7 @@ import { LifeSimulationService } from '../src/service.mjs';
 import { BUILT_IN_LENSES, LENS_SCHEMA, defineLens, lensQuestions, lensUnit, readLenses, rereadLenses } from '../src/lenses.mjs';
 import { checkRevision } from '../src/revision-check.mjs';
 import { READING_MARK } from '../src/model-questions.mjs';
+import { eventTextSignature } from '../src/cut-shares.mjs';
 
 // Fear or love, whole lives and drawn decisions belong to the storytelling profile, which these tests adopt.
 process.env.MEANING_MODEL_ADDONS = 'storytelling';
@@ -81,7 +82,48 @@ test('the bulk re-read answers an earlier version\'s readings under this one, an
   assert.equal(entry.answeredUnder, 'this version of the lens'); assert.equal(entry.after, 'standing 0.53'); assert.ok(entry.spread > 0.05 && entry.spread < 0.2);
   const applied = calls[0].model.meaning_model.normalized_cuts.find((cut) => cut.id === 'lens.stage.ana.parting');
   assert.equal(applied.unit, lensUnit(stage)); assert.match(applied.question, /wanting, bartering or standing/u);
+  assert.deepEqual(applied.answers.filter((answer) => answer.key !== 'remainder').map(({ key, meaning }) => ({ key, meaning })), stage.answers);
+  assert.equal(applied.answers.find((answer) => answer.key === 'remainder').meaning, 'Something else, or no single named answer dominates.');
   assert.ok(applied.provenance.some((item) => /^reread: mean of 3 readings/u.test(item)));
+});
+
+test('rereading case-specific answers keeps their exact stored definitions and refuses unknown legacy meanings', async () => {
+  const lens = { id: 'case', name: 'Case-specific motives', appliesTo: ['act'], question: 'What reasons lie behind {subject}?', why: 'Motives change what the same act means.' };
+  const view = viewFor(lens, 'lens.case');
+  const definition = model([]);
+  const record = definition.meaning_model.events.find((event) => event.id === 'ana.parting');
+  const oldSignature = eventTextSignature(record);
+  record.description = 'Ana leaves after the argument, and sends Bo a letter from the next station.';
+  const stored = [
+    { key: 'a17', weight: 0.6, meaning: '  Avoiding a further quarrel, distinct from avoiding Bo altogether.\n' },
+    { key: 'remainder', weight: 0.4, meaning: 'Motives outside avoiding the quarrel, or unresolved attribution.' },
+  ];
+  const reading = { id: 'lens.case.ana.parting', parent_event_id: 'reading.x.ana.parting', question: lens.question, unit: lensUnit(lens),
+    answers: structuredClone(stored), provenance: [`event-text:${oldSignature}`] };
+  definition.meaning_model.normalized_cuts.push(reading);
+  const calls = [];
+  const service = { queryNarrativeGraph: async () => view, inspectModel: async () => ({ model: definition }),
+    reviseModel: async (request) => { calls.push(request); return { modelHash: 'e'.repeat(64) }; } };
+  const criteria = [];
+  const estimator = { backend: 'test', model: 'm', async estimate(_state, questions) {
+    criteria.push(questions.shares.criteria);
+    return { answers: { shares: { type: 'choice', probabilities: { a17: 0.3, remainder: 0.7 } } } };
+  } };
+  const input = { graphHash: 'b'.repeat(64), requestId: 'case-reread', accessScopes: ['author'], samples: 2 };
+  const result = await rereadLenses(service, estimator, input);
+  assert.equal(result.read.length, 1); assert.equal(criteria.length, 2);
+  const expected = Object.fromEntries(stored.map(({ key, meaning }) => [key, meaning]));
+  assert.deepEqual(criteria[0], expected);
+  const applied = calls[0].model.meaning_model.normalized_cuts.find((cut) => cut.id === reading.id);
+  assert.deepEqual(Object.fromEntries(applied.answers.map(({ key, meaning }) => [key, meaning])), expected);
+  assert.equal(applied.answers.find((answer) => answer.key === 'a17').weight, 0.3);
+  assert.deepEqual(reading.answers, stored, 'the predecessor definition is unchanged');
+
+  delete reading.answers[0].meaning;
+  const legacy = await rereadLenses(service, estimator, { ...input, requestId: 'unknown-reread' });
+  assert.equal(legacy.read.length, 0); assert.match(legacy.skipped[0].reason, /Legacy answer definitions are unknown for a17/u);
+  assert.equal(criteria.length, 2, 'an opaque legacy key is not turned into a definition or paid estimate');
+  assert.equal(calls.length, 1);
 });
 
 test('a lens that names no one looks at the whole work', async (t) => {

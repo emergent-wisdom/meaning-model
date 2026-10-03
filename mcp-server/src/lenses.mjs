@@ -867,20 +867,32 @@ export async function rereadLenses(service, estimator, raw) {
     const byVersion = version.has(item.stale);
     if (!again.has(item.stale) && !byVersion) { skipped.push({ lens: lens.id, record: item.eventId, cutId: item.cutId, reason: `stale because ${item.stale}: answer it with life_estimate_cut_shares` }); continue; }
     // A rewrite is read again as it was asked; an answer to an earlier version is answered under this one.
-    const answers = lens.answers?.length ? lens.answers.map((answer) => ({ key: answer.key, meaning: answer.meaning }))
-      : (old.answers ?? []).filter((answer) => answer.key !== 'remainder').map((answer) => ({ key: answer.key, meaning: answer.key.replace(/[_-]+/gu, ' ') }));
+    const storedAnswers = new Map((old.answers ?? []).map((answer) => [answer.key, answer.meaning]));
+    const answers = (lens.answers?.length ? lens.answers : old.answers ?? []).filter((answer) => answer.key !== 'remainder')
+      .map((answer) => ({ key: answer.key, meaning: (!byVersion ? storedAnswers.get(answer.key) : undefined) ?? answer.meaning }));
+    const unknown = answers.filter((answer) => !answer.meaning?.trim()).map((answer) => answer.key);
+    if (unknown.length) {
+      skipped.push({ lens: lens.id, record: item.eventId, cutId: old.id,
+        reason: `Legacy answer definitions are unknown for ${unknown.join(', ')}. Supply their meanings with life_estimate_cut_shares before rereading.` });
+      continue;
+    }
+    const remainderMeaning = !byVersion ? old.answers?.find((answer) => answer.key === 'remainder')?.meaning : undefined;
     const question = byVersion ? item.question : old.question; const unit = byVersion ? item.unit : old.unit;
     try {
       const samples = [];
       for (let n = 0; n < input.samples; n += 1) {
-        const result = await proposeCutShares({ question, unit, answers, modelHash: asked.modelHash, replaceExisting: true, apply: false,
+        const result = await proposeCutShares({ question, unit, answers, ...(remainderMeaning ? { remainderMeaning } : {}), modelHash: asked.modelHash, replaceExisting: true, apply: false,
           events: [{ eventId: old.parent_event_id, cutId: old.id, situationText: input.situationText[item.eventId] ?? null, conditionedOn: old.conditioning ? { cutId: old.conditioning.cut_id, answerKey: old.conditioning.answer_key } : null }] }, estimator, service);
         calls += result.estimatorCallsThisRequest ?? 0;
         if (result.proposals?.[0]) samples.push(result.proposals[0]);
       }
       if (!samples.length) { skipped.push({ lens: lens.id, record: item.eventId, cutId: old.id, reason: 'the estimator returned no reading' }); continue; }
       const keys = [...new Set(samples.flatMap((sample) => sample.answers.map((answer) => answer.key)))];
-      const mean = keys.map((key) => ({ key, weight: samples.reduce((sum, sample) => sum + (sample.answers.find((answer) => answer.key === key)?.weight ?? 0), 0) / samples.length }));
+      const mean = keys.map((key) => {
+        const meaning = key === 'remainder' && !byVersion && !remainderMeaning ? undefined : samples[0].answers.find((answer) => answer.key === key)?.meaning;
+        return { key, ...(meaning == null ? {} : { meaning }),
+          weight: samples.reduce((sum, sample) => sum + (sample.answers.find((answer) => answer.key === key)?.weight ?? 0), 0) / samples.length };
+      });
       const total = mean.reduce((sum, answer) => sum + answer.weight, 0); for (const answer of mean) answer.weight /= total || 1;
       let spread = 0; for (const x of samples) for (const y of samples) spread = Math.max(spread, tv(x, y));
       const confidences = samples.map(confidenceOf).filter((value) => value !== null);
@@ -893,6 +905,7 @@ export async function rereadLenses(service, estimator, raw) {
   const topOf = (cut) => (cut.answers ?? []).filter((answer) => answer.key !== 'remainder').sort((a, b) => b.weight - a.weight)[0] ?? null;
   const report = read.map(({ lens, record, old, proposal, spread, byVersion, confidence }) => { const moved = tv(old, proposal);
     return { lens, record, cutId: old.id, moved: +moved.toFixed(3), before: topOf(old) ? `${topOf(old).key} ${topOf(old).weight.toFixed(2)}` : null, after: topOf(proposal) ? `${topOf(proposal).key} ${topOf(proposal).weight.toFixed(2)}` : null,
+      ...(!proposal.answers.find((answer) => answer.key === 'remainder')?.meaning ? { unknownDefinitions: ['remainder'] } : {}),
       confidenceBefore: confidenceOf(old), confidence: confidence === null ? null : +confidence.toFixed(3), ...(spread !== null ? { spread: +spread.toFixed(3) } : {}), ...(byVersion ? { answeredUnder: 'this version of the lens' } : {}),
       ...((spread !== null && moved <= spread) || (spread === null && confidence !== null && confidence < 0.6 && moved > 0.2) ? { noise: spread !== null ? 'the move is within the spread between readings: the estimator\'s noise, not a change' : 'a large move at low confidence may be the estimator\'s noise: read it again with samples above one' } : {}) }; });
   const common = { schema: 'meaning-model-lens-reread/v1', previousModelHash: asked.modelHash, stale: stale.length, read: report, skipped, estimatorCalls: calls };

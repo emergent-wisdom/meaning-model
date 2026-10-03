@@ -24,22 +24,13 @@ record is a node in the Meaning Model narrative graph. Each ontology uses the
 model's own concept and abstract-relation vocabulary, so it can be merged into a
 model.
 
-## Paper first
+## Operational entry
 
-Read `life-sim://theory/ontology-of-the-alien` completely before starting or
-continuing a search. The resource is a byte-identical snapshot of the paper, with
-source digests in `docs/companions/ontology-of-the-alien/SOURCE.json`. The write
-tools refuse until it has been read in the current MCP process:
-
-- `life_alien_search_start`
-- `life_alien_task`
-- `life_alien_record`
-- `life_alien_ontology_revise`
-
-This is the same rule the modeling tools apply to the two theory papers. The read
-is verified only within the live process, and it does not prove comprehension.
-Building the target model follows the modeling workflow and its own paper-first
-gate.
+Read this guide and follow the returned role task instructions. The paper at
+`life-sim://theory/ontology-of-the-alien` is optional background for the method
+and its evidence boundary. Its source digests remain in
+`docs/companions/ontology-of-the-alien/SOURCE.json`.
+Building the target model follows the general modeling workflow.
 
 ## Entry point
 
@@ -72,18 +63,21 @@ in the task text, not in the caller's good intentions.
 |---|---|---|
 | `builder` | a seed word, optional departures and a commission's world ask | the problem, the purpose |
 | `solver` | the recorded world, the problem statement and its constraints | the problem's context, why the world exists, the later transfer |
-| `compiler` | world, solution and problem, plus the chosen population state | (nothing withheld) |
-| `explorer` | the problem, optionally a random-word cue, and the chosen population state | worlds |
+| `compiler` | world, solution and problem, plus the chosen population state | population context outside the chosen state |
+| `explorer` | the problem, optionally a random-word cue, and the chosen population state | worlds, population context outside the chosen state |
 | `curator` | the problem, the mechanism or outcome ontology, and one candidate | (nothing withheld) |
 | `world_curator` | the regime ontology, the signature codes in use, and one world | the problem |
 | `transfer` | the problem, the target model's records and one mechanism | (nothing withheld) |
 
-A single MCP caller already knows the problem, so partitioning the task text is
-not enough on its own. Run builder, solver and world-curator tasks in fresh
-contexts that see only the task, for example separate subagents. When that is
-not possible, do the step yourself and record `same_context`. The world is then
-target-blind by procedure only, and its record says so. Every world, solution,
-mechanism and curator decision records the isolation actually used:
+A single MCP caller already knows the problem and earlier candidates, so
+partitioning the task text is not enough on its own. Run builder, solver,
+compiler, explorer and world-curator tasks in fresh contexts that see only the
+task, for example separate subagents. For compiler and explorer this preserves
+the selected `none`, `tabu` or `map` population state without prior candidates
+leaking through caller memory. When that is not possible, do the step yourself
+and record `same_context`. Context isolation is then not established, and target
+blindness remains procedural. Every world, solution, mechanism and curator
+decision records the isolation actually used:
 `fresh_context`, `same_context` or `human`.
 
 The builder prompt keeps the original wording: the seed is the world's
@@ -101,8 +95,9 @@ can run every cell, and each mechanism records its condition:
 | Target plus a random-word cue (explorer with `cueWord` or `drawCue`) | C | D | E |
 | World and in-world solve (compiler) | F | G | H |
 
-- **Tabu** gives the fresh context every earlier candidate as JSON. It asks for the
-  paper's inventory and an explicit list of approaches to avoid.
+- **Tabu** gives the fresh context every earlier candidate as JSON. It asks for
+  each candidate's core mechanism and an explicit list of structural approaches
+  to avoid.
 - **Map** gives the mechanism ontology, the claimed-outcome classes with their
   labels and operators, the thin branches, and the family and claimed-outcome
   combinations no candidate has yet, each named as well as cited.
@@ -144,6 +139,20 @@ A builder task produces one world, so each world keeps its own seed draw. Tasks
 that never produce an output stay in the graph, and the diagnosis lists them as
 attempts. Records made before tasks were stored carry a `taskRef`, which is still
 verified by recomputation.
+
+`life_alien_task.textHash` is SHA-256 of the UTF-8 bytes of
+`JSON.stringify({text: task.text})`. For a review of that task,
+`life_review_record.prompt.sha256` is SHA-256 of the UTF-8 task text itself.
+
+## Record payload schemas
+
+Before calling `life_alien_record`, read
+`life-sim://addon/alien/record-schema/{kind}`, replacing `{kind}` with `world`,
+`solution`, `mechanism`, `commission`, `transfer`, `assessment` or `selection`.
+Each resource returns only that kind's input JSON Schema, generated from the
+runtime validator, including required fields, defaults, limits and strict object
+shapes. Schema descriptions give cross-field rules; task provenance and graph
+references are checked separately by the tool.
 
 ## Worlds
 
@@ -520,8 +529,7 @@ The server checks:
 - library bundle and world text hashes, and each imported world's target terms
   in its new search;
 - diagnosis hashes;
-- target terms in target-blind tasks;
-- that the paper has been read in this process.
+- target terms in target-blind tasks.
 
 It does not judge:
 

@@ -6,6 +6,15 @@ adoption, institutions, public discussion, markets, a company's operations, or a
 physical process. Price is one possible dimension. There is no required crypto,
 personality, or storytelling vocabulary.
 
+You are building an explicit world model from what you have learned. Make your
+implicit understanding of how people and the world work explicit as processes,
+relationships and concepts that can be inspected, tested and revised. Prior
+measurement is not a prerequisite for proposing an account. Mark inference as
+inference and distinguish authored possibilities from observations. Build further
+discoveries on those structures and reason from the developing model. When
+describing something that exists, learned knowledge helps interpret evidence and
+propose explanations; it does not replace evidence about that particular case.
+
 ## Start with the user's question
 
 Use `life_general_modeling_start` or `life_modeling_context` and read the required
@@ -45,7 +54,8 @@ and let later evidence test the account. There a Cut over what may happen is a
 forecast only when its weights are declared as probabilities over the possible
 outcomes before the outcome is known; an answer is realized when the evidence
 shows it, not by a draw, and a draw only samples a scenario, which stays
-hypothetical; nothing there is chosen for interest.
+hypothetical. Do not choose factual outcomes for their interest; curiosity can
+guide which concepts and hypotheses to investigate.
 Explore recursively: open a process or meaning, discover its sub-processes,
 relationships and possible distinctions, follow fruitful new questions, then
 revise and revisit connected parts of the model. Start from the macro-processes, coarsely: the long
@@ -93,7 +103,14 @@ the supplied questions are starting points, not the limits of inquiry. Record
 speculative connections as hypotheses rather than observations or accepted
 history.
 
-Treat inherited categories as revisable proposals. One route to discovery is
+Treat inherited categories as revisable proposals. Do not require a new
+category to prove its usefulness before exploring it. Curiosity, surprise, an
+analogy or an unexpected connection can justify a provisional opening within
+the delegated scope. Give it a coarse definition, connect it to cases or
+imagined possibilities, and follow what becomes possible to model on top of it;
+its value may emerge only through that exploration. Then retain, revise,
+combine or set it aside as the work develops, keeping speculative structure
+distinct from established facts. One route to discovery is
 to compare situations or periods that the current categories group together
 but that unfold differently: what unrepresented distinction could explain the
 difference? Define a candidate in the existing grammar, connect it to the
@@ -159,16 +176,17 @@ or require every branch to be expanded now.
 
 ## Record what you do
 
-The model and its graph are your understanding. A later agent can continue only from
-what was recorded, and a thought helps only when it is linked to what it concerns.
+The model and its graph are your understanding. Record the durable findings,
+decisions and open questions a later agent needs, linked to what they concern.
 
 - Give every Event that carries a Cut a `description` of what happens in it, and
   describe most other Events. Model writes report `descriptionCoverage`; the ingest
   refuses Cuts on undescribed Events before any estimate.
-- Record your choices, ideas, hypotheses, predictions, questions, surprises,
+- Record consequential choices, ideas, hypotheses, predictions, questions, surprises,
   tensions and reasons with `life_understanding_record`, linked to the records they
   concern (`event:`, `cut:`, `process:` and the other kinds) or to graph nodes.
-  Batch related notes. The kinds and relations include those of the Understanding
+  Batch related notes; no separate write is needed for each thought, reading step
+  or reply. The kinds and relations include those of the Understanding
   Graph paper; a `validates` or `invalidates` link is your judgment, not a
   verification.
 - Record outside reviews with `life_review_record` under their actual reviewer, with
@@ -176,9 +194,12 @@ what was recorded, and a thought helps only when it is linked to what it concern
   note that says why the existing model stands. Each review keeps two model
   revisions apart: the one the version it read was bound to (`reviewedModelHash`)
   and the one current when it was recorded (`recordedAtModelHash`). Give the
-  version the reviewer read as `reviewed.graphHash`; without it, the review is
-  taken to have read the `graphHash` you give, even when the record goes to a
-  newer head. `reviewedModelRelation` says, from the revision chain rather than
+  graph version the reviewer read as `reviewed.graphHash`; without it, a
+  graph-backed review is taken to have read the `graphHash` you give, even when the record goes to a
+  newer head. For external text alone, use `reviewed.materials: "external"`,
+  identify the exact material in `reviewed.description`, and omit
+  `reviewed.graphHash` and `reviewed.rootId`: the reader did not inspect a graph
+  or its model. `reviewedModelRelation` says, from the revision chain rather than
   the hashes, whether the model read is the current one, an ancestor, a
   descendant, or neither (another branch); it is `unknown` when the chain could
   not be read, which is no evidence of a branch. When earlier
@@ -186,8 +207,10 @@ what was recorded, and a thought helps only when it is linked to what it concern
   (`sameModelReviews`). That can be right, as with a panel reading one version,
   so treat it as a signal to check whether the work is circling, not as proof that
   nothing else changed.
-- Put every reason you give the user into the graph before you reply; a later agent
-  reads the graph, not your reply.
+- Where recording in the scoped project is available and delegated, preserve
+  consequential findings, decisions and reasons needed to continue the work
+  before replying; reuse existing records rather than restating them as proof
+  of compliance. Text-only feedback does not authorize creating a project.
 - When a Cut, concept or opening no longer holds, mark it withdrawn in the next model
   revision (`withdrawn: {reason, superseded_by}`) instead of deleting it. It stays as
   history, the notes about it keep their links, and the outline shows it as withdrawn.
@@ -196,10 +219,13 @@ what was recorded, and a thought helps only when it is linked to what it concern
   coverage counts only realizations of current concepts, so an Event whose only account
   is withdrawn is uncovered again. `life_narrative_rebind` refuses a successor that
   removes a record notes are anchored to, and names them.
-- To continue someone's model, start with `sessionMode` `continuation`, read
+- To continue a model, start with `sessionMode` `continuation`. Reuse retained
+  reading at an exact known graph head and inspect subsequent revisions and
+  relevant records; establish the intended head and lineage if work may have
+  advanced. For unfamiliar history, lost context or an ambiguous branch, read
   `life_construction_replay` from the start at outline level, then
-  `life_model_outline`, and open detail where you need it. Record what you read and
-  what you plan before your first change.
+  `life_model_outline`, and open detail where needed. Record consequential
+  findings and changed plans, not a separate reading-plan on every continuation.
 
 ## Review broader context and longer-term developments
 
@@ -369,9 +395,10 @@ returns bounded tasks for the caller or accepts supplied answers.
    declared Cut questions, estimates and Understanding notes to an existing model.
    A preview's proposal ID binds its exact values; apply that ID rather than asking
    the provider to generate a replacement. A direct apply requests a fresh estimate.
-   With a graph, the ingest also records each question's answer and remainder
-   meanings and the exact situation text judged for each event, so every Cut
-   stays traceable to what was asked. Graph anchors cannot yet address a Cut
+   Each Cut retains the declared meanings of its answers and remainder in the
+   model revision. With a graph, the ingest also records those meanings and the
+   exact situation text judged for each event, so every Cut stays traceable to
+   what was asked. Graph anchors cannot yet address a Cut
    itself, so these records name their Cut ids and anchor to the Cut's event.
    Notes may link to each other. A question
    with `conditionedOn: {questionId, answerKey}` divides only the part of the same
@@ -443,6 +470,59 @@ value twelve months earlier sits at time -12 in a monthly model.
 
 Proposals and requests are process-local, so record them in the same server
 session. The graph copy is durable.
+
+### Reports retrieved after the time they describe
+
+The exchange above restricts an `observed` answer to a contemporaneous cutoff.
+For an existing report retrieved later, preserve the two times through native
+model revision instead of pretending it was known earlier or relabeling it as
+an estimate. `initial_claims` can hold separately dated reports known at model
+time zero; both `value_time` and `evidence_cutoff` must be no later than zero.
+
+For example, suppose a model uses days, time zero is today's retrieval, and
+`tank.level` is an existing scalar process measured in litres. This illustrative
+request records a log reading from two days earlier, learned today:
+
+```json
+{
+  "requestId": "record-retrieved-tank-log",
+  "previousModelHash": "EXACT_CURRENT_MODEL_HASH",
+  "change": {
+    "reason": "Retain a past reading and the later time its report became available.",
+    "provenance": ["Illustrative operator-log import"],
+    "upsert": {
+      "initial_claims": [{
+        "id": "report.tank.level.day-minus-two",
+        "subject": "tank.level",
+        "value": {"kind": "scalar", "value": 42},
+        "uncertainty": {"kind": "interval", "lower": 41, "upper": 43},
+        "evidence_type": "report",
+        "holder": "operator",
+        "value_time": -2,
+        "evidence_cutoff": 0,
+        "mode": "observed",
+        "authority": {"source": "operator log", "weight": 1},
+        "provenance": ["Illustrative day-minus-two log entry, retrieved at day zero"],
+        "access_scopes": ["tank-study"]
+      }]
+    }
+  }
+}
+```
+
+Submit this through `life_model_revise`, then use `life_model_inspect` with the
+returned `modelHash` and `includeDefinition: true`. Check the stored claim's
+value, units on its subject process, holder, uncertainty and both times. Batch
+independent source rows in the same `upsert.initial_claims` list. Retain actual
+source addresses, retrieval dates, coverage and original values in provenance
+and linked source records; the example's source and value are invented.
+
+Rebind the graph explicitly to the returned model revision before recording
+dependent interpretations. These are attributed reports in the model, not an
+executed world's state history; adding them does not advance or overwrite a
+running world. The process's initial value also does not reconstruct its past.
+Reports learned after time zero require a suitable model origin or the runtime
+observation workflow. Keep unknown dates and gaps unresolved.
 
 ## Rejected answers
 

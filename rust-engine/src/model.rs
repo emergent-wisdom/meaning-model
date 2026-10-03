@@ -16410,8 +16410,8 @@ mod tests {
             question: "Which comparison share is resolved?".to_owned(),
             unit: "comparison".to_owned(),
             answers: vec![
-                NormalizedCutAnswer { key: "resolved".to_owned(), weight: 0.6 },
-                NormalizedCutAnswer { key: "remainder".to_owned(), weight: 0.4 },
+                NormalizedCutAnswer { key: "resolved".to_owned(), weight: 0.6, meaning: None },
+                NormalizedCutAnswer { key: "remainder".to_owned(), weight: 0.4, meaning: None },
             ],
             conditioning: None,
             provenance: vec!["genesis refinement fixture".to_owned()],

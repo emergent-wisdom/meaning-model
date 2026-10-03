@@ -14,11 +14,13 @@ data does not mean that the engine schedules or executes that cut.
 
 ## Current conformance claim
 
-The implemented layer is a **validated static Meaning Model host with one
-genesis-only authored-refinement operation**. The semantic records remain
-static declarations; the refinement operation changes which immutable model
-revision an untouched world uses. When the optional layer is present, it can
-record:
+The implemented layer is a **validated static Meaning Model host with explicit
+authored world refinement and revision, including after accepted history**.
+Semantic records remain declarations. The operations adopt an already registered
+direct-next immutable model revision under bounded preservation rules:
+`refine_genesis_world` is limited to untouched genesis, while `revise_world`
+applies `refine` or `revise` at the unchanged current world time and retains
+accepted history. When the optional layer is present, it can record:
 
 - reusable abstract concepts and typed specialization, constraint, analogy,
   opposition, or explicitly labeled abstract relations independently from
@@ -125,6 +127,10 @@ correct.
 Normalized Cuts are a separate opt-in collection from the legacy abstract and
 physical Cut records. Each names an existing Event, a nonblank question and
 unit, and 1–2,048 unique keyed answers including the reserved `remainder` key.
+Each answer may retain its exact declared `meaning` in that model revision,
+including the remainder. When present it must be nonblank and at most 64 KiB.
+Legacy absence remains absence and preserves the prior hash; the engine does
+not reconstruct definitions from keys.
 Weights must be finite, nonnegative, and sum to one within `1e-9`; no automatic
 renormalization conceals a mismatch. Conditioning names an existing Cut and
 answer key, including zero-weight answers or the remainder, and cannot cycle.
@@ -236,17 +242,57 @@ audit. A partial temporal contract may add children or become complete while
 retaining its parent, provenance, and every existing child projection. The
 result must pass temporal validation; complete contracts remain unchanged.
 This exception also applies to `revise_world` in `refine` mode. Once context
-roots are enabled, introducing a new nearest root on an
-existing Event also requires an explicit revision outside genesis-only
-additions, because it would change the authority of existing descendants.
+roots are enabled, introducing a new nearest root on an existing Event requires
+`revise_world` in `revise` mode rather than either additions-only refinement
+path, because it would change the authority of existing descendants.
 
 The replacement is performed through the same session mutation and optional
 atomic persistence path as other authoritative operations. The response
 reports the source and target revisions, conservation checks, and per-collection
 preserved and added counts. A requested view is validated before replacement.
-This is authored schema articulation before accepted time begins. It is not
-automatic concept or cut discovery, execution of the declared cuts, adaptive
-opening or pruning, or migration and reconciliation after a world has history.
+This operation supplies authored schema articulation before accepted time
+begins. Adoption after accepted history uses the current-time operation below.
+Neither operation supplies automatic concept or cut discovery, execution of the
+declared cuts, or automatic adaptive opening or pruning.
+
+## Current-time world refinement and revision
+
+`revise_world` adopts an already registered direct-next model revision at the
+current world time, including after accepted history. The request supplies the
+exact `expected_world_hash`, a `refine` or `revise` mode, and a bounded nonempty
+reason and provenance. Optional `state_values` defaults to an empty map.
+Both modes preserve the model id and time unit. Existing processes cannot be
+removed or change their value type, axes, unit, reference frame, or scale.
+
+In `refine` mode, the same definition-preservation audit used for genesis
+refinement retains existing records exactly, subject to the partial temporal
+contract extension described above. Existing current state values and claims
+remain unchanged; `state_values` may name only newly added processes.
+
+In `revise` mode, compatible authored changes to the target definition, including
+laws and semantic records, are permitted, and `state_values` may explicitly
+replace existing process values. Unspecified existing values and all current
+claims carry over. Both modes require an explicit current-time value for every
+new process. Target-model initial values and initial claims are not injected
+into the current world; this operation neither adds nor updates its claims.
+
+Acceptance preserves the world id and time, increments its version, and links
+an immutable revision receipt into the accepted lineage. The receipt retains
+source and target heads, mode, supplied state values, reason, and provenance;
+`get_world_revision` retrieves its scoped view. Earlier accepted history remains
+available, and candidates against a superseded head cannot be committed. The
+revision and world replacement use the session's optional atomic persistence
+path, and stored revision transitions are reconstructed and validated on
+restore. Existing narrative graphs remain pinned to their source snapshots;
+world revision does not automatically rebind their understanding or prose, or
+provide a transaction across those surfaces.
+
+Portable narrative-training exports and project checkpoint snapshots that cross
+a world-revision boundary are rejected with `unsupported_history`. The complete
+accepted history remains in the session database when persistence is enabled;
+this export limitation does not mean history is discarded. Frozen graphs remain
+renderable; portable exports remain available for sources whose ancestry contains
+no world revision, subject to the ordinary export requirements.
 
 ## What remains physical execution
 
@@ -310,7 +356,10 @@ selects a path, fires a transition, or commits a world.
 | Optional strict direct/inherited/unresolved event-coverage invariant | Implemented for declared static events |
 | Accepted-runtime-occurrence semantic coverage | Not implemented; runtime occurrences have no separate semantic identity link |
 | Inclusion in model hashing, revision, retrieval, and persistence | Implemented through the existing model lifecycle |
-| Monotonic authored refinement of an untouched genesis world | Implemented through `refine_genesis_world`; direct-next revision and exact old-record/state/claim preservation are required |
+| Monotonic authored refinement of an untouched genesis world | Implemented through `refine_genesis_world`; direct-next revision and old-record/state/claim preservation are required, with the declared partial temporal-contract extension |
+| Authored refinement or revision at the current world time, including after accepted history | Implemented through `revise_world` in `refine` or `revise` mode; exact expected head, direct-next model revision, compatible existing process shapes/units, and explicit values for new processes are required |
+| Accepted-history preservation across world revisions | Implemented through immutable source/target heads and hash-linked revision receipts, validated on persistence restore; narrative sources remain pinned |
+| Portable narrative-training or project checkpoint export across world revisions | Not implemented; rejected with `unsupported_history` while accepted history remains in the session, or its database when persistence is enabled |
 | Bounded record, cut-child, process-reference, and realization-binding cardinality | Implemented; limits are reported by `describe` |
 | Read-only Story/Person authoring-profile compilation | Implemented through `compile_profiles`; output remains an ordinary unregistered model |
 | Distinct external, candidate actor-local, and self-reported Person views over shared evidence | Implemented as authored graph/scalar processes, claims, bindings, and `describe` realizations; latent operative truth is not asserted |

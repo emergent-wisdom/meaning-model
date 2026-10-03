@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
+import { constructionRecordInstructions } from '../src/construction-principles.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serverPath = join(here, '..', 'src', 'server.ts');
@@ -47,14 +48,23 @@ test('the alien add-on is opt-in and adds only its tools, resources and prompt',
   assert.deepEqual(enabledResources.resources.filter(({ uri }) => ![addonUri, paperUri].includes(uri)), baseResources.resources);
   const guide = await enabled.readResource({ uri: addonUri });
   assert.match(guide.contents[0].text, /^# Alien add-on/u);
+  assert.match(guide.contents[0].text, /optional background/u);
+  assert.match(guide.contents[0].text, /compiler, explorer and world-curator tasks in fresh contexts/u);
+  assert.match(guide.contents[0].text, /record `same_context`/u);
+  assert.doesNotMatch(guide.contents[0].text, /Paper first|write tools refuse|paper-first gate|paper has been read/u);
+  assert.match(enabledResources.resources.find(({ uri }) => uri === paperUri).description, /Optional background/u);
   const prompts = await enabled.listPrompts();
   assert.ok(prompts.prompts.some(({ name }) => name === 'life_alien_start'));
   const start = await enabled.getPrompt({ name: 'life_alien_start', arguments: {} });
-  assert.match(start.messages[0].content.text, /fresh contexts/u);
+  assert.ok(start.messages[0].content.text.includes(constructionRecordInstructions), 'ideation receives the same macro-to-micro and Understanding Graph instructions');
+  assert.match(start.messages[0].content.text, /builder, solver, compiler, explorer and world_curator tasks in fresh contexts/u);
+  assert.match(start.messages[0].content.text, /record same_context honestly/u);
   assert.match(start.messages[0].content.text, /life-sim:\/\/theory\/ontology-of-the-alien/u);
+  assert.match(start.messages[0].content.text, /optional background/u);
+  assert.doesNotMatch(start.messages[0].content.text, /First read .* completely|write tools refuse|after reading the modeling papers/u);
 });
 
-test('the write tools wait for the paper; then a search starts and stores a target-blind builder task over MCP', async (t) => {
+test('a search starts and stores a target-blind builder task without reading the optional paper', async (t) => {
   const client = await connectClient(t, 'alien');
   const markdown = await readFile(new URL('../../docs/examples/MINIMAL-MODEL-AND-GRAPH.md', import.meta.url), 'utf8');
   const [, registerRequest] = [...markdown.matchAll(/```json\n([\s\S]*?)```/g)].map((match) => JSON.parse(match[1]));
@@ -62,11 +72,6 @@ test('the write tools wait for the paper; then a search starts and stores a targ
   const start = { requestId: 'mcp-start', modelHash, graphId: 'alien-mcp', searchId: 'search.mcp',
     title: 'Carrying the loan', problem: { statement: 'How can a family bakery carry its loan through a bad year?', targetTerms: ['bakery'] },
     authorId: 'tester', accessScopes: ['author'] };
-  const early = await client.callTool({ name: 'life_alien_search_start', arguments: start });
-  assert.equal(early.isError, true);
-  assert.match(early.content[0].text, /Paper-first gate/u);
-  const paper = await client.readResource({ uri: paperUri });
-  assert.match(paper.contents[0].text, /World-Diversity Search and Evolving Solution Ontologies/u);
   const started = await call(client, 'life_alien_search_start', start);
   const builder = await call(client, 'life_alien_task', { graphHash: started.graphHash, requestId: 'mcp-builder', searchRootId: 'search.mcp', authorId: 'tester', accessScopes: ['author'], role: 'builder' });
   assert.equal(builder.targetBlind, true);
@@ -75,4 +80,6 @@ test('the write tools wait for the paper; then a search starts and stores a targ
   const refused = await client.callTool({ name: 'life_alien_task', arguments: { graphHash: builder.graphHash, requestId: 'mcp-bad', searchRootId: 'search.mcp', authorId: 'tester', accessScopes: ['author'],
     role: 'builder', inputs: { worldNodeId: 'world.x' } } });
   assert.equal(refused.isError, true, 'inputs that belong to another role are refused');
+  const paper = await client.readResource({ uri: paperUri });
+  assert.match(paper.contents[0].text, /World-Diversity Search and Evolving Solution Ontologies/u);
 });

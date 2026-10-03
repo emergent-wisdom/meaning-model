@@ -238,17 +238,20 @@ test('the story catalog keeps fear and love as an optional lens on reasons', asy
 test('a model that keeps changing while its record holds few thoughts is asked where the understanding is', async () => {
   const { readOpenQuestions } = await import('../src/model-questions.mjs');
   const model = { ...lived(), revision: { number: 4 } };
-  const service = { inspectModel: async () => ({ model }), queryNarrativeGraph: async () => ({ nodes: [{ id: 'n', role: 'externalized_reflection' }], edges: [] }) };
+  const service = { inspectModel: async () => ({ model }), queryNarrativeGraph: async () => ({ graph: { source: { kind: 'model', model_hash: 'f'.repeat(64) } }, nodes: [{ id: 'n', role: 'externalized_reflection' }], edges: [] }) };
   const open = await readOpenQuestions(service, { modelHash: 'f'.repeat(64), graphHash: 'a'.repeat(64), limit: 5 });
   assert.equal(open.questions[0].kind, 'understanding-outside');
   assert.match(open.questions[0].question, /changed 4 times and its record holds 1 thought\. Where is your understanding\? Use the model as your mind/);
+  assert.match(open.questions[0].question, /consequential ideas, findings, decisions and their reasons, predictions and open questions/);
+  assert.match(open.questions[0].question, /not a semantic test or a quota for notes/);
+  assert.doesNotMatch(open.questions[0].question, /put each thought into it as you have it/);
 });
 
 test('continuing a saved story discovers its author life and reports a missing portable dependency', async () => {
   const { readOpenQuestions } = await import('../src/model-questions.mjs');
   const storyHash = 'a'.repeat(64), lifeHash = 'b'.repeat(64);
   const model = lived();
-  const view = { nodes: [
+  const view = { graph: { source: { kind: 'model', model_hash: storyHash } }, nodes: [
     { id: 'story', role: 'document_root' }, { id: 'passage', role: 'story_passage' },
     { id: 'author.world', subject: 'story', node_type: 'storytelling.world', value_time: 1,
       text: JSON.stringify({ data: { schema: 'meaning-model-story-world/v1', stage: 'author_reader',
@@ -273,7 +276,7 @@ test('continuing a saved story discovers its author life and reports a missing p
 
 test('a visible story without author life prompts investigation without imposing a persona on general documents', async () => {
   const { readOpenQuestions } = await import('../src/model-questions.mjs');
-  const view = { nodes: [{ id: 'book', role: 'document_root' }, { id: 'passage', role: 'story_passage' }],
+  const view = { graph: { source: { kind: 'model', model_hash: 'a'.repeat(64) } }, nodes: [{ id: 'book', role: 'document_root' }, { id: 'passage', role: 'story_passage' }],
     edges: [{ source: { kind: 'node', node_id: 'book' }, target: { kind: 'node', node_id: 'passage' }, family: 'structural', relation: 'contains' }] };
   const service = { inspectModel: async () => ({ model: lived() }), queryNarrativeGraph: async () => view };
   const result = await readOpenQuestions(service, { modelHash: 'a'.repeat(64), graphHash: 'c'.repeat(64), limit: 20 });
@@ -289,7 +292,7 @@ test('author discovery checks each visible story root without treating metadata 
   const { readOpenQuestions } = await import('../src/model-questions.mjs');
   const modelHash = 'a'.repeat(64);
   const contains = (from, to) => ({ source: { kind: 'node', node_id: from }, target: { kind: 'node', node_id: to }, family: 'structural', relation: 'contains' });
-  const view = { nodes: [
+  const view = { graph: { source: { kind: 'model', model_hash: modelHash } }, nodes: [
     ...['collection', 'book.a', 'book.b', 'life.wrapper'].map((id) => ({ id, role: 'document_root' })),
     { id: 'a.passage', role: 'story_passage' }, { id: 'b.passage', role: 'story_passage' }, { id: 'life.metadata', role: 'metadata' },
     { id: 'author.a', node_type: 'storytelling.world', subject: 'book.a', text: JSON.stringify({ data: { schema: 'meaning-model-story-world/v1', stage: 'author_reader',
@@ -310,7 +313,7 @@ test('author discovery checks each visible story root without treating metadata 
 test('autodiscovered author-story understanding questions count correctly and honor an explicit sufficient-here record', async () => {
   const { readOpenQuestions } = await import('../src/model-questions.mjs');
   const modelHash = 'a'.repeat(64);
-  const view = { nodes: [{ id: 'book', role: 'document_root' }, { id: 'passage', role: 'story_passage' },
+  const view = { graph: { source: { kind: 'model', model_hash: modelHash } }, nodes: [{ id: 'book', role: 'document_root' }, { id: 'passage', role: 'story_passage' },
     { id: 'author.world', node_type: 'storytelling.world', subject: 'book', text: JSON.stringify({ data: { schema: 'meaning-model-story-world/v1', stage: 'author_reader',
       author: { personId: 'leo', name: 'Leo', lifeModelHash: modelHash } } }) }],
     edges: [{ source: { kind: 'node', node_id: 'book' }, target: { kind: 'node', node_id: 'passage' }, family: 'structural', relation: 'contains' }] };
@@ -330,7 +333,7 @@ test('autodiscovered author-story understanding questions count correctly and ho
 test('a separately modeled author does not inherit a same-ID story character lifecycle', async () => {
   const { readOpenQuestions } = await import('../src/model-questions.mjs');
   const modelHash = 'a'.repeat(64), lifeModelHash = 'b'.repeat(64);
-  const view = { nodes: [{ id: 'book', role: 'document_root' }, { id: 'passage', role: 'story_passage' },
+  const view = { graph: { source: { kind: 'model', model_hash: modelHash } }, nodes: [{ id: 'book', role: 'document_root' }, { id: 'passage', role: 'story_passage' },
     { id: 'author.world', node_type: 'storytelling.world', subject: 'book', text: JSON.stringify({ data: { schema: 'meaning-model-story-world/v1', stage: 'author_reader',
       author: { personId: 'leo', name: 'An author with a coinciding local ID', lifeModelHash } } }) }],
     edges: [{ source: { kind: 'node', node_id: 'book' }, target: { kind: 'node', node_id: 'passage' }, family: 'structural', relation: 'contains' }] };

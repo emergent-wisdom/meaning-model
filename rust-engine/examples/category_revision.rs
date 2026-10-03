@@ -26,6 +26,7 @@ fn answers(counts: &[(&str, u32)]) -> Vec<NormalizedCutAnswer> {
         .map(|(key, count)| NormalizedCutAnswer {
             key: (*key).to_owned(),
             weight: f64::from(*count) / 10.0,
+            meaning: None,
         })
         .collect()
 }

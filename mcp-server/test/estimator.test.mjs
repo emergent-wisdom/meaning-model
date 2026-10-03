@@ -307,8 +307,10 @@ test('ingest notes can link to each other, and a conditioned question divides on
   const f = modelFixture();
   f.definition.meaning_model.events.push({ id: 'event.world', boundary: 'Accepted world.' });
   const batches = [];
+  const judged = [];
   f.service.applyNarrativeBatch = async (input) => { batches.push(input); return { graphHash: 'c3'.repeat(32), stored: true }; };
   const estimator = { backend: 'typesafe', model: 'jev-1.13.0', label: 'typesafe:jev-1.13.0', async estimate(state, questions) {
+    judged.push(state);
     const conduit = /conduit/i.test(questions.shares.instructions);
     return { model: 'jev-1.13.0', usage: { input_tokens: 20, output_tokens: 1 }, answers: { shares: { type: 'choice', choice: 'x', confidence: 0.4,
       probabilities: conduit ? { stablecoins: 0.7, etfs: 0.2, remainder: 0.1 } : { monetary: 0.02, crypto: 0.9, remainder: 0.08 } } } };
@@ -326,6 +328,7 @@ test('ingest notes can link to each other, and a conditioned question divides on
   const revise = f.calls.find(([kind]) => kind === 'revise')[1].model;
   const conduit = revise.meaning_model.normalized_cuts.find((cut) => cut.id === 'cut.event.2024.conduit');
   assert.deepEqual(conduit.conditioning, { cut_id: 'cut.event.2024.driver', answer_key: 'monetary' });
+  assert.match(judged[1].within, /defined as: US monetary conditions\./);
   assert.equal(revise.meaning_model.normalized_cuts.find((cut) => cut.id === 'cut.event.2024.driver').conditioning, undefined);
   assert.match(result.warnings[0], /carries only 0\.02/);
   const link = batches[0].narrativeBatch.add_edges.find((edge) => edge.relation === 'refines');

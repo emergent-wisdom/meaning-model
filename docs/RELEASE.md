@@ -26,7 +26,9 @@ The Book export retains its selected public construction history: prior native
 model and graph revisions, attributed reviews, construction rationales, and
 prose revisions. Earlier private predecessors omitted from the initial public
 revision remain excluded. The publication manifest and its accompanying mapping
-record identify the retained lineage and any publication-path redactions.
+record identify the retained lineage and publication redactions. Private
+coordination is omitted from the publication copy; the native models, substantive
+construction findings and rendered manuscript are preserved.
 
 A fresh release import verifies that retained history and the exact current
 rendering. It has its own source digests and is not the original authoring

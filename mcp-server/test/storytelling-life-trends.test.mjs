@@ -112,6 +112,27 @@ async function reviewInput(f) {
   };
 }
 
+test('scene preparation applies access scopes to native person state and reports partial coverage', async () => {
+  const f = fixture();
+  f.addon.service.model.processes = [
+    { id: 'capacity.public', unit: 'hours', initial_value: { kind: 'scalar', value: 3 }, access_scopes: [], scale: { subject_referent_id: 'Leo' } },
+    { id: 'capacity.private', unit: 'hours', initial_value: { kind: 'scalar', value: 875 }, access_scopes: ['private'], scale: { subject_referent_id: 'Leo' } },
+  ];
+  f.addon.service.model.initial_claims = [{ id: 'private.report', subject: 'capacity.public', value: { kind: 'scalar', value: 900 },
+    value_time: 0, evidence_cutoff: 0, holder: 'private-accountant', evidence_type: 'report', access_scopes: ['private'] }];
+  const publicPacket = await f.addon.prepare(f.preparation);
+  assert.doesNotMatch(JSON.stringify(publicPacket.model), /capacity\.private|private-accountant/);
+  assert.equal(publicPacket.model.scope.completeNativeModel, false);
+  const publicState = publicPacket.model.states.find(({ personId }) => personId === 'Leo');
+  assert.deepEqual(publicState.values.map(({ processId }) => processId), ['capacity.public']);
+  assert.deepEqual(publicState.values[0].accounts, []);
+  const privatePacket = await f.addon.prepare({ ...f.preparation, accessScopes: ['private'] });
+  assert.equal(privatePacket.model.scope.completeNativeModel, true);
+  const privateState = privatePacket.model.states.find(({ personId }) => personId === 'Leo');
+  assert.ok(privateState.values.some(({ processId }) => processId === 'capacity.private'));
+  assert.equal(privateState.values.find(({ processId }) => processId === 'capacity.public').accounts[0].holder, 'private-accountant');
+});
+
 test('life dossier requires a chronological whole-life trajectory rather than a story-entry snapshot', () => {
   const valid = lifeTrendsDossier();
   assert.deepEqual(lifeTrendsSchema.parse(valid), valid);

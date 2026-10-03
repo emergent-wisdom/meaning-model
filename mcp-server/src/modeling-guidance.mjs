@@ -2,6 +2,7 @@ import { thinkInTheModelInstructions } from './model-questions.mjs';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { constructionRecordInstructions } from './construction-principles.mjs';
+import { modelingWorkflows, purposeInstructions, workflowForPurpose } from './workflow-guidance.mjs';
 
 export const modelingPurposes = Object.freeze([
   'creative_story',
@@ -10,6 +11,9 @@ export const modelingPurposes = Object.freeze([
   'observation',
   'forecasting',
   'counterfactual',
+  'agent_memory',
+  'user_memory',
+  'human_author_feedback',
 ]);
 
 export const modelingSessionModes = Object.freeze([
@@ -22,49 +26,19 @@ export const modelingSessionModes = Object.freeze([
 
 // Continuing someone's recorded work: read the record before changing it, then keep recording.
 export const continuationSteps = Object.freeze([
-  'Read life_construction_replay on the graph you were given, from the start at outline level: every model and graph revision with the first line of each note.',
-  'Read life_model_outline on the same graph: the current Events, Cuts, concepts and the notes attached to them.',
+  'Read life_construction_replay for history you have not already read, at outline level. When you retain the relevant history and exact known graph head, reuse that reading and inspect only subsequent revisions and relevant records. If saved work may have advanced, establish the intended head and lineage before acting. For unfamiliar history, lost context or an ambiguous branch, read from the start: every model and graph revision with the first line of each note.',
+  'Read life_model_outline on the intended graph when its current structure is unfamiliar or has changed; reuse a retained outline at the same exact head.',
   'Open reasoning or full detail, life_narrative_query or life_model_inspect only where you need it, before your first change.',
-  'Record your reading and your plan as notes under your own holder before changing anything; link notes that build on, answer or replace earlier ones with refines, answers or supersedes.',
+  'Record consequential findings, changed plans and open questions under your own holder, batching related notes and linking those that build on, answer or replace earlier ones with refines, answers or supersedes. Routine continuation needs no separate reading-plan or compliance record.',
 ]);
 
-// How much theory an agent reads before modeling. "papers" (the default) asks for both complete
-// papers before the first substantive run. "guides" makes the guides and protocol the entry and
-// the papers a reference opened where a rule needs its reason. It exists to test whether the
-// tool's own guidance is enough; the served protocol and storytelling guide change with it.
-export function readingMode(env = process.env) {
-  return env.MEANING_MODEL_READING === 'guides' ? 'guides' : 'papers';
+// Compatibility helpers: operational guides are always the entry. Legacy environment or
+// caller settings cannot reinstate a paper-reading requirement, and resources are canonical.
+export function readingMode() {
+  return 'guides';
 }
 
-const guidesEntry = `## Entry
-
-The guides and this protocol carry the procedure; the papers carry the reasons. Before a first
-substantive model, read this protocol, the guide or profile for your purpose, and one worked
-example. *The Meaning Model* and *Life Simulation* are the theory behind every rule here. You
-need not read them first: open one, or the section a guide names, when a rule or a distinction
-needs its reason, when the work enters a new domain, or when a result surprises you. The server
-does not record what you read.
-
-`;
-
-// The served text of a resource under the guides reading mode; unchanged under papers.
-export function servedText(uri, text, reading = readingMode()) {
-  if (reading !== 'guides') return text;
-  const replaceOnce = (source, pattern, replacement) => {
-    if (!pattern.test(source)) throw new Error(`Reading mode guides cannot adapt ${uri}: its entry text changed.`);
-    return source.replace(pattern, replacement);
-  };
-  if (uri === 'life-sim://protocol/modeling') {
-    let adapted = replaceOnce(text, /## Paper-first entry contract\n[\s\S]*?(?=## Common procedure)/u, guidesEntry);
-    adapted = replaceOnce(adapted, /The required paper-grounded flow is:/u, 'The flow is:');
-    adapted = replaceOnce(adapted, /2\. Read both complete theory resources, then the protocol, profile, and example\.\n[\s\S]*?check `theoryAccessGate` after reading\.\n/u,
-      '2. Read the protocol, the guide or profile, and the example; open a paper where one of them\n   points for the reason behind a rule.\n');
-    return adapted;
-  }
-  if (uri === 'life-sim://addon/storytelling') {
-    return replaceOnce(text, /Read the required Meaning Model and Life Simulation paper resources and common\nmodeling protocol before authoring a model\./u,
-      'Read the common modeling protocol before authoring a model, and open the Meaning Model\nand Life Simulation papers where it points for the reasons behind a rule.');
-  }
+export function servedText(_uri, text) {
   return text;
 }
 
@@ -111,7 +85,7 @@ const resourceDefinitions = Object.freeze([
     uri: 'life-sim://protocol/modeling',
     title: 'Meaning Model Modeling Protocol',
     description:
-      'Operational checklist used after the complete papers have been understood.',
+      'Operational modeling contract and entry procedure; the papers are optional references.',
     mimeType: 'text/markdown',
     file: new URL('../../docs/MODELING_PROTOCOL.md', import.meta.url),
     category: 'protocol',
@@ -123,6 +97,24 @@ const resourceDefinitions = Object.freeze([
     description: 'Macro-to-micro modeling, long-term context, domain-defined processes, compact world construction, optional Jev estimation and graph-backed review without storytelling requirements.',
     mimeType: 'text/markdown',
     file: new URL('../../docs/GENERAL_MODELING.md', import.meta.url),
+    category: 'protocol',
+  },
+  {
+    id: 'memory-guide',
+    uri: 'life-sim://guide/memory',
+    title: 'Agent and User Memory as Continuing Process Models',
+    description: 'Scoped, attributed memory that develops ongoing processes through the shared model and Understanding Graph.',
+    mimeType: 'text/markdown',
+    file: new URL('../../docs/MEMORY.md', import.meta.url),
+    category: 'protocol',
+  },
+  {
+    id: 'human-author-feedback-guide',
+    uri: 'life-sim://guide/human-author-feedback',
+    title: 'Human Authorship with Model-based Feedback',
+    description: 'Read-only feedback and human-directed revision using the common construction method without taking over authorship.',
+    mimeType: 'text/markdown',
+    file: new URL('../../docs/HUMAN_AUTHOR_FEEDBACK.md', import.meta.url),
     category: 'protocol',
   },
   {
@@ -219,14 +211,14 @@ export async function expandTexInputs(text, file) {
   return text.replace(pattern, (_line, name) => `% ---- Begin included file ${name}.tex, expanded inline for this resource ----\n${included.get(name).replace(/\n$/, '')}\n% ---- End included file ${name}.tex ----`);
 }
 
-async function loadDefinition(definition, reading = readingMode()) {
+async function loadDefinition(definition) {
   const raw = await readFile(definition.file, 'utf8');
-  const text = servedText(definition.uri, definition.mimeType === 'text/x-tex' ? await expandTexInputs(raw, definition.file) : raw, reading);
+  const text = definition.mimeType === 'text/x-tex' ? await expandTexInputs(raw, definition.file) : raw;
   return {
     id: definition.id,
     uri: definition.uri,
     title: definition.title,
-    description: describedFor(definition, reading),
+    description: definition.description,
     mimeType: definition.mimeType,
     category: definition.category,
     sha256: sha256(text),
@@ -235,23 +227,21 @@ async function loadDefinition(definition, reading = readingMode()) {
   };
 }
 
-function describedFor(definition, reading) {
-  return reading === 'guides' && definition.id === 'modeling-protocol'
-    ? 'Operational checklist for modeling; the papers carry the reasons behind it.'
-    : definition.description;
+export function listModelingResources() {
+  return [...resourceDefinitions.filter(({ category }) => category !== 'theory'),
+    ...resourceDefinitions.filter(({ category }) => category === 'theory')]
+    .map(({ file: _file, ...definition }) => definition);
 }
 
-export function listModelingResources(reading = readingMode()) {
-  return resourceDefinitions.map(({ file: _file, ...definition }) => ({ ...definition, description: describedFor(definition, reading) }));
-}
-
-export async function readModelingResource(uri, reading = readingMode()) {
+export async function readModelingResource(uri) {
   const definition = byUri.get(uri);
   if (!definition) throw new Error(`Unknown modeling resource ${uri}.`);
-  return loadDefinition(definition, reading);
+  return loadDefinition(definition);
 }
 
 function profileUri(purpose) {
+  if (purpose === 'agent_memory' || purpose === 'user_memory') return 'life-sim://guide/memory';
+  if (purpose === 'human_author_feedback') return 'life-sim://guide/human-author-feedback';
   if (purpose === 'creative_story' || purpose === 'source_reconstruction') {
     return 'life-sim://profile/story';
   }
@@ -282,68 +272,51 @@ function ensureMode(sessionMode) {
 export async function buildModelingContext({
   purpose,
   sessionMode,
-  readTheoryUris = [],
-  reading = readingMode(),
 }) {
   ensurePurpose(purpose);
   ensureMode(sessionMode);
   const [meaning, life, protocol] = await Promise.all([
-    readModelingResource('life-sim://theory/meaning-model', reading),
-    readModelingResource('life-sim://theory/life-simulation', reading),
-    readModelingResource('life-sim://protocol/modeling', reading),
+    readModelingResource('life-sim://theory/meaning-model'),
+    readModelingResource('life-sim://theory/life-simulation'),
+    readModelingResource('life-sim://protocol/modeling'),
   ]);
   const theoryDigests = {
     meaningModel: meaning.sha256,
     lifeSimulation: life.sha256,
   };
-  const readTheorySet = new Set(readTheoryUris);
-  const accessedCurrentTheory = modelingTheoryUris.every((uri) => readTheorySet.has(uri));
-  const guides = reading === 'guides';
-  const requiresFullTheoryRead = !guides && (sessionMode !== 'repeat_same_domain' || !accessedCurrentTheory);
-  const theoryReference = 'The theory behind the guides. You need not read it first: open it, or the section a guide names, when a rule or a distinction needs its reason.';
+  const theoryReference = 'Optional theory reference: open the relevant section when a rule or distinction needs a fuller explanation. Reading the paper is not a prerequisite for modeling.';
   const selectedProfile = profileUri(purpose);
   const selectedExample = exampleUri(purpose);
   const orderedResources = [
     {
-      uri: meaning.uri,
-      sha256: meaning.sha256,
-      required: requiresFullTheoryRead,
-      reason: guides ? theoryReference : requiresFullTheoryRead
-        ? 'Required before substantive first-use, changed-theory, new-domain, or consequential modeling.'
-        : 'Already accessed in this live MCP process for repeat work in the same domain; reread whenever interpretation is uncertain.',
-    },
-    {
-      uri: life.uri,
-      sha256: life.sha256,
-      required: requiresFullTheoryRead,
-      reason: guides ? theoryReference : requiresFullTheoryRead
-        ? 'Required to understand temporal state, inference, candidate authority, and accepted chronology.'
-        : 'Already accessed in this live MCP process for repeat work in the same domain; reread whenever interpretation is uncertain.',
-    },
-    {
       uri: protocol.uri,
       sha256: protocol.sha256,
       required: true,
-      reason: guides ? 'The execution checklist.' : 'Use as the execution checklist after theory comprehension.',
+      reason: 'The operational modeling contract and entry procedure. Read on first use or when changed; reuse unchanged guidance that you retain.',
     },
+    ...(!selectedProfile ? [{ uri: 'life-sim://guide/general-modeling', required: true, reason: 'General modeling workflow, compact construction, optional Jev estimation and exact review/record boundaries. Reuse unchanged guidance that you retain.' }] : []),
+    ...(selectedProfile
+      ? [{ uri: selectedProfile, required: true, reason: 'Purpose-specific modeling and output contract. Reuse unchanged guidance that you retain.' }]
+      : []),
+    { uri: selectedExample, required: true, reason: 'Inspect one worked representation before expanding the model; reuse that reading while it remains applicable and unchanged.' },
+    ...(purpose === 'creative_story' ? [{ uri: 'life-sim://example/book-of-conditions-modeling', required: false,
+      reason: 'Recommended alongside the representation example: how the Book connects coexisting life processes, wants, outlook, material constraints, and voice, then chooses what to open or leave sufficient.' }] : []),
+    { uri: 'life-sim://example/application-categories', required: false, reason: 'Use when choosing a starter or developing and revising application-specific categories.' },
     {
       uri: 'life-sim://protocol/narrative-understanding-graph',
       required: false,
       reason: 'Read before first use of the optional graph-native story, testimony, rendering, or training-export tools.',
     },
-    ...(!selectedProfile ? [{ uri: 'life-sim://guide/general-modeling', required: true, reason: 'General modeling workflow, compact construction, optional Jev estimation and exact review/record boundaries.' }] : []),
-    ...(selectedProfile
-      ? [{ uri: selectedProfile, required: true, reason: 'Purpose-specific modeling and output contract.' }]
-      : []),
-    { uri: selectedExample, required: true, reason: 'Inspect one worked representation before expanding the model.' },
-    ...(purpose === 'creative_story' ? [{ uri: 'life-sim://example/book-of-conditions-modeling', required: false,
-      reason: 'Recommended alongside the representation example: how the Book connects coexisting life processes, wants, outlook, material constraints, and voice, then chooses what to open or leave sufficient.' }] : []),
-    { uri: 'life-sim://example/application-categories', required: false, reason: 'Use when choosing a starter or developing and revising application-specific categories.' },
+    { uri: meaning.uri, sha256: meaning.sha256, required: false, reason: theoryReference },
+    { uri: life.uri, sha256: life.sha256, required: false, reason: theoryReference },
   ];
   return {
     schema: 'life-sim-modeling-context/v2',
     purpose,
-    workflow: purpose === 'creative_story' || purpose === 'source_reconstruction' ? 'storytelling' : 'general_modeling',
+    workflow: workflowForPurpose(purpose).id,
+    availableWorkflows: modelingWorkflows,
+    workflowEntry: workflowForPurpose(purpose),
+    purposeInstructions: purposeInstructions(purpose),
     sessionMode,
     modelingFreedom,
     starterSelection,
@@ -351,19 +324,18 @@ export async function buildModelingContext({
     conceptualReview,
     constructionRecord: constructionRecordInstructions,
     ...(sessionMode === 'continuation' ? { continuation: { steps: continuationSteps, note: 'The record is the earlier agent\'s understanding. Build on it; where you disagree, record why and link it with contradicts or supersedes rather than silently replacing it.' } } : {}),
-    paperFirst: !guides,
-    readingMode: reading,
-    requiresFullTheoryRead,
+    paperFirst: false,
+    readingMode: readingMode(),
+    requiresFullTheoryRead: false,
     theoryDigests,
     theoryAccessGate: {
-      requiredUris: guides ? [] : modelingTheoryUris,
-      readUris: modelingTheoryUris.filter((uri) => readTheorySet.has(uri)),
-      satisfied: guides || accessedCurrentTheory,
+      requiredUris: [],
+      readUris: [],
+      satisfied: true,
+      enforced: false,
       durableAcrossServerRestart: false,
     },
-    comprehensionBoundary: guides
-      ? 'The guides carry the procedure and the papers the reasons. The server does not check what was read or understood.'
-      : 'The live server can verify that both complete resources were accessed, not that an agent understood them. Digests prove byte identity only and never satisfy the access gate.',
+    comprehensionBoundary: 'The operational guides carry the method; the papers are optional references. Required resources need reading on first use, when changed or when their relevant guidance is no longer retained, not before every reply. The server does not track or require paper access and cannot verify comprehension. Resource digests identify exact bytes, not reading or understanding.',
     orderedResources,
     minimumChecklist: [
       'declare purpose, interval, scope, resolution, and authority',
@@ -377,11 +349,11 @@ export async function buildModelingContext({
       'connect earlier and later states through supporting events, reports, or declared laws; distinguish world changes from revised estimates and leave unexplained transitions open',
       'represent sampled trajectories before inventing transition laws',
       'preserve competing interpretations, uncertainty, provenance, viewpoint, and residuals',
-      'test causal use, irrelevant-input stability, and coarse-fine conservation',
+      'test causal use and irrelevant-input stability when causal laws or predictions are introduced, and coarse-fine conservation when a conservative refinement is claimed; apply checks only to the constructs and commitments present',
       'compare alternative decompositions and revise categories when a different account better serves the task',
       'revise explicitly and project only the requested view',
       'describe every Event that carries a Cut, and most other Events, so their numbers mean something',
-      'record choices, ideas, predictions and reasons as Understanding Nodes linked to what they concern, and outside reviews under their actual reviewers; replay the construction before continuing existing work',
+      'record consequential choices, ideas, predictions and reasons as Understanding Nodes linked to what they concern, and outside reviews under their actual reviewers; recover unfamiliar construction history or changes since the exact head already read before continuing existing work',
     ],
     valueAndFunctionSupport: {
       sampledValues:
@@ -405,15 +377,13 @@ export async function buildModelingContext({
   };
 }
 
-export async function buildModelingPrompt({ purpose, sessionMode, reading = readingMode() }) {
+export async function buildModelingPrompt({ purpose, sessionMode }) {
   const context = await buildModelingContext({
     purpose,
     sessionMode,
-    readTheoryUris: [],
-    reading,
   });
   const ordered = context.orderedResources
-    .map((resource, index) => `${index + 1}. ${resource.uri}${resource.required ? ' (required)' : ''}`)
+    .map((resource, index) => `${index + 1}. ${resource.uri} (${resource.required ? 'required when new, changed or no longer retained' : 'optional reference'})`)
     .join('\n');
   return [
     `Begin a Meaning Model modeling session. Purpose: ${purpose}. Session mode: ${sessionMode}.`,
@@ -427,13 +397,12 @@ export async function buildModelingPrompt({ purpose, sessionMode, reading = read
     '',
     context.conceptualReview,
     '',
-    context.readingMode === 'guides'
-      ? 'Call life_modeling_context, then read its required resources in order. The papers are the theory behind the guides: open one, or the section a guide names, when a rule or a distinction needs its reason.'
-      : 'Do not treat the short protocol as a substitute for the theory. Call life_modeling_context, then read the complete current papers and its other required resources in order:',
+    'Call life_modeling_context, then read the operational protocol, the guide or profile for your purpose, and a worked example in its required order. Reuse unchanged guidance that you retain; a new conversational reply does not require rereading it or recording that you did so. Refresh guidance when its content changes, your purpose needs an unfamiliar guide, or relevant context has been lost. The papers are optional references for fuller explanations; no paper reading is required before modeling.',
     ordered,
     '',
-    `${context.readingMode === 'guides' ? 'After that reading' : 'Only after that reading'}, declare purpose, interval, scope, resolution, authority, and evidence classes. Preserve alternative interpretations and use sampled trajectories before proposing unsupported functions.`,
+    'Declare purpose, interval, scope, resolution, authority, and evidence classes. Preserve alternative interpretations and use sampled trajectories before proposing unsupported functions.',
     '',
     constructionRecordInstructions,
+    ...(context.purposeInstructions ? ['', 'Apply the shared method within this authority boundary:', context.purposeInstructions] : []),
   ].join('\n');
 }

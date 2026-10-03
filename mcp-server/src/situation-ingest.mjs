@@ -3,7 +3,7 @@
 // model revision, rebinds a bound graph, and stores the notes as Understanding Nodes.
 import { createHash } from 'node:crypto';
 import * as z from 'zod/v4';
-import { REMAINDER_KEY, buildCutShareQuestions, proposalFromProbabilities } from './cut-shares.mjs';
+import { REMAINDER_KEY, buildCutShareQuestions, proposalFromProbabilities, cutAnswerMeaningSchema } from './cut-shares.mjs';
 import { rebindNarrativeGraph, preflightNarrativeRebind, assertCompleteNarrativeView } from './narrative-rebind.mjs';
 
 import { retainEstimatorProposal, readEstimatorProposal, runEstimatorRequest } from './estimator-receipts.mjs';
@@ -31,8 +31,8 @@ export const ingestSchema = z.object({
     id: shortId,
     question: z.string().trim().min(1).max(2_000),
     unit: z.string().trim().min(1).max(256).default('share of one budget'),
-    answers: z.array(z.object({ key: shortId, meaning: prose }).strict()).min(1).max(60),
-    remainderMeaning: prose.default('Something else, or no single named answer dominates.'),
+    answers: z.array(z.object({ key: shortId, meaning: cutAnswerMeaningSchema }).strict()).min(1).max(60),
+    remainderMeaning: cutAnswerMeaningSchema.default('Something else, or no single named answer dominates.'),
     subject: z.string().trim().min(1).max(1_000).nullable().default(null),
     eventIds: z.array(id).max(32).default([]),
     // This question divides only the part of the same event that another question gave to answerKey.
@@ -163,7 +163,14 @@ async function executeIngest(input, estimator, service, checkpoint = null) {
   const proposals = []; const usage = { input_tokens: 0, output_tokens: 0 }; const sources = new Set(); let model = estimator?.model ?? null; const pending = [];
   for (const question of input.questions) {
     const targetIds = question.eventIds.length ? question.eventIds : input.events.map((event) => event.eventId);
-    const targets = targetIds.map((eventId) => ({ id: eventId, parentEventId: eventId, cutId: `cut.${eventId}.${question.id}`, text: situationText(eventId) }));
+    const targets = targetIds.map((eventId) => {
+      const condition = question.conditionedOn;
+      const enclosing = condition && (input.questions.find((item) => item.id === condition.questionId)
+        ?? successor.meaning_model.normalized_cuts.find((cut) => cut.id === `cut.${eventId}.${condition.questionId}`));
+      const meaning = enclosing?.answers.find((answer) => answer.key === condition.answerKey)?.meaning;
+      return { id: eventId, parentEventId: eventId, cutId: `cut.${eventId}.${question.id}`, text: situationText(eventId),
+        ...(enclosing ? { within: { answerKey: condition.answerKey, question: enclosing.question, ...(meaning ? { meaning } : {}) } } : {}) };
+    });
     const shaped = { question: question.question, unit: question.unit, answers: question.answers, remainderMeaning: question.remainderMeaning, subject: question.subject, idPrefix: `cut.${question.id}` };
     for (const request of buildCutShareQuestions(shaped, targets)) {
       const target = targets.find((item) => item.id === request.situationId);
@@ -199,7 +206,7 @@ async function executeIngest(input, estimator, service, checkpoint = null) {
   const cuts = new Map(successor.meaning_model.normalized_cuts.map((cut, index) => [cut.id, index]));
   for (const proposal of proposals) {
     const condition = conditioning.get(proposal.id);
-    const cut = { id: proposal.id, parent_event_id: proposal.parent_event_id, question: proposal.question, unit: proposal.unit, answers: proposal.answers.map(({ key, weight }) => ({ key, weight })), ...(condition ? { conditioning: condition } : {}), provenance: proposal.provenance };
+    const cut = { id: proposal.id, parent_event_id: proposal.parent_event_id, question: proposal.question, unit: proposal.unit, answers: proposal.answers.map(({ key, weight, meaning }) => ({ key, weight, ...(meaning == null ? {} : { meaning }) })), ...(condition ? { conditioning: condition } : {}), provenance: proposal.provenance };
     if (cuts.has(cut.id)) { if (!input.replaceExisting) throw new Error(`Cut ${cut.id} already exists; set replaceExisting to supersede it.`); successor.meaning_model.normalized_cuts[cuts.get(cut.id)] = cut; }
     else successor.meaning_model.normalized_cuts.push(cut);
   }

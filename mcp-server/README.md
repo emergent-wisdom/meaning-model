@@ -6,14 +6,15 @@ MCP **resources** are readings (`life-sim://…`); **prompts** prepare instructi
 for the calling LLM; **tools** inspect or change records. A start prompt does not
 run a model by itself.
 
-General modeling and the shared model, document, understanding, lens and viewer
+General modeling, agent/user memory and the shared model, document, understanding, lens and viewer
 tools are always available. `MEANING_MODEL_ADDONS=storytelling` adds the fiction
-workflow; `alien` adds mechanism search through invented worlds. Enable both with
+and human-author feedback workflows; `alien` adds mechanism search through invented worlds. Enable both with
 `MEANING_MODEL_ADDONS=storytelling,alien`; they use the same core. Estimator and
 reading settings are independent of these add-ons.
 
 Choose a **purpose** within the work: `observation`, `forecasting`,
-`counterfactual`, `creative_story`, `source_reconstruction`, or `person_reflection`.
+`counterfactual`, `creative_story`, `source_reconstruction`, `person_reflection`,
+`agent_memory`, `user_memory`, or `human_author_feedback`.
 Purposes select evidence and authority guidance; they do not enable add-ons.
 `sessionMode` describes first use, repeat work, a new domain, consequential work,
 or continuation, rather than another modeling workflow.
@@ -22,16 +23,37 @@ or continuation, rather than another modeling workflow.
    keep. See [Keep and continue your work](#keep-and-continue-your-work).
 2. Start with the `life_general_modeling_start` prompt for general work, or
    `life_modeling_start` for the other purposes. Call `life_modeling_context`,
-   then read its required resources. See the [reading entry](#paper-grounded-modeling-entry).
+   then read its required resources. See the [modeling entry](#modeling-entry).
 3. For new general work, preview and apply `life_world_model_build`; for existing
    work, use `sessionMode: continuation`, select a saved branch with
    `life_saved_work_list`, and read its replay and outline before editing.
 4. Inspect `life_model_questions`, record decisions and revisions, then open the
    resulting exact revision with `life_model_viewer_open`.
 
+## Memory and human-led feedback
+
+All modes receive the shared recursive construction instructions: assess the
+longer, enclosing processes, deepen where a useful question leads, discover and
+revise categories, and keep the reasoning in linked, attributed Understanding
+Nodes. Mode-specific guidance changes authority and purpose, not the grammar.
+
+For **agent/user memory**, start with `life_modeling_context` and the matching
+purpose, then `life_memory_start`. Record and retrieve with `life_memory_record`
+and `life_memory_query`; develop ongoing processes through the ordinary model
+revision tools. Useful memories are captured within the chosen scope, without
+approval for each entry. Persisting across restart requires `LIFE_SIM_STATE_FILE`.
+See [the memory guide](../docs/MEMORY.md) for attribution, temporal context,
+correction and scope boundaries.
+
+For **human authorship**, choose purpose `human_author_feedback`, with the
+storytelling add-on enabled. `life_story_feedback` prepares a read-only task
+from supplied text or an exact graph/root. The human writes and decides; the
+LLM explains its feedback without taking over or rewriting unless asked. See
+[the feedback guide](../docs/HUMAN_AUTHOR_FEEDBACK.md).
+
 ## Browser viewer
 
-With version 0.6.5, ask the connected assistant to **“Open this model.”**
+With version 0.6.6, ask the connected assistant to **“Open this model.”**
 The core `life_model_viewer_open` tool accepts exactly one `modelHash` or
 `graphHash`, optional `title`, `accessScopes`, and `mode` (`snapshot` or `live`).
 It returns a local browser URL; the default is an immutable, read-only snapshot. The viewer is bundled with the MCP package;
@@ -190,20 +212,21 @@ that workflow and distinguishes model revision from applying it to a live world.
 
 ## Tools
 
-### Paper-grounded modeling entry
+### Modeling entry
 
 The server exposes the canonical Meaning Model paper source at
 [`paper/meaning-model.tex`](../paper/meaning-model.tex) and the frozen Life
 Simulation companion paper source at
 [`docs/companions/life-simulation/life-simulation.tex`](../docs/companions/life-simulation/life-simulation.tex)
-as MCP resources, followed by the operational
+as optional reference resources, alongside the operational
 [`MODELING_PROTOCOL.md`](../docs/MODELING_PROTOCOL.md), Story and Person profiles,
 the Decision compilation convention, the optional
 [`Narrative Understanding Graph`](../docs/NARRATIVE_UNDERSTANDING_GRAPH.md)
 protocol, and checked examples.
 `life_modeling_context` returns their SHA-256 digests and
-an ordered reading contract for creative story, source reconstruction,
-person-reflection, observation, forecasting, or counterfactual work. The
+an operational entry for creative story, source reconstruction,
+person-reflection, observation, forecasting, counterfactual work, memory, and
+human-author feedback. The
 `life_modeling_start` MCP prompt provides the same entry point.
 
 The Life Simulation snapshot is bound to its source file digests in
@@ -212,23 +235,14 @@ manuscript remains in the separate Life Simulation repository. Run
 `node scripts/verify-resources.mjs` from the Meaning Model repository root to
 check the companion snapshot, precompiled presets, and resource availability.
 
-Paper-first is the default. First use, a changed theory version, a new domain, or
-consequential real-person work requires reading the complete papers before using
-the short protocol. The
-live MCP process records access to both theory resources and gates
-`life_profile_compile` until both have been accessed. This gate does not cover all
-model writes. Same-domain repeat work in that process
-may reuse the access record, but caller-supplied digests never satisfy the gate
-and the record is lost on restart. Resource access is not evidence that an
-agent understood the papers, and the server does not claim to verify
-comprehension.
-
-The experimental `MEANING_MODEL_READING=guides` setting starts with the protocol,
-purpose-specific guide or profile, and a worked example. The served entry text
-changes accordingly; the papers remain references for the reasons behind the
-rules. It disables the two-paper profile-compilation gate, without changing model
-validation or demonstrating equivalent modeling quality. The alien add-on retains
-its separate paper-access requirement.
+Start with the operational protocol, the purpose-specific guide or profile,
+and a relevant worked example. These explain the construction method and the
+contracts needed to use the tools. Paper reading is optional; profile
+compilation and the alien add-on do not require it. The former
+`MEANING_MODEL_READING` setting is no longer needed. Papers remain available for
+the arguments, evidence and broader research program. Resource digests identify
+content; neither reading a resource nor passing validation proves understanding
+or model quality.
 
 The protocol deliberately does not hardcode an interview. The intelligent
 agent selects questions and interpretations; the server preserves model,
@@ -332,7 +346,7 @@ answers through `life_estimate_cut_shares`. Rebind the graph to the resulting mo
 revision, either explicitly or with the tool's `rebind` option.
 
 `life_revision_check` compares two model revisions using a scoped graph. It lists
-changed Events and Cuts, conditioned Cuts, affected draws, stale text readings,
+changed Events and normalized Cuts, conditioned Cuts, affected draws, stale text readings,
 Cuts whose Event is about a changed Event (until a recorded read covers the
 change), directly related later Events, passages with `renders` dependencies and
 anchored notes. A Cut may record the Events or the life account it read; those
@@ -340,7 +354,9 @@ reads are compared on every check. Telling phases whose reviewed passages or
 reading order changed are listed on every check until they are renewed, since
 they depend on the text rather than on the models compared. It also identifies
 passages lacking Event grounding or a current no-link reason. It does not repair them or verify prose meaning, complete dependency
-coverage or character knowledge. Its spatial change detection currently covers
+coverage or character knowledge. Concept definition or withdrawal changes,
+abstract-Cut changes and relation changes are not compared; inspect their linked
+notes and other dependents manually. Its spatial change detection currently covers
 Event `region`/`substrate` edits, not coordinate-process or location-binding changes;
 review their dependent passages and notes explicitly. This is distinct from the
 [story-revision diagnosis](#optional-story-revision-diagnosis), which organizes
@@ -1063,8 +1079,8 @@ only what that role may see:
 - a purpose-blind solver solves the problem inside that world;
 - a compiler brings the operative mechanism back into the problem's domain.
 
-The paper is bundled and must be read before a search: the write tools refuse
-until it has been read in the MCP process. Every cell of the paper's condition
+The add-on guide and generated role tasks supply the search procedure; its
+bundled paper is an optional reference. Every cell of the paper's condition
 matrix can be run, from direct proposals with a Semantic Tabu archive or the
 curated map to map-conditioned compilation.
 
@@ -1104,7 +1120,7 @@ Start the server with `MEANING_MODEL_ADDONS=alien` to enable nine tools:
 
 It also enables the `life-sim://addon/alien` guide, the bundled paper as
 `life-sim://theory/ontology-of-the-alien`, and the `life_alien_start` prompt.
-The write tools refuse until that paper has been read in the MCP process.
+No paper-reading gate applies to these tools.
 
 Each recorded output cites the stored task it answers (`taskNodeId`); the
 server checks that task's role and text hash and binds each world's seed and

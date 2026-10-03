@@ -1,0 +1,338 @@
+{
+  "schema": "meaning-model-publication-projection/v1",
+  "publicationDate": "2026-10-03",
+  "proseEditionDate": "2026-10-02",
+  "scope": "Private coordination omitted from non-rendered notes; all native definitions, literary findings and prose retained.",
+  "source": {
+    "headGraphHash": "411735a38675e455b3e5088e719d38136b7c2011b296d2086a69ef87accab1e8",
+    "fileSha256": "aabdcfab702553908f3960eb6ad190bf2a7deac9019f9d1cd638d610822267c1",
+    "revisions": 66,
+    "models": 7
+  },
+  "publication": {
+    "file": "the-book-of-conditions.meaning-model.json",
+    "fileSha256": "1f08618e7591645f21b8620d9059b427f03a808b37bde655d493e0c7ffcb3fc0",
+    "bundleSha256": "3a13d5d51a6d9e694f488b4956f2317bf440746af93823665766c6aa31c1efb1",
+    "headGraphHash": "e3db64fc05556d357b943bcd26967d4519a73330910bbddd5965f5c7f4070c3e",
+    "revisions": 67,
+    "models": 7,
+    "unchangedPrefixRevisions": 13,
+    "disclosureNodeId": "author.book.publication-privacy.20261003"
+  },
+  "manuscript": {
+    "file": "the-book-of-conditions.md",
+    "sha256": "4dbe1f5caa94aba8ef9d8d2a77a75e2faf56f3fff79e617d877672748fd97bb3",
+    "unchanged": true
+  },
+  "redactions": [
+    {
+      "nodeId": "author.book.064dev.stop-reason",
+      "field": "text",
+      "originalValueSha256": "4f3a921e53717e78fea93fa192f0cc62583130443607ff605110034ce2640ebc",
+      "reason": "Remove private coordination while preserving source coverage, methodological limits, and substantive judgments."
+    },
+    {
+      "nodeId": "author.book.064dev.stop-reason",
+      "field": "data.orchestrationNotes",
+      "originalValueSha256": "aa1374b8d0eb98da1ed9f8d4ddf7c6babf3a17fec7e5765ba4fdf6a80ac6dbd0",
+      "reason": "Omit local orchestration failures and receipt timing; retain the two substantive branch/evidence-validation notes."
+    },
+    {
+      "nodeId": "author.book.064dev.stop-reason",
+      "field": "data.alignmentActualJudgments.finalLocalJudgment",
+      "originalValueSha256": "b5df87425f1f61f14a2d777011e56b1cb84d6321d365c07ae6d41952acd97aa9",
+      "reason": "Neutralize assistant task directions while retaining attributed judgments and methodological limits."
+    },
+    {
+      "nodeId": "review.book.exploration.author.6c5047708861",
+      "field": "text",
+      "originalValueSha256": "5c5bf16a315bda02ad678eb1264608fba0dfd869e836cb6ec33d0bf7a4430ad8",
+      "reason": "Neutralize assistant task directions while retaining attributed judgments and methodological limits."
+    },
+    {
+      "nodeId": "review.book.exploration.native.6c5047708861",
+      "field": "text",
+      "originalValueSha256": "dc8a050f4001b4d1485ef33b97b2f88114fe4fc8aca58c12e84f3b6d98815c5d",
+      "reason": "Neutralize assistant task directions while retaining attributed judgments and methodological limits."
+    },
+    {
+      "nodeId": "author.book.064dev.continuation-context",
+      "field": "data",
+      "originalValueSha256": "eb151e71238f53c1b8a450ad06af268abb1d17d9e442140e4546f0b6e00fba60",
+      "reason": "Replace the quoted private delegation and source-chat setup metadata with the literary continuation scope. All other recorded method and source identities are retained."
+    }
+  ],
+  "revisionMapping": [
+    {
+      "source": "7a52371c766ae6bffc87864e55923c6e8fe7b8ea47d76369523ba6c2d31b20df",
+      "publication": "7a52371c766ae6bffc87864e55923c6e8fe7b8ea47d76369523ba6c2d31b20df"
+    },
+    {
+      "source": "ab4e4c056d4dec31f6b0ffe741ffb31f1ead63be415f1a5d715b5cb52e71c35f",
+      "publication": "ab4e4c056d4dec31f6b0ffe741ffb31f1ead63be415f1a5d715b5cb52e71c35f"
+    },
+    {
+      "source": "a9f874c8b0923293fcf2435097fe41633efabb69624b78768f5a5856f2f79db2",
+      "publication": "a9f874c8b0923293fcf2435097fe41633efabb69624b78768f5a5856f2f79db2"
+    },
+    {
+      "source": "8f2c01653a6a150af318e40e54c3dc249bbcafdeb45b42cf28b589290979ce71",
+      "publication": "8f2c01653a6a150af318e40e54c3dc249bbcafdeb45b42cf28b589290979ce71"
+    },
+    {
+      "source": "c220326a81a21eb2af04898e5dc2269705c2194d9f2a2611f43023ce31d9ea9b",
+      "publication": "c220326a81a21eb2af04898e5dc2269705c2194d9f2a2611f43023ce31d9ea9b"
+    },
+    {
+      "source": "f26c606ed9a10fb24c514b1e00bf37ba1ac6aeb20a077676e77b9a320d60bb56",
+      "publication": "f26c606ed9a10fb24c514b1e00bf37ba1ac6aeb20a077676e77b9a320d60bb56"
+    },
+    {
+      "source": "5494ec64d6c1e97668b524247bcbcfeac5ee412c74e0fd82b98dae39e2ae694e",
+      "publication": "5494ec64d6c1e97668b524247bcbcfeac5ee412c74e0fd82b98dae39e2ae694e"
+    },
+    {
+      "source": "81d82994fffca528fc69dc8b8be612b722affe844828ec60cd5fbc1004b6fbba",
+      "publication": "81d82994fffca528fc69dc8b8be612b722affe844828ec60cd5fbc1004b6fbba"
+    },
+    {
+      "source": "35573bab861732d71ada95c0dcfaa134c3e3120d2c7b1ba2d92e5512d5625ca7",
+      "publication": "35573bab861732d71ada95c0dcfaa134c3e3120d2c7b1ba2d92e5512d5625ca7"
+    },
+    {
+      "source": "49afdea371eed8186f1aed4b5609e07a4df975dac769c666b587c36ae76e0968",
+      "publication": "49afdea371eed8186f1aed4b5609e07a4df975dac769c666b587c36ae76e0968"
+    },
+    {
+      "source": "ee10d2179e052bfdb08f6b1e2438451e363582a305e73664a7e1d8c48862a041",
+      "publication": "ee10d2179e052bfdb08f6b1e2438451e363582a305e73664a7e1d8c48862a041"
+    },
+    {
+      "source": "6d0ac26e3266bfa11d099547b42d6ff4e5d91e67b1a93bda8a0bcf8c09cd4c61",
+      "publication": "6d0ac26e3266bfa11d099547b42d6ff4e5d91e67b1a93bda8a0bcf8c09cd4c61"
+    },
+    {
+      "source": "5c116745becdc5346ec69ab7247e53f237ac0c12c664d304b051a1b82e9c7748",
+      "publication": "5c116745becdc5346ec69ab7247e53f237ac0c12c664d304b051a1b82e9c7748"
+    },
+    {
+      "source": "8436ff2f1febc03bc27a6fe04f02d5547882525547c895defa4ae4a6dcd12f30",
+      "publication": "8551bd5c651e79349f5d2f45d83948cee8c501144a331cdf22e757c2744b2e8b"
+    },
+    {
+      "source": "9edfa774edc323bf236f7809504338053c8841e827215fd5940aadaf2bff7524",
+      "publication": "94df0e58fc7609137677e1e94e93d0064b1b7adf6b3c4d77016a2bf279ca28e5"
+    },
+    {
+      "source": "83148a389ad94e9b2b5269bfb37dd33934176902fd44834d23dac76eff0c9e51",
+      "publication": "28b57f24d1c0a3a126459aea56e28a1e120d20fb0e49ab2df02eb4d5d3be736c"
+    },
+    {
+      "source": "e3c6a2a9f31095e88f3e405431b5381b762416f22db492be631d13d852af62be",
+      "publication": "91951e2a0e442ec0f155b064a6ee315104a7ceb91ec1975b116d4199d12b342b"
+    },
+    {
+      "source": "f264c9c405b9ad45e0b49f3e61b35154d48f28f5857f4f5b21408d99758c627d",
+      "publication": "0213904ac43f63b5b76b73d70014e76536cf174a3cde7f5abb2a8cb3bff16466"
+    },
+    {
+      "source": "4a7ec89f568fe288f49113f4079d4554f81b17174765f270cf15b9a129048944",
+      "publication": "3e4af97d2a82d8b47e311ea73d354b28b7f2aaa72ee5af2d1bf8b99788739f17"
+    },
+    {
+      "source": "1ec90e66b432fc7f406e29993408aa7835e17af27b4c7662a301b9def70e00d0",
+      "publication": "08e91f6296eae5bfddc115bd8fde82369ec6198d7c25dfa4c6a91f54949f13f4"
+    },
+    {
+      "source": "12bf17a872613c2a36f1ab782927022019b64ad9198131178bb0e94625f71d8d",
+      "publication": "9ad943f7a95efde52cd559548d7332f4d7b1625441ee4a00a3a5ff90ca4f2362"
+    },
+    {
+      "source": "10ca6ce1648cbd774424bd34765576d0e8830fa15bb2b8e3d2afbbff345a7809",
+      "publication": "edfe9e4989deb8a700373f9794e791895ea853edc794565569e3c2c69d84b3fa"
+    },
+    {
+      "source": "0e31d7a054d74abe24dab0653a15f04b208ea5db5139e4f801a2a5d54d03894b",
+      "publication": "c7f1e65e7d1187cd9c0419aa60fb99983d71e45d28666f46183d3a8a35894378"
+    },
+    {
+      "source": "182f470aee6ffb70d73a6532c466d2e2e9d8e20baecc562ffb2e9595d4e37d4e",
+      "publication": "6ed66a1d9673e8b70d3329f60fc2482bb7e4e1c28940da00e32e8a863ca342a5"
+    },
+    {
+      "source": "c58af3a896dca5317824374810217b9581ccc3a3b015f0d801ef45cea5ec05f1",
+      "publication": "d8654fee6083454a8ad37bc76b884b5d66a2b495f4b398fcf43519c977934d9c"
+    },
+    {
+      "source": "459ee6a7d0f368701994ed9ebf934826cfd15e58874b165e0956302c3005ea71",
+      "publication": "3deab92818fbaaef2abe75bcf0401d1a4e9667c171a138eab5f6d7ba26a8ea0f"
+    },
+    {
+      "source": "b10286b40bdf044c60e1c16d0012816ca9cc74f95e38b55b016cf7124604e1c5",
+      "publication": "295df0818d8005da38e73dfd3e1c3903e80eb75bbd9366e8d417a4b5ae3be154"
+    },
+    {
+      "source": "5736765888275de61e36b26aaa34925976ae6da1235d9413218c6cb076459af0",
+      "publication": "156080780c7a0b1c4e26bef045ed6a3f6bd22eb4f5e28c87f415d86315b867af"
+    },
+    {
+      "source": "544c5b878db8dbf4ce1a4a55c79c8f7be7e62a4f18c07a5789fc1460f19a1d26",
+      "publication": "85a9b41e5cc2f2762ed2ebf9da6487a2b2c6344bb6de8119153739ea16765500"
+    },
+    {
+      "source": "ab4ba4fbbbcf82d1ba0eda14d6b6ac7887e91c12993b39ad51140549b8aaab35",
+      "publication": "7d621b86433b85511bda9dec5347b07d62ec4ba97ea1752ac934fd6fc25d212e"
+    },
+    {
+      "source": "3134d6fee8b3f3e2065ff331b1b82d706c85460e4d63e4636d816f3c5bfc6af6",
+      "publication": "4e6536b8331ce6aeea82c6a063ed54ed352248b65e64d9f11a73131c0cb15dd9"
+    },
+    {
+      "source": "08259d7d93b753b9d763d282446f09ae49df5999107b292809e77d40cd5218ad",
+      "publication": "d96d94a421c581eb905fc0355f82fa4efb5fbd77bed907aeabf98f9401e4dbd7"
+    },
+    {
+      "source": "4d5e0a8aac054d4123a2596e8e20a702785f28ed41947276e908d4ef73afb97a",
+      "publication": "ed80c8e7e5afe38f3a860fd2f249db036cd9e9b2e78fd90fb07d27f8739935e9"
+    },
+    {
+      "source": "baa93da2b72206db3be16ea8a2993f38ee413098a0975a7bae67e2c37c590d0e",
+      "publication": "0d837488fa3f77880dd2ffcaf23c9ca1b83db0b2943748910e7b617624cef8fb"
+    },
+    {
+      "source": "e37075f303e6ed39f57c715fe3987d0b1cfa5afe40ce87e0be2307cca2f7feba",
+      "publication": "1f16decbc49d62c73dc641716246f4455811b4bd8ae78f885b89fdb7d93b26b2"
+    },
+    {
+      "source": "88b0a929ba56a2d5abb56fe3f8b2d6a87f4a725eea6bbd1de55b74d51ad0de43",
+      "publication": "fed16c969d25149d7e71667ec50cf12c1e03fd93ebaac83ed25fb449fbd6d945"
+    },
+    {
+      "source": "790bee3208eb5c1bf7ec8e611a967d4b0dd64a491b9d832a0ed3780987972367",
+      "publication": "62e3774f595029f4a7a281fe8c793e8bab5ec1de274886dac91732dce6a197ea"
+    },
+    {
+      "source": "578d37431b8f4db250f66465d44817242d1b6887c8e2866d5689d443d29ad754",
+      "publication": "e10d91feec05eff3aba3917af9fc9d7e18fc798637d2069d4cb34b8334c20adb"
+    },
+    {
+      "source": "4e52e02b1c7ba7b5394de85f54ada6b96c0ebe4d1a3f26ea94598cdfeafebf56",
+      "publication": "c5bfee7e44873962829cc4a4dcc9f4b6739c19988c7116d25b74731659ecea12"
+    },
+    {
+      "source": "e52cc5aab62f4ec0ba30fb8ae22e64d77a3bf1a7c524a39713c1d2ad3b617f00",
+      "publication": "84a71f28f6f983dbdacccd0f71c5c0939cb056784a8a7e35bd0716538c534e31"
+    },
+    {
+      "source": "5331aae64ef769efa343e51b9308999049bde0fcf4655d0617a98059f32cd332",
+      "publication": "7d5eab9e31bd8d6280424bcf4a124ebf8630ddc83547e3a307dade9245407968"
+    },
+    {
+      "source": "c45af55068b279f58e41c29ff584760722168a734fb6d0a805c0ce5f7ecdafb9",
+      "publication": "eca1347af7f4e3ee7b01a4a79e2dfaeb5369bd08e90c76a34437e037e58de86c"
+    },
+    {
+      "source": "8c0847d707af400e32fb86fb53f4ff5a7059aa8e04718e73aee3ea3b35f5c9aa",
+      "publication": "f90835f21d2e2085c2f5584ae6ad6b19fbdfecc5cd769d03d17bb186b2be3344"
+    },
+    {
+      "source": "eb37a9330f49f4259de6c17306285b941023d889f20cc1163ec6376f0ebb7241",
+      "publication": "e15aecc20c00d19618271b79f63c267dd3f8927c8050aeda53858eac9ef52505"
+    },
+    {
+      "source": "271106b4d700873d0798f0c75affdced868d5530539298fb9d4a60a0287e36d5",
+      "publication": "d820c923b9fb6e209bac9708e12ad50ec55f859957052979c5a2982b579b4a17"
+    },
+    {
+      "source": "8add50b8a2c77a0b2866e6d7a26e81d9cc814dba6acfed2bd4bb5df4c4b9a24a",
+      "publication": "b4afe81b5dd9abe19b346666b356b80199925753c53e9cf01a30992c2525192f"
+    },
+    {
+      "source": "c99bcd18c6e45d87544d66c41d7396d13e04eb47fb8613adb13bd314b9f156c0",
+      "publication": "941975f2d415cb54d5c6c05d5a47bc68e8e966c9feb7f9b4dcc7ba798a437648"
+    },
+    {
+      "source": "ba247502351de77498332b06120e36eb211f89f5b8c8f0dc0e1e99f98ff471d8",
+      "publication": "7286067dbf84150dd1254ac14ed6f32ca809a454365b1435997b98c40be70042"
+    },
+    {
+      "source": "aa128fec1b675ad3f7aa5371a17e3cbd67045ffd14022d6c30c6a97d9c4187e0",
+      "publication": "7e0777ea27671a4dc62b217ff39ac887507107182f49d6abd3ed5bd4b1301703"
+    },
+    {
+      "source": "c3b3a4906ab47a529dc2fa7ca95b9d078fa7f7354b7beb29291436dd852491ff",
+      "publication": "a55be7efdd7a17c2c5fec5f5364a3e7b0273f2d1796abc0e540ec36bdf47a323"
+    },
+    {
+      "source": "1341fa471c166ee91571cc4919bc97b4ea494a2deec9e5abfa00b6127ba575d6",
+      "publication": "a5ad1c73d1d0d7028a558c38e8ff6731e7bc5142f1e1b9224f3e4770b4f76766"
+    },
+    {
+      "source": "3a1a703b9b5df45f297a3d26949b6663bca81214b60acedcceff4fa1e8d48b71",
+      "publication": "7f04e38707fccc0440e7d57f9781e1f83780a2c44f082f8fc3ddba92d1de1d53"
+    },
+    {
+      "source": "de4afe389c480c50e5662ad955c9f6c6cde6ba18b7d9b779854f54f34dfa46a7",
+      "publication": "361bf187649f20269fe699e2c5eb87239e77675df7534f50aa69ea799c719da8"
+    },
+    {
+      "source": "70332087ed922836a257752d2f97c4fc70c05962ee9171f5d71b0b770bdd2ff3",
+      "publication": "f9bf0503fed25ae9e3aa3a0a931e663eb231b3d06369f5649f77054fa3e65c62"
+    },
+    {
+      "source": "e0020cf4019d7e27e392a7575ee6c74f02ff9486e1ca2f01db69244622a9a29b",
+      "publication": "e46ecf5eb4f75830ee98d83409a6c87d457970df06f4911ee616f20c7244970b"
+    },
+    {
+      "source": "c550c99e2a707ed6ae971a3fe23c956df754f1111b0d96a0843075c8cafd937c",
+      "publication": "c6f5b85fb151042fdbdeb0dc5a56a411fcdadcb5a0f69918ef44d1266cc3fca7"
+    },
+    {
+      "source": "4447a32d26e3b5f6948e609d9fcae41e6d20e144f4e7e87213a8b9132902132f",
+      "publication": "ab9a622d2167ecd00669b712a320566a6c0335d44f114f503847b5f36da95fcb"
+    },
+    {
+      "source": "5d394883233c325a1d11f1334966738ca436f03095124e5e1bbcd305eaa1ba6e",
+      "publication": "c2e6c51d561d8d5d2884231d5f09deaf2c2f51ad08afbd484ab25fdb04bdc224"
+    },
+    {
+      "source": "fa9492cbb27d1185c7c1be13ebdfe47031d786e554a58903607403367a305dd7",
+      "publication": "91db46cf5cca86b12abd0c26ac1f61ea26caeaa462f4dddb7a500aec5ea64345"
+    },
+    {
+      "source": "dbaa61ccf00091c5c6ae57e7386003a2f072e5e94360d555e4c1753e2057a213",
+      "publication": "517bbe8b37363d40b29aef053c769b7bf78d810ea8304ec468a09151aac361a7"
+    },
+    {
+      "source": "15abe40cc36175ce912bc76918e6c41444e6dc0e3cfee196d052184f4e5349fa",
+      "publication": "00ce682aeae879d0c7334860a0156ab119b6926b0be212f98be701818a5fa817"
+    },
+    {
+      "source": "f629ceddf29d52d8fa0e9de9a2ca9585fbdf311b9b8e1ba99cc47da64dccf9af",
+      "publication": "62d98d73f85e4e8f722caaa04c81edb9f3b733df0e88a46e80209888bdf041b8"
+    },
+    {
+      "source": "b576f5076480244d40248bf0278eed9e321f753a8efca18431e2a27d8dc5a27c",
+      "publication": "992b300282fa8f46c93c5ac872927632bdb7db92b293bf2d5313a925f432df6b"
+    },
+    {
+      "source": "f11b6cfff5fa951a6e252a307f5ba4206445598f18db30ffa216b71f0baf9610",
+      "publication": "5518e6b6ea10520346ae26e8ffc4cd4d822b0e0dae2dc4502832c78898093d15"
+    },
+    {
+      "source": "9e240996527bcd3a4de6d8acf0a13c2d40cd782759d242c787fdb206616d3c6a",
+      "publication": "935af79fee6c6cf27dc6c2df5835e1aefb2413e52f28769cbc9f55be7bcb1586"
+    },
+    {
+      "source": "411735a38675e455b3e5088e719d38136b7c2011b296d2086a69ef87accab1e8",
+      "publication": "b403d587fca58f8dbd637952c085c98d27af0142e6e7e75ed1ced0728475907c"
+    }
+  ],
+  "verification": {
+    "nativeDefinitionsUnchanged": true,
+    "renderedProseByteIdentical": true,
+    "allSelectedRevisionsRetained": true,
+    "onlyDeclaredNonRenderedNotesChanged": true
+  },
+  "reviewQualification": "Historical review/task hashes retain their original evidence identities. Publication projection does not renew their approvals."
+}

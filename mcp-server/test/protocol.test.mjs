@@ -6,11 +6,54 @@ import test from 'node:test';
 
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
-import { expandTexInputs } from '../src/modeling-guidance.mjs';
+import { expandTexInputs, modelingSessionModes, modelingTheoryUris } from '../src/modeling-guidance.mjs';
 import { noEventLinkDeclaration } from '../src/narrative-grounding.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serverPath = join(here, '..', 'src', 'server.ts');
+
+test('memory is usable through the core MCP and leads back to its modeled processes', async (t) => {
+  const client = new Client({ name: 'memory-workflow-test', version: '0.1.0' });
+  const env = { ...process.env, MEANING_MODEL_ADDONS: '' };
+  delete env.LIFE_SIM_STATE_FILE;
+  await client.connect(new StdioClientTransport({ command: process.execPath, args: [serverPath], env }));
+  t.after(() => client.close());
+  const call = async (name, args) => {
+    const result = await client.callTool({ name, arguments: args });
+    assert.ok(!result.isError, JSON.stringify(result));
+    return result.structuredContent;
+  };
+  const started = await call('life_memory_start', {
+    requestId: 'memory-start', contextId: 'writing-feedback', title: 'Writing together',
+    scope: 'The user’s stated feedback preferences in this test project, not a biography.',
+    purpose: 'user_memory', holder: 'assistant', subjects: ['writer'], accessScopes: ['test-project'],
+    time: { unit: 'day', origin: 'The first project session is day zero; earlier history is unknown.' },
+  });
+  assert.equal(started.persistence.durable, false);
+  assert.match(started.instructions, /Start from the macro-processes/);
+  assert.match(started.instructions, /not only a list of saved facts/);
+  assert.ok(started.nativeTargets.some(({ record }) => record.startsWith('process:')));
+  const stored = await call('life_memory_record', {
+    requestId: 'record-user-report', contextId: 'writing-feedback', graphHash: started.graphHash,
+    accessScopes: ['test-project'], holder: 'writer', recordedBy: 'assistant',
+    entries: [{ nodeId: 'feedback.preference', subject: 'writer', kind: 'report',
+      text: 'I want questions about motivation before suggested rewrites.', evidenceType: 'report',
+      source: { citation: 'The user’s instruction in this synthetic test session.' },
+      about: started.nativeTargets, observedAt: '2026-10-02T09:00:00Z', topic: 'feedback' }],
+  });
+  const result = await call('life_memory_query', { contextId: 'writing-feedback', accessScopes: ['test-project'] });
+  assert.equal(result.graphHash, stored.graphHash);
+  assert.equal(result.entries.length, 1);
+  assert.equal(result.entries[0].holder, 'writer');
+  assert.equal(result.entries[0].recordedBy, 'assistant');
+  assert.equal(result.entries[0].evidenceType, 'report');
+  assert.equal(result.entries[0].observedAt, '2026-10-02T09:00:00Z');
+  assert.ok(result.entries[0].links.some(({ target }) => target.anchor_kind === 'process'));
+  for (const route of [started.outline, started.replay]) {
+    const projected = await call(route.tool, { ...route.arguments, graphHash: stored.graphHash });
+    assert.match(projected.text, /feedback.preference/);
+  }
+});
 
 function observedProtocolModel() {
   return {
@@ -46,7 +89,7 @@ function personProfileCompilationRequest() {
     model: {
       id: 'mcp-person-profile-test',
       time_unit: 'day',
-      reason: 'Verify the paper-grounded three-view Person profile through MCP.',
+      reason: 'Verify the three-view Person profile through MCP without a paper-reading prerequisite.',
       provenance: ['official MCP protocol integration test'],
     },
     profiles: [{
@@ -99,7 +142,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
   await client.connect(new StdioClientTransport({
     command: process.execPath,
     args: [serverPath],
-    env: { ...process.env },
+    env: { ...process.env, MEANING_MODEL_READING: 'papers' },
   }));
   try {
     const startup = client.getInstructions();
@@ -136,6 +179,12 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_lens_questions',
       'life_lens_reread',
       'life_meaning_query',
+      'life_memory_query',
+      'life_memory_record',
+      'life_memory_start',
+      'life_memory_transcript_capture',
+      'life_memory_transcript_configure',
+      'life_memory_transcript_query',
       'life_model_ingest',
       'life_model_inspect',
       'life_model_outline',
@@ -185,8 +234,8 @@ test('official MCP client discovers and calls the local stdio server', async () 
     assert.deepEqual(catalog.structuredContent.heads, []);
     assert.equal(catalog.structuredContent.persistence.mode, globalThis.process.env.LIFE_SIM_STATE_FILE ? 'optional-single-writer-state-file' : 'process-memory');
     const modelingTool = tools.find(({ name }) => name === 'life_modeling_context');
-    assert.match(modelingTool.description, /paper-first/);
-    assert.match(modelingTool.description, /never replace reading/);
+    assert.match(modelingTool.description, /papers as optional references/);
+    assert.match(modelingTool.description, /digests identify bytes, not comprehension/);
     const { resources } = await client.listResources();
     const resourceUris = resources.map(({ uri }) => uri);
     for (const uri of [
@@ -194,6 +243,8 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life-sim://theory/life-simulation',
       'life-sim://protocol/modeling',
       'life-sim://protocol/narrative-understanding-graph',
+      'life-sim://guide/memory',
+      'life-sim://guide/human-author-feedback',
       'life-sim://profile/story',
       'life-sim://profile/person',
     ]) {
@@ -203,6 +254,15 @@ test('official MCP client discovers and calls the local stdio server', async () 
     assert.ok(prompts.some(({ name }) => name === 'life_modeling_start'));
     assert.ok(prompts.some(({ name }) => name === 'life_general_modeling_start'));
     assert.ok(resourceUris.includes('life-sim://guide/general-modeling'));
+    for (const purpose of ['agent_memory', 'user_memory', 'human_author_feedback']) {
+      const context = await client.callTool({ name: 'life_modeling_context', arguments: { purpose } });
+      assert.ok(!context.isError, JSON.stringify(context));
+      assert.match(context.structuredContent.constructionRecord, /Start from the macro-processes/);
+      assert.match(context.structuredContent.constructionRecord, /hypotheses, predictions, questions, surprises, tensions/);
+      assert.ok(context.structuredContent.purposeInstructions.length > 0);
+      const entry = await client.getPrompt({ name: 'life_modeling_start', arguments: { purpose } });
+      assert.ok(entry.messages[0].content.text.includes(context.structuredContent.purposeInstructions));
+    }
     const generalStarter = await client.getPrompt({ name: 'life_general_modeling_start', arguments: {} });
     assert.match(generalStarter.messages[0].content.text, /No external estimator is configured/);
     assert.match(generalStarter.messages[0].content.text, /Purpose: observation\./);
@@ -250,12 +310,12 @@ test('official MCP client discovers and calls the local stdio server', async () 
       name: 'life_modeling_start',
       arguments: { purpose: 'creative_story', sessionMode: 'first_use' },
     });
-    assert.match(starter.messages[0].content.text, /complete current papers/);
+    assert.match(starter.messages[0].content.text, /no paper reading is required before modeling/);
     const modelingContext = await client.callTool({
       name: 'life_modeling_context',
       arguments: { purpose: 'person_reflection', sessionMode: 'first_use' },
     });
-    assert.equal(modelingContext.structuredContent.requiresFullTheoryRead, true);
+    assert.equal(modelingContext.structuredContent.requiresFullTheoryRead, false);
     assert.match(modelingContext.structuredContent.scaleReview, /longer-term developments/);
     assert.deepEqual(modelingContext.structuredContent.personalModelViews, [
       'external event history',
@@ -265,13 +325,32 @@ test('official MCP client discovers and calls the local stdio server', async () 
     const profileTool = tools.find(({ name }) => name === 'life_profile_compile');
     assert.match(profileTool.description, /read-only/);
     assert.match(profileTool.description, /never registers or persists/);
-    const blockedCompile = await client.callTool({
+    // No theory resource has been read, even with the legacy papers environment setting.
+    const compiledProfile = await client.callTool({
       name: 'life_profile_compile',
       arguments: { profileRequest: personProfileCompilationRequest() },
     });
-    assert.equal(blockedCompile.isError, true);
-    assert.match(blockedCompile.content[0].text, /Paper-first gate/);
-    assert.match(blockedCompile.content[0].text, /access record starts at the most recent life_modeling_context/);
+    assert.equal(compiledProfile.isError, undefined);
+    assert.equal(compiledProfile.structuredContent.readOnly, true);
+    assert.equal(compiledProfile.structuredContent.stored, false);
+    assert.equal(compiledProfile.structuredContent.mutationPerformed, false);
+    assert.equal(compiledProfile.structuredContent.model.meaning_model.realizations.length, 3);
+    assert.deepEqual(compiledProfile.structuredContent.registrationNextStep, {
+      operation: 'registerModel',
+      explicit: true,
+    });
+    for (const sessionMode of modelingSessionModes) {
+      const context = await client.callTool({ name: 'life_modeling_context', arguments: { purpose: 'person_reflection', sessionMode } });
+      assert.ok(!context.isError, JSON.stringify(context));
+      assert.equal(context.structuredContent.readingMode, 'guides');
+      assert.equal(context.structuredContent.requiresFullTheoryRead, false);
+      assert.equal(context.structuredContent.theoryAccessGate.enforced, false);
+      assert.deepEqual(context.structuredContent.orderedResources.slice(-2).map(({ uri, required }) => ({ uri, required })),
+        modelingTheoryUris.map((uri) => ({ uri, required: false })));
+      const compiled = await client.callTool({ name: 'life_profile_compile', arguments: { profileRequest: personProfileCompilationRequest() } });
+      assert.ok(!compiled.isError, `${sessionMode}: ${JSON.stringify(compiled)}`);
+      assert.equal(compiled.structuredContent.stored, false);
+    }
 
     const meaningPaper = await client.readResource({
       uri: 'life-sim://theory/meaning-model',
@@ -305,8 +384,8 @@ test('official MCP client discovers and calls the local stdio server', async () 
       name: 'life_modeling_context',
       arguments: { purpose: 'person_reflection', sessionMode: 'first_use' },
     });
-    assert.equal(sameContextCheck.structuredContent.theoryAccessGate.satisfied, true,
-      'checking the gate again for the same purpose must not erase the reading record');
+    assert.deepEqual(sameContextCheck.structuredContent.theoryAccessGate, modelingContext.structuredContent.theoryAccessGate,
+      'reading optional papers does not change modeling access');
     const repeatContext = await client.callTool({
       name: 'life_modeling_context',
       arguments: { purpose: 'person_reflection', sessionMode: 'repeat_same_domain' },
@@ -314,19 +393,6 @@ test('official MCP client discovers and calls the local stdio server', async () 
     assert.equal(repeatContext.structuredContent.requiresFullTheoryRead, false);
     assert.equal(repeatContext.structuredContent.theoryAccessGate.satisfied, true);
 
-    const compiledProfile = await client.callTool({
-      name: 'life_profile_compile',
-      arguments: { profileRequest: personProfileCompilationRequest() },
-    });
-    assert.equal(compiledProfile.isError, undefined);
-    assert.equal(compiledProfile.structuredContent.readOnly, true);
-    assert.equal(compiledProfile.structuredContent.stored, false);
-    assert.equal(compiledProfile.structuredContent.mutationPerformed, false);
-    assert.equal(compiledProfile.structuredContent.model.meaning_model.realizations.length, 3);
-    assert.deepEqual(compiledProfile.structuredContent.registrationNextStep, {
-      operation: 'registerModel',
-      explicit: true,
-    });
     // The examples a refusal shows are the engine's own, and they compile.
     const { scaffoldExampleRequest } = await import('../src/scaffold-examples.mjs');
     const examples = await client.callTool({ name: 'life_profile_compile', arguments: { profileRequest: scaffoldExampleRequest() } });
@@ -338,20 +404,20 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'one refusal shows the whole shape');
     assert.match(profileTool.description, /A refused request returns a complete valid example of its kind/);
     const contextTool = tools.find(({ name }) => name === 'life_modeling_context');
-    assert.equal(contextTool.annotations.readOnlyHint, false, 'a call that can begin a new access record is not read-only');
-    assert.match(contextTool.description, /same purpose keeps that reading record/);
+    assert.equal(contextTool.annotations.readOnlyHint, true, 'modeling context no longer mutates a paper-access record');
+    assert.match(contextTool.description, /Paper reading is not required or tracked/);
     const newDomainContext = await client.callTool({
       name: 'life_modeling_context',
       arguments: { purpose: 'observation', sessionMode: 'new_domain' },
     });
-    assert.equal(newDomainContext.structuredContent.requiresFullTheoryRead, true);
-    assert.equal(newDomainContext.structuredContent.theoryAccessGate.satisfied, false);
-    const blockedAfterDomainChange = await client.callTool({
+    assert.equal(newDomainContext.structuredContent.requiresFullTheoryRead, false);
+    assert.equal(newDomainContext.structuredContent.theoryAccessGate.enforced, false);
+    const compiledAfterDomainChange = await client.callTool({
       name: 'life_profile_compile',
       arguments: { profileRequest: personProfileCompilationRequest() },
     });
-    assert.equal(blockedAfterDomainChange.isError, true);
-    assert.match(blockedAfterDomainChange.content[0].text, /Paper-first gate/);
+    assert.ok(!compiledAfterDomainChange.isError, JSON.stringify(compiledAfterDomainChange));
+    assert.equal(compiledAfterDomainChange.structuredContent.stored, false);
     const inspectTool = tools.find(({ name }) => name === 'life_model_inspect');
     assert.match(inspectTool.description, /administrative operation/);
     assert.match(inspectTool.description, /initial values/);

@@ -1,7 +1,7 @@
 # Story Modeling Profile
 
-Use this profile after reading the current *Meaning Model* and *Life
-Simulation* papers and the common modeling protocol.
+Use this profile with the common modeling protocol. The *Meaning Model* and
+*Life Simulation* papers are optional references for the theory and research.
 
 This is a modeling workflow, not a required vocabulary. Choose and revise the
 processes and categories that the story needs. The separately compiled `story`

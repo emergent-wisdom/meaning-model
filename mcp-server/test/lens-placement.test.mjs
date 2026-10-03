@@ -336,5 +336,8 @@ test('stale readings of a rewritten record are read again across lenses in one r
   assert.ok(result.read[0].moved <= 0.05); assert.match(result.nextStep, /1 of 1 moved 0\.05 or less/u);
   const updated = calls[0].model.meaning_model.normalized_cuts.find((cut) => cut.id === 'lens.stage.ana.choice1');
   assert.equal(updated.parent_event_id, 'reading.stage.ana.choice1'); assert.ok(updated.provenance.includes(`event-text:${eventTextSignature(record)}`));
+  assert.ok(updated.answers.filter((answer) => answer.key !== 'remainder').every((answer) => typeof answer.meaning === 'string'));
+  assert.ok(!Object.hasOwn(updated.answers.find((answer) => answer.key === 'remainder'), 'meaning'));
+  assert.deepEqual(result.read[0].unknownDefinitions, ['remainder']);
   await assert.rejects(rereadLenses(service, null, { graphHash: 'b'.repeat(64), requestId: 'x', accessScopes: ['author'] }), /needs the configured estimator/u);
 });

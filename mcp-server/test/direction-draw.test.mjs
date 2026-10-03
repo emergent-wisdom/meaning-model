@@ -30,6 +30,9 @@ function jsonBlocks(markdown) {
 test('a recorded draw is stored in the bound graph and a second draw over the same Cut is a linked reroll', async (t) => {
   const markdown = await readFile(new URL('../../docs/examples/MINIMAL-MODEL-AND-GRAPH.md', import.meta.url), 'utf8');
   const [, registerRequest, graphRequest] = jsonBlocks(markdown);
+  const definedCut = registerRequest.model.meaning_model.normalized_cuts.find(({ id }) => id === 'cut.ada.h06.attention');
+  definedCut.answers.forEach((answer) => { answer.meaning = answer.key === 'remainder'
+    ? 'Attention whose object has not yet been distinguished.' : `Attention to the specific ${answer.key} concern at hour six.`; });
   const service = new LifeSimulationService();
   t.after(() => service.close());
   await service.initialize();
@@ -56,6 +59,9 @@ test('a recorded draw is stored in the bound graph and a second draw over the sa
   assert.equal(payload.seed, 'harbour/draw');
   assert.equal(payload.realized, first.realized);
   assert.equal(payload.reason, 'Decide the offer.');
+  assert.deepEqual(payload.answers, [...definedCut.answers].sort((a, b) => a.key.localeCompare(b.key)),
+    'the saved draw keeps exact answer definitions, including the remainder, independently of later revisions');
+  assert.equal(payload.conditioning, null);
   assert.ok(view.edges.some((edge) => edge.source.node_id === 'draw-1' && edge.target.kind === 'anchor' && edge.target.anchor_id === 'event.ada.state.h06'),
     'the draw is grounded in the Cut\'s parent event');
 

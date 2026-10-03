@@ -17,6 +17,7 @@ import { registerLensTools } from './lenses.mjs';
 import { registerRevisionCheckTools } from './revision-check.mjs';
 import { registerViewerTools } from './viewer-server.mjs';
 import { registerSavedWorkTools } from './saved-work.mjs';
+import { registerMemoryTools } from './memory-workflow.mjs';
 import { narrativeRebindSchema, rebindNarrativeGraph } from './narrative-rebind.mjs';
 import { narrativeEditSchema, editNarrativeGraph } from './narrative-editing.mjs';
 import { registerNarrativeGroundingTools } from './narrative-grounding-tools.mjs';
@@ -39,8 +40,6 @@ import {
   listModelingResources,
   modelingPurposes,
   modelingSessionModes,
-  modelingTheoryUris,
-  readingMode,
   readModelingResource,
 } from './modeling-guidance.mjs';
 
@@ -48,38 +47,15 @@ const enabledAddons = parseEnabledAddons(process.env.MEANING_MODEL_ADDONS);
 const estimator = createEstimator(parseEstimatorConfig(process.env));
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.6.5',
+  version: '0.6.6',
 }, {
-  instructions: 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.\n\nIn every mode, begin modeling with life_modeling_context and follow its shared construction guidance. Explore recursively where a useful question, connection or discovery warrants it; record what is sufficient and what remains uncertain without forcing extra detail. Anything that changes over time can be modeled as a process, including qualities often written as fixed descriptions, such as a voice, a style, a belief or the culture of an institution. From the first story exploration, consider how the telling itself develops across reading position: tension, pacing, disclosure or other processes that matter to this work. Follow these questions recursively, using stable passage links and authored evidence without a required dramatic formula or numerical score. Keep reading position distinct from world time and authoring history. Let the work choose its form; books need not have a protagonist, conflict, climax or resolution. Use the shared narrative graph for forms that do not fit scenes, without inventing a cast to satisfy a template. Before writing or revising prose, consider author and character voice, reader disclosure, and consequential physical placement. Use declared passage links and existing records. At meaningful milestones, use the controlled read-back guidance to compare selected output against a blind control, reporting fidelity separately from improvement over the control. Do not wait for a special user request; if independent readers are unavailable, record that limitation rather than inventing a result. These are instructions to the calling LLM, not claims that the server has assessed meaning or automatically run reviewers.',
+  instructions: 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.\n\nIn every mode, begin modeling with life_modeling_context and follow its shared construction guidance. Agent memory and user memory are core purposes: maintain their ongoing processes, not only isolated facts, within the declared scope. Human-author feedback leaves authorship and creative decisions with the human; use life_story_feedback with the storytelling add-on for read-only feedback. All workflows use the same linked, attributed Understanding Graph for questions, hypotheses, predictions, surprises, tests and revisions. Explore recursively where a useful question, connection or discovery warrants it; record what is sufficient and what remains uncertain without forcing extra detail. Anything that changes over time can be modeled as a process, including qualities often written as fixed descriptions, such as a voice, a style, a belief or the culture of an institution. From the first story exploration, consider how the telling itself develops across reading position: tension, pacing, disclosure or other processes that matter to this work. Follow these questions recursively, using stable passage links and authored evidence without a required dramatic formula or numerical score. Keep reading position distinct from world time and authoring history. Let the work choose its form; books need not have a protagonist, conflict, climax or resolution. Use the shared narrative graph for forms that do not fit scenes, without inventing a cast to satisfy a template. Before writing or revising prose, consider author and character voice, reader disclosure, and consequential physical placement. Use declared passage links and existing records. At meaningful milestones, use the controlled read-back guidance to compare selected output against a blind control, reporting fidelity separately from improvement over the control. Do not wait for a special user request; if independent readers are unavailable, record that limitation rather than inventing a result. These are instructions to the calling LLM, not claims that the server has assessed meaning or automatically run reviewers.',
 });
 const service = new LifeSimulationService();
 const requestIdSchema = z.string().min(1).max(256);
 const handleSchema = z.string().min(1).max(256);
 const processIdSchema = z.string().min(1).max(1_024);
 const prefixSchema = z.string().min(1).max(256);
-const accessedTheoryResources = new Set<string>();
-let theoryAccessPurpose: string | null = null;
-
-// Calling life_modeling_context again for the same purpose, for example to check the gate after
-// reading, keeps the access record. A different purpose, a new domain, or consequential work
-// starts a new record.
-function resetTheoryAccessForNewContext(purpose: string, sessionMode: string) {
-  const keep = sessionMode === 'repeat_same_domain'
-    || ((sessionMode === 'first_use' || sessionMode === 'continuation') && theoryAccessPurpose === purpose);
-  if (!keep) accessedTheoryResources.clear();
-  theoryAccessPurpose = purpose;
-}
-
-function requireTheoryAccessForProfileCompilation() {
-  if (readingMode() === 'guides') return;
-  const missing = modelingTheoryUris.filter((uri) => !accessedTheoryResources.has(uri));
-  if (missing.length > 0) {
-    throw new Error(
-      `Paper-first gate: read the complete required theory resources before profile compilation: ${missing.join(', ')}. The access record starts at the most recent life_modeling_context call that began a new record: the first call, a different purpose, or sessionMode new_domain or consequential. Repeating the call for the same purpose, or sessionMode repeat_same_domain, keeps the record. Reads made before the record began are not counted, so call life_modeling_context first and then read both resources. Access is verified only within this live MCP process and does not prove comprehension.`,
-    );
-  }
-}
-
 // What an engine refusal expects, for the refusals agents meet most while modeling lives.
 const refusalHints: Array<[RegExp, string]> = [
   [/unknown field `subject_id`.*affected_referent_id/su, 'change_arc_scaffold names the Thing it changes with affected_referent_id, not subject_id.'],
@@ -105,7 +81,6 @@ for (const resource of listModelingResources()) {
     },
     async (uri) => {
       const loaded = await readModelingResource(uri.href);
-      if (loaded.category === 'theory') accessedTheoryResources.add(loaded.uri);
       return {
         contents: [{
           uri: loaded.uri,
@@ -125,13 +100,11 @@ for (const resource of listModelingResources()) {
 server.registerPrompt(
   'life_modeling_start',
   {
-    title: readingMode() === 'guides' ? 'Start Meaning Model modeling' : 'Start paper-grounded Meaning Model modeling',
-    description: readingMode() === 'guides'
-      ? 'Begin with the operational protocol, a purpose-specific profile and an example; the papers carry the reasons behind the rules.'
-      : 'Begin with the complete current papers, then use the operational protocol and a purpose-specific profile.',
+    title: 'Start Meaning Model modeling',
+    description: 'Begin with the operational protocol, a purpose-specific guide or profile, and an example; the papers are optional references.',
     argsSchema: z.object({
       purpose: z.enum(modelingPurposes).describe(`One of ${modelingPurposes.join(', ')}.`),
-      sessionMode: z.enum(modelingSessionModes).default('first_use').describe('One of first_use, repeat_same_domain, new_domain, consequential or continuation. Use continuation when you continue recorded work in this server; new_domain or consequential start a new reading record.'),
+      sessionMode: z.enum(modelingSessionModes).default('first_use').describe('One of first_use, repeat_same_domain, new_domain, consequential or continuation. Use continuation when you continue recorded work in this server; it begins with reading the construction record.'),
     }),
   },
   async (input) => ({
@@ -145,22 +118,14 @@ server.registerPrompt(
 server.registerTool(
   'life_modeling_context',
   {
-    description: readingMode() === 'guides'
-      ? 'Return the reading order and minimum operational contract for story, person, observation, forecast, reconstruction, or counterfactual modeling: the protocol, the guide or profile, and an example, with the papers as the theory to open where a rule needs its reason.'
-      : 'Return the paper-first reading order and minimum operational contract for story, person, observation, forecast, reconstruction, or counterfactual modeling. The live MCP process records access to both complete papers; content digests are provenance only and never replace reading. Calling it again for the same purpose keeps that reading record, so it can be used to check theoryAccessGate; a different purpose, sessionMode new_domain, or sessionMode consequential starts a new record.',
+    description: 'Return the reading order and operational contract for general modeling, storytelling, human-author feedback, agent memory or user memory: the protocol, the guide or profile, and an example, with papers as optional references for fuller explanations. Paper reading is not required or tracked. Resource digests identify bytes, not comprehension.',
     inputSchema: z.object({
       purpose: z.enum(modelingPurposes).describe(`One of ${modelingPurposes.join(', ')}.`),
-      sessionMode: z.enum(modelingSessionModes).default('first_use').describe('One of first_use, repeat_same_domain, new_domain, consequential or continuation. Use continuation when you continue recorded work in this server; new_domain or consequential start a new reading record.'),
+      sessionMode: z.enum(modelingSessionModes).default('first_use').describe('One of first_use, repeat_same_domain, new_domain, consequential or continuation. Use continuation when you continue recorded work in this server; it begins with reading the construction record.'),
     }),
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
-  async (input) => {
-    resetTheoryAccessForNewContext(input.purpose, input.sessionMode);
-    return toolResult(await buildModelingContext({
-      ...input,
-      readTheoryUris: [...accessedTheoryResources],
-    }));
-  },
+  async (input) => toolResult(await buildModelingContext(input)),
 );
 
 const generalPurposeNote = 'Purpose defaulted to observation; pass purpose to change it. observation keeps each report, estimate and judgment in its own authority, and suits explanatory or retrospective accounts built from records or recalled knowledge. forecasting adds values after the evidence cutoff that later observations can test. counterfactual holds an explicit alternative premise apart from the accepted history.';
@@ -190,14 +155,13 @@ server.registerPrompt('life_general_modeling_start', {
 server.registerTool(
   'life_profile_compile',
   {
-    description: 'Compile scaffold profiles in Rust into an ordinary revision-0 ModelDefinition: person_scaffold for a whole life, change_arc_scaffold for a shock with its anticipation, focal change and adaptation, thing_scaffold for a machine, document or institution, relationship_scaffold, concept_scaffold, and the experimental Story, Person and Decision profiles. A scaffold is a starting structure to adapt, extend or replace with processes of your own; the modeler may also author a model directly with application-specific categories. It needs both complete theory resources read in this live MCP process. A refused request returns a complete valid example of its kind, and rust-engine/examples/construction-scaffolds-command.json holds one of each. Structural starters are unweighted by default; person_scaffold offers lifecycle alone or Book-style processes (the existing default). Story and Decision add experimental numerical meanings and behavioural laws, not universal rules; inspect these assumptions before choosing them. This read-only operation never registers or persists the result. Adapt it before life_model_register, or use an explicit successor revision for later category changes. A complete valid request, model and graph are shown in life-sim://example/minimal-model-and-graph.',
+    description: 'Compile scaffold profiles in Rust into an ordinary revision-0 ModelDefinition: person_scaffold for a whole life, change_arc_scaffold for a shock with its anticipation, focal change and adaptation, thing_scaffold for a machine, document or institution, relationship_scaffold, concept_scaffold, and the experimental Story, Person and Decision profiles. A scaffold is a starting structure to adapt, extend or replace with processes of your own; the modeler may also author a model directly with application-specific categories. Use life_modeling_context for the operational modeling guidance; the papers are optional references. A refused request returns a complete valid example of its kind, and rust-engine/examples/construction-scaffolds-command.json holds one of each. Structural starters are unweighted by default; person_scaffold offers lifecycle alone or Book-style processes (the existing default). Story and Decision add experimental numerical meanings and behavioural laws, not universal rules; inspect these assumptions before choosing them. This read-only operation never registers or persists the result. Adapt it before life_model_register, or use an explicit successor revision for later category changes. A complete valid request, model and graph are shown in life-sim://example/minimal-model-and-graph.',
     inputSchema: z.object({
       profileRequest: z.record(z.string(), z.unknown()),
     }),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   async (input) => {
-    requireTheoryAccessForProfileCompilation();
     try { return toolResult(await service.compileProfiles(input)); } catch (error) { throw withRefusalHint(error, scaffoldHint(input.profileRequest)); }
   },
 );
@@ -974,6 +938,7 @@ registerJevProcessEstimationTools(server, service, estimator, { toolResult });
 registerGeneralModelingTools(server, service, estimator, { toolResult });
 registerConstructionRecordTools(server, service, { toolResult });
 registerSavedWorkTools(server, service, { toolResult });
+registerMemoryTools(server, service, { toolResult });
 registerLensTools(server, service, { toolResult, estimator });
 registerRevisionCheckTools(server, service, { toolResult });
 registerNarrativeGroundingTools(server, service, { toolResult });

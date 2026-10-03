@@ -465,7 +465,7 @@ function anchoredNotes(view) {
   for (const edge of view.edges) {
     if (edge.source?.kind !== 'node' || edge.target?.kind !== 'anchor') continue;
     const node = nodes.get(edge.source.node_id);
-    if (!node || node.role === 'story_passage') continue;
+    if (!node || node.boundary === true || node.content_included === false || node.role === 'story_passage') continue;
     const key = `${edge.target.anchor_kind}:${edge.target.anchor_id}`;
     if (!byRecord.has(key)) byRecord.set(key, []);
     if (!byRecord.get(key).includes(node)) byRecord.get(key).push(node);
@@ -488,7 +488,19 @@ function responsesTo(view) {
   }
   return responses;
 }
-function noteLine(node, level, limit, responses = null) {
+// A writing stamp records the model the note was written against, not a dependency or a validity judgment.
+// Different hashes do not establish ancestry: the note may have come from another branch.
+function noteModelBasis(node, currentModel) {
+  const stamps = (node.provenance ?? []).filter((item) => typeof item === 'string' && item.startsWith('written-against-model:'));
+  const models = stamps.map((item) => /^written-against-model:([a-f0-9]{64})$/u.exec(item)?.[1] ?? null);
+  const writtenAgainstModel = models.length && models.every(Boolean) && new Set(models).size === 1 ? models[0] : null;
+  const modelBasis = !writtenAgainstModel || !currentModel ? 'unknown' : writtenAgainstModel === currentModel ? 'current' : 'different';
+  const modelBasisAnnotation = modelBasis === 'different'
+    ? `different model basis: written against ${writtenAgainstModel.slice(0, 12)}; current ${currentModel.slice(0, 12)}; applicability unchecked`
+    : modelBasis === 'unknown' ? `model basis unknown: ${writtenAgainstModel ? 'no current bound model' : 'no unambiguous written-against-model stamp'}` : null;
+  return { writtenAgainstModel, currentModel, modelBasis, modelBasisAnnotation };
+}
+function noteLine(node, level, limit, responses = null, basis = null) {
   const payload = notePayload(node);
   const text = noteGist(payload);
   const label = `${node.node_type}${node.holder ? ` by ${node.holder}` : ''}`;
@@ -497,8 +509,9 @@ function noteLine(node, level, limit, responses = null) {
   const extra = [findings ? `${findings} finding${findings === 1 ? '' : 's'}` : null,
     counts ? `later: ${Object.entries(counts).map(([relation, count]) => `${count} ${relation}`).join(', ')}` : null].filter(Boolean);
   const suffix = extra.length ? ` [${extra.join('; ')}]` : '';
-  if (level === 'full') return `${node.id} [${label}]: ${text}${suffix}`;
-  return `${node.id} [${label}]: ${clip(oneLine(text), limit)}${suffix}`;
+  const basisMark = basis?.modelBasisAnnotation ? ` [${basis.modelBasisAnnotation}]` : '';
+  if (level === 'full') return `${node.id} [${label}]: ${text}${suffix}${basisMark}`;
+  return `${node.id} [${label}]: ${clip(oneLine(text), limit)}${suffix}${basisMark}`;
 }
 
 // Reading notes whole: each named note or review with its parsed payload and the links into and out of it,
@@ -514,11 +527,15 @@ export async function readNotes(service, raw) {
   const describe = (endpoint) => (endpoint?.kind === 'node' ? endpoint.node_id : `${endpoint?.anchor_kind}:${endpoint?.anchor_id}${endpoint?.path ?? ''}`);
   const notes = input.nodeIds.map((nodeId) => {
     const node = nodes.get(nodeId);
-    if (!node) return { id: nodeId, found: false, reason: 'unknown, or hidden by these access scopes' };
+    if (!node || node.boundary === true || node.content_included === false) return { id: nodeId, found: false, reason: 'unknown, or hidden by these access scopes' };
     const payload = notePayload(node);
-    return { id: node.id, found: true, nodeType: node.node_type, role: node.role, holder: node.holder ?? null, title: node.title ?? null,
+    let completePayload = null;
+    try { completePayload = JSON.parse(node.text); } catch { /* A plain-text review has no JSON payload. */ }
+    return { id: node.id, found: true, nodeType: node.node_type, role: node.role, holder: node.holder ?? null, subject: node.subject ?? null, title: node.title ?? null,
       kind: payload.kind, text: payload.text, data: payload.data?.data ?? payload.data ?? null, valueTime: node.value_time ?? null,
-      provenance: node.provenance ?? [], accessScopes: node.access_scopes ?? [],
+      source: completePayload?.source ?? null, epistemicStatus: node.epistemic_status ?? null, evidenceType: node.evidence_type ?? null,
+      evidenceCutoff: node.evidence_cutoff ?? null, authority: node.authority ?? null, uncertainty: node.uncertainty ?? null,
+      provenance: node.provenance ?? [], accessScopes: node.access_scopes ?? [], ...noteModelBasis(node, boundModelHash(view)),
       linksOut: view.edges.filter((edge) => edge.source?.kind === 'node' && edge.source.node_id === nodeId && edge.relation !== 'contains').map((edge) => ({ relation: edge.relation, target: describe(edge.target) })),
       linksIn: view.edges.filter((edge) => edge.target?.kind === 'node' && edge.target.node_id === nodeId && edge.relation !== 'contains').map((edge) => ({ relation: edge.relation, source: describe(edge.source) })) };
   });
@@ -541,12 +558,15 @@ export async function outlineModel(service, raw) {
   const responses = responsesTo(view);
   // A note linked to several records is shown once; the later records name it.
   const shown = new Set();
+  const noteModelBases = [];
   const noteLines = (list, indent) => {
     const again = [];
     for (const node of list) {
       if (shown.has(node.id)) { again.push(node.id); continue; }
       shown.add(node.id);
-      lines.push(`${indent}✎ ${noteLine(node, input.understanding, input.textLimit, responses)}`);
+      const basis = noteModelBasis(node, modelHash);
+      noteModelBases.push({ nodeId: node.id, ...basis });
+      lines.push(`${indent}✎ ${noteLine(node, input.understanding, input.textLimit, responses, basis)}`);
     }
     if (again.length) lines.push(`${indent}✎ also ${again.join(', ')} (shown above)`);
   };
@@ -627,7 +647,7 @@ export async function outlineModel(service, raw) {
     for (const root of roots) {
       const members = []; const pending = [...(contains.get(root.id) ?? [])];
       while (pending.length) { const next = pending.shift(); const node = nodes.get(next); if (!node || members.includes(node)) continue; members.push(node); pending.push(...(contains.get(next) ?? [])); }
-      const reflections = members.filter((node) => node.role === 'externalized_reflection');
+      const reflections = members.filter((node) => node.role === 'externalized_reflection' && node.boundary !== true && node.content_included !== false);
       lines.push(`- ${root.id} (${root.holder ?? root.subject ?? 'unattributed'}): ${reflections.length} reflection${reflections.length === 1 ? '' : 's'}, ${members.length} record${members.length === 1 ? '' : 's'}`);
       if (input.understanding !== 'none' && input.understanding !== 'count') {
         const recent = [...reflections].sort((a, b) => (b.value_time ?? 0) - (a.value_time ?? 0)).slice(0, input.understanding === 'full' ? reflections.length : 5);
@@ -644,7 +664,7 @@ export async function outlineModel(service, raw) {
   let text = lines.join('\n');
   const truncated = text.length > input.maxChars;
   if (truncated) text = `${text.slice(0, input.maxChars)}\n… (outline truncated at ${input.maxChars} characters; narrow it with sections or focusEventId)`;
-  return { schema: 'meaning-model-outline/v1', modelHash, graphHash: view?.graph_hash ?? null, coverage, understanding: input.understanding, truncated, text };
+  return { schema: 'meaning-model-outline/v1', modelHash, graphHash: view?.graph_hash ?? null, coverage, understanding: input.understanding, noteModelBases, truncated, text };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1105,7 +1125,7 @@ export function registerConstructionRecordTools(server, service, { toolResult })
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await recordUnderstanding(service, input)));
   server.registerTool('life_review_record', {
-    description: 'Record a review as an Understanding Node held by its actual reviewer (another model, a blind reader, an estimator, a person or a tool), with what the reviewer was given, how independent it was, the exact graph revision it read, the prompt, a hash of the rendered text it reviewed (checked against a supplied text hash), its verdict and findings, and links to what it concerns. Later changes that answer the review link to it with answers. When a review exposes an unmodeled assumption or an inadequate process, answer it by developing the model and bringing the dependent prose into line; otherwise record why the existing model stands. Each review keeps two model revisions apart: the one the version it read was bound to (reviewedModelHash; without reviewed.graphHash, that version is the graphHash you give) and the one current when it is recorded (recordedAtModelHash). reviewedModelRelation says, from the revision chain rather than the hashes, whether the model read is the current one, an ancestor, a descendant, or neither (another branch), and unknown when the chain could not be read. When earlier reviews also read the current model revision, the result names them (sameModelReviews) as a signal to check whether the work is circling: reviewing and revising the prose while the model never changes only revises a text. Add-only: graphHash may be any earlier revision of the graph; the record goes to its newest head, and advancedFrom says so.',
+    description: 'Record a review as an Understanding Node held by its actual reviewer (another model, a blind reader, an estimator, a person or a tool), with what the reviewer was given, how independent it was, the exact graph revision it read, the prompt, a hash of the rendered text it reviewed (checked against a supplied text hash), its verdict and findings, and links to what it concerns. Later changes that answer the review link to it with answers. When a review exposes an unmodeled assumption or an inadequate process, answer it by developing the model and bringing the dependent prose into line; otherwise record why the existing model stands. Each review keeps two model revisions apart: the model bound to the graph revision actually reviewed (reviewedModelHash; for a graph review without reviewed.graphHash, that version is the graphHash you give) and the one current when it is recorded (recordedAtModelHash). For external text or a packet reviewed without the graph, set reviewed.description to identify the supplied material and omit reviewed.graphHash; reviewedModelHash is then null. The destination graphHash records the review, not what the reviewer read. reviewedModelRelation says, from the revision chain rather than the hashes, whether the model read is the current one, an ancestor, a descendant, or neither (another branch), and unknown when the chain could not be read. When earlier reviews also read the current model revision, the result names them (sameModelReviews) as a signal to check whether the work is circling: reviewing and revising the prose while the model never changes only revises a text. Add-only: graphHash may be any earlier revision of the graph; the record goes to its newest head, and advancedFrom says so.',
     inputSchema: reviewRecordSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await recordReview(service, input)));
@@ -1115,12 +1135,12 @@ export function registerConstructionRecordTools(server, service, { toolResult })
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await checkProseDrift(service, input)));
   server.registerTool('life_understanding_read', {
-    description: 'Read named Understanding Nodes or reviews whole: each one\'s kind, holder, title, full text, data (a review\'s verdict and findings), provenance, and the links into and out of it (what it answers, what answered it). Use it when the replay or the outline shows a note cut short; it reads up to 32 nodes without their neighborhoods.',
+    description: 'Read named Understanding Nodes or reviews whole: each one\'s kind, holder, title, full text, data (a review\'s verdict and findings), provenance, parsed writtenAgainstModel and currentModel, and the links into and out of it (what it answers, what answered it). A different model basis leaves applicability unchecked; it does not establish ancestry or invalidity. A missing writing stamp is an unknown basis. Use it when the replay or the outline shows a note cut short; it reads up to 32 nodes without their neighborhoods.',
     inputSchema: noteReadSchema,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await readNotes(service, input)));
   server.registerTool('life_model_outline', {
-    description: 'Read the present state as a readable outline: description coverage (which Events carry numbers without a description), Things, the Event tree with descriptions and the Cuts under each Event, processes, concepts, understanding roots and documents. With a graphHash it overlays the Understanding Nodes linked to each record, at the chosen depth: none, count, first_line or full. Narrow it with sections or focusEventId.',
+    description: 'Read the present state as a readable outline: description coverage (which Events carry numbers without a description), Things, the Event tree with descriptions and the Cuts under each Event, processes, concepts, understanding roots and documents. With a graphHash it overlays the Understanding Nodes linked to each record, at the chosen depth: none, count, first_line or full. Shown notes mark different or unknown model bases, with parsed writtenAgainstModel/currentModel in noteModelBases; these marks do not establish ancestry or invalidity. Use life_revision_check with exact models to identify affected records and notes. Narrow it with sections or focusEventId.',
     inputSchema: outlineSchema,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await outlineModel(service, input)));

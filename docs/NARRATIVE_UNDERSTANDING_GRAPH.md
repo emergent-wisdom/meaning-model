@@ -73,6 +73,26 @@ the path `/answers/0` addresses one answer of that Cut.
 
 These links are descriptive grounding. They do not become executable causal laws or mutate simulation state.
 
+Keep world assertions, attributed understanding and document content distinct.
+Understanding Nodes belong under their named holder's understanding root, and
+document nodes under their document root. Event perspective follows declared
+model context ancestry; narrative `contains` and `next` describe document or
+understanding structure, not world-time containment. An `about`, grounding or
+`renders` link transfers neither perspective nor acceptance to its target.
+Separate incompatible holders' readings rather than resolving them by proximity
+in the graph. Accepting a belief or imagining act does not accept its content.
+
+Before a consequential answer or rendering, read the relevant dated model state
+and evidence under the intended holder and cutoff. Actor-limited text can use
+the actor's represented beliefs, wants, plans and inferences, with evidential
+access limited to what was available to that actor by then; co-presence alone does
+not disclose an Event's whole record or another actor's private state. Access scopes
+and structural validation do not themselves establish this knowledge boundary.
+Record missing evidence, measurement noise, unresolved allocation and uncertainty
+about an interpretation distinctly where applicable. After a model or grounding
+revision, recheck dependent interpretations and passages or mark them stale;
+co-storage and `about` links do not perform that check automatically.
+
 ## Exact source snapshots
 
 Every graph revision binds to exactly one source:
@@ -306,6 +326,8 @@ four practices.
   path) or nodes it concerns. A note must be about something. Each note records the
   graph revision and model revision it was written against. Story notes use
   `life_story_author_record`, which takes the same `about` targets.
+  Batch related durable findings, consequential decisions and open questions;
+  this does not require a separate record for every thought, reading step or reply.
 - **Add-only records find the newest revision themselves.** A note, review,
   author record, world stage, direction or life dossier only adds records. Its
   `graphHash` may be any earlier revision of the graph: the record goes to the
@@ -335,8 +357,11 @@ four practices.
   reason, the model revisions it adopted and what they changed, and the notes,
   reviews and prose it added. Each note appears beside the records it concerned as
   they were at that step. It has three levels (outline, reasoning, full), pages with
-  offset and limit, and can focus on records or nodes. An agent continuing existing
-  work replays it first. In both views a review leads with its verdict, and a note
+  offset and limit, and can focus on records or nodes. A continuing agent can reuse
+  retained reading at an exact known head and inspect subsequent revisions and
+  relevant records, establishing the intended head and lineage if work may have
+  advanced. Unfamiliar history, lost context or an ambiguous branch requires replay
+  from the start. In both views a review leads with its verdict, and a note
   linked to several records is shown once and named at the later ones.
 - **The construction travels.** `life_construction_export` writes a portable
   history of a model-bound graph: every model revision it was bound to with their

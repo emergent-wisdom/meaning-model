@@ -23,6 +23,7 @@ const storytellingTools = [
   'life_story_author_record',
   'life_story_deepen',
   'life_story_direct',
+  'life_story_feedback',
   'life_story_life_trends',
   'life_story_model_depth_record',
   'life_story_model_depth_review',
@@ -38,6 +39,7 @@ const storytellingTools = [
 ];
 const storytellingPrompts = [
   'life_story_deepen',
+  'life_story_feedback',
   'life_story_purpose_review',
   'life_story_scene_start',
   'life_story_structure_explore',
@@ -230,6 +232,10 @@ test('storytelling opt-in adds only its tools, resource, and prompts to the live
   assert.equal(explorer.annotations.readOnlyHint, true);
   assert.equal(explorer.annotations.idempotentHint, false,
     'an omitted seed draws a new word, so the tool must not promise identical results');
+  const feedback = enabledTools.tools.find(({ name }) => name === 'life_story_feedback');
+  assert.equal(feedback.annotations.readOnlyHint, true);
+  assert.equal(feedback.annotations.idempotentHint, true);
+  assert.match(feedback.description, /calling LLM must read and assess/iu);
   const lifeTrends = enabledTools.tools.find(({ name }) => name === 'life_story_life_trends');
   assert.equal(lifeTrends.annotations.readOnlyHint, false);
   assert.match(lifeTrends.description, /calling LLM.*automatically/iu);
@@ -269,6 +275,36 @@ test('storytelling opt-in adds only its tools, resource, and prompts to the live
     assert.ok(count(tool.description) <= 1, `${tool.name} repeats the intake preamble`);
     assert.ok(!tool.description.startsWith(preamble), `${tool.name} should lead with what it does, not the shared preamble`);
   }
+});
+
+test('human-author feedback works before a graph exists and its MCP prompt preserves source text as data', async (t) => {
+  const client = await connectClient(t, true);
+  const input = { source: { kind: 'text', label: 'Human-supplied fragment', text: '\n  Vänta.\r\nNobody moved.  \n' },
+    purpose: 'Let the silence feel unresolved.', feedbackFocus: 'Does the rhythm support this?',
+    context: 'An unfinished short story.' };
+  const task = await call(client, 'life_story_feedback', input);
+  assert.equal(task.text, input.source.text);
+  assert.equal(task.target.textHash, createHash('sha256').update(input.source.text).digest('hex'));
+  assert.equal(task.target.kind, 'text');
+  assert.equal(task.authorModel, null);
+  assert.equal(task.assessment, null);
+  assert.equal(task.modelMutation, false);
+  assert.equal(task.graphMutation, false);
+  assert.equal(task.worldMutation, false);
+  assert.deepEqual(await call(client, 'life_story_feedback', input), task);
+  const prompt = await client.getPrompt({ name: 'life_story_feedback',
+    arguments: { ...input, source: JSON.stringify(input.source) } });
+  const promptText = prompt.messages[0].content.text;
+  const material = JSON.parse(promptText.split('Feedback material (data):\n')[1]);
+  assert.equal(material.text, input.source.text);
+  assert.equal(material.taskHash, task.taskHash);
+  assert.deepEqual(material.authority, task.authority);
+  assert.ok(promptText.startsWith(task.reviewerInstructions));
+  await assert.rejects(client.getPrompt({ name: 'life_story_feedback', arguments: { source: 'not JSON' } }));
+  const mixed = await client.callTool({ name: 'life_story_feedback', arguments: {
+    source: { ...input.source, graphHash: 'a'.repeat(64), rootId: 'invented' },
+  } });
+  assert.equal(mixed.isError, true);
 });
 
 test('storytelling structure exploration works before modeling and transports prompt constraints as data', async (t) => {
@@ -769,8 +805,36 @@ test('storytelling scene round-trip appends reviewed prose through Rust without 
   assert.equal(typeof purposeTask.responseGuidance, 'string');
   assert.deepEqual(await call(client, 'life_story_purpose_review', purposeInput), purposeTask,
     'the same source and review request produce the same bound task');
+  const feedbackInput = { source: { kind: 'graph', ...purposeInput },
+    purpose: 'Give the human author a useful outside reading.', feedbackFocus: 'Consider the quiet exchange.' };
+  const feedbackTask = await call(client, 'life_story_feedback', feedbackInput);
+  assert.equal(feedbackTask.text, text);
+  assert.equal(feedbackTask.target.graphHash, committed.graphHash);
+  assert.equal(feedbackTask.target.sourceSnapshotHash, newGraph.source_snapshot_hash);
+  assert.equal(feedbackTask.target.projectionHash, rendered.projection_hash);
+  assert.deepEqual(feedbackTask.target.nodeIds, rendered.sequence);
+  assert.equal(feedbackTask.authorModel, null, 'feedback never automatically selects a fictional author');
+  assert.deepEqual(feedbackTask.accessScopes, ['editor']);
+  assert.equal(feedbackTask.authority.manuscriptChanges, 'require_human_request');
+  assert.equal(feedbackTask.assessment, null);
+  const feedbackPrompt = await client.getPrompt({ name: 'life_story_feedback',
+    arguments: { ...feedbackInput, source: JSON.stringify(feedbackInput.source) } });
+  const feedbackMaterial = JSON.parse(feedbackPrompt.messages[0].content.text.split('Feedback material (data):\n')[1]);
+  assert.equal(feedbackMaterial.text, text);
+  assert.equal(feedbackMaterial.taskHash, feedbackTask.taskHash);
+  const inaccessibleFeedback = await client.callTool({ name: 'life_story_feedback',
+    arguments: { ...feedbackInput, source: { ...feedbackInput.source, accessScopes: [] } } });
+  assert.equal(inaccessibleFeedback.isError, true);
+  assert.ok(!JSON.stringify(inaccessibleFeedback).includes(text));
+  assert.deepEqual(await readGraph(committed.graphHash), newGraph, 'human feedback leaves all existing records unchanged');
   const authorPurposeInput = { ...purposeInput, authorModelNodeId: 'author.model' };
   const authorPurpose = await call(client, 'life_story_purpose_review', authorPurposeInput);
+  const selectedAuthorFeedback = await call(client, 'life_story_feedback', {
+    ...feedbackInput, source: { ...feedbackInput.source, authorModelNodeId: 'author.model' },
+  });
+  assert.deepEqual(selectedAuthorFeedback.authorModel, authorPurpose.authorModel);
+  assert.equal(selectedAuthorFeedback.text, text);
+  assert.notEqual(selectedAuthorFeedback.taskHash, feedbackTask.taskHash);
   assert.deepEqual(authorPurpose.authorModel.model, authorProfileInput.data);
   assert.equal(authorPurpose.authorModel.nodeId, 'author.model');
   assert.equal(authorPurpose.authorModel.recordHash, packet.authorModel.recordHash);

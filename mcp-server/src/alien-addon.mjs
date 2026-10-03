@@ -1,5 +1,7 @@
 import { thinkInTheModelInstructions } from './model-questions.mjs';
+import { constructionRecordInstructions } from './construction-principles.mjs';
 import { readFile } from 'node:fs/promises';
+import { ResourceTemplate } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
 import { applyOperations, equivalenceSchema, FIT_LABELS, meaningModelFragment, normalizeOntology, ONTOLOGY_KINDS, operationSchema, renderOntologyTree, validateOntology } from './alien-ontology.mjs';
 import { digest, findTargetLeaks, ISOLATION, PROVENANCE, readSearch, RECORD_SCHEMA, requireProblem, SEARCH_NODE_TYPE, sortedScopes, storeRecords, targetTerms, understandingRootId } from './alien-search.mjs';
@@ -9,6 +11,7 @@ import { runEstimatorRequest } from './estimator-receipts.mjs';
 import { expandTexInputs } from './modeling-guidance.mjs';
 
 const RESOURCE_URI = 'life-sim://addon/alien';
+const RECORD_SCHEMA_URI = `${RESOURCE_URI}/record-schema/{kind}`;
 export const ALIEN_PAPER_URI = 'life-sim://theory/ontology-of-the-alien';
 const id = z.string().trim().min(1).max(256).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/u, 'Use letters, digits, dot, underscore, colon or hyphen.');
 const hash = z.string().regex(/^[a-f0-9]{64}$/u);
@@ -26,7 +29,7 @@ const modelRef = z.string().max(1_024).regex(new RegExp(`^(${Object.keys(modelRe
 const sumsToOne = (values) => Math.abs(values.reduce((total, value) => total + value, 0) - 1) <= 1e-9;
 
 export const alienInstructions = `Every role output is a graph record; also record your own curation reasons, plans and doubts with life_understanding_record, linked to the records they concern, and replay a search with life_construction_replay before continuing it. The alien add-on runs world-diversity search from Ontology of the Alien inside Meaning Model. It builds invented worlds, solves the problem inside them, compiles the operative mechanisms back into the problem's domain, and curates what it finds in revisable ontologies that steer the next world.
-Paper first: read ${ALIEN_PAPER_URI} in this MCP process before starting or continuing a search; the write tools refuse until it has been read.
+Read ${RESOURCE_URI} and follow the returned role task instructions. ${ALIEN_PAPER_URI} is optional background for the method and its evidence boundary.
 Roles and what each may see. The server writes and stores every task with life_alien_task; the partition is in the task text itself:
 - builder: a seed word and optional departures or a commission; never the problem
 - solver: the recorded world, the problem statement and its constraints, but not the problem's context, why the world exists or what happens next
@@ -35,7 +38,7 @@ Roles and what each may see. The server writes and stores every task with life_a
 - curator: owns the mechanism ontology and the claimed-outcome ontology and decides admission
 - world_curator: codes each world's causal signature and owns the regime ontology, still without the problem
 - transfer: maps a mechanism's roles onto the bound target model
-Run builder, solver and world_curator tasks in fresh contexts that see only the task, for example separate subagents. When you cannot, do the step yourself and record same_context honestly; target blindness is then procedural, not established.
+Run builder, solver, compiler, explorer and world_curator tasks in fresh contexts that see only the task, for example separate subagents. For compiler and explorer this preserves the selected none, tabu or map population state without prior candidates leaking through caller memory. When you cannot, do the step yourself and record same_context honestly; context isolation is then not established, and target blindness remains procedural.
 Loop: life_alien_search_start (problem and target model) -> builder task -> record world with its taskNodeId -> solver task -> record solution -> world_curator task -> life_alien_ontology_revise (worlds) -> compiler task -> record mechanism -> curator tasks (mechanisms, outcomes) -> life_alien_ontology_revise -> life_alien_search_diagnose -> record a commission for the gap you judge most useful -> the next builder task takes commissionNodeId. Transfer the mechanisms you want to develop, record assessments, and record a selection when the user wants a single idea, a diverse portfolio or a weighted set. Read the whole search with life_alien_atlas.
 Check curator decisions with life_alien_decision_check, a second judge that sees the candidate and the concepts but not the curator's reasons (Jev when MEANING_MODEL_ESTIMATOR is set). Reuse target-blind worlds from another search with life_alien_worlds_export and life_alien_worlds_import; the importing search starts at the solver.\nNumbers follow the Meaning Model rule: a graded fit is a fit Cut with a question, unit and remainder; a weighted selection is an allocation with a remainder; ontology fit is categorical, and a candidate between families may also carry a graded membership Cut.
 The server checks structure: stored task provenance, rule and role bindings, ontology references and acyclicity, the admission guard, model references, Cut sums, and target terms in target-blind tasks. It does not judge whether a world is coherent, whether two mechanisms are equivalent, or whether an idea works. Worlds are textual thought experiments, not simulations; a transfer records an idea and its mapping, not evidence. Develop an unusual branch before judging it on familiarity.`;
@@ -83,7 +86,8 @@ const fitCutSchema = z.object({
   question: prose(400).describe('The comparison question, for example how the comparison budget of this role alignment divides.'),
   unit: prose(200).describe('The one divided unit, for example one comparison budget over the mechanism roles.'),
   matches: share, doesNotMatch: share, remainder: share,
-}).strict().refine((cut) => sumsToOne([cut.matches, cut.doesNotMatch, cut.remainder]), 'A fit Cut divides one unit: matches, doesNotMatch and remainder sum to 1.');
+}).strict().refine((cut) => sumsToOne([cut.matches, cut.doesNotMatch, cut.remainder]), 'A fit Cut divides one unit: matches, doesNotMatch and remainder sum to 1.')
+  .describe('matches, doesNotMatch and remainder must sum to 1 (tolerance 1e-9).');
 
 const recordData = {
   world: z.object({
@@ -111,12 +115,13 @@ const recordData = {
     addressedTo: z.enum(['new_world', 'explorer']),
     relationToChange: prose(1_000).nullable().default(null), worldAsk: prose(1_000).nullable().default(null),
     operators: z.array(worldOperatorSchema).max(6).default([]), avoidConceptIds: z.array(id).max(32).default([]),
-    rationale: prose(4_000), diagnosis: z.object({ graphHash: hash, diagnosisHash: hash }).strict().nullable().default(null),
+    rationale: prose(4_000), diagnosis: z.object({ graphHash: hash, diagnosisHash: hash }).strict().nullable().default(null)
+      .describe('Optional reference to life_alien_search_diagnose: both hashes identify the diagnosis at that graph revision; the server recomputes it.'),
   }).strict().superRefine((value, context) => {
     if (value.addressedTo === 'new_world' && value.worldAsk === null && !value.operators.length) context.addIssue({ code: 'custom', path: ['worldAsk'], message: 'A new-world commission needs a worldAsk or operators.' });
     if (value.addressedTo === 'explorer' && value.relationToChange === null) context.addIssue({ code: 'custom', path: ['relationToChange'], message: 'An explorer commission needs relationToChange.' });
     if (value.addressedTo === 'explorer' && (value.worldAsk !== null || value.operators.length)) context.addIssue({ code: 'custom', path: ['worldAsk'], message: 'worldAsk and operators belong to new-world commissions.' });
-  }),
+  }).describe('new_world requires worldAsk or at least one operator. explorer requires relationToChange, with worldAsk null or omitted and operators empty or omitted.'),
   transfer: z.object({
     mechanismNodeId: id,
     roleMap: z.array(z.object({ roleId: id, binding: z.discriminatedUnion('kind', [
@@ -150,7 +155,7 @@ const recordData = {
     } else {
       if (weights.some((weight) => weight !== null) || value.allocation) context.addIssue({ code: 'custom', path: ['items'], message: 'Only weighted selections carry shares and an allocation.' });
     }
-  }),
+  }).describe('single requires exactly one item. weighted requires every item weight and allocation; weights plus remainder must sum to 1 (tolerance 1e-9). single and portfolio require weights and allocation to be null or omitted.'),
 };
 export const RECORD_KINDS = Object.freeze(Object.keys(recordData));
 
@@ -159,7 +164,7 @@ const recordSchema = z.object({
   kind: z.enum(RECORD_KINDS),
   taskNodeId: id.nullable().default(null).describe('The stored task this output answers. Required for world (builder), solution (solver) and mechanism (compiler or explorer); optional for transfer.'),
   taskRef: taskRefSchema.nullable().default(null).describe('Earlier form of task provenance, verified by recomputation; use taskNodeId.'),
-  data: z.json().describe('Kind-specific fields; see the add-on guide.'),
+  data: z.json().describe(`Kind-specific fields. Read ${RECORD_SCHEMA_URI} with kind set to this record's kind for its input JSON Schema and cross-field rules; ${RESOURCE_URI} gives the operational guide.`),
   note: z.string().trim().max(4_000).nullable().default(null),
 }).strict();
 
@@ -778,35 +783,40 @@ export class AlienAddon {
 export function registerAlienAddon(server, service, { estimator = null } = {}) {
   const addon = new AlienAddon(service, { estimator });
   const result = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }], structuredContent: value });
-  // Paper first, as for modeling: the write tools refuse until the paper has been read in this MCP process.
-  let paperRead = false;
   server.registerResource('alien-addon', RESOURCE_URI, {
     title: 'Optional Ontology of the Alien workflows',
     description: 'Opt-in world-diversity ideation: target-blind world building, in-world solving, mechanism compilation under the paper\'s conditions, curated mechanism, outcome and world-regime ontologies, diagnostic commissioning, and transfer onto a target model.',
     mimeType: 'text/markdown',
   }, async () => ({ contents: [{ uri: RESOURCE_URI, mimeType: 'text/markdown',
     text: await readFile(new URL('../../profiles/ALIEN_ADDON.md', import.meta.url), 'utf8') }] }));
+  server.registerResource('alien-record-schema', new ResourceTemplate(RECORD_SCHEMA_URI, { list: undefined }), {
+    title: 'Alien record payload schema by kind',
+    description: `Input JSON Schema for life_alien_record.data, generated from its runtime validator. Kinds: ${RECORD_KINDS.join(', ')}. Cross-field refinements are described in the schema; task and graph-reference checks still apply.`,
+    mimeType: 'application/schema+json',
+  }, async (uri, { kind }) => {
+    if (!Object.hasOwn(recordData, kind)) throw new Error(`Unknown alien record kind: ${kind}. Use ${RECORD_KINDS.join(', ')}.`);
+    return { contents: [{ uri: uri.href, mimeType: 'application/schema+json',
+      text: JSON.stringify(z.toJSONSchema(recordData[kind], { io: 'input' }), null, 2) }] };
+  });
   server.registerResource('ontology-of-the-alien', ALIEN_PAPER_URI, {
     title: 'Ontology of the Alien (paper)',
-    description: 'Complete Ontology of the Alien manuscript: world-diversity search, ontology-governed intervention search, the study, its evidence boundary and the proposals this add-on implements. Required reading before an alien search; its decision trees are expanded inline, and source digests are recorded in docs/companions/ontology-of-the-alien/SOURCE.json.',
+    description: 'Optional background: the complete Ontology of the Alien manuscript on world-diversity search, ontology-governed intervention search, the study, its evidence boundary and the proposals this add-on implements. Its decision trees are expanded inline, and source digests are recorded in docs/companions/ontology-of-the-alien/SOURCE.json.',
     mimeType: 'text/x-tex',
   }, async () => {
     const file = new URL('../../docs/companions/ontology-of-the-alien/ontology_of_the_alien.tex', import.meta.url);
     const text = await expandTexInputs(await readFile(file, 'utf8'), file);
-    paperRead = true;
     return { contents: [{ uri: ALIEN_PAPER_URI, mimeType: 'text/x-tex', text }] };
   });
   server.registerPrompt('life_alien_start', {
     title: 'Search for mechanisms through invented worlds',
-    description: 'Read the paper, settle the problem, the target model and the human role, then build target-blind worlds, solve and compile them, curate the mechanisms and outcomes found, commission the next world from the gaps, and transfer promising mechanisms onto the target model.',
+    description: 'Read the operational guide, settle the problem, the target model and the human role, then build target-blind worlds, solve and compile them, curate the mechanisms and outcomes found, commission the next world from the gaps, and transfer promising mechanisms onto the target model.',
     argsSchema: z.object({}),
-  }, async () => ({ messages: [{ role: 'user', content: { type: 'text', text: `${thinkInTheModelInstructions}\n\nFirst read ${ALIEN_PAPER_URI} completely; the alien write tools refuse until it has been read in this MCP process. Then settle with the user: the problem statement and any context; the target model the ideas should land in (build it with the general modeling workflow if none exists, after reading the modeling papers); terms that would disclose the target; how many worlds to try; and who curates, the user or you under delegation. Record the problem with life_alien_search_start.\n\nRead ${RESOURCE_URI}.\n\n${alienInstructions}` } }] }));
-  const gated = new Set(['life_alien_search_start', 'life_alien_task', 'life_alien_record', 'life_alien_ontology_revise', 'life_alien_decision_check', 'life_alien_worlds_import']);
+  }, async () => ({ messages: [{ role: 'user', content: { type: 'text', text: `${thinkInTheModelInstructions}\n\n${constructionRecordInstructions}\n\nRead ${RESOURCE_URI} and follow the returned role task instructions. Then settle with the user: the problem statement and any context; the target model the ideas should land in (build it with the general modeling workflow if none exists); terms that would disclose the target; how many worlds to try; and who curates, the user or you under delegation. Record the problem with life_alien_search_start.\n\n${alienInstructions}` } }] }));
   for (const [name, method, schema, description, readOnly, idempotent] of [
     ['life_alien_search_start', 'startSearch', searchStartSchema,
       'Start an alien search: record the problem as an author-scoped record and create a search root, either in a new graph bound to the target model or in an existing graph. Returns the derived target terms that builder tasks are checked against.', false, false],
     ['life_alien_task', 'task', taskSchema,
-      'Prepare a role task written by the server with the information that role may see, and store its exact text in the graph: builder (seed word, departures and commission; never the problem), solver (world, problem statement and constraints; not the purpose), compiler (population state none, tabu or map: the paper\'s F, G, H), explorer (population state none, tabu or map: uncued target_only, A, B; with a random-word cue C, D, E), curator (mechanisms or outcomes), world_curator (target-blind) or transfer. A prepared builder task reserves its draw slot. Returns the task text and the taskNodeId that records of its output must cite.', false, false],
+      'Prepare a role task written by the server with the information that role may see, and store its exact text in the graph: builder (seed word, departures and commission; never the problem), solver (world, problem statement and constraints; not the purpose), compiler (population state none, tabu or map: the paper\'s F, G, H), explorer (population state none, tabu or map: uncued target_only, A, B; with a random-word cue C, D, E), curator (mechanisms or outcomes), world_curator (target-blind) or transfer. Run builder, solver, compiler, explorer and world_curator tasks in fresh contexts that see only the task; if unavailable, record same_context honestly. A prepared builder task reserves its draw slot. Returns the task text and the taskNodeId that records of its output must cite. textHash is SHA-256 of the UTF-8 JSON.stringify({text}) wrapper; life_review_record.prompt.sha256 hashes the UTF-8 prompt text itself.', false, false],
     ['life_alien_record', 'record', recordSchema,
       `Record one output of the search as an Understanding Node in the graph, citing the stored task it answers. Kinds: world, solution, mechanism (compiled from a world or proposed by an explorer), commission (new_world or explorer), transfer (role map onto the target model, with an optional fit Cut), assessment, selection (single, portfolio, or a weighted allocation with question, unit and remainder). The server binds the world's seed and target blindness from its task and checks rule bindings, role coverage, model references, Cut sums and candidate field limits (${Object.entries(CANDIDATE_LIMITS).map(([field, limit]) => `${field} ${limit}`).join(', ')} characters).`, false, false],
     ['life_alien_ontology_revise', 'reviseOntology', reviseSchema,
@@ -825,9 +835,6 @@ export function registerAlienAddon(server, service, { estimator = null } = {}) {
     server.registerTool(name, { description, inputSchema: schema,
       annotations: { readOnlyHint: readOnly, destructiveHint: false, idempotentHint: idempotent, openWorldHint: false } },
     async (input) => {
-      if (gated.has(name) && !paperRead) {
-        throw new Error(`Paper-first gate: read ${ALIEN_PAPER_URI} completely in this MCP process before using ${name}. Reading is verified only within this live process and does not prove comprehension.`);
-      }
       return result(await addon[method](input));
     });
   }

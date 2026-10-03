@@ -85,8 +85,8 @@ persist their results directly; neither accepts them as world facts.
 
 ## Entry point
 
-Read the required Meaning Model and Life Simulation paper resources and common
-modeling protocol before authoring a model. With the add-on enabled, read
+Read the common modeling protocol before authoring a model. The Meaning Model
+and Life Simulation papers remain optional references. With the add-on enabled, read
 `life-sim://addon/storytelling` and use the
 `life_story_scene_start` prompt to begin the scene workflow,
 `life_story_structure_explore` to explore possible structures, or

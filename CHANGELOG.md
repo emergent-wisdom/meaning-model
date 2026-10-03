@@ -4,6 +4,80 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## 0.6.6 — 2026-10-03
+
+- The Book publication copy omits private coordination from non-rendered notes
+  while retaining its construction sequence, native models and October 2 prose.
+  The publication mapping distinguishes changed graph hashes from the original
+  evidence identities used by historical reviews.
+- Memory guidance calls for bounded re-entry after relevant new reports and
+  corrections, not only at startup. It makes stale derived accounts explicit:
+  source changes do not automatically invalidate or revise their dependents.
+- Revision checks explicitly identify concept, abstract-Cut and relation changes
+  as requiring manual review of linked notes and other dependents.
+- Cut answers retain their declared meanings, including the remainder, through
+  estimation, storage, rereading, draws and portable history export. Legacy
+  records keep their identities; missing definitions are reported rather than
+  reconstructed from answer keys. Definition changes now flag dependent work
+  even when the numerical shares stay unchanged.
+- Understanding outlines distinguish a note's recorded model basis from the
+  currently bound revision. Rebinding supplies the exact revision-check call;
+  a different basis alone does not establish that a note is wrong. Modeling
+  guidance now demonstrates historical reports with separate value and
+  evidence dates, and the engine conformance account covers current-time world
+  revision as well as genesis refinement.
+- Model questions and scene preparation respect native process and account
+  access scopes and identify partial summaries. Graph evidence must match the
+  supplied model. Whole-note reads retain report sources and evidence metadata.
+- Shared exploration guidance allows agents to try new categories before their
+  usefulness is known and build on them to discover their consequences.
+  Curiosity may guide inquiry in descriptive work; factual outcomes still
+  follow evidence. Speculative structure remains explicitly provisional.
+- Ideation agents can retrieve the accepted payload schema for each record
+  kind on demand, directly from its runtime validator. The normal guide stays
+  compact, and task-text hashes are distinguished from review-prompt hashes.
+
+- Optional memory transcript capture retains visible user messages and agent
+  responses as scoped, linkable source nodes. Stable IDs preserve exact text
+  across retries. A per-context switch stops future capture without erasing
+  existing sources; paginated retrieval keeps transcripts separate from
+  derived memory and modeled state. Capture requires messages supplied by the
+  caller or chat integration, not background access to conversations. Transcript
+  reads and capture validate stored settings and source integrity; generic graph
+  edits that leave inconsistent capture settings, message text or placement are
+  rejected instead of being presented as intact sources.
+- Agents start from operational guidance and purpose-specific instructions;
+  full-paper reading is optional in every workflow. Profile compilation and
+  mechanism search no longer require paper-access records. Shared instructions
+  state the Cut, perspective, concept-application and refinement contracts and
+  require consulting relevant recorded states before consequential use.
+- Shared instructions explicitly frame construction as making the agent's
+  learned world knowledge into an inspectable world model, using that structure
+  for further discovery without requiring prior measurement. Inferred accounts
+  remain distinct from observations and are checked against evidence.
+
+- Core agent/user memory maintains attributed records and the ongoing processes
+  of work and personal context through the existing model and Understanding
+  Graph. Scoped start, record and query tools preserve evidence, temporal
+  context, revisions and explicit branch selection. Durable storage remains
+  opt-in; capture within a chosen scope is performed by the calling agent.
+  Retries reconcile entries against the current chosen branch, and changed
+  context declarations cannot silently expand the original delegated scope.
+- Human-author feedback is a selectable workflow. The storytelling add-on can
+  prepare a read-only feedback task from exact graph material or supplied text;
+  the human retains authorship and creative decisions. All entry routes share
+  recursive exploration, macro-to-micro modeling and attributed understanding.
+- The paper explains continuing process-based memory, cumulative distinctions,
+  re-entry after corrections, and human-led writing with LLM feedback. Its
+  world-model construction framing and citations are preserved, and its
+  UnderstandingNode examples include tension and surprise.
+- Conversation guidance reuses known revision history and batches durable
+  findings. Controlled read-back targets substantial deliverables or specific
+  fidelity questions rather than every reply. Recursive construction remains
+  common to all modes. Guidance distinguishes uncertain occurrence dates from
+  Event duration, requires native subject links for process queries, and states
+  the limits of memory recall and historical/runtime state projections.
+
 ## 0.6.5 — 2026-10-02
 
 - The viewer can replay retained construction history in revision order when

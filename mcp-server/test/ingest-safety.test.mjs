@@ -43,6 +43,8 @@ test('Cut proposal adoption and identical concurrent retries never re-estimate a
   assert.deepEqual(first, repeated);
   assert.equal(f.calls.estimates, 1);
   assert.equal(f.calls.revisions, 1);
+  assert.equal(f.calls.revised.model.meaning_model.normalized_cuts[0].answers.find((answer) => answer.key === 'activity').meaning, question.answers[0].meaning);
+  assert.equal(f.calls.revised.model.meaning_model.normalized_cuts[0].answers.find((answer) => answer.key === 'remainder').meaning, 'Something else, or no single named answer dominates.');
   await assert.rejects(proposeCutShares({ ...apply, question: 'Changed meaning.' }, f.estimator, f.service), /different cut-shares payload/);
   await assert.rejects(proposeCutShares({ ...apply, requestId: 'changed', question: 'Changed meaning.' }, f.estimator, f.service), /different modeling inputs/);
 });
@@ -56,6 +58,9 @@ test('ingest proposals use their exact reviewed values even with the provider su
   assert.equal(preview.estimatorCallsThisRequest > 0, true);
   assert.equal(applied.estimatorCallsThisRequest, 0);
   assert.deepEqual(applied.usage, preview.usage, 'usage belongs to the estimate');
+  const cut = f.calls.revised.model.meaning_model.normalized_cuts[0];
+  assert.equal(cut.answers.find((answer) => answer.key === 'activity').meaning, question.answers[0].meaning);
+  assert.equal(cut.answers.find((answer) => answer.key === 'remainder').meaning, 'Something else, or no single named answer dominates.');
   assert.deepEqual(await ingestSituation(input, null, f.service), applied);
   assert.equal(f.calls.estimates, 1);
   assert.equal(f.calls.revisions, 1);

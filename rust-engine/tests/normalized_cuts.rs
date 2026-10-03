@@ -206,6 +206,10 @@ fn context_roots_reject_unrooted_ambiguous_cyclic_and_escaping_ancestry() {
 #[test]
 fn normalized_cuts_hash_canonically_without_changing_legacy_models() {
     let original = compile(model()).unwrap();
+    assert_eq!(original.model_hash, "09caeb94b272b41321c9a49ee824ec09a134d3c4f64bc082c3135e3a9590681f");
+    let encoded = serde_json::to_value(original.definition()).unwrap();
+    assert!(encoded["meaning_model"]["normalized_cuts"].as_array().unwrap()
+        .iter().all(|cut| cut["answers"].as_array().unwrap().iter().all(|answer| answer.get("meaning").is_none())));
     let mut reordered = model();
     for key in [
         "events",
@@ -245,6 +249,43 @@ fn normalized_cuts_hash_canonically_without_changing_legacy_models() {
     assert!(encoded["meaning_model"]["events"][0]
         .get("description")
         .is_none());
+}
+
+#[test]
+fn normalized_cut_definitions_are_optional_exact_and_part_of_the_revision_hash() {
+    let mut candidate = model();
+    let definition = "  An opaque comparison definition: correspondence of the observed roles, not numerical equality.\n";
+    let remainder = "No named comparison applies, or the allocation remains unresolved.";
+    candidate["meaning_model"]["normalized_cuts"][0]["answers"][0]["meaning"] = json!(definition);
+    candidate["meaning_model"]["normalized_cuts"][0]["answers"][2]["meaning"] = json!(remainder);
+    let compiled = compile(candidate.clone()).unwrap();
+    let encoded = serde_json::to_value(compiled.definition()).unwrap();
+    let outlook = encoded["meaning_model"]["normalized_cuts"].as_array().unwrap()
+        .iter().find(|cut| cut["id"] == "outlook").unwrap();
+    let answers = outlook["answers"].as_array().unwrap();
+    assert_eq!(answers.iter().find(|answer| answer["key"] == "matches").unwrap()["meaning"], definition);
+    assert_eq!(answers.iter().find(|answer| answer["key"] == "remainder").unwrap()["meaning"], remainder);
+    assert!(answers.iter().find(|answer| answer["key"] == "zero").unwrap().get("meaning").is_none());
+    assert_eq!(compile(encoded).unwrap().model_hash, compiled.model_hash);
+    candidate["meaning_model"]["normalized_cuts"][0]["answers"][0]["meaning"] =
+        json!("The same key now means numerical equality, excluding correspondence of roles.");
+    assert_ne!(compile(candidate).unwrap().model_hash, compiled.model_hash);
+
+    let mut legacy = model();
+    legacy["meaning_model"]["normalized_cuts"][0]["answers"][0]["meaning"] = Value::Null;
+    assert_eq!(compile(legacy).unwrap().model_hash, compile(model()).unwrap().model_hash);
+}
+
+#[test]
+fn normalized_cut_definitions_are_nonblank_and_bounded_without_changing_accounting() {
+    for text in [" ".to_owned(), "x".repeat(64 * 1024 + 1)] {
+        let mut candidate = model();
+        candidate["meaning_model"]["normalized_cuts"][0]["answers"][2]["meaning"] = json!(text);
+        assert!(compile(candidate).unwrap_err().to_string().contains("meaning must be nonempty and at most"));
+    }
+    let mut candidate = model();
+    candidate["meaning_model"]["normalized_cuts"][0]["answers"][0]["meaning"] = json!("深".repeat(16_000));
+    compile(candidate).unwrap();
 }
 
 #[test]
@@ -315,17 +356,24 @@ fn normalized_cuts_and_roots_survive_native_revision_and_durable_restart() {
         std::process::id()
     ));
     let mut session = MachineSession::with_state_file(&path).unwrap();
-    let registered = execute(&mut session, "register_model", json!({"model": model()}));
+    let mut base = model();
+    base["meaning_model"]["normalized_cuts"][0]["answers"][0]["meaning"] =
+        json!("Correspondence of observed roles, not numerical equality.");
+    base["meaning_model"]["normalized_cuts"][0]["answers"][2]["meaning"] =
+        json!("Neither correspondence nor mismatch is resolved.");
+    let registered = execute(&mut session, "register_model", json!({"model": base.clone()}));
     let first_hash = registered["summary"]["model_hash"]
         .as_str()
         .unwrap()
         .to_owned();
-    let mut revision = model();
+    let mut revision = base;
     revision["revision"]["number"] = json!(1);
     revision["revision"]["previous_model_hash"] = json!(first_hash);
     revision["revision"]["reason"] = json!("Explicitly revise the authored allocation.");
     revision["meaning_model"]["normalized_cuts"][0]["answers"][0]["weight"] = json!(0.5);
     revision["meaning_model"]["normalized_cuts"][0]["answers"][1]["weight"] = json!(0.4);
+    revision["meaning_model"]["normalized_cuts"][0]["answers"][0]["meaning"] =
+        json!("Numerical equality; correspondence of roles is outside this answer.");
     let revised = execute(&mut session, "revise_model", json!({"model": revision}));
     let second_hash = revised["summary"]["model_hash"]
         .as_str()

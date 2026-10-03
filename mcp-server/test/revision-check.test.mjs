@@ -43,6 +43,66 @@ test('a revision that changed nothing leaves nothing to check', async () => {
   assert.equal(result.unlinkedPassages, undefined);
 });
 
+test('unchanged shares with revised Cut definitions still reach dependent scenes, notes, children and draws', async () => {
+  const base = structuredClone(before);
+  const original = base.meaning_model.normalized_cuts[0];
+  original.answers[0].meaning = 'Accept the offered night shift.';
+  original.answers[1].meaning = 'Continuations not yet distinguished.';
+  for (const [label, edit] of [
+    ['answer', (cut) => { cut.answers[0].meaning = 'Accept only the daytime shift.'; }],
+    ['remainder', (cut) => { cut.answers[1].meaning = 'Decline to state a preference.'; }],
+    ['question', (cut) => { cut.question = 'What does she expect, rather than choose?'; }],
+    ['unit', (cut) => { cut.unit = 'forecast probability'; }],
+    ['conditioning', (cut) => { cut.conditioning = { cut_id: 'earlier.choice', answer_key: 'stay' }; }],
+  ]) {
+    const next = structuredClone(base); edit(next.meaning_model.normalized_cuts[0]);
+    const result = await checkGraph([
+      passage('scene'),
+      { id: 'note', node_type: 'understanding.hypothesis', render: 'exclude', text: 'Her night-shift choice explains the later exhaustion.' },
+      { id: 'draw', node_type: 'direction_draw', render: 'exclude', text: JSON.stringify({ cutId: original.id, question: original.question,
+        unit: original.unit, conditioning: original.conditioning ?? null, answers: original.answers, realized: 'yes' }) },
+    ], [anchor('scene', 'ana.choice'), anchor('note', original.id, { kind: 'normalized_cut', family: 'semantic', relation: 'about' })], next, base);
+    assert.deepEqual(result.changed.reweighted, [], label);
+    assert.deepEqual(result.changed.redefined, [original.id], label);
+    assert.deepEqual(result.changed.stateChanged, [{ eventId: 'ana.choice', by: ['cut:cut.choice'] }], label);
+    assert.deepEqual(result.passages.map(({ nodeId }) => nodeId), ['scene'], label);
+    assert.deepEqual(result.notes.map(({ nodeId }) => nodeId), ['note'], label);
+    assert.deepEqual(result.later.map(({ eventId }) => eventId), ['ana.after'], label);
+    assert.deepEqual(result.conditioned.map(({ cutId }) => cutId), ['cut.choice.in.yes'], label);
+    assert.match(result.conditioned[0].why, /definition or Event/);
+    assert.match(result.draws[0].why, /definition changed/);
+    assert.doesNotMatch(result.draws[0].why, /weights that have changed/);
+  }
+});
+
+test('answer order, absent optional definitions and provenance do not redefine a Cut', async () => {
+  const next = structuredClone(before);
+  const cut = next.meaning_model.normalized_cuts[0];
+  cut.answers.reverse();
+  cut.answers.forEach((answer) => { answer.meaning = null; });
+  cut.conditioning = null;
+  cut.provenance = ['A new citation, with no change to the declared comparison.'];
+  const result = await checkGraph([], [], next, before);
+  assert.deepEqual(result.changed.redefined, []);
+  assert.deepEqual(result.changed.reweighted, []);
+  assert.equal(result.toCheck, 0);
+});
+
+test('restoring a recorded draw definition is distinguishable from a legacy draw with unknown definitions', async () => {
+  const revised = structuredClone(before);
+  revised.meaning_model.normalized_cuts[0].answers[0].meaning = 'Accept the daytime shift.';
+  const restored = structuredClone(before);
+  const cut = restored.meaning_model.normalized_cuts[0];
+  cut.answers[0].meaning = 'Accept the night shift.';
+  const draw = { cutId: cut.id, question: cut.question, unit: cut.unit, conditioning: null, answers: cut.answers, realized: 'yes' };
+  const check = (data) => checkGraph([{ id: 'draw', node_type: 'direction_draw', text: JSON.stringify(data) }], [], restored, revised);
+  assert.deepEqual((await check(draw)).draws, [], 'the retained draw already used the restored meanings');
+  const legacy = structuredClone(draw);
+  delete legacy.conditioning;
+  legacy.answers.forEach((answer) => { delete answer.meaning; });
+  assert.match((await check(legacy)).draws[0].why, /does not establish the same meaning/);
+});
+
 test('an older stale reading remains visible even when the most recent revision did not rewrite its Event', async () => {
   const same = { ...service, inspectModel: async () => ({ model: after }) };
   const result = await checkRevision(same, { graphHash: 'c'.repeat(64), fromModelHash: 'b'.repeat(64), toModelHash: 'b'.repeat(64) });
@@ -68,6 +128,32 @@ async function checkGraph(nodes, edges, modelAfter = after, modelBefore = before
     inspectModel: async ({ modelHash }) => ({ model: modelHash === 'a'.repeat(64) ? modelBefore : modelAfter }),
   }, { graphHash: 'c'.repeat(64), fromModelHash: 'a'.repeat(64) });
 }
+
+test('concept, abstract-Cut and relation revisions explicitly require manual review of linked notes', async () => {
+  const base = structuredClone(before);
+  base.meaning_model.concepts = [
+    { id: 'carry-forward', boundary: 'A named steward can continue the work.' },
+    { id: 'steward', boundary: 'An assigned next volunteer.' },
+  ];
+  base.meaning_model.abstract_cuts = [{ id: 'opening', parent_concept_id: 'carry-forward', child_concept_ids: ['steward'], lens: 'Continuation conditions' }];
+  const next = structuredClone(base);
+  next.meaning_model.concepts[0].boundary = 'Continuation requires feasible willing acceptance.';
+  next.meaning_model.concepts[1].withdrawn = { reason: 'Assignment alone does not establish consent or availability.' };
+  next.meaning_model.abstract_cuts[0].withdrawn = { reason: 'The opening omitted feasible acceptance.' };
+  next.meaning_model.event_relations[1].kind = 'enables';
+  const notes = ['definition', 'withdrawal', 'opening', 'relation'].map((id) => ({ id, node_type: 'understanding.hypothesis', render: 'exclude', text: 'An earlier account about this record.' }));
+  const result = await checkGraph(notes, [
+    anchor('definition', 'carry-forward', { kind: 'concept', relation: 'about' }),
+    anchor('withdrawal', 'steward', { kind: 'concept', relation: 'about' }),
+    anchor('opening', 'opening', { kind: 'abstract_cut', relation: 'about' }),
+    anchor('relation', 'r2', { kind: 'event_relation', relation: 'about' }),
+  ], next, base);
+  assert.equal(result.toCheck, 0);
+  assert.deepEqual(result.notes, []);
+  assert.ok(Object.values(result.changed).every((changes) => changes.length === 0));
+  assert.match(result.notChecked, /Concept definition or withdrawal changes, abstract-Cut changes and relation changes are not compared/u);
+  assert.match(result.notChecked, /inspect their linked notes and other dependents manually/u);
+});
 
 test('Event region and substrate edits flag declared prose and notes without invalidating text estimates or draws', async () => {
   for (const field of ['region', 'substrate']) for (const [from, to] of [[undefined, 'workshop'], ['workshop', 'office'], ['office', null]]) {

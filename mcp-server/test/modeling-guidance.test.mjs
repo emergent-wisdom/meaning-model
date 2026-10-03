@@ -10,20 +10,47 @@ import {
   listModelingResources,
   modelingFreedom,
   modelingPurposes,
+  modelingSessionModes,
   modelingTheoryUris,
+  readingMode,
   readModelingResource,
+  servedText,
   starterSelection,
 } from '../src/modeling-guidance.mjs';
+import { constructionRecordInstructions } from '../src/construction-principles.mjs';
+import { controlledReadbackInstructions } from '../src/readback-guidance.mjs';
+import { humanAuthorFeedbackInstructions, memoryWorkflowInstructions } from '../src/workflow-guidance.mjs';
 
-test('modeling resources expose complete theory before operational profiles', async () => {
+test('memory and human feedback route through the same construction method with distinct authority', async () => {
+  for (const [purpose, workflow, uri, instructions] of [
+    ['agent_memory', 'memory', 'life-sim://guide/memory', memoryWorkflowInstructions],
+    ['user_memory', 'memory', 'life-sim://guide/memory', memoryWorkflowInstructions],
+    ['human_author_feedback', 'human_author_feedback', 'life-sim://guide/human-author-feedback', humanAuthorFeedbackInstructions],
+  ]) {
+    const context = await buildModelingContext({ purpose, sessionMode: 'continuation', reading: 'guides' });
+    assert.equal(context.workflow, workflow);
+    assert.equal(context.purposeInstructions, instructions);
+    assert.equal(context.constructionRecord, constructionRecordInstructions);
+    assert.match(context.scaleReview, /Start macro to micro/);
+    assert.ok(context.orderedResources.some((entry) => entry.uri === uri && entry.required));
+    assert.ok((await readModelingResource(uri)).text.length > 0);
+    assert.ok(!context.orderedResources.some((entry) => entry.uri === 'life-sim://profile/story'), 'no autonomous authoring profile for feedback or memory');
+    const prompt = await buildModelingPrompt({ purpose, sessionMode: 'continuation', reading: 'guides' });
+    assert.ok(prompt.includes(constructionRecordInstructions));
+    assert.ok(prompt.indexOf(instructions) > prompt.indexOf(constructionRecordInstructions), 'scope qualifies the common construction method');
+  }
+  assert.match(memoryWorkflowInstructions, /not only a list of saved facts/);
+  assert.match(memoryWorkflowInstructions, /without asking approval for each entry/);
+  assert.match(memoryWorkflowInstructions, /ordinary model revision tools/);
+  assert.match(humanAuthorFeedbackInstructions, /human writes and directs/);
+  assert.match(humanAuthorFeedbackInstructions, /Do not rewrite passages/);
+});
+
+test('modeling resources lead with the operational protocol and preserve complete optional papers', async () => {
   const resources = listModelingResources();
+  assert.equal(resources[0].uri, 'life-sim://protocol/modeling');
   assert.deepEqual(
-    resources.slice(0, 3).map(({ uri }) => uri),
-    [
-      'life-sim://theory/meaning-model',
-      'life-sim://theory/life-simulation',
-      'life-sim://protocol/modeling',
-    ],
+    resources.slice(-2).map(({ uri }) => uri), modelingTheoryUris,
   );
   const meaning = await readModelingResource('life-sim://theory/meaning-model');
   const life = await readModelingResource('life-sim://theory/life-simulation');
@@ -47,26 +74,28 @@ test('modeling resources expose complete theory before operational profiles', as
     await readFile(new URL('../../docs/companions/life-simulation/life-simulation.tex', import.meta.url), 'utf8'),
   );
   assert.match(life.text, /Learning from Worlds and Their Construction/);
-  assert.match(protocol.text, /Paper-first entry contract/);
+  assert.equal(protocol.text, await readFile(new URL('../../docs/MODELING_PROTOCOL.md', import.meta.url), 'utf8'));
+  assert.doesNotMatch(protocol.text, /must read the complete current papers|Paper-first entry contract/);
   assert.match(narrativeGraph.text, /additive atomic batches/);
   assert.match(meaning.sha256, /^[a-f0-9]{64}$/);
   assert.match(life.sha256, /^[a-f0-9]{64}$/);
 });
 
-test('first-use context requires both complete papers and never claims comprehension', async () => {
+test('first-use context requires the operational contract and purpose guide without claiming comprehension', async () => {
   const context = await buildModelingContext({
     purpose: 'person_reflection',
     sessionMode: 'first_use',
   });
-  assert.equal(context.paperFirst, true);
-  assert.equal(context.requiresFullTheoryRead, true);
-  assert.equal(context.theoryAccessGate.satisfied, false);
+  assert.equal(context.paperFirst, false);
+  assert.equal(context.requiresFullTheoryRead, false);
+  assert.equal(context.theoryAccessGate.satisfied, true);
+  assert.equal(context.theoryAccessGate.enforced, false);
   assert.deepEqual(
     context.orderedResources.slice(0, 3).map(({ uri, required }) => ({ uri, required })),
     [
-      { uri: 'life-sim://theory/meaning-model', required: true },
-      { uri: 'life-sim://theory/life-simulation', required: true },
       { uri: 'life-sim://protocol/modeling', required: true },
+      { uri: 'life-sim://profile/person', required: true },
+      { uri: 'life-sim://example/fearless-care', required: true },
     ],
   );
   assert.ok(context.orderedResources.some(({ uri }) => uri === 'life-sim://profile/person'));
@@ -79,53 +108,42 @@ test('first-use context requires both complete papers and never claims comprehen
     'alternative AI-inferred actor-local models',
     "the person's reported self-model",
   ]);
-  assert.match(context.comprehensionBoundary, /not that an agent understood/);
+  assert.match(context.comprehensionBoundary, /cannot verify comprehension/);
+  assert.match(context.comprehensionBoundary, /exact bytes, not reading or understanding/);
   assert.match(context.valueAndFunctionSupport.rule, /does not require/);
 });
 
-test('repeat context reuses only live-process access to both papers', async () => {
-  const repeat = await buildModelingContext({
-    purpose: 'creative_story',
-    sessionMode: 'repeat_same_domain',
-    readTheoryUris: modelingTheoryUris,
-  });
-  assert.equal(repeat.theoryAccessGate.satisfied, true);
-  assert.equal(repeat.requiresFullTheoryRead, false);
-  assert.equal(repeat.orderedResources[0].required, false);
-  assert.equal(repeat.orderedResources[1].required, false);
-
-  const incomplete = await buildModelingContext({
-    purpose: 'creative_story',
-    sessionMode: 'repeat_same_domain',
-    readTheoryUris: [modelingTheoryUris[0]],
-  });
-  assert.equal(incomplete.theoryAccessGate.satisfied, false);
-  assert.equal(incomplete.requiresFullTheoryRead, true);
-
-  for (const sessionMode of ['new_domain', 'consequential']) {
-    const context = await buildModelingContext({
-      purpose: 'person_reflection',
-      sessionMode,
-      readTheoryUris: modelingTheoryUris,
-    });
-    assert.equal(context.theoryAccessGate.satisfied, true);
-    assert.equal(context.requiresFullTheoryRead, true);
+test('every session mode keeps papers optional regardless of legacy reading or access arguments', async () => {
+  for (const sessionMode of modelingSessionModes) {
+    for (const readTheoryUris of [[], [modelingTheoryUris[0]], modelingTheoryUris]) {
+      const context = await buildModelingContext({ purpose: 'person_reflection', sessionMode, reading: 'papers', readTheoryUris });
+      assert.equal(context.readingMode, 'guides');
+      assert.equal(context.paperFirst, false);
+      assert.equal(context.requiresFullTheoryRead, false);
+      assert.equal(context.theoryAccessGate.satisfied, true);
+      assert.equal(context.theoryAccessGate.enforced, false);
+      assert.deepEqual(context.theoryAccessGate.requiredUris, []);
+      assert.deepEqual(context.theoryAccessGate.readUris, [], 'paper access is no longer tracked');
+      assert.deepEqual(context.orderedResources.slice(-2).map(({ uri, required }) => ({ uri, required })),
+        modelingTheoryUris.map((uri) => ({ uri, required: false })));
+    }
   }
 });
 
-test('starter prompt directs the agent to theory before protocol execution', async () => {
+test('starter prompt puts operational guidance before optional paper references', async () => {
   const prompt = await buildModelingPrompt({
     purpose: 'source_reconstruction',
     sessionMode: 'first_use',
   });
-  assert.match(prompt, /Do not treat the short protocol as a substitute for the theory/);
+  assert.match(prompt, /no paper reading is required before modeling/);
   assert.ok(
-    prompt.indexOf('life-sim://theory/meaning-model') <
+    prompt.indexOf('life-sim://theory/meaning-model') >
       prompt.indexOf('life-sim://protocol/modeling'),
   );
+  assert.match(prompt, /life-sim:\/\/theory\/meaning-model \(optional reference\)/);
 });
 
-test('every modeling purpose receives the application-choice guidance without bypassing theory access', async () => {
+test('every modeling purpose receives the common construction and application-choice guidance', async () => {
   for (const purpose of modelingPurposes) {
     const context = await buildModelingContext({ purpose, sessionMode: 'first_use' });
     assert.equal(context.modelingFreedom, modelingFreedom);
@@ -136,10 +154,17 @@ test('every modeling purpose receives the application-choice guidance without by
     assert.match(context.scaleReview, /Understanding Nodes/);
     assert.match(context.scaleReview, /evidence cutoffs/);
     assert.equal(context.conceptualReview, conceptualReview);
-    assert.equal(context.theoryAccessGate.satisfied, false);
+    assert.equal(context.theoryAccessGate.enforced, false);
+    assert.equal(context.constructionRecord, constructionRecordInstructions);
+    assert.match(context.constructionRecord, /^You are building an explicit world model from what you have learned:/, purpose);
+    assert.match(context.constructionRecord, /Prior measurement is not a prerequisite for proposing these accounts/, purpose);
+    assert.match(context.constructionRecord, /mark inference as inference/, purpose);
+    assert.match(context.constructionRecord, /Use the resulting structures to discover further processes and concepts/, purpose);
+    assert.match(context.constructionRecord, /does not replace evidence about that particular case/, purpose);
     assert.ok(context.orderedResources.some(({ uri, required }) =>
       uri === 'life-sim://example/application-categories' && required === false));
     const prompt = await buildModelingPrompt({ purpose, sessionMode: 'first_use' });
+    assert.ok(prompt.includes(context.constructionRecord), `${purpose} delivers the world-model framing in its prompt`);
     assert.ok(prompt.includes(modelingFreedom));
     assert.ok(prompt.includes(starterSelection));
     assert.ok(prompt.includes(context.scaleReview));
@@ -153,13 +178,13 @@ test('application-category example is available as a complete MCP resource', asy
   assert.ok(resource.text.includes('cargo run --manifest-path rust-engine/Cargo.toml --example category_revision'));
 });
 
-test('the Book method is served whole and supplements creative-story reading without replacing its example or theory gate', async () => {
+test('the Book method is served whole and supplements creative-story reading without replacing its required example', async () => {
   const uri = 'life-sim://example/book-of-conditions-modeling';
   const file = await readFile(new URL('../../docs/examples/BOOK-OF-CONDITIONS-MODELING.md', import.meta.url), 'utf8');
   for (const reading of ['papers', 'guides']) {
     const resource = await readModelingResource(uri, reading);
     assert.equal(resource.text, file);
-    assert.equal(resource.category, 'example', 'reading an example must not count as access to theory');
+    assert.equal(resource.category, 'example');
     assert.equal(listModelingResources(reading).filter((entry) => entry.uri === uri).length, 1);
     const context = await buildModelingContext({ purpose: 'creative_story', sessionMode: 'first_use', reading });
     const resources = context.orderedResources;
@@ -168,8 +193,8 @@ test('the Book method is served whole and supplements creative-story reading wit
     assert.equal(resources[representation].required, true);
     assert.equal(resources[representation + 1].uri, uri);
     assert.equal(resources[representation + 1].required, false);
-    assert.deepEqual(context.theoryAccessGate.requiredUris, reading === 'papers' ? modelingTheoryUris : []);
-    assert.equal(context.theoryAccessGate.satisfied, reading === 'guides');
+    assert.deepEqual(context.theoryAccessGate.requiredUris, []);
+    assert.equal(context.theoryAccessGate.enforced, false);
     assert.ok((await buildModelingPrompt({ purpose: 'creative_story', sessionMode: 'first_use', reading })).includes(uri));
   }
   for (const purpose of modelingPurposes.filter((purpose) => purpose !== 'creative_story')) {
@@ -178,35 +203,58 @@ test('the Book method is served whole and supplements creative-story reading wit
   }
 });
 
-test('the guides reading mode makes the guides the entry and the papers a reference, and papers stays the default', async () => {
-  const { buildModelingContext, buildModelingPrompt, readModelingResource, readingMode, servedText } = await import('../src/modeling-guidance.mjs');
-  assert.equal(readingMode({}), 'papers');
-  assert.equal(readingMode({ MEANING_MODEL_READING: 'guides' }), 'guides');
-  const papers = await buildModelingContext({ purpose: 'observation', sessionMode: 'first_use', reading: 'papers' });
-  assert.equal(papers.paperFirst, true);
-  assert.equal(papers.orderedResources.find((resource) => resource.uri === 'life-sim://theory/meaning-model').required, true);
-  const guides = await buildModelingContext({ purpose: 'observation', sessionMode: 'first_use', reading: 'guides' });
-  assert.deepEqual([guides.paperFirst, guides.requiresFullTheoryRead, guides.theoryAccessGate.satisfied], [false, false, true]);
-  assert.ok(guides.orderedResources.filter((resource) => resource.uri.startsWith('life-sim://theory/')).every((resource) => !resource.required));
-  assert.ok(guides.orderedResources.find((resource) => resource.uri === 'life-sim://guide/general-modeling').required);
-  const protocol = (await readModelingResource('life-sim://protocol/modeling', 'guides')).text;
-  assert.doesNotMatch(protocol, /must read the complete current papers/);
-  assert.match(protocol, /## Entry\n\nThe guides and this protocol carry the procedure; the papers carry the reasons\./);
-  assert.match((await readModelingResource('life-sim://protocol/modeling', 'papers')).text, /## Paper-first entry contract/);
-  assert.match(servedText('life-sim://addon/storytelling', 'Read the required Meaning Model and Life Simulation paper resources and common\nmodeling protocol before authoring a model.', 'guides'), /^Read the common modeling protocol before authoring a model/);
-  assert.doesNotMatch(await buildModelingPrompt({ purpose: 'observation', sessionMode: 'first_use', reading: 'guides' }), /read the complete current papers/);
+test('legacy reading settings cannot restore mandatory papers or rewrite canonical resource text', async () => {
+  for (const setting of [undefined, 'guides', 'papers']) {
+    assert.equal(readingMode({ MEANING_MODEL_READING: setting }), 'guides');
+    const context = await buildModelingContext({ purpose: 'observation', sessionMode: 'first_use', reading: setting });
+    assert.equal(context.readingMode, 'guides');
+    assert.deepEqual([context.paperFirst, context.requiresFullTheoryRead, context.theoryAccessGate.enforced], [false, false, false]);
+    assert.ok(context.orderedResources.find((resource) => resource.uri === 'life-sim://guide/general-modeling').required);
+    const protocol = await readModelingResource('life-sim://protocol/modeling', setting);
+    assert.equal(protocol.text, await readFile(new URL('../../docs/MODELING_PROTOCOL.md', import.meta.url), 'utf8'));
+    assert.doesNotMatch(protocol.text, /must read the complete current papers|Paper-first entry contract/);
+    const arbitraryText = 'A canonical resource with no entry heading or special wording.';
+    assert.equal(servedText('life-sim://protocol/modeling', arbitraryText, setting), arbitraryText);
+    assert.equal(servedText('life-sim://addon/storytelling', arbitraryText, setting), arbitraryText);
+    assert.doesNotMatch(await buildModelingPrompt({ purpose: 'observation', sessionMode: 'first_use', reading: setting }), /read the complete current papers/);
+  }
 });
 
-test('continuation is a session mode whose prompt starts with reading the construction record', async () => {
+test('continuation recovers missing history without repeating retained exact-head reading or plans', async () => {
   // Found by the 2026-09-23 instruction test: an agent told to continue recorded work had no honest session mode.
   const { buildModelingContext, buildModelingPrompt, modelingSessionModes, continuationSteps } = await import('../src/modeling-guidance.mjs');
   assert.ok(modelingSessionModes.includes('continuation'));
   const context = await buildModelingContext({ purpose: 'observation', sessionMode: 'continuation', reading: 'papers' });
   assert.deepEqual(context.continuation.steps, continuationSteps);
-  assert.equal(context.requiresFullTheoryRead, true, 'a fresh agent still reads the papers in the paper-first mode');
+  assert.equal(context.requiresFullTheoryRead, false, 'continuation reads the construction record without requiring papers');
   assert.equal((await buildModelingContext({ purpose: 'observation', sessionMode: 'first_use' })).continuation, undefined);
   const prompt = await buildModelingPrompt({ purpose: 'observation', sessionMode: 'continuation', reading: 'guides' });
   assert.match(prompt, /You are continuing recorded work\. Before any change:\n1\. Read life_construction_replay/);
   assert.ok(prompt.indexOf('life_construction_replay') < prompt.indexOf('life_modeling_context'), 'the record comes before the reading order');
-  assert.match(prompt, /put every reason you give there into the graph/);
+  assert.match(prompt, /exact known graph head/);
+  assert.match(prompt, /inspect only subsequent revisions and relevant records/);
+  assert.match(prompt, /For unfamiliar history, lost context or an ambiguous branch, read from the start/);
+  assert.match(prompt, /establish the intended head and lineage before acting/);
+  assert.match(prompt, /Routine continuation needs no separate reading-plan or compliance record/);
+  assert.match(prompt, /Where recording in the scoped project is available and delegated, preserve consequential findings/);
+  assert.match(prompt, /Text-only feedback does not authorize creating a project/);
+  assert.doesNotMatch(prompt, /put every reason you give there into the graph|put each thought into it as you have it/);
+});
+
+test('shared conversational guidance preserves discovery and applicable evaluation without routine review gates', async () => {
+  for (const purpose of modelingPurposes) {
+    const context = await buildModelingContext({ purpose, sessionMode: 'continuation' });
+    assert.ok(context.constructionRecord.includes(controlledReadbackInstructions));
+    assert.match(context.constructionRecord, /substantial communication deliverable/);
+    assert.match(context.constructionRecord, /specific unresolved risk/);
+    assert.match(context.constructionRecord, /An ordinary conversational reply, memory update or new piece of evidence is not by itself a milestone/);
+    assert.match(context.constructionRecord, /Use separate fresh readers for the two conditions/);
+    assert.match(context.constructionRecord, /Record the plan, fixed targets, exact material identifiers or hashes/);
+    assert.match(context.constructionRecord, /Explore recursively from the question and the model/);
+    assert.match(context.modelingFreedom, /Batch related findings and open questions/);
+    assert.match(context.comprehensionBoundary, /not before every reply/);
+    assert.ok(context.orderedResources.filter(({ required }) => required).every(({ reason }) => /reuse/i.test(reason)));
+    assert.ok(context.minimumChecklist.some((item) => /apply checks only to the constructs and commitments present/.test(item)));
+    assert.match(context.constructionRecord, /An Event interval states the extent of that Event, not a window/);
+  }
 });

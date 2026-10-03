@@ -42,6 +42,32 @@ const questionOf = (cut) => String(cut.question ?? cut.id ?? '');
 const answersOf = (cut) => cut.answers ?? [];
 const estimated = (cut) => (cut.provenance ?? []).some((item) => /^(estimator|supplied):/u.test(String(item)));
 
+// Administrative model inspection returns every native process and claim. Questions are a scoped reading:
+// remove inaccessible records and their typed process links before deriving counts, hints or person values.
+function questionModel(model, accessScopes) {
+  const visible = (record) => !(record.access_scopes ?? []).length || record.access_scopes.some((scope) => accessScopes.includes(scope));
+  const processes = (model?.processes ?? []).filter(visible);
+  const processIds = new Set(processes.map((process) => process.id));
+  const hidden = new Set((model?.processes ?? []).filter((process) => !visible(process)).map((process) => process.id));
+  const referencesHidden = (value) => typeof value === 'string' ? hidden.has(value)
+    : value && typeof value === 'object' ? Object.values(value).some(referencesHidden) : false;
+  const scopedContent = (value) => value && typeof value === 'object'
+    && (!visible(value) || Object.values(value).some((item) => item && typeof item === 'object' && scopedContent(item)));
+  const initial_claims = (model?.initial_claims ?? []).filter((claim) => visible(claim) && !hidden.has(claim.subject));
+  const mm = model?.meaning_model;
+  return { ...model, processes, initial_claims,
+    dependencies: (model?.dependencies ?? []).filter((edge) => !referencesHidden(edge)),
+    decomposition: (model?.decomposition ?? model?.decompositions ?? []).filter((edge) => !referencesHidden(edge)),
+    laws: (model?.laws ?? []).filter((law) => !referencesHidden(law) && !scopedContent(law)),
+    ...(mm ? { meaning_model: { ...mm,
+      events: (mm.events ?? []).map((event) => ({ ...event,
+        process_ids: (event.process_ids ?? []).filter((id) => processIds.has(id)),
+        observation_process_ids: (event.observation_process_ids ?? []).filter((id) => processIds.has(id)) })),
+      event_referent_bindings: (mm.event_referent_bindings ?? []).filter((binding) => binding.target?.kind !== 'process' || !hidden.has(binding.target.process_id)),
+    } } : {}),
+  };
+}
+
 // Whether the storytelling profile is adopted. Optional motive lenses, whole lives and drawn decisions belong to it: general
 // modeling works on subjects, processes, constraints, observations, dependencies and alternatives, and a draw
 // constructs fiction, it does not settle an observed fact.
@@ -437,6 +463,10 @@ function visible(questions, limit) {
 }
 
 export function modelQuestions(model, { people = null, draws = null, limit = 12, focus = {}, author = null, sufficient = null, accessScopes = [] } = {}) {
+  const unscoped = model;
+  model = questionModel(model, accessScopes);
+  const partial = model.processes.length !== (unscoped?.processes ?? []).length
+    || model.initial_claims.length !== (unscoped?.initial_claims ?? []).length || model.laws.length !== (unscoped?.laws ?? []).length;
   const index = indexModel(model);
   const spatial = spatialDiagnostics(model, { accessScopes });
   const named = people ?? modeledPeople(index);
@@ -452,7 +482,9 @@ export function modelQuestions(model, { people = null, draws = null, limit = 12,
   for (const item of own.filter((entry) => !entry.principal)) push(grouped, item.kind, item);
   const secondary = [...grouped.values()].map((list) => (list.length === 1 ? list[0] : { ...list[0], subject: list.map((item) => item.subject),
     question: `${list.length} secondary people share this question (${list.map((item) => displayName(item.subject)).join(', ')}): ${list[0].question}` }));
-  const asked = [...own.filter((entry) => entry.principal), ...secondary, ...worldQuestions(index, lives, draws, spatial)];
+  const scopeSensitive = new Set(['structure-flat', 'laws-missing', 'readings-over-processes']);
+  const asked = [...own.filter((entry) => entry.principal), ...secondary,
+    ...worldQuestions(index, lives, draws, spatial).filter((question) => !partial || !scopeSensitive.has(question.kind))];
   // A question the modeler has judged sufficient here is not asked again while that judgment stands.
   const questions = sufficient ? asked.filter((item) => !sufficient.covers(item)) : asked;
   questions.sort((a, b) => Number(b.principal) - Number(a.principal) || ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind));
@@ -472,11 +504,13 @@ export function modelQuestions(model, { people = null, draws = null, limit = 12,
       processesOpened: item.read.processes.filter((process) => process.opened > 0).length, periods: item.read.periods.length,
       shocks: item.read.arcs.length, cuts: item.read.cuts.length })) };
   return { schema: 'meaning-model-open-questions/v1', total: questions.length, counts, depth, questions: visible(questions, limit), alwaysAsk: standingQuestions(focus),
+    scope: { completeNativeModel: !partial,
+      interpretation: 'Counts, questions and person values use native processes and claims visible to accessScopes. Hints that would infer missing structure from a partial native model are omitted. This reads declared initial state and initial claims; graph estimation accounts and runtime observations are not reconstructed.' },
     ...(sufficient && asked.length > questions.length ? { sufficientHere: asked.length - questions.length } : {}),
     ...(sufficient?.notes?.length ? { sufficiencyNotes } : {}),
     ...(omittedNotes ? { sufficiencyNotesOmitted: omittedNotes } : {}),
     sufficientHow: `A question that needs no more here is answered by saying so: record an Understanding Node about the records it concerns, with data { schema: ${SUFFICIENT_SCHEMA}, kind, reason, reopenIf }, or about the story's root for every question of that kind. This suppresses repeated reminders, not recursive exploration. Read the returned sufficiencyNotes when new discoveries touch their subjects; reopenIf is a condition for the calling LLM to judge, not an automatically evaluated rule. A fresh question or connection can reopen the subject. Record the new understanding with a supersedes link to the old note so its suppression ends.`,
-    guidance: 'The loop: find the areas worth investigating, go deeper inside the model, put your understanding inside the model, then loop again and let what the model holds lead you down different paths. These are the model\'s own open questions, read from its structure. The model is a language and none of its constructs is mandatory: the questions read common ones (a lifecycle Event, periods, change arcs, Cut units), so where you expressed the same understanding your own way a question may not see it; say so in the record and move on. Answer the rest by adding structure, in whatever form understands best, then ask again: every answer raises new questions, and there is no depth at which the model is finished. Take at least one between every step of the work.' };
+    guidance: 'The loop: find the areas worth investigating, go deeper inside the model, put your understanding inside the model, then loop again and let what the model holds lead you down different paths. These are the model\'s own open questions, read from its structure. The model is a language and none of its constructs is mandatory: the questions read common ones (a lifecycle Event, periods, change arcs, Cut units), so where you expressed the same understanding your own way a question may not see it; say so in the record and move on. Answer the rest by adding structure, in whatever form understands best, then ask again: every answer raises new questions, and there is no depth at which the model is finished. Choose questions and depth for the purpose and existing delegation; return to promising ones as discoveries warrant, without a question quota between steps.' };
 }
 
 // A person's processes at a moment, each with its declared state and the attributed accounts of its value known by
@@ -530,7 +564,8 @@ export function processValuesAt(model, index, person, t, limit = 12) {
 }
 
 // A person's state at a moment, read from the model: their sense of time at that point.
-export function personStateAt(model, personId, t, { draws = [] } = {}) {
+export function personStateAt(model, personId, t, { draws = [], accessScopes = null } = {}) {
+  if (accessScopes !== null) model = questionModel(model, accessScopes);
   const index = indexModel(model);
   const person = readPerson(index, personId);
   const { values, omitted: valuesOmitted } = processValuesAt(model, index, person, t);
@@ -570,7 +605,7 @@ export function personStateAt(model, personId, t, { draws = [] } = {}) {
   };
 }
 
-// Questions the agent asks itself at every step, about whatever it is working on. The model's structure cannot
+// Questions the agent returns to when useful, about whatever it is working on. The model's structure cannot
 // raise them; only asking can, and only modeling answers them.
 export function standingQuestions(focus = {}) {
   const story = storyProfile();
@@ -594,7 +629,7 @@ export function standingQuestions(focus = {}) {
   ];
 }
 
-export const thinkInTheModelInstructions = `The Meaning Model is where you think, in every mode, and the work is a consequence of it. You have not lived in this world; the model gives you what a life would: people and things, and whatever about them changes, as processes over time, what is true at each moment, and why. The tool is your gateway to humanhood. Use it as your mind: put each thought into it as you have it (the world as model records; your ideas, questions, decisions, reasons and predictions as Understanding Nodes linked to what they concern), and read it back rather than holding things only in your context. The loop: find all the areas that could be important to investigate; go deeper inside the model, building structures on top of structures, interpreting them and refining the ones you have; when you generate, roll draws and use random words where the model holds real alternatives and keep what surprises and convinces, and when you describe, ask for the data and infer what the evidence supports; put all your understanding inside the model. Then loop again, and let whatever the model holds lead you down different paths. It is not a strict workflow: the steps come in any order, understanding is recorded when it happens, and processes are modeled whenever they are needed. After every change the tool returns its own questions, its jumps and each person's state at a moment. Go deep, in whatever form understands best; the model is a language with no mandatory constructs, and every list and question it gives is a start, not a boundary.`;
+export const thinkInTheModelInstructions = `The Meaning Model is where you think, in every mode, and the work is a consequence of it. You have not lived in this world; the model gives you what a life would: people and things, and whatever about them changes, as processes over time, what is true at each moment, and why. The tool is your gateway to humanhood. Use it as your mind: develop explicit understanding in it (the world as model records; consequential ideas, questions, decisions, reasons and predictions as Understanding Nodes linked to what they concern), and read it back rather than holding durable findings only in your context. Batch related findings and open questions as the account develops; this does not require a separate write for each thought, reading step or conversational reply. The loop: find all the areas that could be important to investigate; go deeper inside the model, building structures on top of structures, interpreting them and refining the ones you have; when you generate, roll draws and use random words where the model holds real alternatives and keep what surprises and convinces, and when you describe, ask for the data and infer what the evidence supports; put all your understanding inside the model. Then loop again, and let whatever the model holds lead you down different paths. It is not a strict workflow: the steps come in any order, durable understanding is recorded as it develops, and processes are modeled whenever they are needed. After every change the tool returns its own questions, its jumps and each person's state at a moment. Go deep, in whatever form understands best; the model is a language with no mandatory constructs, and every list and question it gives is a start, not a boundary.`;
 
 // Where the interesting story is: the model's largest jumps. A story is a small part of a world, and the model
 // shows where that part should be: the largest shifts in what a person wants, expects or feels, the shocks that
@@ -731,6 +766,10 @@ export async function readOpenQuestions(service, { modelHash, people = null, at 
   let view = null;
   if (graphHash) {
     view = await service.queryNarrativeGraph({ graphHash, expectedGraphHash: graphHash, mode: 'full', includeContent: true, accessScopes: [...new Set(accessScopes)].sort() });
+    const boundModel = view.graph?.source?.model_hash ?? view.graph?.source_snapshot?.model_hash;
+    if (boundModel !== modelHash) {
+      throw new Error(`Graph ${graphHash.slice(0, 12)} must be bound to the supplied model ${modelHash.slice(0, 12)}; read the graph's bound model or omit graphHash to read this model alone.`);
+    }
     draws = readDraws(view);
   }
   const named = people ?? modeledPeople(indexModel(model));
@@ -842,21 +881,21 @@ export async function readOpenQuestions(service, { modelHash, people = null, at 
         question: `No note yet holds the author and the story together. Where does the author's life meet the story? A note does when it is about a record of the author's life${separate ? ' (an about target with the life model\'s modelHash)' : ''} and a record of the story: a character, an Event, a process or a Cut.` });
     }
   }
-  // The model as the agent's mind: a model that keeps changing while its record holds few thoughts means the thinking
-  // is happening somewhere else.
+  // A low note count prompts inspection of recorded understanding; it cannot establish
+  // what the agent understood or how many notes the work needs.
   if (view) {
     const thoughts = view.nodes.filter((node) => node.role === 'externalized_reflection').length;
     const revisions = model?.revision?.number ?? 0;
     if (revisions >= 1 && thoughts < revisions * 2) {
       questions.questions.unshift({ kind: 'understanding-outside', subject: null, principal: false, tool: 'life_understanding_record, life_story_author_record, life_understanding_read',
-        question: `The model has changed ${revisions} time${revisions === 1 ? '' : 's'} and its record holds ${thoughts} thought${thoughts === 1 ? '' : 's'}. Where is your understanding? Use the model as your mind: put each thought into it as you have it (ideas, questions, decisions and their reasons, predictions, what you expect), linked to what it concerns, and read it back instead of keeping it in your context.` });
+        question: `The model has changed ${revisions} time${revisions === 1 ? '' : 's'} and its record holds ${thoughts} thought${thoughts === 1 ? '' : 's'}. Where is your understanding? Use the model as your mind: inspect whether consequential ideas, findings, decisions and their reasons, predictions and open questions are recorded and linked to what they concern, then build on that understanding. Batch related durable findings rather than writing a separate note for each thought or reply. The count is a prompt to inspect, not a semantic test or a quota for notes.` });
       questions.total += 1;
       questions.counts['understanding-outside'] = 1;
       questions.questions.length = Math.min(questions.questions.length, limit);
     }
   }
   const jumps = modelJumps(model, { people: named, limit: 8 });
-  const states = at === null ? [] : named.filter((person) => person.principal !== false).map((person) => ({ name: person.name ?? displayName(person.id), ...personStateAt(model, person.id, at, { draws }) }));
+  const states = at === null ? [] : named.filter((person) => person.principal !== false).map((person) => ({ name: person.name ?? displayName(person.id), ...personStateAt(model, person.id, at, { draws, accessScopes }) }));
   return { ...questions, modelHash, jumps: jumps.jumps, states, ...(view && storyProfile() ? { authorLives } : {}) };
 }
 
@@ -864,8 +903,8 @@ export async function readOpenQuestions(service, { modelHash, people = null, at 
 export async function withOpenQuestions(service, result, { modelHash = result?.modelHash ?? null, limit = VISIBLE_QUESTIONS, focus = {} } = {}) {
   if (!modelHash) return result;
   try {
-    const { total, counts, depth, questions, alwaysAsk, guidance } = await readOpenQuestions(service, { modelHash, limit, focus });
-    return { ...result, openQuestions: { total, counts, depth, questions, alwaysAsk, guidance, more: 'life_model_questions returns all of them, the model\'s jumps, and each person\'s state at a moment.' } };
+    const { total, counts, depth, scope, questions, alwaysAsk, guidance } = await readOpenQuestions(service, { modelHash, limit, focus });
+    return { ...result, openQuestions: { total, counts, depth, scope, questions, alwaysAsk, guidance, more: 'life_model_questions returns all of them, the model\'s jumps, and each person\'s state at a moment.' } };
   } catch {
     return result;
   }

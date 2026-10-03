@@ -14,14 +14,16 @@ const id = z.string().trim().min(1).max(256);
 const longId = z.string().trim().min(1).max(1_024);
 const hash = z.string().length(64);
 const prose = z.string().trim().min(1).max(16_000);
+// Definitions are stored exactly as supplied; whitespace validation must not rewrite them.
+export const cutAnswerMeaningSchema = z.string().min(1).max(16_000).refine((text) => Boolean(text.trim()), 'Answer meaning must be nonempty.');
 export const REMAINDER_KEY = 'remainder';
 
 const probabilityMap = z.record(id, z.number().min(0).max(1));
 export const cutSharesSchema = z.object({
   question: z.string().trim().min(1).max(2_000),
   unit: z.string().trim().min(1).max(256).default('share of one budget'),
-  answers: z.array(z.object({ key: id, meaning: prose }).strict()).min(1).max(60),
-  remainderMeaning: prose.default('Something else, or no single named answer dominates.'),
+  answers: z.array(z.object({ key: id, meaning: cutAnswerMeaningSchema }).strict()).min(1).max(60),
+  remainderMeaning: cutAnswerMeaningSchema.default('Something else, or no single named answer dominates.'),
   subject: z.string().trim().min(1).max(1_000).nullable().default(null),
   situations: z.array(z.object({ id, parentEventId: longId.nullable().default(null), text: prose }).strict()).max(32).default([]),
   modelHash: hash.nullable().default(null),
@@ -67,7 +69,7 @@ export function buildCutShareQuestions(input, targets) {
   const instructionsFor = (subject) => `${input.question} Answer with the distribution over the listed answers that best describes the situation${subject ? ` for ${subject}` : ''}; put mass on ${REMAINDER_KEY} when no named answer applies or attention is elsewhere.${subject ? ` Judge ${subject}: others in the situation are context.` : ''}`;
   return targets.map((target) => { const subject = input.subject ?? target.subject ?? null;
     return { situationId: target.id, state: { ...(subject ? { subject } : {}), situation: target.text, ...(target.modeled ? { modeledState: target.modeled } : {}),
-      ...(target.within ? { within: `This divides only the part of the reading that is "${target.within.answerKey}", in answer to: ${target.within.question}` } : {}), question: input.question }, questions: { shares: { type: 'choice', instructions: instructionsFor(subject), criteria } } }; });
+      ...(target.within ? { within: `This divides only the part of the reading that is "${target.within.answerKey}"${target.within.meaning ? `, defined as: ${target.within.meaning}` : ''}, in answer to: ${target.within.question}` } : {}), question: input.question }, questions: { shares: { type: 'choice', instructions: instructionsFor(subject), criteria } } }; });
 }
 
 export function proposalFromProbabilities(input, target, probabilities, meta) {
@@ -87,7 +89,8 @@ export function proposalFromProbabilities(input, target, probabilities, meta) {
   // either direction, so no answer's share is changed relative to the others and the remainder gains nothing by rounding.
   const total = weights.reduce((sum, weight) => sum + weight, 0);
   const scale = total > 1 + 1e-9 || (meta.requireComplete && meta.label !== 'supplied' && total > 0 && total < 1 - 1e-9) ? 1 / total : 1;
-  const answers = keys.map((key, index) => ({ key, weight: weights[index] * scale }));
+  const meanings = new Map([...input.answers.map((answer) => [answer.key, answer.meaning]), [REMAINDER_KEY, input.remainderMeaning]]);
+  const answers = keys.map((key, index) => ({ key, weight: weights[index] * scale, ...(meanings.get(key) == null ? {} : { meaning: meanings.get(key) }) }));
   const named = answers.filter((answer) => answer.key !== REMAINDER_KEY).reduce((sum, answer) => sum + answer.weight, 0);
   answers.find((answer) => answer.key === REMAINDER_KEY).weight = Math.max(0, 1 - named);
   const top = answers.slice().sort((a, b) => b.weight - a.weight)[0].key;
@@ -170,7 +173,8 @@ function withinOf(definition, target) {
   const enclosing = (definition.meaning_model?.normalized_cuts ?? []).find((cut) => cut.id === target.conditionedOn.cutId);
   if (!enclosing) return null;
   if (String(target.cutId ?? '').startsWith('lens.') && enclosing.parent_event_id !== target.eventId) throw new Error(`Cut ${target.cutId} opens an answer of ${enclosing.id}, which sits on ${enclosing.parent_event_id}: a deeper level of a reading stays on the same reading Event.`);
-  return { answerKey: target.conditionedOn.answerKey, question: enclosing.question };
+  const meaning = enclosing.answers.find((answer) => answer.key === target.conditionedOn.answerKey)?.meaning;
+  return { answerKey: target.conditionedOn.answerKey, question: enclosing.question, ...(meaning ? { meaning } : {}) };
 }
 
 export async function resolveTargets(service, input) {
@@ -311,7 +315,7 @@ async function executeCutShares(input, estimator, service, checkpoint = null) {
   const conditions = new Map(targets.filter((target) => target.conditionedOn).map((target) => [target.cutId ?? `${input.idPrefix}.${target.id}`, { cut_id: target.conditionedOn.cutId, answer_key: target.conditionedOn.answerKey }]));
   for (const proposal of proposals) {
     const condition = conditions.get(proposal.id);
-    const cut = { id: proposal.id, parent_event_id: proposal.parent_event_id, question: proposal.question, unit: proposal.unit, answers: proposal.answers.map(({ key, weight }) => ({ key, weight })), ...(condition ? { conditioning: condition } : {}), provenance: proposal.provenance };
+    const cut = { id: proposal.id, parent_event_id: proposal.parent_event_id, question: proposal.question, unit: proposal.unit, answers: proposal.answers.map(({ key, weight, meaning }) => ({ key, weight, ...(meaning == null ? {} : { meaning }) })), ...(condition ? { conditioning: condition } : {}), provenance: proposal.provenance };
     if (!cut.parent_event_id) throw new Error(`Cut ${cut.id} has no parent event; free-text situations need parentEventId to be applied.`);
     if (existing.has(cut.id)) { if (!input.replaceExisting) throw new Error(`Cut ${cut.id} already exists in the model; set replaceExisting to supersede it in this revision.`); successor.meaning_model.normalized_cuts[existing.get(cut.id)] = cut; }
     else successor.meaning_model.normalized_cuts.push(cut);

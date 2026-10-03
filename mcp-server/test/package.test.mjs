@@ -47,7 +47,7 @@ test('a clean source export retains every input needed to stage the npm package'
   const exported = await exportRelease(root, join(temporary, 'source'));
   const { packageDirectory } = await stageNpmPackage(exported.destination, join(temporary, 'npm'));
   for (const name of ['rust-engine/MEANING_MODEL_CONFORMANCE.md', 'mcp-server/viewer/public/index.html', 'mcp-server/viewer/public/vendor/three/LICENSE',
-    'docs/examples/BOOK-OF-CONDITIONS-MODELING.md']) {
+    'docs/examples/BOOK-OF-CONDITIONS-MODELING.md', 'docs/MEMORY.md', 'docs/HUMAN_AUTHOR_FEEDBACK.md']) {
     assert.equal(await readFile(join(packageDirectory, name), 'utf8'), await readFile(join(root, name), 'utf8'));
   }
   for (const name of ['.local-work', 'build', '.git']) {
@@ -63,7 +63,7 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
   const { packageDirectory } = await stageNpmPackage(root, temporary);
   const metadata = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'));
   assert.equal(metadata.name, '@emergent-wisdom/meaning-model-mcp');
-  assert.equal(metadata.version, '0.6.5');
+  assert.equal(metadata.version, '0.6.6');
   assert.equal(metadata.mcpName, 'io.github.emergent-wisdom/meaning-model');
   const registry = JSON.parse(await readFile(join(packageDirectory, 'server.json'), 'utf8'));
   assert.equal(registry.name, metadata.mcpName);

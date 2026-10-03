@@ -21,8 +21,8 @@ repositories contain the same revision.
   reviews, and Nora Vale's separate fictional author life.
 - [The publication manifest](PUBLICATION-MANIFEST.json) records model, graph,
   prose and bundle hashes, the inventory, and the publication projection.
-- [The publication mapping](book-publication-exploration-manifest-2026-10-02.json)
-  records the latest path cleanup without discarding construction history or
+- [The publication mapping](publication-privacy-projection-2026-10-03.json)
+  records the omission of private coordination without discarding construction history or
   relabeling historical reviews as new approvals.
 - `BOOK-DRAFT.md` is the exact native rendering of that graph.
 - `import-rust.mjs` imports and verifies the bundle through the public MCP tools.
@@ -67,14 +67,15 @@ to import it with `life_construction_import`, using its absolute local path as
 `life_model_viewer_open`, using `accessScopes: ["book.07r2.authoring"]`. Choose
 `mode: "live"` when continuing the work so the viewer follows saved revisions.
 
-The bundle contains 66 graph revisions and seven native model definitions:
+The bundle contains 67 graph revisions and seven native model definitions:
 six successive Book revisions and Nora's separate life model. The two current
 models are the selected Book revision and Nora; the others preserve the Book's
 development. The exported lineage starts at the September 29 publication root;
 missing earlier private history and construction clock times are not invented.
 
-The latest publication cleanup changes one local path in a historical review
-to its artifact filename, replays the affected suffix and adds a disclosure.
+The 3 October publication copy omits private coordination from non-rendered
+notes, replays the affected suffix and adds a disclosure. The earlier path
+cleanup remains documented in its historical publication mapping.
 Historical reviewer, task and reviewed-material hashes retain their original
 meaning. Native models and rendered prose are unchanged by that cleanup, and
 private source artifacts are not bundled. New authoring builds on the imported
