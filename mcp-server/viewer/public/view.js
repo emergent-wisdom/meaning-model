@@ -1418,12 +1418,16 @@ function buildTerrain() {
       mesh.userData = { decision, row: lifeRow, t: decision.t, born: bornAt(decision), y: TAMP + 1.2 * TS }; group.add(mesh); terrain.beams.push(mesh);
     }
   }
-  // The mind above: each note and passage over the moment it is first about, on the side of whose moment it is.
+  // The mind above: each note and passage over the moment it is first about, on the side of whose moment it is. The
+  // projected owner takes precedence; otherwise the process row or life supplies it. Other dated moments use the world. Notes
+  // about no dated moment keep a lane of their own beyond the world's side, rather than settling over the last person.
   const zOf = new Map(); for (const owner of owners.values()) zOf.set(owner.id, (Math.min(...owner.zs) + Math.max(...owner.zs)) / 2);
-  const home = new Map(); for (const edge of data.graph.edges) { const event = edge.target.anchor ? byEvent.get(edge.target.event ?? edge.target.anchor) : null; if (event && Number.isFinite(event.start) && !home.has(edge.source)) home.set(edge.source, { event, owner: rowOfEvent.get(event.id)?.group.id ?? persons.find((person) => person.life?.eventId === event.id)?.id ?? null }); }
+  const lifeOf = new Map(); for (const person of persons) if (person.life?.eventId) for (const id of [person.life.eventId, ...descendants(person.life.eventId)]) if (!lifeOf.has(id)) lifeOf.set(id, person.id);
+  const home = new Map(); for (const edge of data.graph.edges) { const event = edge.target.anchor ? byEvent.get(edge.target.event ?? edge.target.anchor) : null; if (event && Number.isFinite(event.start) && !home.has(edge.source)) home.set(edge.source, { event, owner: event.owner ?? rowOfEvent.get(event.id)?.group.id ?? lifeOf.get(event.id) ?? 'world' }); }
   const bornTimes = data.graph.nodes.map((node) => bornAt(node)).filter(Number.isFinite); const minBorn = Math.min(...bornTimes, 0); const maxBorn = Math.max(...bornTimes, minBorn + 1);
+  const undatedLane = (rows.length ? Math.min(...rows.map((row) => row.z)) : 0) - TROW;
   terrain.mind = data.graph.nodes.map((node, nodeIndex) => {
-    const at = home.get(node.id); const z = at?.owner && zOf.has(at.owner) ? zOf.get(at.owner) : Math.max(...rows.map((row) => row.z)) - 2;
+    const at = home.get(node.id); const z = at?.owner && zOf.has(at.owner) ? zOf.get(at.owner) : undatedLane;
     const hue = at?.owner && at.owner !== 'world' && zOf.has(at.owner) ? HUES[persons.findIndex((person) => person.id === at.owner) % HUES.length] : node.category === 'passage' ? '#fff6e0' : '#c9d4ff';
     const point = spark(hue, (node.category === 'passage' ? 1.6 : node.category === 'world' || node.category === 'director' ? 1.3 : 0.9) * TS);
     point.userData = { node, at, size: point.scale.x, born: bornAt(node), t: at ? at.event.start : -Infinity, z: z + (hashOf(`${node.id}z`) - 0.5) * 3 * TS, y: TAMP + 5 * TS + hashOf(`${node.id}y`) * 5 * TS + (node.category === 'passage' ? 3 * TS : 0),
@@ -1441,6 +1445,7 @@ function layTerrain() {
   for (const beam of terrain.beams) { const { t, row, y } = beam.userData; beam.userData.inWindow = inView(t); beam.position.set(X(Math.max(F.a, Math.min(F.b, t))), y ?? 0, row.z); }
   for (const point of terrain.mind) {
     const { at, z, y, order, jitter } = point.userData; const x = at ? X(Math.max(F.a, Math.min(F.b, at.event.start))) : order * LENGTH * 0.9; point.position.set(x + jitter, y, z);
+    point.userData.inWindow = !at || inView(at.event.start); // like the beams: a note about a moment off screen does not pile at the edge
     point.userData.t = at ? at.event.start : timeAtX(x); // a note about no moment arrives when the play reaches where it stands
   }
   heightsTerrain();
@@ -1498,7 +1503,7 @@ function applyTerrain() {
   for (const beam of terrain.beams) beam.visible = beam.userData.inWindow && shownByPlay(beam.userData.t, beam.userData.born) && (beam.userData.decision ? opt.show.has('decisions') : events2);
   for (const point of terrain.mind) {
     const selected = point.userData.node.id === selectedPart?.unit.id;
-    point.visible = thoughts && (selected || (!(opt.hideUndated && undatedNote(point.userData.node.id)) && (construction ? point.userData.born <= tau : whole || point.userData.t <= now)));
+    point.visible = thoughts && (selected || (point.userData.inWindow !== false && !(opt.hideUndated && undatedNote(point.userData.node.id)) && (construction ? point.userData.born <= tau : whole || point.userData.t <= now)));
     point.scale.setScalar(point.userData.size * (selected ? 1.8 : 1));
   }
   drawTerrainNoteLinks(); syncTerrainLabels(); hoveredAt = null;

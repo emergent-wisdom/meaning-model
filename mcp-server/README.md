@@ -253,8 +253,8 @@ registration.
 
 The model tools expose immutable typed profiles:
 
-- `life_profile_compile`, after the paper-access gate is satisfied, asks Rust
-  to compile one or more optional Story, Person, Decision, `concept_scaffold`,
+- `life_profile_compile` asks Rust to compile one or more optional Story,
+  Person, Decision, `concept_scaffold`,
   `change_arc_scaffold`, `person_scaffold`, `thing_scaffold`, or
   `relationship_scaffold` authoring profiles
   into one ordinary complete revision-0

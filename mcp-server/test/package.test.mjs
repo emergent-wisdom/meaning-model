@@ -63,7 +63,7 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
   const { packageDirectory } = await stageNpmPackage(root, temporary);
   const metadata = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'));
   assert.equal(metadata.name, '@emergent-wisdom/meaning-model-mcp');
-  assert.equal(metadata.version, '0.6.6');
+  assert.equal(metadata.version, '0.6.7');
   assert.equal(metadata.mcpName, 'io.github.emergent-wisdom/meaning-model');
   const registry = JSON.parse(await readFile(join(packageDirectory, 'server.json'), 'utf8'));
   assert.equal(registry.name, metadata.mcpName);

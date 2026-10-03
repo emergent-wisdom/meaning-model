@@ -5,11 +5,26 @@ through MCP over stdio. The package includes JavaScript, Rust source and its
 lockfile, modeling profiles, versioned paper resources, and checked presets.
 It contains no prebuilt engine or build cache.
 
-See the [changelog](CHANGELOG.md) for release changes and upgrade notes.
+The calling LLM builds an explicit world model from its learned knowledge and
+available evidence. It develops processes, relationships and concepts, then
+uses those structures for further inference and abstraction. **Progressive
+resolution** opens detail under existing commitments; the **shared construction
+medium** connects the world, its interpretations and documents for coordinated
+revision. Inferred accounts remain distinct from observations.
+
+Comparative judgments can be made explicit through a Cut: one declared unit is
+divided under a question among exclusive answers and an explicit remainder.
+Measurements retain their external units.
+
+Start with [installation](#install), connect the server to your assistant, and
+ask it to begin. The assistant calls `life_modeling_context` for purpose-specific
+operational guidance. Reading the papers is optional.
+
+See the [changelog](https://github.com/emergent-wisdom/meaning-model/blob/main/CHANGELOG.md) for release changes and upgrade notes.
 
 ## Open your model
 
-Version 0.6.6 includes the browser viewer in the MCP package.
+Version 0.6.7 includes the browser viewer in the MCP package.
 
 After installing this MCP and its matching engine, connect it to your assistant as
 usual. Ask **“Open the model we are working on”** or **“Show me this story.”** The
@@ -78,27 +93,49 @@ One MCP server supports these workflows over the same engine and graph:
   [general-purpose modeling](#general-purpose-modeling-and-optional-jev-estimation).
 - **Narration.** The storytelling add-on writes fiction from a model, with an
   author model, whole-life character trends, scene review, alignment audits and
-  deepening passes. See the [storytelling add-on guide](profiles/STORYTELLING_ADDON.md).
-- **Human authorship with feedback.** The human writes; the LLM gives evidence-based feedback and follows the human's revision decisions. The storytelling add-on's `life_story_feedback` prepares read-only feedback from supplied text or an exact project revision. See the [feedback guide](docs/HUMAN_AUTHOR_FEEDBACK.md).
-- **Agent and user memory.** Maintain the processes of ongoing work and a user's reported history, with goals, decisions, preferences and learning linked across time. Capture useful records within the chosen scope, develop the underlying model and recover it across sessions. See the [memory guide](docs/MEMORY.md).
+  deepening passes. See the [storytelling add-on guide](https://github.com/emergent-wisdom/meaning-model/blob/main/profiles/STORYTELLING_ADDON.md).
+- **Human authorship with feedback.** The human writes and decides; the LLM
+  supplies feedback. Enable `MEANING_MODEL_ADDONS=storytelling` to use
+  `life_story_feedback`, which prepares a read-only task from supplied text or
+  an exact project revision. No existing world or fictional
+  author persona is required for feedback on an excerpt. See the
+  [feedback guide](https://github.com/emergent-wisdom/meaning-model/blob/main/docs/HUMAN_AUTHOR_FEEDBACK.md).
+- **Agent and user memory.** Model ongoing work and reported personal history,
+  with preferences, goals, decisions, beliefs and learning linked across time.
+  Capture useful records within the chosen scope and recover them across sessions
+  when durable storage is configured. See the [memory guide](https://github.com/emergent-wisdom/meaning-model/blob/main/docs/MEMORY.md).
 - **Ideation.** The alien add-on searches for solution mechanisms through
   invented worlds, following *Ontology of the Alien*, and curates them into a
-  revisable map of idea families. See the [alien add-on guide](profiles/ALIEN_ADDON.md).
+  revisable map of idea families. See the [alien add-on guide](https://github.com/emergent-wisdom/meaning-model/blob/main/profiles/ALIEN_ADDON.md).
 
 Modeling and memory are always available; the two add-ons are opt-in with
 `MEANING_MODEL_ADDONS`. Each workflow keeps what it does as revisable,
-inspectable structure. None of them turns an estimate, a review or an idea into
-evidence. All share macro-to-micro exploration, recursive discovery and attributed
-Understanding Nodes. Their purpose and the human's delegation determine what the
-agent may infer, record or change.
+inspectable structure. No workflow turns an estimate into an observation, a review
+into an accepted fact, or an idea into evidence that it works. All share
+macro-to-micro exploration, recursive discovery and attributed Understanding
+Nodes. Their purpose and the human's delegation determine what the agent may
+infer, record or change.
 
-In memory work, begin with the project or life context, then connect reports to
-the processes they describe. As new evidence arrives, return to the earlier
-interpretations and decisions it may change. In writing feedback, read the
-whole before diagnosing a passage, distinguish what the text says from an
-interpretation or artistic alternative, and follow the consequences of the
-human's chosen revisions. Both use the same method: start with a coarse account,
-develop the parts that matter, and reconsider the whole in light of what is found.
+In memory work, the assistant begins with the project or life context and connects
+reports to the processes they describe. As new evidence arrives, it returns to
+the earlier interpretations and decisions that evidence may change. In writing
+feedback, the assistant reads the whole before diagnosing a passage, distinguishes
+what the text says from an interpretation or artistic alternative, and follows
+the consequences of the human's chosen revisions. Both workflows use the same
+method: the assistant starts with a coarse account, develops the parts that
+matter, and reconsiders the whole in light of what it finds.
+
+Memory and feedback have their own `life_modeling_context` purposes:
+`agent_memory` for the agent's own work, `user_memory` for what a user reports,
+and `human_author_feedback` for writing feedback. For memory that survives a
+restart, configure a private `LIFE_SIM_STATE_FILE`; use one server process per
+database. A correction keeps the earlier account and is distinct from a real
+change over time. Dependent interpretations need review; they do not update
+automatically. Transcript capture is optional and off by default;
+`life_memory_transcript_configure` turns it on for one memory context. It stores
+only the visible messages that the caller or chat integration supplies, separately
+from the process model and its interpretations. The server never observes a
+conversation itself.
 
 ## The construction record
 
@@ -110,7 +147,10 @@ Understanding Nodes linked to the events, Cuts and passages they concern, and ou
 reviews are recorded under their actual reviewers. `life_model_outline` shows the
 present state with its notes at a chosen depth, and `life_construction_replay` replays
 the whole development step by step, each note beside the records as they were when it
-was written. A model that continues someone else's story or model replays it first.
+was written. An agent continuing unfamiliar work recovers its history through
+replay and an outline before changing it. When the exact previously read revision
+and context are retained, the agent reads subsequent changes and the records
+relevant to the current task.
 `life_construction_export` and `life_construction_import` carry the whole history to
 another engine with the same hashes, so the worked examples can be replayed anywhere.
 
@@ -127,7 +167,7 @@ when to replace or refine its categories. The engine checks supported structure
 and preserves explicit revisions; it does not choose a universal psychology.
 Some templates load structure, while Story and Decision compile particular
 experimental behavioural assumptions. Choose them deliberately. See the
-[application guide and revision example](docs/examples/APPLICATION-CATEGORIES.md).
+[application guide and revision example](https://github.com/emergent-wisdom/meaning-model/blob/main/docs/examples/APPLICATION-CATEGORIES.md).
 
 ## General-purpose modeling and optional Jev estimation
 
@@ -167,7 +207,7 @@ can use the explicit source build below.
 In a directory where you want to keep the installation, run:
 
 ```sh
-npm install @emergent-wisdom/meaning-model-mcp@0.6.6
+npm install @emergent-wisdom/meaning-model-mcp@0.6.7
 npx meaning-model-mcp --install-engine
 ```
 
@@ -239,7 +279,7 @@ retain their compatibility names.
 package upgrades.** The engine creates the SQLite database on the first successful
 write, but its parent directory must already exist. Run only one MCP server
 process per database; stop the previous process before another client uses that
-file. Without a state file, models and stories are lost when the process ends.
+file. Without a state file, models, stories and memory are lost when the process ends.
 Ask the assistant to check `life_engine_status` to confirm persistence is enabled.
 
 The database retains Rust-owned models and their revisions, narrative and
@@ -261,8 +301,9 @@ should:
    through the results, and select the intended exact graph revision. Alternative
    branch heads remain separate choices. The list covers graph-backed work only;
    it does not enumerate models without a graph or work hidden by those scopes.
-2. Use `life_construction_replay` and `life_model_outline` to inspect the retained
-   construction and current model before deepening or reviewing it. Reuse those
+2. Use `life_construction_replay` and `life_model_outline` to recover unfamiliar
+   work. When the exact prior revision and context are retained, read subsequent
+   changes and the records relevant now before deepening or reviewing it. Reuse those
    scopes in subsequent calls; an empty or different scope may hide private work.
 3. Develop and review through the MCP tools, saving model revisions, story text,
    and reasoning in the graph. With the storytelling add-on, `life_story_deepen`
@@ -292,6 +333,10 @@ Advanced callers can omit `destinationPath` for inline export, limited to 1 MiB,
 and supply that result as `history` on import instead of `sourcePath`.
 
 ### Optional storytelling add-on
+
+The authoring workflow below describes delegated story generation. For a human
+writing their own work, use [human-author feedback](https://github.com/emergent-wisdom/meaning-model/blob/main/docs/HUMAN_AUTHOR_FEEDBACK.md)
+instead; feedback alone does not create a project or rewrite the manuscript.
 
 Scenes can contain ordered, independently editable passage nodes. The shared
 `life_narrative_edit` tool supports split, merge, move, reorder, and exact text
@@ -495,7 +540,7 @@ processes for intended reader anticipation and surprise.
 
 With the variable unset, the server's default surface is unchanged. The shared
 model and laws remain general-purpose, and existing low-level tools remain
-available. See the [storytelling add-on guide](profiles/STORYTELLING_ADDON.md)
+available. See the [storytelling add-on guide](https://github.com/emergent-wisdom/meaning-model/blob/main/profiles/STORYTELLING_ADDON.md)
 for the workflow and the distinction between mechanical checks and authored
 prose-review findings.
 
@@ -533,7 +578,7 @@ is stored, so each output cites what its role actually saw. Graded fits and
 weighted selections follow the Meaning Model's Cut rule. Each ontology can be
 exported as Meaning Model concepts and specialization relations. Worlds are
 textual thought experiments and transfers are ideas, not evidence. See the
-[alien add-on guide](profiles/ALIEN_ADDON.md). It exposes nine tools:
+[alien add-on guide](https://github.com/emergent-wisdom/meaning-model/blob/main/profiles/ALIEN_ADDON.md). It exposes nine tools:
 
 - `life_alien_search_start`
 - `life_alien_task`
@@ -572,7 +617,7 @@ configuration looks like this:
   "mcpServers": {
     "meaning-model": {
       "command": "npx",
-      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.6.6"],
+      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.6.7"],
       "env": {
         "LIFE_SIM_ENGINE_BIN": "/absolute/path/to/life-sim-engine",
         "LIFE_SIM_STATE_FILE": "/absolute/private/path/meaning-model.sqlite"
@@ -587,7 +632,7 @@ launcher whose engine you installed, as in the first configuration. Install or
 build the matching engine when upgrading the package. On Windows its filename
 ends in `.exe`.
 
-The [complete server guide](mcp-server/README.md) describes modeling, the
+The [complete server guide](https://github.com/emergent-wisdom/meaning-model/blob/main/mcp-server/README.md) describes modeling, the
 operational guidance, tools, quotas, persistence limits, and the boundary between
 implemented mechanisms and research proposals. This remains experimental
 software; a released package does not establish the papers' learning claims.
@@ -602,7 +647,7 @@ starts the real Rust engine, then checks an MCP connection and engine status.
 Only passing jobs upload the version-named executable and its `.sha256` file.
 
 Once the reviewed source, workflow and matching tag are pushed, select **Build
-engine release** in the repository's Actions tab. Run it with `tag: v0.6.6` and
+engine release** in the repository's Actions tab. Run it with `tag: v0.6.7` and
 leave `create_draft` false for a build and smoke run that only uploads workflow
 artifacts. Set it true to create a draft release after all four platforms pass.
 Pushing a new `v*` tag also runs the workflow and prepares a draft release.
@@ -646,7 +691,7 @@ for release.
 Record the reviewed tarball's checksum and inspect the publication preview:
 
 ```sh
-release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.6.6.tgz"
+release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.6.7.tgz"
 shasum -a 256 "$release_tarball"
 npm publish "$release_tarball" --dry-run --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
@@ -658,7 +703,7 @@ exact tarball, authenticate with an npm account that can publish to
 ```sh
 npm whoami --registry=https://registry.npmjs.org/
 npm publish "$release_tarball" --access public --ignore-scripts --registry=https://registry.npmjs.org/
-npm view @emergent-wisdom/meaning-model-mcp@0.6.6 version dist.integrity --registry=https://registry.npmjs.org/
+npm view @emergent-wisdom/meaning-model-mcp@0.6.7 version dist.integrity --registry=https://registry.npmjs.org/
 ```
 
 A dry run does not establish registry authentication or scope access. Any change
@@ -683,5 +728,5 @@ Publisher credentials are local authentication material, never release files.
 ## Licensing
 
 Code is MIT licensed; authored papers and documentation are CC BY 4.0.
-See [LICENSE](LICENSE), [LICENSE-CONTENT](LICENSE-CONTENT), and [NOTICE](NOTICE)
+See [LICENSE](https://github.com/emergent-wisdom/meaning-model/blob/main/LICENSE), [LICENSE-CONTENT](https://github.com/emergent-wisdom/meaning-model/blob/main/LICENSE-CONTENT), and [NOTICE](https://github.com/emergent-wisdom/meaning-model/blob/main/NOTICE)
 for scope, attribution, and third-party material.

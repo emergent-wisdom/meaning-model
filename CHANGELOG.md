@@ -4,6 +4,23 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## Unreleased
+
+## 0.6.7 — 2026-10-03
+
+- Terrain notes follow the recorded owner or the containing life, including
+  moments outside process rows. Unassigned notes use a separate lane instead
+  of gathering over the last person; models without terrain rows remain valid.
+- Notes outside the visible time window stay hidden during story and
+  construction playback. An explicitly selected note remains available for
+  inspection.
+- Clarify the README's two architectural contributions, comparative numbers,
+  workflow entry points and memory persistence. Explain that optional transcript
+  capture stores only caller-supplied messages and that paper reading is optional.
+- Make the package guide's links to repository files absolute GitHub URLs. The
+  npm page resolved the relative links to missing paths under `mcp-server/`,
+  and they also broke when the guide was viewed on GitHub.
+
 ## 0.6.6 — 2026-10-03
 
 - The Book publication copy omits private coordination from non-rendered notes

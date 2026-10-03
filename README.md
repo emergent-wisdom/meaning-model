@@ -1,9 +1,24 @@
 # The Meaning Model
 
-**Construct worlds coarsely, then develop the parts that matter.** The Meaning
-Model connects world records, concepts, descriptions, understanding, and story
-text in one addressed representation. Finer detail must respect an accepted
-account or revise it explicitly.
+**Let an AI build an explicit world model, then reason, create and remember
+through it.** The Meaning Model lets a language model turn its learned knowledge
+into processes, relationships and concepts that can be inspected, tested and
+revised. Each explicit structure can anchor further inference and abstraction,
+including categories the agent discovers as it works. Prior measurement is not
+required to propose an account; inferred explanations remain distinct from
+observations and can be tested against evidence.
+
+Comparative judgments can be made explicit through a Cut: one declared unit is
+divided under a question among exclusive answers and an explicit remainder.
+Measurements retain their external units.
+
+The Meaning Model's two linked architectural contributions are **progressive
+resolution** and a **shared construction medium**. Progressive resolution builds
+a world coarsely and opens the parts that matter; each opening preserves accepted
+commitments or revises them explicitly. In the shared medium, world records,
+concepts, interpretations and documents occupy one address space, so a reason or
+a sentence can address the exact record it concerns, and a revision can be made
+together with the accounts and passages that depend on it.
 
 This repository brings together the theory, its compact grammar appendix, the
 Rust engine and MCP interface, and *The Book of Conditions*, a worked
@@ -11,6 +26,10 @@ construction with a complete twelve-chapter manuscript.
 
 See the [changelog](CHANGELOG.md) for release changes, upgrade notes, and
 unreleased work.
+
+To use the tool, follow the [package installation guide](mcp-server/NPM-README.md#install)
+and connect it to your assistant. The assistant calls `life_modeling_context`
+for purpose-specific operational guidance. Reading the papers is optional.
 
 ## Workflows over one model
 
@@ -23,30 +42,52 @@ One MCP server supports these workflows over the same engine and graph:
 - **Narration.** The storytelling add-on writes fiction from a model, with an
   author model, whole-life character trends, scene review, alignment audits and
   deepening passes. See the [storytelling add-on guide](profiles/STORYTELLING_ADDON.md).
-- **Human authorship with feedback.** The human writes; the LLM gives evidence-based feedback and follows the human's revision decisions. The storytelling add-on's `life_story_feedback` prepares read-only feedback from supplied text or an exact project revision. See the [feedback guide](docs/HUMAN_AUTHOR_FEEDBACK.md).
-- **Agent and user memory.** Maintain the processes of ongoing work and a user's reported history, with goals, decisions, preferences and learning linked across time. Capture useful records within the chosen scope, develop the underlying model and recover it across sessions. See the [memory guide](docs/MEMORY.md).
+- **Human authorship with feedback.** The human writes and decides; the LLM
+  supplies feedback. Enable `MEANING_MODEL_ADDONS=storytelling` to use
+  `life_story_feedback`, which prepares a read-only task from supplied text or
+  an exact project revision. No existing world or fictional
+  author persona is required for feedback on an excerpt. See the
+  [feedback guide](docs/HUMAN_AUTHOR_FEEDBACK.md).
+- **Agent and user memory.** Model ongoing work and reported personal history,
+  with preferences, goals, decisions, beliefs and learning linked across time.
+  Capture useful records within the chosen scope and recover them across sessions
+  when durable storage is configured. See the [memory guide](docs/MEMORY.md).
 - **Ideation.** The alien add-on searches for solution mechanisms through
   invented worlds, following *Ontology of the Alien*, and curates them into a
   revisable map of idea families. See the [alien add-on guide](profiles/ALIEN_ADDON.md).
 
 Modeling and memory are always available; the two add-ons are opt-in with
 `MEANING_MODEL_ADDONS`. Each workflow keeps what it does as revisable,
-inspectable structure. None of them turns an estimate, a review or an idea into
-evidence. All share macro-to-micro exploration, recursive discovery and attributed
-Understanding Nodes. Their purpose and the human's delegation determine what the
-agent may infer, record or change.
+inspectable structure. No workflow turns an estimate into an observation, a review
+into an accepted fact, or an idea into evidence that it works. All share
+macro-to-micro exploration, recursive discovery and attributed Understanding
+Nodes. Their purpose and the human's delegation determine what the agent may
+infer, record or change.
 
-In memory work, begin with the project or life context, then connect reports to
-the processes they describe. As new evidence arrives, return to the earlier
-interpretations and decisions it may change. In writing feedback, read the
-whole before diagnosing a passage, distinguish what the text says from an
-interpretation or artistic alternative, and follow the consequences of the
-human's chosen revisions. Both use the same method: start with a coarse account,
-develop the parts that matter, and reconsider the whole in light of what is found.
+In memory work, the assistant begins with the project or life context and connects
+reports to the processes they describe. As new evidence arrives, it returns to
+the earlier interpretations and decisions that evidence may change. In writing
+feedback, the assistant reads the whole before diagnosing a passage, distinguishes
+what the text says from an interpretation or artistic alternative, and follows
+the consequences of the human's chosen revisions. Both workflows use the same
+method: the assistant starts with a coarse account, develops the parts that
+matter, and reconsiders the whole in light of what it finds.
+
+Memory and feedback have their own `life_modeling_context` purposes:
+`agent_memory` for the agent's own work, `user_memory` for what a user reports,
+and `human_author_feedback` for writing feedback. For memory that survives a
+restart, configure a private `LIFE_SIM_STATE_FILE`; use one server process per
+database. A correction keeps the earlier account and is distinct from a real
+change over time. Dependent interpretations need review; they do not update
+automatically. Transcript capture is optional and off by default;
+`life_memory_transcript_configure` turns it on for one memory context. It stores
+only the visible messages that the caller or chat integration supplies, separately
+from the process model and its interpretations. The server never observes a
+conversation itself.
 
 ## The construction record
 
-Version 0.6.6 bundles a browser viewer. Ask the connected assistant
+Version 0.6.7 bundles a browser viewer. Ask the connected assistant
 to **“Open this model”**; `life_model_viewer_open` returns a local link to the chosen
 model or graph revision. No separate viewer checkout or special run folder is
 required. While writing, ask **“Keep the viewer following as we work.”** The
@@ -69,9 +110,10 @@ Understanding Nodes linked to the events, Cuts and passages they concern, and ou
 reviews are recorded under their actual reviewers. `life_model_outline` shows the
 present state with its notes at a chosen depth, and `life_construction_replay` replays
 the whole development step by step, each note beside the records as they were when it
-was written. Recover unfamiliar work through replay and an outline. When the exact
-previously read revision and context are retained, read subsequent changes and the
-records relevant to the current task.
+was written. An agent continuing unfamiliar work recovers its history through
+replay and an outline before changing it. When the exact previously read revision
+and context are retained, the agent reads subsequent changes and the records
+relevant to the current task.
 `life_construction_export` and `life_construction_import` carry the whole history to
 another engine with the same hashes, so the worked examples can be replayed anywhere.
 
@@ -124,6 +166,10 @@ require measurement, including setup and review work.
 Read `life-sim://guide/general-modeling` for the complete workflow and limits.
 
 ### Optional storytelling add-on
+
+The authoring workflow below describes delegated story generation. For a human
+writing their own work, use [human-author feedback](docs/HUMAN_AUTHOR_FEEDBACK.md)
+instead; feedback alone does not create a project or rewrite the manuscript.
 
 The narrative graph is the authoritative authoring record. Create the model
 and graph before developing story material; store candidates, seed draws and
@@ -247,7 +293,7 @@ exported as Meaning Model concepts and specialization relations. Worlds are
 textual thought experiments and transfers are ideas, not evidence. See the
 [alien add-on guide](profiles/ALIEN_ADDON.md).
 
-## Read first
+## Papers and worked example
 
 The paper was revised on October 3, 2026, and the grammar appendix on
 September 28, 2026.
@@ -305,9 +351,12 @@ LIFE_SIM_STATE_FILE=/absolute/private/path/meaning-model.sqlite npm start
 ```
 
 Reuse this path across sessions and upgrades, with only one server process per
-database. Without it, models and stories are lost when the process ends. Ask the
-assistant to find saved work with `life_saved_work_list`, replay the selected
-construction, then deepen or review through the MCP tools. See
+database. Without it, models, stories and memory are lost when the process ends.
+Ask the assistant to find saved work with `life_saved_work_list` and select the
+intended branch. The assistant recovers unfamiliar work through replay and an
+outline; when the exact prior revision and context are retained, it reads
+subsequent changes and the records relevant now. It then deepens or reviews the
+model through the MCP tools. See
 [keep and continue your work](mcp-server/NPM-README.md#keep-and-continue-your-work)
 for scope handling, persistence limits, the local viewer, and portable backups.
 
@@ -395,8 +444,9 @@ make check
 
 `make release` checks and builds the package, then exports an allowlisted clean
 directory beneath `build/`. The export includes the three PDFs and their
-sources, but not `.git`, build caches, private planning, review transcripts,
-or earlier constructions.
+sources and the Book's selected public construction history, including attributed
+reviews and revisions. It excludes `.git`, build caches, private planning,
+coordination notes, raw session transcripts and unpublished working copies.
 
 See the [release guide](docs/RELEASE.md) for packaging and provenance details.
 Exporting files does not push to GitHub or publish a package.
