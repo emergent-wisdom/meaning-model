@@ -11,11 +11,12 @@ unpublished work stays under Unreleased. This is not a development transcript.
   reading order rather than world time; selecting a phase opens its process,
   description and passage evidence.
 - Ask what the model has explored. Open questions now name a childhood or
-  youth with almost nothing in it, and lives that stop where the modeled lives
-  stop (in a story, what became of them afterwards?). They check readings over
-  time: finer readings inside a long one must average to it, and where they
-  cover part of it the tool states what the rest of the stretch must average
-  and asks whether that makes sense. They also ask to open a long reading that
+  youth in which nothing happens, and lives cut off at the same moment as other
+  lives (in a story, what became of them afterwards?). For questions that ask
+  for an average over each stretch, finer readings inside a long one must
+  average to it, and where they cover part of it the tool states what the rest
+  of the stretch must average and asks whether that makes sense; readings held
+  in different perspectives are never compared. They also ask to open a long reading that
   spans Events with no reading after them, and to use one wording when the same
   question is asked in different words.
 - Serve the point of the tool first. A new start-here guide says what the
@@ -34,8 +35,12 @@ unpublished work stays under Unreleased. This is not a development transcript.
   records, instead of a point at the interval's start joined to the next
   reading by a straight line. Readings opened inside a longer reading stay in
   its series: zoomed out, the longer reading stands for them; zoomed in, they
-  show. Time that no reading covers stays empty, the last interval is drawn to
-  its end, older authored series are no longer held after their last sample,
+  show. Once a reading is opened, the time its finer readings leave uncovered
+  shows, dimmer, the level that time must average for the reading to hold, so
+  what is drawn keeps the reading's average; where no level can hold, nothing is
+  drawn. Readings that partly overlap are a conflict and stay in the independent
+  Cut view. Time that no reading covers stays empty, the last interval is drawn
+  to its end, older authored series are no longer held after their last sample,
   and a remainder row appears only when some reading leaves a share open.
 - Require each fresh agent to read the current grammar before modeling in any
   mode. Add a paginated guide-reading tool for MCP clients without resource

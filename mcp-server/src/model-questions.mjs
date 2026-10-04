@@ -240,18 +240,18 @@ const LIFE_STAGES = Object.freeze([
 const UNITS_PER_YEAR = Object.freeze({ year: 1, years: 1, month: 12, months: 12, week: 52.1775, weeks: 52.1775, day: 365.25, days: 365.25 });
 const unitsPerYear = (unit) => UNITS_PER_YEAR[String(unit ?? '').trim().toLowerCase()] ?? null;
 const timeText = (t) => String(Number(Number(t).toFixed(1)));
-// Where the modeled lives stop: the latest end of any life in the model. A life that stops there stops with the story,
-// even when long macro-processes behind the lives run on.
-const horizons = new WeakMap();
-function livesHorizon(index) {
-  if (horizons.has(index)) return horizons.get(index);
-  let last = null;
-  for (const referent of index.referents.values()) {
-    const t = end(index.events.get(referent.lifecycle_event_id));
-    if (t !== null && (last === null || t > last)) last = t;
-  }
-  horizons.set(index, last);
-  return last;
+// How many modeled lives end at a time. Several lives that end at the same moment have been cut off there, as by the
+// end of a story; a life extended past it no longer shares that cut-off, so the question does not follow it forward.
+const lifeEnds = new WeakMap();
+function livesEndingAt(index, t) {
+  if (!lifeEnds.has(index)) lifeEnds.set(index, [...index.referents.values()].map((referent) => end(index.events.get(referent.lifecycle_event_id))).filter((value) => value !== null));
+  return lifeEnds.get(index).filter((value) => Math.abs(value - t) <= 1e-6 * Math.max(1, Math.abs(t))).length;
+}
+// The nearest declared context root above an Event: whose account a reading is, so accounts are never compared as one.
+function contextRootOf(index, eventId) {
+  let at = eventId;
+  for (let step = 0; step < 256 && at; step += 1) { if (index.rootKinds?.has(at)) return at; at = [...(index.parents.get(at) ?? [])][0]; }
+  return null;
 }
 
 // A person's open questions, most structural first.
@@ -301,22 +301,22 @@ function personQuestions(index, person, name, principal) {
   const perYear = unitsPerYear(index.timeUnit);
   const born = start(person.life);
   if (perYear && born !== null) {
-    const lifeEnd = end(person.life) ?? livesHorizon(index);
+    const lifeEnd = end(person.life);
     const frames = new Set([person.life.id, ...person.processes.map((item) => item.eventId)]);
     for (const [stage, from, to, asks] of LIFE_STAGES) {
-      const a = born + from * perYear; const b = Math.min(born + to * perYear, lifeEnd ?? Infinity);
+      const a = born + from * perYear; const b = Math.min(born + to * perYear, lifeEnd ?? born + to * perYear);
       if (!(b > a)) continue;
       const happened = [...person.own].filter((eventId) => {
         const event = index.events.get(eventId); const t = start(event);
         if (frames.has(eventId) || index.readings?.has(eventId) || t === null || t < a || t >= b) return false;
         return !(span(event) !== null && start(event) <= a && end(event) >= b);
       });
-      if (happened.length < 3) ask('stage-unexplored', `Little is modeled about ${name}'s ${stage} (${timeText(a)} to ${timeText(b)}): ${happened.length ? `${happened.length === 1 ? 'one Event' : 'two Events'}` : 'no Events'}. ${asks} Sketch it at least: a period with a description, a few Events, a reading where something changed.`, 'life_model_revise', { at: [a, b] });
+      if (!happened.length) ask('stage-unexplored', `Nothing happens in ${name}'s ${stage} (${timeText(a)} to ${timeText(b)}) beyond what frames it. ${asks} In a story, sketch it: a period with a description, a few Events, a reading where something changed. If it does not matter to this work, record why.`, 'life_model_revise', { at: [a, b] });
     }
   }
-  const horizon = livesHorizon(index); const lifeEnd = end(person.life);
-  if (lifeEnd !== null && horizon !== null && Math.abs(horizon - lifeEnd) <= Math.max(1e-9, (person.lifeLength ?? 0) * 0.01)) {
-    ask('life-after-story', `${name}'s life is modeled only up to ${timeText(lifeEnd)}, where the modeled lives stop. If this is a story, what became of them afterwards, through later life and old age? Sketch it, and tag it sketch or invented; if their life ends there, record how. If they are a real person, leave the future open or record a forecast.`, 'life_model_revise', { at: [lifeEnd] });
+  const lifeEnd = end(person.life);
+  if (lifeEnd !== null && livesEndingAt(index, lifeEnd) >= 2) {
+    ask('life-after-story', `${name}'s life is modeled only up to ${timeText(lifeEnd)}, where other modeled lives stop too. If this is a story, what became of them afterwards, through later life and old age? Sketch it, and tag it sketch or invented; if their life ends there, record how. If they are a real person, leave the future open or record a forecast.`, 'life_model_revise', { at: [lifeEnd] });
   }
   const wantCuts = person.cuts.filter((item) => cutKind(item.cut) === 'wants');
   if (!wantCuts.length) {
@@ -379,7 +379,8 @@ function readingSeries(index) {
     if (!event || start(event) === null) continue;
     const life = lifeOf(event.id);
     const answers = answersOf(cut).map((answer) => answer.key).sort().join(', ');
-    push(series, JSON.stringify([life, questionOf(cut).trim().toLowerCase(), cut.unit ?? null, answers]), { cut, event, life, owner: lifeOwners.get(life) ?? null, answers });
+    const root = contextRootOf(index, event.id);
+    push(series, JSON.stringify([life, root, questionOf(cut).trim().toLowerCase(), cut.unit ?? null, answers]), { cut, event, life, root, owner: lifeOwners.get(life) ?? null, answers });
   }
   return series;
 }
@@ -512,12 +513,12 @@ function worldQuestions(index, lives, draws, spatial) {
   for (const { parent, outer, coverage, p, used, residual } of nestedAverages(series)) {
     const q = questionOf(parent.cut); const at = [start(parent.event), end(parent.event)]; const cuts = [parent.cut.id, ...outer.map((item) => item.cut.id)];
     if (coverage >= 1 - 1e-6) {
-      if (Object.keys(p).some((key) => Math.abs(residual[key]) > 0.02)) average(`The readings inside "${q}" ${when(parent.event)} average ${sharesText(used)}, but the long reading says ${sharesText(p)}. Does that make sense? Revise the long reading or the detail, and record why.`, 'life_model_revise', { at, cuts });
+      if (Object.keys(p).some((key) => Math.abs(residual[key]) > 0.02)) average(`If "${q}" asks for the average over each stretch, the readings inside the one ${when(parent.event)} average ${sharesText(used)}, but it says ${sharesText(p)}. Does that make sense? If not, revise the long reading or the detail and record why; if these readings are not time-averages of one question, record that instead.`, 'life_model_revise', { at, cuts });
     } else if (Object.values(residual).some((value) => value < -0.005)) {
-      average(`"${q}" ${when(parent.event)} cannot hold as recorded: the finer readings inside it already take more ${Object.keys(residual).filter((key) => residual[key] < -0.005).join(' and ')} than the long reading allows for the whole stretch. Revise the long reading or the detail, and record why.`, 'life_model_revise', { at, cuts });
+      average(`If "${q}" asks for the average over each stretch, the one ${when(parent.event)} cannot hold as recorded: the finer readings inside it already take more ${Object.keys(residual).filter((key) => residual[key] < -0.005).join(' and ')} than it allows for the whole stretch. Revise the long reading or the detail and record why; if these readings are not time-averages of one question, record that instead.`, 'life_model_revise', { at, cuts });
     } else {
       const rest = Object.fromEntries(Object.entries(residual).map(([key, value]) => [key, value / (1 - coverage)]));
-      if (Object.keys(p).some((key) => Math.abs(rest[key] - p[key]) >= 0.1)) average(`The finer readings cover ${Math.round(coverage * 100)}% of "${q}" ${when(parent.event)}. For the long reading (${sharesText(p)}) to hold, the rest of that stretch must average ${sharesText(rest)}. Does that make sense? If not, revise the long reading or the detail, and record why.`, 'life_model_revise', { at, cuts });
+      if (Object.keys(p).some((key) => Math.abs(rest[key] - p[key]) >= 0.1)) average(`If "${q}" asks for the average over each stretch, the finer readings cover ${Math.round(coverage * 100)}% of the one ${when(parent.event)}. For it (${sharesText(p)}) to hold, the rest of that stretch must average ${sharesText(rest)}: a constraint on the average over those years, not their shape. Does that make sense? If not, revise the long reading or the detail and record why.`, 'life_model_revise', { at, cuts });
     }
   }
   const stretch = capped('reading-stretch-unopened', 8);
@@ -537,7 +538,7 @@ function worldQuestions(index, lives, draws, spatial) {
   const wordings = new Map();
   for (const list of series.values()) {
     const [first] = list;
-    const key = JSON.stringify([first.life, first.cut.unit ?? null, first.answers]);
+    const key = JSON.stringify([first.life, first.root, first.cut.unit ?? null, first.answers]);
     if (!wordings.has(key)) wordings.set(key, []);
     wordings.get(key).push(first);
   }

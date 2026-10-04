@@ -144,3 +144,11 @@ test('readings opened inside a longer reading stay in its series, while two read
   model.meaning_model.normalized_cuts.push(cut('a-again', 'first-again', 0.9));
   assert.deepEqual(cutTrajectories(dataOf(model)), [], 'two readings of exactly the same interval are not resolved by choosing one');
 });
+
+test('two readings that partly overlap, neither inside the other, are a conflict rather than a choice', () => {
+  const model = fixture();
+  model.meaning_model.events.push(event('straddle', { interval: { start: 3, end: 9 } }));
+  model.meaning_model.event_relations.push(contains('operating-life', 'straddle'));
+  model.meaning_model.normalized_cuts.push(cut('straddle-reading', 'straddle', 0.5));
+  assert.deepEqual(cutTrajectories(dataOf(model)), [], 'both readings stay in the independent Cut view');
+});

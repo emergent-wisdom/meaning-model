@@ -24,7 +24,7 @@ function declaration(name) {
 }
 const position = () => ({ set(x, y, z) { Object.assign(this, { x, y, z }); } });
 function geometry(length) {
-  return { attributes: { position: { array: new Float32Array(length) } }, drawRange: { count: 3 }, computeBoundingSphere() {} };
+  return { attributes: { position: { array: new Float32Array(length) }, color: { array: new Float32Array(length * 2) } }, drawRange: { count: 3 }, computeBoundingSphere() {} };
 }
 const buffer = () => ({ calls: [], begin() { this.calls = []; }, add(...args) { this.calls.push(args); }, quad(...args) { this.calls.push(args); }, end() {} });
 

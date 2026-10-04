@@ -63,10 +63,31 @@ test('zoomed out, a long reading stands for the finer readings inside it; zoomed
   assert.match(context.measureValueLines(row, 11).map(([, text]) => text).join('\n'), /1 finer reading inside it: zoom in to see it/);
   context.F = { s: 40 };
   assert.equal(context.rowValue(row, 11), 0.8, 'zoomed in, the finer reading shows');
-  assert.equal(context.rowValue(row, 5), 0.3, 'outside the finer reading, the long one');
+  const rest = (0.3 - (2 / 40) * 0.8) / (38 / 40);
+  assert.ok(Math.abs(context.rowValue(row, 5) - rest) < 1e-12, 'outside it, what the rest of the stretch must average, not the long reading itself');
   assert.equal(context.rowValue(row, 25), 0.9, 'a moment reading shows as a narrow mark');
-  assert.equal(context.rowValue(row, 25.5), 0.3);
+  assert.ok(Math.abs(context.rowValue(row, 25.5) - rest) < 1e-12);
   assert.deepEqual(context.readingsDomain(row.points), [0, 40]);
+});
+
+test('an opened reading keeps its average: the uncovered years show the derived level they must average, marked as derived', () => {
+  const context = fixture();
+  const reading = (cutId, t, end, v) => ({ t, end, v, cutId, eventId: cutId, born: born(100), cut: { id: cutId } });
+  const row = { measure: { kind: 'cut-answer', question: 'How does she expect things to turn out?', answerKey: 'threat', unit: 'outlook',
+    points: [reading('six-years', 0, 6, 0.3), reading('two-years', 0, 2, 0.7)] } };
+  row.points = row.measure.points;
+  context.F = { s: 6 };
+  assert.equal(context.rowValue(row, 1), 0.7);
+  assert.ok(Math.abs(context.rowValue(row, 3) - 0.1) < 1e-12, 'the four uncovered years must average 0.1');
+  const drawn = (2 * context.rowValue(row, 1) + 4 * context.rowValue(row, 3)) / 6;
+  assert.ok(Math.abs(drawn - 0.3) < 1e-12, 'what is drawn averages to the long reading');
+  assert.equal(context.rowValueText(row, 3), '~0.1');
+  const text = context.measureValueLines(row, 3).map(([, line]) => line).join('\n');
+  assert.match(text, /Derived, not recorded: for the reading over 0 – 6 \(0\.3\) to hold, the 67% of that stretch its finer readings leave uncovered must average this/);
+  assert.match(text, /constrains the average over those years, not their shape/);
+  row.points = row.measure.points = [reading('six-years', 0, 6, 0.3), reading('three-years', 0, 3, 0.9)];
+  assert.equal(context.rowValue(row, 4), null, 'when the detail already takes more than the whole allows, no level can hold');
+  assert.match(context.measureValueLines(row, 4).map(([, line]) => line).join('\n'), /No level can hold here: the finer readings inside 0 – 6 already take more threat/);
 });
 
 test('construction replay uses only already-authored Cut samples and removes later samples on rewind', () => {

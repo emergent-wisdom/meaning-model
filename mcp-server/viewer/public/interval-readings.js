@@ -1,10 +1,18 @@
-// Readings that cover an interval. A Cut on an Event with an interval [t, end) is the average over that interval, so it
-// is drawn as a level across the whole interval, not as a point joined to the next reading by a line. Readings nested
-// inside a longer one are its detail: at a given zoom, each time shows the finest reading that is wide enough to see,
-// and the longer reading stands in for detail too fine to show. A moment reading (end equal to t) is the finest of all
-// and shows as a narrow mark. Where no reading covers a time, there is no value: unrecorded time is unknown.
+// Readings that cover an interval. A Cut on an Event with an interval [t, end) is drawn as a level across the whole
+// interval: in a series of time-average readings (one question, unit, answers, owner and perspective), it is the
+// average over that interval, not a point joined to the next reading by a line.
+//
+// Readings nested inside a longer reading are its detail. A longer reading opens when every reading directly inside
+// it is wide enough to see at the current zoom; otherwise it stands for them, and its own level is drawn. Once open,
+// its finer readings are drawn, and the time they leave uncovered shows the derived level that time must average for
+// the longer reading to hold. That level constrains the average over those years; it does not say the value stayed
+// there. When the finer readings already take more than the longer reading allows, no level can hold and none is
+// drawn. A moment reading (end equal to t) shows as a narrow mark. Where no reading covers a time, there is no value:
+// unrecorded time is unknown.
 
 const spanOf = (point) => (Number.isFinite(point.end) && point.end > point.t ? point.end - point.t : 0);
+const inside = (inner, outer) => inner !== outer && spanOf(inner) > 0 && inner.t >= outer.t && inner.t + spanOf(inner) <= outer.t + spanOf(outer)
+  && spanOf(inner) < spanOf(outer);
 
 // The time the readings cover, from the first start to the last end.
 export function readingsDomain(points) {
@@ -17,26 +25,49 @@ export function readingsDomain(points) {
   return [start, end];
 }
 
-// The reading shown at time t. minSpan is the shortest interval wide enough to see at the current zoom; momentHalfWidth
-// is how far a moment reading's mark reaches on either side. Returns { point, finer } where finer counts covering
-// readings too fine to show at this zoom, or null where no reading covers t.
+// The readings directly inside one reading: inside it and inside no other reading that is itself inside it.
+export function directlyInside(points, parent) {
+  const within = points.filter((point) => inside(point, parent));
+  return within.filter((point) => !within.some((other) => inside(point, other)));
+}
+
+// What the time inside a reading that its direct finer readings leave uncovered must average for the reading to hold.
+// Returns { coverage, value } with value null when the finer readings already exceed the reading (no level can hold),
+// or null when the finer readings overlap one another (no single average to derive) or cover all of it.
+export function uncoveredAverage(parent, children) {
+  const sorted = [...children].sort((a, b) => a.t - b.t);
+  if (sorted.some((child, i) => i && child.t < sorted[i - 1].t + spanOf(sorted[i - 1]))) return null;
+  const total = spanOf(parent);
+  const coverage = sorted.reduce((sum, child) => sum + spanOf(child) / total, 0);
+  if (1 - coverage <= 1e-9) return null;
+  const rest = (parent.v - sorted.reduce((sum, child) => sum + (spanOf(child) / total) * child.v, 0)) / (1 - coverage);
+  return { coverage, value: rest < -1e-9 || rest > 1 + 1e-9 ? null : Math.min(1, Math.max(0, rest)) };
+}
+
+// The level shown at time t. minSpan is the shortest interval wide enough to see at the current zoom; momentHalfWidth
+// is how far a moment reading's mark reaches on either side. Returns null where no reading covers t, or
+// { point, value, finer, derived }: point is the reading whose level shows (null for a derived level), value the level
+// drawn (null when no level can hold), finer the count of readings inside the shown one that cover t but are too fine
+// to see, and derived, for uncovered time inside an open reading, { parent, coverage, feasible }.
 export function readingAt(points, t, { minSpan = 0, momentHalfWidth = 0 } = {}) {
-  let moment = null; let shown = null; let coarsest = null; let finer = 0;
+  let moment = null;
   for (const point of points) {
-    const span = spanOf(point);
-    if (span === 0) {
-      if (Math.abs(t - point.t) <= momentHalfWidth && (!moment || Math.abs(t - point.t) < Math.abs(t - moment.t))) moment = point;
-      continue;
-    }
-    if (t < point.t || t >= point.t + span) continue;
-    if (!coarsest || span > spanOf(coarsest)) coarsest = point;
-    if (span < minSpan) { finer += 1; continue; }
-    // The finest visible reading wins; between two of the same length, the later one.
-    if (!shown || span < spanOf(shown) || (span === spanOf(shown) && point.t > shown.t)) shown = point;
+    if (spanOf(point) === 0 && Math.abs(t - point.t) <= momentHalfWidth && (!moment || Math.abs(t - point.t) < Math.abs(t - moment.t))) moment = point;
   }
-  if (moment) return { point: moment, finer: 0 };
-  if (shown) return { point: shown, finer };
-  // Every covering reading is finer than the zoom can show and none is coarse enough: show the longest of them.
-  if (coarsest) return { point: coarsest, finer: finer - 1 };
-  return null;
+  if (moment) return { point: moment, value: moment.v, finer: 0, derived: null };
+  const covering = points.filter((point) => spanOf(point) > 0 && t >= point.t && t < point.t + spanOf(point));
+  if (!covering.length) return null;
+  // Start from the longest reading over t (the later one between two of the same length) and open inward.
+  let at = covering.reduce((best, point) => (spanOf(point) > spanOf(best) || (spanOf(point) === spanOf(best) && point.t > best.t) ? point : best));
+  for (;;) {
+    const children = directlyInside(points, at);
+    if (!children.length || children.some((child) => spanOf(child) < minSpan)) {
+      return { point: at, value: at.v, finer: covering.filter((point) => inside(point, at)).length, derived: null };
+    }
+    const next = children.find((child) => t >= child.t && t < child.t + spanOf(child));
+    if (next) { at = next; continue; }
+    const rest = uncoveredAverage(at, children);
+    if (!rest) return { point: at, value: at.v, finer: 0, derived: null };
+    return { point: null, value: rest.value, finer: 0, derived: { parent: at, coverage: rest.coverage, feasible: rest.value !== null } };
+  }
 }

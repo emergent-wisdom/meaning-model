@@ -125,10 +125,12 @@ export function cutTrajectories(data) {
   for (const [key, { schema, records }] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
     records.sort((a, b) => a.t - b.t || b.end - a.end);
     // Readings nested inside a longer reading are its detail and stay in the series. Two readings of exactly the same
-    // interval are a conflict, not resolved by averaging or by choosing whichever arrived first: both remain in the
-    // independent Cut view.
+    // interval, or two that partly overlap with neither inside the other, are a conflict, not resolved by averaging or
+    // by choosing one: both remain in the independent Cut view.
     const intervals = new Set(records.map((record) => `${record.t}:${record.end}`));
-    if (records.length < 2 || intervals.size < records.length) continue;
+    const spans = records.filter((record) => record.end > record.t);
+    const partlyOverlapping = spans.some((a) => spans.some((b) => a.t < b.t && b.t < a.end && a.end < b.end));
+    if (records.length < 2 || intervals.size < records.length || partlyOverlapping) continue;
     const referent = referents.get(schema.owner), home = commonHome(records, schema.owner);
     // A row is named by its answer; the question names the series once, above its first row. The remainder, what the
     // answers leave open, comes last, and only when some reading leaves a share open.

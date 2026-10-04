@@ -194,7 +194,7 @@ const readingResolution = () => ({ minSpan: F.s * 0.02, momentHalfWidth: (F.s / 
 const readingShown = (row, t) => readingAt(row.points ?? row.measure.points, t, readingResolution());
 function rowValue(row, t) {
   const points = row.points ?? row.measure.points;
-  if (row.measure.kind === 'cut-answer') return readingShown(row, t)?.point?.v ?? null;
+  if (row.measure.kind === 'cut-answer') return readingShown(row, t)?.value ?? null;
   if (boundedMeasure(row.measure) && (!points.length || t > points.at(-1).t)) return null;
   return valueAt(points, t);
 }
@@ -202,7 +202,8 @@ function rowValue(row, t) {
 function rowPosition(row, t) {
   if (row.measure.kind !== 'cut-answer') return measurePosition(row.points ?? row.measure.points, t);
   const shown = readingShown(row, t);
-  if (!shown?.point) return { label: 'No reading covers this time', samples: [], finer: 0 };
+  if (!shown) return { label: 'No reading covers this time', samples: [], finer: 0 };
+  if (shown.derived) return { label: shown.derived.feasible ? 'Derived: what the rest of this stretch must average' : 'No level can hold here', samples: [shown.derived.parent], finer: 0, derived: shown.derived };
   return { label: shown.point.end > shown.point.t ? 'The average over its interval' : 'A reading at a moment', samples: [shown.point], finer: shown.finer };
 }
 function updateRowSamples(row, construction, cutoff, complete) {
@@ -239,7 +240,8 @@ const format = (row, v) => {
 };
 function rowValueText(row, t) {
   const value = rowValue(row, t); if (value === null) return '';
-  const interpolated = row.measure.kind === 'typed-scalar' && !(row.points ?? row.measure.points).some((point) => point.t === t);
+  const interpolated = row.measure.kind === 'typed-scalar' ? !(row.points ?? row.measure.points).some((point) => point.t === t)
+    : row.measure.kind === 'cut-answer' && Boolean(readingShown(row, t)?.derived);
   return `${interpolated ? '~' : ''}${format(row, value)}`;
 }
 function measureValueLines(row, t) {
@@ -256,6 +258,13 @@ function measureValueLines(row, t) {
   if (row.measure.kind === 'cut-answer') {
     const position = rowPosition(row, t); const [point] = position.samples;
     if (!point) return [['a', 'No reading covers this time. Unrecorded time is unknown, so nothing is drawn here.']];
+    if (position.derived) {
+      const span = `${timeText(point.t, 1)} – ${timeText(point.end, 1)}`; const uncovered = Math.round((1 - position.derived.coverage) * 100);
+      return [...(position.derived.feasible
+        ? [['num', rowValueText(row, t)], ['a', `Derived, not recorded: for the reading over ${span} (${format(row, point.v)}) to hold, the ${uncovered}% of that stretch its finer readings leave uncovered must average this. It constrains the average over those years, not their shape.`]]
+        : [['a', `No level can hold here: the finer readings inside ${span} already take more ${row.measure.answerKey} than the reading over the whole stretch (${format(row, point.v)}) allows. One of them needs revising.`]]),
+        ['m', row.measure.question], ['a', `Answer: ${row.measure.answerKey} · local weight from 0 to 1 · Unit: ${row.measure.unit}`], ['a', `Long reading: ${point.cutId}`]];
+    }
     return [['num', rowValueText(row, t)], ['a', point.end > point.t ? 'Authored reading: the average over its whole interval.' : 'Authored reading at a moment.'],
       ...(position.finer ? [['a', `${position.finer} finer reading${position.finer === 1 ? '' : 's'} inside it: zoom in to see ${position.finer === 1 ? 'it' : 'them'}.`]] : []),
       ['m', row.measure.question], ['a', `Answer: ${row.measure.answerKey} · local weight from 0 to 1 · Unit: ${row.measure.unit}`],
@@ -626,7 +635,10 @@ for (const row of rows) {
   const wall = new THREE.BufferGeometry(); wall.setAttribute('position', new THREE.BufferAttribute(positions, 3)); wall.setAttribute('color', new THREE.BufferAttribute(colors, 4)); wall.setIndex(index);
   row.wall = new THREE.Mesh(wall, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
   const line = new THREE.BufferGeometry(); line.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NX * 3), 3));
-  row.crest = new THREE.Line(line, additive(c.clone().lerp(new THREE.Color('#ffffff'), 0.35), 1));
+  // Per-sample brightness: full for a recorded level, dimmer for a derived one, dark where there is no value.
+  line.setAttribute('color', new THREE.BufferAttribute(new Float32Array(NX * 3).fill(1), 3));
+  row.crest = new THREE.Line(line, additive(c.clone().lerp(new THREE.Color('#ffffff'), 0.35), 1)); row.crest.material.vertexColors = true;
+  row.topAlpha = open ? 0.08 : 0.3;
   row.wall.frustumCulled = false; row.crest.frustumCulled = false; row.sampleT = new Float64Array(NX);
   field.add(row.wall, row.crest);
   const name = label('row', clip(NAMES[row.measure.id] ?? row.measure.id.split('.').slice(-1)[0].replace(/_/g, ' '), 64), new THREE.Vector3(-LENGTH / 2 - 1.2, 0.8, row.z), [1, 0.5]);
@@ -652,11 +664,18 @@ function layRow(row) {
   if (!shown) return;
   const x0 = X(d0); const x1 = X(d1); const amp = row.measure.kind === 'cut-answer' ? 1 : 1 - smooth(blend.now) * (1 - LAMP / AMP);
   const positions = row.wall.geometry.attributes.position.array; const crest = row.crest.geometry.attributes.position.array;
+  const wallColors = row.wall.geometry.attributes.color.array; const crestColors = row.crest.geometry.attributes.color.array;
+  const reading = row.measure.kind === 'cut-answer'; const scale = (row.range[1] - row.range[0]) || 1;
   for (let i = 0; i < NX; i += 1) {
-    const x = x0 + ((x1 - x0) * i) / (NX - 1); const t = F.w ? timeAtX(x) : d0 + ((d1 - d0) * i) / (NX - 1); const h = row.height(t) * amp * row.rise;
+    const x = x0 + ((x1 - x0) * i) / (NX - 1); const t = F.w ? timeAtX(x) : d0 + ((d1 - d0) * i) / (NX - 1);
+    const hit = reading ? readingShown(row, t) : null; const v = reading ? hit?.value ?? null : rowValue(row, t);
+    const h = v === null ? 0 : ((v - row.range[0]) / scale) * (reading ? CUT_AMP : AMP) * amp * row.rise;
+    const light = v === null ? 0 : hit?.derived ? 0.4 : 1;
     row.sampleT[i] = t; positions.set([x, p.y, p.z, x, p.y + h, p.z], i * 6); crest.set([x, p.y + h + 0.02, p.z], i * 3);
+    crestColors.fill(light, i * 3, i * 3 + 3); wallColors[i * 8 + 7] = row.topAlpha * (hit?.derived ? 0.4 : 1);
   }
   row.wall.geometry.attributes.position.needsUpdate = true; row.crest.geometry.attributes.position.needsUpdate = true;
+  row.wall.geometry.attributes.color.needsUpdate = true; row.crest.geometry.attributes.color.needsUpdate = true;
   row.wall.geometry.computeBoundingSphere(); row.crest.geometry.computeBoundingSphere();
 }
 // The height of a row's curtain at a time, as drawn now.
