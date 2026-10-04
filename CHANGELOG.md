@@ -18,6 +18,8 @@ unpublished work stays under Unreleased. This is not a development transcript.
 - Explorer outputs accept `isolation.explorer` as well as the legacy key. Clarify
   isolation warnings, oracle premises, automatic assignment and signature
   coverage; render Alien payload validation failures as readable field messages.
+- The viewer shows the Meaning Model's logo beside the model's name, linking to
+  meaningmodel.ai, and uses it as the page icon.
 
 ## 0.6.7 — 2026-10-03
 
