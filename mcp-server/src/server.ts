@@ -1,4 +1,5 @@
 import { applyModelChange } from './model-change.mjs';
+import { SERIES_TAGS, seriesChange, seriesDrawing } from './series-record.mjs';
 import { readOpenQuestions, thinkInTheModelInstructions, VISIBLE_QUESTIONS, withOpenQuestions } from './model-questions.mjs';
 import { scaffoldHint } from './scaffold-examples.mjs';
 import { McpServer } from '@modelcontextprotocol/server';
@@ -241,6 +242,47 @@ server.registerTool(
     const { model: previous } = await service.inspectModel({ modelHash: input.previousModelHash, includeDefinition: true });
     const { successor, summary } = applyModelChange(previous, input.previousModelHash, change);
     return toolResult(await withOpenQuestions(service, { ...(await service.reviseModel({ ...input, model: successor })), revisedByChange: true, change: summary }));
+  },
+);
+
+server.registerTool(
+  'life_series_record',
+  {
+    description: 'Record a whole series of readings in one call: one question asked of one subject (a person, a company, a protocol, a market) at many dated intervals, each with its shares and its reason. Readings may nest, a long one with finer ones inside it, and must not partly overlap. Each reading becomes a dated Event inside the subject\'s life (or parentEventId), carrying its Cut, its tag as source, inferred, invented, exploring or sketch, and optional causes; the series is one model revision through the ordinary change path, with the remainder off unless series.remainder names a real unresolved share. Choose the answers first as the concept\'s mutually exclusive categories (necessary, independent, universal over the cases, complete together). To open one category into its own exclusive categories, record a second series with conditionedOn {seriesId, answerKey}: its readings divide that answer\'s share on the same Events, interval by interval. Ids follow the series and the interval, so recording an interval again replaces that reading. The result says how many readings will draw as a curve in the viewer and why any will not.',
+    inputSchema: z.object({
+      requestId: requestIdSchema,
+      previousModelHash: z.string().length(64),
+      subject: z.string().trim().min(1).max(512).describe('The referent whose life the readings belong to.'),
+      parentEventId: z.string().trim().min(1).max(512).optional().describe('The Event the readings sit in; defaults to the subject\'s lifecycle Event. Use an inner root\'s Event for a holder\'s own view.'),
+      series: z.object({
+        id: z.string().trim().min(1).max(80).describe('A stable slug for this question, such as ethereum-priorities.'),
+        question: z.string().trim().min(1).max(1_000),
+        unit: z.string().trim().min(1).max(300),
+        answers: z.array(z.object({ key: z.string().trim().min(1).max(64), meaning: z.string().trim().min(1).max(1_000) }).strict()).min(1).max(24),
+        remainder: z.object({ meaning: z.string().trim().min(1).max(1_000) }).strict().optional().describe('Only for a share the answers genuinely leave unresolved.'),
+        conditionedOn: z.object({ seriesId: z.string().trim().min(1).max(80), answerKey: z.string().trim().min(1).max(64) }).strict().optional()
+          .describe('Open this answer of another series: each reading divides that answer on the reading of the same interval.'),
+      }).strict(),
+      readings: z.array(z.object({
+        start: z.number().finite(),
+        end: z.number().finite(),
+        label: z.string().trim().max(300).optional(),
+        why: z.string().trim().min(1).max(2_000).describe('What happens in this stretch that gives these shares.'),
+        weights: z.record(z.string(), z.number().finite()).describe('Share per answer key, summing to one.'),
+        tag: z.enum(SERIES_TAGS),
+        causes: z.array(z.string().trim().min(1).max(512)).max(16).optional().describe('Existing Events that moved the process into this stretch.'),
+      }).strict()).min(1).max(400),
+      reason: z.string().trim().min(1).max(4_000),
+    }).strict(),
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  async ({ requestId, previousModelHash, ...input }) => {
+    const { model: previous } = await service.inspectModel({ modelHash: previousModelHash, includeDefinition: true });
+    const change = seriesChange(previous, input);
+    const { successor, summary } = applyModelChange(previous, previousModelHash, change);
+    const revised = await service.reviseModel({ requestId, previousModelHash, model: successor });
+    const { model: stored } = await service.inspectModel({ modelHash: revised.modelHash, includeDefinition: true });
+    return toolResult(await withOpenQuestions(service, { ...revised, revisedByChange: true, change: summary, series: { id: input.series.id, ...seriesDrawing(stored, input.series.id) } }));
   },
 );
 

@@ -217,6 +217,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_review_record',
       'life_revision_check',
       'life_saved_work_list',
+      'life_series_record',
       'life_story_revision_diagnose',
       'life_trajectory_query',
       'life_trajectory_summarize',

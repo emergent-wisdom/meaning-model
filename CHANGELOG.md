@@ -6,6 +6,14 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Add `life_series_record`: one call records a whole series of readings of one
+  question about one subject, each a dated Event with its shares, reason, tag
+  and optional causes, as one model revision through the ordinary change path.
+  Readings may nest; a second series can open one answer into its own exclusive
+  categories on the same Events. It refuses what could not draw as one series (a
+  reworded question under the same id, partly overlapping readings, an opened
+  category without a matching reading) and reports how many readings will draw
+  as a curve and why any will not.
 - Show the book's own processes. With the reading position on, Story
   processes opens with every process as a row of phases across the text, in
   reading order rather than world time; selecting a phase opens its process,
