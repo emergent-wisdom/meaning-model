@@ -24,6 +24,7 @@ import { unopenedProcessEvents } from './process-visibility.js';
 import { createProcessDetail } from './process-detail.js';
 import { nestedEventLayout } from './nested-event-layout.js';
 import { cutTrajectories } from './cut-trajectories.js';
+import { readingAt, readingsDomain } from './interval-readings.js';
 import { typedScalarTrajectories } from './scalar-trajectories.js';
 import { buildModelGraph } from './model-graph.js';
 import { readingActs, actShares, actCounts } from './lens-readings.js';
@@ -169,25 +170,40 @@ const rowOf = new Map(rows.map((row) => [row.measure.id, row]));
 const sourceEventRows = new Map();
 for (const row of rows) for (const eventId of row.measure.sourceEventIds ?? []) push(sourceEventRows, eventId, row);
 
-// Display values: linear between recorded samples, held after the last; no value before the first sample.
+// Display values. A Cut reading is the average over its interval: it holds across [t, end), where readings nest the
+// finest one wide enough to see at the current zoom is shown, and where no reading covers a time there is no value.
+// Point samples (dated scalars and older authored series) are joined between samples and stop at the last one; nothing
+// is held after it and nothing comes before the first.
 const valueAt = (points, t) => {
   if (!points.length) return null;
-  if (t < points[0].t) return null; if (t === points[0].t) return points[0].v; if (t >= points.at(-1).t) return points.at(-1).v;
+  if (t < points[0].t || t > points.at(-1).t) return null; if (t === points[0].t) return points[0].v; if (t === points.at(-1).t) return points.at(-1).v;
   const k = points.findIndex((p) => p.t > t); const a = points[k - 1]; const b = points[k]; return a.v + (b.v - a.v) * ((t - a.t) / (b.t - a.t));
 };
 const measurePosition = (points, t) => {
   if (!points.length) return { label: 'No recorded readings available at this construction step', samples: [] };
   if (t < points[0].t) return { label: 'Before the first recorded sample', samples: [] };
-  if (t > points.at(-1).t) return { label: 'Held after the last sample', samples: [points.at(-1)] };
+  if (t > points.at(-1).t) return { label: 'After the last recorded sample; no value is held after it', samples: [] };
   const exact = points.find((point) => point.t === t);
   if (exact) return { label: 'At a display sample', samples: [exact] };
   const next = points.findIndex((point) => point.t > t);
   return { label: 'Linearly interpolated between samples', samples: [points[next - 1], points[next]] };
 };
+// At the current zoom: a reading shorter than this share of the window is shown through the longer reading around it,
+// and a moment reading is marked this many samples wide.
+const readingResolution = () => ({ minSpan: F.s * 0.02, momentHalfWidth: (F.s / NX) * 1.5 });
+const readingShown = (row, t) => readingAt(row.points ?? row.measure.points, t, readingResolution());
 function rowValue(row, t) {
   const points = row.points ?? row.measure.points;
+  if (row.measure.kind === 'cut-answer') return readingShown(row, t)?.point?.v ?? null;
   if (boundedMeasure(row.measure) && (!points.length || t > points.at(-1).t)) return null;
   return valueAt(points, t);
+}
+// Which recorded readings or samples stand behind a row's value at t, and how.
+function rowPosition(row, t) {
+  if (row.measure.kind !== 'cut-answer') return measurePosition(row.points ?? row.measure.points, t);
+  const shown = readingShown(row, t);
+  if (!shown?.point) return { label: 'No reading covers this time', samples: [], finer: 0 };
+  return { label: shown.point.end > shown.point.t ? 'The average over its interval' : 'A reading at a moment', samples: [shown.point], finer: shown.finer };
 }
 function updateRowSamples(row, construction, cutoff, complete) {
   if (!boundedMeasure(row.measure)) return false;
@@ -197,7 +213,7 @@ function updateRowSamples(row, construction, cutoff, complete) {
   }) : row.measure.points;
   if (row.points?.length === points.length && row.points.every((point, index) => point === points[index])) return false;
   row.points = points;
-  row.domain = points.length ? [points[0].t, points.at(-1).t] : [Infinity, -Infinity];
+  row.domain = !points.length ? [Infinity, -Infinity] : row.measure.kind === 'cut-answer' ? readingsDomain(points) : [points[0].t, points.at(-1).t];
   return true;
 }
 for (const row of rows) {
@@ -206,8 +222,9 @@ for (const row of rows) {
   row.points = row.measure.points;
   row.range = row.measure.kind === 'cut-answer' ? [0, 1] : row.measure.kind === 'typed-scalar' ? [Math.min(0, lo), Math.max(0, hi)] : /0-10/.test(unit) ? [0, 10] : /0-1|share/.test(unit) ? [0, Math.max(1, hi)] : [Math.min(0, lo), hi];
   row.height = (t) => { const v = rowValue(row, t); if (v === null) return 0; return ((v - row.range[0]) / (row.range[1] - row.range[0] || 1)) * (row.measure.kind === 'cut-answer' ? CUT_AMP : AMP); };
-  // A curtain begins at its first recorded sample and may hold its final value afterward.
-  row.domain = boundedMeasure(row.measure) ? [...row.measure.domain] : [row.measure.points[0].t, Math.max(T1, row.measure.points.at(-1).t)];
+  // A curtain runs from its first recorded sample to its last (for readings, to the end of the last interval); nothing
+  // is held after it.
+  row.domain = boundedMeasure(row.measure) ? [...row.measure.domain] : [row.measure.points[0].t, row.measure.points.at(-1).t];
 }
 const money = (v, sign) => `${sign}${v >= 100 ? Math.round(v).toLocaleString('en-GB') : v.toFixed(2)}`;
 const format = (row, v) => {
@@ -222,7 +239,7 @@ const format = (row, v) => {
 };
 function rowValueText(row, t) {
   const value = rowValue(row, t); if (value === null) return '';
-  const interpolated = boundedMeasure(row.measure) && !(row.points ?? row.measure.points).some((point) => point.t === t);
+  const interpolated = row.measure.kind === 'typed-scalar' && !(row.points ?? row.measure.points).some((point) => point.t === t);
   return `${interpolated ? '~' : ''}${format(row, value)}`;
 }
 function measureValueLines(row, t) {
@@ -237,14 +254,15 @@ function measureValueLines(row, t) {
         ['a', `Evidence: ${point.evidenceType ?? 'not declared'} · Uncertainty: ${JSON.stringify(point.uncertainty ?? 'not declared')}`]])];
   }
   if (row.measure.kind === 'cut-answer') {
-    const points = row.points ?? row.measure.points;
-    if (rowValue(row, t) === null) return [['a', 'No recorded value at this time. This reading series is not extrapolated.']];
-    const position = measurePosition(points, t);
-    return [['num', rowValueText(row, t)], ['a', position.samples.length === 1 ? 'Authored reading, positioned at its interval start.' : 'Visual interpolation between authored interval readings; not an additional recorded value.'],
+    const position = rowPosition(row, t); const [point] = position.samples;
+    if (!point) return [['a', 'No reading covers this time. Unrecorded time is unknown, so nothing is drawn here.']];
+    return [['num', rowValueText(row, t)], ['a', point.end > point.t ? 'Authored reading: the average over its whole interval.' : 'Authored reading at a moment.'],
+      ...(position.finer ? [['a', `${position.finer} finer reading${position.finer === 1 ? '' : 's'} inside it: zoom in to see ${position.finer === 1 ? 'it' : 'them'}.`]] : []),
       ['m', row.measure.question], ['a', `Answer: ${row.measure.answerKey} · local weight from 0 to 1 · Unit: ${row.measure.unit}`],
-      ...position.samples.flatMap((point) => [['a', `${point.cut?.eventLabel ?? point.eventId}: ${format(row, point.v)} · ${timeText(point.t, 1)}${point.end !== point.t ? ` – ${timeText(point.end, 1)}` : ''}`], ['a', `Source Cut: ${point.cutId}`]])];
+      ['a', `${point.cut?.eventLabel ?? point.eventId}: ${format(row, point.v)} · ${timeText(point.t, 1)}${point.end > point.t ? ` – ${timeText(point.end, 1)}` : ''}`], ['a', `Source Cut: ${point.cutId}`]];
   }
   if (t < row.measure.points[0].t) return [['a', `No recorded value yet. First sample: ${month(row.measure.points[0].t)}.`]];
+  if (t > row.measure.points.at(-1).t) return [['a', `No recorded value after ${month(row.measure.points.at(-1).t)}. Values are not held past the last sample.`]];
   const position = measurePosition(row.measure.points, t);
   const lines = [['num', format(row, valueAt(row.measure.points, t))], ['a', position.label]];
   for (const point of position.samples) {
@@ -1701,11 +1719,15 @@ function apply() {
       if (construction && row.rise < 0.002 && row.riseTo === 0) upto = 0;
       row.wall.geometry.setDrawRange(0, Math.max(0, (upto - 1) * 6)); row.crest.geometry.setDrawRange(0, upto);
     }
-    const t = Math.min(construction ? F.b : now, T1); const last = row.points.at(-1);
-    const afterLast = native && last && t > last.t;
+    const t = Math.min(construction ? F.b : now, T1); const reading = row.measure.kind === 'cut-answer';
+    // A reading series ends where its last interval ends; a sample series at its last sample.
+    const last = reading ? row.points.reduce((latest, point) => (!latest || Math.max(point.t, point.end ?? point.t) >= Math.max(latest.t, latest.end ?? latest.t) ? point : latest), null) : row.points.at(-1);
+    const lastEnd = last ? Math.max(last.t, reading ? last.end ?? last.t : last.t) : null;
+    const afterLast = native && last && (reading ? t >= lastEnd : t > last.t);
     const value = rowValue(row, afterLast ? last.t : t);
     row.value.element.textContent = value === null ? '' : `${rowValueText(row, afterLast ? last.t : t)}${afterLast ? ' · last' : ''}`;
-    row.value.element.title = afterLast ? `Last recorded sample: ${timeText(last.t, 1)}. No value is extrapolated after it.` : native ? 'A ~ value is visual interpolation between recorded samples.' : '';
+    row.value.element.title = afterLast ? (reading ? `Last reading: ${timeText(last.t, 1)} – ${timeText(lastEnd, 1)}. Nothing is drawn after it.` : `Last recorded sample: ${timeText(last.t, 1)}. No value is extrapolated after it.`)
+      : reading ? 'The average over the interval of the reading shown here.' : native ? 'A ~ value is visual interpolation between recorded samples.' : '';
     if (native && last) placeNativeValue(row, afterLast ? last.t : t);
     // While the years play, every readout stands at the playhead; at the end a process's readout returns to the margin.
     else if (!construction && !(atEnd && !playing)) placeNativeValue(row, t);
@@ -2825,7 +2847,7 @@ function hover() {
   if (info.valueRows?.length) {
     tip.append(tipLine('a', `At the Event's start: ${timeText(info.valueTime, 1)}`));
     for (const row of info.valueRows) if (presence(row) > 0.5 && rowValue(row, info.valueTime) !== null) {
-      tip.append(tipLine('num-line', `${NAMES[row.measure.id]}: ${rowValueText(row, info.valueTime)} · ${measurePosition(row.points ?? row.measure.points, info.valueTime).label}`));
+      tip.append(tipLine('num-line', `${NAMES[row.measure.id]}: ${rowValueText(row, info.valueTime)} · ${rowPosition(row, info.valueTime).label}`));
     }
   }
   if (info.attached) { if (!info.attached.length) tip.append(tipLine('a', 'Attached to nothing in the model: a note of the agent’s own.')); else { tip.append(tipLine('a', 'Attached to')); for (const line of info.attached) tip.append(tipLine('a', line)); } }
@@ -2873,7 +2895,7 @@ function appendCurtainSources(container, { row, t }) {
   }
   if (row.measure.kind !== 'cut-answer') return;
   const sources = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = 'Authored readings: all answers, context and conditional denominator'; sources.append(summary);
-  for (const point of measurePosition(row.points, t).samples) if (point.cut) appendRecordedCut(sources, point.cut, numericOptions());
+  for (const point of rowPosition(row, t).samples) if (point.cut) appendRecordedCut(sources, point.cut, numericOptions());
   container.append(sources);
 }
 function placeTip() { if (quietAt && pointerAt && quietAt.x === pointerAt.x && quietAt.y === pointerAt.y) { tip.hidden = true; return; } quietAt = null; tip.hidden = false; const w = tip.offsetWidth; const h = tip.offsetHeight; tip.style.left = `${Math.min(innerWidth - w - 12, pointerAt.x + 16)}px`; tip.style.top = `${Math.min(innerHeight - h - 12, Math.max(12, pointerAt.y + 16))}px`; }

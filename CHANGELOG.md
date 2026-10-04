@@ -6,6 +6,13 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Draw each Cut reading as a level across its whole interval, the average it
+  records, instead of a point at the interval's start joined to the next
+  reading by a straight line. Readings opened inside a longer reading stay in
+  its series: zoomed out, the longer reading stands for them; zoomed in, they
+  show. Time that no reading covers stays empty, the last interval is drawn to
+  its end, older authored series are no longer held after their last sample,
+  and a remainder row appears only when some reading leaves a share open.
 - Require each fresh agent to read the current grammar before modeling in any
   mode. Add a paginated guide-reading tool for MCP clients without resource
   access, while keeping comprehension and agent behavior explicitly unverified.

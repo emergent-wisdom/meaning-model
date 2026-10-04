@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import * as THREE from '../viewer/public/vendor/three/three.core.js';
 import { createProcessDetail } from '../viewer/public/process-detail.js';
+import { readingAt, readingsDomain } from '../viewer/public/interval-readings.js';
 
 const source = readFileSync(new URL('../viewer/public/view.js', import.meta.url), 'utf8');
 function between(startText, endText) {
@@ -30,7 +31,7 @@ const buffer = () => ({ calls: [], begin() { this.calls = []; }, add(...args) { 
 function fixture({ nativeCount = 0, detail = false } = {}) {
   const group = { id: 'generic-owner', label: 'Owner', rows: [] };
   const samples = nativeCount ? Array.from({ length: nativeCount }, () => [0, 0.5, 1]) : [[0, 0, 0], [7, 7, 7], [1, 2, 3], [0, 1, 0], [0, Number.EPSILON, 0]];
-  const rows = samples.map((values, index) => ({ measure: { id: `process-${index}`, points: values.map((v, t) => ({ t, v })),
+  const rows = samples.map((values, index) => ({ measure: { id: `process-${index}`, points: values.map((v, t) => ({ t, v, ...(nativeCount ? { end: t + 1 } : {}) })),
     ...(nativeCount ? { kind: 'cut-answer', domain: [0, 2] } : {}) },
     group, depth: 2, yT: 0, rise: 1, sampleT: new Float64Array(3),
     wall: { visible: true, material: {}, geometry: geometry(18) }, crest: { visible: true, material: {}, geometry: geometry(9) },
@@ -54,7 +55,7 @@ function fixture({ nativeCount = 0, detail = false } = {}) {
     processDetail: createProcessDetail(nodes.map((node) => node.event), rows),
     opt: { hideFlat: false, hideUnopened: false, layout: 'layers', depth: 4, camera: 'free', edges: false,
       show: new Set(['events', 'subsidiary', 'processes', 'numbers']), lenses: new Set() },
-    ROW: 2.7, GAP: 4.4, AMP: 10, NX: 3, T1: 2, LENGTH: 100, F: { a: 0, b: 2 },
+    ROW: 2.7, GAP: 4.4, AMP: 10, NX: 3, T1: 2, LENGTH: 100, F: { a: 0, b: 2, s: 2 }, readingAt, readingsDomain,
     dirty: false, relayout: false, extrasDirty: false, smooth: (value) => value,
     apply() {}, syncPanel() {}, syncURL() {}, fitLocked() {}, X: (t) => t, timeAtX: (x) => x,
     wallNdc: { set() {} }, wallRay: { setFromCamera() {}, intersectObjects(objects) { context.intersected = objects; return []; } },

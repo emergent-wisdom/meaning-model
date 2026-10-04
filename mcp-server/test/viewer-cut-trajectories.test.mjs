@@ -18,10 +18,10 @@ function fixture() {
 }
 const dataOf = (model) => ({ inspection: { model }, numerics: projectNumerics(model) });
 
-test('generic nonhuman life produces exact answer curves, zero remainder and bounded visual-guide metadata', () => {
+test('generic nonhuman life produces exact answer curves over whole intervals, without an all-zero remainder row', () => {
   const data = dataOf(fixture()); data.numerics.cuts[0].born = { at: '2026-01-01T00:00:00Z' };
   const before = structuredClone(data), rows = cutTrajectories(data);
-  assert.equal(rows.length, 3);
+  assert.equal(rows.length, 2, 'a remainder that every reading leaves at zero gets no row');
   const drive = rows.find((row) => row.answerKey === 'drive');
   assert.deepEqual(drive.points.map((point) => point.v), [0.123456789012345, 0.8]);
   assert.deepEqual(drive.points[0].interval, { start: 2, end: 4 });
@@ -29,9 +29,9 @@ test('generic nonhuman life produces exact answer curves, zero remainder and bou
   assert.deepEqual(drive.points[0].cut, data.numerics.cuts[0]);
   assert.deepEqual(drive.group, { id: 'device:x', label: 'Research rover' });
   assert.equal(drive.owner, 'device:x'); assert.equal(drive.home, 'operating-life');
-  assert.deepEqual(drive.range, [0, 1]); assert.deepEqual(drive.domain, [2, 8]);
-  assert.deepEqual(drive.interpolation, { kind: 'linear-visual-guide', samplePosition: 'interval-start', extrapolate: false });
-  assert.deepEqual(rows.find((row) => row.answerKey === 'remainder').points.map((point) => point.v), [0, 0]);
+  assert.deepEqual(drive.range, [0, 1]); assert.deepEqual(drive.domain, [2, 12], 'the series runs to the end of its last interval');
+  assert.deepEqual(drive.interpolation, { kind: 'interval-average', nested: 'finest-visible', extrapolate: false });
+  assert.equal(rows.find((row) => row.answerKey === 'remainder'), undefined);
   assert.deepEqual(data, before);
   drive.points[0].cut.answers[0].weight = 0;
   assert.deepEqual(data, before, 'display rows must not alias source records');
@@ -61,7 +61,7 @@ test('explicit subject bindings support a model without lifecycle scaffolds', ()
   const model = fixture();
   delete model.meaning_model.referents[0].lifecycle_event_id;
   model.meaning_model.event_referent_bindings = ['first', 'later'].map((event_id, i) => ({ id: `binding:${i}`, target: { kind: 'event', event_id }, role: 'sampled machine', binding_type: 'participates', referent_id: 'device:x' }));
-  assert.equal(cutTrajectories(dataOf(model)).length, 3);
+  assert.equal(cutTrajectories(dataOf(model)).length, 2);
 });
 
 test('question, unit, answer vocabulary, process and context differences never merge', () => {
@@ -121,4 +121,26 @@ test('stable identities ignore record ordering and reject projection/native disa
   data.numerics.cuts[0].answers[0].weight += 0.01;
   assert.deepEqual(cutTrajectories(data), []);
   assert.deepEqual(cutTrajectories({}), []);
+});
+
+test('a remainder that some reading leaves open keeps its row, after the answers', () => {
+  const model = fixture();
+  model.meaning_model.normalized_cuts[1].answers = [{ key: 'drive', weight: 0.6 }, { key: 'idle', weight: 0.3 }, { key: 'remainder', weight: 0.1 }];
+  const rows = cutTrajectories(dataOf(model));
+  assert.deepEqual(rows.map((row) => row.answerKey), ['drive', 'idle', 'remainder']);
+  assert.deepEqual(rows.at(-1).points.map((point) => point.v), [0, 0.1]);
+});
+
+test('readings opened inside a longer reading stay in its series, while two readings of one interval conflict', () => {
+  const model = fixture();
+  model.meaning_model.events.push(event('first-half', { interval: { start: 2, end: 3 } }));
+  model.meaning_model.event_relations.push(contains('first', 'first-half'));
+  model.meaning_model.normalized_cuts.push(cut('a-detail', 'first-half', 0.5));
+  const drive = cutTrajectories(dataOf(model)).find((row) => row.answerKey === 'drive');
+  assert.deepEqual(drive.points.map((point) => [point.cutId, point.t, point.end]), [['a', 2, 4], ['a-detail', 2, 3], ['b', 8, 12]],
+    'a finer reading that starts with its parent is detail, not a duplicate');
+  model.meaning_model.events.push(event('first-again', { interval: { start: 2, end: 4 } }));
+  model.meaning_model.event_relations.push(contains('operating-life', 'first-again'));
+  model.meaning_model.normalized_cuts.push(cut('a-again', 'first-again', 0.9));
+  assert.deepEqual(cutTrajectories(dataOf(model)), [], 'two readings of exactly the same interval are not resolved by choosing one');
 });

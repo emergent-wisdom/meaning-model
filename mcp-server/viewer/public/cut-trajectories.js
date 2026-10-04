@@ -1,5 +1,8 @@
 // Display comparisons of compatible recorded Cuts. These rows are visual guides,
 // not new process measurements or laws; each anchor retains its whole source Cut.
+// Each reading is the average over its Event's interval (see interval-readings.js).
+import { readingsDomain } from './interval-readings.js';
+
 export function cutTrajectories(data) {
   const model = data?.inspection?.model;
   if (!model?.meaning_model || !Array.isArray(data?.numerics?.cuts)) return [];
@@ -120,23 +123,26 @@ export function cutTrajectories(data) {
   }
   const rows = [];
   for (const [key, { schema, records }] of [...groups].sort(([a], [b]) => a.localeCompare(b))) {
-    records.sort((a, b) => a.t - b.t);
-    // A duplicate time is not resolved by averaging or choosing whichever record
-    // happened to arrive first. Both records remain in the independent Cut view.
-    if (records.length < 2 || records.some((record, i) => i && record.t === records[i - 1].t)) continue;
+    records.sort((a, b) => a.t - b.t || b.end - a.end);
+    // Readings nested inside a longer reading are its detail and stay in the series. Two readings of exactly the same
+    // interval are a conflict, not resolved by averaging or by choosing whichever arrived first: both remain in the
+    // independent Cut view.
+    const intervals = new Set(records.map((record) => `${record.t}:${record.end}`));
+    if (records.length < 2 || intervals.size < records.length) continue;
     const referent = referents.get(schema.owner), home = commonHome(records, schema.owner);
     // A row is named by its answer; the question names the series once, above its first row. The remainder, what the
-    // answers leave open, comes last.
-    const answerOrder = [...schema.answerKeys.filter((answerKey) => answerKey !== 'remainder'), 'remainder'];
+    // answers leave open, comes last, and only when some reading leaves a share open.
+    const openShare = records.some((record) => record.answers.some((answer) => answer.key === 'remainder' && answer.weight > 0));
+    const answerOrder = [...schema.answerKeys.filter((answerKey) => answerKey !== 'remainder'), ...(openShare ? ['remainder'] : [])];
     for (const [index, answerKey] of answerOrder.entries()) rows.push({
       id: `cut-answer:${encodeURIComponent(JSON.stringify([key, answerKey]))}`,
       label: answerKey.replace(/_/g, ' '), kind: 'cut-answer', answerKey, question: schema.question, unit: schema.unit,
       series: { key, first: index === 0, size: answerOrder.length }, remainder: answerKey === 'remainder',
       owner: schema.owner, group: { id: schema.owner, label: displayNames.get(schema.owner) ?? referent?.boundary ?? schema.owner }, home, depth: 1,
-      range: [0, 1], domain: [records[0].t, records.at(-1).t], sourceEventIds: sorted(records.map((record) => record.parentEventId)),
+      range: [0, 1], domain: readingsDomain(records), sourceEventIds: sorted(records.map((record) => record.parentEventId)),
       contexts: structuredClone(records[0].contexts), conditioningSchema: structuredClone(schema.conditioningSchema),
       processScope: [...schema.processScope],
-      interpolation: { kind: 'linear-visual-guide', samplePosition: 'interval-start', extrapolate: false },
+      interpolation: { kind: 'interval-average', nested: 'finest-visible', extrapolate: false },
       points: records.map((cut) => ({ t: cut.t, v: cut.answers.find((answer) => answer.key === answerKey).weight,
         cutId: cut.id, eventId: cut.parentEventId, end: cut.end, interval: structuredClone(cut.interval), born: structuredClone(cut.born ?? null), cut: structuredClone(cut) })),
     });

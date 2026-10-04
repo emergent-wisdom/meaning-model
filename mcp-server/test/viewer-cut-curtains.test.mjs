@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import * as THREE from '../viewer/public/vendor/three/three.core.js';
+import { readingAt, readingsDomain } from '../viewer/public/interval-readings.js';
 
 const source = readFileSync(new URL('../viewer/public/view.js', import.meta.url), 'utf8');
 const boundedDeclaration = source.split('\n').find((line) => line.startsWith('const boundedMeasure ='));
+const line = (name) => source.split('\n').find((text) => text.startsWith(`const ${name} =`));
 function fn(name) {
   const start = source.indexOf(`function ${name}(`);
   assert.ok(start >= 0, name);
@@ -25,27 +27,46 @@ const points = () => [
 function fixture() {
   const context = { madeAt: (born) => (born?.at ? Date.parse(born.at) : NaN), constructionByClock: true, timeText: (t) => String(t), month: (t) => String(t), AMP: 5.6, CUT_AMP: 18, T1: 40, money: () => { throw new Error('Cut weights are not physical quantities'); } };
   vm.createContext(context);
-  vm.runInContext([boundedDeclaration, arrow('valueAt'), arrow('measurePosition'), arrow('format'), fn('rowValue'), fn('rowValueText'), fn('updateRowSamples'), fn('measureValueLines')].join('\n'), context);
+  Object.assign(context, { readingAt, readingsDomain, F: { s: 40 }, NX: 400 });
+  vm.runInContext([boundedDeclaration, arrow('valueAt'), arrow('measurePosition'), line('readingResolution'), line('readingShown'), arrow('format'), fn('rowValue'), fn('rowPosition'), fn('rowValueText'), fn('updateRowSamples'), fn('measureValueLines')].join('\n'), context);
   return context;
 }
 
-test('native curtain weights interpolate visibly without extrapolating or using physical-unit formatting', () => {
+test('a native reading holds across its interval, unrecorded time stays empty, and nothing is interpolated', () => {
   const context = fixture();
   const row = { measure: { kind: 'cut-answer', unit: 'GBP activity', question: 'What occupies attention?', answerKey: 'work', points: points() } };
   row.points = row.measure.points;
   assert.equal(context.rowValue(row, 9), null);
   assert.equal(context.rowValue(row, 10), 0.2);
-  assert.equal(context.rowValue(row, 15), 0.4);
+  assert.equal(context.rowValue(row, 10.9), 0.2, 'the reading is the average over its whole interval');
+  assert.equal(context.rowValue(row, 15), null, 'no line is drawn across time nobody recorded');
+  assert.equal(context.rowValue(row, 30.5), 0.1, 'the last reading is drawn to its end');
   assert.equal(context.rowValue(row, 31), null);
-  assert.equal(context.rowValueText(row, 10), '0.2');
-  assert.equal(context.rowValueText(row, 15), '~0.4');
-  assert.equal(context.rowValueText(row, 31), '');
-  const text = context.measureValueLines(row, 15).map(([, text]) => text).join('\n');
-  assert.match(text, /Visual interpolation between authored interval readings/);
+  assert.equal(context.rowValueText(row, 10.5), '0.2');
+  assert.equal(context.rowValueText(row, 15), '');
+  const text = context.measureValueLines(row, 10.5).map(([, text]) => text).join('\n');
+  assert.match(text, /average over its whole interval/);
   assert.match(text, /10 – 11/);
   assert.match(text, /Source Cut: early/);
-  assert.match(text, /Source Cut: middle/);
-  assert.doesNotMatch(text, /late|£/);
+  assert.doesNotMatch(text, /middle|late|£|interpolat/);
+  assert.match(context.measureValueLines(row, 15).map(([, text]) => text).join('\n'), /No reading covers this time/);
+});
+
+test('zoomed out, a long reading stands for the finer readings inside it; zoomed in, they show', () => {
+  const context = fixture();
+  const reading = (cutId, t, end, v) => ({ t, end, v, cutId, eventId: cutId, born: born(100), cut: { id: cutId } });
+  const row = { measure: { kind: 'cut-answer', question: 'How does she expect things to turn out?', answerKey: 'threat', unit: 'outlook',
+    points: [reading('decade', 0, 40, 0.3), reading('crisis', 10, 12, 0.8), reading('verdict', 25, 25, 0.9)] } };
+  row.points = row.measure.points;
+  context.F = { s: 400 };
+  assert.equal(context.rowValue(row, 11), 0.3, 'a two-year reading is too fine to see in a 400-year window');
+  assert.match(context.measureValueLines(row, 11).map(([, text]) => text).join('\n'), /1 finer reading inside it: zoom in to see it/);
+  context.F = { s: 40 };
+  assert.equal(context.rowValue(row, 11), 0.8, 'zoomed in, the finer reading shows');
+  assert.equal(context.rowValue(row, 5), 0.3, 'outside the finer reading, the long one');
+  assert.equal(context.rowValue(row, 25), 0.9, 'a moment reading shows as a narrow mark');
+  assert.equal(context.rowValue(row, 25.5), 0.3);
+  assert.deepEqual(context.readingsDomain(row.points), [0, 40]);
 });
 
 test('construction replay uses only already-authored Cut samples and removes later samples on rewind', () => {
@@ -55,8 +76,9 @@ test('construction replay uses only already-authored Cut samples and removes lat
   assert.deepEqual(Array.from(row.points, (point) => point.cutId), ['early']);
   assert.equal(context.rowValue(row, 15), null, 'no interpolation toward a future construction reading');
   context.updateRowSamples(row, true, 250, false);
-  assert.deepEqual(Array.from(row.domain), [10, 20]);
-  assert.equal(context.rowValueText(row, 15), '~0.4');
+  assert.deepEqual(Array.from(row.domain), [10, 21], 'the replayed series ends where its last interval ends');
+  assert.equal(context.rowValueText(row, 20.5), '0.6');
+  assert.equal(context.rowValue(row, 15), null);
   assert.equal(context.rowValue(row, 25), null);
   context.updateRowSamples(row, true, 150, false);
   assert.equal(context.rowValue(row, 15), null);

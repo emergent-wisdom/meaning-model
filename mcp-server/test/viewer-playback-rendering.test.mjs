@@ -240,6 +240,6 @@ test('a measure has no value before its first sample and every unit can format t
     const row = { measure: { unit, points } };
     assert.equal(format(row, valueAt(points, 1)), 'No recorded value yet', `a pre-sample Event can be formatted at module initialization (${unit || 'unitless'})`);
   }
-  assert.deepEqual([valueAt(points, 2), valueAt(points, 3), valueAt(points, 4), valueAt(points, 5)], [3, 4, 5, 5]);
+  assert.deepEqual([valueAt(points, 2), valueAt(points, 3), valueAt(points, 4), valueAt(points, 5)], [3, 4, 5, null], 'the last value is not held after its sample');
   assert.equal(format({ measure: { unit: '0-10' } }, 0), '0.0 of 10', 'a recorded zero is a value');
 });

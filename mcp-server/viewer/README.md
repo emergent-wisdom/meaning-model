@@ -37,11 +37,20 @@ runs the Space and Graph renderers on the real scene graph.
 
 ## Recorded process values
 
-Processes and Tree can show dated scalar claims and approved process-estimation
-records, as well as the existing Cut-answer curves. Each compatible series keeps
+Processes and Tree show Cut readings as levels: a Cut on an Event with an
+interval is the average over that interval, so it is drawn across the whole
+interval rather than as a point joined to the next reading by a line. Readings
+opened inside a longer reading stay in its series: zoomed out, the longer
+reading stands for them; zoomed in, they show. Time that no reading covers
+stays empty, and a remainder row appears only when some reading leaves a share
+open. Two readings of exactly the same interval conflict and stay in the
+independent Cut view.
+
+Processes and Tree can also show dated scalar claims and approved
+process-estimation records. Each compatible series keeps
 its process, unit, holder, evidence and source. Separate estimation requests stay
 separate. The line between samples is a visual guide, marked `~` when interpolated;
-it stops at the last sample. Review approval does not turn an estimate into an
+it stops at the last sample, and older authored series are not held after it. Review approval does not turn an estimate into an
 accepted world value. **Numbers** retains single samples and conflicting records
 that cannot form a curve. Untimed initial values remain untimed.
 
