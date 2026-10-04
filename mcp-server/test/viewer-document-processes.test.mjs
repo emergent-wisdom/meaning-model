@@ -39,14 +39,18 @@ function freeze(value) {
   return value;
 }
 
-test('document processes are absent without authored records and otherwise start collapsed', () => {
+test('document processes are absent without authored records and otherwise start open with every process shown', () => {
   const f = fixture();
   assert.equal(appendDocumentProcesses(f.root, undefined), false);
   assert.equal(appendDocumentProcesses(f.root, projection([])), false);
   assert.equal(f.root.children.length, 0);
   assert.equal(appendDocumentProcesses(f.root, projection()), true);
   assert.equal(f.root.children[0].tag, 'details');
-  assert.equal(f.root.children[0].open, false);
+  assert.equal(f.root.children[0].open, true, 'the book\'s own processes are shown, not hidden');
+  const rows = f.all().filter(node => node.className === 'document-process-row');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].children[0].textContent, 'Opportunities to speak');
+  assert.deepEqual(rows[0].children[1].children[0].style, { left: '10%', width: '20%' });
   assert.match(f.text(), /authored interpretations/);
   assert.match(f.text(), /Position in the text; world time stays unchanged/);
   assert.equal(f.all().find(node => node.tag === 'select').attributes['aria-label'], 'Story process');
@@ -226,4 +230,21 @@ test('unresolved phases are listed without invented placement, and switching pro
   assert.deepEqual(map.children[0].style, { left: '75%', width: '25%', top: '0px' });
   assert.equal(map.children[0].attributes['aria-label'], 'Phase 1: A later interval');
   assert.ok(!f.text().includes('no current position'));
+});
+
+test('the overview shows every process across the text, and a phase in it opens that process and phase', () => {
+  const pause = phase({ label: 'A pause', start: 40, end: 50, description: 'The telling stops for breath.', evidence: [] });
+  const data = freeze(projection([process(), process({ nodeId: 'telling.pace', label: 'Changing pace', question: 'Where does the telling pause?',
+    summary: 'A short interruption.', states: [pause, phase({ label: 'Unplaced', status: 'unresolved', start: null, end: null })] })]));
+  const f = fixture();
+  appendDocumentProcesses(f.root, data);
+  const rows = f.all().filter(node => node.className === 'document-process-row');
+  assert.deepEqual(rows.map(row => row.children[0].textContent), ['Opportunities to speak', 'Changing pace']);
+  assert.equal(rows[1].children[1].children.length, 1, 'a phase without a position has no place on the track');
+  const mark = rows[1].children[1].children[0];
+  assert.equal(mark.title, 'Changing pace · A pause');
+  mark.fire('click');
+  assert.equal(f.all().find(node => node.tag === 'select').value, '1');
+  assert.equal(f.byClass('document-process-question').textContent, 'Where does the telling pause?');
+  assert.match(f.text(), /The telling stops for breath/);
 });

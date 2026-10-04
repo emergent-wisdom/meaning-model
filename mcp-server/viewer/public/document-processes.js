@@ -9,10 +9,14 @@ export function appendDocumentProcesses(container, projection, { onSelect = () =
     if (text !== undefined) node.textContent = text;
     return node;
   };
-  const section = el('details', 'document-processes');
+  // The book's own processes, in reading order rather than world time: open, with every process shown together.
+  const section = el('details', 'document-processes'); section.open = true;
   section.append(el('summary', '', `Story processes (${processes.length})`));
   const body = el('div', 'document-processes-body');
   body.append(el('p', 'document-process-help', 'How the telling develops across the text. These are authored interpretations; select a phase to see its evidence.'));
+  // Every process at once, each a row of phases across the text, so the book's own development reads as one picture.
+  const everyProcess = el('div', 'document-process-all'); everyProcess.setAttribute('role', 'group'); everyProcess.setAttribute('aria-label', 'All story processes across the text');
+  body.append(everyProcess);
   const chooser = el('select'); chooser.setAttribute('aria-label', 'Story process');
   processes.forEach((process, i) => { const option = el('option', '', process.label); option.value = String(i); chooser.append(option); });
   body.append(chooser);
@@ -103,5 +107,24 @@ export function appendDocumentProcesses(container, projection, { onSelect = () =
     if (states.length) showState(states[0], 0);
   }
   chooser.addEventListener('change', showProcess); showProcess();
+  const placed = (state) => hasPosition(state);
+  processes.forEach((process, processIndex) => {
+    const row = el('div', 'document-process-row');
+    const name = el('button', 'document-process-row-label', process.label); name.type = 'button'; name.title = process.question ?? process.label;
+    name.addEventListener('click', () => { chooser.value = String(processIndex); showProcess(); });
+    const track = el('div', 'document-process-track');
+    const states = [...process.states].sort((a, b) => (placed(a) ? a.start : Infinity) - (placed(b) ? b.start : Infinity));
+    states.forEach((state, index) => {
+      if (!placed(state)) return;
+      const mark = el('button', `document-process-track-phase${index % 2 ? ' alternate' : ''}${state.start === state.end ? ' point' : ''}`); mark.type = 'button';
+      const label = `${process.label} · ${state.label}${state.status === 'current' ? '' : ' · Needs review'}`;
+      mark.title = label; mark.setAttribute('aria-label', label); mark.setAttribute('data-status', state.status);
+      mark.style.left = `${state.start / projection.byteLength * 100}%`;
+      mark.style.width = `${(state.end - state.start) / projection.byteLength * 100}%`;
+      mark.addEventListener('click', () => { chooser.value = String(processIndex); showProcess(); showState(state, index); });
+      track.append(mark);
+    });
+    row.append(name, track); everyProcess.append(row);
+  });
   section.append(body); container.append(section); return true;
 }

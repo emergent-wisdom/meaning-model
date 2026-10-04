@@ -8,3 +8,14 @@
 .document-process-map-phase.point { min-width: 2px; transform: translateX(-1px); border-radius: 0; }
 .document-process-map-phase:focus-visible, .document-process-phases button:focus-visible, .document-process-actions button:focus-visible { outline: 2px solid #ffe6ae; outline-offset: 2px; }
 .document-process-phases button::before { content: attr(data-phase) ". "; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Every story process at once: one row per process, its phases across the text. */
+.document-process-all { margin: 8px 0 12px; }
+.document-process-row { display: grid; grid-template-columns: minmax(96px, 32%) 1fr; gap: 8px; align-items: center; margin: 3px 0; }
+.document-process-row-label { overflow: hidden; padding: 0; border: 0; background: none; color: inherit; font: inherit; font-size: 11px; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.document-process-track { position: relative; height: 14px; border-inline: 1px solid var(--ring); background: repeating-linear-gradient(to right, transparent 0, transparent calc(25% - 1px), var(--ring) calc(25% - 1px), var(--ring) 25%); }
+.document-process-track-phase { position: absolute; top: 2px; box-sizing: border-box; height: 10px; min-width: 2px; padding: 0; border: 1px solid #9685af; border-radius: 3px; background: #3c344a; cursor: pointer; }
+.document-process-track-phase.alternate { background: #5b4d70; }
+.document-process-track-phase.point { border-radius: 0; transform: translateX(-1px); }
+.document-process-track-phase[data-status="needs_review"] { border-style: dashed; border-color: #e5bc85; }
+.document-process-track-phase:focus-visible, .document-process-row-label:focus-visible { outline: 2px solid #ffe6ae; outline-offset: 2px; }

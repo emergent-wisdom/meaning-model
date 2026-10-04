@@ -6,6 +6,10 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Show the book's own processes. With the reading position on, Story
+  processes opens with every process as a row of phases across the text, in
+  reading order rather than world time; selecting a phase opens its process,
+  description and passage evidence.
 - Ask what the model has explored. Open questions now name a childhood or
   youth with almost nothing in it, and lives that stop where the modeled lives
   stop (in a story, what became of them afterwards?). They check readings over
