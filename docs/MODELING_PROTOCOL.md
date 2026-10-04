@@ -25,6 +25,15 @@ snapshot for a fixed revision or a model-only view. The viewer runs on the MCP
 computer and follows saved revisions in live mode; it does not publish the model
 or authorize access to more material.
 
+Many users will want to see several processes changing together to understand
+what the tool is doing. When showing a model with dated records, start with a
+broad Processes view. Choose **Time > Model span** or a relevant recorded interval
+and explain **Play** or dragging the time track. Live mode follows saved revisions;
+playback explores recorded model time without simulating new outcomes. Pause
+playback to see newly saved revisions.
+For a model without time positions, show Graph or Structure and explain what is
+still missing.
+
 Call `life_modeling_context`, read this protocol and the guide or profile for the
 purpose, and inspect its worked example before expanding a model. A profile's
 categories and compiler remain optional. Open a relevant paper section when a
@@ -220,20 +229,52 @@ holder or viewpoint, provenance, authority, and access scope together.
 
 ### 6. Develop the processes across the model
 
-Prioritize developing the model itself. Discover and represent as many distinct
+Inventing useful processes is central to this tool. Use your learned understanding
+to propose new process definitions, categories, relationships, mechanisms and
+candidate trajectories. Do not wait for a ready-made taxonomy or a measured
+series. Propose, model, inspect and revise. Develop as many distinct
 processes that change over time as the user's purpose, scope and available time
 allow. Look across the system's actors, relationships, conditions and activities,
-then follow discoveries into further processes and connections. A starter or an
-answer to the first question is a beginning. Give processes stable identities and
-represent their changing states or phases in native model records, with time,
-evidence or authored premises, uncertainty and links to related processes. A list
-of names or notes about possible modeling does not supply those trajectories.
-Refine an existing process when that is more informative than adding another.
-Use qualitative phases when numerical values are not justified, and leave unknown
-periods unknown. Process count is not a success measure: do not duplicate
-processes, invent observations or expand beyond the agreed task merely to add
-more. At a useful stopping point, state what is represented and what remains to
-develop.
+then follow discoveries into further processes and connections.
+
+Create a first useful batch of coarse processes promptly once the goal and
+delegation are clear. Choose provisional definitions and a few meaningful states
+or phases, save them with the existing construction tools, and expand from there.
+Use available batch operations for related additions and keep required structural
+checks. Prefer an early inspectable model to a long plan, an exhaustive taxonomy
+or a separate review of every proposed process. Deepen and revise while working;
+do not postpone construction until the whole account is settled.
+
+Actively extrapolate beyond what the prompt names or the current model contains.
+Ask what overlooked process, relationship or earlier history could be operating
+here, even if you do not yet know that it exists or will be useful. Build the
+candidate and explore what follows; do not leave it only as a suggestion. For a
+fictional character, this might mean inventing how their relationship with their
+mother developed and modeling how it shapes their trust, habits or later
+relationships, even when the brief never mentions family. When later evidence,
+canon or human correction differs, revise the proposed account and the processes
+or prose built on it, preserving the earlier version.
+
+When measurements are missing, propose meaningful scales and plausible numerical
+trajectories with explicit anchors, assumptions, reasoning and uncertainty. Use
+qualitative phases where those express the idea better. Prior measurement or
+proof is not required to explore a proposal. For real systems, record these as
+your hypotheses or estimates, distinguish them from observations, and compare
+alternatives or test them as evidence becomes available. Unknown factual history
+remains unknown; a proposed reconstruction is a separate, explicitly hypothetical
+account. In delegated creative work, invent coherent processes and their histories
+as authored parts of the world. Never fabricate a source or describe an invented
+or estimated value as a measurement. Uncertainty should guide the next modeling
+step, not default to refusal or a list of things that cannot be known.
+
+Develop native model records with stable identities, explicit time, changing
+states or phases and links to related processes. A starter or list of names is
+only a beginning. Make the model inspectable in the viewer, including clearly
+labeled hypothetical trajectories, so the user can follow several processes
+through time. A current value plus prose about past change does not represent
+that course. Refine an existing process when that is more informative than adding
+another; avoid duplicate labels and activity added solely for display. At a useful
+stopping point, state what was modeled, its assumptions and what remains to explore.
 
 Candidate actor processes may include wants, fears, concern, attachment, beliefs,
 strategies, decisions, emotions, relationships, bodily state, and perceived options. These are
@@ -263,14 +304,16 @@ The operative actor-local model is whatever organization actually conditions
 the modeled action. Neither an external estimate nor a self-description is
 automatically operative.
 
-### 7. Prefer sampled trajectories before invented laws
+### 7. Explore trajectories and candidate laws
 
 If evidence supports values at particular times but not a transition function,
 store the values, uncertainty, and interpolation assumptions. Do not invent a
 law merely to make the series executable.
 
-Cover the chosen longer-term horizon as well as local changes, at the resolution
-the evidence supports. An Event with a long interval represents an extended
+Cover the chosen longer-term horizon as well as local changes. Keep observed
+factual detail at the resolution the evidence supports; finer estimated or
+hypothetical trajectories may be explored in separately labeled accounts.
+An Event with a long interval represents an extended
 episode; its duration does not by itself supply a numerical process trajectory.
 An interval is not an uncertainty window for an occurrence's date. If only a
 year or month is known, record that period separately and keep the occurrence
@@ -279,9 +322,14 @@ not establish an exact date or make the uncertainty executable by a time query.
 Distinguish dated observations, retrospective estimates and forecasts, including
 the evidence available for each assessment.
 
-Add a generating function only when the mechanism is authored for a creative
-world, supplied by a trusted domain model, or has earned credibility through
-held-out prediction, intervention, compression, calibration, and stability.
+A candidate generating function can be proposed as an explicit hypothesis with
+declared assumptions, even before it has been tested. Explore what it implies and
+compare it with alternative accounts. Keep those model-generated outcomes separate
+from observations. For claims about real systems, establish credibility through
+appropriate tests such as held-out prediction, intervention, calibration and
+stability before relying on the function's predictions. A trusted domain model
+provides support within its stated domain; a creative world's mechanism can be
+authored within the delegated premises.
 The MCP estimation exchange supports both data-only provisional claims and a
 separate, explicit proposal for a successor model containing new laws.
 `life_estimate_cut_shares` can propose normalized Cut weights from situation text

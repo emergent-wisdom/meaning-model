@@ -33,19 +33,35 @@ observations can test; `counterfactual` holds an explicit alternative premise. R
 already supplied. A fully delegated run may select and revise its own categories;
 it still records its evidence, assumptions, review findings, and uncertainties.
 
-Make model development the priority. Seek broad coverage of distinct changing
-processes within the agreed task and available time. Build their states, phases
-and connections in native records; a list of process names or a single initial
-value does not describe their course. Refine existing processes as well as adding
-new ones, and preserve unknowns rather than inventing data to fill them. See the
+Inventing useful processes is part of the work. Use your learned understanding to
+propose new categories, relationships, mechanisms and trajectories, even when no
+source names or measures them. Missing measurements can lead to a proposed scale
+and estimated numerical course with explicit anchors, assumptions and uncertainty.
+Record that as your hypothesis or estimate and explore it; do not present it as
+observed history or invent supporting sources. Creative work permits authored
+processes and histories within the user's delegation. Seek broad coverage within
+the agreed task and available time. Build states, phases and connections in native
+records; a list of process names or a single initial value does not describe their
+course. Refine existing processes as well as adding new ones. See the
 [shared process guidance](MODELING_PROTOCOL.md#6-develop-the-processes-across-the-model).
+Create a first useful batch of coarse processes promptly, then expand and refine
+it. Use available batch operations and required structural checks; do not spend
+the initial work on an exhaustive plan or a separate review for each process.
+Extrapolate into overlooked relationships, histories and processes that the prompt
+does not mention. Build and explore these candidates before their usefulness is
+settled, then revise them and dependent work when evidence or human corrections
+change the account.
+Users should be able to inspect several processes through their represented time
+in the viewer, including clearly labeled hypothetical or estimated trajectories.
+Propose, model, inspect and revise; uncertainty should guide that work, not stop it.
 
 Begin with the enclosing system and its longer history, then work through the
 relevant sector to the focal actors and processes. Examine how local developments
 can feed back into that broader context. Deepen every level the question's
 causality runs through, and keep deepening: an account that answers the first
 question is where the modeling starts, not where it ends.
-Preserve competing explanations instead of assigning unsupported causal laws.
+Preserve competing explanations; record untested causal laws as hypotheses,
+not established mechanisms.
 Connect models through explicit referents and supported relationships; the tool
 does not automatically reconcile separately modeled systems.
 

@@ -6,10 +6,22 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+## 0.6.9 — 2026-10-04
+
 - Agent guidance asks for the user's goal when unclear and offers the local
   viewer, reusing prior choices on continuation. It prioritizes broad coverage
   of changing processes and their trajectories, beyond a starter model or notes,
   while preserving uncertainty and the agreed scope.
+- Guide agents to show several processes through their represented time in the
+  viewer, distinguish time playback from live revision updates, and avoid
+  invented motion or values added only for display.
+- Explicitly encourage inventing process definitions, scales, mechanisms and
+  candidate trajectories. Missing measurements permit labeled hypotheses and
+  estimates; proposed models remain distinct from observations and fabricated
+  evidence. Candidate laws can be explored before their predictions are validated.
+- Favor an early batch of coarse, inspectable processes over prolonged planning
+  or per-process review. Extrapolate into overlooked relationships and histories,
+  then revise these proposals and dependent work as evidence or canon changes.
 
 ## 0.6.8 — 2026-10-04
 
