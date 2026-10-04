@@ -6,6 +6,8 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+## 0.6.8 — 2026-10-04
+
 - Alien second-judge checks can record validated human or caller-supplied answers
   without an estimator, retaining declared isolation and provenance. Diagnosis
   counts these checks without claiming verified independence.
@@ -20,6 +22,8 @@ unpublished work stays under Unreleased. This is not a development transcript.
   coverage; render Alien payload validation failures as readable field messages.
 - The viewer shows the Meaning Model's logo beside the model's name, linking to
   meaningmodel.ai, and uses it as the page icon.
+- Link the paper to meaningmodel.ai for installation instructions and interactive
+  examples.
 
 ## 0.6.7 — 2026-10-03
 
