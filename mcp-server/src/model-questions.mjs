@@ -75,7 +75,8 @@ export const storyProfile = (environment = process.env) => String(environment.ME
 // The questions that give people whole lives (a life, its periods and processes, wants, shocks and choices) belong to the
 // storytelling profile; general modeling asks about causes, processes and structure of whatever it models.
 const LIFE_KINDS = new Set(['life-missing', 'life-untimed', 'processes-few', 'process-empty', 'periods-missing', 'period-gap', 'period-uncut', 'wants-missing',
-  'wants-generic', 'shocks-few', 'adaptation-open', 'moment-unmodeled', 'why-local', 'choices-missing', 'life-thin', 'secondary-without-life']);
+  'wants-generic', 'shocks-few', 'adaptation-open', 'moment-unmodeled', 'why-local', 'choices-missing', 'life-thin', 'secondary-without-life',
+  'stage-unexplored', 'life-after-story']);
 const asked = (kind) => storyProfile() || !LIFE_KINDS.has(kind);
 // The provenance a reading Event made by life_lens_place carries.
 export const READING_MARK = 'Meaning Model lens placement v1';
@@ -127,7 +128,7 @@ export function indexModel(model) {
   const readings = new Set();
   for (const [root, kind] of rootKinds) if (kind === 'understanding') { readings.add(root); for (const id of walk(children, root)) readings.add(id); }
   for (const event of events.values()) if ((event.provenance ?? []).includes(READING_MARK)) readings.add(event.id);
-  return { events, children, parents, cuts, cutsByEvent, referents, settingEvents, eventsOf, arcsOf, abstractions, relations, readings, rootKinds, processes: (model?.processes ?? []).length, processList: model?.processes ?? [] };
+  return { events, children, parents, cuts, cutsByEvent, referents, settingEvents, eventsOf, arcsOf, abstractions, relations, readings, rootKinds, processes: (model?.processes ?? []).length, processList: model?.processes ?? [], timeUnit: String(model?.time_unit ?? '') };
 }
 
 function walk(map, eventId) {
@@ -231,6 +232,28 @@ function uncausedShifts(series, causes, subjectLabel, causedBy = () => false) {
   return found;
 }
 
+// The formative stretches of a life, in years from its start, and what to ask of each when little is modeled there.
+const LIFE_STAGES = Object.freeze([
+  ['childhood', 0, 12, 'Who raised them, where and in what circumstances; what were they taught, and what did they learn on their own; which moment still shapes them?'],
+  ['youth', 12, 20, 'What did they want to become, whom did they love, and what did they break away from?'],
+]);
+const UNITS_PER_YEAR = Object.freeze({ year: 1, years: 1, month: 12, months: 12, week: 52.1775, weeks: 52.1775, day: 365.25, days: 365.25 });
+const unitsPerYear = (unit) => UNITS_PER_YEAR[String(unit ?? '').trim().toLowerCase()] ?? null;
+const timeText = (t) => String(Number(Number(t).toFixed(1)));
+// Where the modeled lives stop: the latest end of any life in the model. A life that stops there stops with the story,
+// even when long macro-processes behind the lives run on.
+const horizons = new WeakMap();
+function livesHorizon(index) {
+  if (horizons.has(index)) return horizons.get(index);
+  let last = null;
+  for (const referent of index.referents.values()) {
+    const t = end(index.events.get(referent.lifecycle_event_id));
+    if (t !== null && (last === null || t > last)) last = t;
+  }
+  horizons.set(index, last);
+  return last;
+}
+
 // A person's open questions, most structural first.
 function personQuestions(index, person, name, principal) {
   const questions = [];
@@ -272,6 +295,28 @@ function personQuestions(index, person, name, principal) {
         ask('period-uncut', `No Cut was recognized in ${name}'s period "${describe(period)}" (${when(period)}). Their outlook may already be described qualitatively; read it first. What did they expect, what was at risk, and does this explain the relevant choices? Add an outlook or conditional threat Cut only if a meaningful comparison and declared unit call for numerical shares.`, 'life_meaning_query or life_model_inspect, then life_model_revise if needed', { at: [start(period), end(period)] });
       }
     }
+  }
+  // What has been explored of each formative stretch. A period that frames the whole stretch is its frame, not something
+  // that happened in it, and a sentence in a description is a start, not an explored life.
+  const perYear = unitsPerYear(index.timeUnit);
+  const born = start(person.life);
+  if (perYear && born !== null) {
+    const lifeEnd = end(person.life) ?? livesHorizon(index);
+    const frames = new Set([person.life.id, ...person.processes.map((item) => item.eventId)]);
+    for (const [stage, from, to, asks] of LIFE_STAGES) {
+      const a = born + from * perYear; const b = Math.min(born + to * perYear, lifeEnd ?? Infinity);
+      if (!(b > a)) continue;
+      const happened = [...person.own].filter((eventId) => {
+        const event = index.events.get(eventId); const t = start(event);
+        if (frames.has(eventId) || index.readings?.has(eventId) || t === null || t < a || t >= b) return false;
+        return !(span(event) !== null && start(event) <= a && end(event) >= b);
+      });
+      if (happened.length < 3) ask('stage-unexplored', `Little is modeled about ${name}'s ${stage} (${timeText(a)} to ${timeText(b)}): ${happened.length ? `${happened.length === 1 ? 'one Event' : 'two Events'}` : 'no Events'}. ${asks} Sketch it at least: a period with a description, a few Events, a reading where something changed.`, 'life_model_revise', { at: [a, b] });
+    }
+  }
+  const horizon = livesHorizon(index); const lifeEnd = end(person.life);
+  if (lifeEnd !== null && horizon !== null && Math.abs(horizon - lifeEnd) <= Math.max(1e-9, (person.lifeLength ?? 0) * 0.01)) {
+    ask('life-after-story', `${name}'s life is modeled only up to ${timeText(lifeEnd)}, where the modeled lives stop. If this is a story, what became of them afterwards, through later life and old age? Sketch it, and tag it sketch or invented; if their life ends there, record how. If they are a real person, leave the future open or record a forecast.`, 'life_model_revise', { at: [lifeEnd] });
   }
   const wantCuts = person.cuts.filter((item) => cutKind(item.cut) === 'wants');
   if (!wantCuts.length) {
@@ -320,6 +365,49 @@ function personQuestions(index, person, name, principal) {
     ask('choices-missing', `No decision Cut was recognized for ${name}; their choices may already be recorded as Events or in descriptions. What do they choose, between which options, and why? Read and preserve accepted outcomes, then refine any missing causal account. A decision Cut and recorded draw are optional for a still-open fictional choice whose quantitative question and uncertainty are delegated to you; never redraw retrospective history.`, 'life_meaning_query or life_model_revise');
   }
   return questions;
+}
+
+// Readings of one series: the same question in the same words, unit and answers, within the same life (or outside
+// any life). Decisions, conditional shares and readings of the text are other series.
+function readingSeries(index) {
+  const lifeOwners = new Map([...index.referents.values()].filter((referent) => referent.lifecycle_event_id).map((referent) => [referent.lifecycle_event_id, referent.id]));
+  const lifeOf = (eventId) => (lifeOwners.has(eventId) ? eventId : [...ancestors(index, eventId)].find((id) => lifeOwners.has(id)) ?? null);
+  const series = new Map();
+  for (const cut of index.cuts) {
+    if (cutKind(cut) === 'decision' || readingCut(index, cut) || cut.conditioning) continue;
+    const event = index.events.get(cut.parent_event_id);
+    if (!event || start(event) === null) continue;
+    const life = lifeOf(event.id);
+    const answers = answersOf(cut).map((answer) => answer.key).sort().join(', ');
+    push(series, JSON.stringify([life, questionOf(cut).trim().toLowerCase(), cut.unit ?? null, answers]), { cut, event, life, owner: lifeOwners.get(life) ?? null, answers });
+  }
+  return series;
+}
+const weightsOf = (cut) => Object.fromEntries(answersOf(cut).map((answer) => [answer.key, answer.weight]));
+const sharesText = (values) => Object.entries(values).filter(([key, value]) => key !== 'remainder' || Math.abs(value) > 1e-9)
+  .map(([key, value]) => `${key} ${(Math.round(value * 100) / 100).toFixed(2)}`).join(', ');
+// A reading across an interval is the average over it, so the readings opened inside it must average to it. Where they
+// cover only part of it, the rest of the stretch must make up the difference: that implied average is what to check.
+function nestedAverages(series) {
+  const found = [];
+  for (const list of series.values()) {
+    const timed = list.filter((item) => (span(item.event) ?? 0) > 0);
+    for (const parent of timed) {
+      const [a, b] = [start(parent.event), end(parent.event)];
+      const inside = timed.filter((item) => item !== parent && start(item.event) >= a && end(item.event) <= b && span(item.event) < span(parent.event));
+      const outer = inside.filter((item) => !inside.some((other) => other !== item && start(other.event) <= start(item.event)
+        && end(other.event) >= end(item.event) && span(other.event) > span(item.event)));
+      if (!outer.length) continue;
+      outer.sort((x, y) => start(x.event) - start(y.event));
+      if (outer.some((item, i) => i && start(item.event) < end(outer[i - 1].event))) continue;
+      const shares = outer.map((item) => span(item.event) / span(parent.event));
+      const coverage = shares.reduce((sum, share) => sum + share, 0);
+      const p = weightsOf(parent.cut);
+      const used = Object.fromEntries(Object.keys(p).map((key) => [key, outer.reduce((sum, item, i) => sum + shares[i] * (weightsOf(item.cut)[key] ?? 0), 0)]));
+      found.push({ parent, outer, coverage, p, used, residual: Object.fromEntries(Object.keys(p).map((key) => [key, p[key] - used[key]])) });
+    }
+  }
+  return found;
 }
 
 // Questions of the whole model, in any mode: time, causes, the abstraction ladder, decisions and estimates.
@@ -416,10 +504,54 @@ function worldQuestions(index, lives, draws, spatial) {
       ask('secondary-without-life', `${referentId} takes part in ${eventIds.length} Events but has no life. If it is a person: who are they, what do they want, and what happened to them? Give them a life. If it is a thing (a machine, a house, an institution, a document), how does it work: its parts, capacities, limits and failure modes, its history, and how does it constrain what people can do?`, 'life_profile_compile (person_scaffold or thing_scaffold), then life_model_revise');
     }
   }
+  // Readings over time: the long view and the detail must agree, a long stretch in which things happen needs readings
+  // after them, and one question asked in different words splits a series apart.
+  const series = readingSeries(index);
+  const capped = (kind, cap) => { let n = 0; return (question, tool, extra) => { if (n < cap) { n += 1; ask(kind, question, tool, extra); } }; };
+  const average = capped('reading-average', 8);
+  for (const { parent, outer, coverage, p, used, residual } of nestedAverages(series)) {
+    const q = questionOf(parent.cut); const at = [start(parent.event), end(parent.event)]; const cuts = [parent.cut.id, ...outer.map((item) => item.cut.id)];
+    if (coverage >= 1 - 1e-6) {
+      if (Object.keys(p).some((key) => Math.abs(residual[key]) > 0.02)) average(`The readings inside "${q}" ${when(parent.event)} average ${sharesText(used)}, but the long reading says ${sharesText(p)}. Does that make sense? Revise the long reading or the detail, and record why.`, 'life_model_revise', { at, cuts });
+    } else if (Object.values(residual).some((value) => value < -0.005)) {
+      average(`"${q}" ${when(parent.event)} cannot hold as recorded: the finer readings inside it already take more ${Object.keys(residual).filter((key) => residual[key] < -0.005).join(' and ')} than the long reading allows for the whole stretch. Revise the long reading or the detail, and record why.`, 'life_model_revise', { at, cuts });
+    } else {
+      const rest = Object.fromEntries(Object.entries(residual).map(([key, value]) => [key, value / (1 - coverage)]));
+      if (Object.keys(p).some((key) => Math.abs(rest[key] - p[key]) >= 0.1)) average(`The finer readings cover ${Math.round(coverage * 100)}% of "${q}" ${when(parent.event)}. For the long reading (${sharesText(p)}) to hold, the rest of that stretch must average ${sharesText(rest)}. Does that make sense? If not, revise the long reading or the detail, and record why.`, 'life_model_revise', { at, cuts });
+    }
+  }
+  const stretch = capped('reading-stretch-unopened', 8);
+  for (const list of series.values()) {
+    for (const item of list) {
+      // Long within its own life: a tenth of the life or more.
+      const length = span(item.event); const lifeLength = span(index.events.get(item.life));
+      if (!item.life || !(length > 0) || !(lifeLength > 0) || length < lifeLength * 0.1) continue;
+      const [a, b] = [start(item.event), end(item.event)];
+      if (list.some((other) => other !== item && start(other.event) >= a && end(other.event) <= b && span(other.event) < length)) continue;
+      const happenings = [...descendants(index, item.life)].map((id) => index.events.get(id)).filter((event) => event && event.id !== item.event.id
+        && !index.readings?.has(event.id) && !/\.is\.[a-z]+$/u.test(event.id) && start(event) !== null && start(event) > a && start(event) < b
+        && !(span(event) !== null && start(event) <= a && end(event) >= b));
+      if (happenings.length >= 2) stretch(`"${questionOf(item.cut)}" is read once ${when(item.event)}: one average for the whole stretch, though ${happenings.length} Events happen inside it (for example "${describe(happenings[0]).slice(0, 90)}"). Open the stretch at those Events: what was it like after each? One reading per stretch is a sketch, not a life.`, 'life_model_revise', { at: [a, b], cuts: [item.cut.id] });
+    }
+  }
+  const wordings = new Map();
+  for (const list of series.values()) {
+    const [first] = list;
+    const key = JSON.stringify([first.life, first.cut.unit ?? null, first.answers]);
+    if (!wordings.has(key)) wordings.set(key, []);
+    wordings.get(key).push(first);
+  }
+  const reworded = capped('question-reworded', 6);
+  for (const items of wordings.values()) {
+    if (items.length < 2) continue;
+    const [one, two] = items;
+    reworded(`${items.length} differently worded questions share the unit "${one.cut.unit}" and the answers ${one.answers}${one.owner ? ` in ${displayName(one.owner)}'s life` : ''}, for example "${questionOf(one.cut)}" and "${questionOf(two.cut)}". If they ask the same thing, use one wording: a reworded question starts a separate series, so its readings cannot be compared or averaged with the others.`, 'life_model_revise', { cuts: items.slice(0, 6).map((item) => item.cut.id) });
+  }
   return questions;
 }
 
-const ORDER = ['author-separate', 'author-unlinked', 'life-missing', 'life-untimed', 'time-missing', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'choices-missing', 'macro-missing', 'structure-flat', 'readings-over-processes', 'period-gap',
+const ORDER = ['author-separate', 'author-unlinked', 'life-missing', 'life-untimed', 'time-missing', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'choices-missing', 'macro-missing', 'structure-flat', 'readings-over-processes', 'period-gap', 'stage-unexplored', 'life-after-story',
+  'reading-average', 'reading-stretch-unopened', 'question-reworded',
   'moment-unmodeled', 'decision-undrawn', 'remainder-unopened', 'shift-uncaused', 'adaptation-open', 'laws-missing', 'place-missing', 'spatial-declaration-incomplete', 'spatial-resolution', 'spatial-history-unopened', 'process-unobserved', 'wants-generic', 'why-local',
   'concepts-thin', 'recurring-question', 'period-uncut', 'process-empty', 'secondary-without-life', 'life-thin', 'event-undescribed', 'weights-unestimated'];
 // Understanding Node kinds that look forward or explore, rather than record what was done and judged.

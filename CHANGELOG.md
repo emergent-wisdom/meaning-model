@@ -6,6 +6,14 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Ask what the model has explored. Open questions now name a childhood or
+  youth with almost nothing in it, and lives that stop where the modeled lives
+  stop (in a story, what became of them afterwards?). They check readings over
+  time: finer readings inside a long one must average to it, and where they
+  cover part of it the tool states what the rest of the stretch must average
+  and asks whether that makes sense. They also ask to open a long reading that
+  spans Events with no reading after them, and to use one wording when the same
+  question is asked in different words.
 - Serve the point of the tool first. A new start-here guide says what the
   Meaning Model is for (an explorer's mind that holds a world across whole
   lives), how long readings and the finer readings inside them relate, the
