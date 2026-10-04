@@ -1,5 +1,7 @@
 # The Meaning Model
 
+[Project website and getting started](https://meaningmodel.ai/) · [Try the story viewer](https://meaningmodel.ai/meaning-model/twelve-words/?reading=off)
+
 **Let an AI build an explicit world model, then reason, create and remember
 through it.** The Meaning Model lets a language model turn its learned knowledge
 into processes, relationships and concepts that can be inspected, tested and
