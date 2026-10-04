@@ -1,5 +1,6 @@
 import { thinkInTheModelInstructions } from './model-questions.mjs';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { constructionRecordInstructions, grammarReadingInstructions, modelingSessionInstructions } from './construction-principles.mjs';
 import { modelingWorkflows, purposeInstructions, workflowForPurpose } from './workflow-guidance.mjs';
@@ -59,7 +60,21 @@ export const scaleReview =
 export const conceptualReview =
   'Within the agreed delegation, review numerical meaning and conceptual depth without waiting for the user to suggest them. Consider authored judgment scales for relevant meanings, motives, capacities or process changes that are not directly measured; define their comparison, units, anchors and uncertainty, and preserve source measurements separately. Open important concepts into useful parts or alternative lenses using native concepts and abstract cuts, then deepen a child when its label does not explain the relevant behavior or distinction. Assess how meanings differ across dates, actors or contexts; distinguish a changing world from a changed estimate, viewpoint or rubric. Store these assessments as Understanding Nodes linked to the actual definitions and evidence. Revisit them after consequential findings or revisions. Explain adequate boundaries, missing evidence or deliberate exclusions; do not invent scores, change or detail just to fill a checklist.';
 
+const START_HERE_FILE = new URL('../../docs/START_HERE.md', import.meta.url);
+// What the Meaning Model is for and how to work in it: served first, in the server instructions, at the head of
+// life_modeling_context and as the first required resource, so every agent meets the point before any procedure.
+export const startHereText = readFileSync(START_HERE_FILE, 'utf8');
+
 const resourceDefinitions = Object.freeze([
+  {
+    id: 'start-here',
+    uri: 'life-sim://guide/start-here',
+    title: 'What the Meaning Model is for, and how to work in it',
+    description: 'Read first: the point of the tool, the grammar in brief, how long readings and finer readings relate, the working loop between the world and the writing, and how to tag what is sourced, inferred or invented.',
+    mimeType: 'text/markdown',
+    file: START_HERE_FILE,
+    category: 'protocol',
+  },
   {
     id: 'meaning-model-grammar',
     uri: 'life-sim://protocol/grammar',
@@ -300,7 +315,8 @@ export async function buildModelingContext({
 }) {
   ensurePurpose(purpose);
   ensureMode(sessionMode);
-  const [grammar, meaning, life, protocol] = await Promise.all([
+  const [startHere, grammar, meaning, life, protocol] = await Promise.all([
+    readModelingResource('life-sim://guide/start-here'),
     readModelingResource('life-sim://protocol/grammar'),
     readModelingResource('life-sim://theory/meaning-model'),
     readModelingResource('life-sim://theory/life-simulation'),
@@ -314,6 +330,8 @@ export async function buildModelingContext({
   const selectedProfile = profileUri(purpose);
   const selectedExample = exampleUri(purpose);
   const orderedResources = [
+    { uri: startHere.uri, sha256: startHere.sha256, required: true,
+      reason: 'Read first, before the grammar: what the tool is for, how long and finer readings relate, and the working loop. Its text also opens this context as startHere. Reuse it while you retain it unchanged.' },
     { uri: grammar.uri, sha256: grammar.sha256, required: true,
       reason: 'Every fresh agent reads the complete grammar before modeling, including delegated agents. Reuse only while the unchanged contents are retained; refresh after changes or loss of context.' },
     {
@@ -340,6 +358,7 @@ export async function buildModelingContext({
   ];
   return {
     schema: 'life-sim-modeling-context/v2',
+    startHere: startHere.text,
     purpose,
     workflow: workflowForPurpose(purpose).id,
     availableWorkflows: modelingWorkflows,
@@ -418,6 +437,8 @@ export async function buildModelingPrompt({ purpose, sessionMode }) {
   return [
     `Begin a Meaning Model modeling session. Purpose: ${purpose}. Session mode: ${sessionMode}.`,
     '',
+    context.startHere,
+    '',
     ...(context.continuation ? ['You are continuing recorded work. Before any change:', ...context.continuation.steps.map((step, index) => `${index + 1}. ${step}`), context.continuation.note, ''] : []),
     context.sessionGuidance,
     '',
@@ -430,7 +451,7 @@ export async function buildModelingPrompt({ purpose, sessionMode }) {
     context.conceptualReview,
     '',
     context.grammarInstructions,
-    'Call life_modeling_context, then read the grammar, the operational protocol, the guide or profile for your purpose, and a worked example in that order. Use life_modeling_read with nextOffset to finish each resource if direct MCP resource reads are unavailable. Reuse unchanged guidance that you retain; a new conversational reply does not require rereading it or recording that you did so. Refresh guidance when its content changes, your purpose needs an unfamiliar guide, or relevant context has been lost. The full research papers remain optional references for fuller explanations.',
+    'Call life_modeling_context, then read the start-here guide (its text opens this prompt), the grammar, the operational protocol, the guide or profile for your purpose, and a worked example in that order. Use life_modeling_read with nextOffset to finish each resource if direct MCP resource reads are unavailable. Reuse unchanged guidance that you retain; a new conversational reply does not require rereading it or recording that you did so. Refresh guidance when its content changes, your purpose needs an unfamiliar guide, or relevant context has been lost. The full research papers remain optional references for fuller explanations.',
     ordered,
     '',
     'Declare purpose, interval, scope, resolution, authority, and evidence classes. Preserve alternative interpretations; use sampled trajectories where they suffice and label proposed transition functions as hypotheses to explore and test.',

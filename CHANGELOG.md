@@ -6,6 +6,13 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Serve the point of the tool first. A new start-here guide says what the
+  Meaning Model is for (an explorer's mind that holds a world across whole
+  lives), how long readings and the finer readings inside them relate, the
+  working loop between the world and the writing, a checklist for living with
+  each character, and tags for what is sourced, inferred, invented, explored
+  or sketched. It opens the server instructions, the modeling context and the
+  session prompt, and is the first required resource before the grammar.
 - Turn the Cut remainder off by default. A Cut whose answers sum to one is
   stored with an explicit zero remainder; a Cut that names no remainder and
   does not sum to one is refused with the reason, never padded. Name a

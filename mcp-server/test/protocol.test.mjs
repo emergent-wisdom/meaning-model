@@ -146,6 +146,9 @@ test('official MCP client discovers and calls the local stdio server', async () 
   }));
   try {
     const startup = client.getInstructions();
+    assert.match(startup, /^# What the Meaning Model is for, and how to work in it/, 'every agent meets the point before any procedure');
+    assert.match(startup, /You are an explorer, and the Meaning Model is your mind/);
+    assert.match(startup, /the remaining four years must average 0\.1/);
     assert.match(startup, /In every mode, begin modeling with life_modeling_context/);
     assert.match(startup, /Explore recursively/);
     assert.match(startup, /controlled read-back/);

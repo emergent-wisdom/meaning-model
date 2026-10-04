@@ -47,9 +47,10 @@ test('memory and human feedback route through the same construction method with 
   assert.match(humanAuthorFeedbackInstructions, /Do not rewrite passages/);
 });
 
-test('modeling resources lead with the complete grammar and preserve optional papers', async () => {
+test('modeling resources lead with what the tool is for, then the complete grammar, and preserve optional papers', async () => {
   const resources = listModelingResources();
-  assert.equal(resources[0].uri, 'life-sim://protocol/grammar');
+  assert.equal(resources[0].uri, 'life-sim://guide/start-here');
+  assert.equal(resources[1].uri, 'life-sim://protocol/grammar');
   assert.deepEqual(
     resources.slice(-2).map(({ uri }) => uri), modelingTheoryUris,
   );
@@ -115,8 +116,9 @@ test('first-use context requires the operational contract and purpose guide with
   assert.equal(context.theoryAccessGate.satisfied, true);
   assert.equal(context.theoryAccessGate.enforced, false);
   assert.deepEqual(
-    context.orderedResources.slice(0, 4).map(({ uri, required }) => ({ uri, required })),
+    context.orderedResources.slice(0, 5).map(({ uri, required }) => ({ uri, required })),
     [
+      { uri: 'life-sim://guide/start-here', required: true },
       { uri: 'life-sim://protocol/grammar', required: true },
       { uri: 'life-sim://protocol/modeling', required: true },
       { uri: 'life-sim://profile/person', required: true },
@@ -182,8 +184,11 @@ test('every modeling purpose receives the common construction and application-ch
     assert.equal(context.conceptualReview, conceptualReview);
     assert.equal(context.theoryAccessGate.enforced, false);
     assert.equal(context.constructionRecord, constructionRecordInstructions);
-    assert.equal(context.orderedResources[0].uri, 'life-sim://protocol/grammar');
-    assert.equal(context.orderedResources[0].required, true);
+    assert.equal(context.orderedResources[0].uri, 'life-sim://guide/start-here');
+    assert.equal(context.orderedResources[1].uri, 'life-sim://protocol/grammar');
+    assert.ok(context.orderedResources.slice(0, 2).every(({ required }) => required));
+    assert.match(context.startHere, /You are an explorer, and the Meaning Model is your mind/u, purpose);
+    assert.equal(Object.keys(context)[1], 'startHere', 'the point comes before any procedure');
     assert.match(context.constructionRecord, /^You are building an explicit world model from what you have learned:/, purpose);
     assert.match(context.constructionRecord, /Prior measurement is not a prerequisite for proposing these accounts/, purpose);
     assert.match(context.constructionRecord, /mark inference as inference/, purpose);
