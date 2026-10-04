@@ -105,3 +105,18 @@ test('a life that stops alone is not asked to continue, so the question does not
     assert.equal(of(ask(model), 'life-after-story').length, 0, 'once Ada is followed past the shared cut-off, neither life shares an end');
   } finally { if (previous === undefined) delete process.env.MEANING_MODEL_ADDONS; else process.env.MEANING_MODEL_ADDONS = previous; }
 });
+
+test('a change in a company\'s readings asks what it means, until a cause is modeled', () => {
+  const model = { id: 'company', time_unit: 'year', meaning_model: {
+    referents: [{ id: 'referent.acme', boundary: 'Acme', lifecycle_event_id: 'life.acme' }],
+    events: [event('life.acme', 2000, 2020), event('acme.early', 2000, 2010), event('acme.late', 2010, 2020), event('acme.merger', 2009, 2010)],
+    event_relations: [contains('life.acme', 'acme.early'), contains('life.acme', 'acme.late'), contains('life.acme', 'acme.merger')],
+    normalized_cuts: [cut('cut.early', 'acme.early', { growth: 0.7, safety: 0.3 }, 'How does Acme\'s priority divide?', 'share of priority'),
+      cut('cut.late', 'acme.late', { growth: 0.3, safety: 0.7 }, 'How does Acme\'s priority divide?', 'share of priority')],
+  } };
+  const [change] = of(ask(model), 'change-unexplored');
+  assert.match(change.question, /^Acme: "How does Acme's priority divide\?" moves growth from 0\.70 to 0\.30 between 2000 and 2010\. What does that mean: what is changing, why then, and what does it change in turn\?/);
+  assert.deepEqual(change.cuts, ['cut.early', 'cut.late']);
+  model.meaning_model.event_relations.push({ kind: 'causes', source_event_id: 'acme.merger', target_event_id: 'acme.late' });
+  assert.equal(of(ask(model), 'change-unexplored').length, 0, 'a modeled cause answers the question');
+});

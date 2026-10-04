@@ -24,7 +24,9 @@ unpublished work stays under Unreleased. This is not a development transcript.
   for an average over each stretch, finer readings inside a long one must
   average to it, and where they cover part of it the tool states what the rest
   of the stretch must average and asks whether that makes sense; readings held
-  in different perspectives are never compared. They also ask to open a long reading that
+  in different perspectives are never compared. For a company, protocol or other
+  non-person subject, a reading that moves sharply from the one before asks what
+  that change means, until a cause is modeled. They also ask to open a long reading that
   spans Events with no reading after them, and to use one wording when the same
   question is asked in different words.
 - Serve the point of the tool first. A new start-here guide says what the

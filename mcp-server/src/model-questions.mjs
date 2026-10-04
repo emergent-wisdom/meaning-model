@@ -535,6 +535,29 @@ function worldQuestions(index, lives, draws, spatial) {
       if (happenings.length >= 2) stretch(`"${questionOf(item.cut)}" is read once ${when(item.event)}: one average for the whole stretch, though ${happenings.length} Events happen inside it (for example "${describe(happenings[0]).slice(0, 90)}"). Open the stretch at those Events: what was it like after each? One reading per stretch is a sketch, not a life.`, 'life_model_revise', { at: [a, b], cuts: [item.cut.id] });
     }
   }
+  // What every change means. When a reading moves by more than MAX_UNCAUSED_SHIFT from the one before it, ask what that
+  // means, why then, and what it changes in turn. People's series are asked by shift-uncaused; this asks it of every
+  // other subject (a company, a protocol, a market). A causal relation into the later reading answers it.
+  const personIds = new Set(lives.map((item) => item.id));
+  const personEvents = new Set(lives.flatMap((item) => [...(item.read?.own ?? [])]));
+  const causalKinds = new Set(['causes', 'enables', 'prevents', 'constrains']);
+  const changeMeaning = capped('change-unexplored', 6);
+  for (const list of series.values()) {
+    if (personIds.has(list[0].owner) || list.some((item) => personEvents.has(item.event.id))) continue;
+    const top = list.filter((item) => (span(item.event) ?? 0) > 0 && !list.some((other) => other !== item && start(other.event) <= start(item.event)
+      && end(other.event) >= end(item.event) && span(other.event) > span(item.event))).sort((a, b) => start(a.event) - start(b.event));
+    for (let i = 1; i < top.length; i += 1) {
+      const [before, after] = [top[i - 1], top[i]];
+      const [a, b] = [weightsOf(before.cut), weightsOf(after.cut)];
+      const moved = Object.keys({ ...a, ...b }).filter((key) => key !== 'remainder' && Math.abs((b[key] ?? 0) - (a[key] ?? 0)) > MAX_UNCAUSED_SHIFT + 1e-9);
+      if (!moved.length) continue;
+      const within = new Set([after.event.id, ...ancestors(index, after.event.id)]);
+      if (index.relations.some((relation) => causalKinds.has(relation.kind) && within.has(relation.target_event_id))) continue;
+      const [key] = moved;
+      changeMeaning(`${list[0].owner ? `${displayName(list[0].owner)}: ` : ''}"${questionOf(after.cut)}" moves ${key} from ${(a[key] ?? 0).toFixed(2)} to ${(b[key] ?? 0).toFixed(2)} between ${timeText(start(before.event))} and ${timeText(start(after.event))}. What does that mean: what is changing, why then, and what does it change in turn? Open that stretch: the Events, causes and finer processes behind it, and record what you find (life_series_record takes causes with each reading).`,
+        'life_series_record', { at: [start(before.event), start(after.event)], cuts: [before.cut.id, after.cut.id] });
+    }
+  }
   const wordings = new Map();
   for (const list of series.values()) {
     const [first] = list;
@@ -552,7 +575,7 @@ function worldQuestions(index, lives, draws, spatial) {
 }
 
 const ORDER = ['author-separate', 'author-unlinked', 'life-missing', 'life-untimed', 'time-missing', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'choices-missing', 'macro-missing', 'structure-flat', 'readings-over-processes', 'period-gap', 'stage-unexplored', 'life-after-story',
-  'reading-average', 'reading-stretch-unopened', 'question-reworded',
+  'reading-average', 'reading-stretch-unopened', 'change-unexplored', 'question-reworded',
   'moment-unmodeled', 'decision-undrawn', 'remainder-unopened', 'shift-uncaused', 'adaptation-open', 'laws-missing', 'place-missing', 'spatial-declaration-incomplete', 'spatial-resolution', 'spatial-history-unopened', 'process-unobserved', 'wants-generic', 'why-local',
   'concepts-thin', 'recurring-question', 'period-uncut', 'process-empty', 'secondary-without-life', 'life-thin', 'event-undescribed', 'weights-unestimated'];
 // Understanding Node kinds that look forward or explore, rather than record what was done and judged.
