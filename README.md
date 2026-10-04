@@ -165,7 +165,8 @@ and is off by default. The LLM chooses the scope and questions; tool code
 handles repetitive record construction. Reduced end-to-end cost and latency
 require measurement, including setup and review work.
 
-Every fresh agent reads `life-sim://protocol/grammar` first, then the operational
+Every fresh agent begins with `life-sim://guide/start-here` (what the tool is for
+and how to work in it), then reads `life-sim://protocol/grammar`, the operational
 protocol and its purpose guide. `life_modeling_read` serves these resources to
 clients that expose only tools. Read `life-sim://guide/general-modeling` for the
 complete workflow and limits.

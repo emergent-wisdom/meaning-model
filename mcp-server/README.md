@@ -235,8 +235,9 @@ manuscript remains in the separate Life Simulation repository. Run
 `node scripts/verify-resources.mjs` from the Meaning Model repository root to
 check the companion snapshot, precompiled presets, and resource availability.
 
-Every fresh agent reads the complete grammar at `life-sim://protocol/grammar`
-before modeling, including delegated agents. Then read the operational protocol, the purpose-specific guide or profile,
+Every fresh agent, including a delegated agent, begins with
+`life-sim://guide/start-here` (what the tool is for and how to work in it), then
+reads the complete grammar at `life-sim://protocol/grammar` before modeling. Then read the operational protocol, the purpose-specific guide or profile,
 and a relevant worked example. These explain the construction method and the
 contracts needed to use the tools. `life_modeling_read` serves these resources
 to clients that expose only tools; follow its pages to the end. Reuse unchanged

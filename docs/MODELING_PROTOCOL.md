@@ -1,7 +1,8 @@
 # Meaning Model Modeling Protocol
 
-Read the complete current *Meaning Model: Minimized Grammar* before first
-modeling, then this operational protocol. Every fresh agent, including a
+Begin with `life-sim://guide/start-here`: what the Meaning Model is for and how
+to work in it. Then read the complete current *Meaning Model: Minimized Grammar*
+before first modeling, then this operational protocol. Every fresh agent, including a
 delegated agent, needs that reading; another agent's reading does not cover it.
 The grammar is served at `life-sim://protocol/grammar`. If the host exposes only
 tools, call `life_modeling_read` with that URI and follow `nextOffset` until it

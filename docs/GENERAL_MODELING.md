@@ -44,8 +44,8 @@ the agreed task and available time. Build states, phases and connections in nati
 records; a list of process names or a single initial value does not describe their
 course. Refine existing processes as well as adding new ones. See the
 [shared process guidance](MODELING_PROTOCOL.md#6-develop-the-processes-across-the-model).
-Read the complete current grammar at `life-sim://protocol/grammar` before first
-modeling. In a tool-only client, use `life_modeling_read` and follow its pages to
+Begin with `life-sim://guide/start-here`, then read the complete current grammar
+at `life-sim://protocol/grammar` before first modeling. In a tool-only client, use `life_modeling_read` and follow its pages to
 the end. Reuse the unchanged grammar while its contents remain in context.
 
 Create a first useful batch of coarse processes promptly, then expand and refine

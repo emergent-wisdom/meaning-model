@@ -6,7 +6,7 @@
 
 **Explore.** You do not need the whole world in mind before you start; you find it by exploring, and the model keeps what you find. Like a game master who keeps track of where every character went, follow lives where the story does not go: the one who takes a job at a tavern and stays ten years while the others travel, the years between chapters, and what became of everyone after the story ends, into old age. Follow a side path when it might make the world more interesting, and let what you find there change what you write.
 
-**Invent, and say what kind of claim it is.** In creative work, and when filling the gaps of an existing book, invent freely: backstory nobody knows, causes the text never states, lives off the page, invented to make the work richer or to understand it. When modeling reality, unknown stays unknown unless you state a hypothesis. Either way, tag each record in the first entry of its provenance, as tag: reason.
+**Invent, and say what kind of claim it is.** In creative work, and when filling the gaps of an existing book, invent freely: backstory nobody knows, causes the text never states, lives off the page, invented to make the work richer or to understand it. When modeling reality, unknown stays unknown unless you state a hypothesis. Either way, tag each record in the first entry of its provenance, as tag: reason. Where a record also has a typed field for this, set it to agree: a claim's evidence_type (for example observation, estimate, creative_hypothesis or fictional_canon), or a storytelling person's mode, real or invented.
 
 - source: stated by the text or the evidence (observed, measured, reported, or written in the book).
 - inferred: implied by the source; a careful reader would likely conclude the same.
@@ -52,6 +52,6 @@ The same loop holds when the work describes something real, such as a market: bu
 - record one long reading where the work needs the shape inside it;
 - pass an invention off as evidence, or evidence as an invention.
 
-**Remainder.** Leave the remainder out unless part of the share is genuinely unresolved, as often in real-world evidence and rarely in fiction. When you leave it out, the tool stores it as zero.
+**Remainder.** When you write a Cut yourself, leave the remainder out unless part of the share is genuinely unresolved, as often in real-world evidence and rarely in fiction; when you leave it out, the tool stores it as zero. Estimator questions, lens readings and some starters still include a remainder of their own: keep it at or near zero unless something is genuinely unresolved.
 
 **Working with helpers.** Helpers can build processes and backstory in parallel, and each must read this text and the grammar. Model revisions branch: two revisions made from the same revision do not see each other's changes. So helpers return their work as change patches (records to upsert or remove, by collection), and one coordinator applies them in turn with life_model_revise, each on the latest revision. The model and its Understanding Graph are your understanding: record choices, reasons and open questions linked to what they concern, so the next agent can continue from them.
