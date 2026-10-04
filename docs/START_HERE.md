@@ -30,9 +30,9 @@ Change the tag as the work develops: a sketch can be opened or redrawn, an explo
 
 Every round should change the model, not only the text.
 
-The first pass covers the whole work at a coarse level before any part is detailed. When the user says "continue" or asks for more detail, go one level deeper wherever the work reaches, then write from it.
+The same loop holds when the work describes something real, such as a market: build its world (the actors, institutions, histories and processes behind the prices), capture the report or forecast from it, and deepen the world where the report is thin. The first pass covers the whole work at a coarse level before any part is detailed. When the user says "continue" or asks for more detail, go one level deeper wherever the work reaches, then write from it.
 
-**For each person, ask what you have really explored.** Live with each person before you write them: spend time in their life, an ordinary day as well as the turning points, until you know how they would answer a question nobody in the story asks them. A life you can understand has at least a sketch in the model for each of these: a period with a description, a few Events, a reading where something changed. A sentence in a description is a start, not an explored life.
+**For each person, ask what you have really explored.** The same holds for every actor that matters, such as a firm, an exchange or a protocol: its founding, its early years, the people who shaped it, how it changed and what it became. Live with each person before you write them: spend time in their life, an ordinary day as well as the turning points, until you know how they would answer a question nobody in the story asks them. A life you can understand has at least a sketch in the model for each of these: a period with a description, a few Events, a reading where something changed. A sentence in a description is a start, not an explored life.
 
 - Childhood: who raised them, where and in what circumstances; what they were taught and what they learned on their own; a moment that still shapes them.
 - Youth: what they wanted to become, whom they loved, what they broke away from.
