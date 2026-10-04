@@ -9,6 +9,7 @@ import * as z from 'zod/v4';
 import { prepareAuthorRecord } from './storytelling-authoring.mjs';
 import { readOpenQuestions } from './model-questions.mjs';
 import { readWorldState } from './storytelling-world.mjs';
+import { grammarReadingInstructions } from './construction-principles.mjs';
 
 export const DIRECTION_SCHEMA = 'meaning-model-story-direction/v1';
 const id = z.string().trim().min(1).max(256);
@@ -147,7 +148,7 @@ export async function direct(service, raw) {
     return { schema: 'meaning-model-story-direction-task/v1', stage: input.stage, directorId: input.directorId, independent: input.independent, principles,
       model: open && { questions: open.questions, jumps: open.jumps, depth: open.depth }, text: rendered?.text ?? null,
       ...(input.stage === 'world' ? { world: stages } : { ideas, renderedEvents, reviews }),
-      instructions: `${directionInstructions} For each principle, give holds, fails or not-this-story with contextual evidence. For a failure, specify the model and/or prose repair. Keep each evidence under about 1,500 characters and each repair under about 800, and record every finding in one call. The task carries what its principles need; open further records only where a finding needs them, and prefer a shallow life_model_outline to the whole Event list. Then call life_story_direct again with findings to record the direction.`,
+      instructions: `${grammarReadingInstructions}\n\n${directionInstructions} For each principle, give holds, fails or not-this-story with contextual evidence. For a failure, specify the model and/or prose repair. Keep each evidence under about 1,500 characters and each repair under about 800, and record every finding in one call. The task carries what its principles need; open further records only where a finding needs them, and prefer a shallow life_model_outline to the whole Event list. Then call life_story_direct again with findings to record the direction.`,
       worked: 'The Book of Conditions example is a separate download at https://github.com/emergent-wisdom/meaning-model/tree/main/examples/book-of-conditions. Import its portable the-book-of-conditions.meaning-model.json with life_construction_import, then use life_narrative_query with the returned graphHash, mode: full, includeContent: true, and accessScopes: ["book.07r2.authoring"] to inspect its attributed UnderstandingNodes and links to Events, Cuts, and passages. The public bundle is a current-state snapshot, not the private revision history; it is not bundled with the MCP package.' };
   }
   const expected = new Set(principles.map((item) => item.id));

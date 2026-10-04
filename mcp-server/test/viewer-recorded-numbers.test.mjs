@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { recordedCutSegments, visibleRecordedCuts, recordedCutMarker, appendRecordedCut, appendRecordedNumbers, recordedIntervalText } from '../viewer/public/recorded-numbers.js';
+import { recordedCutSegments, visibleRecordedCuts, recordedCutMarker, appendRecordedCut, appendRecordedNumbers, appendTypedScalarSeries, recordedIntervalText } from '../viewer/public/recorded-numbers.js';
 
 const reading = (id, t = 5, extra = {}) => ({ id, parentEventId: `event.${id}`, eventLabel: `Event ${id}`, question: 'How is the declared unit divided?',
   unit: 'attention within this decision', answers: [{ key: 'a', weight: 0.75 }, { key: 'remainder', weight: 0.25 }],
@@ -124,6 +124,78 @@ test('scalar details retain declared uncertainty with exact interval bounds or s
   assert.deepEqual(declarations, ['Declared uncertainty: interval 71.123456789 – 74.987654321 kPa',
     'Declared uncertainty: standard deviation 0.00123456789 litres', 'Declared uncertainty: exact', 'Declared uncertainty: unknown']);
   assert.deepEqual(scalarRecords, before);
+});
+
+const datedSeries = (extra = {}) => ({ id: 'series:pressure', processId: 'pressure', label: 'Gauge estimate', unit: 'kPa', frame: 'pump housing', timeUnit: 'hours',
+  holder: 'observer', mode: 'estimate', evidenceType: 'gauge reading', interpolation: { kind: 'linear-visual-guide', extrapolate: false }, conflicts: [],
+  source: { kind: 'process-estimation', modelHash: 'a'.repeat(64), bundleNodeId: 'bundle', estimationRequestId: 'request', proposalId: 'proposal' },
+  points: [{ id: 'sample-1', t: 1, v: 72.1234567890123, valueTime: 24.123456789, evidenceCutoff: 20.987654321,
+    holder: 'observer', mode: 'estimate', evidenceType: 'gauge reading', authority: { kind: 'externalized' },
+    uncertainty: { kind: 'interval', lower: 71.123456789, upper: 74.987654321 }, provenance: ['Exact provenance'], accessScopes: ['author'], born: { order: 2 },
+    reviewStatus: 'approved', acceptedWorldValue: false, review: { reason: 'Reviewed against the gauge' }, output: { exact: true }, record: { native_marker: 'full-source-retained', value: 72.1234567890123 } },
+  { id: 'sample-2', t: 2, v: 74.5, valueTime: 48, evidenceCutoff: 40, reviewStatus: 'approved', acceptedWorldValue: false }], ...extra });
+
+test('dated scalar values lazily preserve exact native metadata and distinguish approval from world state', () => {
+  const f = dom(), series = datedSeries();
+  series.points[0].provenance.push('<img src=x onerror=alert(1)>');
+  const before = structuredClone(series);
+  appendRecordedNumbers(f.root, {}, { typedScalarSeries: [series], formatTime: (t) => `display ${t}` });
+  assert.match(f.text(), /Dated scalar values \(1\)/);
+  assert.match(f.text(), /Gauge estimate · 2 dated readings/);
+  assert.doesNotMatch(f.text(), /Native value time|Exact provenance|pump housing|no recorded Cuts/i);
+  const bySummary = (text) => f.all().find((node) => node.tag === 'details' && node.children[0]?.textContent === text);
+  f.open(bySummary('Gauge estimate · 2 dated readings'));
+  assert.match(f.text(), /linear visual guide.*no extrapolation/);
+  assert.match(f.text(), /Review approval does not establish an accepted-world value/);
+  assert.match(f.text(), /Reference frame: pump housing/);
+  assert.doesNotMatch(f.text(), /24\.123456789|Exact provenance|full-source-retained/);
+  f.open(bySummary('Series source'));
+  assert.match(f.text(), /process-estimation/); assert.ok(f.text().includes('a'.repeat(64)));
+  f.open(bySummary('display 1 · 72.1234567890123 kPa · approved'));
+  const text = f.text();
+  assert.match(text, /Native value time: 24\.123456789 hours/);
+  assert.match(text, /Evidence cutoff: 20\.987654321 hours/);
+  assert.match(text, /Holder: observer · Mode: estimate/);
+  assert.match(text, /Evidence type: gauge reading/);
+  assert.match(text, /Authority: \{"kind":"externalized"\}/);
+  assert.match(text, /Review status: approved/); assert.match(text, /Accepted-world value: no/);
+  assert.match(text, /71\.123456789/); assert.match(text, /74\.987654321/);
+  assert.match(text, /Exact provenance/); assert.match(text, /<img src=x onerror=alert\(1\)>/);
+  assert.match(text, /Access scopes: author/); assert.match(text, /Construction record: \{"order":2\}/);
+  assert.match(text, /Reviewed against the gauge/); assert.match(text, /Recorded output: \{"exact":true\}/);
+  assert.doesNotMatch(text, /full-source-retained/, 'raw native record remains lazy even after opening sample metadata');
+  f.open(bySummary('Native source record'));
+  assert.match(f.text(), /full-source-retained/);
+  const count = f.all().length;
+  f.open(bySummary('Native source record'));
+  f.open(bySummary('display 1 · 72.1234567890123 kPa · approved'));
+  assert.equal(f.all().length, count, 'reopening a reading creates no duplicate metadata');
+  assert.deepEqual(series, before);
+});
+
+test('Numbers keeps single and conflicting dated readings accessible without claiming a curve', () => {
+  const f = dom(), sample = datedSeries().points[0];
+  const single = datedSeries({ id: 'single', label: 'Single sample', interpolation: { kind: 'none', extrapolate: false }, points: [sample] });
+  const conflicting = datedSeries({ id: 'conflicting', label: 'Conflicting samples', interpolation: { kind: 'none', extrapolate: false },
+    conflicts: [{ t: 1, recordIds: ['sample-1', 'sample-other'] }], points: [sample, { ...sample, id: 'sample-other', v: 99 }] });
+  appendRecordedNumbers(f.root, {}, { typedScalarSeries: [single, conflicting] });
+  for (let depth = 0; depth < 3; depth += 1) for (const item of f.all().filter((node) => node.listeners.toggle)) f.open(item);
+  const text = f.text();
+  assert.match(text, /Dated scalar values \(2\)/);
+  assert.match(text, /One dated reading: no numerical curve is drawn/);
+  assert.match(text, /Conflicting readings are kept separate; no numerical curve is drawn/);
+  assert.match(text, /Conflicting display time 1: sample-1, sample-other/);
+  assert.match(text, /Record: sample-1/); assert.match(text, /Record: sample-other/);
+  assert.match(text, /Recorded value: 99 kPa/);
+  assert.doesNotMatch(text, /No recorded Cuts,/);
+});
+
+test('curve source inspection can supply one bracketing sample without mislabeling its parent curve', () => {
+  const f = dom(), series = datedSeries();
+  appendTypedScalarSeries(f.root, { ...series, points: series.points.slice(0, 1) });
+  assert.match(f.text(), /linear visual guide between recorded readings, with no extrapolation/);
+  assert.doesNotMatch(f.text(), /One dated reading: no numerical curve/);
+  assert.equal(f.all().filter((node) => node.tag === 'summary' && node.textContent.includes('72.1234567890123')).length, 1);
 });
 
 const source = readFileSync(new URL('../viewer/public/view.js', import.meta.url), 'utf8');

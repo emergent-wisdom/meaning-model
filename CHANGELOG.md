@@ -6,6 +6,23 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Require each fresh agent to read the current grammar before modeling in any
+  mode. Add a paginated guide-reading tool for MCP clients without resource
+  access, while keeping comprehension and agent behavior explicitly unverified.
+- Import UTF-8 books and documents as ordered source nodes with automatic
+  paragraph grouping and word-boundary splitting for long passages. Preserve
+  exact text, byte positions, source hashes and access scopes without treating
+  imported statements as accepted facts or adding them to a manuscript.
+- Before presenting a temporal demonstration, guide agents to read back changing
+  processes and inspect the viewer. Separate missing modeling from unsupported
+  display data, time settings and filters; a map or Event span alone is not a
+  changing account.
+- Show dated scalar claims and approved process estimates in Processes and Tree,
+  retaining units, native time, source, uncertainty and construction history.
+  Keep incompatible accounts separate, stop curves at their last sample, and
+  retain isolated or conflicting values in Numbers. Explain when Event bars have
+  no compatible numerical curves to display.
+
 ## 0.6.9 — 2026-10-04
 
 - Agent guidance asks for the user's goal when unclear and offers the local

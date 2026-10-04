@@ -119,6 +119,61 @@ Rendering never creates a second story authority. It starts from the requested r
 
 The result contains the contributing node sequence, per-unit content hashes, text joined with a blank line, a projection hash, the graph and source-snapshot hashes, and an explicit `world_authority: "unchanged"` marker. Editing a rendered document outside the graph does not revise the canonical story.
 
+## Import a book or source document
+
+Call `life_document_import` with a `documentId`, `title`, `requestId`, and
+either inline `text` or an absolute local `sourcePath`. It accepts a regular
+UTF-8 plain-text or Markdown file of at most 4 MiB. Extract text from PDF or
+EPUB first. The tool does not fetch URLs, call an AI, or change the source file.
+Provide `modelHash` to create a new model-bound graph, or `graphHash` and a
+visible `parentNodeId` to attach the source to an existing graph. An existing
+graph keeps its exact source binding; the import adds a `source_for` link to
+the selected parent without changing that parent's child order.
+
+Segmentation starts immediately. It groups paragraphs around `targetBytes`
+(default 4,000 UTF-8 bytes), breaking long passages at words and, when needed,
+code points. It does not infer chapters, summarize, correct spelling, or
+normalize whitespace. A `document.source` metadata node describes the import;
+its ordered `contains` children have `node_type: document.segment` and
+`role: metadata`. Every segment stores its exact text, source byte range and
+SHA-256 in provenance. The document stores the whole-source hash and byte
+count. The supplied `sourceLabel`, filename or title identifies the source;
+the absolute local path is not copied into graph records.
+
+Read segments with `life_narrative_query`, or inspect them in the viewer's
+Graph view. The import receipt gives the first and last IDs and a first-read
+call. Link interpretations and modeled processes to the segment IDs as the
+work develops. These are source records: `render` and `training` are both
+`exclude`, and their statements do not become accepted world facts or Events.
+They therefore do not enter the Reading view or manuscript render. Create
+separate authored passages if the manuscript should quote or use this source.
+
+An import is one immutable Rust graph write, with no partial node set on a
+validation failure. Request retries use the service's existing receipts.
+New graphs use the supplied `accessScopes`; an attachment to a restricted
+parent uses only the supplied scopes shared with that parent. The source is
+never made more widely visible than that parent by this helper. As elsewhere,
+scopes are projection labels, not authentication. Configured engine persistence
+determines whether imported records survive an MCP restart.
+
+Keep the returned import `graphHash` to recover the exact source: concatenate
+its original segment texts in `contains` order with **no separator**, then
+compare the recorded source hash. Existing `life_narrative_edit` splits can
+subdivide a segment at blank-line boundaries, keeping its original text as a
+parent and earlier revisions intact. Import byte positions describe that
+original source, not coordinates recomputed for later edited descendants.
+
+```json
+{
+  "requestId": "import-novel-1",
+  "documentId": "novel.source",
+  "title": "The novel",
+  "text": "First paragraph.\n\nSecond paragraph.",
+  "modelHash": "<stored model hash>",
+  "accessScopes": ["author"]
+}
+```
+
 ## Local graph editing
 
 `life_narrative_edit` is available with or without the storytelling add-on.

@@ -5,6 +5,7 @@ import { StorytellingAddon } from '../src/storytelling-addon.mjs';
 import { prepareAuthorRecord } from '../src/storytelling-authoring.mjs';
 import { fictionalAuthorModel } from './storytelling-author-model-fixture.mjs';
 import { lifeTrendsDossier, lifeTrendsEdges, lifeTrendsNode } from './storytelling-life-fixture.mjs';
+import { grammarReadingInstructions } from '../src/construction-principles.mjs';
 
 const graphHash = 'a'.repeat(64);
 const snapshotHash = 'b'.repeat(64);
@@ -99,6 +100,7 @@ test('deepening binds exact canonical prose, model, selected life evidence and a
   assert.equal(task.revisionScope, 'local');
   assert.equal(task.preparation.unit, 'whole_work');
   assert.equal(task.brief, 'Deepen and improve the existing work.');
+  assert.ok(task.workflowInstructions.includes(grammarReadingInstructions), 'the top-level revision task carries its own reading requirement');
   assert.match(task.workflowInstructions, /recursive exploration, not only gap repair/u);
   assert.match(task.workflowInstructions, /even when the current account is sound/u);
   assert.match(task.workflowInstructions, /candidates and drafts.*while model-depth findings remain unresolved/u);

@@ -1,5 +1,6 @@
 import { storyScopeInstructions } from './storytelling-intake.mjs';
 import { conceptualReview } from './modeling-guidance.mjs';
+import { grammarReadingInstructions } from './construction-principles.mjs';
 import { createHash } from 'node:crypto';
 import * as z from 'zod/v4';
 import { prepareAuthorRecord, readAuthorGraph } from './storytelling-authoring.mjs';
@@ -87,7 +88,7 @@ For each reviewed subject, give a concise sufficient, needs_opening, or unclear 
 Record coverage and findings with life_story_model_depth_record using the exact taskHash. Cite model evidence as {kind: "model", ref: "process:<id>"} (or event:, cut:, concept:, abstract_cut:, event_relation:, referent:, binding:, realization:, law:, claim:), optionally with a JSON Pointer path inside that record, or as a full JSON Pointer path; the server resolves refs against the bound model. Findings become an Understanding Node with links to their graph and model evidence. Save gaps honestly rather than marking them sufficient to pass. Repair only the relevant model parts through existing tools, preserve unaffected character/history, then repeat the depth review on the changed basis and re-review affected prose. A new or consequentially changed story plan must be stored and reviewed; do not continue from an external plan. Reuse a sufficient review only while its focus, source, dossier and relevant context remain unchanged and cover the intended scene. Incidental draft or note additions do not require repeating it.
 When rebinding a narrative graph to a successor model, use life_narrative_revise to retain earlier depth-assessment nodes as historical records but remove their predecessor-model anchor edges from that successor only. Native model anchors must resolve against the graph's current source. Never retarget an old finding's path to new model values. The immutable predecessor graph and each assessment's reviewedGraphHash/modelHash preserve its exact evidence. Then record a fresh assessment with new anchors; historical assessments cannot authorize scenes against the changed source. Review other affected anchors explicitly under the existing graph revision contract.
 The calling LLM supplies the judgment. The server verifies references, recorded coverage, source identity and freshness, not explanatory truth, completeness, hidden reasoning, or literary merit. Use an independent reviewer when available; otherwise identify self-review. Model-definition reads are administrative and not scope-filtered. They describe static structure and initial values, not current values in a frozen world/candidate snapshot; inspect appropriate bound evidence for runtime claims and mark unavailable evidence unclear.`;
-export const modelDepthInstructions = `${storyScopeInstructions}\n\n${modelDepthGuidance}`;
+export const modelDepthInstructions = `${grammarReadingInstructions}\n\n${storyScopeInstructions}\n\n${modelDepthGuidance}`;
 
 function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical);

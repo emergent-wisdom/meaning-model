@@ -37,6 +37,21 @@ export function numericTimeTicks(start, end) {
 export function temporalWindow(data) {
   if (!String(data.timeUnit ?? '').trim()) return null;
   const calendar = isCalendarTime(data.timeUnit);
+  const typedTimes = (data.typedScalarSeries ?? []).flatMap((series) => series.points ?? []).map((point) => point.t).filter(Number.isFinite);
+  if (typedTimes.length) {
+    // Recorded native-clock values also provide a window without dated Events.
+    // Padding is camera room only; it never extends a series' sample domain.
+    const starts = [...typedTimes], ends = [...typedTimes];
+    for (const event of data.events ?? []) if (['accepted_world', 'inner', 'unrooted', undefined].includes(event.context) && Number.isFinite(event.start)) {
+      starts.push(event.start); ends.push(Number.isFinite(event.end) ? event.end : event.start);
+    }
+    for (const measure of calendar ? data.measures ?? [] : []) for (const point of measure.points ?? []) {
+      if (Number.isFinite(point.t)) { starts.push(point.t); ends.push(point.t); }
+    }
+    const start = Math.min(...starts), end = Math.max(...ends);
+    const pad = start === end ? (calendar ? 0.12 : 0.5) : Math.max(Number.EPSILON, (end - start) * 0.02);
+    return { start: start - pad, end: end + pad, source: 'typed-samples' };
+  }
   const plotted = (calendar ? data.measures ?? [] : []).filter((measure) => measure.points?.length >= 2)
     .flatMap((measure) => measure.points.map((point) => point.t)).filter(Number.isFinite);
   const story = data.storyWindow ?? data.window;

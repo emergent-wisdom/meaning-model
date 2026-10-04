@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import * as THREE from '../viewer/public/vendor/three/three.core.js';
 
 const source = readFileSync(new URL('../viewer/public/view.js', import.meta.url), 'utf8');
+const boundedDeclaration = source.split('\n').find((line) => line.startsWith('const boundedMeasure ='));
 function fn(name) {
   const start = source.indexOf(`function ${name}(`);
   assert.ok(start >= 0, name);
@@ -23,7 +25,7 @@ const points = () => [
 function fixture() {
   const context = { madeAt: (born) => (born?.at ? Date.parse(born.at) : NaN), constructionByClock: true, timeText: (t) => String(t), month: (t) => String(t), AMP: 5.6, CUT_AMP: 18, T1: 40, money: () => { throw new Error('Cut weights are not physical quantities'); } };
   vm.createContext(context);
-  vm.runInContext([arrow('valueAt'), arrow('measurePosition'), arrow('format'), fn('rowValue'), fn('rowValueText'), fn('updateRowSamples'), fn('measureValueLines')].join('\n'), context);
+  vm.runInContext([boundedDeclaration, arrow('valueAt'), arrow('measurePosition'), arrow('format'), fn('rowValue'), fn('rowValueText'), fn('updateRowSamples'), fn('measureValueLines')].join('\n'), context);
   return context;
 }
 
@@ -61,6 +63,64 @@ test('construction replay uses only already-authored Cut samples and removes lat
   context.updateRowSamples(row, false, 0, false);
   assert.equal(row.points.length, 3, 'world-time playback uses the complete snapshot');
   assert.equal(row.measure.points.length, 3, 'the authored points remain intact');
+});
+
+test('dated scalar curtains keep units, sample bounds and review status through playback', () => {
+  const context = fixture();
+  const samples = points().map((point, index) => ({ ...point, id: `sample-${index}`, v: [-5, 15, 4][index],
+    valueTime: point.t, evidenceCutoff: 8, evidenceType: 'estimate', uncertainty: { kind: 'unknown' } }));
+  const row = { measure: { kind: 'typed-scalar', points: samples, domain: [10, 30], unit: 'litres', timeUnit: 'day',
+    source: { kind: 'process-estimation' }, holder: 'modeler', mode: 'counterfactual' } };
+  row.points = samples;
+  assert.equal(context.rowValueText(row, 15), '~5 litres');
+  assert.equal(context.rowValue(row, 9), null);
+  assert.equal(context.rowValue(row, 31), null);
+  const detail = context.measureValueLines(row, 15).map(([, text]) => text).join('\n');
+  assert.match(detail, /Visual interpolation/);
+  assert.match(detail, /approval does not make it an accepted world value/);
+  assert.match(detail, /Native time: 10 day/);
+  assert.match(detail, /Evidence cutoff: 8/);
+  assert.doesNotMatch(detail, /sample-2|Parsed value|Held after/);
+  context.updateRowSamples(row, true, 150, false);
+  assert.equal(context.rowValue(row, 15), null, 'future construction samples cannot influence a curve');
+  context.updateRowSamples(row, true, 250, false);
+  assert.equal(context.rowValueText(row, 15), '~5 litres');
+  assert.equal(context.rowValue(row, 25), null);
+  context.updateRowSamples(row, true, 150, false);
+  assert.equal(context.rowValue(row, 15), null, 'rewinding removes later samples');
+  context.updateRowSamples(row, false, 0, false);
+  context.rows = [row];
+  const start = source.indexOf('for (const row of rows) {\n  const values =');
+  vm.runInContext(source.slice(start, source.indexOf('\nconst money =', start)), context);
+  assert.deepEqual(Array.from(row.range), [-5, 15]);
+  assert.deepEqual(Array.from(row.domain), [10, 30]);
+});
+
+test('Event threads find typed process series and hide links before their samples exist', () => {
+  const context = fixture();
+  const row = { z: 0, measure: { id: 'typed-series-id', processId: 'tank.level', kind: 'typed-scalar', points: points() } };
+  row.points = row.measure.points;
+  Object.assign(context, { THREE, rows: [row], data: { events: [{ id: 'inspection', start: 15, processIds: ['tank.level'], label: 'Inspection' }] },
+    field: new THREE.Group(), NAMES: { 'typed-series-id': 'Tank level' }, spark: () => new THREE.Object3D(),
+    additive: () => new THREE.LineBasicMaterial(), F: { a: 0 }, X: (time) => time, presence: () => 1,
+    rowAt: () => ({ y: 0, z: 0 }), heightAt: () => 1 });
+  const start = source.indexOf('const threads = [];');
+  const end = source.indexOf("// A thread's stems", start);
+  vm.runInContext(`${source.slice(start, end)}\n${fn('layThread')}\nthis.threads = threads;`, context);
+  assert.equal(context.threads.length, 1, 'native process identity finds the generated series');
+  const group = context.threads[0];
+  context.layThread(group);
+  assert.equal(group.userData.sparks[0].visible, true);
+  assert.equal(group.userData.sparks[0].userData.hover.valueRows[0], row, 'hover reads current samples, not a cached future value');
+  context.updateRowSamples(row, true, 150, false);
+  context.layThread(group);
+  assert.equal(group.userData.sparks[0].visible, false, 'one earlier sample cannot be projected to the Event');
+  context.updateRowSamples(row, true, 250, false);
+  context.layThread(group);
+  assert.equal(group.userData.sparks[0].visible, true);
+  group.userData.t = 31;
+  context.layThread(group);
+  assert.equal(group.userData.sparks[0].visible, false, 'an Event after the series does not receive a held value');
 });
 
 test('unknown construction birth is not treated as an early native reading', () => {
@@ -120,7 +180,7 @@ test('native answer curves occupy the level below their declared common Event ho
   const context = { rows, processById: new Map([['legacy', { depth: 4, home: 'body' }]]), treeById: new Map([['inner', { depth: 2 }]]) };
   const start = source.indexOf('for (const row of rows) {', source.indexOf('const processById ='));
   const end = source.indexOf('\nconst MAX_DEPTH =', start);
-  vm.runInNewContext(source.slice(start, end), context);
+  vm.runInNewContext(`${boundedDeclaration}\n${source.slice(start, end)}`, context);
   assert.deepEqual(rows.map((row) => [row.depth, row.home]), [[3, 'inner'], [1, 'missing'], [4, 'body']]);
 });
 

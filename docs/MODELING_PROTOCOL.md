@@ -1,5 +1,13 @@
 # Meaning Model Modeling Protocol
 
+Read the complete current *Meaning Model: Minimized Grammar* before first
+modeling, then this operational protocol. Every fresh agent, including a
+delegated agent, needs that reading; another agent's reading does not cover it.
+The grammar is served at `life-sim://protocol/grammar`. If the host exposes only
+tools, call `life_modeling_read` with that URI and follow `nextOffset` until it
+is null. The same tool serves the guides. Reuse an unchanged grammar while its
+contents remain in context; reread after changes or context loss.
+
 This document is the operational entry to Meaning Model construction. It states
 the common contracts needed to use the tools; purpose-specific guides add their
 workflows. *The Meaning Model* and *Life Simulation* explain the reasons and
@@ -34,11 +42,11 @@ playback to see newly saved revisions.
 For a model without time positions, show Graph or Structure and explain what is
 still missing.
 
-Call `life_modeling_context`, read this protocol and the guide or profile for the
+Call `life_modeling_context`, read the grammar, this protocol and the guide or profile for the
 purpose, and inspect its worked example before expanding a model. A profile's
 categories and compiler remain optional. Open a relevant paper section when a
 distinction needs its reason or a difficult case exceeds this guidance; complete
-paper reading is not a prerequisite. Resource digests identify versions, not
+research-paper reading is not a prerequisite beyond the required grammar. Resource digests identify versions, not
 comprehension, and the server does not track reading or gate compilation on it.
 Reuse unchanged guidance that you retain. Read it again when its content changes,
 the purpose needs an unfamiliar guide, or relevant context has been lost; a new
@@ -244,6 +252,15 @@ Use available batch operations for related additions and keep required structura
 checks. Prefer an early inspectable model to a long plan, an exhaustive taxonomy
 or a separate review of every proposed process. Deepen and revise while working;
 do not postpone construction until the whole account is settled.
+
+For a task about change over time, build that account before presenting a map or
+static outline as the result. Read back named processes at several relevant times
+and inspect the intended viewer view. Event spans and initial values alone do not
+show change. If expected curves are absent, check the stored samples, supported
+representation, time units and filters; repair missing modeling or explain the
+display limitation. Keep estimates, observations and display interpolation
+distinct. Constant processes may correctly remain flat, and qualitative changes
+do not need arbitrary numbers for visual motion.
 
 Actively extrapolate beyond what the prompt names or the current model contains.
 Ask what overlooked process, relationship or earlier history could be operating

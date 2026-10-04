@@ -19,11 +19,12 @@ import { appendDocumentSpans } from './document-spans.js';
 import { appendDocumentProcesses } from './document-processes.js';
 import { isPlaybackVisible, playbackSpan } from './playback-time.js';
 import { isCalendarTime, nativeTimeText, numericTimeTicks, temporalWindow, calendarDateOf, calendarTimeOf, calendarTickAt } from './temporal-layout.js';
-import { recordedCutSegments, visibleRecordedCuts, recordedCutMarker, appendRecordedCut, appendRecordedNumbers, readingNeedsReview } from './recorded-numbers.js';
+import { recordedCutSegments, visibleRecordedCuts, recordedCutMarker, appendRecordedCut, appendRecordedNumbers, appendTypedScalarSeries, readingNeedsReview } from './recorded-numbers.js';
 import { unopenedProcessEvents } from './process-visibility.js';
 import { createProcessDetail } from './process-detail.js';
 import { nestedEventLayout } from './nested-event-layout.js';
 import { cutTrajectories } from './cut-trajectories.js';
+import { typedScalarTrajectories } from './scalar-trajectories.js';
 import { buildModelGraph } from './model-graph.js';
 import { readingActs, actShares, actCounts } from './lens-readings.js';
 import { readerInline } from './reader-markdown.js';
@@ -71,7 +72,10 @@ const COLORS = new Map(); const color = (hex) => { let c = COLORS.get(hex); if (
 
 // ---- what the view shows: the URL's choices, each defaulting to the processes view as it was ---------------------------------
 const nativeMeasures = cutTrajectories(data);
-const hasPaths = data.measures.some((measure) => measure.points.length >= 2) || Boolean(data.numerics?.cuts?.length && nativeMeasures.length);
+const scalarMeasures = typedScalarTrajectories(data);
+const recordedMeasures = [...nativeMeasures, ...scalarMeasures];
+const boundedMeasure = (measure) => measure.kind === 'cut-answer' || measure.kind === 'typed-scalar';
+const hasPaths = data.measures.some((measure) => measure.points.length >= 2) || recordedMeasures.length > 0;
 const BASE_SHOW = ['processes', 'threads', 'decisions', 'lovefear', 'causal', 'notes', 'numbers'];
 const ALL_SHOW = [...BASE_SHOW, 'events', 'subsidiary', 'prose'];
 function defaultShow(layout) {
@@ -133,19 +137,19 @@ let pointerAt = null; let lit = null; let litNode = null; let litReading = null;
 
 // ---- the rows: every measure with a path, grouped by whose it is -------------------------------------------------------
 // A process's name is the run's own (display.names in its viewer.json), else its id as words; display.order sets the rows.
-const nativeMeasureById = new Map(nativeMeasures.map((measure) => [measure.id, measure]));
+const nativeMeasureById = new Map(recordedMeasures.map((measure) => [measure.id, measure]));
 const NAMES = new Proxy({}, { get: (_, id) => nativeMeasureById.get(id)?.label ?? processLabel(data, id) });
 const principals = data.people.filter((person) => person.principal).sort((a, b) => a.order - b.order);
 const first = (person) => person.name.split(' ')[0].toLowerCase();
-const ownerOf = (measure) => measure.kind === 'cut-answer' ? data.people.find((person) => person.id === measure.owner) ?? null : principals.find((person) => measure.id.split('.')[0] === first(person) || measure.frame === `person:${first(person)}`) ?? null;
+const ownerOf = (measure) => boundedMeasure(measure) ? data.people.find((person) => person.id === measure.owner) ?? null : principals.find((person) => measure.id.split('.')[0] === first(person) || measure.frame === `person:${first(person)}`) ?? null;
 const order = data.display?.order ?? Object.keys(data.display?.names ?? {});
-const measures = [...data.measures, ...nativeMeasures].filter((measure) => measure.points.length >= 2)
+const measures = [...data.measures, ...recordedMeasures].filter((measure) => measure.points.length >= 2)
   .sort((a, b) => ((order.indexOf(a.id) + 1) || 99) - ((order.indexOf(b.id) + 1) || 99));
-const legacyMeasures = measures.filter((measure) => measure.kind !== 'cut-answer');
+const legacyMeasures = measures.filter((measure) => !boundedMeasure(measure));
 const groups = [...principals.map((person, i) => ({ id: person.id, label: person.name, hue: HUES[i % HUES.length], rows: legacyMeasures.filter((m) => ownerOf(m) === person) })),
   { id: 'world', label: 'The world', hue: WORLD, rows: legacyMeasures.filter((m) => !ownerOf(m)) }]
   .filter((group) => group.rows.length || !hasPaths);
-for (const measure of nativeMeasures) {
+for (const measure of recordedMeasures) {
   let group = groups.find((item) => item.id === measure.group.id);
   if (!group) { group = { ...measure.group, hue: HUES[groups.length % HUES.length], rows: [] }; groups.push(group); }
   group.rows.push(measure);
@@ -182,11 +186,11 @@ const measurePosition = (points, t) => {
 };
 function rowValue(row, t) {
   const points = row.points ?? row.measure.points;
-  if (row.measure.kind === 'cut-answer' && (!points.length || t > points.at(-1).t)) return null;
+  if (boundedMeasure(row.measure) && (!points.length || t > points.at(-1).t)) return null;
   return valueAt(points, t);
 }
 function updateRowSamples(row, construction, cutoff, complete) {
-  if (row.measure.kind !== 'cut-answer') return false;
+  if (!boundedMeasure(row.measure)) return false;
   const points = construction ? row.measure.points.filter((point) => {
     const made = madeAt(point.born);
     return Number.isFinite(made) ? made <= cutoff : complete;
@@ -200,15 +204,16 @@ for (const row of rows) {
   const values = row.measure.points.map((p) => p.v); const unit = String(row.measure.unit ?? '');
   const hi = Math.max(...values); const lo = Math.min(...values);
   row.points = row.measure.points;
-  row.range = row.measure.kind === 'cut-answer' ? [0, 1] : /0-10/.test(unit) ? [0, 10] : /0-1|share/.test(unit) ? [0, Math.max(1, hi)] : [Math.min(0, lo), hi];
+  row.range = row.measure.kind === 'cut-answer' ? [0, 1] : row.measure.kind === 'typed-scalar' ? [Math.min(0, lo), Math.max(0, hi)] : /0-10/.test(unit) ? [0, 10] : /0-1|share/.test(unit) ? [0, Math.max(1, hi)] : [Math.min(0, lo), hi];
   row.height = (t) => { const v = rowValue(row, t); if (v === null) return 0; return ((v - row.range[0]) / (row.range[1] - row.range[0] || 1)) * (row.measure.kind === 'cut-answer' ? CUT_AMP : AMP); };
   // A curtain begins at its first recorded sample and may hold its final value afterward.
-  row.domain = row.measure.kind === 'cut-answer' ? [...row.measure.domain] : [row.measure.points[0].t, Math.max(T1, row.measure.points.at(-1).t)];
+  row.domain = boundedMeasure(row.measure) ? [...row.measure.domain] : [row.measure.points[0].t, Math.max(T1, row.measure.points.at(-1).t)];
 }
 const money = (v, sign) => `${sign}${v >= 100 ? Math.round(v).toLocaleString('en-GB') : v.toFixed(2)}`;
 const format = (row, v) => {
   if (v === null) return 'No recorded value yet';
   if (row.measure.kind === 'cut-answer') return v.toLocaleString('en-GB', { maximumSignificantDigits: 6 });
+  if (row.measure.kind === 'typed-scalar') return `${v.toLocaleString('en-GB', { maximumSignificantDigits: 6 })} ${row.measure.unit ?? ''}`.trim();
   const unit = String(row.measure.unit ?? '');
   if (/GBP/.test(unit)) return money(v, '£'); if (/USD/.test(unit)) return money(v, '$');
   if (/hours/.test(unit)) return `${v.toFixed(1)} h`; if (/0-10/.test(unit)) return `${v.toFixed(1)} of 10`;
@@ -217,10 +222,20 @@ const format = (row, v) => {
 };
 function rowValueText(row, t) {
   const value = rowValue(row, t); if (value === null) return '';
-  const interpolated = row.measure.kind === 'cut-answer' && !(row.points ?? row.measure.points).some((point) => point.t === t);
+  const interpolated = boundedMeasure(row.measure) && !(row.points ?? row.measure.points).some((point) => point.t === t);
   return `${interpolated ? '~' : ''}${format(row, value)}`;
 }
 function measureValueLines(row, t) {
+  if (row.measure.kind === 'typed-scalar') {
+    if (rowValue(row, t) === null) return [['a', 'No recorded value at this time. This series is not extrapolated.']];
+    const position = measurePosition(row.points ?? row.measure.points, t);
+    return [['num', rowValueText(row, t)], ['a', position.samples.length === 1 ? 'Recorded dated value.' : 'Visual interpolation between recorded samples; not a measured or simulated value.'],
+      ['a', `Source: ${row.measure.source.kind} · Holder: ${row.measure.holder ?? 'not declared'} · Mode: ${row.measure.mode ?? 'not declared'}`],
+      ...(row.measure.source.kind === 'process-estimation' ? [['a', 'Reviewed record; approval does not make it an accepted world value.']] : []),
+      ...position.samples.flatMap((point) => [['a', `${point.id}: ${format(row, point.v)} at ${timeText(point.t, 1)}`],
+        ['a', `Native time: ${point.valueTime} ${row.measure.timeUnit} · Evidence cutoff: ${point.evidenceCutoff ?? 'not declared'}`],
+        ['a', `Evidence: ${point.evidenceType ?? 'not declared'} · Uncertainty: ${JSON.stringify(point.uncertainty ?? 'not declared')}`]])];
+  }
   if (row.measure.kind === 'cut-answer') {
     const points = row.points ?? row.measure.points;
     if (rowValue(row, t) === null) return [['a', 'No recorded value at this time. This reading series is not extrapolated.']];
@@ -406,8 +421,8 @@ const unopenedProcessIds = unopenedProcessEvents(data);
 // A row's place in the tree: its process's depth (one below the Event it belongs to) and its home.
 const processById = new Map((data.processes ?? []).map((process) => [process.id, process]));
 for (const row of rows) {
-  const process = processById.get(row.measure.id); row.home = row.measure.home ?? process?.home ?? null;
-  const home = row.measure.kind === 'cut-answer' ? treeById.get(row.home) : null;
+  const process = processById.get(row.measure.processId ?? row.measure.id); row.home = row.measure.kind === 'typed-scalar' ? row.measure.home : row.measure.home ?? process?.home ?? null;
+  const home = boundedMeasure(row.measure) ? treeById.get(row.home) : null;
   row.depth = Number.isFinite(home?.depth) ? home.depth + 1 : row.measure.depth ?? process?.depth ?? 1;
 }
 const MAX_DEPTH = hasTree ? Math.max(...nodes.map((node) => node.depth), ...rows.map((row) => row.depth)) : 0;
@@ -461,7 +476,7 @@ const visibleNode = (node, layers) => {
 function visibleRow(row) {
   if (opt.detailProjection && !opt.detailProjection.rowIds.has(row.measure.id)) return false;
   const points = row.points ?? row.measure.points;
-  if (row.measure.kind === 'cut-answer' && (!points || points.length < 2)) return false;
+  if (boundedMeasure(row.measure) && (!points || points.length < 2)) return false;
   return opt.show.has('processes') && !(opt.hideFlat && points?.length && points.every((point) => point.v === points[0].v));
 }
 const rowSpacing = (row) => row.measure.kind === 'cut-answer' ? CUT_ROW : ROW;
@@ -599,7 +614,7 @@ for (const row of rows) {
   const name = label('row', clip(NAMES[row.measure.id] ?? row.measure.id.split('.').slice(-1)[0].replace(/_/g, ' '), 64), new THREE.Vector3(-LENGTH / 2 - 1.2, 0.8, row.z), [1, 0.5]);
   name.element.title = [open ? 'remainder: the share of each reading that its answers leave open' : NAMES[row.measure.id], row.measure.question, row.measure.role, row.measure.support].filter(Boolean).join('\n\n');
   name.element.style.color = open ? 'var(--muted)' : `color-mix(in srgb, ${row.group.hue} 45%, #ffffff)`;
-  if (row.measure.kind === 'cut-answer') Object.assign(name.element.style, { maxWidth: 'min(150px, 25vw)', overflow: 'hidden', textOverflow: 'ellipsis' });
+  if (boundedMeasure(row.measure)) Object.assign(name.element.style, { maxWidth: 'min(150px, 25vw)', overflow: 'hidden', textOverflow: 'ellipsis' });
   row.name = name; row.value = label('value', '', new THREE.Vector3(LENGTH / 2 + 1.2, 0.8, row.z), [0, 0.5]);
   // A series of readings of one question is named once, by its question, above its first answer.
   if (row.measure.series?.first) {
@@ -645,13 +660,13 @@ for (let i = 0; i < 48; i += 1) {
 // Events that move processes: a thread through the crests they touch, at the moment they begin.
 const threads = []; const eventSparks = [];
 for (const event of data.events) {
-  const touched = (event.processIds ?? []).map((id) => rowOf.get(id)).filter(Boolean).sort((a, b) => a.z - b.z);
+  const touched = rows.filter((row) => (event.processIds ?? []).includes(row.measure.processId ?? row.measure.id)).sort((a, b) => a.z - b.z);
   if (!touched.length || !Number.isFinite(event.start)) continue;
   const group = new THREE.Group(); group.userData = { t: event.start, event, touched, lines: [], sparks: [] };
   for (const row of touched) {
     const stem = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3)), additive('#ffffff', 0.35)); stem.frustumCulled = false; group.add(stem); group.userData.lines.push(stem);
     const s = spark('#ffffff', 1.5); s.userData.hover = { kind: 'Event', title: event.label, text: event.description, about: touched.map((item) => NAMES[item.measure.id] ?? item.measure.id),
-      values: touched.map((item) => `${NAMES[item.measure.id] ?? item.measure.id}: ${format(item, valueAt(item.measure.points, event.start))} · ${measurePosition(item.measure.points, event.start).label}`) }; group.add(s); eventSparks.push(s); group.userData.sparks.push(s);
+      valueRows: touched, valueTime: event.start }; group.add(s); eventSparks.push(s); group.userData.sparks.push(s);
   }
   if (touched.length > 1) { const link = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(touched.length * 3), 3)), additive('#fff3d6', 0.9)); link.frustumCulled = false; group.add(link); group.userData.link = link; }
   field.add(group); threads.push(group);
@@ -660,12 +675,13 @@ for (const event of data.events) {
 // A thread's stems, sparks and link at the time it is drawn (its start, or the window's edge a little after it).
 function layThread(group) {
   const t = Math.max(group.userData.t, F.a); group.position.x = X(t); group.userData.tDrawn = t;
-  const ordered = group.userData.touched.filter((row) => presence(row) > 0.5).sort((a, b) => rowAt(a).z - rowAt(b).z); const tops = [];
+  const available = (row) => presence(row) > 0.5 && rowValue(row, group.userData.t) !== null && rowValue(row, t) !== null;
+  const ordered = group.userData.touched.filter(available).sort((a, b) => rowAt(a).z - rowAt(b).z); const tops = [];
   group.userData.touched.forEach((row, i) => {
     const p = rowAt(row); const top = new THREE.Vector3(0, p.y + heightAt(row, t) + 0.05, p.z);
     const stem = group.userData.lines[i].geometry.attributes.position; stem.array.set([0, p.y, p.z, top.x, top.y, top.z]); stem.needsUpdate = true; group.userData.lines[i].geometry.computeBoundingSphere();
     group.userData.sparks[i].position.copy(top);
-    group.userData.lines[i].visible = group.userData.sparks[i].visible = presence(row) > 0.5;
+    group.userData.lines[i].visible = group.userData.sparks[i].visible = available(row);
   });
   for (const row of ordered) { const p = rowAt(row); tops.push(new THREE.Vector3(0, p.y + heightAt(row, t) + 0.05, p.z)); }
   if (group.userData.link) { const attr = group.userData.link.geometry.attributes.position; tops.forEach((top, i) => attr.array.set([top.x, top.y, top.z], i * 3)); attr.needsUpdate = true; group.userData.link.geometry.setDrawRange(0, tops.length); group.userData.link.visible = tops.length > 1; group.userData.link.geometry.computeBoundingSphere(); }
@@ -863,7 +879,7 @@ function floorHomes() {
 function undatedHome(light) {
   for (const item of light.userData.attached) {
     if (item.kind !== 'process') continue;
-    const row = rowOf.get(item.id), points = row ? row.points ?? row.measure.points : [];
+    const row = rowOf.get(item.id) ?? rows.find((candidate) => candidate.measure.processId === item.id), points = row ? row.points ?? row.measure.points : [];
     if (!row || presence(row) <= 0.5 || !points?.length) continue;
     const t = Math.max(F.a, Math.min(F.b, points[0].t)); if (!shownByPlay(t, bornAt(row.measure))) continue;
     const p = rowAt(row);
@@ -986,7 +1002,7 @@ function drawNotes() {
     for (const point of anchors) mindLines.add(light.position.x, light.position.y, light.position.z, point.x, point.y, point.z, light.userData.color, on ? 0.95 : opt.allNoteAttachments ? 0.3 : opt.noteLayout === 'original' ? 0.13 : 0.2);
     // Inspection and All attachments include declared people/process targets, regardless of note placement.
     if (on || opt.allNoteAttachments) for (const item of light.userData.attached) {
-      const own = (item.kind === 'process' ? [rowOf.get(item.id)].filter(Boolean) : item.kind === 'referent' ? rows.filter((row) => row.group.id === item.id || ownerOf(row.measure)?.id === item.id) : []).filter((row) => {
+      const own = (item.kind === 'process' ? rows.filter((row) => row.measure.id === item.id || row.measure.processId === item.id) : item.kind === 'referent' ? rows.filter((row) => row.group.id === item.id || ownerOf(row.measure)?.id === item.id) : []).filter((row) => {
         if (presence(row) <= 0.5) return false;
         if (!opt.allNoteAttachments) return true;
         const points = row.points ?? row.measure.points;
@@ -1296,7 +1312,7 @@ const TS = LENGTH / 96; const TNX = 420; const TAMP = 8.5 * TS; const TROW = 2.1
 const TERRAIN_GLARE = { full: [0.95, 0.55, 0.12], soft: [0.3, 0.4, 0.35] };
 const shortName = (text, n = 40) => { const head = String(text ?? '').replace(/\s+/g, ' ').split(/[:;,]| from | since | built /)[0].trim(); if (head.length <= n) return head; const cut = head.slice(0, n - 1); const space = cut.lastIndexOf(' '); return `${space > n * 0.6 ? cut.slice(0, space) : cut}…`; };
 const hashOf = (text) => { let h = 2166136261; for (const c of String(text)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return ((h >>> 0) % 10000) / 10000; };
-const fieldRows = () => rows.filter((row) => row.measure.kind !== 'cut-answer'); // Native Cut curves belong to the Processes/Tree view; Terrain keeps its existing recipes.
+const fieldRows = () => rows.filter((row) => !boundedMeasure(row.measure)); // Typed samples and Cut curves belong to Processes/Tree; Terrain keeps its existing recipes.
 const TERRAIN_KINDS = new Set(['processes', 'threads', 'decisions', 'causal', 'notes']); // the details the terrain shows
 function buildTerrain() {
   terrain.built = true;
@@ -1640,7 +1656,17 @@ const NOTE_NAMES = { root: 'Document', passage: 'Prose', thought: 'Thought', wor
 const unitOf = new Map((data.story?.units ?? []).map((unit) => [unit.id, unit]));
 // The numbers at the top: the story's totals, or, in the construction, what the agent had made so far.
 let statsShown = null;
+function syncProcessDataHint() {
+  const hint = document.getElementById('process-data-hint');
+  if (!hint) return;
+  // Inspect source rows, not their filtered layout or playback samples. Hidden
+  // and constant curves still contain recorded values; neither means missing data.
+  const hasCurves = rows.some((row) => row.measure.points.length >= 2);
+  const hasSpans = treeEvents.some((event) => event.reach?.length === 2 && event.reach.every(Number.isFinite));
+  hint.hidden = !temporalActive || !['together', 'layers'].includes(opt.layout) || !hasSpans || hasCurves;
+}
 function showStats() {
+  syncProcessDataHint();
   const made = (item) => !building() || bornAt(item) <= tau;
   if (terrain.on) {
     const nodesMade = data.graph.nodes.filter(made);
@@ -1649,7 +1675,7 @@ function showStats() {
       ['Functions', terrain.rows.filter((row) => !building() || row.born <= tau).length], ['Thoughts', nodesMade.filter((node) => node.category !== 'passage').length, data.graph.nodes.some((node) => node.category !== 'passage')], ['Words of prose', words(nodesMade).toLocaleString('en-GB'), words(data.graph.nodes) > 0]];
     const html = counts.filter(([, , has = true]) => has).map(([name, value]) => tile(name, value)).join(''); if (html !== statsShown) { document.getElementById('stats').innerHTML = html; statsShown = html; } return;
   }
-  const counts = [...(hasPaths ? [['Numerical curves', rows.filter((row) => row.measure.kind === 'cut-answer' ? row.points.length >= 2 : made(row.measure)).length], ['Events moving them', inStoryThreads.filter((thread) => made(thread.userData.event)).length, inStoryThreads.length > 0]]
+  const counts = [...(hasPaths ? [['Numerical curves', rows.filter((row) => boundedMeasure(row.measure) ? row.points.length >= 2 : made(row.measure)).length], ['Events moving them', inStoryThreads.filter((thread) => made(thread.userData.event)).length, inStoryThreads.length > 0]]
     : [['Events', treeEvents.filter(made).length], ['Process records', data.processes.filter(made).length]]), ['Causal links', causal.filter(made).length, causal.length > 0],
     ['Decisions drawn', decisions.filter((gem) => gem.userData.t >= T0 && gem.userData.t <= T1 && made(gem.userData.decision)).length, decisions.length > 0], ['Love or fear', lenses.filter((chip) => made(chip.userData)).length, lenses.length > 0]];
   const html = counts.filter(([, , has = true]) => has).map(([name, value]) => tile(name, value)).join(''); if (html !== statsShown) { document.getElementById('stats').innerHTML = html; statsShown = html; }
@@ -1668,7 +1694,7 @@ function apply() {
   for (const row of rows) if (updateRowSamples(row, construction, tau, atEnd && !playing)) samplesChanged = true;
   if (samplesChanged) { computeLayout(); for (const row of rows) layRow(row); }
   for (const row of rows) {
-    const native = row.measure.kind === 'cut-answer';
+    const native = boundedMeasure(row.measure);
     row.riseTo = native ? (row.points.length >= 2 ? 1 : 0) : construction && bornAt(row.measure) > tau ? 0 : 1;
     if (row.wall.visible) {
       let upto = NX; if (!construction && !(atEnd && !playing)) { let lo = 0; let hi = NX; while (lo < hi) { const mid = (lo + hi) >> 1; if (row.sampleT[mid] <= now) lo = mid + 1; else hi = mid; } upto = lo; }
@@ -1679,7 +1705,7 @@ function apply() {
     const afterLast = native && last && t > last.t;
     const value = rowValue(row, afterLast ? last.t : t);
     row.value.element.textContent = value === null ? '' : `${rowValueText(row, afterLast ? last.t : t)}${afterLast ? ' · last' : ''}`;
-    row.value.element.title = afterLast ? `Last authored reading: ${timeText(last.t, 1)}. No value is extrapolated after it.` : native ? 'A ~ value is visual interpolation between authored interval readings.' : '';
+    row.value.element.title = afterLast ? `Last recorded sample: ${timeText(last.t, 1)}. No value is extrapolated after it.` : native ? 'A ~ value is visual interpolation between recorded samples.' : '';
     if (native && last) placeNativeValue(row, afterLast ? last.t : t);
     // While the years play, every readout stands at the playhead; at the end a process's readout returns to the margin.
     else if (!construction && !(atEnd && !playing)) placeNativeValue(row, t);
@@ -1692,7 +1718,7 @@ function apply() {
   }
   for (const entry of groupLabels) syncGroupLabel(entry);
   for (const thread of threads) {
-    const on = (!opt.detailProjection || opt.detailProjection.eventIds.has(thread.userData.event.id)) && opt.show.has('threads') && inView(thread.userData.t, 0.2) && (construction ? bornAt(thread.userData.event) <= tau : thread.userData.t <= now) && thread.userData.touched.some((row) => row.wall.visible);
+    const on = (!opt.detailProjection || opt.detailProjection.eventIds.has(thread.userData.event.id)) && opt.show.has('threads') && inView(thread.userData.t, 0.2) && (construction ? bornAt(thread.userData.event) <= tau : thread.userData.t <= now) && thread.userData.touched.some((row) => row.wall.visible && rowValue(row, thread.userData.t) !== null);
     thread.visible = on; if (thread.userData.tag) thread.userData.tag.visible = on;
   }
   for (const gem of decisions) gem.visible = (!opt.detailProjection || opt.detailProjection.eventIds.has(gem.userData.decision.eventId)) && opt.show.has('decisions') && inView(gem.userData.t) && shownByPlay(gem.userData.t, bornAt(gem.userData.decision)) && gem.userData.placed;
@@ -1971,8 +1997,8 @@ fillLinks(document.getElementById('repos'), data);
 document.getElementById('title').textContent = titleText; document.title = titleText;
 const inStoryThreads = threads.filter((thread) => thread.userData.t >= T0 - 0.2 && thread.userData.t <= T1);
 const FIELD_SUB = hasPaths ? `${measures.length} numerical curves${nativeMeasures.length ? `, including ${nativeMeasures.length} recorded Cut-answer series on a fixed 0–1 scale` : ', each on its own scale'}. `
-  + (nativeMeasures.length ? 'A ~ value is visual interpolation between authored readings; no Cut value is extrapolated beyond them.' : `Heights interpolate samples parsed from process source wording; ${inStoryThreads.length} Events move these processes.`)
-  : `${treeEvents.length} Events in their declared containment structure. Bars show time spans; this snapshot has no recorded Cut answers or dated process values to draw as curves${(data.inspection?.model?.laws ?? []).length ? ', and the viewer does not evaluate declared laws' : ''}.`;
+  + (recordedMeasures.length ? `${scalarMeasures.length ? `${scalarMeasures.length} series use dated process values. ` : ''}A ~ value is visual interpolation between recorded samples; these series are not extrapolated beyond them.` : `Heights interpolate samples parsed from process source wording; ${inStoryThreads.length} Events move these processes.`)
+  : `${treeEvents.length} Events in their declared containment structure. Bars show time spans, not numerical process values.${(data.inspection?.model?.laws ?? []).length ? ' The viewer does not evaluate declared laws.' : ''}`;
 document.getElementById('sub').textContent = FIELD_SUB;
 const tile = (name, value) => `<div class="stat"><div class="value">${value}</div><div class="name">${name}</div></div>`;
 showStats();
@@ -2455,6 +2481,7 @@ document.getElementById('all').addEventListener('click', () => { const all = KIN
 document.getElementById('lenses-all').addEventListener('click', () => { opt.lenses = opt.lenses.size === lensList.length ? new Set() : new Set(lensList.map((lens) => lens.id)); syncPanel(); syncURL(); extrasDirty = true; });
 function syncPanel() {
   if (!ready) return;
+  syncProcessDataHint();
   const on = (selector, attr, value) => { for (const button of document.querySelectorAll(selector)) button.classList.toggle('on', button.dataset[attr] === String(value)); };
   document.getElementById('play').setAttribute('aria-label', building() ? 'Play the construction' : `Play ${playLabel.toLowerCase()}`);
   document.getElementById('layout-note').textContent = { together: 'Every process on its own scale in one field.', layers: "The model's tree level by level: the world, what it holds and the parts of each, every process at the level of what holds it.", terrain: data.people.length ? 'Every function of the model as one terrain: the lives and their shocks, the processes they run through, what they want, feel and expect, and the world behind them.' : 'Every function of the model as one terrain, with the Events that happen in them and the world behind them.' }[opt.layout];
@@ -2648,9 +2675,9 @@ const numbersButton = document.createElement('button'); numbersButton.id = 'numb
 const readingsToReview = (data.numerics?.cuts ?? []).filter(readingNeedsReview).length;
 if (readingsToReview) numbersButton.textContent = `Numbers · ${readingsToReview} to review`;
 numbersButton.dataset.temporal = '';
-numbersButton.title = 'Browse every recorded Cut and scalar initial value, including undated records';
+numbersButton.title = 'Browse recorded Cuts, dated scalar samples and scalar initial values, including undated records';
 document.getElementById('everything').before(numbersButton);
-const numericOptions = () => ({ formatTime: (time) => timeText(time, 1), timeUnit: data.timeUnit, referentName: (id) => referents.get(id)?.name ?? id });
+const numericOptions = () => ({ formatTime: (time) => timeText(time, 1), timeUnit: data.timeUnit, referentName: (id) => referents.get(id)?.name ?? id, typedScalarSeries: data.typedScalarSeries ?? [] });
 function appendLensInspection(container, { lens, reading, within = null }) {
   const exact = numericCutById.get(reading.cutId);
   const label = `${within ? `Within the ${within.replace(/_/g, ' ')}: a deeper reading` : 'A reading'} · ${lens.name}${reading.earlier ? ' · asked of an earlier version' : ''}`;
@@ -2687,7 +2714,8 @@ onPlainClick(renderer.domElement, (event) => {
   // next reading, and so does the same light, bar or link again; the second click of a double-click keeps it.
   const key = targetKey(hoveredTarget);
   if (!details.hidden && (!hoveredTarget || (key !== null && key === pinnedTarget && event.detail < 2))) { hideDetails(); return; }
-  if (!tip.hidden && tip.childNodes.length) { if (hoveredRecord) publishRecord(hoveredRecord); showDetails([...tip.childNodes].map((node) => node.cloneNode(true)), hoveredTarget); tip.hidden = true; quietAt = { ...pointerAt }; } else hideDetails();
+  // Move the rendered details so lazy source controls keep their listeners.
+  if (!tip.hidden && tip.childNodes.length) { if (hoveredRecord) publishRecord(hoveredRecord); showDetails([...tip.childNodes], hoveredTarget); tip.hidden = true; quietAt = { ...pointerAt }; } else hideDetails();
 }, { signal: temporalEvents.signal });
 // Love-or-fear chips lift clear of each other; values and event names that would cover something wait for their turn.
 function declutter() {
@@ -2711,7 +2739,7 @@ function declutter() {
   const placed = [...panels];
   // Beyond the stage's field (the tree added, layers, another scale, or held still) the names of whoever and whatever
   // would cover each other take turns, and a love-or-fear chip with no room waits; the stage's field keeps its own rules.
-  const stage = !nativeMeasures.length && isStory() && blend.now === 0 && opt.camera !== 'locked' && !nodes.some((node) => node.inT);
+  const stage = !recordedMeasures.length && isStory() && blend.now === 0 && opt.camera !== 'locked' && !nodes.some((node) => node.inT);
   const names = [];
   for (const object of [...groupLabels.map((item) => item.object), ...rows.flatMap((row) => row.caption ? [row.caption, row.name] : [row.name])]) {
     const el = object.element; if (stage || !object.visible) { if (el.style.visibility) el.style.visibility = ''; continue; }
@@ -2780,7 +2808,7 @@ function hover() {
   if (arc) { hoveredRecord = { kind: 'event_relation', id: arc.relation.id }; hoveredTarget = arc; if (lit) { lit = null; drawNotes(); } renderer.domElement.style.cursor = 'help'; tip.replaceChildren(...arcLines(arc).map(([cls, text]) => tipLine(cls, text))); placeTip(); return; }
   // A curtain under the pointer: its process's display value and how it was obtained.
   const curtain = hit ? null : curtainAt(pointerAt); curtainMark.visible = Boolean(curtain) && field.visible;
-  if (curtain) { hoveredRecord = curtain.row.measure.kind === 'cut-answer' ? { kind: 'event', id: curtain.row.home } : { kind: 'process', id: curtain.row.measure.id }; if (lit) { lit = null; drawNotes(); } renderer.domElement.style.cursor = 'crosshair'; tip.replaceChildren(...curtainLines(curtain).map(([cls, text]) => tipLine(cls, text))); appendCurtainSources(tip, curtain); placeTip(); return; }
+  if (curtain) { hoveredRecord = curtain.row.measure.kind === 'cut-answer' ? { kind: 'event', id: curtain.row.home } : { kind: 'process', id: curtain.row.measure.processId ?? curtain.row.measure.id }; if (lit) { lit = null; drawNotes(); } renderer.domElement.style.cursor = 'crosshair'; tip.replaceChildren(...curtainLines(curtain).map(([cls, text]) => tipLine(cls, text))); appendCurtainSources(tip, curtain); placeTip(); return; }
   if (!hit) { tip.hidden = true; renderer.domElement.style.cursor = ''; if (lit) { lit = null; drawNotes(); } return; }
   if (lit !== hit) { lit = hit; drawNotes(); }
   hoveredTarget = hit;
@@ -2794,6 +2822,12 @@ function hover() {
   if (info.text && info.text !== info.title) { const text = document.createElement('div'); text.className = 'm'; text.textContent = info.text; tip.append(text); }
   if (info.about?.length) { const about = document.createElement('div'); about.className = 'a'; about.textContent = hit.userData.decision ? info.about.join(' · ') : `${info.kind === 'Event' ? 'Moves' : 'About'}: ${info.about.slice(0, 6).join(' · ')}`; tip.append(about); }
   if (info.values?.length) { tip.append(tipLine('a', 'At this moment')); for (const line of info.values) tip.append(tipLine('num-line', line)); }
+  if (info.valueRows?.length) {
+    tip.append(tipLine('a', `At the Event's start: ${timeText(info.valueTime, 1)}`));
+    for (const row of info.valueRows) if (presence(row) > 0.5 && rowValue(row, info.valueTime) !== null) {
+      tip.append(tipLine('num-line', `${NAMES[row.measure.id]}: ${rowValueText(row, info.valueTime)} · ${measurePosition(row.points ?? row.measure.points, info.valueTime).label}`));
+    }
+  }
   if (info.attached) { if (!info.attached.length) tip.append(tipLine('a', 'Attached to nothing in the model: a note of the agent’s own.')); else { tip.append(tipLine('a', 'Attached to')); for (const line of info.attached) tip.append(tipLine('a', line)); } }
   const floorHome = opt.noteLayout === 'floors' && noteById.get(hit.userData.id) === hit ? hit.userData.floorHome : null;
   if (floorHome?.kind === 'moment' && floorHome.node) tip.append(tipLine('a', `On the floor of ${clip(byId.get(floorHome.node.id)?.label ?? floorHome.node.id, 70)}, at its moment.`));
@@ -2832,6 +2866,11 @@ function curtainLines({ row, t }) {
     ['a', `Unit: ${row.measure.unit ?? 'not given'} · on its own scale, ${format(row, row.range[0])} to ${format(row, row.range[1])}`]];
 }
 function appendCurtainSources(container, { row, t }) {
+  if (row.measure.kind === 'typed-scalar') {
+    const sources = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = 'Recorded samples and provenance'; sources.append(summary);
+    appendTypedScalarSeries(sources, { ...row.measure, points: measurePosition(row.points, t).samples }, numericOptions());
+    container.append(sources); return;
+  }
   if (row.measure.kind !== 'cut-answer') return;
   const sources = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = 'Authored readings: all answers, context and conditional denominator'; sources.append(summary);
   for (const point of measurePosition(row.points, t).samples) if (point.cut) appendRecordedCut(sources, point.cut, numericOptions());

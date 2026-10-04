@@ -235,10 +235,13 @@ manuscript remains in the separate Life Simulation repository. Run
 `node scripts/verify-resources.mjs` from the Meaning Model repository root to
 check the companion snapshot, precompiled presets, and resource availability.
 
-Start with the operational protocol, the purpose-specific guide or profile,
+Every fresh agent reads the complete grammar at `life-sim://protocol/grammar`
+before modeling, including delegated agents. Then read the operational protocol, the purpose-specific guide or profile,
 and a relevant worked example. These explain the construction method and the
-contracts needed to use the tools. Paper reading is optional; profile
-compilation and the alien add-on do not require it. The former
+contracts needed to use the tools. `life_modeling_read` serves these resources
+to clients that expose only tools; follow its pages to the end. Reuse unchanged
+guidance while its contents remain in context. Full research papers are optional;
+the grammar remains required guidance for profile compilation and the alien add-on. The former
 `MEANING_MODEL_READING` setting is no longer needed. Papers remain available for
 the arguments, evidence and broader research program. Resource digests identify
 content; neither reading a resource nor passing validation proves understanding
@@ -518,6 +521,7 @@ The state-machine tools are:
 - `life_narrative_edit`
 - `life_narrative_query`
 - `life_narrative_render`
+- `life_document_import`
 - `life_narrative_training_export`
 - `life_narrative_rebind`
 - `life_narrative_alignment_audit`

@@ -5,6 +5,7 @@ import { modelDepthBasis, prepareModelDepthReview, recordModelDepthReview, readM
   from '../src/storytelling-depth.mjs';
 import { lifeTrendsDossier, lifeTrendsEdges, lifeTrendsNode } from './storytelling-life-fixture.mjs';
 import { conceptualReview } from '../src/modeling-guidance.mjs';
+import { grammarReadingInstructions } from '../src/construction-principles.mjs';
 
 const graphHash = 'a'.repeat(64);
 const snapshotHash = 'b'.repeat(64);
@@ -99,6 +100,7 @@ test('depth preparation reads the frozen source model and binds the exact task',
   assert.equal(task.model.administrativeRead, true);
   assert.equal(task.model.frozenRuntimeValuesIncluded, false);
   assert.ok(task.reviewerInstructions.includes(conceptualReview));
+  assert.ok(task.reviewerInstructions.includes(grammarReadingInstructions), 'a delegated model reviewer gets the complete reading route');
   assert.equal(task.semanticVerification, false);
   assert.equal(task.graphMutation, false);
   await assert.rejects(recordModelDepthReview(f.service,

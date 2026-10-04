@@ -59,9 +59,9 @@ export function unopenedProcessEvents(data) {
   for (const cut of data.numerics?.cuts ?? []) developed.add(cut.parentEventId ?? cut.eventId);
 
   const sampled = new Set();
-  for (const process of [...(data.measures ?? []), ...(data.processes ?? [])]) {
+  for (const process of [...(data.measures ?? []), ...(data.processes ?? []), ...(data.typedScalarSeries ?? [])]) {
     if ((process.points ?? []).some((point) => Number.isFinite(point.t) && Number.isFinite(point.v))) {
-      sampled.add(process.id); if (process.home) developed.add(process.home);
+      sampled.add(process.processId ?? process.id); if (process.home) developed.add(process.home);
     }
   }
   const hasInitialState = (process) => {

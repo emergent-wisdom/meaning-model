@@ -16,7 +16,7 @@ import { readWorldState, storeWorldRecord, worldInstructions, worldRecordSchema,
 import { cutKind, eventDescendants, indexModel, modelQuestions, personStateAt, readDraws, readOpenQuestions, thinkInTheModelInstructions, unplacedEvents } from './model-questions.mjs';
 import { direct as directStory, directionInstructions, directionSchema, directionState } from './storytelling-director.mjs';
 import { disclosureInstructions, disclosureReviewContext } from './storytelling-disclosure.mjs';
-import { constructionRecordInstructions } from './construction-principles.mjs';
+import { constructionRecordInstructions, grammarReadingInstructions } from './construction-principles.mjs';
 import { humanAuthorFeedbackInstructions } from './workflow-guidance.mjs';
 
 const id = z.string().trim().min(1).max(256);
@@ -438,8 +438,9 @@ export class StorytellingAddon {
         bankId: automatic ? 'common-words/v1' : null,
         bankSize: automatic ? storySeedWords.length : null,
       },
-      // Keep exploratory tasks focused; full authoring and review guidance is already served at entry.
-      generatorInstructions: (input.targetKind === 'name' ? nameExploreInstructions : structureExploreInstructions) + '\n\n' + explorationRecordInstructions,
+      // A delegated context needs its own grammar reading, but not the complete
+      // prose authoring and milestone review procedures for a small exploration.
+      generatorInstructions: grammarReadingInstructions + '\n\n' + (input.targetKind === 'name' ? nameExploreInstructions : structureExploreInstructions) + '\n\n' + explorationRecordInstructions,
       responseGuidance: input.targetKind === 'name'
         ? 'Briefly unpack the seed, then offer two or three names with the sound or meaning connection and their fit to the story. Flag confusion with existing names or a forced derivation; another draw is valid. Do not rename existing characters.'
         : 'Briefly unpack the word, then offer two or three distinct possibilities with the semantic connection, concrete structure, and a possible weakness of each. Leave the choice open; no ranking or formal template is required.',

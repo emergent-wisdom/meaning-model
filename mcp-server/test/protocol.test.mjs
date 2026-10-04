@@ -166,6 +166,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_construction_import',
       'life_construction_replay',
       'life_direction_draw',
+      'life_document_import',
       'life_document_project',
       'life_engine_status',
       'life_estimate_cut_shares',
@@ -194,6 +195,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_model_validate',
       'life_model_viewer_open',
       'life_modeling_context',
+      'life_modeling_read',
       'life_narrative_alignment_audit',
       'life_narrative_batch',
       'life_narrative_drift_check',
@@ -239,6 +241,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
     const { resources } = await client.listResources();
     const resourceUris = resources.map(({ uri }) => uri);
     for (const uri of [
+      'life-sim://protocol/grammar',
       'life-sim://theory/meaning-model',
       'life-sim://theory/life-simulation',
       'life-sim://protocol/modeling',
@@ -250,6 +253,19 @@ test('official MCP client discovers and calls the local stdio server', async () 
     ]) {
       assert.ok(resourceUris.includes(uri), `missing MCP resource ${uri}`);
     }
+    const grammarResource = await client.readResource({ uri: 'life-sim://protocol/grammar' });
+    let grammarText = ''; let grammarOffset = 0; let grammarHash;
+    do {
+      const page = await client.callTool({ name: 'life_modeling_read', arguments: {
+        uri: 'life-sim://protocol/grammar', offset: grammarOffset, maxCharacters: 24_000,
+        ...(grammarHash ? { expectedSha256: grammarHash } : {}),
+      } });
+      assert.ok(!page.isError, JSON.stringify(page));
+      grammarText += page.structuredContent.text;
+      grammarOffset = page.structuredContent.nextOffset;
+      grammarHash = page.structuredContent.sha256;
+    } while (grammarOffset !== null);
+    assert.equal(grammarText, grammarResource.contents[0].text);
     const { prompts } = await client.listPrompts();
     assert.ok(prompts.some(({ name }) => name === 'life_modeling_start'));
     assert.ok(prompts.some(({ name }) => name === 'life_general_modeling_start'));
@@ -310,7 +326,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       name: 'life_modeling_start',
       arguments: { purpose: 'creative_story', sessionMode: 'first_use' },
     });
-    assert.match(starter.messages[0].content.text, /no paper reading is required before modeling/);
+    assert.match(starter.messages[0].content.text, /full research papers remain optional/);
     const modelingContext = await client.callTool({
       name: 'life_modeling_context',
       arguments: { purpose: 'person_reflection', sessionMode: 'first_use' },
@@ -405,7 +421,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
     assert.match(profileTool.description, /A refused request returns a complete valid example of its kind/);
     const contextTool = tools.find(({ name }) => name === 'life_modeling_context');
     assert.equal(contextTool.annotations.readOnlyHint, true, 'modeling context no longer mutates a paper-access record');
-    assert.match(contextTool.description, /Paper reading is not required or tracked/);
+    assert.match(contextTool.description, /Every fresh agent reads the grammar/);
     const newDomainContext = await client.callTool({
       name: 'life_modeling_context',
       arguments: { purpose: 'observation', sessionMode: 'new_domain' },

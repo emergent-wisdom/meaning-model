@@ -2,6 +2,7 @@ import * as z from 'zod/v4';
 import { renderOntologyTree } from './alien-ontology.mjs';
 import { digest, drawSeed, findTargetLeaks, readSearch, requireProblem, targetTerms } from './alien-search.mjs';
 import { ontologyGaps, uncombinedPairs } from './alien-diagnose.mjs';
+import { grammarReadingInstructions } from './construction-principles.mjs';
 
 // Role tasks with information partitioned by construction, following Ontology of the
 // Alien: a target-blind Builder, a purpose-blind but target-aware Solver, a compiler
@@ -439,16 +440,20 @@ End your answer with one JSON object: roleMap (each {roleId, binding} where bind
     material = { mechanismNodeId: mechanism.nodeId, modelId: model.modelId, families };
     recordAs = 'transfer';
   }
+  // Fresh role contexts may have no MCP tools. Carry the reading requirement in
+  // the stored task without introducing the private context the role excludes.
+  text = `${grammarReadingInstructions}\n\nFor this isolated role, required reading is neutral method only and must not disclose the task's wider purpose. The caller must supply the complete unchanged grammar separately, or enable grammar resource reads or life_modeling_read. If an operational guide or example would reveal material beyond this packet, obtain neutral representation guidance from the caller instead. Do not seek additional project context, other tasks or prior outputs. Reading does not authorize additional model changes; perform only the role task below.\n\n${text}`;
   const condition = conditionLabel(role, inputs, Boolean(material.cue));
   const taskHash = digest({ schema: 'meaning-model-alien-task/v1', role, graphHash, searchRootId, inputs, text });
   const isolation = role === 'builder'
-    ? (targetBlind ? 'Give this task, and nothing else, to a fresh context that has never seen the problem. Record the output as a world with the returned taskNodeId, and state the isolation you used.'
+    ? (targetBlind ? 'Give this task and only the permitted neutral reading to a fresh context that has never seen the problem. Record the output as a world with the returned taskNodeId, and state the isolation you used.'
       : `This builder task is not target-blind (${targetLeaks.length ? `target terms: ${targetLeaks.join(', ')}` : 'oracle premise'}); the world record will say so. ${material.oraclePremise ? 'An oracle premise is target-aware by design; continue with that label if intentional.' : 'For a target-blind world, prepare a revised commission or operators without the listed target terms.'}`)
     : role === 'solver' ? 'Give this task to a fresh context that has not seen the builder task or the search\'s purpose. Record its answer as a solution with the returned taskNodeId.'
-      : role === 'world_curator' ? 'The world curator stays target-blind: a fresh context should see only this task.'
+      : role === 'world_curator' ? 'The world curator stays target-blind: a fresh context should see only this task and the permitted neutral reading.'
         : 'A fresh context is preferred; record the isolation you used.';
   return { role, graphHash, searchRootId, inputs, text, material, condition, targetBlind, purposeBlind, targetLeaks, taskHash,
-    taskRef: { role, graphHash, inputs, taskHash }, recordAs, isolationGuidance: isolation };
+    taskRef: { role, graphHash, inputs, taskHash }, recordAs,
+    isolationGuidance: `${isolation} The only permitted reading outside this task is the complete unchanged grammar and neutral operational representation guidance. Supply it separately or enable grammar reading; do not add target-specific context or other role outputs beyond what this task already includes.` };
 }
 
 // Tasks stored before task records existed were verified by recomputing them at their own graph

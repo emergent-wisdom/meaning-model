@@ -45,6 +45,9 @@
   .title .stats { position: static; display: flex; flex-wrap: wrap; gap: 0 14px; }
   .stat { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
   .stat .value { font-size: 12px; font-weight: 600; line-height: 18px; font-variant-numeric: tabular-nums; } .stat .name { color: var(--muted); font-size: 12px; }
+  .process-data-hint { max-width: 420px; margin-top: 6px; padding: 8px 10px; color: var(--ink-2); font-size: 12px; line-height: 1.45; background: rgba(18, 22, 29, 0.9); border: 1px solid var(--ring); border-left: 2px solid #8cadd6; border-radius: 6px; }
+  .process-data-hint strong { display: block; margin-bottom: 2px; color: var(--ink); font-weight: 600; }
+  body:has(#reader:not([hidden])) .process-data-hint { display: none !important; }
   .hud.title .model-picker { align-self: flex-start; max-width: var(--title-width); height: 26px; margin-left: -1px; padding: 0; background: none; box-shadow: none; backdrop-filter: none; pointer-events: auto; }
   .hud.title .model-picker i { display: none; }
   .hud.title .model-picker select { height: 26px; max-width: var(--title-width); padding: 0 20px 0 0; font-size: 17px; background-position: calc(100% - 10px) 11px, calc(100% - 5px) 11px; }
@@ -359,7 +362,7 @@
 <body>
 <div id="scene"></div>
 <!-- The HUD frames the scene: the model and its controls in one row at the top, time in one row at the bottom. -->
-<header class="hud title"><a class="brand-mark" href="https://meaningmodel.ai" target="_blank" rel="noopener" title="The Meaning Model" aria-label="The Meaning Model (opens meaningmodel.ai)"><img src="./logo.svg" alt="" width="24" height="24"></a><div class="eyebrow">The processes an agent modeled with the Meaning Model</div><h1 id="title">Processes</h1><div class="hud stats" id="stats"></div><div class="whose colour-key" id="colour-key" data-temporal aria-label="Whose colour is whose"></div></header>
+<header class="hud title"><a class="brand-mark" href="https://meaningmodel.ai" target="_blank" rel="noopener" title="The Meaning Model" aria-label="The Meaning Model (opens meaningmodel.ai)"><img src="./logo.svg" alt="" width="24" height="24"></a><div class="eyebrow">The processes an agent modeled with the Meaning Model</div><h1 id="title">Processes</h1><div class="hud stats" id="stats"></div><div class="whose colour-key" id="colour-key" data-temporal aria-label="Whose colour is whose"></div><div class="process-data-hint" id="process-data-hint" data-temporal hidden><strong>No curves to show yet</strong>These bars show Event time spans. Ask your agent to check recorded values and use a compatible dated series to show how processes change over time.</div></header>
 <!-- What is happening now and where the reading is, stacked just above the time bar. -->
 <div class="dock" id="dock">
 <div class="hud caption"><div class="kind" id="kind">The story</div><div class="text" id="text"></div></div>

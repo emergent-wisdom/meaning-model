@@ -14,6 +14,7 @@ import {
   modelingTheoryUris,
   readingMode,
   readModelingResource,
+  readModelingResourcePage,
   servedText,
   starterSelection,
 } from '../src/modeling-guidance.mjs';
@@ -46,15 +47,18 @@ test('memory and human feedback route through the same construction method with 
   assert.match(humanAuthorFeedbackInstructions, /Do not rewrite passages/);
 });
 
-test('modeling resources lead with the operational protocol and preserve complete optional papers', async () => {
+test('modeling resources lead with the complete grammar and preserve optional papers', async () => {
   const resources = listModelingResources();
-  assert.equal(resources[0].uri, 'life-sim://protocol/modeling');
+  assert.equal(resources[0].uri, 'life-sim://protocol/grammar');
   assert.deepEqual(
     resources.slice(-2).map(({ uri }) => uri), modelingTheoryUris,
   );
   const meaning = await readModelingResource('life-sim://theory/meaning-model');
   const life = await readModelingResource('life-sim://theory/life-simulation');
   const protocol = await readModelingResource('life-sim://protocol/modeling');
+  const grammarFile = new URL('../../paper/meaning-model-grammar.tex', import.meta.url);
+  const grammar = await readModelingResource('life-sim://protocol/grammar');
+  assert.equal(grammar.text, await expandTexInputs(await readFile(grammarFile, 'utf8'), grammarFile));
   const narrativeGraph = await readModelingResource(
     'life-sim://protocol/narrative-understanding-graph',
   );
@@ -81,6 +85,26 @@ test('modeling resources lead with the operational protocol and preserve complet
   assert.match(life.sha256, /^[a-f0-9]{64}$/);
 });
 
+test('tool-only resource pages reconstruct the complete grammar and reject stale or invalid ranges', async () => {
+  const uri = 'life-sim://protocol/grammar';
+  const resource = await readModelingResource(uri);
+  let offset = 0; let joined = ''; let pages = 0;
+  do {
+    const page = await readModelingResourcePage({ uri, offset, maxCharacters: 7_777, expectedSha256: resource.sha256 });
+    joined += page.text; pages += 1;
+    assert.equal(page.readingVerified, false);
+    assert.equal(page.bytes, Buffer.byteLength(resource.text));
+    assert.equal(page.totalCharacters, resource.text.length);
+    offset = page.nextOffset;
+  } while (offset !== null);
+  assert.ok(pages > 1);
+  assert.equal(joined, resource.text);
+  await assert.rejects(readModelingResourcePage({ uri, expectedSha256: '0'.repeat(64) }), /resource changed/);
+  await assert.rejects(readModelingResourcePage({ uri, offset: resource.text.length + 1 }), /past the end/);
+  await assert.rejects(readModelingResourcePage({ uri, maxCharacters: 0 }), /Invalid resource page/);
+  await assert.rejects(readModelingResourcePage({ uri: 'file:///private-source' }), /Unknown modeling resource/);
+});
+
 test('first-use context requires the operational contract and purpose guide without claiming comprehension', async () => {
   const context = await buildModelingContext({
     purpose: 'person_reflection',
@@ -91,8 +115,9 @@ test('first-use context requires the operational contract and purpose guide with
   assert.equal(context.theoryAccessGate.satisfied, true);
   assert.equal(context.theoryAccessGate.enforced, false);
   assert.deepEqual(
-    context.orderedResources.slice(0, 3).map(({ uri, required }) => ({ uri, required })),
+    context.orderedResources.slice(0, 4).map(({ uri, required }) => ({ uri, required })),
     [
+      { uri: 'life-sim://protocol/grammar', required: true },
       { uri: 'life-sim://protocol/modeling', required: true },
       { uri: 'life-sim://profile/person', required: true },
       { uri: 'life-sim://example/fearless-care', required: true },
@@ -135,7 +160,8 @@ test('starter prompt puts operational guidance before optional paper references'
     purpose: 'source_reconstruction',
     sessionMode: 'first_use',
   });
-  assert.match(prompt, /no paper reading is required before modeling/);
+  assert.match(prompt, /full research papers remain optional/);
+  assert.ok(prompt.indexOf('life-sim://protocol/grammar') < prompt.indexOf('life-sim://protocol/modeling'));
   assert.ok(
     prompt.indexOf('life-sim://theory/meaning-model') >
       prompt.indexOf('life-sim://protocol/modeling'),
@@ -156,6 +182,8 @@ test('every modeling purpose receives the common construction and application-ch
     assert.equal(context.conceptualReview, conceptualReview);
     assert.equal(context.theoryAccessGate.enforced, false);
     assert.equal(context.constructionRecord, constructionRecordInstructions);
+    assert.equal(context.orderedResources[0].uri, 'life-sim://protocol/grammar');
+    assert.equal(context.orderedResources[0].required, true);
     assert.match(context.constructionRecord, /^You are building an explicit world model from what you have learned:/, purpose);
     assert.match(context.constructionRecord, /Prior measurement is not a prerequisite for proposing these accounts/, purpose);
     assert.match(context.constructionRecord, /mark inference as inference/, purpose);

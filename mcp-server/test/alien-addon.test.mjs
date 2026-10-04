@@ -5,6 +5,7 @@ import { LifeSimulationService } from '../src/service.mjs';
 import { AlienAddon } from '../src/alien-addon.mjs';
 import { alienSeedWords, findTargetLeaks } from '../src/alien-search.mjs';
 import { buildTask } from '../src/alien-tasks.mjs';
+import { grammarReadingInstructions } from '../src/construction-principles.mjs';
 
 const scopes = ['author'];
 const problem = {
@@ -28,6 +29,11 @@ async function setup(t) {
   const task = async (role, inputs = {}) => {
     state.count += 1;
     const prepared = await addon.task({ ...base(), requestId: `t${state.count}`, authorId: 'tester', role, inputs });
+    assert.ok(prepared.text.includes(grammarReadingInstructions), `${role} receives the reading requirement in its stored task`);
+    assert.match(prepared.text, /caller must supply the complete unchanged grammar separately, or enable grammar resource reads or life_modeling_read/u);
+    assert.match(prepared.text, /perform only the role task below/u, 'reading does not authorize extra construction');
+    assert.match(prepared.isolationGuidance, /only permitted reading outside this task/u);
+    assert.match(prepared.isolationGuidance, /do not add target-specific context or other role outputs/u);
     state.graphHash = prepared.graphHash;
     return prepared;
   };

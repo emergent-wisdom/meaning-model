@@ -7,6 +7,7 @@ import { placeStoryUnits, countProseWords, buildStoryHierarchy } from '../viewer
 import { projectDocument } from './document-projection.mjs';
 import { temporalWindow } from '../viewer/public/temporal-layout.js';
 import { projectNumerics } from './viewer-numerics.mjs';
+import { projectScalarSeries } from './viewer-scalar-series.mjs';
 import { declaredViewerLives } from './viewer-snapshot.mjs';
 
 export async function buildViewerData({ history, rendered = null, documentRendered = null, calls = [], name = null, title: requestedTitle = null,
@@ -27,21 +28,34 @@ export async function buildViewerData({ history, rendered = null, documentRender
   // ---- graph replay ------------------------------------------------------------------------------------------------------
   const nodes = new Map(); const edges = new Map(); const graphSteps = [];
   const nodeBorn = new Map(); const edgeBorn = new Map();
+  // Typed samples use the birth of their current contents, so a revised value
+  // cannot appear at the earlier construction step that first created its ID.
+  const scalarNodeBorn = new Map(), scalarEdgeBorn = new Map();
+  const rememberGraphRecord = (records, births, record, stamp) => {
+    if (!records.has(record.id) || JSON.stringify(records.get(record.id)) !== JSON.stringify(record)) births.set(record.id, stamp);
+    records.set(record.id, record);
+  };
   let boundModel = null;
   history.revisions.forEach((revision, rev) => {
     const at = hashAt.get(revision.graphHash)?.at ?? null;
     const stamp = { rev, at }; // shared by everything this revision made; its place in the construction is added below
     const added = [];
     if (revision.definition) {
-      for (const node of revision.definition.nodes ?? []) { nodes.set(node.id, node); added.push(node.id); }
-      for (const edge of revision.definition.edges ?? []) edges.set(edge.id, edge);
+      for (const node of revision.definition.nodes ?? []) { rememberGraphRecord(nodes, scalarNodeBorn, node, stamp); added.push(node.id); }
+      for (const edge of revision.definition.edges ?? []) rememberGraphRecord(edges, scalarEdgeBorn, edge, stamp);
+      // A complete definition replaces the graph. Otherwise an estimate removed
+      // in a later full revision could survive and become a stale plotted value.
+      const currentNodes = new Set((revision.definition.nodes ?? []).map((node) => node.id));
+      const currentEdges = new Set((revision.definition.edges ?? []).map((edge) => edge.id));
+      for (const id of nodes.keys()) if (!currentNodes.has(id)) nodes.delete(id);
+      for (const id of edges.keys()) if (!currentEdges.has(id)) edges.delete(id);
       boundModel = revision.definition.source?.model_hash ?? boundModel;
     } else {
       const delta = revision.delta;
       for (const id of delta.removeNodeIds ?? []) nodes.delete(id);
       for (const id of delta.removeEdgeIds ?? []) edges.delete(id);
-      for (const node of delta.upsertNodes ?? []) { if (!nodes.has(node.id)) added.push(node.id); nodes.set(node.id, node); }
-      for (const edge of delta.upsertEdges ?? []) edges.set(edge.id, edge);
+      for (const node of delta.upsertNodes ?? []) { if (!nodes.has(node.id)) added.push(node.id); rememberGraphRecord(nodes, scalarNodeBorn, node, stamp); }
+      for (const edge of delta.upsertEdges ?? []) rememberGraphRecord(edges, scalarEdgeBorn, edge, stamp);
       if (delta.source?.model_hash) boundModel = delta.source.model_hash;
     }
     for (const id of added) if (!nodeBorn.has(id)) nodeBorn.set(id, stamp);
@@ -67,6 +81,7 @@ export async function buildViewerData({ history, rendered = null, documentRender
 
   // ---- model births ---------------------------------------------------------------------------------------------------
   const born = new Map(); // record key -> { rev, at }
+  const scalarClaimBorn = new Map(), scalarProcessBorn = new Map(); let previousClaims = new Map(), previousProcesses = new Map();
   const modelSteps = [];
   let previous = { events: new Set(), cuts: new Set(), referents: new Set(), relations: new Set(), processes: new Set() };
   modelLineage.forEach((entry, rev) => {
@@ -78,6 +93,12 @@ export async function buildViewerData({ history, rendered = null, documentRender
     };
     const at = hashAt.get(entry.modelHash)?.at ?? null;
     const stamp = { rev, at };
+    const claims = new Map((entry.definition.initial_claims ?? []).map((claim) => [claim.id, claim]));
+    for (const [id, claim] of claims) if (JSON.stringify(previousClaims.get(id)) !== JSON.stringify(claim)) scalarClaimBorn.set(id, stamp);
+    previousClaims = claims;
+    const currentProcesses = new Map((entry.definition.processes ?? []).map((process) => [process.id, process]));
+    for (const [id, process] of currentProcesses) if (JSON.stringify(previousProcesses.get(id)) !== JSON.stringify(process)) scalarProcessBorn.set(id, stamp);
+    previousProcesses = currentProcesses;
     const added = {};
     for (const [collection, ids] of Object.entries(now)) {
       added[collection] = [...ids].filter((id) => !previous[collection].has(id));
@@ -465,6 +486,10 @@ export async function buildViewerData({ history, rendered = null, documentRender
   const documentProjection = documentRender?.join_policy === 'blank_line' && documentRender.roots?.length === 1
     ? projectDocument({ rendered: documentRender, nodes: [...nodes.values()], edges: [...edges.values()], rootId: documentRender.roots[0] }) : null;
   const numerics = projectNumerics(model, { toDisplayTime: toYear });
+  const typedScalarSeries = projectScalarSeries(model, { modelHash: selectedModelEntry.modelHash,
+    graph: { nodes: [...nodes.values()], edges: [...edges.values()] }, toDisplayTime: toYear,
+    claimBorn: (id) => scalarClaimBorn.get(id), processBorn: (id) => scalarProcessBorn.get(id),
+    nodeBorn: (id) => scalarNodeBorn.get(id), edgeBorn: (id) => scalarEdgeBorn.get(id) });
   for (const reading of numerics.cuts) { reading.eventId = reading.parentEventId; reading.born = birthOf('cuts', reading.id); }
   const data = {
     // The story's own title, from its document in the graph; else the chosen world's.
@@ -473,7 +498,7 @@ export async function buildViewerData({ history, rendered = null, documentRender
     contexts: (mm.context_roots ?? []).map((root) => ({ eventId: root.event_id, kind: root.kind, holder: rootHolder(root.event_id), label: clip(index.events.get(root.event_id)?.boundary, 160) })),
     timeUnit: unit, firstCall, lastCall: calls.at(-1)?.at ?? null, headGraphHash: history.headGraphHash ?? null, modelHash: selectedModelEntry.modelHash,
     window, extent, storyWindow, storyRoute, people, events, relations, draws, referents, processes, lenses,
-    graph: { nodes: graphNodes, edges: graphEdges }, story, documentProjection, measures, numerics, steps, toolCalls,
+    graph: { nodes: graphNodes, edges: graphEdges }, story, documentProjection, measures, numerics, typedScalarSeries, steps, toolCalls,
     totals: { events: events.length, cuts: allCuts.length - withdrawn.size, people: people.length, lives: lives.length, thoughts: graphNodes.filter((node) => node.category === 'thought').length,
       passages: graphNodes.filter((node) => node.category === 'passage').length, words: storyWords ?? graphNodes.reduce((sum, node) => sum + node.words, 0), modelRevisions: modelLineage.length, graphRevisions: history.revisions.length },
   };
@@ -487,7 +512,8 @@ export async function buildViewerData({ history, rendered = null, documentRender
   data.capabilities = {
     graph: true,
     temporal: Boolean(temporalWindow(data)),
-    trajectories: calendarTime && Number.isFinite(viewStart) && Number.isFinite(viewEnd) && viewStart < viewEnd,
+    trajectories: (calendarTime && Number.isFinite(viewStart) && Number.isFinite(viewEnd) && viewStart < viewEnd)
+      || typedScalarSeries.some((series) => series.interpolation.kind === 'linear-visual-guide'),
     story: story?.units.some((item) => countProseWords(item.text) > 0) ?? false,
     construction: steps.length > 0,
   };

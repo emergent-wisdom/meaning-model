@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { StorytellingAddon, storySeedWords } from '../src/storytelling-addon.mjs';
-import { constructionRecordInstructions } from '../src/construction-principles.mjs';
+import { constructionRecordInstructions, grammarReadingInstructions } from '../src/construction-principles.mjs';
 import { controlledReadbackInstructions } from '../src/readback-guidance.mjs';
 
 function addonWithoutServiceAccess() {
@@ -28,6 +28,7 @@ test('structure exploration works before modeling and leaves generation to the c
   assert.equal(task.contextCompletenessVerified, false);
   assert.equal(task.worldMutation, false);
   assert.equal(task.graphMutation, false);
+  assert.ok(task.generatorInstructions.includes(grammarReadingInstructions), 'a standalone generator cannot assume the coordinator read on its behalf');
   assert.equal(task.readyToCommit, undefined);
   assert.deepEqual(input, before);
 });
@@ -73,6 +74,7 @@ test('supplied seeds make the task reproducible and all creative material is has
 
 test('a name draw keeps its record instructions without repeating prose and milestone review guides', async () => {
   const task = await addonWithoutServiceAccess().prepareStructureExplore({ brief, targetKind: 'name', seedWord: 'candle' });
+  assert.ok(task.generatorInstructions.includes(grammarReadingInstructions), 'name tasks retain the same required reading without the full review procedure');
   assert.ok(!task.generatorInstructions.includes('meaning-model-story-author-model/v1'), 'the author-model schema belongs to prose work');
   assert.match(task.generatorInstructions, /life-sim:\/\/addon\/storytelling/);
   assert.match(task.generatorInstructions, /life_story_author_record/);

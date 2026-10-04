@@ -44,6 +44,10 @@ the agreed task and available time. Build states, phases and connections in nati
 records; a list of process names or a single initial value does not describe their
 course. Refine existing processes as well as adding new ones. See the
 [shared process guidance](MODELING_PROTOCOL.md#6-develop-the-processes-across-the-model).
+Read the complete current grammar at `life-sim://protocol/grammar` before first
+modeling. In a tool-only client, use `life_modeling_read` and follow its pages to
+the end. Reuse the unchanged grammar while its contents remain in context.
+
 Create a first useful batch of coarse processes promptly, then expand and refine
 it. Use available batch operations and required structural checks; do not spend
 the initial work on an exhaustive plan or a separate review for each process.
@@ -54,6 +58,12 @@ change the account.
 Users should be able to inspect several processes through their represented time
 in the viewer, including clearly labeled hypothetical or estimated trajectories.
 Propose, model, inspect and revise; uncertainty should guide that work, not stop it.
+
+For a temporal demonstration, create and inspect the changing processes before
+presenting a map or static outline. Read back their values or phases at several
+times. Check the viewer's supported data, time units and filters if expected
+curves are missing; distinguish a display limitation from missing modeling.
+An Event span or an initial value alone does not show development through time.
 
 Begin with the enclosing system and its longer history, then work through the
 relevant sector to the focal actors and processes. Examine how local developments

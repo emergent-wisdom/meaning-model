@@ -6,6 +6,7 @@ import { createProcessDetail } from '../viewer/public/process-detail.js';
 import { nestedEventLayout } from '../viewer/public/nested-event-layout.js';
 
 const source = readFileSync(new URL('../viewer/public/view.js', import.meta.url), 'utf8');
+const boundedDeclaration = source.split('\n').find((line) => line.startsWith('const boundedMeasure ='));
 // Run the viewer's real initialization, controls and layout with rendering replaced.
 function between(startText, endText) {
   const start = source.indexOf(startText), end = source.indexOf(endText, start);
@@ -25,7 +26,7 @@ const layers = ['processes', 'threads', 'decisions', 'lovefear', 'causal', 'note
 const node = (id, depth, group = 'world', kind = 'event') => ({ id, depth, group, kind, trunk: depth <= 1, t0: 0, t1: 1 });
 function fixture(search = '', hasPaths = true) {
   const context = {
-    URLSearchParams, params: new URLSearchParams(search), createProcessDetail, treeEvents: [],
+    URLSearchParams, params: new URLSearchParams(search), createProcessDetail, treeEvents: [], recordedMeasures: [],
     data: { measures: hasPaths ? [{ points: [{ t: 0, v: 1 }, { t: 1, v: 2 }] }] : [], constructionTiming: 'unavailable' },
     hasTree: true, nodes: [node('world', 0), node('life', 1), node('work', 2, 'world', 'sub'), node('episode', 4), node('detail', 6)], rows: [],
     KINDS: layers.map((key) => [key]), lensList: [{ id: 'a-lens' }],
@@ -220,6 +221,7 @@ test('tree Events without numeric rows receive finite positions in both layout r
     floors: [], layersBounds: null, dirty: false, relayout: false, WORLD: '#9085e9', hueOfOwner: () => '#9085e9', fitLocked() {} };
   vm.createContext(context);
   vm.runInContext([
+    boundedDeclaration,
     between('const visibleNode =', 'function pack('),
     functionSource('pack'), functionSource('computeLayout'),
   ].join('\n'), context);
@@ -269,6 +271,7 @@ function nestedFixture({ collision = false, lifeOnPerson = false } = {}) {
   };
   vm.createContext(context);
   vm.runInContext([
+    boundedDeclaration,
     between('const visibleNode =', 'function pack('), functionSource('pack'),
     functionSource('computeNestedLayout'), functionSource('computeLayout'), functionSource('setEventLayout'),
   ].join('\n'), context);

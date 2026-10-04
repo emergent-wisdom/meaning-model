@@ -170,6 +170,7 @@ test('the current Book hides unopened slots while retaining numerical and qualit
 });
 
 const source = readFileSync(new URL('../viewer/public/view.js', import.meta.url), 'utf8');
+const boundedDeclaration = source.split('\n').find((line) => line.startsWith('const boundedMeasure ='));
 function between(startText, endText) {
   const start = source.indexOf(startText), end = source.indexOf(endText, start);
   assert.ok(start >= 0 && end > start, `Missing viewer section ${startText}`);
@@ -183,7 +184,7 @@ function functionSource(name) {
 
 test('the actual viewer enables the filter only through its explicit URL preference', () => {
   for (const query of ['', 'unopened=show', 'unopened=hide']) {
-    const context = { URLSearchParams, params: new URLSearchParams(query), data: { measures: [], constructionTiming: 'unavailable' } };
+    const context = { URLSearchParams, params: new URLSearchParams(query), recordedMeasures: [], data: { measures: [], constructionTiming: 'unavailable' } };
     vm.createContext(context);
     vm.runInContext(`${between('const hasPaths =', 'let selectedPart =')}\nthis.opt = opt;`, context);
     assert.equal(context.opt.hideUnopened, query === 'unopened=hide');
@@ -201,7 +202,7 @@ test('actual layout removes filtered nodes from both views and tree floors while
     floors: [], layersBounds: null, dirty: false, relayout: false, extrasDirty: false,
     apply() {}, syncPanel() {}, syncURL() {}, fitLocked() {} };
   vm.createContext(context);
-  vm.runInContext([between('const visibleNode =', 'function pack('), functionSource('pack'), functionSource('computeLayout'), functionSource('setHideUnopened')].join('\n'), context);
+  vm.runInContext([boundedDeclaration, between('const visibleNode =', 'function pack('), functionSource('pack'), functionSource('computeLayout'), functionSource('setHideUnopened')].join('\n'), context);
   context.computeLayout();
   assert.equal(nodes[1].shown, true, 'the opt-in filter leaves defaults unchanged');
   context.setHideUnopened(true);

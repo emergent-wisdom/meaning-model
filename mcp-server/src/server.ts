@@ -13,7 +13,7 @@ import { directionDrawSchema, drawDirection } from './direction-draw.mjs';
 import { registerJevProcessEstimationTools } from './jev-process-estimation.mjs';
 import { registerGeneralModelingTools } from './general-modeling.mjs';
 import { registerConstructionRecordTools } from './construction-record.mjs';
-import { modelingSessionInstructions, processDevelopmentInstructions } from './construction-principles.mjs';
+import { grammarReadingInstructions, modelingSessionInstructions, processDevelopmentInstructions } from './construction-principles.mjs';
 import { registerLensTools } from './lenses.mjs';
 import { registerRevisionCheckTools } from './revision-check.mjs';
 import { registerViewerTools } from './viewer-server.mjs';
@@ -23,6 +23,7 @@ import { narrativeRebindSchema, rebindNarrativeGraph } from './narrative-rebind.
 import { narrativeEditSchema, editNarrativeGraph } from './narrative-editing.mjs';
 import { registerNarrativeGroundingTools } from './narrative-grounding-tools.mjs';
 import { documentProjectSchema, projectNarrativeDocument } from './document-projection.mjs';
+import { registerDocumentImportTools } from './document-import.mjs';
 import {
   LifeSimulationService,
   meaningModelCollections,
@@ -42,6 +43,7 @@ import {
   modelingPurposes,
   modelingSessionModes,
   readModelingResource,
+  readModelingResourcePage,
 } from './modeling-guidance.mjs';
 
 const enabledAddons = parseEnabledAddons(process.env.MEANING_MODEL_ADDONS);
@@ -50,7 +52,7 @@ const server = new McpServer({
   name: 'meaning-model',
   version: '0.6.9',
 }, {
-  instructions: `${modelingSessionInstructions}\n\n${processDevelopmentInstructions}\n\n` + 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.\n\nIn every mode, begin modeling with life_modeling_context and follow its shared construction guidance. Agent memory and user memory are core purposes: maintain their ongoing processes, not only isolated facts, within the declared scope. Human-author feedback leaves authorship and creative decisions with the human; use life_story_feedback with the storytelling add-on for read-only feedback. All workflows use the same linked, attributed Understanding Graph for questions, hypotheses, predictions, surprises, tests and revisions. Explore recursively where a useful question, connection or discovery warrants it; record what is sufficient and what remains uncertain without forcing extra detail. Anything that changes over time can be modeled as a process, including qualities often written as fixed descriptions, such as a voice, a style, a belief or the culture of an institution. From the first story exploration, consider how the telling itself develops across reading position: tension, pacing, disclosure or other processes that matter to this work. Follow these questions recursively, using stable passage links and authored evidence without a required dramatic formula or numerical score. Keep reading position distinct from world time and authoring history. Let the work choose its form; books need not have a protagonist, conflict, climax or resolution. Use the shared narrative graph for forms that do not fit scenes, without inventing a cast to satisfy a template. Before writing or revising prose, consider author and character voice, reader disclosure, and consequential physical placement. Use declared passage links and existing records. At meaningful milestones, use the controlled read-back guidance to compare selected output against a blind control, reporting fidelity separately from improvement over the control. Do not wait for a special user request; if independent readers are unavailable, record that limitation rather than inventing a result. These are instructions to the calling LLM, not claims that the server has assessed meaning or automatically run reviewers.',
+  instructions: `${grammarReadingInstructions}\n\n${modelingSessionInstructions}\n\n${processDevelopmentInstructions}\n\n` + 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.\n\nIn every mode, begin modeling with life_modeling_context and follow its shared construction guidance. Agent memory and user memory are core purposes: maintain their ongoing processes, not only isolated facts, within the declared scope. Human-author feedback leaves authorship and creative decisions with the human; use life_story_feedback with the storytelling add-on for read-only feedback. All workflows use the same linked, attributed Understanding Graph for questions, hypotheses, predictions, surprises, tests and revisions. Explore recursively where a useful question, connection or discovery warrants it; record what is sufficient and what remains uncertain without forcing extra detail. Anything that changes over time can be modeled as a process, including qualities often written as fixed descriptions, such as a voice, a style, a belief or the culture of an institution. From the first story exploration, consider how the telling itself develops across reading position: tension, pacing, disclosure or other processes that matter to this work. Follow these questions recursively, using stable passage links and authored evidence without a required dramatic formula or numerical score. Keep reading position distinct from world time and authoring history. Let the work choose its form; books need not have a protagonist, conflict, climax or resolution. Use the shared narrative graph for forms that do not fit scenes, without inventing a cast to satisfy a template. Before writing or revising prose, consider author and character voice, reader disclosure, and consequential physical placement. Use declared passage links and existing records. At meaningful milestones, use the controlled read-back guidance to compare selected output against a blind control, reporting fidelity separately from improvement over the control. Do not wait for a special user request; if independent readers are unavailable, record that limitation rather than inventing a result. These are instructions to the calling LLM, not claims that the server has assessed meaning or automatically run reviewers.',
 });
 const service = new LifeSimulationService();
 const requestIdSchema = z.string().min(1).max(256);
@@ -102,7 +104,7 @@ server.registerPrompt(
   'life_modeling_start',
   {
     title: 'Start Meaning Model modeling',
-    description: 'Begin with the operational protocol, a purpose-specific guide or profile, and an example; the papers are optional references.',
+    description: 'Read the grammar first, then the operational protocol, a purpose-specific guide or profile, and an example; full research papers are optional references.',
     argsSchema: z.object({
       purpose: z.enum(modelingPurposes).describe(`One of ${modelingPurposes.join(', ')}.`),
       sessionMode: z.enum(modelingSessionModes).default('first_use').describe('One of first_use, repeat_same_domain, new_domain, consequential or continuation. Use continuation when you continue recorded work in this server; it begins with reading the construction record.'),
@@ -119,7 +121,7 @@ server.registerPrompt(
 server.registerTool(
   'life_modeling_context',
   {
-    description: 'Return the reading order and operational contract for general modeling, storytelling, human-author feedback, agent memory or user memory: the protocol, the guide or profile, and an example, with papers as optional references for fuller explanations. Paper reading is not required or tracked. Resource digests identify bytes, not comprehension.',
+    description: 'Return the reading order and operational contract for every mode: the complete grammar first, then the protocol, the guide or profile, and an example, with full research papers as optional references for fuller explanations. Every fresh agent reads the grammar; use life_modeling_read when direct resource reads are unavailable. Reading is instructed, not tracked or verified. Resource digests identify bytes, not comprehension.',
     inputSchema: z.object({
       purpose: z.enum(modelingPurposes).describe(`One of ${modelingPurposes.join(', ')}.`),
       sessionMode: z.enum(modelingSessionModes).default('first_use').describe('One of first_use, repeat_same_domain, new_domain, consequential or continuation. Use continuation when you continue recorded work in this server; it begins with reading the construction record.'),
@@ -128,6 +130,17 @@ server.registerTool(
   },
   async (input) => toolResult(await buildModelingContext(input)),
 );
+
+server.registerTool('life_modeling_read', {
+  description: 'Read canonical grammar or guidance through a tool, including in clients that do not expose MCP resources. Read life-sim://protocol/grammar before first modeling, then the required resources listed by life_modeling_context. Follow nextOffset until null to read the complete resource; pass expectedSha256 on later pages to detect changes. This tool does not attest comprehension or unlock mutations.',
+  inputSchema: z.object({
+    uri: z.enum(listModelingResources().map((resource) => resource.uri)),
+    offset: z.number().int().nonnegative().default(0),
+    maxCharacters: z.number().int().min(1).max(64_000).default(24_000),
+    expectedSha256: z.string().regex(/^[a-f0-9]{64}$/u).optional(),
+  }).strict(),
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+}, async (input) => toolResult(await readModelingResourcePage(input)));
 
 const generalPurposeNote = 'Purpose defaulted to observation; pass purpose to change it. observation keeps each report, estimate and judgment in its own authority, and suits explanatory or retrospective accounts built from records or recalled knowledge. forecasting adds values after the evidence cutoff that later observations can test. counterfactual holds an explicit alternative premise apart from the accepted history.';
 
@@ -943,6 +956,7 @@ registerMemoryTools(server, service, { toolResult });
 registerLensTools(server, service, { toolResult, estimator });
 registerRevisionCheckTools(server, service, { toolResult });
 registerNarrativeGroundingTools(server, service, { toolResult });
+registerDocumentImportTools(server, service, { toolResult });
 const viewer = registerViewerTools(server, service);
 
 if (enabledAddons.includes('storytelling')) {

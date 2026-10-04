@@ -165,7 +165,16 @@ and is off by default. The LLM chooses the scope and questions; tool code
 handles repetitive record construction. Reduced end-to-end cost and latency
 require measurement, including setup and review work.
 
-Read `life-sim://guide/general-modeling` for the complete workflow and limits.
+Every fresh agent reads `life-sim://protocol/grammar` first, then the operational
+protocol and its purpose guide. `life_modeling_read` serves these resources to
+clients that expose only tools. Read `life-sim://guide/general-modeling` for the
+complete workflow and limits.
+
+To bring in a book, use `life_document_import` with UTF-8 text or a local text
+file. It automatically splits the source into ordered, linkable document nodes,
+preserving exact text and source positions. Imported text stays separate from
+accepted facts and the manuscript. See the
+[source import guide](docs/NARRATIVE_UNDERSTANDING_GRAPH.md#import-a-book-or-source-document).
 
 ### Optional storytelling add-on
 

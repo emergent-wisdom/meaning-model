@@ -125,6 +125,75 @@ function appendScalar(container, record) {
   for (const text of [...(record.support ?? []), ...(record.provenance ?? [])]) container.append(element(document, 'div', 'a', text));
 }
 
+const metadataText = (value) => value === null || value === undefined ? 'not declared'
+  : typeof value === 'object' ? JSON.stringify(value) : String(value);
+
+export function appendTypedScalarSeries(container, series, options = {}) {
+  const document = container.ownerDocument, points = series.points ?? [];
+  const line = (className, text) => container.append(element(document, 'div', className, text));
+  const displayTime = (point) => Number.isFinite(point.t) ? (options.formatTime ?? String)(point.t) : 'No display time';
+  const unit = series.unit ? ` ${series.unit}` : '';
+  line('k', 'Dated scalar values');
+  line('v', series.label || series.processId || series.id);
+  line('a', `Process: ${series.processId}`);
+  line('a', `Unit: ${metadataText(series.unit)}`);
+  if (series.frame !== null && series.frame !== undefined) line('a', `Reference frame: ${series.frame}`);
+  line('a', `Holder: ${metadataText(series.holder)} · Mode: ${metadataText(series.mode)} · Evidence type: ${metadataText(series.evidenceType)}`);
+  line('a', series.interpolation?.kind === 'linear-visual-guide'
+    ? 'The curve is a linear visual guide between recorded readings, with no extrapolation.'
+    : series.conflicts?.length ? 'Conflicting readings are kept separate; no numerical curve is drawn.'
+      : points.length === 1 ? 'One dated reading: no numerical curve is drawn.'
+        : 'No compatible numerical curve is available; each reading remains inspectable.');
+  line('a', 'Review approval does not establish an accepted-world value.');
+  for (const conflict of series.conflicts ?? []) line('m', `Conflicting display time ${(options.formatTime ?? String)(conflict.t)}: ${(conflict.recordIds ?? []).join(', ')}`);
+  if (series.source) {
+    const source = element(document, 'details', '');
+    source.append(element(document, 'summary', '', 'Series source'));
+    let built = false;
+    source.addEventListener('toggle', () => {
+      if (!source.open || built) return; built = true;
+      source.append(element(document, 'pre', 'a', JSON.stringify(series.source, null, 2)));
+    });
+    container.append(source);
+  }
+  for (const point of points) {
+    const item = element(document, 'details', ''); item.style.margin = '8px 0';
+    item.append(element(document, 'summary', '', `${displayTime(point)} · ${metadataText(point.v)}${unit}${point.reviewStatus ? ` · ${point.reviewStatus}` : ''}`));
+    let built = false;
+    item.addEventListener('toggle', () => {
+      if (!item.open || built) return; built = true;
+      const detail = (text) => item.append(element(document, 'div', 'a', text));
+      detail(`Record: ${metadataText(point.id)}`);
+      detail(`Recorded value: ${metadataText(point.v)}${unit}`);
+      detail(`Native value time: ${metadataText(point.valueTime)}${series.timeUnit ? ` ${series.timeUnit}` : ''}`);
+      detail(`Evidence cutoff: ${metadataText(point.evidenceCutoff)}${point.evidenceCutoff != null && series.timeUnit ? ` ${series.timeUnit}` : ''}`);
+      detail(`Holder: ${metadataText(point.holder ?? series.holder)} · Mode: ${metadataText(point.mode ?? series.mode)}`);
+      detail(`Evidence type: ${metadataText(point.evidenceType ?? series.evidenceType)}`);
+      detail(`Authority: ${metadataText(point.authority)}`);
+      detail(`Review status: ${metadataText(point.reviewStatus)}`);
+      detail(`Accepted-world value: ${point.acceptedWorldValue === true ? 'declared by the source record' : point.acceptedWorldValue === false ? 'no' : 'not declared'}`);
+      detail(`Declared uncertainty: ${metadataText(point.uncertainty)}`);
+      for (const provenance of point.provenance ?? []) detail(`Provenance: ${metadataText(provenance)}`);
+      if (point.accessScopes?.length) detail(`Access scopes: ${point.accessScopes.join(', ')}`);
+      if (point.born) detail(`Construction record: ${metadataText(point.born)}`);
+      if (point.review) detail(`Review: ${metadataText(point.review)}`);
+      if (point.output) detail(`Recorded output: ${metadataText(point.output)}`);
+      if (point.record !== null && point.record !== undefined) {
+        const source = element(document, 'details', '');
+        source.append(element(document, 'summary', '', 'Native source record'));
+        let sourceBuilt = false;
+        source.addEventListener('toggle', () => {
+          if (!source.open || sourceBuilt) return; sourceBuilt = true;
+          source.append(element(document, 'pre', 'a', JSON.stringify(point.record, null, 2)));
+        });
+        item.append(source);
+      }
+    });
+    container.append(item);
+  }
+  return container;
+}
+
 // The panel browses the complete snapshot independently of the play cursor,
 // like the manuscript reader. Details are built only when a record is opened.
 export function appendRecordedNumbers(container, numerics = {}, options = {}) {
@@ -147,9 +216,12 @@ export function appendRecordedNumbers(container, numerics = {}, options = {}) {
   const cutTitle = (cut) => `${cut.question || cut.id} · ${cut.eventLabel || cut.parentEventId || cut.eventId} · ${recordedIntervalText(cut, options)}`;
   group('Needs review · changed or unresolved evidence', (numerics.cuts ?? []).filter(readingNeedsReview), cutTitle, (body, cut) => appendRecordedCut(body, cut, options));
   group('Current Cuts', (numerics.cuts ?? []).filter((cut) => !readingNeedsReview(cut)), cutTitle, (body, cut) => appendRecordedCut(body, cut, options));
+  const typedScalars = options.typedScalarSeries ?? [];
+  group('Dated scalar values', typedScalars, (series) => `${series.label || series.processId || series.id} · ${(series.points ?? []).length} dated readings`,
+    (body, series) => appendTypedScalarSeries(body, series, options));
   group('Scalar initial values · no recorded time', numerics.scalarRecords ?? [], (record) => `${record.label || record.processId || record.id}: ${record.value} ${record.unit ?? ''}`, appendScalar);
   const historical = Array.isArray(numerics.historical) ? numerics.historical : numerics.historical?.cuts ?? [];
   group('Historical Cuts', historical, cutTitle, (body, cut) => appendRecordedCut(body, cut, options));
-  if (!(numerics.cuts?.length || numerics.scalarRecords?.length || historical.length)) container.append(element(document, 'div', 'm', 'No recorded Cuts or scalar initial values in this snapshot.'));
+  if (!(numerics.cuts?.length || typedScalars.length || numerics.scalarRecords?.length || historical.length)) container.append(element(document, 'div', 'm', 'No recorded Cuts, dated scalar values or scalar initial values in this snapshot.'));
   return container;
 }

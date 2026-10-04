@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { direct, directionState, directorPrinciples, DIRECTION_SCHEMA } from '../src/storytelling-director.mjs';
+import { grammarReadingInstructions } from '../src/construction-principles.mjs';
 
 const graphHash = 'a'.repeat(64);
 const service = { async queryNarrativeGraph() { return { graph_hash: graphHash, content_included: true, nodes: [], edges: [], graph: { source: { kind: 'model', model_hash: 'f'.repeat(64) } } }; } };
@@ -29,6 +30,7 @@ test('without findings the director returns its task: the principles of the stag
   assert.deepEqual(task.principles.map((item) => item.id), directorPrinciples.filter((item) => item.stage === 'world').map((item) => item.id));
   assert.match(task.instructions, /a start, not a boundary/);
   assert.match(task.instructions, /Encourage depth/);
+  assert.ok(task.instructions.includes(grammarReadingInstructions), 'a fresh director gets the model grammar reading route');
 });
 
 test('a failing direction stays open until the model changed and a record answers it', () => {

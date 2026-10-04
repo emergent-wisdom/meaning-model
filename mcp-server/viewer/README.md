@@ -35,6 +35,20 @@ preserve these adaptations and the upstream license files, and verify a book
 scene, a general model inspector and each representation; `test/viewer-renderers.test.mjs`
 runs the Space and Graph renderers on the real scene graph.
 
+## Recorded process values
+
+Processes and Tree can show dated scalar claims and approved process-estimation
+records, as well as the existing Cut-answer curves. Each compatible series keeps
+its process, unit, holder, evidence and source. Separate estimation requests stay
+separate. The line between samples is a visual guide, marked `~` when interpolated;
+it stops at the last sample. Review approval does not turn an estimate into an
+accepted world value. **Numbers** retains single samples and conflicting records
+that cannot form a curve. Untimed initial values remain untimed.
+
+When only Event spans are available, a note explains that bars show intervals and
+asks the agent to check recorded values and their display representation. Hiding
+curves or viewing constant values does not trigger that note.
+
 ## Following a story as it grows
 
 While authoring, open `life_model_viewer_open` with `graphHash` and `mode: "live"`.

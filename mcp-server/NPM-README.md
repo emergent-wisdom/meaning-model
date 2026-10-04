@@ -196,7 +196,10 @@ and is off by default. The LLM chooses the scope and questions; tool code
 handles repetitive record construction. Reduced end-to-end cost and latency
 require measurement, including setup and review work.
 
-Read `life-sim://guide/general-modeling` for the complete workflow and limits.
+Every fresh agent reads `life-sim://protocol/grammar` first, then the operational
+protocol and its purpose guide. `life_modeling_read` serves these resources to
+clients that expose only tools. Read `life-sim://guide/general-modeling` for the
+complete workflow and limits.
 
 ## Install
 
@@ -331,6 +334,19 @@ artifact. A published manuscript comes from `life_narrative_render`, with only
 deliberately reviewed model or companion material selected for publication.
 Advanced callers can omit `destinationPath` for inline export, limited to 1 MiB,
 and supply that result as `history` on import instead of `sourcePath`.
+
+### Import a source book
+
+Ask the agent to import a plain-text or Markdown book with `life_document_import`.
+It can read a local UTF-8 file of up to 4 MiB and automatically group its
+paragraphs into linked source nodes. Long passages split at word boundaries.
+The exact text, order, byte positions and source hashes are kept. No AI call
+is needed for segmentation. Supply a stored model, or attach the book to an
+existing graph. Read the segments in the Graph view or with
+`life_narrative_query`, then link the model's interpretations to them.
+Source nodes do not enter the manuscript or training export and do not make
+the book's statements accepted facts. See the
+[source import guide](https://github.com/emergent-wisdom/meaning-model/blob/main/docs/NARRATIVE_UNDERSTANDING_GRAPH.md#import-a-book-or-source-document).
 
 ### Optional storytelling add-on
 

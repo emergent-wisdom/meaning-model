@@ -1,7 +1,7 @@
 import { thinkInTheModelInstructions } from './model-questions.mjs';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { constructionRecordInstructions, modelingSessionInstructions } from './construction-principles.mjs';
+import { constructionRecordInstructions, grammarReadingInstructions, modelingSessionInstructions } from './construction-principles.mjs';
 import { modelingWorkflows, purposeInstructions, workflowForPurpose } from './workflow-guidance.mjs';
 
 export const modelingPurposes = Object.freeze([
@@ -60,6 +60,15 @@ export const conceptualReview =
   'Within the agreed delegation, review numerical meaning and conceptual depth without waiting for the user to suggest them. Consider authored judgment scales for relevant meanings, motives, capacities or process changes that are not directly measured; define their comparison, units, anchors and uncertainty, and preserve source measurements separately. Open important concepts into useful parts or alternative lenses using native concepts and abstract cuts, then deepen a child when its label does not explain the relevant behavior or distinction. Assess how meanings differ across dates, actors or contexts; distinguish a changing world from a changed estimate, viewpoint or rubric. Store these assessments as Understanding Nodes linked to the actual definitions and evidence. Revisit them after consequential findings or revisions. Explain adequate boundaries, missing evidence or deliberate exclusions; do not invent scores, change or detail just to fill a checklist.';
 
 const resourceDefinitions = Object.freeze([
+  {
+    id: 'meaning-model-grammar',
+    uri: 'life-sim://protocol/grammar',
+    title: 'Meaning Model Minimized Grammar',
+    description: 'Complete current grammar appendix, with included definitions expanded. Read before modeling; the operational guides map this target contract to the current Rust host.',
+    mimeType: 'text/x-tex',
+    file: new URL('../../paper/meaning-model-grammar.tex', import.meta.url),
+    category: 'protocol',
+  },
   {
     id: 'meaning-model-paper',
     uri: 'life-sim://theory/meaning-model',
@@ -239,6 +248,22 @@ export async function readModelingResource(uri) {
   return loadDefinition(definition);
 }
 
+// Tool-only MCP hosts can read the same canonical resources without a second
+// document copy. Offsets are UTF-16 string positions in the digest-bound text.
+export async function readModelingResourcePage({ uri, offset = 0, maxCharacters = 24_000, expectedSha256 }) {
+  if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(maxCharacters)
+    || maxCharacters < 1 || maxCharacters > 64_000) throw new Error('Invalid resource page range.');
+  const resource = await readModelingResource(uri);
+  if (expectedSha256 && expectedSha256 !== resource.sha256) throw new Error('The resource changed; restart reading from offset 0.');
+  if (offset > resource.text.length) throw new Error('Resource page offset is past the end.');
+  let end = Math.min(resource.text.length, offset + maxCharacters);
+  // Keep surrogate pairs intact when pages are concatenated by clients.
+  if (end < resource.text.length && /[\uDC00-\uDFFF]/u.test(resource.text[end]) && /[\uD800-\uDBFF]/u.test(resource.text[end - 1])) end += 1;
+  return { ...resource, text: resource.text.slice(offset, end), offset,
+    nextOffset: end < resource.text.length ? end : null, totalCharacters: resource.text.length,
+    readingVerified: false };
+}
+
 function profileUri(purpose) {
   if (purpose === 'agent_memory' || purpose === 'user_memory') return 'life-sim://guide/memory';
   if (purpose === 'human_author_feedback') return 'life-sim://guide/human-author-feedback';
@@ -275,7 +300,8 @@ export async function buildModelingContext({
 }) {
   ensurePurpose(purpose);
   ensureMode(sessionMode);
-  const [meaning, life, protocol] = await Promise.all([
+  const [grammar, meaning, life, protocol] = await Promise.all([
+    readModelingResource('life-sim://protocol/grammar'),
     readModelingResource('life-sim://theory/meaning-model'),
     readModelingResource('life-sim://theory/life-simulation'),
     readModelingResource('life-sim://protocol/modeling'),
@@ -288,6 +314,8 @@ export async function buildModelingContext({
   const selectedProfile = profileUri(purpose);
   const selectedExample = exampleUri(purpose);
   const orderedResources = [
+    { uri: grammar.uri, sha256: grammar.sha256, required: true,
+      reason: 'Every fresh agent reads the complete grammar before modeling, including delegated agents. Reuse only while the unchanged contents are retained; refresh after changes or loss of context.' },
     {
       uri: protocol.uri,
       sha256: protocol.sha256,
@@ -319,6 +347,7 @@ export async function buildModelingContext({
     purposeInstructions: purposeInstructions(purpose),
     sessionMode,
     sessionGuidance: modelingSessionInstructions,
+    grammarInstructions: grammarReadingInstructions,
     modelingFreedom,
     starterSelection,
     scaleReview,
@@ -336,7 +365,7 @@ export async function buildModelingContext({
       enforced: false,
       durableAcrossServerRestart: false,
     },
-    comprehensionBoundary: 'The operational guides carry the method; the papers are optional references. Required resources need reading on first use, when changed or when their relevant guidance is no longer retained, not before every reply. The server does not track or require paper access and cannot verify comprehension. Resource digests identify exact bytes, not reading or understanding.',
+    comprehensionBoundary: 'The grammar and operational guides are required reading; the full research papers are optional references. Required resources need reading on first use, when changed or when their relevant guidance is no longer retained, not before every reply. The server does not track reading and cannot verify comprehension. Resource digests identify exact bytes, not reading or understanding.',
     orderedResources,
     minimumChecklist: [
       'declare purpose, interval, scope, resolution, and authority',
@@ -400,7 +429,8 @@ export async function buildModelingPrompt({ purpose, sessionMode }) {
     '',
     context.conceptualReview,
     '',
-    'Call life_modeling_context, then read the operational protocol, the guide or profile for your purpose, and a worked example in its required order. Reuse unchanged guidance that you retain; a new conversational reply does not require rereading it or recording that you did so. Refresh guidance when its content changes, your purpose needs an unfamiliar guide, or relevant context has been lost. The papers are optional references for fuller explanations; no paper reading is required before modeling.',
+    context.grammarInstructions,
+    'Call life_modeling_context, then read the grammar, the operational protocol, the guide or profile for your purpose, and a worked example in that order. Use life_modeling_read with nextOffset to finish each resource if direct MCP resource reads are unavailable. Reuse unchanged guidance that you retain; a new conversational reply does not require rereading it or recording that you did so. Refresh guidance when its content changes, your purpose needs an unfamiliar guide, or relevant context has been lost. The full research papers remain optional references for fuller explanations.',
     ordered,
     '',
     'Declare purpose, interval, scope, resolution, authority, and evidence classes. Preserve alternative interpretations; use sampled trajectories where they suffice and label proposed transition functions as hypotheses to explore and test.',
