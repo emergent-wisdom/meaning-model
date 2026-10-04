@@ -94,7 +94,9 @@ test('public records retain accepted shapes and reject trial mistakes and cross-
     const result = await client.callTool({ name: 'life_alien_record', arguments: {
       ...base(), requestId: 'schema.rejected', nodeId: 'rejected', kind, data } });
     assert.equal(result.isError, true);
-    assert.match(result.content.filter(({ type }) => type === 'text').map(({ text }) => text).join('\n'), message);
+    const text = result.content.filter(({ type }) => type === 'text').map(({ text }) => text).join('\n');
+    assert.match(text, message);
+    assert.doesNotMatch(text, /^\s*\[|"code":|"path":/u, 'Alien payload validation returns readable field messages through MCP, not a Zod issue dump');
   };
   const diagnosis = await call(client, 'life_alien_search_diagnose', { graphHash, searchRootId: 'search.schema', accessScopes: ['author'] });
   const commission = { addressedTo: 'new_world', worldAsk: 'Explore effects whose sources vanish.', rationale: 'Explore a distinct causal order.' };
