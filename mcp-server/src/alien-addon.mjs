@@ -72,8 +72,8 @@ const taskSchema = z.object({
     seedSalt: id.nullable().optional().describe('builder: draw again with this salt; the world records it.'),
     operators: z.array(worldOperatorSchema).max(6).optional().describe('builder: departures composed with the seed.'),
     commissionNodeId: id.nullable().optional().describe('builder (new_world), compiler (retry) or explorer commission.'),
-    populationState: z.enum(POPULATION_STATES).optional().describe('compiler (default none) or explorer (default map): none, tabu or map.'),
-    cueWord: id.nullable().optional().describe('explorer: a random-word cue to use.'), drawCue: z.boolean().optional().describe('explorer: draw a cue word from the bank.'),
+    populationState: z.enum(POPULATION_STATES).optional().describe('compiler (default none) or explorer (default map): none, tabu or map. Retries inherit the original task unless explicitly overridden.'),
+    cueWord: id.nullable().optional().describe('explorer: a cue word to use; null explicitly removes an inherited retry cue.'), drawCue: z.boolean().optional().describe('explorer: draw a new cue word from the bank, including on a retry.'),
     ontology: z.enum(['mechanisms', 'outcomes']).optional().describe('curator: which ontology the decision concerns (default mechanisms).'),
     worldNodeId: id.optional(), solutionNodeId: id.optional(), subjectNodeId: id.optional(), mechanismNodeId: id.optional(),
   }).strict().default({}),
@@ -109,7 +109,10 @@ const recordData = {
     candidate: candidateSchema,
     selfAudit: z.object({ bottleneckRelief: z.enum(['clear', 'partial', 'none']), fiat: z.enum(['pass', 'borderline', 'fail']),
       capabilityProvenance: z.enum(['direct', 'amplified', 'mixed']), rationale: prose(2_000) }).strict().nullable().default(null),
-    isolation: z.object({ compiler: isolation }).strict(),
+    isolation: z.object({ compiler: isolation.optional(), explorer: isolation.optional() }).strict().superRefine((value, context) => {
+      if (!value.compiler && !value.explorer) context.addIssue({ code: 'custom', path: ['compiler'], message: 'Record compiler isolation, or explorer isolation for an explorer task.' });
+      if (value.compiler && value.explorer && value.compiler !== value.explorer) context.addIssue({ code: 'custom', path: ['explorer'], message: 'compiler and explorer isolation must agree when both are supplied.' });
+    }).describe('Explorer outputs may use explorer or the legacy compiler key. Both keys must agree if supplied together.'),
   }).strict(),
   commission: z.object({
     addressedTo: z.enum(['new_world', 'explorer']),
@@ -194,8 +197,17 @@ const readSchema = z.object({ graphHash: hash, searchRootId: id, accessScopes: s
 const atlasSchema = readSchema.extend({ includeWorldTexts: z.boolean().default(false) }).strict();
 const checkSchema = readSchema.extend({
   revisionNodeId: id.describe('The ontology revision whose curator decision is checked.'),
+  submission: z.object({
+    questionHash: hash.describe('questionHash returned by a prior call for this revision and search.'),
+    answers: z.record(z.string(), z.object({ choice: id }).strict()).describe('Exactly one answer per returned question, using a key from that question\'s criteria.'),
+    evaluator: z.enum(['calling_llm', 'human']),
+    isolation: z.enum(['fresh_context', 'same_context', 'human']),
+    provenance: prose(4_000).describe('Who answered, how they received the questions, and what context they saw. A caller declaration, not verified independence.'),
+  }).strict().superRefine((value, context) => {
+    if ((value.evaluator === 'human') !== (value.isolation === 'human')) context.addIssue({ code: 'custom', path: ['isolation'], message: 'A human evaluator uses human isolation; a calling_llm uses fresh_context or same_context.' });
+  }).nullable().default(null).describe('Caller-supplied answers, available with or without an estimator. No estimator call is made when supplied.'),
   record: z.object({ requestId: id, nodeId: id, authorId: id }).strict().nullable().default(null)
-    .describe('Store the check as a decision_check record linked to the revision. Needs the configured estimator.'),
+    .describe('Store the check as a decision_check record linked to the revision. Supply answers or configure an estimator.'),
 }).strict();
 const exportSchema = readSchema.extend({
   worldNodeIds: z.array(id).max(200).nullable().default(null).describe('Worlds to export; omit for every target-blind world of the search.'),
@@ -234,6 +246,27 @@ function resolveModelRef(model, ref) {
   for (const key of path.split('.')) records = records?.[key];
   if (!Array.isArray(records) || !records.some((record) => record?.id === recordId)) throw new Error(`Transfer ref ${ref} does not name a ${kind} in the target model.`);
   return { kind, recordId, anchorKind };
+}
+
+const diagnoseNext = 'Diagnose the search with life_alien_search_diagnose before commissioning the next world.';
+
+function pendingSubjectStep(search, subject, current = null) {
+  const decisionFor = (ontology, nodeId) => current?.ontology === ontology && current.decision.subjectNodeId === nodeId
+    ? current.decision : search.revisions.filter((item) => item.data.ontology === ontology && item.data.decision.subjectNodeId === nodeId).at(-1)?.data.decision;
+  const mechanismStep = (mechanism) => {
+    const pending = ['mechanisms', 'outcomes'].filter((ontology) => !decisionFor(ontology, mechanism.nodeId));
+    return pending.length ? `Prepare curator tasks with subjectNodeId ${mechanism.nodeId} for the ${pending.join(' and ')} ontologies, then record the decisions with life_alien_ontology_revise.` : null;
+  };
+  if (subject?.kind === 'mechanism') return mechanismStep(subject) ?? diagnoseNext;
+  if (subject?.kind !== 'world') return diagnoseNext;
+  const solution = search.solutions.filter((item) => item.data.worldNodeId === subject.nodeId).at(-1);
+  if (!solution) return `Prepare the solver task with worldNodeId ${subject.nodeId}.`;
+  const worldDecision = decisionFor('worlds', subject.nodeId);
+  if (!worldDecision) return `Prepare a world_curator task with subjectNodeId ${subject.nodeId}, then record the worlds ontology decision.`;
+  if (worldDecision.redirect) return `Prepare a builder task with commissionNodeId ${worldDecision.redirect.commissionNodeId}.`;
+  const mechanisms = search.mechanisms.filter((item) => item.data.source.worldNodeId === subject.nodeId && item.data.source.solutionNodeId === solution.nodeId);
+  if (!mechanisms.length) return `Prepare the compiler task with worldNodeId ${subject.nodeId} and solutionNodeId ${solution.nodeId}.`;
+  return mechanisms.map(mechanismStep).find(Boolean) ?? diagnoseNext;
 }
 
 export class AlienAddon {
@@ -335,7 +368,9 @@ export class AlienAddon {
       if (data.commissionNodeId) links.push({ relation: 'learned_from', targetNodeId: data.commissionNodeId });
       title = data.title; epistemicStatus = 'fictional_artifact'; evidenceType = 'fictional_canon';
       if (!task.targetBlind) warnings.push('This world is not target-blind; its record says so.');
-      if (data.isolation.builder !== 'fresh_context') warnings.push('The builder did not run in a fresh context; target blindness is procedural here.');
+      if (data.isolation.builder !== 'fresh_context') warnings.push(task.targetBlind
+        ? 'The builder did not run in a fresh context; target blindness is procedural here.'
+        : 'The builder did not run in a fresh context; context isolation is not established. This task is already marked target-aware.');
     } else if (input.kind === 'solution') {
       task = await this.resolveTask(input, search, ['solver']);
       if (task.inputs.worldNodeId !== data.worldNodeId) throw new Error(`The solver task solves ${task.inputs.worldNodeId}, not ${data.worldNodeId}.`);
@@ -345,8 +380,13 @@ export class AlienAddon {
       if (unknown.length) throw new Error(`Cited rules ${unknown.join(', ')} are not rules of ${world.nodeId}.`);
       links.push({ relation: 'solves', targetNodeId: world.nodeId });
       title = `Solve of ${world.data.title}`; epistemicStatus = 'fictional_artifact'; evidenceType = 'fictional_canon';
+      if (data.isolation.solver !== 'fresh_context') warnings.push('The solver did not run in a fresh context; purpose blindness is procedural here.');
     } else if (input.kind === 'mechanism') {
       task = await this.resolveTask(input, search, ['compiler', 'explorer']);
+      if (task.role === 'compiler' && data.isolation.explorer !== undefined) throw new Error('A compiler task records isolation.compiler; isolation.explorer belongs to an explorer task.');
+      // Keep the stored key used by existing graph readers; accept the role name at the input boundary.
+      data.isolation = { compiler: data.isolation.compiler ?? data.isolation.explorer };
+      if (data.isolation.compiler !== 'fresh_context') warnings.push(`The ${task.role} did not run in a fresh context; isolation of the selected population state is procedural here.`);
       const commission = task.inputs.commissionNodeId ? search.record(task.inputs.commissionNodeId, 'commission') : null;
       const source = task.role === 'compiler'
         ? { kind: 'world', worldNodeId: task.inputs.worldNodeId, solutionNodeId: task.inputs.solutionNodeId, commissionNodeId: commission?.nodeId ?? null, retryOfNodeId: commission?.data.retryOfNodeId ?? null }
@@ -378,9 +418,10 @@ export class AlienAddon {
         const past = await readSearch(this.service, { graphHash: data.diagnosis.graphHash, searchRootId: input.searchRootId, accessScopes: input.accessScopes });
         if (diagnoseSearch(past).diagnosisHash !== data.diagnosis.diagnosisHash) throw new Error('diagnosisHash does not match the diagnosis at that graph revision.');
       }
-      const state = search.ontologyState('mechanisms');
-      for (const conceptId of data.avoidConceptIds) if (!state.concepts.some((concept) => concept.id === conceptId && concept.status === 'active')) {
-        throw new Error(`avoidConceptIds names ${conceptId}, which is not an active mechanism family.`);
+      const concepts = [...search.ontologyState('mechanisms').concepts,
+        ...(data.addressedTo === 'new_world' ? search.ontologyState('worlds').concepts : [])];
+      for (const conceptId of data.avoidConceptIds) if (!concepts.some((concept) => concept.id === conceptId && concept.status === 'active')) {
+        throw new Error(`avoidConceptIds names ${conceptId}, which is not an active mechanism family${data.addressedTo === 'new_world' ? ' or world regime' : ''}.`);
       }
       data.retryOfNodeId = null; data.alternatives = [];
       data.targetLeaks = findTargetLeaks([data.worldAsk ?? '', ...data.operators.map((item) => item.statement)].join('\n'), targetTerms(requireProblem(search)));
@@ -429,9 +470,11 @@ export class AlienAddon {
           taskHash: task.taskHash, targetBlind: task.targetBlind, purposeBlind: task.purposeBlind } : null }] }));
     const next = {
       world: `Prepare the solver task for ${input.nodeId}, then code its causal signature with a world_curator task.`,
-      solution: `Prepare the compiler task with worldNodeId and solutionNodeId ${input.nodeId}.`,
+      solution: input.kind === 'solution' ? pendingSubjectStep({ ...search, solutions: [...search.solutions, { nodeId: input.nodeId, data }] }, search.record(data.worldNodeId, 'world')) : null,
       mechanism: `Prepare curator tasks with subjectNodeId ${input.nodeId} for the mechanisms and outcomes ontologies, then record the decisions with life_alien_ontology_revise.`,
-      commission: data.addressedTo === 'new_world' ? `Prepare the next builder task with commissionNodeId ${input.nodeId}.` : `Prepare an explorer task with commissionNodeId ${input.nodeId}.`,
+      commission: data.addressedTo === 'new_world'
+        ? `${data.targetLeaks.length ? 'This commission is target-aware. To keep the next world target-blind, record a revised commission without the listed target terms; otherwise continue as an explicitly target-aware run. ' : ''}Prepare the next builder task with commissionNodeId ${input.nodeId}.`
+        : `Prepare an explorer task with commissionNodeId ${input.nodeId}.`,
       transfer: 'Assess the transfer, or develop it further in the target model with the general modeling tools.',
       assessment: 'Continue the loop, or record a selection when the user wants one.',
       selection: 'Export the search with life_alien_atlas when the user wants to read it.',
@@ -533,7 +576,7 @@ export class AlienAddon {
       graphMutation: true, worldMutation: false, semanticVerification: false,
       nextStep: decision.redirect
         ? (decision.redirect.addressedTo === 'retry' ? `Prepare ${retry} commissionNodeId ${decision.redirect.commissionNodeId}.` : `Prepare a builder task with commissionNodeId ${decision.redirect.commissionNodeId}.`)
-        : 'Diagnose the search with life_alien_search_diagnose before commissioning the next world.' };
+        : pendingSubjectStep(search, subject, { ontology: input.ontology, decision }) };
   }
 
   async diagnose(raw) {
@@ -586,12 +629,28 @@ export class AlienAddon {
     }
     if (!Object.keys(questions).length) throw new Error('This decision has nothing to compare: no earlier concepts and no assigned concept.');
     const state = { task: `Second judge for a curator decision in the ${ontology} ontology of an ideation search.`, candidate: subjectText };
+    const questionHash = digest({ searchRootId: input.searchRootId, revisionNodeId: revision.nodeId,
+      revision: revision.data, state, questions, options: [...options] });
     const base = { schema: 'meaning-model-alien-decision-check/v1', graphHash: input.graphHash, searchRootId: input.searchRootId, revisionNodeId: revision.nodeId,
-      ontology, verdict: decision.verdict, subjectNodeId: decision.subjectNodeId, questions, state, semanticVerification: false, worldMutation: false };
-    if (!this.estimator) {
-      if (input.record) throw new Error('Recording a decision check needs the configured estimator (MEANING_MODEL_ESTIMATOR); without it, answer the questions in a fresh context and record an assessment.');
+      ontology, verdict: decision.verdict, subjectNodeId: decision.subjectNodeId, questions, questionHash, state, semanticVerification: false, worldMutation: false };
+    if (!this.estimator && !input.submission) {
+      if (input.record) throw new Error('Recording a decision check needs the configured estimator (MEANING_MODEL_ESTIMATOR) or a submission with answers and the questionHash from a prior call.');
       return { ...base, evaluator: 'calling_llm', answers: null, agreement: null, graphMutation: false,
-        instructions: 'No external estimator is configured. Answer each question in a fresh context that has not seen the curator\'s decision, then record the comparison as an assessment linked to the revision.' };
+        instructions: 'No external estimator is configured. Give only state and questions to a fresh judge, not this response envelope or the curator\'s decision. Submit exactly one {choice} per question, using its criteria keys, with questionHash, evaluator, isolation and provenance; add record to store the check. Isolation and provenance are caller declarations, not verified independence.' };
+    }
+    let submitted = null;
+    if (input.submission) {
+      if (input.submission.questionHash !== questionHash) throw new Error('submission.questionHash does not match this search, revision and question set. Prepare the decision check again and answer those questions.');
+      const keys = Object.keys(input.submission.answers).sort();
+      if (JSON.stringify(keys) !== JSON.stringify(Object.keys(questions).sort())) throw new Error(`submission.answers must contain exactly these questions: ${Object.keys(questions).join(', ')}.`);
+      const answers = {};
+      for (const [key, question] of Object.entries(questions)) {
+        const { choice } = input.submission.answers[key];
+        if (!Object.hasOwn(question.criteria, choice)) throw new Error(`submission.answers.${key}.choice must be one of ${Object.keys(question.criteria).join(', ')}.`);
+        answers[key] = { choice: key === 'nearest' ? (options.get(choice) ?? choice) : choice,
+          ...(key === 'nearest' ? { optionKey: choice } : {}), confidence: null, probabilities: null };
+      }
+      submitted = { answers, usage: null, model: null };
     }
     const produce = async () => {
       const result = await this.estimator.estimate(state, questions);
@@ -600,26 +659,31 @@ export class AlienAddon {
         const answer = result.answers?.[key];
         if (answer?.type !== 'choice' || !Object.hasOwn(question.criteria, answer.choice)) throw new Error(`Estimator returned no valid choice for ${key}.`);
         answers[key] = { choice: key === 'nearest' ? (options.get(answer.choice) ?? answer.choice) : answer.choice,
+          ...(key === 'nearest' ? { optionKey: answer.choice } : {}),
           confidence: typeof answer.confidence === 'number' ? answer.confidence : null, probabilities: answer.probabilities ?? null };
       }
       return { answers, usage: result.usage ?? null, model: result.model ?? this.estimator.model };
     };
-    const estimated = input.record ? await runEstimatorRequest(this.service, 'alien-decision-check', input.record.requestId, input, produce) : await produce();
+    const estimated = submitted ?? (input.record ? await runEstimatorRequest(this.service, 'alien-decision-check', input.record.requestId, input, produce) : await produce());
     const curatorOperator = decision.equivalence ? decision.equivalence.primaryOperatorChanged : null;
     const judgeOperator = estimated.answers.operator ? { changed: true, surface_only: false, unclear: null }[estimated.answers.operator.choice] : undefined;
     const agreement = {
-      nearest: estimated.answers.nearest && comparedId ? estimated.answers.nearest.choice === comparedId : null,
+      nearest: estimated.answers.nearest && comparedId ? estimated.answers.nearest.optionKey !== 'none' && estimated.answers.nearest.choice === comparedId : null,
       operator: judgeOperator === undefined || judgeOperator === null || curatorOperator === null ? null : judgeOperator === curatorOperator,
       fit: estimated.answers.fit && decision.fit ? estimated.answers.fit.choice === decision.fit : null,
     };
     const disagreements = Object.entries(agreement).filter(([, value]) => value === false).map(([aspect]) => aspect);
-    const evaluator = `${this.estimator.backend}:${estimated.model}`;
-    const result = { ...base, evaluator, answers: estimated.answers, agreement, disagreements, usage: estimated.usage };
+    const evaluator = input.submission?.evaluator ?? `${this.estimator.backend}:${estimated.model}`;
+    const evaluation = input.submission
+      ? { source: 'caller_submission', isolation: input.submission.isolation, provenance: input.submission.provenance, independenceVerified: false }
+      : { source: 'configured_estimator', isolation: null, provenance: evaluator, independenceVerified: false };
+    const result = { ...base, evaluator, evaluation, answers: estimated.answers, agreement, disagreements, usage: estimated.usage };
     if (!input.record) return { ...result, graphMutation: false, nextStep: disagreements.length ? 'Reread the decision where the judges disagree; revise the ontology if the curator was wrong, or record why the decision stands.' : 'No disagreement on the checked aspects.' };
     const { stored } = await storeRecords(this.service, search, { requestId: input.record.requestId, authorId: input.record.authorId, accessScopes: input.accessScopes,
       reason: `Check the curator decision ${revision.nodeId}.`, records: [{ nodeId: input.record.nodeId, kind: 'decision_check', title: `Second judge: ${revision.nodeId}`,
-        data: { revisionNodeId: revision.nodeId, ontology, verdict: decision.verdict, subjectNodeId: decision.subjectNodeId, evaluator, questions, answers: estimated.answers, agreement, disagreements, usage: estimated.usage },
-        links: [{ relation: 'checks', targetNodeId: revision.nodeId }, { relation: 'about', targetNodeId: decision.subjectNodeId }], epistemicStatus: 'ai_inference', evidenceType: 'estimate' }] });
+        data: { revisionNodeId: revision.nodeId, ontology, verdict: decision.verdict, subjectNodeId: decision.subjectNodeId, evaluator, evaluation, questionHash, questions, answers: estimated.answers, agreement, disagreements, usage: estimated.usage },
+        links: [{ relation: 'checks', targetNodeId: revision.nodeId }, { relation: 'about', targetNodeId: decision.subjectNodeId }],
+        epistemicStatus: evaluator === 'human' ? 'human_judgment' : 'ai_inference', evidenceType: input.submission ? 'report' : 'estimate' }] });
     return { ...result, ...stored, recordNodeId: input.record.nodeId, graphMutation: true,
       nextStep: disagreements.length ? 'Reread the decision where the judges disagree; revise the ontology if the curator was wrong, or record why the decision stands.' : 'No disagreement on the checked aspects.' };
   }
@@ -755,7 +819,17 @@ export class AlienAddon {
     }
     if (search.commissions.length) {
       lines.push('## Commissions', '');
-      for (const commission of search.commissions) lines.push(`- ${commission.nodeId} (${commission.data.addressedTo}): ${commission.data.relationToChange ?? commission.data.worldAsk ?? commission.data.rationale}`);
+      for (const commission of search.commissions) lines.push(`- ${commission.nodeId} (${commission.data.addressedTo}): ${commission.data.relationToChange ?? commission.data.worldAsk ?? commission.data.rationale}${commission.data.avoidConceptIds?.length ? ` Avoid concepts: ${commission.data.avoidConceptIds.join(', ')}.` : ''}`);
+      lines.push('');
+    }
+    if (search.assessments.length) {
+      lines.push('## Assessments', '');
+      for (const assessment of search.assessments) lines.push(`### ${assessment.nodeId}`, '',
+        `Subjects: ${assessment.data.subjectNodeIds.map(label).join('; ')}. Verdict: ${assessment.data.verdict ?? 'not specified'}.`, '', assessment.data.text, '');
+    }
+    if (search.decisionChecks.length) {
+      lines.push('## Second-judge checks', '');
+      for (const check of search.decisionChecks) lines.push(`- ${check.nodeId}, revision ${check.data.revisionNodeId}: ${check.data.evaluator}; disagreements: ${check.data.disagreements.join(', ') || 'none on compared aspects'}.${check.data.evaluation ? ` Source: ${check.data.evaluation.source}; declared isolation: ${check.data.evaluation.isolation ?? 'not specified'}; independence not verified. Provenance: ${check.data.evaluation.provenance}` : ''}`);
       lines.push('');
     }
     if (search.selections.length) {
@@ -763,6 +837,7 @@ export class AlienAddon {
       for (const selection of search.selections) {
         const allocation = selection.data.allocation;
         lines.push(`- ${selection.nodeId} (${selection.data.format}${allocation ? `; ${allocation.question}; unit: ${allocation.unit}; remainder ${allocation.remainder}` : ''}): ${selection.data.items.map((item) => `${label(item.nodeId)}${item.weight !== null ? ` ${item.weight}` : ''}`).join('; ')}. ${selection.data.rationale}`);
+        for (const item of selection.data.preserved ?? []) lines.push(`  - Preserved family ${item.conceptId}: ${item.reason}`);
       }
       lines.push('');
     }
@@ -774,7 +849,8 @@ export class AlienAddon {
     return { graphHash: input.graphHash, searchRootId: input.searchRootId, markdown, atlasHash: digest({ markdown }),
       meaningModelFragments: fragments,
       counts: { tasks: search.tasks.length, worlds: search.worlds.length, solutions: search.solutions.length, mechanisms: search.mechanisms.length, transfers: search.transfers.length,
-        revisions: search.revisions.length, commissions: search.commissions.length, selections: search.selections.length },
+        revisions: search.revisions.length, commissions: search.commissions.length, selections: search.selections.length,
+        assessments: search.assessments.length, decisionChecks: search.decisionChecks.length },
       graphMutation: false, worldMutation: false,
       fragmentUse: 'Each fragment holds Meaning Model concepts and abstract relations for one active ontology: partitions become specialization relations without labels, because the engine admits relation labels only on kind other; each partition\'s lens is kept in the relation\'s provenance and in the child concept\'s differentia. Merge it into a successor of the target model and register that model to make the ontology part of the model.' };
   }
@@ -824,18 +900,22 @@ export function registerAlienAddon(server, service, { estimator = null } = {}) {
     ['life_alien_search_diagnose', 'diagnose', readSchema,
       'Diagnose the search from its records: crowded and thin families and roots, saturation since the last new family, redirect chains, undecided mechanisms, uncombined family and claimed-outcome pairs, yield per condition and per world, isolation used, world signature coverage, regime-family combinations, fiat failures, open commissions, unused tasks and undeveloped branches. Returns a diagnosisHash to cite in a commission. Read-only.', true, true],
     ['life_alien_decision_check', 'checkDecision', checkSchema,
-      'Check a recorded curator decision with a second judge. With MEANING_MODEL_ESTIMATOR set, the estimator answers bounded questions about the same comparison (the nearest concept among those that existed before the decision, whether the primary operator changed, and fit) and the result reports where it agrees or disagrees with the curator; with record, the check is stored as a decision_check record. Without an estimator it returns the questions for a fresh context. It never changes the ontology.', false, false],
+      'Check a recorded curator decision with a second judge. With MEANING_MODEL_ESTIMATOR set, the estimator answers bounded questions about nearest concept, changed primary operator and fit. Without an estimator, prepare state, questions and questionHash, then provide a submission with exact answers, evaluator, declared isolation and provenance. A submission bypasses the estimator. Add record to store either kind of check for diagnosis. Send only state and questions to the judge; declared isolation is not verified independence. It never changes the ontology.', false, false],
     ['life_alien_worlds_export', 'exportWorlds', exportSchema,
       'Export target-blind worlds as a content-addressed world library: texts, rules, seeds, builder isolation, regime classification, causal signature codes and the regime ontology. Worlds built from an oracle premise or with target terms are excluded. Read-only.', true, true],
     ['life_alien_worlds_import', 'importWorlds', importSchema,
       'Import worlds from a world library into this search, so it starts at the solver without building them again. The bundle hash and each world\'s text hash are checked; each world is checked against this search\'s target terms and recorded as not target-blind when it names them. With includeRegimes, an empty regime ontology receives the library\'s regimes and the worlds\' classification as an imported revision.', false, false],
     ['life_alien_atlas', 'atlas', atlasSchema,
-      'Render the whole search as Markdown (problem, all three ontologies, worlds with seeds and isolation, mechanisms with conditions, transfers, commissions and selections) and return each ontology as Meaning Model concepts and specialization relations ready to merge into a successor model. Read-only.', true, true],
+      'Render the search as Markdown (problem, all three ontologies, worlds with seeds and isolation, mechanisms with conditions, transfers, commissions and avoidance, assessments, second-judge checks, selections and preservation reasons) and return each ontology as Meaning Model concepts and specialization relations ready to merge into a successor model. Read-only.', true, true],
   ]) {
     server.registerTool(name, { description, inputSchema: schema,
       annotations: { readOnlyHint: readOnly, destructiveHint: false, idempotentHint: idempotent, openWorldHint: false } },
     async (input) => {
-      return result(await addon[method](input));
+      try { return result(await addon[method](input)); }
+      catch (error) {
+        if (!(error instanceof z.ZodError)) throw error;
+        return { isError: true, content: [{ type: 'text', text: error.issues.map((issue) => `${issue.path.length ? `${issue.path.join('.')}: ` : ''}${issue.message}`).join('\n') }] };
+      }
     });
   }
 }

@@ -147,11 +147,43 @@ async function modelSummary(service, modelHash) {
   ].filter(Boolean).join('\n\n') };
 }
 
+function avoidedConcepts(search, commissions, ontology) {
+  const ids = new Set(commissions.flatMap((item) => item?.data.avoidConceptIds ?? []));
+  return search.ontologyState(ontology).concepts.filter((item) => ids.has(item.id));
+}
+
+function avoidConceptText(search, commissions, ontology) {
+  const concepts = avoidedConcepts(search, commissions, ontology);
+  if (!concepts.length) return '';
+  return `\n\nCommissioned avoidance (${ontology === 'worlds' ? 'world regimes' : 'mechanism families'}):\n${concepts.map((item) => `- ${item.id}: ${item.label}; ${item.operator}`).join('\n')}\n${ontology === 'worlds' ? 'Classify the world honestly. If it returns to an avoided regime, report that fact; do not invent a different classification to satisfy the commission.' : 'Seek a different operative relation; an avoid list is a direction to explore, not evidence of novelty.'}`;
+}
+
 export async function buildTask(service, { role, graphHash, searchRootId, accessScopes, inputs: rawInputs = {}, search: provided = null }) {
   const schema = taskInputSchemas[role];
   if (!schema) throw new Error(`Unknown alien task role ${role}. Roles: ${TASK_ROLES.join(', ')}.`);
-  const inputs = schema.parse(rawInputs);
   const search = provided ?? await readSearch(service, { graphHash, searchRootId, accessScopes });
+  let preparedInputs = rawInputs;
+  let inheritedCue = null;
+  if (['compiler', 'explorer'].includes(role) && rawInputs.commissionNodeId) {
+    const commission = search.record(rawInputs.commissionNodeId, 'commission');
+    if (commission.data.addressedTo === 'retry') {
+      const original = search.record(commission.data.retryOfNodeId, 'mechanism');
+      const originalRole = original.data.source.kind === 'world' ? 'compiler' : 'explorer';
+      if (role !== originalRole) throw new Error(`Commission ${commission.nodeId} retries a ${originalRole} task, not an ${role} task.`);
+      if (role === 'compiler' && (rawInputs.worldNodeId !== original.data.source.worldNodeId || rawInputs.solutionNodeId !== original.data.source.solutionNodeId)) {
+        throw new Error(`Commission ${commission.nodeId} retries world ${original.data.source.worldNodeId} and solution ${original.data.source.solutionNodeId}.`);
+      }
+      const originalTask = original.task?.taskNodeId ? storedTask(search, original.task.taskNodeId, [role]) : null;
+      const originalPopulation = originalTask?.inputs.populationState
+        ?? ({ target_only: 'none', A: 'tabu', B: 'map', C: 'none', D: 'tabu', E: 'map', F: 'none', G: 'tabu', H: 'map' }[original.data.condition]);
+      preparedInputs = { ...(originalPopulation ? { populationState: originalPopulation } : {}), ...rawInputs };
+      if (role === 'explorer' && !Object.hasOwn(rawInputs, 'cueWord') && rawInputs.drawCue !== true) {
+        inheritedCue = originalTask?.material.cue ?? original.data.cue ?? null;
+        if (inheritedCue) preparedInputs = { ...preparedInputs, cueWord: inheritedCue.word, drawCue: false };
+      }
+    }
+  }
+  const inputs = schema.parse(preparedInputs);
   const problem = requireProblem(search);
   const terms = targetTerms(problem);
   let text; let material = {}; let targetBlind = false; let purposeBlind = false; let targetLeaks = [];
@@ -225,7 +257,9 @@ Requirements:
     }
     const population = inputs.populationState === 'tabu' ? `\n\n${tabuBank(search)}`
       : inputs.populationState === 'map' ? `\n\n${mapText(search)}\n\nUse the map to avoid rephrasing an occupied family while keeping this world's operative relation.` : '';
-    const redirect = commission ? `\n\nA curator found an earlier compilation of this world structurally equivalent to an existing family. The retry must change this causal relation: ${commission.data.relationToChange}${commission.data.alternatives?.length ? `\nAlternatives the curator named (choosing one of them shows responsiveness, not discovery): ${commission.data.alternatives.join('; ')}` : ''}` : '';
+    const redirect = commission ? `\n\nA curator redirected an earlier compilation of this world. The retry must change this causal relation: ${commission.data.relationToChange}${commission.data.alternatives?.length ? `\nAlternatives the curator named (choosing one of them shows responsiveness, not discovery): ${commission.data.alternatives.join('; ')}` : ''}` : '';
+    const worldCommission = world.data.commissionNodeId ? search.record(world.data.commissionNodeId, 'commission') : null;
+    const avoidance = avoidConceptText(search, [worldCommission, commission], 'mechanisms');
     text = `Please think deeply about this problem.
 
 PROBLEM:
@@ -246,7 +280,7 @@ Your task is to adapt this solution to our world:
 3. For each magical element, iteratively fix it by either:
    - Inventing technology that could achieve the same effect
    - Finding existing technology/structures that approximate it
-4. Preserve what's strangest—that's the leverage point. Don't sand it down to something familiar.${population}${redirect}
+4. Preserve what's strangest—that's the leverage point. Don't sand it down to something familiar.${population}${redirect}${avoidance}
 
 Then state the compiled mechanism:
 - operator: the operative causal relation in one or two sentences, without the world's proper names and without the problem's domain terms
@@ -257,18 +291,19 @@ Then state the compiled mechanism:
 - selfAudit, optional: bottleneck relief (clear, partial or none: does a world rule make a problem function automatic by assumption?), final-outcome fiat (pass, borderline or fail: does the principal operation simply assert the desired end?), and capability provenance (direct, amplified or mixed)
 
 ${mechanismJson(true)}`;
-    material = { worldNodeId: world.nodeId, solutionNodeId: solution.nodeId, commissionNodeId: inputs.commissionNodeId, populationState: inputs.populationState };
+    material = { worldNodeId: world.nodeId, solutionNodeId: solution.nodeId, commissionNodeId: inputs.commissionNodeId, populationState: inputs.populationState,
+      avoidConceptIds: avoidedConcepts(search, [worldCommission, commission], 'mechanisms').map((item) => item.id) };
     recordAs = 'mechanism';
   } else if (role === 'explorer') {
     const commission = commissionFor(search, inputs.commissionNodeId, ['explorer', 'retry']);
     const gaps = ontologyGaps(search.ontologyState('mechanisms'));
     // Cue draws have their own sequence, one per cued explorer task already prepared.
     const cueIndex = search.tasks.filter((task) => task.data.material?.cue).length;
-    const cue = inputs.cueWord ? { word: inputs.cueWord, source: 'caller', drawIndex: null }
-      : inputs.drawCue ? { ...drawSeed(`${searchRootId}:cue`, cueIndex), drawIndex: cueIndex } : null;
+    const cue = inheritedCue ?? (inputs.cueWord ? { word: inputs.cueWord, source: 'caller', drawIndex: null }
+      : inputs.drawCue ? { ...drawSeed(`${searchRootId}:cue`, cueIndex), drawIndex: cueIndex } : null);
     const population = inputs.populationState === 'map' ? `\n\n${mapText(search)}` : inputs.populationState === 'tabu' ? `\n\n${tabuBank(search)}` : '';
     const cueText = cue ? `\n\nA random word for inspiration: ${cue.word}. Do not force a literal connection; it may become any metaphor, structure, process or principle.` : '';
-    const direction = commission ? `\n\nDirection from the curator: ${commission.data.relationToChange ?? commission.data.rationale}` : '';
+    const direction = commission ? `\n\nDirection from the curator: ${commission.data.relationToChange ?? commission.data.rationale}${commission.data.alternatives?.length ? `\nAlternatives the curator named (choosing one of them shows responsiveness, not discovery): ${commission.data.alternatives.join('; ')}` : ''}${avoidConceptText(search, [commission], 'mechanisms')}` : '';
     const aim = inputs.populationState === 'map'
       ? 'Propose one candidate aimed at a thin or unoccupied branch, or at a mechanism the map lacks. Be genuinely novel: do not rephrase an existing family. First name the structures you are avoiding and why.'
       : inputs.populationState === 'tabu' ? 'Propose one new candidate outside the approaches you listed as avoided.' : 'Propose one candidate.';
@@ -284,7 +319,9 @@ ${aim} Then state:
 - candidate: ${candidateSpec}
 
 ${mechanismJson(false)}`;
-    material = { commissionNodeId: inputs.commissionNodeId, thin: gaps.thin, cue, populationState: inputs.populationState };
+    text += '\n\nWhen recording this explorer output, use isolation.explorer (the legacy isolation.compiler key is also accepted).';
+    material = { commissionNodeId: inputs.commissionNodeId, thin: gaps.thin, cue, populationState: inputs.populationState,
+      avoidConceptIds: avoidedConcepts(search, [commission], 'mechanisms').map((item) => item.id) };
     recordAs = 'mechanism';
   } else if (role === 'curator' || role === 'world_curator') {
     const worlds = role === 'world_curator';
@@ -324,6 +361,8 @@ ${subject.data.text}
 
 Rules as recorded:
 ${rulesIndex(subject)}
+
+${avoidConceptText(search, [subject.data.commissionNodeId ? search.record(subject.data.commissionNodeId, 'commission') : null], 'worlds')}
 
 Code its causal signature on these axes: ${SIGNATURE_AXES.join(', ')}. For each axis give a code of at most 80 characters, reusing an existing world's code when the world agrees with it, and an optional note of at most 600 characters; use null when the world does not settle the axis.
 
@@ -366,6 +405,8 @@ ${verdicts} A retry that picks one of your named alternatives shows responsivene
 ${decisionJson(false)}`;
     }
     material = { subjectNodeId: subject.nodeId, ontology, headNodeId: search.heads[ontology]?.nodeId ?? null };
+    if (worlds) material.avoidConceptIds = avoidedConcepts(search,
+      [subject.data.commissionNodeId ? search.record(subject.data.commissionNodeId, 'commission') : null], 'worlds').map((item) => item.id);
     recordAs = 'ontology_revision';
   } else if (role === 'transfer') {
     const mechanism = search.record(inputs.mechanismNodeId, 'mechanism');
@@ -402,7 +443,7 @@ End your answer with one JSON object: roleMap (each {roleId, binding} where bind
   const taskHash = digest({ schema: 'meaning-model-alien-task/v1', role, graphHash, searchRootId, inputs, text });
   const isolation = role === 'builder'
     ? (targetBlind ? 'Give this task, and nothing else, to a fresh context that has never seen the problem. Record the output as a world with the returned taskNodeId, and state the isolation you used.'
-      : `This builder task is not target-blind (${targetLeaks.length ? `target terms: ${targetLeaks.join(', ')}` : 'oracle premise'}); the world record will say so. For a target-blind world, rewrite the commission or operators without them.`)
+      : `This builder task is not target-blind (${targetLeaks.length ? `target terms: ${targetLeaks.join(', ')}` : 'oracle premise'}); the world record will say so. ${material.oraclePremise ? 'An oracle premise is target-aware by design; continue with that label if intentional.' : 'For a target-blind world, prepare a revised commission or operators without the listed target terms.'}`)
     : role === 'solver' ? 'Give this task to a fresh context that has not seen the builder task or the search\'s purpose. Record its answer as a solution with the returned taskNodeId.'
       : role === 'world_curator' ? 'The world curator stays target-blind: a fresh context should see only this task.'
         : 'A fresh context is preferred; record the isolation you used.';

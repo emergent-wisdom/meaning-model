@@ -55,6 +55,18 @@ export function diagnoseSearch(search) {
   for (const record of mechanismDecisions) latestDecision.set(record.data.decision.subjectNodeId, record);
   const mechanismState = search.ontologyState('mechanisms');
   const worldState = search.ontologyState('worlds');
+  const avoidance = search.commissions.map((commission) => {
+    const ids = commission.data.avoidConceptIds ?? [];
+    const mechanismFamilyIds = ids.filter((id) => mechanismState.concepts.some((item) => item.id === id));
+    const worldRegimeIds = commission.data.addressedTo === 'new_world' ? ids.filter((id) => worldState.concepts.some((item) => item.id === id)) : [];
+    const worlds = search.worlds.filter((item) => item.data.commissionNodeId === commission.nodeId).map((item) => item.nodeId);
+    const mechanisms = search.mechanisms.filter((item) => item.data.source.commissionNodeId === commission.nodeId || worlds.includes(item.data.source.worldNodeId)).map((item) => item.nodeId);
+    const classifiedMatches = [
+      ...worldState.instances.filter((item) => worlds.includes(item.subjectNodeId) && worldRegimeIds.includes(item.conceptId)).map((item) => ({ ontology: 'worlds', subjectNodeId: item.subjectNodeId, conceptId: item.conceptId })),
+      ...mechanismState.instances.filter((item) => mechanisms.includes(item.subjectNodeId) && mechanismFamilyIds.includes(item.conceptId)).map((item) => ({ ontology: 'mechanisms', subjectNodeId: item.subjectNodeId, conceptId: item.conceptId })),
+    ];
+    return { commissionNodeId: commission.nodeId, mechanismFamilyIds, worldRegimeIds, classifiedMatches };
+  }).filter((item) => item.mechanismFamilyIds.length || item.worldRegimeIds.length);
 
   let sinceNew = 0; let lastNew = null;
   for (const record of mechanismDecisions) {
@@ -160,11 +172,14 @@ export function diagnoseSearch(search) {
       fiatFailures: search.mechanisms.filter((item) => item.data.selfAudit?.fiat === 'fail').map((item) => item.nodeId) },
     secondJudge: {
       checked: [...new Set(search.decisionChecks.map((item) => item.data.revisionNodeId))].length,
+      byEvaluator: tally(search.decisionChecks.map((item) => item.data.evaluator)),
+      declaredIsolation: tally(search.decisionChecks.map((item) => item.data.evaluation?.isolation ?? 'unspecified')),
+      independenceVerified: false,
       decisions: search.revisions.filter((item) => item.data.decision.subjectNodeId && item.data.decision.verdict !== 'restructure_only').length,
       disagreements: search.decisionChecks.filter((item) => item.data.disagreements.length)
         .map((item) => ({ checkNodeId: item.nodeId, revisionNodeId: item.data.revisionNodeId, subjectNodeId: item.data.subjectNodeId, aspects: item.data.disagreements })),
     },
-    commissions: { open: search.commissions.filter((item) => fulfilled(item).length === 0).map((item) => ({ nodeId: item.nodeId, addressedTo: item.data.addressedTo })),
+    commissions: { avoidance, open: search.commissions.filter((item) => fulfilled(item).length === 0).map((item) => ({ nodeId: item.nodeId, addressedTo: item.data.addressedTo })),
       fulfilled: search.commissions.map((item) => ({ nodeId: item.nodeId, by: fulfilled(item) })).filter((item) => item.by.length) },
     transfers: { byMechanism: tally(search.transfers.map((item) => item.data.mechanismNodeId)),
       unfilledRoles: search.transfers.reduce((sum, item) => sum + item.data.roleMap.filter((role) => role.binding.kind === 'unfilled').length, 0),
@@ -172,7 +187,7 @@ export function diagnoseSearch(search) {
   };
   const warnings = [];
   const unisolated = search.worlds.filter((item) => item.data.isolation.builder !== 'fresh_context').length;
-  if (unisolated) warnings.push(`${unisolated} of ${search.worlds.length} worlds were not built in a fresh context; their target blindness is procedural, not established.`);
+  if (unisolated) warnings.push(`${unisolated} of ${search.worlds.length} worlds were not built in a fresh context; context isolation is not established.`);
   if (diagnosis.isolation.notTargetBlind.length) warnings.push(`${diagnosis.isolation.notTargetBlind.length} worlds had target terms or an oracle premise in their builder task.`);
   if (sinceNew >= 3) warnings.push(`${sinceNew} curator decisions since the last new family: a saturation signal for the current source of proposals, not proof that the space is exhausted.`);
   if (diagnosis.audits.fiatFailures.length) warnings.push(`Final-outcome fiat failed for ${diagnosis.audits.fiatFailures.join(', ')}: the principal operation asserts the desired end.`);
@@ -180,6 +195,7 @@ export function diagnoseSearch(search) {
   for (const [axis, value] of Object.entries(coverage)) if (value.uniform) warnings.push(`Every coded world shares one ${axis} value (${Object.keys(value.values)[0]}).`);
   if (diagnosis.secondJudge.disagreements.length) warnings.push(`The second judge disagrees with ${diagnosis.secondJudge.disagreements.length} curator decisions (${diagnosis.secondJudge.disagreements.map((item) => `${item.revisionNodeId}: ${item.aspects.join(', ')}`).join('; ')}); reread them.`);
   if (diagnosis.commissions.open.length) warnings.push(`${diagnosis.commissions.open.length} commissions are still open.`);
+  for (const item of avoidance) if (item.classifiedMatches.length) warnings.push(`Commission ${item.commissionNodeId} returned to avoided concepts: ${item.classifiedMatches.map((match) => `${match.subjectNodeId} in ${match.conceptId}`).join('; ')}. This reports the recorded classifications, not an independent novelty judgment.`);
   if (diagnosis.tasks.unused.length) warnings.push(`${diagnosis.tasks.unused.length} prepared tasks have no recorded output; they stay visible as attempts.`);
   if (diagnosis.mechanisms.undeveloped.length) warnings.push(`Families with instances but no transfer or assessment yet: ${diagnosis.mechanisms.undeveloped.join(', ')}. Develop an unusual branch before judging it on familiarity.`);
   diagnosis.warnings = warnings;

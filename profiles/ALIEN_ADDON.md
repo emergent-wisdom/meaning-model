@@ -105,6 +105,15 @@ can run every cell, and each mechanism records its condition:
   view, as the paper's richest executed crossing did.
 - **Explorer default: B.** A drawn cue comes from the word bank on its own sequence.
 
+A retry inherits the original compiler or explorer population state and the exact
+explorer cue, including its draw provenance. Explicit `populationState` overrides
+that state; `cueWord: null` removes the cue, and `drawCue: true` requests a new
+draw. A compiler retry keeps the original world and solution. Curator alternatives
+are shown with a reminder that following one demonstrates responsiveness, not
+discovery. Targeted commission guidance is additional to the none/tabu/map state:
+a directed retry or commissioned search is not an untouched baseline trial of its
+condition. The stored task preserves what was actually supplied.
+
 The diagnosis reports mechanisms and new families per condition. Comparisons
 across conditions need matched budgets, which one search does not supply.
 
@@ -224,7 +233,9 @@ A mechanism record holds:
 - `candidate`: the nine fields of the original schema;
 - `selfAudit` (optional): bottleneck relief, final-outcome fiat and capability
   provenance, as coded in the paper's trace ledger;
-- `isolation.compiler`.
+- `isolation.compiler`, or `isolation.explorer` for explorer outputs. The legacy
+  `compiler` key remains accepted for explorers; when both are supplied they must
+  agree. Records retain the `compiler` key for existing readers.
 
 The server records the source world or explorer, any retry commission and the
 condition. It enforces the candidate field limits that the original prompts only
@@ -298,8 +309,8 @@ Verdicts:
 
 | Verdict | Meaning | Server rule |
 |---|---|---|
-| `admit_new` | a new concept | names a concept created in this revision. Once the ontology has concepts, it names the nearest one and an equivalence test with `primaryOperatorChanged: true` |
-| `admit_instance` | an instance of an existing concept | names an active concept |
+| `admit_new` | a new concept | names a concept created in this revision and automatically assigns the subject as an instance with the decision's fit. Once the ontology has concepts, it names the nearest one and an equivalence test with `primaryOperatorChanged: true` |
+| `admit_instance` | an instance of an existing concept | names an active concept and automatically assigns the subject with the decision's fit |
 | `equivalent` | an alias: only the name, actor, parameter or input signal changed | equivalence test with `primaryOperatorChanged: false`; recorded as an alias |
 | `reject_redirect` | an occupied family, or a shallow restatement of a regime | names the nearest concept and the relation the next proposal must change. Writes a commission in the same batch: a retry of the same world or explorer, or a new world |
 | `restructure_only` | category work without a subject | at least one operation |
@@ -361,8 +372,29 @@ The judge sees the candidate and the concepts, never the curator's explanation o
 rationale. With `MEANING_MODEL_ESTIMATOR=typesafe`, Jev answers and the result
 reports agreement for each aspect; with `record`, the check is stored as a
 `decision_check` record linked to the revision. Without an estimator the tool
-returns the questions for a fresh context to answer. Diagnosis counts checked
-decisions and lists disagreements.
+returns `state`, `questions` and a `questionHash` for a fresh context to answer.
+Give that judge only `state` and `questions`, not the response envelope (which
+identifies the curator's verdict) or the curator's reasons.
+
+Return the answers in `submission` with exactly these fields:
+
+- `questionHash`: the hash from the preparation call;
+- `answers`: exactly one `{ "choice": "<criteria key>" }` per question, using the
+  keys of that question's `criteria`, such as `c1`, `none` or `partial`;
+- `evaluator`: `calling_llm` or `human`;
+- `isolation`: `fresh_context` or `same_context` for a language model, `human`
+  for a human evaluator;
+- `provenance`: who answered, how they received the questions, and what context
+  they saw.
+
+Add `record: {requestId, nodeId, authorId}` to store the comparison as a
+`decision_check`, including its question hash, evaluator, declared isolation and
+provenance. A submission works even when an estimator is configured and makes no
+estimator call. The hash checks correspondence with this search, revision,
+candidate and comparison questions. It does not prove who answered or establish
+independence. Diagnosis counts stored checks from either path, reports evaluator
+and declared-isolation tallies, and lists disagreements; free-form assessments
+are not counted as structured decision checks.
 
 The check audits a decision; it never changes the ontology, and a disagreement is
 a reason to reread, not a verdict. It addresses the limitation *Ontology of the
@@ -385,7 +417,7 @@ different model family.
 - mechanisms and new families per condition;
 - isolation used, and worlds whose builder task was not target-blind;
 - coverage of the world-signature axes, including axes on which every coded world
-  agrees;
+  agrees; `uniform` is true only with at least three coded worlds on that axis;
 - ex-post mechanism yield per world, meaning new families per world. This is kept
   apart from the ex-ante diversity of the worlds themselves;
 - regime-family combinations, families reached without any world, and worlds that
@@ -398,10 +430,26 @@ It returns a `diagnosisHash`. A `commission` record may cite it, and the server
 recomputes the diagnosis at that revision to check it.
 
 Which gap matters is the caller's judgment. A commission is addressed to one of
-two recipients, and may name families to avoid:
+two recipients, and may name active concepts in `avoidConceptIds`:
 
 - a new world: a `worldAsk` and optional `operators`, checked for target terms;
 - an explorer: a `relationToChange`.
+
+New-world commissions may name world regimes and mechanism families; explorer
+commissions may name mechanism families. The builder never receives these avoid
+lists. IDs are local to each ontology: a new-world avoid ID present in both
+ontologies deliberately applies to both matching concepts. Each role receives
+only the concepts from its permitted ontology. Regime avoidance reaches the world curator, who must still classify the
+world honestly and report a return to an avoided regime. Mechanism avoidance
+reaches the commissioned world's compiler or the explorer, never the builder or
+world curator. Diagnosis retains the intended avoidance and reports recorded
+assignments to avoided concepts; this is bookkeeping, not a novelty judgment.
+
+World asks containing target terms are labelled target-aware. An `oracle_premise`
+is target-aware by design and can be used intentionally with that label. For an
+ordinary commission intended to stay target-blind, revise away the reported
+target terms before preparing the builder task. Context isolation is separate:
+a fresh context does not make a target-aware task target-blind.
 
 ## Transfer to the target domain
 
@@ -495,7 +543,8 @@ fresh worlds for them.
 - worlds with seeds, departures, isolation and rules;
 - solves, and mechanisms with their conditions and curator verdicts;
 - transfers with role maps, disanalogies and any fit Cut;
-- commissions and selections.
+- commissions with their avoidance lists, assessments and their subjects,
+  second-judge checks with provenance, and selections with preservation reasons.
 
 `includeWorldTexts` adds the full builder and solver texts.
 

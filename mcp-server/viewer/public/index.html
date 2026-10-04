@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Meaning Model Viewer</title>
+<link rel="icon" href="./logo.svg" type="image/svg+xml">
 <link rel="stylesheet" href="./document-processes.css">
 <script src="live-transition.js"></script>
 <style>
@@ -23,8 +24,8 @@
   body[aria-busy="true"], body[aria-busy="true"] * { cursor: progress !important; }
   body.no-text .scene-labels, body.no-text #labels2 { display: none; }
   :root { --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781; --panel: rgba(18, 18, 17, 0.74); --ring: rgba(255, 255, 255, 0.10); --love: #ffb057; --fear: #58b4ff;
-    /* One scale for the whole HUD: its distance from the edge, the height of a control, its corners, the width of the side panels. */
-    --edge: 14px; --control: 30px; --radius: 8px; --panel-width: 360px; --title-width: min(640px, 30vw); }
+    /* One scale for the whole HUD: its distance from the edge, the height of a control, its corners, the width of the side panels, the room for the mark. */
+    --edge: 14px; --control: 30px; --radius: 8px; --panel-width: 360px; --title-width: min(640px, 30vw); --mark: 32px; }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: #050608; overflow: hidden; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); }
   #scene { position: fixed; inset: 0; }
@@ -34,7 +35,11 @@
   body[data-representation="temporal"]::before { top: 0; height: 96px; background: linear-gradient(to bottom, rgba(5, 6, 8, 0.9), rgba(5, 6, 8, 0.5) 55%, rgba(5, 6, 8, 0)); }
   body[data-representation="temporal"]::after { bottom: 0; height: 120px; background: linear-gradient(to top, rgba(5, 6, 8, 0.92), rgba(5, 6, 8, 0.45) 55%, rgba(5, 6, 8, 0)); }
   /* The model: its name (or the picker that switches it) and what it holds, on one quiet line below. */
-  .title { top: 10px; left: var(--edge); max-width: var(--title-width); display: flex; flex-direction: column; gap: 2px; }
+  .title { top: 10px; left: var(--edge); max-width: calc(var(--title-width) + var(--mark)); padding-left: var(--mark); display: flex; flex-direction: column; gap: 2px; }
+  /* The Meaning Model's mark sits beside the model's name and links to the project's site. */
+  .brand-mark { position: absolute; top: 1px; left: 0; display: block; width: 24px; height: 24px; border-radius: 50%; pointer-events: auto; opacity: 0.92; }
+  .brand-mark:hover, .brand-mark:focus-visible { opacity: 1; }
+  .brand-mark img { display: block; width: 24px; height: 24px; }
   .eyebrow { display: none; }
   h1 { margin: 0; font-size: 17px; line-height: 26px; font-weight: 600; letter-spacing: -0.005em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .title .stats { position: static; display: flex; flex-wrap: wrap; gap: 0 14px; }
@@ -183,7 +188,7 @@
   /* The toolbar on the view, as in the understanding graph: each control opens its choices below it. */
   /* The controls share the top row with the title; what was clicked and how to read it open below them on the right. */
   .side { position: fixed; top: 10px; right: var(--edge); z-index: 4; display: grid; grid-template-columns: minmax(0, auto) auto; align-items: start; justify-items: end; gap: 8px 6px;
-    max-width: calc(100vw - var(--title-width) - 3 * var(--edge)); pointer-events: none; }
+    max-width: calc(100vw - var(--title-width) - var(--mark) - 3 * var(--edge)); pointer-events: none; }
   .side > * { pointer-events: auto; }
   #tools { grid-column: 1; grid-row: 1; } .toolbar-visibility { grid-column: 2; grid-row: 1; }
   .side > .legend, .side > .details { grid-column: 1 / -1; }
@@ -337,7 +342,7 @@
   @media (max-width: 1100px), (max-height: 760px) { :root { --control: 28px; --panel-width: 320px; } .tool { font-size: 12.5px; padding: 0 9px; } .seg button { font-size: 12px; padding: 5px 4px; } .details { max-height: calc(100vh - 200px); } }
   /* Let a narrow heading and its links set the toolbar's position; give playback its own second row. */
   @media (max-width: 760px) {
-    :root { --title-width: calc(100vw - 32px); }
+    :root { --title-width: calc(100vw - 32px - var(--mark)); }
     body { display: flex; flex-direction: column; }
     .title { position: relative; top: auto; left: auto; max-width: none; margin: 12px 16px 0; flex: none; }
     .side { position: relative; top: auto; right: auto; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; max-width: none; margin: 8px 16px 0; flex: none; }
@@ -354,7 +359,7 @@
 <body>
 <div id="scene"></div>
 <!-- The HUD frames the scene: the model and its controls in one row at the top, time in one row at the bottom. -->
-<header class="hud title"><div class="eyebrow">The processes an agent modeled with the Meaning Model</div><h1 id="title">Processes</h1><div class="hud stats" id="stats"></div><div class="whose colour-key" id="colour-key" data-temporal aria-label="Whose colour is whose"></div></header>
+<header class="hud title"><a class="brand-mark" href="https://meaningmodel.ai" target="_blank" rel="noopener" title="The Meaning Model" aria-label="The Meaning Model (opens meaningmodel.ai)"><img src="./logo.svg" alt="" width="24" height="24"></a><div class="eyebrow">The processes an agent modeled with the Meaning Model</div><h1 id="title">Processes</h1><div class="hud stats" id="stats"></div><div class="whose colour-key" id="colour-key" data-temporal aria-label="Whose colour is whose"></div></header>
 <!-- What is happening now and where the reading is, stacked just above the time bar. -->
 <div class="dock" id="dock">
 <div class="hud caption"><div class="kind" id="kind">The story</div><div class="text" id="text"></div></div>

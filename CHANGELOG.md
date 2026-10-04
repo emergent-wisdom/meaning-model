@@ -6,6 +6,25 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+## 0.6.8 — 2026-10-04
+
+- Alien second-judge checks can record validated human or caller-supplied answers
+  without an estimator, retaining declared isolation and provenance. Diagnosis
+  counts these checks without claiming verified independence.
+- Alien follow-up guidance names pending solver, compiler and curator work.
+  Redirected retries retain their original population state and explorer cue
+  unless explicitly overridden, and show the curator's alternatives.
+- Commission avoidance reaches the appropriate roles without exposing mechanism
+  families to target-blind builders or world curators. Diagnosis shows returns
+  to avoided concepts. The atlas includes assessments and preservation reasons.
+- Explorer outputs accept `isolation.explorer` as well as the legacy key. Clarify
+  isolation warnings, oracle premises, automatic assignment and signature
+  coverage; render Alien payload validation failures as readable field messages.
+- The viewer shows the Meaning Model's logo beside the model's name, linking to
+  meaningmodel.ai, and uses it as the page icon.
+- Link the paper to meaningmodel.ai for installation instructions and interactive
+  examples.
+
 ## 0.6.7 — 2026-10-03
 
 - Terrain notes follow the recorded owner or the containing life, including
