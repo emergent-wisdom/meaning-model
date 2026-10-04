@@ -1,3 +1,4 @@
+import { withDefaultRemainders } from './default-remainder.mjs';
 import { stripEdgeForRevision, stripNodeForRevision, withoutProjectionFields } from './narrative-fields.mjs';
 import { descriptionCoverage } from './description-coverage.mjs';
 import { validateNarrativeDelta, applyNarrativeDefinitionDelta, definitionFromCompleteView } from './narrative-delta.mjs';
@@ -1087,6 +1088,7 @@ export class LifeSimulationService {
   }
 
   async validateModel({ model }) {
+    model = withDefaultRemainders(model);
     validateModelBounds(model);
     const result = await this.backend.call('validate_model', { model });
     return {
@@ -1124,6 +1126,7 @@ export class LifeSimulationService {
   }
 
   async registerModel({ requestId, model, requireDescribedNumbers = false }) {
+    model = withDefaultRemainders(model);
     validateModelBounds(model);
     return this.#withIdempotentReceipt(
       this.modelReceipts,
@@ -1159,6 +1162,7 @@ export class LifeSimulationService {
 
   async reviseModel({ requestId, previousModelHash, model, requireWorldAdoptable = false, requireDescribedNumbers = false }) {
     ensureHash(previousModelHash, 'previousModelHash');
+    model = withDefaultRemainders(model);
     validateModelBounds(model);
     return this.#withIdempotentReceipt(
       this.modelReceipts,

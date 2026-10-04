@@ -60,8 +60,11 @@ conversational reply does not require rereading or a compliance record.
   splits, mergers or replacements may require linked successors. Bindings state
   time-scoped participation; an `about` link only references its target.
 - **Numbers:** a normalized Cut divides one declared unit under one question
-  among mutually exclusive answers and an explicit remainder. Nonnegative shares
-  sum to one and are local to those siblings, never an Event's global importance.
+  among mutually exclusive answers. Nonnegative shares sum to one and are local
+  to those siblings, never an Event's global importance. The remainder is off by
+  default: name one only for a share that is genuinely unresolved, as often in
+  real-world evidence and rarely in fiction; when none is named, the tool stores
+  an explicit zero remainder.
   If increasing one answer need not reduce another and no competing unit can be
   named, use unweighted process or concept relations. Concurrent processes and
   overlapping lenses are not automatically allocations. Measurements and authored

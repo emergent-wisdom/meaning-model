@@ -6,6 +6,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Turn the Cut remainder off by default. A Cut whose answers sum to one is
+  stored with an explicit zero remainder; a Cut that names no remainder and
+  does not sum to one is refused with the reason, never padded. Name a
+  remainder only for a share that is genuinely unresolved. Stored models and
+  the engine contract are unchanged.
 - Draw each Cut reading as a level across its whole interval, the average it
   records, instead of a point at the interval's start joined to the next
   reading by a straight line. Readings opened inside a longer reading stay in
