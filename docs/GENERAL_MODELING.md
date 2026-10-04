@@ -17,6 +17,12 @@ propose explanations; it does not replace evidence about that particular case.
 
 ## Start with the user's question
 
+If the request does not already say, ask what the user wants to understand or
+create with the tool. Offer to open the viewer so they can see the processes
+develop, reusing any stated preference. Follow the shared
+[entry guidance](MODELING_PROTOCOL.md#entry) for opening the local viewer and
+continuing existing work without repeating intake.
+
 Use `life_general_modeling_start` or `life_modeling_context` and read the required
 resources. Establish the purpose, system boundary, time interval, resolution,
 available evidence, and decisions the user wants to retain. The purpose
@@ -26,6 +32,13 @@ knowledge; `forecasting` adds values after the evidence cutoff that later
 observations can test; `counterfactual` holds an explicit alternative premise. Reuse instructions
 already supplied. A fully delegated run may select and revise its own categories;
 it still records its evidence, assumptions, review findings, and uncertainties.
+
+Make model development the priority. Seek broad coverage of distinct changing
+processes within the agreed task and available time. Build their states, phases
+and connections in native records; a list of process names or a single initial
+value does not describe their course. Refine existing processes as well as adding
+new ones, and preserve unknowns rather than inventing data to fill them. See the
+[shared process guidance](MODELING_PROTOCOL.md#6-develop-the-processes-across-the-model).
 
 Begin with the enclosing system and its longer history, then work through the
 relevant sector to the focal actors and processes. Examine how local developments

@@ -1,7 +1,7 @@
 import { thinkInTheModelInstructions } from './model-questions.mjs';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { constructionRecordInstructions } from './construction-principles.mjs';
+import { constructionRecordInstructions, modelingSessionInstructions } from './construction-principles.mjs';
 import { modelingWorkflows, purposeInstructions, workflowForPurpose } from './workflow-guidance.mjs';
 
 export const modelingPurposes = Object.freeze([
@@ -318,6 +318,7 @@ export async function buildModelingContext({
     workflowEntry: workflowForPurpose(purpose),
     purposeInstructions: purposeInstructions(purpose),
     sessionMode,
+    sessionGuidance: modelingSessionInstructions,
     modelingFreedom,
     starterSelection,
     scaleReview,
@@ -389,6 +390,8 @@ export async function buildModelingPrompt({ purpose, sessionMode }) {
     `Begin a Meaning Model modeling session. Purpose: ${purpose}. Session mode: ${sessionMode}.`,
     '',
     ...(context.continuation ? ['You are continuing recorded work. Before any change:', ...context.continuation.steps.map((step, index) => `${index + 1}. ${step}`), context.continuation.note, ''] : []),
+    context.sessionGuidance,
+    '',
     context.modelingFreedom,
     '',
     context.starterSelection,

@@ -12,6 +12,19 @@ file digests are recorded beside it in `SOURCE.json`.
 
 ## Entry
 
+At the start of a new task, ask what the user wants to do with the Meaning Model
+and what they want to understand or create, unless their request already says.
+Reuse the agreed scope and delegation on continuation; a bounded edit or review
+does not need a new intake. Offer once to open the viewer so the user can see the
+processes and their changes over time. Reuse a stated viewer preference, and do
+not hold up modeling while an optional viewer offer is unanswered. If requested,
+call `life_model_viewer_open` once a model is available, return the local URL and
+open it in the browser when supported. For ongoing work with a stored graph, use
+`mode: "live"` with the intended `graphHash` and existing `accessScopes`; use a
+snapshot for a fixed revision or a model-only view. The viewer runs on the MCP
+computer and follows saved revisions in live mode; it does not publish the model
+or authorize access to more material.
+
 Call `life_modeling_context`, read this protocol and the guide or profile for the
 purpose, and inspect its worked example before expanding a model. A profile's
 categories and compiler remain optional. Open a relevant paper section when a
@@ -107,10 +120,12 @@ versioned boundary.
 ### 2. Select interval, scope, and resolution
 
 State what interval is being modeled, which part of the world is in scope, what
-questions the model should answer, and the coarsest adequate resolution. Begin
-with minimum sufficient explicitness. Add detail to change an answer, explain a
-residual, preserve continuity, support a declared projection, or explore a
-promising conjectured structure. Exploratory detail can be developed before its
+questions the model should answer, and the coarsest adequate resolution. Start
+with a coarse account across the system, then develop its processes. Coarse
+resolution does not mean modeling only one outcome or leaving the rest as prose.
+Add detail to change an answer, explain a residual, preserve continuity, support
+a declared projection, or explore a promising conjectured structure.
+Exploratory detail can be developed before its
 usefulness is known; keep it provisional and follow what it reveals.
 
 Start macro to micro. Before local detail, assess the enclosing system and the
@@ -203,11 +218,25 @@ defined extension:
 Keep value or distribution, time, support, uncertainty, evidence cutoff,
 holder or viewpoint, provenance, authority, and access scope together.
 
-### 6. Propose a sparse explanatory model
+### 6. Develop the processes across the model
 
-Add only concepts and processes needed for the purpose. Candidate actor fields
-may include wants, fears, concern, attachment, beliefs, strategies, decisions,
-emotions, relationships, bodily state, and perceived options. These are
+Prioritize developing the model itself. Discover and represent as many distinct
+processes that change over time as the user's purpose, scope and available time
+allow. Look across the system's actors, relationships, conditions and activities,
+then follow discoveries into further processes and connections. A starter or an
+answer to the first question is a beginning. Give processes stable identities and
+represent their changing states or phases in native model records, with time,
+evidence or authored premises, uncertainty and links to related processes. A list
+of names or notes about possible modeling does not supply those trajectories.
+Refine an existing process when that is more informative than adding another.
+Use qualitative phases when numerical values are not justified, and leave unknown
+periods unknown. Process count is not a success measure: do not duplicate
+processes, invent observations or expand beyond the agreed task merely to add
+more. At a useful stopping point, state what is represented and what remains to
+develop.
+
+Candidate actor processes may include wants, fears, concern, attachment, beliefs,
+strategies, decisions, emotions, relationships, bodily state, and perceived options. These are
 revisable hypotheses unless fictional canon or direct report gives them a
 different authority.
 

@@ -6,6 +6,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Agent guidance asks for the user's goal when unclear and offers the local
+  viewer, reusing prior choices on continuation. It prioritizes broad coverage
+  of changing processes and their trajectories, beyond a starter model or notes,
+  while preserving uncertainty and the agreed scope.
+
 ## 0.6.8 — 2026-10-04
 
 - Alien second-judge checks can record validated human or caller-supplied answers
