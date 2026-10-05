@@ -6,6 +6,9 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Every concept an agent divides is carved by Fractal Intelligence's conceptual decomposition: the
+  start-here guide and the per-mode method now ask for the frame, the ascent through broader concepts,
+  the four tests, kinds kept apart from dimensions, and recursion as deep as it pays.
 - `life_document_import` notes when a text or its label names Project Gutenberg, whose license
   applies while its name is attached; the start-here guide asks agents to strip a distributor's
   matter and name and describe the source by author, title and first publication.

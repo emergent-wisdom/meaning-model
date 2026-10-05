@@ -302,6 +302,7 @@ test('every mode carries the method: categories first, series over time, open wh
     assert.ok(prompt.indexOf(methodCoreInstructions) < prompt.indexOf(constructionRecordInstructions), `${purpose}: the method comes before the procedure`);
   }
   assert.match(methodCoreInstructions, /mutually exclusive categories/);
+  assert.match(methodCoreInstructions, /Fractal Intelligence's conceptual decomposition/);
   assert.match(methodCoreInstructions, /life_series_record/);
   assert.match(purposeMethod('person_reflection'), /do not invent their history/);
   assert.match(purposeMethod('source_reconstruction'), /tagged source or inferred/);
