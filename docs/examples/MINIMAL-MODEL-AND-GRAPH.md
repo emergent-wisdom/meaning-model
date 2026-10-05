@@ -268,8 +268,13 @@ the old one, in the same words and unit so the issued forecasts can be read in o
 Event, linked from each forecast it settles by a `realizes_forecast` relation that names the Cut and the answer that
 happened (the remainder if none of the named answers did).
 
-Each forecast is scored as issued. Ada declines: the hour-7 forecast gave that 0.30, a log score of −ln 0.30 = 1.20 and
-a Brier score of 0.60² + 0.70² + 0.10² = 0.86; the hour-12 forecast gave it 0.55, scoring 0.60 and 0.335. Lower is
+The settlement rule is fixed when issuing: use the first unambiguous acceptance or refusal in the buyer's ordered
+response log after the offer arrives and before hour 24. Log order breaks timestamp ties; later reversals do not change
+the outcome. If no qualifying response is recorded, the remainder settles at hour 24. Thus the three answers are exclusive.
+
+Each forecast is scored as issued. Ada's first qualifying response is a refusal at hour 20: the hour-7 forecast gave
+that 0.30, a log score of −ln 0.30 = 1.20 and a Brier score of 0.60² + 0.70² + 0.10² = 0.86; the hour-12 forecast
+gave it 0.55, scoring 0.60 and 0.335. Lower is
 better for both, and a score means something only beside a baseline scored the same way. Accounts of what has already
 happened are different: record them early and correct them as you learn more.
 
@@ -283,13 +288,13 @@ happened are different: record them early and correct them as you learn more.
       "events": [
         { "id": "event.modeler", "boundary": "The modeler's understanding root: forecasts and judgments the modeler holds, never accepted as world fact.", "interval": null, "participants": {}, "process_ids": [], "observation_process_ids": [], "region": null, "substrate": null, "provenance": ["minimal-example"] },
         { "id": "event.forecast.h07", "boundary": "The modeler's forecast of Ada's answer, issued at hour 7.",
-          "description": "Issued with what was known at hour 7: the offer, the loan, and Ada's attention at hour 6, mostly on money.",
+          "description": "Issued with what was known at hour 7: the offer, the loan, and Ada's attention at hour 6, mostly on money. She has not answered the buyer.",
           "interval": { "start": 7, "end": 7.25 }, "participants": {}, "process_ids": [], "observation_process_ids": [], "region": null, "substrate": null, "provenance": ["minimal-example"] },
         { "id": "event.forecast.h12", "boundary": "The modeler's forecast of Ada's answer, issued at hour 12.",
-          "description": "Issued after Ada asked the bank at hour 11 whether the loan could run longer: she is looking for a way to keep the bakery.",
+          "description": "Issued after Ada asked the bank at hour 11 whether the loan could run longer: she is looking for a way to keep the bakery. She has still not answered the buyer.",
           "interval": { "start": 12, "end": 12.25 }, "participants": {}, "process_ids": [], "observation_process_ids": [], "region": null, "substrate": null, "provenance": ["minimal-example"] },
         { "id": "event.ada.declines", "boundary": "Ada telephones the buyer at hour 20 and declines the offer.",
-          "description": "She keeps the bakery and asks the bank for the longer loan.",
+          "description": "The buyer records this as her first acceptance or refusal of the offer. She keeps the bakery and asks the bank for the longer loan.",
           "interval": { "start": 20, "end": 20.25 }, "participants": { "actor": "referent.ada" }, "process_ids": [], "observation_process_ids": [], "region": null, "substrate": null, "provenance": ["minimal-example"] }
       ],
       "event_relations": [
@@ -305,23 +310,23 @@ happened are different: record them early and correct them as you learn more.
       ],
       "normalized_cuts": [
         { "id": "cut.forecast.h07", "parent_event_id": "event.forecast.h07",
-          "question": "Will Ada accept the buyer's offer by hour 24?",
+          "question": "What is Ada's first recorded acceptance or refusal of the buyer's offer before hour 24?",
           "unit": "one unit of the modeler's belief",
           "answers": [
-            { "key": "accepts", "weight": 0.6, "meaning": "Ada signs the buyer's acceptance form before hour 24." },
-            { "key": "declines", "weight": 0.3, "meaning": "Ada tells the buyer no before hour 24." },
-            { "key": "remainder", "weight": 0.1, "meaning": "Neither happens by hour 24." } ],
+            { "key": "accepts", "weight": 0.6, "meaning": "The first qualifying entry in the buyer's ordered response log before hour 24 is Ada's acceptance." },
+            { "key": "declines", "weight": 0.3, "meaning": "The first qualifying entry in the buyer's ordered response log before hour 24 is Ada's refusal." },
+            { "key": "remainder", "weight": 0.1, "meaning": "No qualifying acceptance or refusal is recorded before hour 24." } ],
           "provenance": ["inferred: from the offer, the loan and Ada's attention at hour 6", "forecast: probabilities declared before the outcome",
-            "evidence cutoff: hour 7", "horizon: hour 24", "settled by: the buyer's record of Ada's answer"] },
+            "evidence cutoff: hour 7", "horizon: hour 24", "settled by: first unambiguous acceptance or refusal in the buyer's ordered response log after the offer arrives and before hour 24; log order breaks timestamp ties; later reversals do not change the outcome; if none, remainder at hour 24"] },
         { "id": "cut.forecast.h12", "parent_event_id": "event.forecast.h12",
-          "question": "Will Ada accept the buyer's offer by hour 24?",
+          "question": "What is Ada's first recorded acceptance or refusal of the buyer's offer before hour 24?",
           "unit": "one unit of the modeler's belief",
           "answers": [
-            { "key": "accepts", "weight": 0.35, "meaning": "Ada signs the buyer's acceptance form before hour 24." },
-            { "key": "declines", "weight": 0.55, "meaning": "Ada tells the buyer no before hour 24." },
-            { "key": "remainder", "weight": 0.1, "meaning": "Neither happens by hour 24." } ],
+            { "key": "accepts", "weight": 0.35, "meaning": "The first qualifying entry in the buyer's ordered response log before hour 24 is Ada's acceptance." },
+            { "key": "declines", "weight": 0.55, "meaning": "The first qualifying entry in the buyer's ordered response log before hour 24 is Ada's refusal." },
+            { "key": "remainder", "weight": 0.1, "meaning": "No qualifying acceptance or refusal is recorded before hour 24." } ],
           "provenance": ["inferred: Ada's question to the bank at hour 11 points to keeping the bakery", "forecast: probabilities declared before the outcome",
-            "evidence cutoff: hour 12", "horizon: hour 24", "settled by: the buyer's record of Ada's answer"] }
+            "evidence cutoff: hour 12", "horizon: hour 24", "settled by: first unambiguous acceptance or refusal in the buyer's ordered response log after the offer arrives and before hour 24; log order breaks timestamp ties; later reversals do not change the outcome; if none, remainder at hour 24"] }
       ],
       "context_roots": [ { "event_id": "event.modeler", "kind": "understanding", "provenance": ["minimal-example"] } ]
     }

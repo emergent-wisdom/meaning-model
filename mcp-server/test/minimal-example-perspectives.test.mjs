@@ -36,10 +36,21 @@ test('an issued forecast keeps its identity beside a later one, and each is scor
     assert.ok(['evidence cutoff: ', 'horizon: hour 24', 'settled by: '].every((entry) => cut.provenance.some((item) => item.startsWith(entry))));
   }
   assert.equal(issued[0].question, issued[1].question, 'the same words, so the issued forecasts read in order');
+  assert.match(issued[0].question, /first recorded acceptance or refusal.*before hour 24/u);
+  assert.deepEqual(issued[0].answers.map(({ key, meaning }) => [key, meaning]), issued[1].answers.map(({ key, meaning }) => [key, meaning]),
+    'new evidence changes probabilities, not the outcome partition');
+  for (const cut of issued) {
+    const settlement = cut.provenance.find((item) => item.startsWith('settled by: '));
+    assert.match(settlement, /first unambiguous acceptance or refusal.*after the offer arrives and before hour 24/u);
+    assert.match(settlement, /log order breaks timestamp ties; later reversals do not change the outcome; if none, remainder at hour 24/u);
+    assert.match(cut.answers.find((answer) => answer.key === 'remainder').meaning, /No qualifying acceptance or refusal is recorded before hour 24/u);
+  }
   const settled = model.meaning_model.event_relations.filter((relation) => relation.kind === 'realizes_forecast');
   assert.deepEqual(settled.map((relation) => [relation.forecast_answer.cut_id, relation.forecast_answer.answer_key, relation.target_event_id]),
     [['cut.forecast.h07', 'declines', 'event.ada.declines'], ['cut.forecast.h12', 'declines', 'event.ada.declines']]);
   assert.deepEqual(rootOf(model, 'event.ada.declines'), ['event.world', 'accepted_world']);
+  assert.match(model.meaning_model.events.find((event) => event.id === 'event.ada.declines').description, /first acceptance or refusal/u,
+    'the outcome settles the first-response forecast even if a later response changes');
   // The documented scores, from the weights as issued.
   const scores = issued.map((cut) => {
     const happened = settled.find((relation) => relation.forecast_answer.cut_id === cut.id).forecast_answer.answer_key;

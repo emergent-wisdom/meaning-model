@@ -832,6 +832,17 @@ export function standingQuestions(focus = {}) {
 
 export const thinkInTheModelInstructions = `The Meaning Model is where you think, in every mode, and the work is a consequence of it. You have not lived in this world; the model gives you what a life would: people and things, and whatever about them changes, as processes over time, what is true at each moment, and why. The tool is your gateway to humanhood. Use it as your mind: develop explicit understanding in it (the world as model records; consequential ideas, questions, decisions, reasons and predictions as Understanding Nodes linked to what they concern), and read it back rather than holding durable findings only in your context. Batch related findings and open questions as the account develops; this does not require a separate write for each thought, reading step or conversational reply. The loop: find all the areas that could be important to investigate; go deeper inside the model, building structures on top of structures, interpreting them and refining the ones you have; when you generate, roll draws and use random words where the model holds real alternatives and keep what surprises and convinces, and when you describe, ask for the data and infer what the evidence supports; put all your understanding inside the model. Then loop again, and let whatever the model holds lead you down different paths. It is not a strict workflow: the steps come in any order, durable understanding is recorded as it develops, and processes are modeled whenever they are needed. After every change the tool returns its own questions, its jumps and each person's state at a moment. Go deep, in whatever form understands best; the model is a language with no mandatory constructs, and every list and question it gives is a start, not a boundary.`;
 
+// Cross-Event readings need the same local question and vocabulary before their weights can be compared.
+// Different conditioning addresses need an explicit comparison mapping; an about link supplies none.
+function comparableAboutCuts(p, q) {
+  if (p.question !== q.question || p.unit !== q.unit
+    || (p.conditioning?.cut_id ?? null) !== (q.conditioning?.cut_id ?? null)
+    || (p.conditioning?.answer_key ?? null) !== (q.conditioning?.answer_key ?? null)) return false;
+  const answers = answersOf(p); const other = new Map(answersOf(q).map((answer) => [answer.key, answer]));
+  return answers.length === other.size && answers.every((answer) => other.has(answer.key)
+    && (answer.meaning ?? null) === (other.get(answer.key).meaning ?? null));
+}
+
 // Where the interesting story is: the model's largest jumps. A story is a small part of a world, and the model
 // shows where that part should be: the largest shifts in what a person wants, expects or feels, the shocks that
 // change the most, the decisions whose outcome is least certain, and the moments where two people read the same
@@ -894,7 +905,7 @@ export function modelJumps(model, { people = null, limit = 12 } = {}) {
     const [reader, read] = [index.events.get(relation.source_event_id), index.events.get(relation.target_event_id)];
     if (!reader || !read) continue;
     for (const p of index.cutsByEvent.get(reader.id) ?? []) for (const q of index.cutsByEvent.get(read.id) ?? []) {
-      if (p.question !== q.question || p.unit !== q.unit) continue;
+      if (!comparableAboutCuts(p, q)) continue;
       const size = distance(p, q);
       if (size >= 0.2) jumps.push({ kind: 'divergence', size, subject: read.id, at: [start(read), end(read)], eventIds: [reader.id, read.id],
         what: `${title(reader)} answers "${q.question}" differently from ${title(read)} (${p.id} against ${q.id}).` });

@@ -231,7 +231,7 @@ test('start-here keeps issued forecasts apart from revised accounts, and asks fo
   assert.match(startHere, /take consistent numbers for a correct account/u);
   assert.match(startHere, /without saying whose expectation it is/u);
   assert.match(startHere, /answer a failed prediction only by recording the miss/u);
-  assert.match(startHere, /What they believe about the people around them, and where they are wrong/u);
+  assert.match(startHere, /What they believe about the people around them, and whether they are wrong/u);
   assert.match(purposeMethod('forecasting'), /Issue each forecast as its own record and never record it again/u);
   assert.doesNotMatch(purposeMethod('forecasting'), /low confidence|more sure/u);
 });

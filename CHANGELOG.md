@@ -4,7 +4,7 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
-## Unreleased
+## 0.7.0 — 2026-10-05
 
 - `life_model_revise` changes can add, replace and remove context roots (keyed by the Event they declare) and temporal
   Cut recompositions (keyed by their parent Cut), as the service already keys them, so a new person's inner root or
@@ -12,8 +12,8 @@ unpublished work stays under Unreleased. This is not a development transcript.
 - The minimal example gains two test-verified sections: issued forecasts kept beside a later one and settled by
   `realizes_forecast`, each scored as issued (section 6), and one person's mistaken reading of another, held under
   their own inner root, linked `about` the state it reads and causing their act (section 7). `life_model_questions`
-  jumps now include such a reading where it answers the read Event's question differently, and start-here asks what
-  each person believes about the others and where they are wrong.
+  jumps now include such a reading where it answers the read Event's question differently with compatible answer
+  meanings, and start-here asks what each person believes about the others and whether they are wrong.
 - The start-here guide's "Do not" list adds three checks: consistent numbers can still describe the wrong thing, so
   check the question, categories and evidence; when a group is said to expect or want something, say whose expectation
   it is or how views are combined; and after a failed prediction, reconsider the explanation (assumptions, categories,
