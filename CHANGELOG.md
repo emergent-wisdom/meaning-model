@@ -6,6 +6,9 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- `life_series_record`: a series id holds one subject (reusing it for another subject is refused rather than
+  replacing that subject's readings), and recording an interval again replaces the whole reading, unlinking causes it
+  no longer names. The decomposition guidance makes a carve a Cut only when a question divides a declared unit.
 - Every concept an agent divides is carved by Fractal Intelligence's conceptual decomposition: the
   start-here guide and the per-mode method now ask for the frame, the ascent through broader concepts,
   the four tests, kinds kept apart from dimensions, and recursion as deep as it pays.
