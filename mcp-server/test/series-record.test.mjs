@@ -53,10 +53,16 @@ test('a whole series is one call: dated readings with reasons draw as a curve, n
   const ok = async (name, args) => { const result = await call(name, args); assert.ok(!result.isError, JSON.stringify(result.content)); return result.structuredContent; };
 
   const base = await ok('life_model_register', { requestId: 'base', model });
+  // The user watches it arrive: a live viewer opened on the registered model follows each series as it is recorded.
+  const watching = await ok('life_model_viewer_open', { modelHash: base.modelHash, mode: 'live' });
   const first = await ok('life_series_record', { requestId: 'first', previousModelHash: base.modelHash, subject: 'referent.protocol', series: priorities,
     reason: 'Ethereum-like priorities across four stretches.',
     readings: [reading(2014, 2016.5, 0.6, 0.1, 0.3), reading(2016.5, 2018, 0.35, 0.35, 0.3, { causes: ['event.fork'] }), reading(2018, 2022, 0.5, 0.3, 0.2), reading(2022, 2026, 0.6, 0.25, 0.15)] });
   assert.deepEqual(first.series, { id: 'protocol-priorities', readings: 4, drawnAsCurve: 4 });
+  const live = await (await fetch(new URL('data/live.json', watching.url))).json();
+  assert.equal(live.status, 'following'); assert.equal(live.modelHash, first.modelHash, 'the live link has moved to the recorded series');
+  const shown = await (await fetch(new URL('data/model.json', watching.url))).json();
+  assert.ok(shown.numerics.cuts.some((cut) => cut.id === 'cut.series.protocol-priorities.2016.5-2018'), 'and shows its readings');
   const stored = (await ok('life_model_inspect', { modelHash: first.modelHash, includeDefinition: true })).model.meaning_model;
   const cut = stored.normalized_cuts.find((item) => item.id === 'cut.series.protocol-priorities.2016.5-2018');
   assert.deepEqual(cut.answers.map(({ key, weight }) => [key, weight]).sort(), [['decentralization', 0.35], ['efficiency', 0.35], ['remainder', 0], ['security', 0.3]]);

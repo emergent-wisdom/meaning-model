@@ -12,7 +12,7 @@ const syncURLSource = source.slice(start, end + 2);
 test('saving any trajectory layout keeps its explicit route across refresh and layout changes', () => {
   for (const layout of ['together', 'layers', 'terrain']) {
     const saved = [], timers = [];
-    const context = {
+    const context = { DEFAULT_SMOOTHING: 0.2, isCharacter: () => true,
       URLSearchParams, ready: true, temporalActive: true, urlTimer: null,
       params: new URLSearchParams('view=layers&title=Example'),
       opt: { layout, camera: 'locked', glare: 'soft', edges: true,
@@ -58,7 +58,7 @@ test('URL persistence distinguishes deliberate display choices from implicit all
     const everything = choice === 'explicit-everything';
     const implicit = choice === 'implicit-all-visible';
     const chosen = everything ? allLayers : ['events', 'notes'];
-    const context = {
+    const context = { DEFAULT_SMOOTHING: 0.2, isCharacter: () => true,
       URLSearchParams, ready: true, temporalActive: true, urlTimer: null, params: new URLSearchParams('view=layers'),
       opt: { layout: 'layers', camera: 'locked', glare: 'full', edges: true, readingPosition: true,
         readingOverview: 'named', mode: 'story', speed: 1, depth: everything ? 6 : implicit ? 4 : 2,
@@ -90,7 +90,7 @@ test('URL persistence distinguishes deliberate display choices from implicit all
 
 test('URL persistence saves or clears each line filter independently of layer visibility and the other filter', () => {
   const saved = [];
-  const context = {
+  const context = { DEFAULT_SMOOTHING: 0.2, isCharacter: () => true,
     URLSearchParams, ready: true, temporalActive: true, urlTimer: null, params: new URLSearchParams('view=layers&unopened=hide&flat=hide'),
     opt: { layout: 'layers', camera: 'locked', glare: 'full', edges: true, readingPosition: true,
       readingOverview: 'named', mode: 'story', speed: 1, depth: 4, hideUnopened: true, hideFlat: true,
@@ -120,7 +120,7 @@ test('URL persistence saves or clears each line filter independently of layer vi
 
 test('shared URLs preserve coarse scope and each detail level, then clear them when global depth is chosen', () => {
   const saved = [];
-  const context = {
+  const context = { DEFAULT_SMOOTHING: 0.2, isCharacter: () => true,
     URLSearchParams, ready: true, temporalActive: true, urlTimer: null,
     params: new URLSearchParams('view=layers&scope=old-scope&detail=4'),
     opt: { layout: 'layers', camera: 'locked', glare: 'soft', edges: true, readingPosition: false,

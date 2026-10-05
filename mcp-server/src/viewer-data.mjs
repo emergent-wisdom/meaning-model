@@ -65,9 +65,10 @@ export async function buildViewerData({ history, rendered = null, documentRender
     graphSteps.push({ rev, graphHash: revision.graphHash, at, stamp, reason: String(reason).slice(0, 280), added: added.length, boundModel });
   });
 
-  // The model the story graph is bound to at its head, else the newest one.
+  // The model a live view follows to (revisions recorded after the graph's binding), else the one the story graph is
+  // bound to at its head, else the newest one.
   const modelsByHash = new Map(history.models.map((entry) => [entry.modelHash, entry]));
-  const selectedModelEntry = boundModel ? modelsByHash.get(boundModel) : history.models.at(-1);
+  const selectedModelEntry = (history.selectedModelHash ? modelsByHash.get(history.selectedModelHash) : null) ?? (boundModel ? modelsByHash.get(boundModel) : history.models.at(-1));
   if (!selectedModelEntry) throw new Error('The viewer history is missing the graph-bound model definition.');
 
   // Portable history also carries independent author/reader lives and other
@@ -466,11 +467,25 @@ export async function buildViewerData({ history, rendered = null, documentRender
   }
 
   // ---- the story's text, from the render ------------------------------------------------------------------------------------------
-  const story = rendered && !rendered.error ? { projectionHash: rendered.projection_hash ?? null,
-    units: (rendered.units ?? []).map((unit) => ({ id: unit.node_id, type: unit.node_type ?? null, role: unit.role ?? null, title: unit.title ?? null, text: String(unit.text ?? ''), born: nodeBorn.get(unit.node_id) ?? null })) } : null;
+  // A text imported as a source (one document.source root and its document.segment parts) is evidence the render
+  // excludes, so a model built from a book would show no text. With no rendered prose, its segments, in their declared
+  // order and complete, are the pages to read, each placed in world time by its grounded_in links.
+  const sourcePages = (() => {
+    const roots = [...nodes.values()].filter((node) => node.node_type === 'document.source');
+    if (roots.length !== 1) return null;
+    const parts = [...edges.values()].filter((edge) => edge.relation === 'contains' && edge.source?.kind === 'node' && edge.source.node_id === roots[0].id && edge.target?.kind === 'node')
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((edge) => nodes.get(edge.target.node_id)).filter((node) => node?.node_type === 'document.segment');
+    return parts.length ? { root: roots[0], units: parts.map((node) => ({ id: node.id, type: node.node_type, role: 'source_passage', title: node.title ?? null,
+      text: String(node.text ?? ''), born: nodeBorn.get(node.id) ?? null })) } : null;
+  })();
+  const renderedUnits = rendered && !rendered.error ? rendered.units ?? [] : [];
+  const fromSource = !renderedUnits.length && Boolean(sourcePages);
+  const story = fromSource ? { projectionHash: null, source: { id: sourcePages.root.id, title: sourcePages.root.title ?? null }, units: sourcePages.units }
+    : rendered && !rendered.error ? { projectionHash: rendered.projection_hash ?? null,
+      units: renderedUnits.map((unit) => ({ id: unit.node_id, type: unit.node_type ?? null, role: unit.role ?? null, title: unit.title ?? null, text: String(unit.text ?? ''), born: nodeBorn.get(unit.node_id) ?? null })) } : null;
   // Keep the render's reading order. A passage is placed in world time only by its declared renders links.
-  if (story) story.units = placeStoryUnits(story.units, [...edges.values()], events);
-  if (story) story.hierarchy = buildStoryHierarchy({ units: story.units, nodes: [...nodes.values()].map((node) => ({ ...node, born: nodeBorn.get(node.id) ?? null })), edges: [...edges.values()], rootIds: rendered.roots, events });
+  if (story) story.units = placeStoryUnits(story.units, [...edges.values()], events, fromSource ? 'grounded_in' : 'renders');
+  if (story) story.hierarchy = buildStoryHierarchy({ units: story.units, nodes: [...nodes.values()].map((node) => ({ ...node, born: nodeBorn.get(node.id) ?? null })), edges: [...edges.values()], rootIds: fromSource ? [sourcePages.root.id] : rendered.roots, events });
   if (story?.hierarchy.status === 'available') {
     const pending = [...story.hierarchy.roots];
     while (pending.length) {
@@ -482,7 +497,7 @@ export async function buildViewerData({ history, rendered = null, documentRender
   }
   const proseTimes = story?.units.flatMap((unit) => [unit.t, unit.end]).filter(Number.isFinite) ?? [];
   const storyWindow = proseTimes.length >= 2 ? { start: Math.min(...proseTimes), end: Math.max(...proseTimes) } : window;
-  const storyTitle = story?.units.map((unit) => unit.text.match(/^#\s+(.+)$/m)?.[1]?.trim()).find(Boolean) ?? null;
+  const storyTitle = story?.units.map((unit) => unit.text.match(/^#\s+(.+)$/m)?.[1]?.trim()).find(Boolean) ?? story?.source?.title ?? null;
   const storyWords = story ? story.units.reduce((sum, unit) => sum + countProseWords(unit.text), 0) : null;
   const documentRender = documentRendered ?? rendered;
   const documentProjection = documentRender?.join_policy === 'blank_line' && documentRender.roots?.length === 1

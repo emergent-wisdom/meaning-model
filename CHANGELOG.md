@@ -6,12 +6,25 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- A live viewer link now fills as the model grows: it follows each model revision
+  the server records after the one it shows (every `life_series_record` among
+  them), as well as saved graph revisions, so a user can watch an agent's data
+  arrive. Live mode also works for a modelHash alone.
+- A model built from an existing text reads that text: when a graph holds an
+  imported source document and no rendered prose, the reader shows its pages in
+  order, each placed in time by its `grounded_in` links. Paragraphs survive CRLF
+  line endings, and `_word_` reads as italics.
+- The processes view puts the characters (principals, and subjects the model
+  gives an inner perspective) in one band and the world in another, beneath
+  them by default; Show offers "Above them" (`world=above`).
 - In Tree, an opened category's rows sit one level below the answer they
   divide, ordered right after it, and its question is captioned with the answer
   it opens. The Events `life_series_record` makes to carry readings are marked;
   views draw them as the curve rather than as Events, and open questions do not
   count them among what happens in a life.
-- Add a Smooth slider to the viewer's Time panel (also `smooth=` in the link).
+- Draw every document and note attachment by default (`noteLinks=some` shows only the layout's usual links).
+- Add a Smooth slider to the viewer's Time panel, set a little above zero by default (also `smooth=` in the link; `smooth=0`
+  draws the readings exactly as recorded).
   It blends the steps between readings within each recorded stretch, never across
   a gap, and changes only the drawing: pointing still shows each recorded reading.
 - Carry the method into every mode. The modeling context and session prompt

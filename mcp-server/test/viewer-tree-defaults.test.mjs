@@ -25,7 +25,7 @@ function functionSource(name) {
 const layers = ['processes', 'threads', 'decisions', 'lovefear', 'causal', 'notes', 'events', 'subsidiary', 'prose'];
 const node = (id, depth, group = 'world', kind = 'event') => ({ id, depth, group, kind, trunk: depth <= 1, t0: 0, t1: 1 });
 function fixture(search = '', hasPaths = true) {
-  const context = {
+  const context = { DEFAULT_SMOOTHING: 0.2, isCharacter: () => true,
     URLSearchParams, params: new URLSearchParams(search), createProcessDetail, treeEvents: [], recordedMeasures: [],
     data: { measures: hasPaths ? [{ points: [{ t: 0, v: 1 }, { t: 1, v: 2 }] }] : [], constructionTiming: 'unavailable' },
     hasTree: true, nodes: [node('world', 0), node('life', 1), node('work', 2, 'world', 'sub'), node('episode', 4), node('detail', 6)], rows: [],
@@ -109,23 +109,23 @@ test('until chosen, documents stand on floors in Tree and in the Original band e
   }
 });
 
-test('All attachments is an independent opt-in URL preference across temporal layouts', () => {
-  for (const query of ['', 'noteLinks=', 'noteLinks=unknown', 'noteLinks=true']) {
+test('All attachments is on by default, an independent URL preference across temporal layouts', () => {
+  for (const query of ['', 'noteLinks=', 'noteLinks=unknown', 'noteLinks=true', 'noteLinks=all']) {
     const context = fixture(query);
-    assert.equal(context.opt.allNoteAttachments, false);
+    assert.equal(context.opt.allNoteAttachments, true);
     assert.equal(saveURL(context).searchParams.has('noteLinks'), false);
   }
   for (const noteLayout of ['original', 'nearby', 'overhead', 'centered']) {
-    const context = fixture(`noteLayout=${noteLayout}&noteLinks=all`);
+    const context = fixture(`noteLayout=${noteLayout}&noteLinks=some`);
     for (const layout of ['layers', 'terrain', 'together']) {
       context.setLayout(layout);
-      assert.equal(context.opt.allNoteAttachments, true);
+      assert.equal(context.opt.allNoteAttachments, false);
       assert.equal(context.opt.noteLayout, noteLayout);
     }
     const saved = saveURL(context);
-    assert.equal(saved.searchParams.get('noteLinks'), 'all');
-    assert.equal(fixture(saved.search).opt.allNoteAttachments, true);
-    context.opt.allNoteAttachments = false;
+    assert.equal(saved.searchParams.get('noteLinks'), 'some');
+    assert.equal(fixture(saved.search).opt.allNoteAttachments, false);
+    context.opt.allNoteAttachments = true;
     assert.equal(saveURL(context).searchParams.has('noteLinks'), false);
   }
 });
@@ -216,7 +216,7 @@ test('tree Events without numeric rows receive finite positions in both layout r
   const numericGroup = { id: 'ana', label: 'Ana', rows: [] };
   const rows = [{ group: numericGroup, measure: { id: 'ana.capacity' }, depth: 2, yT: 0 }];
   const nodes = [node('ana.life', 1, 'ana'), node('bo.life', 1, 'bo'), node('bo.work', 2, 'bo', 'sub'), node('world.history', 0), node('world.episode', 4)];
-  const context = { nodes, rows, groups: [numericGroup], principals: [{ id: 'ana', name: 'Ana' }, { id: 'bo', name: 'Bo' }],
+  const context = { DEFAULT_SMOOTHING: 0.2, isCharacter: () => true, nodes, rows, groups: [numericGroup], principals: [{ id: 'ana', name: 'Ana' }, { id: 'bo', name: 'Bo' }],
     opt: { depth: 4, camera: 'free', show: new Set(layers) }, ROW: 2.7, GAP: 4.4, LANE: 1, LAMP: 3.2, MIN_DUR: 0.02,
     floors: [], layersBounds: null, dirty: false, relayout: false, WORLD: '#9085e9', hueOfOwner: () => '#9085e9', fitLocked() {} };
   vm.createContext(context);
@@ -258,7 +258,7 @@ function nestedFixture({ collision = false, lifeOnPerson = false } = {}) {
   }) }));
   const nodes = raw.map((event) => ({ ...node(event.id, event.depth, event.owner ?? 'world', event.role === 'slow' ? 'sub' : 'event'),
     event, parent: event.parent, owner: event.owner, t0: event.reach[0], t1: event.reach[1] }));
-  const context = {
+  const context = { DEFAULT_SMOOTHING: 0.2, isCharacter: () => true,
     data: { people, events: raw }, nodes, rows, groups: [group], principals: people,
     referents: new Map(lifeOnPerson ? [] : people.map((person) => [person.id, { life: `${person.id}.life` }])),
     nestedEventLayout, processDetail: createProcessDetail(raw, rows), unopenedProcessIds: new Set(),

@@ -67,7 +67,7 @@ export function mountLiveViewer({ data, getState, restored = null, document = gl
   status.append(label); (document.querySelector('.title') ?? document.body).append(status);
   (document.getElementById('tools') ?? document.body).append(pause);
   const abort = new AbortController(); let timer = null, stopped = false, paused = false, lastActivity = Date.now(), held = false;
-  const currentHash = data.viewerLive.graphHash;
+  const currentHash = data.viewerLive.graphHash ?? null, currentModel = data.viewerLive.modelHash ?? data.modelHash ?? null;
   const reader = () => document.getElementById(getState().view === 'graph' ? 'graph-reader' : 'reader');
   if (restored?.reader?.open) {
     if (getState().view !== 'graph') document.getElementById('read')?.click();
@@ -86,8 +86,9 @@ export function mountLiveViewer({ data, getState, restored = null, document = gl
       const live = await response.json();
       if (live.mode !== 'live') { status.remove(); pause.remove(); return; }
       status.hidden = false; pause.hidden = false;
-      label.textContent = paused ? 'Live paused' : `${live.message}${live.status === 'following' ? ` · ${live.graphHash.slice(0, 8)}` : ''}`;
-      if (!paused && live.status === 'following' && live.graphHash !== currentHash) {
+      label.textContent = paused ? 'Live paused' : `${live.message}${live.status === 'following' ? ` · ${String(live.modelHash ?? live.graphHash ?? '').slice(0, 8)}` : ''}`;
+      // A newer graph revision, or a model revision recorded since (each series an agent records), opens the view again.
+      if (!paused && live.status === 'following' && ((live.graphHash ?? null) !== currentHash || (live.modelHash ?? null) !== currentModel)) {
         const editing = document.activeElement?.closest?.('input, textarea, select, [contenteditable="true"]');
         const selecting = document.getSelection?.()?.isCollapsed === false;
         const play = document.getElementById('play');

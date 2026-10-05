@@ -40,14 +40,45 @@ function fixture(t) {
   };
   const viewer = createModelViewer(service); t.after(() => viewer.close());
   const json = async (opened, path) => { const response = await fetch(new URL(`data/${path}.json`, opened.url)); assert.equal(response.status, 200); return response.json(); };
-  return { viewer, add, models, graphs, calls, json };
+  // A model revision recorded through the server, as life_series_record or a revision records one.
+  const writes = [];
+  const record = (id, previous, events) => {
+    models.set(id, { ...structuredClone(models.get(previous)), revision: { number: models.get(previous).revision.number + 1, previous_model_hash: previous, reason: 'Recorded', provenance: [] },
+      meaning_model: { events, referents: [], normalized_cuts: [] } });
+    writes.push({ modelHash: id, previousModelHash: previous }); now += 2_000;
+  };
+  service.newestModelDescendant = (anchor) => {
+    const descendants = new Set([anchor]); let newest = anchor;
+    for (const write of writes) if (descendants.has(write.previousModelHash)) { descendants.add(write.modelHash); newest = write.modelHash; }
+    return newest;
+  };
+  return { viewer, add, models, graphs, calls, json, record };
 }
 
-test('live mode requires an explicit graph; default and model-only views remain exact snapshots', () => {
+test('views are exact snapshots by default; live works for a graph or a model', () => {
   assert.equal(modelViewerSchema.parse({ modelHash }).mode, 'snapshot');
   assert.equal(modelViewerSchema.parse({ graphHash: rootHash, mode: 'live' }).mode, 'live');
-  assert.equal(modelViewerSchema.safeParse({ modelHash, mode: 'live' }).success, false);
-  assert.equal(modelViewerSchema.safeParse({ graphHash: rootHash, additionalModels: [{ modelHash, mode: 'live' }] }).success, false);
+  assert.equal(modelViewerSchema.parse({ modelHash, mode: 'live' }).mode, 'live');
+  assert.equal(modelViewerSchema.safeParse({ graphHash: rootHash, modelHash, mode: 'live' }).success, false);
+});
+
+test('a live link fills as revisions are recorded: a model-only view and a graph view follow the model the server writes', async (t) => {
+  const f = fixture(t);
+  const byModel = await f.viewer.open({ modelHash, mode: 'live' }), byGraph = await f.viewer.open({ graphHash: rootHash, mode: 'live' });
+  const exact = await f.viewer.open({ modelHash });
+  assert.deepEqual((await f.json(byModel, 'model')).viewerLive, { mode: 'live', graphHash: null, modelHash });
+  f.record(hash(2), modelHash, [{ id: 'first', boundary: 'A first reading', interval: { start: 0, end: 1 } }]);
+  f.record(hash(3), hash(2), [{ id: 'first', boundary: 'A first reading', interval: { start: 0, end: 1 } }, { id: 'second', boundary: 'A second reading', interval: { start: 1, end: 2 } }]);
+  assert.deepEqual(await f.json(byModel, 'live'), { mode: 'live', status: 'following', graphHash: null, modelHash: hash(3), pollIntervalMs: 2000, message: 'Live · saved revisions' });
+  const grown = await f.json(byModel, 'model');
+  assert.equal(grown.modelHash, hash(3)); assert.equal(grown.viewerLive.modelHash, hash(3));
+  assert.deepEqual(grown.inspection.model.meaning_model.events.map((event) => event.id), ['first', 'second']);
+  assert.deepEqual(grown.steps.filter((step) => step.kind === 'model').map((step) => step.rev), [0, 1, 2], 'each recorded revision is its own construction step');
+  const underGraph = await f.json(byGraph, 'live');
+  assert.equal(underGraph.graphHash, rootHash, 'the graph has not moved'); assert.equal(underGraph.modelHash, hash(3), 'its model has');
+  assert.equal((await f.json(byGraph, 'model')).inspection.model.meaning_model.events.length, 2);
+  assert.equal((await f.json(exact, 'live')).mode, 'snapshot');
+  assert.equal((await f.json(exact, 'model')).modelHash, modelHash, 'an exact link keeps its revision');
 });
 
 test('one live URL advances saved prose and graph-bound model changes while an exact URL stays unchanged', async (t) => {
@@ -58,7 +89,7 @@ test('one live URL advances saved prose and graph-bound model changes while an e
   const nextModel = hash(2), next = hash(102);
   f.models.set(nextModel, { ...structuredClone(f.models.get(modelHash)), revision: { number: 1, previous_model_hash: modelHash, reason: 'New Event', provenance: [] },
     meaning_model: { events: [{ id: 'new', boundary: 'Newly saved event', interval: { start: 0, end: 1 } }], referents: [], normalized_cuts: [] } });
-  assert.equal((await f.json(live, 'live')).graphHash, rootHash, 'an unbound model change is not silently adopted');
+  assert.equal((await f.json(live, 'live')).graphHash, rootHash, 'a model the server did not record is not adopted');
   f.add(next, rootHash, { model: nextModel, text: '# The story has grown' });
   assert.deepEqual(await f.json(live, 'live'), { mode: 'live', status: 'following', graphHash: next, modelHash: nextModel, pollIntervalMs: 2000, message: 'Live · saved revisions' });
   const after = await f.json(live, 'model');

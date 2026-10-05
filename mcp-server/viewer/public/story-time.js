@@ -25,11 +25,12 @@ export function measureStoryUnits(units, events) {
   });
 }
 
-export function placeStoryUnits(units, edges, events) {
+// A passage is placed by its renders links; pages of an imported source text by their grounded_in links.
+export function placeStoryUnits(units, edges, events, relation = 'renders') {
   const byId = new Map(events.map((event) => [event.id, event]));
   const links = new Map();
   for (const edge of edges) {
-    if (edge.family !== 'grounding' || edge.relation !== 'renders' || edge.source?.kind !== 'node'
+    if (edge.family !== 'grounding' || edge.relation !== relation || edge.source?.kind !== 'node'
       || edge.target?.kind !== 'anchor' || edge.target.anchor_kind !== 'event') continue;
     const id = edge.source.node_id;
     if (!links.has(id)) links.set(id, new Set());

@@ -62,6 +62,7 @@ const captionBox = document.querySelector('.hud.caption');
 const HUES = ['#3987e5', '#d95926', '#199e70']; const WORLD = '#9085e9';
 const KIND = { causes: '#ff8a4c', enables: '#3fd3c0', realizes_forecast: '#b793ff', constrains: '#ff4d6d' };
 const LENGTH = 116; const AMP = 5.6; const ROW = 2.7; const GAP = 4.4; const NX = 400;
+const DEFAULT_SMOOTHING = 0.2;
 // Cut weights keep a fixed 0–1 scale. Their rows need enough physical height and
 // separation to read small changes; a long list scrolls in the locked camera.
 const CUT_AMP = 18; const CUT_ROW = 6;
@@ -103,11 +104,13 @@ const opt = {
   glare: params.get('glare') === 'full' ? 'full' : 'soft',
   readingOverview: params.get('readingOverview') === 'structure' ? 'structure' : 'named',
   noteLayout: explicitNoteLayout ? params.get('noteLayout') : defaultNoteLayout(initialLayout),
-  allNoteAttachments: params.get('noteLinks') === 'all',
+  allNoteAttachments: params.get('noteLinks') !== 'some', // every attachment drawn unless the link asks for the layout's usual few
   eventLayout: params.get('eventLayout') === 'nested' ? 'nested' : 'traditional',
   edges: params.get('edges') !== 'off', // the lines that link one thing to another
   readingPosition: params.get('reading') === 'on', // the strip of the story's parts, when asked for
-  smoothing: Math.min(1, Math.max(0, Number(params.get('smooth')) || 0)), // the Smooth slider: 0 draws the readings as recorded
+  // The Smooth slider: a little by default, so the steps between readings soften; smooth=0 draws the readings as recorded.
+  smoothing: params.has('smooth') ? Math.min(1, Math.max(0, Number(params.get('smooth')) || 0)) : DEFAULT_SMOOTHING,
+  world: params.get('world') === 'above' ? 'above' : 'below', // the world's band, beneath the characters or above them
   legend: params.has('legend'), // how to read it, when asked for
   text: params.get('text') !== 'off', // the names, values, dates and cards in the view
   hideUnopened: params.get('unopened') === 'hide',
@@ -156,6 +159,13 @@ for (const measure of recordedMeasures) {
   if (!group) { group = { ...measure.group, hue: HUES[groups.length % HUES.length], rows: [] }; groups.push(group); }
   group.rows.push(measure);
 }
+// Characters and the world in two bands: a subject is a character when it is a principal or the model gives it a mind
+// (an inner perspective root); everything else (places, things, institutions, the world's own measures) is the world,
+// beneath the characters or above them.
+const minds = new Set([...principals.map((person) => person.id), ...(data.contexts ?? []).filter((context) => context.kind === 'inner' && context.holder).map((context) => context.holder)]);
+const isCharacter = (group) => minds.has(group.id);
+const orderBands = () => groups.sort((a, b) => (isCharacter(b) - isCharacter(a)) * (opt.world === 'above' ? -1 : 1));
+orderBands();
 const initialWindow = temporalWindow(data);
 if (!initialWindow) throw new Error('This model has no recorded dated Events or numeric paths in a declared time unit for the time view.');
 const T0 = initialWindow.start; const T1 = initialWindow.end;
@@ -580,7 +590,9 @@ function computeLayout() {
   // tree, one floor further down for each level, spread across the group's rows.
   let zz = 0; const spans = [];
   const togetherGroups = [...groups.filter((group) => rows.some((row) => row.group === group && row.inT) || nodes.some((node) => node.group === group.id && node.inT)), ...[...new Set(nodes.filter((node) => node.inT).map((node) => node.group))].filter((id) => !groups.some((group) => group.id === id)).map((id) => ({ id }))];
-  for (const group of togetherGroups) { const z0 = zz; const own = rows.filter((item) => item.group === group && item.inT); for (const row of own) { row.zT = zz; zz += rowSpacing(row); } if (!own.length) zz += ROW; spans.push({ group, z0, z1: Math.max(z0, zz - (own.length ? rowSpacing(own.at(-1)) : ROW)) }); zz += GAP - ROW; }
+  // A wider gap where the characters' band meets the world's.
+  let band = null;
+  for (const group of togetherGroups) { if (band !== null && isCharacter(group) !== band) zz += GAP; band = isCharacter(group); const z0 = zz; const own = rows.filter((item) => item.group === group && item.inT); for (const row of own) { row.zT = zz; zz += rowSpacing(row); } if (!own.length) zz += ROW; spans.push({ group, z0, z1: Math.max(z0, zz - (own.length ? rowSpacing(own.at(-1)) : ROW)) }); zz += GAP - ROW; }
   const spanT = zz - GAP; for (const row of rows) row.zT -= spanT / 2;
   for (const { group, z0, z1 } of spans) {
     const mine = nodes.filter((node) => node.inT && node.group === group.id);
@@ -2118,13 +2130,16 @@ function renderReader(unitId = null) {
   const body = document.getElementById('reader-body'); body.replaceChildren(); let target = null; const units = readerUnits(unitId); readerShown = units.length;
   const findPart = (parts) => { for (const part of parts) { if (part.unit.id === unitId) return part; const found = findPart(part.children ?? []); if (found) return found; } return null; };
   const part = findPart(storyRoots); const targetId = part?.renderedUnitIds?.[0] ?? unitId;
-  for (const unit of units) unit.text.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean).forEach((block, i) => {
+  // Paragraphs are separated by a blank line, whatever the line endings (texts imported from files often use CRLF).
+  for (const unit of units) unit.text.replace(/\r\n?/g, '\n').split(/\n[ \t]*\n\s*/).map((part) => part.trim()).filter(Boolean).forEach((block, i) => {
     const heading = block.match(/^(#{1,4})\s+([\s\S]*)$/);
     const element = document.createElement(heading ? `h${heading[1].length}` : 'p');
     element.innerHTML = readerInline(heading && heading[1].length === 1 && unit.role === 'document_root' ? titleText : heading ? heading[2] : block); element.dataset.nodeId = unit.id; body.append(element);
     if (unit.id === targetId && i === 0) target = element;
   });
   document.getElementById('reader-status').textContent = part ? `Full story · ${part.title ?? part.unit.title ?? part.unit.id}` : 'Full story · Complete manuscript';
+  // A model built from an existing text reads that text: its imported pages, not prose the model wrote.
+  if (data.story?.source) document.querySelector('#reader .source').textContent = `${data.story.source.title ?? 'The source text'}, as imported into the model, page by page. Both playback clocks leave every part readable.`;
   const scroll = document.getElementById('reader-scroll');
   scroll.style.scrollPaddingTop = `${document.querySelector('#reader .reader-head')?.getBoundingClientRect().height ?? 0}px`;
   if (target) target.scrollIntoView({ block: 'start' }); else scroll.scrollTop = 0;
@@ -2339,6 +2354,20 @@ function setEventLayout(layout) {
   if (opt.camera === 'locked') placeLocked(true);
 }
 for (const button of document.querySelectorAll('#event-layouts button')) button.addEventListener('click', () => setEventLayout(button.dataset.eventLayout));
+// The world's band, beneath the characters or above them; a choice only when the model has both.
+const worldSection = document.getElementById('world-band-section');
+const syncWorld = () => { for (const button of worldSection?.querySelectorAll('[data-world]') ?? []) button.setAttribute('aria-pressed', String(button.dataset.world === opt.world)); };
+function setWorldBand(world) {
+  if (!['below', 'above'].includes(world) || opt.world === world) return;
+  opt.world = world; orderBands(); syncWorld();
+  computeLayout(); syncPanel(); syncURL(true); dirty = true; extrasDirty = true;
+  if (opt.camera === 'locked') placeLocked(true);
+}
+if (worldSection) {
+  worldSection.hidden = !(groups.some(isCharacter) && groups.some((group) => !isCharacter(group)));
+  syncWorld();
+  for (const button of worldSection.querySelectorAll('[data-world]')) button.addEventListener('click', () => setWorldBand(button.dataset.world));
+}
 function setAllNoteAttachments(on) {
   opt.allNoteAttachments = on;
   if (on) { opt.edges = true; if (!opt.show.has('notes')) showThoughts(true); }
@@ -2630,7 +2659,8 @@ function syncURL(immediate = false) {
     const next = new URLSearchParams(); for (const key of ['data', 'title', 'live', 'capture']) if (params.has(key)) next.set(key, params.get(key));
     if (opt.camera !== 'spin') next.set('camera', opt.camera); if (opt.glare !== 'soft') next.set('glare', opt.glare); if (!opt.edges) next.set('edges', 'off');
     if (opt.readingPosition) next.set('reading', 'on');
-    if (opt.smoothing > 0) next.set('smooth', opt.smoothing.toFixed(2));
+    if (Number.isFinite(opt.smoothing) && opt.smoothing !== DEFAULT_SMOOTHING) next.set('smooth', opt.smoothing.toFixed(2));
+    if (opt.world === 'above') next.set('world', 'above');
     if (opt.legend) next.set('legend', ''); if (opt.text === false) next.set('text', 'off');
     if (opt.hideUnopened) next.set('unopened', 'hide');
     if (opt.hideFlat) next.set('flat', 'hide');
@@ -2639,7 +2669,7 @@ function syncURL(immediate = false) {
     if (opt.processScope) next.set('scope', opt.processScope);
     if (opt.readingOverview === 'structure') next.set('readingOverview', 'structure');
     if (explicitNoteLayout) next.set('noteLayout', opt.noteLayout);
-    if (opt.allNoteAttachments) next.set('noteLinks', 'all');
+    if (!opt.allNoteAttachments) next.set('noteLinks', 'some');
     if (opt.eventLayout === 'nested') next.set('eventLayout', 'nested');
     if (opt.mode !== 'story') next.set('mode', opt.mode); if (opt.speed !== 1) next.set('speed', String(opt.speed));
     if (currentPreset && currentPreset !== 'story') { next.set('zoom', currentPreset); if (currentPreset === 'life' && lives.length) next.set('life', lives[lifeTurn % lives.length].name.toLowerCase()); }

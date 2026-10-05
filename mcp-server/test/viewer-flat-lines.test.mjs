@@ -51,7 +51,7 @@ function fixture({ nativeCount = 0, detail = false } = {}) {
     Object.assign(nodes.find((node) => node.id === 'empty').event, { parent: 'phase', depth: 8 });
     nodes.find((node) => node.id === 'empty').depth = 8;
   }
-  const context = { nodes, rows, groups: [group], unopenedProcessIds: new Set(['empty']),
+  const context = { DEFAULT_SMOOTHING: 0.2, isCharacter: () => true, nodes, rows, groups: [group], unopenedProcessIds: new Set(['empty']),
     processDetail: createProcessDetail(nodes.map((node) => node.event), rows),
     opt: { hideFlat: false, hideUnopened: false, layout: 'layers', depth: 4, camera: 'free', edges: false,
       show: new Set(['events', 'subsidiary', 'processes', 'numbers']), lenses: new Set() },
@@ -79,7 +79,7 @@ function fixture({ nativeCount = 0, detail = false } = {}) {
 
 test('the flat-line filter is opt-in and does not imply the unopened-process filter', () => {
   for (const query of ['', 'flat=show', 'flat=hide', 'unopened=hide']) {
-    const context = { URLSearchParams, params: new URLSearchParams(query), recordedMeasures: [], data: { measures: [], constructionTiming: 'unavailable' } };
+    const context = { DEFAULT_SMOOTHING: 0.2, isCharacter: () => true, URLSearchParams, params: new URLSearchParams(query), recordedMeasures: [], data: { measures: [], constructionTiming: 'unavailable' } };
     vm.createContext(context);
     vm.runInContext(`${between('const hasPaths =', 'let selectedPart =')}\nthis.opt = opt;`, context);
     assert.equal(context.opt.hideFlat, query === 'flat=hide');
@@ -217,7 +217,7 @@ test('native curve names use collision handling in Processes even when all inter
   for (const native of [false, true]) {
     const rows = Array.from({ length: 118 }, () => ({ name: { visible: true, element: { style: {},
       getBoundingClientRect: () => ({ left: 10, right: 250, top: 10, bottom: 30, width: 240 }) } } }));
-    const context = { rows, groupLabels: [], panels: [], innerWidth: 505, innerHeight: 788, recordedMeasures: native ? [{ kind: 'cut-answer' }] : [],
+    const context = { DEFAULT_SMOOTHING: 0.2, isCharacter: () => true, rows, groupLabels: [], panels: [], innerWidth: 505, innerHeight: 788, recordedMeasures: native ? [{ kind: 'cut-answer' }] : [],
       isStory: () => true, blend: { now: 0 }, opt: { camera: 'spin', hideFlat: true }, nodes: [{ inT: false }] };
     vm.createContext(context); vm.runInContext(collisionSource, context);
     const hidden = rows.filter((row) => row.name.element.style.visibility === 'hidden').length;
@@ -232,7 +232,7 @@ test('native row and group names cannot scroll through toolbar panels or viewpor
   const overTitle = label({ left: 20, right: 130, top: 50, bottom: 70 });
   const outside = label({ left: 20, right: 130, top: -3, bottom: 17 });
   const clear = label({ left: 20, right: 130, top: 160, bottom: 180 });
-  const context = { rows: [{ name: overTitle }, { name: outside }, { name: clear }], groupLabels: [],
+  const context = { DEFAULT_SMOOTHING: 0.2, isCharacter: () => true, rows: [{ name: overTitle }, { name: outside }, { name: clear }], groupLabels: [],
     panels: [{ left: 10, right: 250, top: 10, bottom: 100 }], innerWidth: 505, innerHeight: 788,
     recordedMeasures: [{ kind: 'cut-answer' }], isStory: () => true, blend: { now: 1 }, opt: { camera: 'locked', hideFlat: true }, nodes: [] };
   vm.runInNewContext(collisionSource, context);

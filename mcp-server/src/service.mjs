@@ -55,6 +55,7 @@ const QUERY_SCHEMA = 'life-sim-rust-model-query/v1';
 const TRAJECTORY_SUMMARY_QUERY_SCHEMA = 'life-sim-rust-trajectory-summary-query/v1';
 const MAX_WORLDS = 16;
 const MAX_CACHED_MODEL_SUMMARIES = 32;
+const MAX_FOLLOWED_MODEL_WRITES = 4096;
 const MAX_PENDING_MODEL_WRITES = 32;
 const MAX_CANDIDATES_PER_WORLD = 128;
 const MAX_TRAJECTORY_FIELDS = 100;
@@ -802,6 +803,9 @@ export class LifeSimulationService {
     this.worlds = new Map();
     this.pendingWorlds = 0;
     this.models = new Map();
+    // Every model revision this service wrote, oldest first, with its parent, so a live viewer can follow a model while
+    // an agent records into it (each life_series_record is a revision). Only this process's writes are known.
+    this.modelWrites = [];
     this.pendingModels = 0;
     this.presetModels = new Map();
     this.presetModelPromises = new Map();
@@ -841,6 +845,21 @@ export class LifeSimulationService {
       this.models.delete(this.models.keys().next().value);
     }
     this.models.set(modelHash, summary);
+  }
+
+  #noteModelWrite(modelHash, previousModelHash) {
+    this.modelWrites = this.modelWrites.filter((write) => write.modelHash !== modelHash);
+    this.modelWrites.push({ modelHash, previousModelHash });
+    if (this.modelWrites.length > MAX_FOLLOWED_MODEL_WRITES) this.modelWrites.shift();
+  }
+
+  // The newest model this service wrote that descends from anchor, or anchor itself. A child is always written after
+  // its parent, so one pass in writing order collects the descendants; when an agent revised an older revision again,
+  // the view follows whichever line it wrote to last.
+  newestModelDescendant(anchor) {
+    const descendants = new Set([anchor]); let newest = anchor;
+    for (const write of this.modelWrites) if (descendants.has(write.previousModelHash)) { descendants.add(write.modelHash); newest = write.modelHash; }
+    return newest;
   }
 
   #reserveWorld() {
@@ -1145,6 +1164,7 @@ export class LifeSimulationService {
             modelHash,
             summary,
           });
+          this.#noteModelWrite(modelHash, model.revision?.previous_model_hash ?? null);
           return {
             schema: SERVICE_SCHEMA,
             modelHash,
@@ -1190,6 +1210,7 @@ export class LifeSimulationService {
             modelHash,
             summary,
           });
+          this.#noteModelWrite(modelHash, previousModelHash);
           return {
             schema: SERVICE_SCHEMA,
             modelHash,

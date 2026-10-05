@@ -184,7 +184,7 @@ function functionSource(name) {
 
 test('the actual viewer enables the filter only through its explicit URL preference', () => {
   for (const query of ['', 'unopened=show', 'unopened=hide']) {
-    const context = { URLSearchParams, params: new URLSearchParams(query), recordedMeasures: [], data: { measures: [], constructionTiming: 'unavailable' } };
+    const context = { DEFAULT_SMOOTHING: 0.2, isCharacter: () => true, URLSearchParams, params: new URLSearchParams(query), recordedMeasures: [], data: { measures: [], constructionTiming: 'unavailable' } };
     vm.createContext(context);
     vm.runInContext(`${between('const hasPaths =', 'let selectedPart =')}\nthis.opt = opt;`, context);
     assert.equal(context.opt.hideUnopened, query === 'unopened=hide');
@@ -196,7 +196,7 @@ test('actual layout removes filtered nodes from both views and tree floors while
   const node = (id, depth, kind = 'event') => ({ id, depth, group: group.id, kind, trunk: depth <= 1, t0: 0, t1: 1 });
   const nodes = [node('root', 0), node('empty', 2, 'sub'), node('developed', 2, 'sub'), node('child', 3)];
   const rows = [{ group, measure: { id: 'constant-number' }, depth: 2, yT: 0 }];
-  const context = { nodes, rows, groups: [group], unopenedProcessIds: new Set(['empty']),
+  const context = { DEFAULT_SMOOTHING: 0.2, isCharacter: () => true, nodes, rows, groups: [group], unopenedProcessIds: new Set(['empty']),
     opt: { hideUnopened: false, depth: 4, camera: 'free', show: new Set(['events', 'subsidiary', 'processes', 'numbers']) },
     ROW: 2.7, GAP: 4.4, LANE: 1, LAMP: 3.2, MIN_DUR: 0.02,
     floors: [], layersBounds: null, dirty: false, relayout: false, extrasDirty: false,
