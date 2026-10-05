@@ -1,3 +1,4 @@
+import { methodCoreInstructions } from '../src/workflow-guidance.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
@@ -100,6 +101,7 @@ test('deepening binds exact canonical prose, model, selected life evidence and a
   assert.equal(task.revisionScope, 'local');
   assert.equal(task.preparation.unit, 'whole_work');
   assert.equal(task.brief, 'Deepen and improve the existing work.');
+  assert.ok(task.workflowInstructions.includes(methodCoreInstructions), 'a delegated agent carries the method itself');
   assert.ok(task.workflowInstructions.includes(grammarReadingInstructions), 'the top-level revision task carries its own reading requirement');
   assert.match(task.workflowInstructions, /recursive exploration, not only gap repair/u);
   assert.match(task.workflowInstructions, /even when the current account is sound/u);

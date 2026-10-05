@@ -1,3 +1,4 @@
+import { methodCoreInstructions } from '../src/workflow-guidance.mjs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { direct, directionState, directorPrinciples, DIRECTION_SCHEMA } from '../src/storytelling-director.mjs';
@@ -30,6 +31,7 @@ test('without findings the director returns its task: the principles of the stag
   assert.deepEqual(task.principles.map((item) => item.id), directorPrinciples.filter((item) => item.stage === 'world').map((item) => item.id));
   assert.match(task.instructions, /a start, not a boundary/);
   assert.match(task.instructions, /Encourage depth/);
+  assert.ok(task.instructions.includes(methodCoreInstructions), 'a delegated agent carries the method itself');
   assert.ok(task.instructions.includes(grammarReadingInstructions), 'a fresh director gets the model grammar reading route');
 });
 

@@ -3,6 +3,7 @@ import * as z from 'zod/v4';
 import { readAuthorGraph } from './storytelling-authoring.mjs';
 import { modelDepthPrepareSchema, prepareModelDepthReview } from './storytelling-depth.mjs';
 import { grammarReadingInstructions } from './construction-principles.mjs';
+import { methodCoreInstructions } from './workflow-guidance.mjs';
 
 const id = z.string().trim().min(1).max(256);
 export const deepeningSchema = modelDepthPrepareSchema.extend({
@@ -112,7 +113,7 @@ export async function prepareDeepening(service, raw, preparePurposeReview) {
       textHash: textHash(purposeReview.text), nodeIds: purposeReview.target.nodeIds },
     accessScopes, text: purposeReview.text, authorModel: purposeReview.authorModel,
     modelDepth, purposeReview, revisionScope: input.revisionScope, brief: input.brief,
-    workflowInstructions: `${grammarReadingInstructions}\n\n${deepeningInstructions}`,
+    workflowInstructions: `${grammarReadingInstructions}\n\n${methodCoreInstructions}\n\n${deepeningInstructions}`,
     assessment: null, evaluator: 'calling_llm', semanticVerification: false,
     worldMutation: false, graphMutation: false,
   };

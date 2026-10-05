@@ -20,7 +20,7 @@ import {
 } from '../src/modeling-guidance.mjs';
 import { constructionRecordInstructions } from '../src/construction-principles.mjs';
 import { controlledReadbackInstructions } from '../src/readback-guidance.mjs';
-import { humanAuthorFeedbackInstructions, memoryWorkflowInstructions } from '../src/workflow-guidance.mjs';
+import { humanAuthorFeedbackInstructions, memoryWorkflowInstructions, methodCoreInstructions, purposeMethod } from '../src/workflow-guidance.mjs';
 
 test('memory and human feedback route through the same construction method with distinct authority', async () => {
   for (const [purpose, workflow, uri, instructions] of [
@@ -290,4 +290,21 @@ test('shared conversational guidance preserves discovery and applicable evaluati
     assert.ok(context.minimumChecklist.some((item) => /apply checks only to the constructs and commitments present/.test(item)));
     assert.match(context.constructionRecord, /An Event interval states the extent of that Event, not a window/);
   }
+});
+
+test('every mode carries the method: categories first, series over time, open what matters, ask what changes mean', async () => {
+  for (const purpose of modelingPurposes) {
+    const context = await buildModelingContext({ purpose, sessionMode: 'first_use' });
+    assert.equal(context.method.core, methodCoreInstructions);
+    assert.ok(context.method.inThisMode && context.method.inThisMode === purposeMethod(purpose), `${purpose} has its own reading of the method`);
+    const prompt = await buildModelingPrompt({ purpose, sessionMode: 'first_use' });
+    assert.ok(prompt.includes(methodCoreInstructions) && prompt.includes(`In this mode: ${context.method.inThisMode}`), purpose);
+    assert.ok(prompt.indexOf(methodCoreInstructions) < prompt.indexOf(constructionRecordInstructions), `${purpose}: the method comes before the procedure`);
+  }
+  assert.match(methodCoreInstructions, /mutually exclusive categories/);
+  assert.match(methodCoreInstructions, /life_series_record/);
+  assert.match(purposeMethod('person_reflection'), /do not invent their history/);
+  assert.match(purposeMethod('source_reconstruction'), /tagged source or inferred/);
+  assert.match(purposeMethod('forecasting'), /never revise it after the fact/);
+  assert.match(purposeMethod('human_author_feedback'), /Do not invent the author's biography/);
 });

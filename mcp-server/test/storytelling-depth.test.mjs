@@ -1,3 +1,4 @@
+import { methodCoreInstructions } from '../src/workflow-guidance.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
@@ -100,6 +101,7 @@ test('depth preparation reads the frozen source model and binds the exact task',
   assert.equal(task.model.administrativeRead, true);
   assert.equal(task.model.frozenRuntimeValuesIncluded, false);
   assert.ok(task.reviewerInstructions.includes(conceptualReview));
+  assert.ok(task.reviewerInstructions.includes(methodCoreInstructions), 'a delegated agent carries the method itself');
   assert.ok(task.reviewerInstructions.includes(grammarReadingInstructions), 'a delegated model reviewer gets the complete reading route');
   assert.equal(task.semanticVerification, false);
   assert.equal(task.graphMutation, false);

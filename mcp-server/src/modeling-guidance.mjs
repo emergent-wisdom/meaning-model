@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { constructionRecordInstructions, grammarReadingInstructions, modelingSessionInstructions } from './construction-principles.mjs';
-import { modelingWorkflows, purposeInstructions, workflowForPurpose } from './workflow-guidance.mjs';
+import { methodCoreInstructions, modelingWorkflows, purposeInstructions, purposeMethod, workflowForPurpose } from './workflow-guidance.mjs';
 
 export const modelingPurposes = Object.freeze([
   'creative_story',
@@ -359,6 +359,7 @@ export async function buildModelingContext({
   return {
     schema: 'life-sim-modeling-context/v2',
     startHere: startHere.text,
+    method: { core: methodCoreInstructions, inThisMode: purposeMethod(purpose) },
     purpose,
     workflow: workflowForPurpose(purpose).id,
     availableWorkflows: modelingWorkflows,
@@ -438,6 +439,9 @@ export async function buildModelingPrompt({ purpose, sessionMode }) {
     `Begin a Meaning Model modeling session. Purpose: ${purpose}. Session mode: ${sessionMode}.`,
     '',
     context.startHere,
+    '',
+    context.method.core,
+    ...(context.method.inThisMode ? ['', `In this mode: ${context.method.inThisMode}`] : []),
     '',
     ...(context.continuation ? ['You are continuing recorded work. Before any change:', ...context.continuation.steps.map((step, index) => `${index + 1}. ${step}`), context.continuation.note, ''] : []),
     context.sessionGuidance,

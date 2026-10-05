@@ -35,3 +35,23 @@ export function purposeInstructions(purpose) {
   if (purpose === 'human_author_feedback') return humanAuthorFeedbackInstructions;
   return null;
 }
+
+// The method in five lines, for every mode and every delegated task: categories first, series over time, open what
+// matters, ask what each change means, tag every record. The start-here guide explains it; this is what travels.
+export const methodCoreInstructions = 'The method, in every mode: find a concept\'s mutually exclusive categories before putting numbers on it (each necessary, independent of the others, present in every case you mean, together complete); follow them over time as a series, with a reading after each event that moves them (life_series_record records a whole series in one call); open the categories that matter into their own categories the same way; ask what each rise, fall or jump means and investigate it; and tag every record source, inferred, invented, exploring or sketch.';
+
+// What the method means in each mode: the same moves, with the evidence and authority each mode allows.
+const purposeMethods = Object.freeze({
+  creative_story: 'In creative work the method builds the world you capture the story from. Follow every life and process the story leans on as series: outlooks, wants, fears and relationships, across whole lives and beyond the story\'s pages, and the book\'s own processes in reading order. Invent freely and tag it invented, exploring or sketch; open the categories the story turns on.',
+  source_reconstruction: 'When modeling an existing text, its statements are your sources and its silences are your invitation. Readings the text states or clearly implies are tagged source or inferred and linked to the passages they come from; the backstory and causes you add to make the world whole are tagged invented. Follow each character\'s processes as series across the whole work and the years before and after it.',
+  person_reflection: 'When modeling a person\'s own life with them, the categories come from the person: what they name, in their words, checked with them. Readings come from what they report (source) or what you infer from it (inferred), with dates and evidence cutoffs; do not invent their history. Follow what matters to them as series, and ask them what each change meant.',
+  observation: 'When describing something real, readings come from evidence: tag them source when observed or reported and inferred when estimated, keep evidence cutoffs, and leave unrecorded stretches as gaps. Choose the categories that divide what you describe, follow them as series, open the ones that matter, and treat every unexplained change as a question to investigate.',
+  forecasting: 'A forecast divides one unit of belief among mutually exclusive outcomes at a stated horizon, with probabilities declared before the outcome and an evidence cutoff. Ask the same forecast again after each event that bears on it, so its probabilities become a series you can watch move, and record what moved them. Score it when the outcome arrives; never revise it after the fact.',
+  counterfactual: 'In a counterfactual, the actual series run up to the divergence and the branch\'s series continue from it in their own context, with the same questions and categories, so the two can be compared reading by reading. Record the divergence as an Event, its consequences as readings in the branch, and ask what each difference between the series means.',
+  agent_memory: 'In memory, the processes of the agent, the user or their shared work are followed as series: preferences, goals, trust, ways of working. Find each one\'s categories from what was said and done, record readings at the moments that changed them (source when reported, inferred when interpreted), and ask what each change means for the next interaction.',
+  user_memory: 'In memory, the processes of the agent, the user or their shared work are followed as series: preferences, goals, trust, ways of working. Find each one\'s categories from what was said and done, record readings at the moments that changed them (source when reported, inferred when interpreted), and ask what each change means for the next interaction.',
+  human_author_feedback: 'In feedback on a human author\'s work, the method reads the text: follow its characters\' processes and the book\'s own processes, such as tension, disclosure and pace, as series derived from the text (source or inferred) and linked to their passages, to show the author the shape of the work. Do not invent the author\'s biography or start a project the author did not ask for.',
+});
+export function purposeMethod(purpose) {
+  return purposeMethods[purpose] ?? null;
+}
