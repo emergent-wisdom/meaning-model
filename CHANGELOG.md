@@ -20,7 +20,8 @@ unpublished work stays under Unreleased. This is not a development transcript.
 - A live viewer link now fills as the model grows: it follows each model revision
   the server records after the one it shows (every `life_series_record` among
   them), as well as saved graph revisions, so a user can watch an agent's data
-  arrive. Live mode also works for a modelHash alone.
+  arrive. Live mode also works for a modelHash alone. A live view reads each new revision once and replays
+  at most the last 60, so following a large model does not slow the agent's own calls.
 - A model built from an existing text reads that text: when a graph holds an
   imported source document and no rendered prose, the reader shows its pages in
   order, each placed in time by its `grounded_in` links. Paragraphs survive CRLF

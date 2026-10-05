@@ -29,7 +29,7 @@ export const modelViewerSchema = z.object({
   message: 'Supply exactly one graphHash or modelHash.',
 });
 // How many model revisions one live view replays for record births; earlier ones fold into the first shown.
-const MAX_FOLLOWED_MODELS = 200;
+const MAX_FOLLOWED_MODELS = 60;
 
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
@@ -85,7 +85,7 @@ export function createModelViewer(service, { buildData = buildViewerData, public
           const shown = prepared ?? snapshot;
           const newest = typeof service.newestModelDescendant === 'function' ? service.newestModelDescendant(shown.boundModelHash) : shown.boundModelHash;
           if (newest && newest !== shown.modelHash) {
-            prepared = await prepareSnapshot({ ...live.selection, ...(graphHash ? { graphHash } : {}), followModelHash: newest });
+            prepared = await prepareSnapshot({ ...live.selection, ...(graphHash ? { graphHash } : {}), followModelHash: newest }, live.models ??= new Map());
           }
           if (prepared) {
             if (live.graphId && prepared.graphId !== live.graphId) throw new Error('The graph identity changed.');
@@ -163,20 +163,26 @@ export function createModelViewer(service, { buildData = buildViewerData, public
     if (closed) throw new Error('The viewer is closed.');
   }
 
-  // The models from just after fromHash to toHash, oldest first, read back along their revision links.
-  async function modelChain(fromHash, toHash, allowed) {
+  // The models from just after fromHash to toHash, oldest first, read back along their revision links. A live view
+  // keeps the revisions it has read (known), so each rebuild reads only the new ones; it keeps no others.
+  async function modelChain(fromHash, toHash, allowed, known = null) {
     const chain = [];
     for (let hash = toHash; hash && hash !== fromHash && chain.length < MAX_FOLLOWED_MODELS;) {
-      const inspected = await service.inspectModel({ modelHash: hash, includeDefinition: true });
-      if (!inspected.model) throw new Error('A followed model revision is unavailable.');
-      requireModelScopes(inspected.model, allowed);
-      chain.push({ modelHash: hash, definition: inspected.model });
-      hash = inspected.model.revision?.previous_model_hash ?? null;
+      let definition = known?.get(hash);
+      if (!definition) {
+        const inspected = await service.inspectModel({ modelHash: hash, includeDefinition: true });
+        if (!inspected.model) throw new Error('A followed model revision is unavailable.');
+        definition = inspected.model;
+      }
+      requireModelScopes(definition, allowed);
+      chain.push({ modelHash: hash, definition });
+      hash = definition.revision?.previous_model_hash ?? null;
     }
+    if (known) { known.clear(); for (const entry of chain) known.set(entry.modelHash, entry.definition); }
     return chain.reverse();
   }
 
-  async function prepareSnapshot(input) {
+  async function prepareSnapshot(input, known = null) {
     let history; let rendered = null; let documentRendered = null; let boundModelHash;
     const allowed = new Set(input.accessScopes);
     if (input.graphHash) {
@@ -196,8 +202,8 @@ export function createModelViewer(service, { buildData = buildViewerData, public
     // A live view shows the model revisions recorded after the bound one, each with its own step, so their records
     // keep their births.
     if (input.followModelHash && input.followModelHash !== boundModelHash) {
-      const known = new Set(history.models.map((entry) => entry.modelHash));
-      history.models.push(...(await modelChain(boundModelHash, input.followModelHash, allowed)).filter((entry) => !known.has(entry.modelHash)));
+      const held = new Set(history.models.map((entry) => entry.modelHash));
+      history.models.push(...(await modelChain(boundModelHash, input.followModelHash, allowed, known)).filter((entry) => !held.has(entry.modelHash)));
       history.selectedModelHash = input.followModelHash;
     }
     const data = await buildData({ history, rendered, documentRendered, calls: [], name: 'model', title: input.title });

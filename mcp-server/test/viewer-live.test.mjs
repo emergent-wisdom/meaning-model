@@ -52,7 +52,7 @@ function fixture(t) {
     for (const write of writes) if (descendants.has(write.previousModelHash)) { descendants.add(write.modelHash); newest = write.modelHash; }
     return newest;
   };
-  return { viewer, add, models, graphs, calls, json, record };
+  return { viewer, add, models, graphs, calls, json, record, service };
 }
 
 test('views are exact snapshots by default; live works for a graph or a model', () => {
@@ -74,9 +74,16 @@ test('a live link fills as revisions are recorded: a model-only view and a graph
   assert.equal(grown.modelHash, hash(3)); assert.equal(grown.viewerLive.modelHash, hash(3));
   assert.deepEqual(grown.inspection.model.meaning_model.events.map((event) => event.id), ['first', 'second']);
   assert.deepEqual(grown.steps.filter((step) => step.kind === 'model').map((step) => step.rev), [0, 1, 2], 'each recorded revision is its own construction step');
+  // Each new revision is read once: the next rebuild reads only what was recorded since.
+  const inspected = []; const inspect = f.service.inspectModel;
+  f.service.inspectModel = async (input) => { inspected.push(input.modelHash); return inspect(input); };
+  f.record(hash(4), hash(3), ['first', 'second', 'third'].map((id, i) => ({ id, boundary: `Reading ${id}`, interval: { start: i, end: i + 1 } })));
+  assert.equal((await f.json(byModel, 'live')).modelHash, hash(4));
+  assert.deepEqual(inspected.filter((id) => id !== modelHash), [hash(4)], 'only the new revision is read again');
+  f.service.inspectModel = inspect;
   const underGraph = await f.json(byGraph, 'live');
-  assert.equal(underGraph.graphHash, rootHash, 'the graph has not moved'); assert.equal(underGraph.modelHash, hash(3), 'its model has');
-  assert.equal((await f.json(byGraph, 'model')).inspection.model.meaning_model.events.length, 2);
+  assert.equal(underGraph.graphHash, rootHash, 'the graph has not moved'); assert.equal(underGraph.modelHash, hash(4), 'its model has');
+  assert.equal((await f.json(byGraph, 'model')).inspection.model.meaning_model.events.length, 3);
   assert.equal((await f.json(exact, 'live')).mode, 'snapshot');
   assert.equal((await f.json(exact, 'model')).modelHash, modelHash, 'an exact link keeps its revision');
 });
