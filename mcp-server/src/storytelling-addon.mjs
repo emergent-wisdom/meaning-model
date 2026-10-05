@@ -432,7 +432,7 @@ export class StorytellingAddon {
       characterIds: input.dossier.characters.map((character) => character.characterId),
       ...(development ? { development } : {}),
       nextStep: development
-        ? `First put the cast's development into the model: nothing about ${development.missing.map((item) => item.name).join(', ')} is followed over time yet, though this dossier traces it. For each of them, carve one dimension the story leans on (development.missing[].dimensions) into its exclusive categories and record it with life_series_record: development.missing[].call is prepared with one reading per phase and the dossier's reasons, so fill in the question, unit, answers and weights. ${changeQuestions} Then rebind the story graph to the newest model with life_narrative_rebind and continue. ${reviewStep}`
+        ? `First put the cast's development into the model: nothing about ${development.missing.map((item) => item.name).join(', ')} is followed over time yet, though this dossier traces it. For each of them, carve one dimension the story leans on (development.missing[].dimensions) into its exclusive categories and record it with life_series_record: development.missing[].call is prepared with one reading per phase and the dossier's reasons; fill in what its fill list names (the categories and shares, a new requestId, the previousModelHash your latest write returned, and, where development.missing[].placement is given, whether the readings belong under the character's inner perspective or in their life). ${changeQuestions} Then rebind the story graph to the newest model with life_narrative_rebind and continue. ${reviewStep}`
         : reviewStep,
       worldMutation: false, semanticLifeTrendsVerification: false };
   }
