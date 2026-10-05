@@ -71,8 +71,22 @@ test('a whole series is one call: dated readings with reasons draw as a curve, n
     'the Event carrying a reading is marked as such, so views draw it as the curve and questions do not count it as a happening');
   assert.ok(stored.event_relations.some((relation) => relation.kind === 'causes' && relation.source_event_id === 'event.fork' && relation.target_event_id === cut.parent_event_id));
 
+  // Record early, then revise: a first estimate with a low confidence, recorded again more sure, replaces the reading.
+  const early = await ok('life_series_record', { requestId: 'early', previousModelHash: first.modelHash, subject: 'referent.protocol', series: priorities,
+    reason: 'A first estimate.', readings: [reading(2018, 2022, 0.5, 0.3, 0.2, { tag: 'sketch', confidence: 0.3 })] });
+  const surer = await ok('life_series_record', { requestId: 'surer', previousModelHash: early.modelHash, subject: 'referent.protocol', series: priorities,
+    reason: 'Checked against the roadmap posts.', readings: [reading(2018, 2022, 0.45, 0.35, 0.2, { tag: 'source', confidence: 0.8 })] });
+  const revised = (await ok('life_model_inspect', { modelHash: surer.modelHash, includeDefinition: true })).model.meaning_model.normalized_cuts
+    .filter((item) => item.id === 'cut.series.protocol-priorities.2018-2022');
+  assert.equal(revised.length, 1, 'recording an interval again replaces its reading');
+  assert.deepEqual(revised[0].provenance, ['source: The stretch from 2018 to 2022.', 'confidence 0.8']);
+  assert.equal(surer.series.readings, 4);
+  const sure = await call('life_series_record', { requestId: 'too-sure', previousModelHash: surer.modelHash, subject: 'referent.protocol', series: priorities,
+    reason: 'refusal', readings: [reading(2018, 2022, 0.45, 0.35, 0.2, { confidence: 1.5 })] });
+  assert.ok(sure.isError, 'a confidence above 1 is refused');
+
   // Finer readings nest inside a long one; recording the same interval again replaces it rather than adding another.
-  const nested = await ok('life_series_record', { requestId: 'nested', previousModelHash: first.modelHash, subject: 'referent.protocol', series: priorities,
+  const nested = await ok('life_series_record', { requestId: 'nested', previousModelHash: surer.modelHash, subject: 'referent.protocol', series: priorities,
     reason: 'Open the last stretch.', readings: [reading(2022, 2023, 0.75, 0.1, 0.15), reading(2022, 2026, 0.62, 0.23, 0.15)] });
   assert.deepEqual(nested.series, { id: 'protocol-priorities', readings: 5, drawnAsCurve: 5 });
 

@@ -83,7 +83,8 @@ export function seriesChange(previous, input) {
     if (Object.values(reading.weights).some((weight) => !Number.isFinite(weight) || weight < 0) || Math.abs(total - 1) > SUM_TOLERANCE) {
       throw new Error(`Reading ${label}: the shares must be nonnegative and sum to 1; they sum to ${Number(total.toPrecision(12))}.`);
     }
-    const provenance = [`${reading.tag}: ${reading.why.trim()}`];
+    // How sure the reading is, when the agent says: a first estimate low, raised as the interval is recorded again.
+    const provenance = [`${reading.tag}: ${reading.why.trim()}`, ...(reading.confidence === undefined ? [] : [`confidence ${Number(reading.confidence.toFixed(3))}`])];
     const answers = [...keys.map((key) => ({ key, weight: reading.weights[key] ?? 0, meaning: series.answers.find((answer) => answer.key === key).meaning })),
       ...(series.remainder ? [{ key: REMAINDER, weight: reading.weights[REMAINDER] ?? 0, meaning: series.remainder.meaning }] : [])];
     if (enclosing) {

@@ -24,7 +24,7 @@ import { unopenedProcessEvents } from './process-visibility.js';
 import { createProcessDetail } from './process-detail.js';
 import { nestedEventLayout } from './nested-event-layout.js';
 import { cutTrajectories } from './cut-trajectories.js';
-import { readingAt, readingsDomain, readingReason, smoothWithinStretches } from './interval-readings.js';
+import { readingAt, readingsDomain, readingReason, readingConfidence, smoothWithinStretches } from './interval-readings.js';
 import { typedScalarTrajectories } from './scalar-trajectories.js';
 import { buildModelGraph } from './model-graph.js';
 import { readingActs, actShares, actCounts } from './lens-readings.js';
@@ -278,9 +278,9 @@ function measureValueLines(row, t) {
         ['m', row.measure.question], ['a', `Answer: ${row.measure.answerKey} · local weight from 0 to 1 · Unit: ${row.measure.unit}`], ['a', `Long reading: ${point.cutId}`]];
     }
     // What moved it comes first: the reading's own reason, then when it holds and how firmly it is claimed.
-    const reason = readingReason(point.cut);
+    const reason = readingReason(point.cut); const confidence = readingConfidence(point.cut);
     const when = `${point.cut?.eventLabel ?? point.eventId} · ${timeText(point.t, 1)}${point.end > point.t ? ` – ${timeText(point.end, 1)}` : ''}`;
-    return [['num', rowValueText(row, t)], ...(reason ? [['m', reason.text]] : []), ['a', `${when}${reason?.tag ? ` · ${reason.tag}` : ''}`],
+    return [['num', rowValueText(row, t)], ...(reason ? [['m', reason.text]] : []), ['a', `${when}${reason?.tag ? ` · ${reason.tag}` : ''}${confidence === null ? '' : ` · confidence ${confidence}`}`],
       ['a', point.end > point.t ? 'Authored reading: the average over its whole interval.' : 'Authored reading at a moment.'],
       ...(position.finer ? [['a', `${position.finer} finer reading${position.finer === 1 ? '' : 's'} inside it: zoom in to see ${position.finer === 1 ? 'it' : 'them'}.`]] : []),
       ['a', row.measure.question], ['a', `Answer: ${row.measure.answerKey} · local weight from 0 to 1 · Unit: ${row.measure.unit}`], ['a', `Source Cut: ${point.cutId}`]];

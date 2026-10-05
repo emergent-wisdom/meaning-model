@@ -6,6 +6,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Record early, then revise: a `life_series_record` reading takes an optional
+  confidence from 0 to 1, shown on hover. The start-here guide asks agents to put
+  rough readings in at once with a low confidence, open the viewer live so the
+  user watches the model fill, and record the same intervals again, more sure, as
+  they learn; the forecasting method asks the same of every forecast series.
 - A live viewer link now fills as the model grows: it follows each model revision
   the server records after the one it shows (every `life_series_record` among
   them), as well as saved graph revisions, so a user can watch an agent's data

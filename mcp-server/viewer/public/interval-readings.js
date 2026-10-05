@@ -84,6 +84,15 @@ export function readingReason(cut) {
   return text ? { tag: null, text } : null;
 }
 
+// How sure a reading is, when it says: a provenance entry "confidence 0.4", the form life_series_record writes.
+export function readingConfidence(cut) {
+  for (const entry of cut?.provenance ?? []) {
+    const match = /^confidence (\d+(?:\.\d+)?)$/u.exec(String(entry).trim());
+    if (match && Number(match[1]) <= 1) return Number(match[1]);
+  }
+  return null;
+}
+
 // Visual smoothing for the Smooth slider: a box filter applied twice (a triangle kernel) within each stretch that has
 // values, never across a gap, so unrecorded time stays empty and each stretch keeps roughly its average. It changes only
 // what is drawn; the recorded readings, and what the pointer reads, stay exact.

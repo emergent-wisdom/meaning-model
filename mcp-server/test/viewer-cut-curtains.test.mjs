@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import * as THREE from '../viewer/public/vendor/three/three.core.js';
-import { readingAt, readingsDomain, readingReason } from '../viewer/public/interval-readings.js';
+import { readingAt, readingsDomain, readingReason, readingConfidence } from '../viewer/public/interval-readings.js';
 
 const source = readFileSync(new URL('../viewer/public/view.js', import.meta.url), 'utf8');
 const boundedDeclaration = source.split('\n').find((line) => line.startsWith('const boundedMeasure ='));
@@ -27,7 +27,7 @@ const points = () => [
 function fixture() {
   const context = { madeAt: (born) => (born?.at ? Date.parse(born.at) : NaN), constructionByClock: true, timeText: (t) => String(t), month: (t) => String(t), AMP: 5.6, CUT_AMP: 18, T1: 40, money: () => { throw new Error('Cut weights are not physical quantities'); } };
   vm.createContext(context);
-  Object.assign(context, { readingAt, readingsDomain, readingReason, F: { s: 40 }, NX: 400 });
+  Object.assign(context, { readingAt, readingsDomain, readingReason, readingConfidence, F: { s: 40 }, NX: 400 });
   vm.runInContext([boundedDeclaration, arrow('valueAt'), arrow('measurePosition'), line('readingResolution'), line('readingShown'), arrow('format'), fn('rowValue'), fn('rowPosition'), fn('rowValueText'), fn('updateRowSamples'), fn('measureValueLines')].join('\n'), context);
   return context;
 }
@@ -330,4 +330,11 @@ test('the Smooth slider blends steps within a recorded stretch, keeps its averag
   assert.deepEqual(smoothed.slice(10), [9, 9, 9], 'a constant stretch beyond a gap is untouched by its neighbour');
   const mean = (list) => list.reduce((sum, value) => sum + value, 0) / list.length;
   assert.ok(Math.abs(mean(smoothed.slice(0, 8)) - mean(values.slice(0, 8))) < 0.35, 'the stretch keeps roughly its average');
+});
+
+test('a reading says how sure it is when its provenance does', () => {
+  assert.equal(readingConfidence({ provenance: ['sketch: A first estimate.', 'confidence 0.3'] }), 0.3);
+  assert.equal(readingConfidence({ provenance: ['source: The roadmap.', 'confidence 1'] }), 1);
+  assert.equal(readingConfidence({ provenance: ['inferred: No confidence given.'] }), null);
+  assert.equal(readingConfidence({ provenance: ['confidence 1.5'] }), null, 'out of range is not a confidence');
 });
