@@ -128,6 +128,8 @@
   .caption .text { min-width: 0; font-size: 13px; line-height: 1.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .caption .text:empty { display: none; }
   .caption:hover .text { white-space: normal; }
+  .smooth-control { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 12px; }
+  .smooth-control input { flex: 1; accent-color: #a592c2; }
   /* Time in one row: play, which span, what plays, the track, the moment, and the story to read. */
   .bar { left: var(--edge); right: var(--edge); bottom: 10px; height: 36px; display: flex; align-items: center; gap: 8px; pointer-events: auto; }
   .bar > .play { flex: none; width: 32px; height: 32px; border: 0; border-radius: 50%; background: #3987e5; color: #fff; font-size: 12px; cursor: pointer; }
@@ -370,7 +372,7 @@
 </div>
 <div class="hud bar"><button id="play" class="play" aria-label="Play the story's years">▶</button>
   <span class="tool-wrap" data-temporal><button class="tool" data-pop="pop-time"><i>Time</i> <b id="t-time">Story</b><span class="caret">▾</span></button>
-    <div class="pop" id="pop-time" hidden><h2>Time</h2><div class="seg" id="presets"><button data-preset="story">Story</button><button data-preset="life">A life</button><button data-preset="centuries">Centuries</button><button data-preset="world">World history</button></div><div class="note" id="span"></div></div></span>
+    <div class="pop" id="pop-time" hidden><h2>Time</h2><div class="seg" id="presets"><button data-preset="story">Story</button><button data-preset="life">A life</button><button data-preset="centuries">Centuries</button><button data-preset="world">World history</button></div><div class="note" id="span"></div><label class="smooth-control" for="smoothing"><span>Smooth</span><input type="range" id="smoothing" min="0" max="100" step="1" value="0" aria-describedby="smoothing-note"></label><div class="note" id="smoothing-note">Blends the steps between readings for reading the shape at a glance. It changes only the drawing: gaps stay empty and pointing still shows each recorded reading.</div></div></span>
   <span class="tool-wrap" data-temporal><button class="tool" data-pop="pop-play"><i>Play</i> <b id="t-play">The story's years</b><span class="caret">▾</span></button>
     <div class="pop" id="pop-play" hidden><h2>What plays</h2><div class="seg" id="modes"><button data-mode="story">The story's years</button><button data-mode="construction">The construction</button></div><div class="note" id="mode-note"></div>
       <h2>Speed</h2><div class="seg" id="speeds"><button data-speed="0.25">¼×</button><button data-speed="0.5">½×</button><button data-speed="1">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button></div></div></span>

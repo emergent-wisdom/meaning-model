@@ -6,6 +6,9 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Add a Smooth slider to the viewer's Time panel (also `smooth=` in the link).
+  It blends the steps between readings within each recorded stretch, never across
+  a gap, and changes only the drawing: pointing still shows each recorded reading.
 - Carry the method into every mode. The modeling context and session prompt
   now give each purpose its own reading of it (creative work, reconstructing a
   source, person reflection, observation, forecasting, counterfactuals, memory

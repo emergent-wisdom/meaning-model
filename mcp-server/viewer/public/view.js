@@ -24,7 +24,7 @@ import { unopenedProcessEvents } from './process-visibility.js';
 import { createProcessDetail } from './process-detail.js';
 import { nestedEventLayout } from './nested-event-layout.js';
 import { cutTrajectories } from './cut-trajectories.js';
-import { readingAt, readingsDomain, readingReason } from './interval-readings.js';
+import { readingAt, readingsDomain, readingReason, smoothWithinStretches } from './interval-readings.js';
 import { typedScalarTrajectories } from './scalar-trajectories.js';
 import { buildModelGraph } from './model-graph.js';
 import { readingActs, actShares, actCounts } from './lens-readings.js';
@@ -107,6 +107,7 @@ const opt = {
   eventLayout: params.get('eventLayout') === 'nested' ? 'nested' : 'traditional',
   edges: params.get('edges') !== 'off', // the lines that link one thing to another
   readingPosition: params.get('reading') === 'on', // the strip of the story's parts, when asked for
+  smoothing: Math.min(1, Math.max(0, Number(params.get('smooth')) || 0)), // the Smooth slider: 0 draws the readings as recorded
   legend: params.has('legend'), // how to read it, when asked for
   text: params.get('text') !== 'off', // the names, values, dates and cards in the view
   hideUnopened: params.get('unopened') === 'hide',
@@ -670,20 +671,32 @@ function layRow(row) {
   const positions = row.wall.geometry.attributes.position.array; const crest = row.crest.geometry.attributes.position.array;
   const wallColors = row.wall.geometry.attributes.color.array; const crestColors = row.crest.geometry.attributes.color.array;
   const reading = row.measure.kind === 'cut-answer'; const scale = (row.range[1] - row.range[0]) || 1;
+  const heights = new Float64Array(NX); const present = new Uint8Array(NX); const xs = new Float64Array(NX);
   for (let i = 0; i < NX; i += 1) {
     const x = x0 + ((x1 - x0) * i) / (NX - 1); const t = F.w ? timeAtX(x) : d0 + ((d1 - d0) * i) / (NX - 1);
     const hit = reading ? readingShown(row, t) : null; const v = reading ? hit?.value ?? null : rowValue(row, t);
-    const h = v === null ? 0 : ((v - row.range[0]) / scale) * (reading ? CUT_AMP : AMP) * amp * row.rise;
-    const light = v === null ? 0 : hit?.derived ? 0.4 : 1;
-    row.sampleT[i] = t; positions.set([x, p.y, p.z, x, p.y + h, p.z], i * 6); crest.set([x, p.y + h + 0.02, p.z], i * 3);
-    crestColors.fill(light, i * 3, i * 3 + 3); wallColors[i * 8 + 7] = row.topAlpha * (hit?.derived ? 0.4 : 1);
+    heights[i] = v === null ? 0 : ((v - row.range[0]) / scale) * (reading ? CUT_AMP : AMP) * amp * row.rise; present[i] = v === null ? 0 : 1;
+    row.sampleT[i] = t; xs[i] = x;
+    crestColors.fill(v === null ? 0 : hit?.derived ? 0.4 : 1, i * 3, i * 3 + 3); wallColors[i * 8 + 7] = row.topAlpha * (hit?.derived ? 0.4 : 1);
+  }
+  // The Smooth slider blends steps within each recorded stretch; gaps stay empty.
+  row.drawnH = opt.smoothing > 0 ? smoothWithinStretches(heights, present, Math.round(opt.smoothing * NX * 0.05)) : heights;
+  for (let i = 0; i < NX; i += 1) {
+    const h = row.drawnH[i]; positions.set([xs[i], p.y, p.z, xs[i], p.y + h, p.z], i * 6); crest.set([xs[i], p.y + h + 0.02, p.z], i * 3);
   }
   row.wall.geometry.attributes.position.needsUpdate = true; row.crest.geometry.attributes.position.needsUpdate = true;
   row.wall.geometry.attributes.color.needsUpdate = true; row.crest.geometry.attributes.color.needsUpdate = true;
   row.wall.geometry.computeBoundingSphere(); row.crest.geometry.computeBoundingSphere();
 }
 // The height of a row's curtain at a time, as drawn now.
-const heightAt = (row, t) => row.height(t) * (row.measure.kind === 'cut-answer' ? 1 : 1 - smooth(blend.now) * (1 - LAMP / AMP)) * row.rise;
+// With smoothing on, marks sit on the curve as drawn.
+const heightAt = (row, t) => (opt.smoothing > 0 && row.drawnH && row.sampleT ? drawnHeightAt(row, t) : row.height(t) * (row.measure.kind === 'cut-answer' ? 1 : 1 - smooth(blend.now) * (1 - LAMP / AMP)) * row.rise);
+function drawnHeightAt(row, t) {
+  const n = row.sampleT.length; let lo = 0; let hi = n - 1;
+  if (t <= row.sampleT[0]) return row.drawnH[0]; if (t >= row.sampleT[n - 1]) return row.drawnH[n - 1];
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (row.sampleT[mid] <= t) lo = mid; else hi = mid; }
+  const f = (t - row.sampleT[lo]) / ((row.sampleT[hi] - row.sampleT[lo]) || 1); return row.drawnH[lo] + (row.drawnH[hi] - row.drawnH[lo]) * f;
+}
 const groupLabels = [];
 const labelGroups = [...groups, ...data.people.filter((person) => !groups.some((group) => group.id === person.id)).map((person) => ({ id: person.id, label: person.name, hue: hueOfOwner(person.id), rows: [] }))];
 if (!labelGroups.some((group) => group.id === 'world')) labelGroups.push({ id: 'world', label: 'The world', hue: WORLD, rows: [] });
@@ -2486,6 +2499,12 @@ flatButton.setAttribute('aria-pressed', String(opt.hideFlat));
 const flatHelp = document.createElement('div'); flatHelp.className = 'note';
 flatHelp.textContent = 'Hides flat numerical curves and, in the unrestricted view, Event interval bars. Coarse and focused views retain parent outlines so the whole stays visible. Flat does not mean unmodeled.';
 flatButton.title = flatHelp.textContent; document.getElementById('show-section').append(flatButton, flatHelp);
+// The Smooth slider in the Time panel: how far steps between readings blend, for reading the shape at a glance.
+const smoothingInput = document.getElementById('smoothing');
+if (smoothingInput) {
+  smoothingInput.value = String(Math.round(opt.smoothing * 100));
+  smoothingInput.addEventListener('input', () => { opt.smoothing = Number(smoothingInput.value) / 100; for (const row of rows) layRow(row); syncURL(); });
+}
 function setHideFlat(on) {
   opt.hideFlat = on; computeLayout(); apply(); syncPanel(); syncURL(true); extrasDirty = true;
 }
@@ -2610,6 +2629,7 @@ function syncURL(immediate = false) {
     const next = new URLSearchParams(); for (const key of ['data', 'title', 'live', 'capture']) if (params.has(key)) next.set(key, params.get(key));
     if (opt.camera !== 'spin') next.set('camera', opt.camera); if (opt.glare !== 'soft') next.set('glare', opt.glare); if (!opt.edges) next.set('edges', 'off');
     if (opt.readingPosition) next.set('reading', 'on');
+    if (opt.smoothing > 0) next.set('smooth', opt.smoothing.toFixed(2));
     if (opt.legend) next.set('legend', ''); if (opt.text === false) next.set('text', 'off');
     if (opt.hideUnopened) next.set('unopened', 'hide');
     if (opt.hideFlat) next.set('flat', 'hide');

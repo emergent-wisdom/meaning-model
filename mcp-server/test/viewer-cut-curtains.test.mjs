@@ -319,3 +319,15 @@ test('resting on a reading shows what moved it first: its own tagged reason, els
   assert.deepEqual(second[1], ['m', 'Enterprise Ethereum Alliance; the ICO boom begins.'], 'without a tagged reason, the Event description');
   assert.deepEqual(second[2], ['a', '2016 H2 · 2017 – 2017.5']);
 });
+
+test('the Smooth slider blends steps within a recorded stretch, keeps its average and never bridges a gap', async () => {
+  const { smoothWithinStretches } = await import('../viewer/public/interval-readings.js');
+  const values = [1, 1, 1, 1, 5, 5, 5, 5, 0, 0, 9, 9, 9]; const present = [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1];
+  assert.deepEqual(Array.from(smoothWithinStretches(values, present, 0)), values, 'zero smoothing draws the readings as recorded');
+  const smoothed = Array.from(smoothWithinStretches(values, present, 2));
+  assert.ok(smoothed[3] > 1 && smoothed[4] < 5, 'the step between two readings is blended');
+  assert.deepEqual(smoothed.slice(8, 10), [0, 0], 'a gap stays empty');
+  assert.deepEqual(smoothed.slice(10), [9, 9, 9], 'a constant stretch beyond a gap is untouched by its neighbour');
+  const mean = (list) => list.reduce((sum, value) => sum + value, 0) / list.length;
+  assert.ok(Math.abs(mean(smoothed.slice(0, 8)) - mean(values.slice(0, 8))) < 0.35, 'the stretch keeps roughly its average');
+});

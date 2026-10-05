@@ -83,3 +83,28 @@ export function readingReason(cut) {
   const text = String(cut?.eventDescription ?? '').trim();
   return text ? { tag: null, text } : null;
 }
+
+// Visual smoothing for the Smooth slider: a box filter applied twice (a triangle kernel) within each stretch that has
+// values, never across a gap, so unrecorded time stays empty and each stretch keeps roughly its average. It changes only
+// what is drawn; the recorded readings, and what the pointer reads, stay exact.
+export function smoothWithinStretches(values, present, radius) {
+  const out = Float64Array.from(values);
+  if (!(radius >= 1)) return out;
+  for (let i = 0; i < values.length;) {
+    if (!present[i]) { i += 1; continue; }
+    let j = i; while (j < values.length && present[j]) j += 1;
+    let stretch = Float64Array.from(values.slice(i, j));
+    for (let pass = 0; pass < 2; pass += 1) {
+      const sums = new Float64Array(stretch.length + 1);
+      for (let k = 0; k < stretch.length; k += 1) sums[k + 1] = sums[k] + stretch[k];
+      const next = new Float64Array(stretch.length);
+      for (let k = 0; k < stretch.length; k += 1) {
+        const a = Math.max(0, k - radius); const b = Math.min(stretch.length - 1, k + radius);
+        next[k] = (sums[b + 1] - sums[a]) / (b - a + 1);
+      }
+      stretch = next;
+    }
+    out.set(stretch, i); i = j;
+  }
+  return out;
+}
