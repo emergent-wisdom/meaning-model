@@ -6,6 +6,16 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Carry the method into every mode. The modeling context and session prompt
+  now give each purpose its own reading of it (creative work, reconstructing a
+  source, person reflection, observation, forecasting, counterfactuals, memory
+  and feedback on a human author's work), and the storytelling add-on's
+  delegated tasks carry a five-line core: categories first, series over time,
+  open what matters, ask what each change means, tag every record.
+- New open questions: a series with a stretch nobody read while Events happen
+  in it; a judgment kept as one number on an authored scale, asked what it is
+  made of; and, when questions are read at a moment, each person with no
+  reading covering it, asked for one before the scene is written.
 - Resting on a reading in Processes now shows what moved it first: the
   reading's own tagged reason (as `life_series_record` writes it) or else its
   Event's description, then its period and tag, before the question and unit.

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { modelQuestions } from '../src/model-questions.mjs';
+import { modelQuestions, readOpenQuestions } from '../src/model-questions.mjs';
 
 const OUTLOOK = 'Across this stretch, how does Ada expect what she wants to turn out?';
 const UNIT = 'share of one unit of represented outlook toward fulfilment of active wants';
@@ -119,4 +119,34 @@ test('a change in a company\'s readings asks what it means, until a cause is mod
   assert.deepEqual(change.cuts, ['cut.early', 'cut.late']);
   model.meaning_model.event_relations.push({ kind: 'causes', source_event_id: 'acme.merger', target_event_id: 'acme.late' });
   assert.equal(of(ask(model), 'change-unexplored').length, 0, 'a modeled cause answers the question');
+});
+
+test('a stretch of a series nobody read, while things happen in it, is asked about; a single reading is not a series', () => {
+  const model = lives();
+  const mm = model.meaning_model;
+  mm.events.push(event('ada.early', 1900, 1910), event('ada.apprentice', 1914, 1915, 'Apprenticed to a printer.'));
+  mm.event_relations.push(contains('life.ada', 'ada.early'), contains('life.ada', 'ada.apprentice'));
+  mm.normalized_cuts.push(cut('cut.early', 'ada.early', { assurance: 0.6, threat: 0.4 }));
+  const gaps = of(ask(model), 'series-gap');
+  assert.ok(gaps.some((item) => /has no reading from 1910 to 1920, though 1 Event happens then \(for example "Apprenticed to a printer\."\)\. What was it then\?/.test(item.question)),
+    gaps.map((item) => item.question).join('\n'));
+  assert.ok(!gaps.some((item) => item.cuts.includes('cut.health')), 'a question asked once is not a series with gaps');
+});
+
+test('a judgment kept as one number on an authored scale is asked what it is made of', () => {
+  const model = lives();
+  model.processes = [{ id: 'ada.guilt', unit: '0-1 authored scale' }, { id: 'ada.savings', unit: 'GBP' }];
+  const [undivided, ...rest] = of(ask(model), 'concept-undivided');
+  assert.match(undivided.question, /"ada\.guilt" is one number on an authored scale: it says how much, not of what\. What is it made of\?/);
+  assert.equal(rest.length, 0, 'a quantity with a real unit is not a judgment to divide');
+});
+
+test('before a scene, a person with no reading covering the moment is asked for one first', async () => {
+  const model = lives();
+  const service = { inspectModel: async () => ({ model }) };
+  const open = await readOpenQuestions(service, { modelHash: 'h'.repeat(64), people: [{ id: 'ada', name: 'Ada', principal: true }], at: 1915, limit: 40 });
+  const [moment] = open.questions.filter((item) => item.kind === 'moment-unread');
+  assert.match(moment.question, /^Before you write Ada at 1915: no reading of theirs covers that moment\. What do they want, fear and expect then/);
+  const covered = await readOpenQuestions(service, { modelHash: 'h'.repeat(64), people: [{ id: 'ada', name: 'Ada', principal: true }], at: 1935, limit: 40 });
+  assert.equal(covered.questions.filter((item) => item.kind === 'moment-unread').length, 0, 'a reading covering the moment answers it');
 });

@@ -558,6 +558,35 @@ function worldQuestions(index, lives, draws, spatial) {
         'life_series_record', { at: [start(before.event), start(after.event)], cuts: [before.cut.id, after.cut.id] });
     }
   }
+  // A series with a stretch nobody read: time inside the subject's life with no reading of the question, though Events
+  // happen in it. Gaps under a twentieth of the life are left alone; leading and trailing stretches count as gaps too.
+  const gap = capped('series-gap', 6);
+  for (const list of series.values()) {
+    const [first] = list; const life = first.life ? index.events.get(first.life) : null;
+    if (!life || span(life) === null || !(span(life) > 0)) continue;
+    const top = list.filter((item) => (span(item.event) ?? 0) > 0 && !list.some((other) => other !== item && start(other.event) <= start(item.event)
+      && end(other.event) >= end(item.event) && span(other.event) > span(item.event))).sort((a, b) => start(a.event) - start(b.event));
+    // A question asked once, of one act, is not a series with gaps.
+    if (top.length < 2) continue;
+    const stretches = [[start(life), start(top[0].event)], ...top.slice(1).map((item, i) => [end(top[i].event), start(item.event)]), [end(top.at(-1).event), end(life)]];
+    const inLife = [...descendants(index, life.id)].map((id) => index.events.get(id)).filter((event) => event && !index.readings?.has(event.id)
+      && !/\.is\.[a-z]+$/u.test(event.id) && start(event) !== null && !list.some((item) => item.event.id === event.id));
+    for (const [a, b] of stretches) {
+      if (!(b - a >= span(life) / 20)) continue;
+      const happening = inLife.filter((event) => start(event) >= a && start(event) < b && !(span(event) !== null && start(event) <= a && end(event) >= b));
+      if (happening.length) gap(`${first.owner ? `${displayName(first.owner)}: ` : ''}"${questionOf(first.cut)}" has no reading from ${timeText(a)} to ${timeText(b)}, though ${happening.length} Event${happening.length === 1 ? ' happens' : 's happen'} then (for example "${describe(happening[0]).slice(0, 90)}"). What was it then? Record readings for that stretch (life_series_record), or say why it does not matter here.`,
+        'life_series_record', { at: [a, b], cuts: [first.cut.id] });
+    }
+  }
+  // A judgment kept as one number, such as a fear or a guilt on an authored scale, says how much but not of what. Ask
+  // what it is made of: its mutually exclusive categories, followed over time like any other series.
+  const undivided = capped('concept-undivided', 4);
+  for (const process of index.processList ?? []) {
+    const authored = /authored|judg/iu.test(String(process.unit ?? '')) || Boolean(process.scale?.authored_judgment_question);
+    if (!authored) continue;
+    undivided(`"${process.id}" is one number on an authored scale: it says how much, not of what. What is it made of? Find its mutually exclusive categories (what the fear is of, what the guilt is about, what the trust rests on), follow them over time as a series with life_series_record, and open the ones that matter.`,
+      'life_series_record', { process: process.id });
+  }
   const wordings = new Map();
   for (const list of series.values()) {
     const [first] = list;
@@ -575,7 +604,7 @@ function worldQuestions(index, lives, draws, spatial) {
 }
 
 const ORDER = ['author-separate', 'author-unlinked', 'life-missing', 'life-untimed', 'time-missing', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'choices-missing', 'macro-missing', 'structure-flat', 'readings-over-processes', 'period-gap', 'stage-unexplored', 'life-after-story',
-  'reading-average', 'reading-stretch-unopened', 'change-unexplored', 'question-reworded',
+  'reading-average', 'reading-stretch-unopened', 'series-gap', 'change-unexplored', 'concept-undivided', 'question-reworded',
   'moment-unmodeled', 'decision-undrawn', 'remainder-unopened', 'shift-uncaused', 'adaptation-open', 'laws-missing', 'place-missing', 'spatial-declaration-incomplete', 'spatial-resolution', 'spatial-history-unopened', 'process-unobserved', 'wants-generic', 'why-local',
   'concepts-thin', 'recurring-question', 'period-uncut', 'process-empty', 'secondary-without-life', 'life-thin', 'event-undescribed', 'weights-unestimated'];
 // Understanding Node kinds that look forward or explore, rather than record what was done and judged.
@@ -742,7 +771,7 @@ export function personStateAt(model, personId, t, { draws = [], accessScopes = n
     life: person.life ? { eventId: person.life.id, start: start(person.life), end: end(person.life), age: start(person.life) === null ? null : t - start(person.life) } : null,
     periods: person.periods.filter(contains).map((event) => ({ eventId: event.id, what: describe(event), start: start(event), end: end(event) })),
     latest: [...latest.values()].map((item) => ({ cutId: item.cut.id, kind: cutKind(item.cut), question: item.cut.question, at: start(item.event),
-      answers: answersOf(item.cut).slice().sort((x, y) => y.weight - x.weight).slice(0, 4) })),
+      until: end(item.event) ?? start(item.event), covers: contains(item.event), answers: answersOf(item.cut).slice().sort((x, y) => y.weight - x.weight).slice(0, 4) })),
     ...(values.length ? { values, ...(valuesOmitted ? { valuesOmitted } : {}) } : {}),
     adapting: person.arcs.filter((item) => start(item.focal ?? item.arc) !== null && start(item.focal ?? item.arc) <= t
       && (end(item.adaptation ?? item.arc) ?? Infinity) >= t).map((item) => ({ arcEventId: item.arcEventId, shock: describe(item.focal ?? item.arc), since: start(item.focal ?? item.arc) })),
@@ -1052,6 +1081,15 @@ export async function readOpenQuestions(service, { modelHash, people = null, at 
   }
   const jumps = modelJumps(model, { people: named, limit: 8 });
   const states = at === null ? [] : named.filter((person) => person.principal !== false).map((person) => ({ name: person.name ?? displayName(person.id), ...personStateAt(model, person.id, at, { draws, accessScopes }) }));
+  // Before a scene at this moment: a person whose readings all ended earlier, or who has none, is written from memory of
+  // an older state. Ask for a reading of this stretch first.
+  for (const state of states) {
+    if (state.life && (at < state.life.start || at > (state.life.end ?? Infinity))) continue;
+    if ((state.latest ?? []).some((item) => item.covers)) continue;
+    const last = (state.latest ?? []).slice().sort((x, y) => y.until - x.until)[0];
+    addQuestion({ kind: 'moment-unread', subject: state.personId, principal: true, tool: 'life_series_record', at: [at],
+      question: `Before you write ${state.name} at ${timeText(at)}: no reading of theirs covers that moment${last ? ` (the latest, "${last.question}", ends at ${timeText(last.until)})` : ''}. What do they want, fear and expect then, and what has happened to them since? Record a reading for this stretch first (life_series_record), or say why the last one still holds.` });
+  }
   return { ...questions, modelHash, jumps: jumps.jumps, states, ...(view && storyProfile() ? { authorLives } : {}) };
 }
 
