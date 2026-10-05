@@ -70,6 +70,8 @@ export function createModelViewer(service, { buildData = buildViewerData, public
     const live = snapshot.live;
     if (!live) return { mode: 'snapshot', graphHash: snapshot.graphHash, modelHash: snapshot.modelHash };
     if (!live.pending && Date.now() - live.checkedAt >= 1_000) {
+      // The bookkeeping runs after the refresh settles, never inside it: a refresh with nothing to wait for (a model
+      // view with no new revision) would otherwise clear pending before it was set, and the view would stop following.
       live.pending = (async () => {
         try {
           let graphHash = snapshot.graphHash, prepared = null;
@@ -93,8 +95,7 @@ export function createModelViewer(service, { buildData = buildViewerData, public
           }
           live.status = 'following';
         } catch { live.status = 'unavailable'; }
-        finally { live.checkedAt = Date.now(); live.pending = null; }
-      })();
+      })().finally(() => { live.checkedAt = Date.now(); live.pending = null; });
     }
     await live.pending;
     return { mode: 'live', status: live.status, graphHash: snapshot.graphHash, modelHash: snapshot.modelHash,

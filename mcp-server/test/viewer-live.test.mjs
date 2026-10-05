@@ -67,6 +67,9 @@ test('a live link fills as revisions are recorded: a model-only view and a graph
   const byModel = await f.viewer.open({ modelHash, mode: 'live' }), byGraph = await f.viewer.open({ graphHash: rootHash, mode: 'live' });
   const exact = await f.viewer.open({ modelHash });
   assert.deepEqual((await f.json(byModel, 'model')).viewerLive, { mode: 'live', graphHash: null, modelHash });
+  // A poll before anything changes must not stop the view from following what is recorded next.
+  assert.equal((await f.json(byModel, 'live')).modelHash, modelHash);
+  assert.equal((await f.json(byGraph, 'live')).modelHash, modelHash);
   f.record(hash(2), modelHash, [{ id: 'first', boundary: 'A first reading', interval: { start: 0, end: 1 } }]);
   f.record(hash(3), hash(2), [{ id: 'first', boundary: 'A first reading', interval: { start: 0, end: 1 } }, { id: 'second', boundary: 'A second reading', interval: { start: 1, end: 2 } }]);
   assert.deepEqual(await f.json(byModel, 'live'), { mode: 'live', status: 'following', graphHash: null, modelHash: hash(3), pollIntervalMs: 2000, message: 'Live · saved revisions' });
