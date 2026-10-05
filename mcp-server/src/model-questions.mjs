@@ -16,7 +16,7 @@
 // attention for what they feel, decision allocation for a decision between continuations); decisions are drawn
 // with life_direction_draw, and estimates carry estimator or supplied provenance.
 
-import { changeQuestions } from './development-gaps.mjs';
+import { changeQuestions, followedSubjects, innerHolders } from './development-gaps.mjs';
 import { spatialDiagnostics } from './spatial-diagnostics.mjs';
 import { isSeriesReadingEvent } from './series-mark.mjs';
 
@@ -664,6 +664,14 @@ export function modelQuestions(model, { people = null, draws = null, limit = 12,
   const named = people ?? modeledPeople(index);
   const lives = named.map((item) => ({ ...item, name: item.name ?? displayName(item.id), read: readPerson(index, item.id) }));
   const own = lives.flatMap((item) => personQuestions(index, item.read, item.name, item.principal !== false));
+  // Someone the model gives a mind counts as a person here too, though built without the person template: their
+  // development is asked about like anyone's.
+  const followed = followedSubjects(model);
+  for (const id of innerHolders(model)) {
+    if (named.some((item) => item.id === id) || followed.has(id) || !index.referents.get(id)?.lifecycle_event_id) continue;
+    own.push({ kind: 'development-missing', subject: id, principal: true, tool: 'life_series_record',
+      question: `Nothing about ${displayName(id)} is followed over time: no question about them has two dated readings. Which of their processes does the work lean on: an outlook, a belief about themselves, a relationship, their work? Carve it into its exclusive categories and record its readings across their life with life_series_record, one for each stretch it holds steady. ${changeQuestions}` });
+  }
   if (author && author.sameModel !== false) {
     const links = authorLinks(index, author.id);
     if (links && links.storyEvents.size && !links.relations.length) own.unshift({ kind: 'author-unlinked', subject: author.id, principal: true, tool: 'life_model_revise',

@@ -52,3 +52,15 @@ test('a person with nothing followed over time is asked about it, with the quest
   const followed = modelQuestions(followLeo(withLives(base(), ['Leo'])), { people, limit: 200 }).questions.filter((item) => item.kind === 'development-missing');
   assert.equal(followed.length, 0, 'two dated readings of one question about him answer it');
 });
+
+test('someone the model gives a mind is asked about their development, though built without the person template', () => {
+  const model = withLives(base(), ['Dale']);
+  // No person template and no wants or feelings: only an inner perspective root inside Dale's life.
+  model.meaning_model.events = model.meaning_model.events.filter((event) => !/\.is\./u.test(event.id));
+  model.meaning_model.event_relations = model.meaning_model.event_relations.filter((relation) => !/\.is\./u.test(relation.target_event_id));
+  model.meaning_model.events.push({ id: 'event.dale.inner', boundary: "Dale's inner perspective", interval: null, participants: {} });
+  model.meaning_model.event_relations.push({ id: 'rel.dale.inner', kind: 'contains', source_event_id: 'event.life.Dale', target_event_id: 'event.dale.inner' });
+  model.meaning_model.context_roots = [{ event_id: 'event.dale.inner', kind: 'inner' }];
+  const asked = modelQuestions(model, { limit: 200 }).questions.filter((item) => item.kind === 'development-missing');
+  assert.equal(asked.length, 1); assert.equal(asked[0].subject, 'Dale');
+});
