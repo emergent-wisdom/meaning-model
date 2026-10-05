@@ -21,6 +21,19 @@ test('a change replaces records in place, appends new ones, removes by id and se
   assert.equal(base().meaning_model.events.length, 2, 'the predecessor is not changed');
 });
 
+// A new person's inner root or the modeler's understanding root, added without resending the model: context roots
+// are keyed by the Event they declare, as the service keys them.
+test('a change adds, replaces and removes context roots by the Event they declare', () => {
+  const withRoot = { ...base(), meaning_model: { ...base().meaning_model, context_roots: [{ event_id: 'e1', kind: 'accepted_world', provenance: ['p'] }] } };
+  const { successor, summary } = applyModelChange(withRoot, previousHash, { reason: 'Give e2 its own perspective.',
+    upsert: { context_roots: [{ event_id: 'e2', kind: 'inner', provenance: ['p'] }, { event_id: 'e1', kind: 'accepted_world', provenance: ['q'] }] } });
+  assert.deepEqual(successor.meaning_model.context_roots.map((root) => [root.event_id, root.kind, root.provenance[0]]), [['e1', 'accepted_world', 'q'], ['e2', 'inner', 'p']]);
+  assert.deepEqual(summary, { context_roots: { added: 1, replaced: 1, removed: 0 } });
+  const removed = applyModelChange(successor, previousHash, { reason: 'Drop it again.', remove: { context_roots: ['e2'] } }).successor;
+  assert.deepEqual(removed.meaning_model.context_roots.map((root) => root.event_id), ['e1']);
+  assert.throws(() => validateModelChange({ reason: 'x', upsert: { context_roots: [{ kind: 'inner' }] } }), /needs a string event_id/);
+});
+
 test('a change is refused when it names unknown collections or records, repeats ids, or changes nothing', () => {
   assert.throws(() => validateModelChange({ reason: 'x', upsert: { widgets: [] } }), /Unknown model collection widgets/);
   assert.throws(() => validateModelChange({ reason: 'x' }), /upserts and removes nothing/);

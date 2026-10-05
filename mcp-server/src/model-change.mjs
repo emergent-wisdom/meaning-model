@@ -2,14 +2,20 @@
 // applied to the stored predecessor. The engine still receives and validates the complete successor;
 // the caller no longer has to fetch, edit and resend a definition of hundreds of kilobytes.
 
-// Every collection whose records carry an id, and where it lives in the definition.
+// Every collection whose records carry an identity, and where it lives in the definition.
 export const modelChangeCollections = Object.freeze({
   processes: [], laws: [], initial_claims: [], decomposition: [], dependencies: [],
   concepts: ['meaning_model'], abstract_relations: ['meaning_model'], abstract_cuts: ['meaning_model'],
   referents: ['meaning_model'], encapsulation_cuts: ['meaning_model'], events: ['meaning_model'],
   event_relations: ['meaning_model'], event_referent_bindings: ['meaning_model'], physical_cuts: ['meaning_model'],
-  realizations: ['meaning_model'], normalized_cuts: ['meaning_model'],
+  realizations: ['meaning_model'], normalized_cuts: ['meaning_model'], context_roots: ['meaning_model'],
+  temporal_cut_recompositions: ['meaning_model'],
 });
+
+// A record's identity within its collection, as the service keys it: a context root by the Event it declares, a
+// temporal recomposition by its parent Cut, every other record by its id.
+const keyField = (collection) => (collection === 'context_roots' ? 'event_id' : collection === 'temporal_cut_recompositions' ? 'parent_cut_id' : 'id');
+const keyOf = (collection, record) => record?.[keyField(collection)];
 
 const MAX_REASON = 4_000;
 
@@ -41,9 +47,10 @@ export function validateModelChange(change) {
   for (const [collection, records] of Object.entries(upsert)) {
     const ids = new Set();
     for (const record of records) {
-      if (!record || typeof record !== 'object' || Array.isArray(record) || typeof record.id !== 'string' || !record.id) throw new Error(`Every record in change.upsert.${collection} needs a string id.`);
-      if (ids.has(record.id)) throw new Error(`change.upsert.${collection} names ${record.id} twice.`);
-      ids.add(record.id); count += 1;
+      const key = !record || typeof record !== 'object' || Array.isArray(record) ? undefined : keyOf(collection, record);
+      if (typeof key !== 'string' || !key) throw new Error(`Every record in change.upsert.${collection} needs a string ${keyField(collection)}.`);
+      if (ids.has(key)) throw new Error(`change.upsert.${collection} names ${key} twice.`);
+      ids.add(key); count += 1;
     }
     for (const recordId of remove[collection] ?? []) if (ids.has(recordId)) throw new Error(`${collection} ${recordId} is both upserted and removed.`);
   }
@@ -65,15 +72,16 @@ export function applyModelChange(previous, previousModelHash, change) {
   for (const collection of new Set([...Object.keys(upsert), ...Object.keys(remove)])) {
     const holder = holderOf(successor, collection);
     const records = Array.isArray(holder[collection]) ? holder[collection] : [];
-    const byId = new Map(records.map((record, index) => [record.id, index]));
+    const byId = new Map(records.map((record, index) => [keyOf(collection, record), index]));
     const removed = new Set(remove[collection] ?? []);
     for (const recordId of removed) if (!byId.has(recordId)) throw new Error(`Cannot remove ${collection} ${recordId}: the predecessor has no such record.`);
     let added = 0; let replaced = 0;
-    const next = records.filter((record) => !removed.has(record.id));
-    const position = new Map(next.map((record, index) => [record.id, index]));
+    const next = records.filter((record) => !removed.has(keyOf(collection, record)));
+    const position = new Map(next.map((record, index) => [keyOf(collection, record), index]));
     for (const record of upsert[collection] ?? []) {
-      if (position.has(record.id)) { next[position.get(record.id)] = structuredClone(record); replaced += 1; }
-      else { position.set(record.id, next.length); next.push(structuredClone(record)); added += 1; }
+      const key = keyOf(collection, record);
+      if (position.has(key)) { next[position.get(key)] = structuredClone(record); replaced += 1; }
+      else { position.set(key, next.length); next.push(structuredClone(record)); added += 1; }
     }
     holder[collection] = next;
     summary[collection] = { added, replaced, removed: removed.size };

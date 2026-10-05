@@ -6,6 +6,9 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- `life_model_revise` changes can add, replace and remove context roots (keyed by the Event they declare) and temporal
+  Cut recompositions (keyed by their parent Cut), as the service already keys them, so a new person's inner root or
+  the modeler's understanding root no longer needs the complete model resent.
 - The start-here guide hands an agent on: if it has not yet called `life_modeling_context`, it calls it with its
   purpose (all nine listed) to get the workflow for that purpose, adding `sessionMode` continuation to continue
   recorded work, so an agent whose client never shows the server instructions still finds the storytelling workflow.
