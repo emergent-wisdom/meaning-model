@@ -20,18 +20,23 @@ const model = {
   meaning_model: {
     schema: 'life-sim-rust-meaning-model/v1',
     referents: [{ id: 'referent.protocol', boundary: 'A public blockchain protocol and its developer community', continuity_criterion: 'The same chain and its continuing community',
-      lifecycle_event_id: 'event.protocol.life', interval: null, authority: null, uncertainty: unknown, provenance: ['series test'] }],
+      lifecycle_event_id: 'event.protocol.life', interval: null, authority: null, uncertainty: unknown, provenance: ['series test'] },
+      { id: 'referent.rival', boundary: 'A rival protocol and its community', continuity_criterion: 'The same chain and its continuing community',
+        lifecycle_event_id: 'event.rival.life', interval: null, authority: null, uncertainty: unknown, provenance: ['series test'] }],
     events: [
       { id: 'event.world', boundary: 'The accepted world', description: 'The world the protocol lives in.', interval: { start: 2010, end: 2030 },
         participants: {}, process_ids: [], observation_process_ids: [], region: null, substrate: null, provenance: ['series test'] },
       { id: 'event.protocol.life', boundary: 'The protocol from its whitepaper to now', description: 'Its life so far.', interval: { start: 2014, end: 2026 },
         participants: { subject: 'referent.protocol' }, process_ids: [], observation_process_ids: [], region: null, substrate: null, provenance: ['series test'] },
+      { id: 'event.rival.life', boundary: 'The rival from its launch to now', description: 'Its life so far.', interval: { start: 2015, end: 2026 },
+        participants: { subject: 'referent.rival' }, process_ids: [], observation_process_ids: [], region: null, substrate: null, provenance: ['series test'] },
       { id: 'event.fork', boundary: 'A contested emergency fork', description: 'The community forks to undo a hack.', interval: { start: 2016.5, end: 2016.6 },
         participants: { subject: 'referent.protocol' }, process_ids: [], observation_process_ids: [], region: null, substrate: null, provenance: ['series test'] },
     ],
     event_referent_bindings: [],
     event_relations: [
       { id: 'world.contains.life', kind: 'contains', source_event_id: 'event.world', target_event_id: 'event.protocol.life', description: null, authority: null, uncertainty: unknown, provenance: ['series test'] },
+      { id: 'world.contains.rival', kind: 'contains', source_event_id: 'event.world', target_event_id: 'event.rival.life', description: null, authority: null, uncertainty: unknown, provenance: ['series test'] },
       { id: 'life.contains.fork', kind: 'contains', source_event_id: 'event.protocol.life', target_event_id: 'event.fork', description: null, authority: null, uncertainty: unknown, provenance: ['series test'] },
     ],
     normalized_cuts: [], context_roots: [{ event_id: 'event.world', kind: 'accepted_world', provenance: ['series test'] }],
@@ -85,8 +90,18 @@ test('a whole series is one call: dated readings with reasons draw as a curve, n
     reason: 'refusal', readings: [reading(2018, 2022, 0.45, 0.35, 0.2, { confidence: 1.5 })] });
   assert.ok(sure.isError, 'a confidence above 1 is refused');
 
+  // Recording an interval again replaces the whole reading: a cause it no longer names is unlinked.
+  const uncaused = await ok('life_series_record', { requestId: 'uncaused', previousModelHash: surer.modelHash, subject: 'referent.protocol', series: priorities,
+    reason: 'The fork did not move this stretch after all.', readings: [reading(2016.5, 2018, 0.35, 0.35, 0.3, { causes: [] })] });
+  const relationsAfter = (await ok('life_model_inspect', { modelHash: uncaused.modelHash, includeDefinition: true })).model.meaning_model.event_relations;
+  assert.ok(!relationsAfter.some((relation) => relation.kind === 'causes' && relation.source_event_id === 'event.fork'), 'the dropped cause is unlinked');
+  // A series id holds one subject: another subject's readings get their own id rather than replacing these.
+  const rivalSame = await call('life_series_record', { requestId: 'rival-same', previousModelHash: uncaused.modelHash, subject: 'referent.rival', series: priorities,
+    reason: 'refusal', readings: [reading(2018, 2022, 0.2, 0.5, 0.3)] });
+  assert.ok(rivalSame.isError); assert.match(JSON.stringify(rivalSame.content), /already follows referent\.protocol/);
+
   // Finer readings nest inside a long one; recording the same interval again replaces it rather than adding another.
-  const nested = await ok('life_series_record', { requestId: 'nested', previousModelHash: surer.modelHash, subject: 'referent.protocol', series: priorities,
+  const nested = await ok('life_series_record', { requestId: 'nested', previousModelHash: uncaused.modelHash, subject: 'referent.protocol', series: priorities,
     reason: 'Open the last stretch.', readings: [reading(2022, 2023, 0.75, 0.1, 0.15), reading(2022, 2026, 0.62, 0.23, 0.15)] });
   assert.deepEqual(nested.series, { id: 'protocol-priorities', readings: 5, drawnAsCurve: 5 });
 

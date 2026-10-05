@@ -45,9 +45,12 @@ export function seriesChange(previous, input) {
   if (!parentEventId || !events.has(parentEventId)) throw new Error(`The readings need a parent Event inside ${subject}'s life: pass parentEventId, or give ${subject} a lifecycle Event.`);
   const parentInterval = events.get(parentEventId).interval;
 
-  // A series id keeps one question in one wording, with one unit and one set of answers.
+  // A series id keeps one question in one wording, with one unit and one set of answers, about one subject.
   const sortedKeys = [...keys].sort();
   const existing = cuts.filter((cut) => seriesOfCut(cut) === series.id);
+  const subjectOf = (cut) => [events.get(cut.parent_event_id)?.participants?.subject].flat().find((id) => typeof id === 'string') ?? null;
+  const other = existing.map(subjectOf).find((id) => id && id !== subject);
+  if (other) throw new Error(`Series ${series.id} already follows ${other}. Give ${subject}'s readings their own series id: a series id holds one question about one subject, and reusing it would replace ${other}'s readings.`);
   const mismatch = existing.find((cut) => cut.question !== series.question || cut.unit !== series.unit || !sameKeys(keysOf(cut), sortedKeys));
   if (mismatch) {
     throw new Error(`Series ${series.id} already asks "${mismatch.question}" in unit "${mismatch.unit}" with answers ${keysOf(mismatch).join(', ')}. `
@@ -62,12 +65,15 @@ export function seriesChange(previous, input) {
     if (!(parentCuts[0].answers ?? []).some((answer) => answer.key === series.conditionedOn.answerKey)) {
       throw new Error(`Series ${series.conditionedOn.seriesId} has no answer ${series.conditionedOn.answerKey}.`);
     }
+    const parentSubject = parentCuts.map(subjectOf).find(Boolean);
+    if (parentSubject && parentSubject !== subject) throw new Error(`Series ${series.conditionedOn.seriesId} follows ${parentSubject}, not ${subject}; an opened category divides a series about the same subject.`);
     enclosing = new Map(parentCuts.map((cut) => [intervalId(events.get(cut.parent_event_id)?.interval ?? { start: NaN, end: NaN }), cut]));
   }
 
   const allowed = new Set([...keys, ...(series.remainder ? [REMAINDER] : [])]);
   const intervals = existing.map((cut) => events.get(cut.parent_event_id)?.interval).filter(Boolean);
-  const upsertEvents = []; const upsertRelations = []; const upsertCuts = []; const seen = new Set();
+  const upsertEvents = []; const upsertRelations = []; const upsertCuts = []; const removeRelations = []; const seen = new Set();
+  const relationIds = new Set((mm.event_relations ?? []).map((relation) => relation.id));
   for (const reading of readings) {
     const { start, end } = reading;
     const label = `${series.id} ${stamp(start)} to ${stamp(end)}`;
@@ -104,9 +110,13 @@ export function seriesChange(previous, input) {
       participants: { subject }, process_ids: [], observation_process_ids: [], region: null, substrate: null, provenance: [...provenance, SERIES_EVENT_MARK] });
     upsertRelations.push({ id: `relation.series.${series.id}.${id}`, kind: 'contains', source_event_id: parentEventId, target_event_id: eventId,
       description: null, authority: null, uncertainty: { kind: 'unknown' }, provenance });
+    // Recording an interval again replaces the whole reading, its causes included: links it no longer names go.
+    const causePrefix = `relation.series.${series.id}.${id}.cause.`;
+    const causeIds = new Set((reading.causes ?? []).map((cause) => `${causePrefix}${cause}`));
+    for (const relationId of relationIds) if (relationId.startsWith(causePrefix) && !causeIds.has(relationId)) removeRelations.push(relationId);
     for (const cause of reading.causes ?? []) {
       if (!events.has(cause)) throw new Error(`Reading ${label} names cause ${cause}, which is not an Event in the model.`);
-      upsertRelations.push({ id: `relation.series.${series.id}.${id}.cause.${cause}`, kind: 'causes', source_event_id: cause, target_event_id: eventId,
+      upsertRelations.push({ id: `${causePrefix}${cause}`, kind: 'causes', source_event_id: cause, target_event_id: eventId,
         description: `Moves "${series.question}" in this stretch.`, authority: null, uncertainty: { kind: 'unknown' }, provenance });
     }
     upsertCuts.push({ id: seriesCutId(series.id, reading), parent_event_id: eventId, question: series.question, unit: series.unit, answers, provenance });
@@ -114,7 +124,7 @@ export function seriesChange(previous, input) {
   const upsert = { normalized_cuts: upsertCuts };
   if (upsertEvents.length) upsert.events = upsertEvents;
   if (upsertRelations.length) upsert.event_relations = upsertRelations;
-  return { reason: input.reason, provenance: ['life_series_record'], upsert };
+  return { reason: input.reason, provenance: ['life_series_record'], upsert, ...(removeRelations.length ? { remove: { event_relations: removeRelations } } : {}) };
 }
 
 // How a recorded series will draw in the viewer: how many of its readings join a curve, and if none do, why. This is
