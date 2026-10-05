@@ -36,11 +36,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
   rough readings in at once with a low confidence, open the viewer live so the
   user watches the model fill, and record the same intervals again, more sure, as
   they learn; the forecasting method asks the same of every forecast series.
-- A live viewer link now fills as the model grows: it follows each model revision
-  the server records after the one it shows (every `life_series_record` among
-  them), as well as saved graph revisions, so a user can watch an agent's data
-  arrive. Live mode also works for a modelHash alone. A live view reads each new revision once and replays
-  at most the last 60, so following a large model does not slow the agent's own calls.
+- A live viewer link now fills as the model grows: it follows each model revision the server records after the one it
+  shows (every `life_series_record` among them), as well as saved graph revisions, so a user can watch an agent's data
+  arrive. It follows the newest revision without a child of its own, found through parent links, so submitting an
+  older revision again never takes the view back. Live mode also works for a modelHash alone. A live view reads each
+  new revision once and replays at most the last 60, so following a large model does not slow the agent's own calls.
 - A model built from an existing text reads that text: when a graph holds an
   imported source document and no rendered prose, the reader shows its pages in
   order, each placed in time by its `grounded_in` links. Paragraphs survive CRLF

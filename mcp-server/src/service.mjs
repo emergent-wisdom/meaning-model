@@ -23,6 +23,7 @@ import {
   routeCandidates,
 } from './candidate-router.mjs';
 import { diagnoseStoryRevision } from './story-revision-diagnostic.mjs';
+import { newestWrittenDescendant } from './viewer-live.mjs';
 import {
   buildObservationMaterializationPlan,
   canonicalEstimationJson,
@@ -803,8 +804,8 @@ export class LifeSimulationService {
     this.worlds = new Map();
     this.pendingWorlds = 0;
     this.models = new Map();
-    // Every model revision this service wrote, oldest first, with its parent, so a live viewer can follow a model while
-    // an agent records into it (each life_series_record is a revision). Only this process's writes are known.
+    // Every model revision this service wrote, in order of first write, with its parent, so a live viewer can follow a
+    // model while an agent records into it (each life_series_record is a revision). Only this process's writes are known.
     this.modelWrites = [];
     this.pendingModels = 0;
     this.presetModels = new Map();
@@ -847,19 +848,17 @@ export class LifeSimulationService {
     this.models.set(modelHash, summary);
   }
 
+  // Revisions are content-addressed: submitting a model again writes nothing new, so it keeps its first place.
   #noteModelWrite(modelHash, previousModelHash) {
-    this.modelWrites = this.modelWrites.filter((write) => write.modelHash !== modelHash);
+    if (this.modelWrites.some((write) => write.modelHash === modelHash)) return;
     this.modelWrites.push({ modelHash, previousModelHash });
     if (this.modelWrites.length > MAX_FOLLOWED_MODEL_WRITES) this.modelWrites.shift();
   }
 
-  // The newest model this service wrote that descends from anchor, or anchor itself. A child is always written after
-  // its parent, so one pass in writing order collects the descendants; when an agent revised an older revision again,
-  // the view follows whichever line it wrote to last.
+  // The newest model this service wrote that descends from anchor, or anchor itself (see newestWrittenDescendant):
+  // when an agent revised an older revision again, the view follows whichever line it wrote to last.
   newestModelDescendant(anchor) {
-    const descendants = new Set([anchor]); let newest = anchor;
-    for (const write of this.modelWrites) if (descendants.has(write.previousModelHash)) { descendants.add(write.modelHash); newest = write.modelHash; }
-    return newest;
+    return newestWrittenDescendant(this.modelWrites, anchor);
   }
 
   #reserveWorld() {

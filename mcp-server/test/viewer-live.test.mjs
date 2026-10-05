@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { request } from 'node:http';
 import { createModelViewer, modelViewerSchema } from '../src/viewer-server.mjs';
-import { followedGraphHead } from '../src/viewer-live.mjs';
+import { followedGraphHead, newestWrittenDescendant } from '../src/viewer-live.mjs';
 
 const hash = (n) => n.toString(16).padStart(64, '0');
 const modelHash = hash(1), rootHash = hash(101);
@@ -47,11 +47,7 @@ function fixture(t) {
       meaning_model: { events, referents: [], normalized_cuts: [] } });
     writes.push({ modelHash: id, previousModelHash: previous }); now += 2_000;
   };
-  service.newestModelDescendant = (anchor) => {
-    const descendants = new Set([anchor]); let newest = anchor;
-    for (const write of writes) if (descendants.has(write.previousModelHash)) { descendants.add(write.modelHash); newest = write.modelHash; }
-    return newest;
-  };
+  service.newestModelDescendant = (anchor) => newestWrittenDescendant(writes, anchor);
   return { viewer, add, models, graphs, calls, json, record, service };
 }
 
