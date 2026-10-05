@@ -35,7 +35,10 @@ unpublished work stays under Unreleased. This is not a development transcript.
   working loop between the world and the writing, a checklist for living with
   each character, and tags for what is sourced, inferred, invented, explored
   or sketched. It opens the server instructions, the modeling context and the
-  session prompt, and is the first required resource before the grammar.
+  session prompt, and is the first required resource before the grammar. It
+  asks agents to find a concept's mutually exclusive categories before putting
+  numbers on it, follow them over time and open the ones that matter, and to ask
+  what each change means.
 - Turn the Cut remainder off by default. A Cut whose answers sum to one is
   stored with an explicit zero remainder; a Cut that names no remainder and
   does not sum to one is refused with the reason, never padded. Name a
