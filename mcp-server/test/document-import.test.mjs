@@ -255,3 +255,11 @@ test('core tool registration executes source imports and rejects ambiguous sourc
     assert.equal(documentImportSchema.safeParse(f.input(extra)).success, false);
   }
 });
+
+test('an import that names Project Gutenberg says what that means for the text', async (t) => {
+  const f = await fixture(t);
+  const named = await importDocument(f.service, f.input({ requestId: 'named', documentId: 'source.named', text: 'A public-domain story.', sourceLabel: 'Project Gutenberg eBook #1661' }));
+  assert.match(named.notices?.[0] ?? '', /license applies while its name is attached/);
+  const clean = await importDocument(f.service, f.input({ requestId: 'clean', documentId: 'source.clean', text: 'A public-domain story.', sourceLabel: 'Arthur Conan Doyle, The Strand Magazine, 1891' }));
+  assert.equal(clean.notices, undefined);
+});

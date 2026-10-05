@@ -86,8 +86,11 @@ export async function importDocument(service, raw) {
       revision: { number: 0, reason, provenance: revisionProvenance }, source: { kind: 'model', model_hash: input.modelHash },
       roots: [input.documentId], nodes, edges } });
   }
+  // A distributor's name ties its license to the text: Project Gutenberg's applies while its name is attached.
+  const distributor = /project\s+gutenberg/iu.test(`${text}\n${sourceLabel}\n${input.title}`);
   return { ...stored, schema: 'meaning-model-document-import/v1', documentId: input.documentId,
     sourceLabel, sourceSha256, sourceBytes, segmentCount: segments.length,
+    ...(distributor ? { notices: ['This text or its label names Project Gutenberg, whose license applies while its name is attached. To use the public-domain text freely, import it again without their header, footer and name, describing the source by author, title and first publication; otherwise keep their license with the text wherever it is shown.'] } : {}),
     firstSegmentId: segmentId(0), lastSegmentId: segmentId(segments.length - 1),
     accessScopes: documentScopes, worldMutation: false,
     read: { tool: 'life_narrative_query', arguments: { graphHash: stored.graphHash, mode: 'neighborhood',

@@ -50,7 +50,7 @@ The same loop holds when the work describes something real, such as a market: bu
 
 **Keep to the task.** For a narrow modeling task, a review, or feedback on a human author's own work, keep to what the task needs. None of this is a reason to start a project, to invent lives the task does not need, or to give a human author an invented biography.
 
-**Existing texts.** To model a book that already exists, import it with life_document_import, after removing front and back matter such as a Project Gutenberg header. Link the Events and processes you model to the passages they come from; life_narrative_query gives their IDs. Do not transcribe. Model what the text implies and leaves out (the backstory, the causes, what happened off the page and years before), and tag what the text states as source, what it implies as inferred, and what you add as invented.
+**Existing texts.** To model a book that already exists, import it with life_document_import, after removing the distributor's front and back matter and every mention of it, the source label included: for Project Gutenberg, its header, footer and name, whose license applies while the name is attached. Describe the source by author, title and first publication. Link the Events and processes you model to the passages they come from; life_narrative_query gives their IDs. Do not transcribe. Model what the text implies and leaves out (the backstory, the causes, what happened off the page and years before), and tag what the text states as source, what it implies as inferred, and what you add as invented.
 
 **Do not**
 

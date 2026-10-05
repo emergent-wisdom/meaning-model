@@ -6,6 +6,9 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- `life_document_import` notes when a text or its label names Project Gutenberg, whose license
+  applies while its name is attached; the start-here guide asks agents to strip a distributor's
+  matter and name and describe the source by author, title and first publication.
 - Record early, then revise: a `life_series_record` reading takes an optional
   confidence from 0 to 1, shown on hover. The start-here guide asks agents to put
   rough readings in at once with a low confidence, open the viewer live so the
