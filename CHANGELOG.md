@@ -6,6 +6,9 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- The minimal example now records a concept carve in the host's fields (concepts with label and differentia,
+  a specialization, an abstract Cut), test-verified; the start-here guide points to it and warns that the
+  grammar's notation is not the tool's field names and that the Book profile's vocabularies are not defaults.
 - `life_series_record`: a series id holds one subject (reusing it for another subject is refused rather than
   replacing that subject's readings), and recording an interval again replaces the whole reading, unlinking causes it
   no longer names. The decomposition guidance makes a carve a Cut only when a question divides a declared unit.

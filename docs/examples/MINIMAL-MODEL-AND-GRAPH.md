@@ -218,6 +218,45 @@ in the same batch. This one adds a dated fact, the form a character can later be
 }
 ```
 
+## 5. `life_model_revise` request: the carve behind a Cut
+
+The grammar's Concept, specialization and decomposition records, in the host's own fields. They are unweighted:
+they say what a concept is made of, never how much of it. The register call above returns the `modelHash` to revise.
+
+- `concepts`: `id`, `label`, and `differentia`, a list saying what sets the concept apart from its siblings.
+- `abstract_relations` of kind `specialization`: `source_concept_id` is the broader concept, `target_concept_id` the
+  narrower one. This records the ascent.
+- `abstract_cuts`: the decomposition of `parent_concept_id` into `child_concept_ids`, with the `lens` that frames it.
+  This records the four-test carve.
+
+Ada's attention Cut divides one declared unit, an attention budget, among money and the bakery's continuity. The
+carve below records where that concept sits and what it is made of.
+
+```json
+{
+  "requestId": "minimal-example-concepts",
+  "previousModelHash": "<modelHash returned by life_model_register above>",
+  "change": {
+    "reason": "Record the carve behind Ada's attention Cut.",
+    "upsert": {
+      "concepts": [
+        { "id": "concept.allocation", "label": "Allocation of a bounded resource", "differentia": ["one bounded resource divided among exclusive uses"], "provenance": ["minimal-example"] },
+        { "id": "concept.attention", "label": "A person's attention", "differentia": ["the resource is one person's attention over a stretch of time"], "provenance": ["minimal-example"] },
+        { "id": "concept.attention.money", "label": "Money", "differentia": ["attention spent on income, debt and payment"], "provenance": ["minimal-example"] },
+        { "id": "concept.attention.continuity", "label": "The bakery's continuity", "differentia": ["attention spent on keeping the business and its premises going"], "provenance": ["minimal-example"] }
+      ],
+      "abstract_relations": [
+        { "id": "rel.allocation.attention", "source_concept_id": "concept.allocation", "target_concept_id": "concept.attention", "kind": "specialization", "provenance": ["minimal-example"] }
+      ],
+      "abstract_cuts": [
+        { "id": "acut.attention.uses", "parent_concept_id": "concept.attention", "child_concept_ids": ["concept.attention.money", "concept.attention.continuity"],
+          "lens": "what Ada's attention is spent on when the offer arrives", "query": "Which uses must Ada's attention cover at the offer?", "provenance": ["minimal-example"] }
+      ]
+    }
+  }
+}
+```
+
 ## Where to go next
 
 Read a graph back for revision with `life_narrative_query` in `full` mode with
