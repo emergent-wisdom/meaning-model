@@ -17,6 +17,7 @@
 // with life_direction_draw, and estimates carry estimator or supplied provenance.
 
 import { spatialDiagnostics } from './spatial-diagnostics.mjs';
+import { isSeriesReadingEvent } from './series-mark.mjs';
 
 export const SLOW_PROCESSES = Object.freeze(['body', 'kin', 'partnership', 'work', 'place', 'means', 'knowledge', 'standing', 'meaning']);
 // The shared first-run comparison vocabulary of the Book; a person's own wants replace it.
@@ -308,7 +309,7 @@ function personQuestions(index, person, name, principal) {
       if (!(b > a)) continue;
       const happened = [...person.own].filter((eventId) => {
         const event = index.events.get(eventId); const t = start(event);
-        if (frames.has(eventId) || index.readings?.has(eventId) || t === null || t < a || t >= b) return false;
+        if (frames.has(eventId) || index.readings?.has(eventId) || isSeriesReadingEvent(event) || t === null || t < a || t >= b) return false;
         return !(span(event) !== null && start(event) <= a && end(event) >= b);
       });
       if (!happened.length) ask('stage-unexplored', `Nothing happens in ${name}'s ${stage} (${timeText(a)} to ${timeText(b)}) beyond what frames it. ${asks} In a story, sketch it: a period with a description, a few Events, a reading where something changed. If it does not matter to this work, record why.`, 'life_model_revise', { at: [a, b] });
@@ -530,7 +531,7 @@ function worldQuestions(index, lives, draws, spatial) {
       const [a, b] = [start(item.event), end(item.event)];
       if (list.some((other) => other !== item && start(other.event) >= a && end(other.event) <= b && span(other.event) < length)) continue;
       const happenings = [...descendants(index, item.life)].map((id) => index.events.get(id)).filter((event) => event && event.id !== item.event.id
-        && !index.readings?.has(event.id) && !/\.is\.[a-z]+$/u.test(event.id) && start(event) !== null && start(event) > a && start(event) < b
+        && !index.readings?.has(event.id) && !isSeriesReadingEvent(event) && !/\.is\.[a-z]+$/u.test(event.id) && start(event) !== null && start(event) > a && start(event) < b
         && !(span(event) !== null && start(event) <= a && end(event) >= b));
       if (happenings.length >= 2) stretch(`"${questionOf(item.cut)}" is read once ${when(item.event)}: one average for the whole stretch, though ${happenings.length} Events happen inside it (for example "${describe(happenings[0]).slice(0, 90)}"). Open the stretch at those Events: what was it like after each? One reading per stretch is a sketch, not a life.`, 'life_model_revise', { at: [a, b], cuts: [item.cut.id] });
     }
@@ -569,7 +570,7 @@ function worldQuestions(index, lives, draws, spatial) {
     // A question asked once, of one act, is not a series with gaps.
     if (top.length < 2) continue;
     const stretches = [[start(life), start(top[0].event)], ...top.slice(1).map((item, i) => [end(top[i].event), start(item.event)]), [end(top.at(-1).event), end(life)]];
-    const inLife = [...descendants(index, life.id)].map((id) => index.events.get(id)).filter((event) => event && !index.readings?.has(event.id)
+    const inLife = [...descendants(index, life.id)].map((id) => index.events.get(id)).filter((event) => event && !index.readings?.has(event.id) && !isSeriesReadingEvent(event)
       && !/\.is\.[a-z]+$/u.test(event.id) && start(event) !== null && !list.some((item) => item.event.id === event.id));
     for (const [a, b] of stretches) {
       if (!(b - a >= span(life) / 20)) continue;

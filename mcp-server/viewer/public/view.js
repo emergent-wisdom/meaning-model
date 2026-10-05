@@ -455,7 +455,7 @@ const processById = new Map((data.processes ?? []).map((process) => [process.id,
 for (const row of rows) {
   const process = processById.get(row.measure.processId ?? row.measure.id); row.home = row.measure.kind === 'typed-scalar' ? row.measure.home : row.measure.home ?? process?.home ?? null;
   const home = boundedMeasure(row.measure) ? treeById.get(row.home) : null;
-  row.depth = Number.isFinite(home?.depth) ? home.depth + 1 : row.measure.depth ?? process?.depth ?? 1;
+  row.depth = (Number.isFinite(home?.depth) ? home.depth + 1 : row.measure.depth ?? process?.depth ?? 1) + (boundedMeasure(row.measure) ? row.measure.level ?? 0 : 0);
 }
 const MAX_DEPTH = hasTree ? Math.max(...nodes.map((node) => node.depth), ...rows.map((row) => row.depth)) : 0;
 const processDetail = createProcessDetail(treeEvents, rows);
@@ -653,7 +653,8 @@ for (const row of rows) {
   row.name = name; row.value = label('value', '', new THREE.Vector3(LENGTH / 2 + 1.2, 0.8, row.z), [0, 0.5]);
   // A series of readings of one question is named once, by its question, above its first answer.
   if (row.measure.series?.first) {
-    row.caption = label('series', clip(row.measure.question, 96), new THREE.Vector3(-LENGTH / 2 - 1.2, 0.8, row.z), [1, 1]);
+    const within = row.measure.parentAnswer && !/^within\b/iu.test(row.measure.question) ? `Within ${row.measure.parentAnswer.replace(/_/g, ' ')}: ` : '';
+    row.caption = label('series', clip(`${within}${row.measure.question}`, 96), new THREE.Vector3(-LENGTH / 2 - 1.2, 0.8, row.z), [1, 1]);
     row.caption.element.title = `${row.measure.question}\n\nUnit: ${row.measure.unit}`;
   }
 }

@@ -140,6 +140,8 @@ export function cutTrajectories(data) {
       id: `cut-answer:${encodeURIComponent(JSON.stringify([key, answerKey]))}`,
       label: answerKey.replace(/_/g, ' '), kind: 'cut-answer', answerKey, question: schema.question, unit: schema.unit,
       series: { key, first: index === 0, size: answerOrder.length }, remainder: answerKey === 'remainder',
+      // An opened category sits one level below the answer it divides.
+      level: schema.conditioningSchema.length, parentAnswer: schema.conditioningSchema.at(-1)?.answerKey ?? null,
       owner: schema.owner, group: { id: schema.owner, label: displayNames.get(schema.owner) ?? referent?.boundary ?? schema.owner }, home, depth: 1,
       range: [0, 1], domain: readingsDomain(records), sourceEventIds: sorted(records.map((record) => record.parentEventId)),
       contexts: structuredClone(records[0].contexts), conditioningSchema: structuredClone(schema.conditioningSchema),
@@ -149,5 +151,20 @@ export function cutTrajectories(data) {
         cutId: cut.id, eventId: cut.parentEventId, end: cut.end, interval: structuredClone(cut.interval), born: structuredClone(cut.born ?? null), cut: structuredClone(cut) })),
     });
   }
-  return rows;
+  return nested(rows);
+}
+
+// Each opened category follows the answer it divides, so a series reads as a tree: a broad answer, then its own
+// categories, then the next broad answer. Rows whose parent answer is not drawn keep their place at the end.
+function nested(rows) {
+  const parentOf = (row) => {
+    const condition = row.conditioningSchema.at(-1);
+    return condition ? rows.find((candidate) => candidate.level === row.level - 1 && candidate.answerKey === condition.answerKey
+      && candidate.question === condition.question && candidate.unit === condition.unit && candidate.owner === condition.owner) ?? null : null;
+  };
+  const children = new Map(); const roots = [];
+  for (const row of rows) { const parent = row.level ? parentOf(row) : null; if (parent) { if (!children.has(parent)) children.set(parent, []); children.get(parent).push(row); } else roots.push(row); }
+  const ordered = []; const visit = (row) => { ordered.push(row); for (const child of children.get(row) ?? []) visit(child); };
+  for (const row of roots) visit(row);
+  return ordered;
 }

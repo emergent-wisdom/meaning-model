@@ -1,5 +1,6 @@
 // Turn complete model/graph definitions into a browser snapshot. Acquisition and access checks belong to the caller.
 // Adapted from the Meaning Model Viewer's extract.mjs; see ../viewer/README.md.
+import { isSeriesReadingEvent } from './series-mark.mjs';
 import { indexModel, modeledPeople, readPerson, cutKind, eventDescendants } from './model-questions.mjs';
 import { readLenses } from './lenses.mjs';
 import { readPath } from '../viewer/measures.mjs';
@@ -208,7 +209,8 @@ export async function buildViewerData({ history, rendered = null, documentRender
   const lifeEvents = new Set(people.map((person) => person.life?.eventId).filter(Boolean));
   const periodEvents = new Set(people.flatMap((person) => person.periods.map((period) => period.eventId)));
   const arcEvents = new Set([...index.arcsOf.values()].flat().flatMap((id) => [id, ...eventDescendants(index, id)]));
-  const events = (mm.events ?? []).map((event) => {
+  // Events that only carry a series' readings are drawn as its curve, not as Events.
+  const events = (mm.events ?? []).filter((event) => !isSeriesReadingEvent(event)).map((event) => {
     const span = start(event) !== null && end(event) !== null ? end(event) - start(event) : null;
     const participants = [...new Set(Object.values(event.participants ?? {}).flat().map(String))];
     const kind = lifeEvents.has(event.id) ? 'life' : periodEvents.has(event.id) ? 'period' : arcEvents.has(event.id) ? 'arc'

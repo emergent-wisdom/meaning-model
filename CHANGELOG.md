@@ -6,6 +6,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- In Tree, an opened category's rows sit one level below the answer they
+  divide, ordered right after it, and its question is captioned with the answer
+  it opens. The Events `life_series_record` makes to carry readings are marked;
+  views draw them as the curve rather than as Events, and open questions do not
+  count them among what happens in a life.
 - Add a Smooth slider to the viewer's Time panel (also `smooth=` in the link).
   It blends the steps between readings within each recorded stretch, never across
   a gap, and changes only the drawing: pointing still shows each recorded reading.

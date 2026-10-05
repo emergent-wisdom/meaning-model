@@ -61,6 +61,8 @@ test('a whole series is one call: dated readings with reasons draw as a curve, n
   const cut = stored.normalized_cuts.find((item) => item.id === 'cut.series.protocol-priorities.2016.5-2018');
   assert.deepEqual(cut.answers.map(({ key, weight }) => [key, weight]).sort(), [['decentralization', 0.35], ['efficiency', 0.35], ['remainder', 0], ['security', 0.3]]);
   assert.deepEqual(cut.provenance, ['inferred: The stretch from 2016.5 to 2018.']);
+  assert.deepEqual(stored.events.find((event) => event.id === cut.parent_event_id).provenance, ['inferred: The stretch from 2016.5 to 2018.', 'Meaning Model series reading v1'],
+    'the Event carrying a reading is marked as such, so views draw it as the curve and questions do not count it as a happening');
   assert.ok(stored.event_relations.some((relation) => relation.kind === 'causes' && relation.source_event_id === 'event.fork' && relation.target_event_id === cut.parent_event_id));
 
   // Finer readings nest inside a long one; recording the same interval again replaces it rather than adding another.
