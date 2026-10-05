@@ -205,6 +205,18 @@ test('every modeling purpose receives the common construction and application-ch
   }
 });
 
+// Clients that never show the server instructions leave start-here as the first text an agent reads; it has to hand
+// the agent on to the purpose's workflow and say how written text stays checkable.
+test('start-here names the entry call with every purpose, and how text stays in the model', async () => {
+  const startHere = (await buildModelingContext({ purpose: 'creative_story', sessionMode: 'first_use' })).startHere;
+  const begin = startHere.match(/\*\*Where to begin\.\*\*[^\n]*/u)?.[0] ?? '';
+  assert.match(begin, /call it with your purpose/u);
+  for (const purpose of modelingPurposes) assert.ok(begin.includes(purpose), `start-here lists ${purpose}`);
+  assert.match(begin, /To continue recorded work, add sessionMode continuation, and read the construction record before any change\./u);
+  assert.ok(startHere.indexOf('**Where to begin.**') < startHere.indexOf('**The working loop.**'));
+  assert.match(startHere, /Keep the text in the model, each passage linked to the Events it renders: .*life_narrative_register\. When the world changes, life_revision_check then lists the passages to reread\./u);
+});
+
 test('application-category example is available as a complete MCP resource', async () => {
   const resource = await readModelingResource('life-sim://example/application-categories');
   assert.equal(resource.text, await readFile(new URL('../../docs/examples/APPLICATION-CATEGORIES.md', import.meta.url), 'utf8'));
@@ -263,7 +275,9 @@ test('continuation recovers missing history without repeating retained exact-hea
   assert.equal((await buildModelingContext({ purpose: 'observation', sessionMode: 'first_use' })).continuation, undefined);
   const prompt = await buildModelingPrompt({ purpose: 'observation', sessionMode: 'continuation', reading: 'guides' });
   assert.match(prompt, /You are continuing recorded work\. Before any change:\n1\. Read life_construction_replay/);
-  assert.ok(prompt.indexOf('life_construction_replay') < prompt.indexOf('life_modeling_context'), 'the record comes before the reading order');
+  // Start-here opens the prompt and names the entry call; the order that matters is within the continuation steps.
+  const steps = prompt.indexOf('You are continuing recorded work');
+  assert.ok(prompt.indexOf('life_construction_replay', steps) < prompt.indexOf('life_modeling_context', steps), 'the record comes before the reading order');
   assert.match(prompt, /exact known graph head/);
   assert.match(prompt, /inspect only subsequent revisions and relevant records/);
   assert.match(prompt, /For unfamiliar history, lost context or an ambiguous branch, read from the start/);

@@ -6,6 +6,12 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- The start-here guide hands an agent on: if it has not yet called `life_modeling_context`, it calls it with its
+  purpose (all nine listed) to get the workflow for that purpose, adding `sessionMode` continuation to continue
+  recorded work, so an agent whose client never shows the server instructions still finds the storytelling workflow.
+  The loop asks agents to keep what they write in the model, each passage linked to the Events it renders (the
+  storytelling tools do this; other text goes in with `life_narrative_register`), so that `life_revision_check` can
+  list the passages a change affects.
 - Development in the workflow, not only the guide: a new open question, `development-missing`, asks about each person
   with nothing followed over time (no question about them read at two dated times), which the series checks could not
   see when no series existed. After a life dossier, `life_story_life_trends` returns `development.missing`: for each
