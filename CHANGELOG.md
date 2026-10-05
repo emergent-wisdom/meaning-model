@@ -14,6 +14,10 @@ unpublished work stays under Unreleased. This is not a development transcript.
   their own inner root, linked `about` the state it reads and causing their act (section 7). `life_model_questions`
   jumps now include such a reading where it answers the read Event's question differently, and start-here asks what
   each person believes about the others and where they are wrong.
+- The start-here guide's "Do not" list adds three checks: consistent numbers can still describe the wrong thing, so
+  check the question, categories and evidence; when a group is said to expect or want something, say whose expectation
+  it is or how views are combined; and after a failed prediction, reconsider the explanation (assumptions, categories,
+  Event boundaries, concept grounding), not only the record of the miss.
 - The start-here guide hands an agent on: if it has not yet called `life_modeling_context`, it calls it with its
   purpose (all nine listed) to get the workflow for that purpose, adding `sessionMode` continuation to continue
   recorded work, so an agent whose client never shows the server instructions still finds the storytelling workflow.

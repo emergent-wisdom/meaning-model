@@ -61,7 +61,10 @@ The same loop holds when the work describes something real, such as a market: bu
 
 - loop on reviewing and revising the prose while the model stays the same. Answer a review by changing the model, then the prose;
 - record one long reading where the work needs the shape inside it;
-- pass an invention off as evidence, or evidence as an invention.
+- pass an invention off as evidence, or evidence as an invention;
+- take consistent numbers for a correct account: shares that sum to one and averages that hold can still describe the wrong thing, so check the question, the categories and the evidence too;
+- write that a group expects or wants something (the market, the community, the town) without saying whose expectation it is: name the sources, or say how their views are combined;
+- answer a failed prediction only by recording the miss: reconsider the explanation behind it, whether its assumptions, categories, Event boundaries or concept grounding need to change.
 
 **Remainder.** When you write a Cut yourself, leave the remainder out unless part of the share is genuinely unresolved, as often in real-world evidence and rarely in fiction; when you leave it out, the tool stores it as zero. Estimator questions, lens readings and some starters include a remainder of their own: give it the share that the named answers genuinely leave out, which can be a real share in fiction too.
 

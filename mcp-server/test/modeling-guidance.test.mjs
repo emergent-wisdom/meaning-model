@@ -219,6 +219,23 @@ test('start-here names the entry call with every purpose, and how text stays in 
   assert.match(startHere, /move the narrative onto the new model revision with life_narrative_rebind; life_revision_check then lists the passages to reread\./u);
 });
 
+// From the 2026-10-05 review: an issued forecast is kept as issued while accounts are revised, confidence is not
+// something that only rises, and three checks keep consistent numbers, collective expectations and missed predictions
+// honest.
+test('start-here keeps issued forecasts apart from revised accounts, and asks for three checks', async () => {
+  const startHere = (await buildModelingContext({ purpose: 'forecasting', sessionMode: 'first_use' })).startHere;
+  assert.match(startHere, /\*\*Forecasts\.\*\* A forecast is issued once and kept as issued\./u);
+  assert.match(startHere, /issue a new forecast with a new cutoff beside the old one/u);
+  assert.match(startHere, /New evidence can make a reading less certain as well as more/u);
+  assert.doesNotMatch(startHere, /higher confidence|give it a low confidence|surer and finer/u);
+  assert.match(startHere, /take consistent numbers for a correct account/u);
+  assert.match(startHere, /without saying whose expectation it is/u);
+  assert.match(startHere, /answer a failed prediction only by recording the miss/u);
+  assert.match(startHere, /What they believe about the people around them, and where they are wrong/u);
+  assert.match(purposeMethod('forecasting'), /Issue each forecast as its own record and never record it again/u);
+  assert.doesNotMatch(purposeMethod('forecasting'), /low confidence|more sure/u);
+});
+
 test('application-category example is available as a complete MCP resource', async () => {
   const resource = await readModelingResource('life-sim://example/application-categories');
   assert.equal(resource.text, await readFile(new URL('../../docs/examples/APPLICATION-CATEGORIES.md', import.meta.url), 'utf8'));
