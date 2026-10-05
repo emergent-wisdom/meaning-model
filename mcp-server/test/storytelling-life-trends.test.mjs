@@ -317,3 +317,16 @@ test('life-dossier audiences constrain scene output and disjoint audiences block
   await assert.rejects(f.addon.commit({ ...input, requestId: 'unsafe', expectedReviewHash: report.reviewHash }), /unresolved blockers/iu);
   assert.deepEqual(f.calls, []);
 });
+
+test('a life dossier whose cast the model follows nowhere over time returns the prepared development calls first', async () => {
+  const f = fixture();
+  f.view.graph.source_snapshot.model_hash = 'f'.repeat(64);
+  const result = await f.addon.storeLifeTrends({ graphHash, requestId: 'store-lives-development', nodeId: 'new-life-trends', accessScopes: [], dossier: f.dossier });
+  assert.equal(result.development.missing.length, 1);
+  const [leo] = result.development.missing;
+  assert.equal(leo.characterId, 'Leo'); assert.equal(leo.call.tool, 'life_series_record');
+  assert.equal(leo.call.arguments.readings.length, f.dossier.characters[0].phases.length - 1, 'one reading per phase');
+  assert.match(result.nextStep, /^First put the cast's development into the model: nothing about Leo is followed over time yet/u);
+  assert.match(result.nextStep, /life_narrative_rebind.*life_story_model_depth_review/su, 'then the depth review, as before');
+  assert.match(result.nextStep, /anticipation is unknown/u);
+});

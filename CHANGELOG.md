@@ -6,6 +6,13 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Development in the workflow, not only the guide: a new open question, `development-missing`, asks about each person
+  with nothing followed over time (no question about them read at two dated times), which the series checks could not
+  see when no series existed. After a life dossier, `life_story_life_trends` returns `development.missing`: for each
+  character the model does not yet follow, a `life_series_record` call prepared with one reading per dossier phase and
+  the dossier's reasons, and its next step puts recording that first. Both carry the paper's questions about change:
+  what was developing, who anticipated it (unknown without a record), what changed for whom, and how each affected
+  process responded over the relevant later timescales.
 - The minimal example now records a concept carve in the host's fields (concepts with label and differentia,
   a specialization, an abstract Cut), test-verified; the start-here guide points to it and warns that the
   grammar's notation is not the tool's field names and that the Book profile's vocabularies are not defaults.

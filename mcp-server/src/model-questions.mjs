@@ -16,6 +16,7 @@
 // attention for what they feel, decision allocation for a decision between continuations); decisions are drawn
 // with life_direction_draw, and estimates carry estimator or supplied provenance.
 
+import { changeQuestions } from './development-gaps.mjs';
 import { spatialDiagnostics } from './spatial-diagnostics.mjs';
 import { isSeriesReadingEvent } from './series-mark.mjs';
 
@@ -339,6 +340,11 @@ function personQuestions(index, person, name, principal) {
     if (start(item.event) === null || cutKind(item.cut) === 'decision' || readingCut(index, item.cut)) continue;
     push(series, `${questionOf(item.cut).toLowerCase().trim()}|${item.cut.unit}`, item);
   }
+  // Nothing about this person followed over time: no question about them read at two dated times. The series checks
+  // see only series that exist, so a person with none needs asking here.
+  if (![...series.values()].some((list) => list.length >= 2)) {
+    ask('development-missing', `Nothing about ${name} is followed over time: no question about them has two dated readings. Which of their processes does the work lean on: an outlook, a belief about themselves, a relationship, their work? Carve it into its exclusive categories and record its readings across their life with life_series_record, one for each stretch it holds steady. ${changeQuestions}`, 'life_series_record');
+  }
   const shocksAt = person.arcs.map((item) => start(item.focal ?? item.arc)).filter((value) => value !== null);
   // A modeled cause: a causal relation into the later record or what contains it, or into any of the person's own
   // Events from an Event that starts between the two readings.
@@ -606,7 +612,7 @@ function worldQuestions(index, lives, draws, spatial) {
 
 const ORDER = ['author-separate', 'author-unlinked', 'life-missing', 'life-untimed', 'time-missing', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'choices-missing', 'macro-missing', 'structure-flat', 'readings-over-processes', 'period-gap', 'stage-unexplored', 'life-after-story',
   'reading-average', 'reading-stretch-unopened', 'series-gap', 'change-unexplored', 'concept-undivided', 'question-reworded',
-  'moment-unmodeled', 'decision-undrawn', 'remainder-unopened', 'shift-uncaused', 'adaptation-open', 'laws-missing', 'place-missing', 'spatial-declaration-incomplete', 'spatial-resolution', 'spatial-history-unopened', 'process-unobserved', 'wants-generic', 'why-local',
+  'moment-unmodeled', 'decision-undrawn', 'remainder-unopened', 'shift-uncaused', 'development-missing', 'adaptation-open', 'laws-missing', 'place-missing', 'spatial-declaration-incomplete', 'spatial-resolution', 'spatial-history-unopened', 'process-unobserved', 'wants-generic', 'why-local',
   'concepts-thin', 'recurring-question', 'period-uncut', 'process-empty', 'secondary-without-life', 'life-thin', 'event-undescribed', 'weights-unestimated'];
 // Understanding Node kinds that look forward or explore, rather than record what was done and judged.
 const FORWARD_KINDS = new Set(['question', 'hypothesis', 'prediction', 'tension', 'surprise', 'consequence', 'experiment', 'serendipity', 'randomness', 'idea']);

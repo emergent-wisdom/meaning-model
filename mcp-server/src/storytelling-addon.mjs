@@ -18,6 +18,7 @@ import { direct as directStory, directionInstructions, directionSchema, directio
 import { disclosureInstructions, disclosureReviewContext } from './storytelling-disclosure.mjs';
 import { constructionRecordInstructions, grammarReadingInstructions } from './construction-principles.mjs';
 import { methodCoreInstructions } from './workflow-guidance.mjs';
+import { changeQuestions, developmentFromDossier } from './development-gaps.mjs';
 import { humanAuthorFeedbackInstructions } from './workflow-guidance.mjs';
 
 const id = z.string().trim().min(1).max(256);
@@ -417,9 +418,22 @@ export class StorytellingAddon {
         }))],
       },
     });
+    // The dossier traces each character's development in prose, and the model may follow none of it over time yet. Name
+    // who is missing and prepare the call that records it, before the depth review and the scenes take over.
+    let development = null;
+    try {
+      const modelHash = source?.model_hash ?? view.graph.source?.model_hash ?? null;
+      const inspected = modelHash ? await this.service.inspectModel({ modelHash, includeDefinition: true }) : null;
+      const missing = inspected?.model ? developmentFromDossier(input.dossier, inspected.model) : [];
+      if (missing.length) development = { missing, changeQuestions };
+    } catch { development = null; }
+    const reviewStep = 'Use this graphHash and dossierNodeId as lifeTrendsNodeId for life_story_model_depth_review, with a stored focus/outline and relevant context. Record the findings with life_story_model_depth_record, repair any explanatory gaps, then use its graphHash and modelDepthReviewNodeId for scene preparation with characterConnections.';
     return { ...stored, ...(head.advancedFrom ? { advancedFrom: head.advancedFrom } : {}), dossierNodeId: input.nodeId,
       characterIds: input.dossier.characters.map((character) => character.characterId),
-      nextStep: 'Use this graphHash and dossierNodeId as lifeTrendsNodeId for life_story_model_depth_review, with a stored focus/outline and relevant context. Record the findings with life_story_model_depth_record, repair any explanatory gaps, then use its graphHash and modelDepthReviewNodeId for scene preparation with characterConnections.',
+      ...(development ? { development } : {}),
+      nextStep: development
+        ? `First put the cast's development into the model: nothing about ${development.missing.map((item) => item.name).join(', ')} is followed over time yet, though this dossier traces it. For each of them, carve one dimension the story leans on (development.missing[].dimensions) into its exclusive categories and record it with life_series_record: development.missing[].call is prepared with one reading per phase and the dossier's reasons, so fill in the question, unit, answers and weights. ${changeQuestions} Then rebind the story graph to the newest model with life_narrative_rebind and continue. ${reviewStep}`
+        : reviewStep,
       worldMutation: false, semanticLifeTrendsVerification: false };
   }
 
