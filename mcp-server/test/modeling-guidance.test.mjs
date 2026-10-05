@@ -214,7 +214,9 @@ test('start-here names the entry call with every purpose, and how text stays in 
   for (const purpose of modelingPurposes) assert.ok(begin.includes(purpose), `start-here lists ${purpose}`);
   assert.match(begin, /To continue recorded work, add sessionMode continuation, and read the construction record before any change\./u);
   assert.ok(startHere.indexOf('**Where to begin.**') < startHere.indexOf('**The working loop.**'));
-  assert.match(startHere, /Keep the text in the model, each passage linked to the Events it renders: .*life_narrative_register\. When the world changes, life_revision_check then lists the passages to reread\./u);
+  assert.match(startHere, /Keep the deliverable of the project you were given in the model \(the story, report or forecast, not every conversational answer\), each passage linked to the Events it renders\./u);
+  assert.match(startHere, /registered once, as a new narrative, with life_narrative_register; later versions revise that narrative instead of registering another/u);
+  assert.match(startHere, /move the narrative onto the new model revision with life_narrative_rebind; life_revision_check then lists the passages to reread\./u);
 });
 
 test('application-category example is available as a complete MCP resource', async () => {

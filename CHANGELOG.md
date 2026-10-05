@@ -9,9 +9,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
 - The start-here guide hands an agent on: if it has not yet called `life_modeling_context`, it calls it with its
   purpose (all nine listed) to get the workflow for that purpose, adding `sessionMode` continuation to continue
   recorded work, so an agent whose client never shows the server instructions still finds the storytelling workflow.
-  The loop asks agents to keep what they write in the model, each passage linked to the Events it renders (the
-  storytelling tools do this; other text goes in with `life_narrative_register`), so that `life_revision_check` can
-  list the passages a change affects.
+  The loop asks agents to keep the deliverable of the project they were given in the model (the story, report or
+  forecast, not every conversational answer), each passage linked to the Events it renders: the storytelling tools do
+  this; other text is registered once with `life_narrative_register`, then revised with `life_narrative_edit` or
+  `life_narrative_batch` and moved onto a new model revision with `life_narrative_rebind`, so that
+  `life_revision_check` can list the passages a change affects.
 - Development in the workflow, not only the guide: a new open question, `development-missing`, asks about each person
   with nothing followed over time (no question about them read at two dated times), which the series checks could not
   see when no series existed. After a life dossier, `life_story_life_trends` returns `development.missing`: for each
