@@ -24,7 +24,7 @@ import { unopenedProcessEvents } from './process-visibility.js';
 import { createProcessDetail } from './process-detail.js';
 import { nestedEventLayout } from './nested-event-layout.js';
 import { cutTrajectories } from './cut-trajectories.js';
-import { readingAt, readingsDomain } from './interval-readings.js';
+import { readingAt, readingsDomain, readingReason } from './interval-readings.js';
 import { typedScalarTrajectories } from './scalar-trajectories.js';
 import { buildModelGraph } from './model-graph.js';
 import { readingActs, actShares, actCounts } from './lens-readings.js';
@@ -263,12 +263,16 @@ function measureValueLines(row, t) {
       return [...(position.derived.feasible
         ? [['num', rowValueText(row, t)], ['a', `Derived, not recorded: for the reading over ${span} (${format(row, point.v)}) to hold, the ${uncovered}% of that stretch its finer readings leave uncovered must average this. It constrains the average over those years, not their shape.`]]
         : [['a', `No level can hold here: the finer readings inside ${span} already take more ${row.measure.answerKey} than the reading over the whole stretch (${format(row, point.v)}) allows. One of them needs revising.`]]),
+        ...(readingReason(point.cut) ? [['a', `The long reading: ${readingReason(point.cut).text}`]] : []),
         ['m', row.measure.question], ['a', `Answer: ${row.measure.answerKey} · local weight from 0 to 1 · Unit: ${row.measure.unit}`], ['a', `Long reading: ${point.cutId}`]];
     }
-    return [['num', rowValueText(row, t)], ['a', point.end > point.t ? 'Authored reading: the average over its whole interval.' : 'Authored reading at a moment.'],
+    // What moved it comes first: the reading's own reason, then when it holds and how firmly it is claimed.
+    const reason = readingReason(point.cut);
+    const when = `${point.cut?.eventLabel ?? point.eventId} · ${timeText(point.t, 1)}${point.end > point.t ? ` – ${timeText(point.end, 1)}` : ''}`;
+    return [['num', rowValueText(row, t)], ...(reason ? [['m', reason.text]] : []), ['a', `${when}${reason?.tag ? ` · ${reason.tag}` : ''}`],
+      ['a', point.end > point.t ? 'Authored reading: the average over its whole interval.' : 'Authored reading at a moment.'],
       ...(position.finer ? [['a', `${position.finer} finer reading${position.finer === 1 ? '' : 's'} inside it: zoom in to see ${position.finer === 1 ? 'it' : 'them'}.`]] : []),
-      ['m', row.measure.question], ['a', `Answer: ${row.measure.answerKey} · local weight from 0 to 1 · Unit: ${row.measure.unit}`],
-      ['a', `${point.cut?.eventLabel ?? point.eventId}: ${format(row, point.v)} · ${timeText(point.t, 1)}${point.end > point.t ? ` – ${timeText(point.end, 1)}` : ''}`], ['a', `Source Cut: ${point.cutId}`]];
+      ['a', row.measure.question], ['a', `Answer: ${row.measure.answerKey} · local weight from 0 to 1 · Unit: ${row.measure.unit}`], ['a', `Source Cut: ${point.cutId}`]];
   }
   if (t < row.measure.points[0].t) return [['a', `No recorded value yet. First sample: ${month(row.measure.points[0].t)}.`]];
   if (t > row.measure.points.at(-1).t) return [['a', `No recorded value after ${month(row.measure.points.at(-1).t)}. Values are not held past the last sample.`]];

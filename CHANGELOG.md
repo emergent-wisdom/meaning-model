@@ -6,6 +6,9 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- Resting on a reading in Processes now shows what moved it first: the
+  reading's own tagged reason (as `life_series_record` writes it) or else its
+  Event's description, then its period and tag, before the question and unit.
 - Add `life_series_record`: one call records a whole series of readings of one
   question about one subject, each a dated Event with its shares, reason, tag
   and optional causes, as one model revision through the ordinary change path.

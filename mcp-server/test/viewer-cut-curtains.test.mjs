@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import * as THREE from '../viewer/public/vendor/three/three.core.js';
-import { readingAt, readingsDomain } from '../viewer/public/interval-readings.js';
+import { readingAt, readingsDomain, readingReason } from '../viewer/public/interval-readings.js';
 
 const source = readFileSync(new URL('../viewer/public/view.js', import.meta.url), 'utf8');
 const boundedDeclaration = source.split('\n').find((line) => line.startsWith('const boundedMeasure ='));
@@ -27,7 +27,7 @@ const points = () => [
 function fixture() {
   const context = { madeAt: (born) => (born?.at ? Date.parse(born.at) : NaN), constructionByClock: true, timeText: (t) => String(t), month: (t) => String(t), AMP: 5.6, CUT_AMP: 18, T1: 40, money: () => { throw new Error('Cut weights are not physical quantities'); } };
   vm.createContext(context);
-  Object.assign(context, { readingAt, readingsDomain, F: { s: 40 }, NX: 400 });
+  Object.assign(context, { readingAt, readingsDomain, readingReason, F: { s: 40 }, NX: 400 });
   vm.runInContext([boundedDeclaration, arrow('valueAt'), arrow('measurePosition'), line('readingResolution'), line('readingShown'), arrow('format'), fn('rowValue'), fn('rowPosition'), fn('rowValueText'), fn('updateRowSamples'), fn('measureValueLines')].join('\n'), context);
   return context;
 }
@@ -302,4 +302,20 @@ test('the play sweep stands from the lowest floor or Event drawn to above the hi
   assert.deepEqual({ ...context.sweepSpan() }, { bottom: -30.5, top: 4 + 5.6 + 5.5 }, 'the lowest floor drawn, not an Event hidden in this view');
   context.rows = []; context.nodes = [];
   assert.deepEqual({ ...context.sweepSpan() }, { bottom: -0.5, top: 5.6 + 5.5 }, 'an empty field keeps the usual sweep');
+});
+
+test('resting on a reading shows what moved it first: its own tagged reason, else its Event\'s description', () => {
+  const context = fixture();
+  const reading = (cutId, t, end, v, cut) => ({ t, end, v, cutId, eventId: cutId, born: born(100), cut: { id: cutId, eventLabel: '2016 H2', ...cut } });
+  const row = { measure: { kind: 'cut-answer', question: 'How does the core priority divide?', answerKey: 'decentralization', unit: 'share of priority',
+    points: [reading('h2', 2016.5, 2017, 0.4, { provenance: ['inferred: DAO hack and bailout fork, the chain split; DoS attacks push security to the front'], eventDescription: 'The stretch.' }),
+      reading('h1', 2017, 2017.5, 0.35, { provenance: ['authored'], eventDescription: 'Enterprise Ethereum Alliance; the ICO boom begins.' })] } };
+  row.points = row.measure.points;
+  context.F = { s: 2 };
+  const plain = (value) => JSON.parse(JSON.stringify(value));
+  const first = plain(context.measureValueLines(row, 2016.7));
+  assert.deepEqual(first.slice(0, 3), [['num', '0.4'], ['m', 'DAO hack and bailout fork, the chain split; DoS attacks push security to the front'], ['a', '2016 H2 · 2016.5 – 2017 · inferred']]);
+  const second = plain(context.measureValueLines(row, 2017.2));
+  assert.deepEqual(second[1], ['m', 'Enterprise Ethereum Alliance; the ICO boom begins.'], 'without a tagged reason, the Event description');
+  assert.deepEqual(second[2], ['a', '2016 H2 · 2017 – 2017.5']);
 });

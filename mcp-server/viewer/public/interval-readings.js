@@ -71,3 +71,15 @@ export function readingAt(points, t, { minSpan = 0, momentHalfWidth = 0 } = {}) 
     return { point: null, value: rest.value, finer: 0, derived: { parent: at, coverage: rest.coverage, feasible: rest.value !== null } };
   }
 }
+
+// Why a reading has its shares: its own tagged reason in its provenance ("inferred: …", the form life_series_record
+// writes), else the description of the Event it sits on. Shown first when the pointer rests on the reading.
+const TAGGED = /^(source|inferred|invented|exploring|sketch):\s*([\s\S]+)$/u;
+export function readingReason(cut) {
+  for (const entry of cut?.provenance ?? []) {
+    const match = TAGGED.exec(String(entry).trim());
+    if (match) return { tag: match[1], text: match[2].trim() };
+  }
+  const text = String(cut?.eventDescription ?? '').trim();
+  return text ? { tag: null, text } : null;
+}
