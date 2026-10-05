@@ -32,6 +32,13 @@ test('a change adds, replaces and removes context roots by the Event they declar
   const removed = applyModelChange(successor, previousHash, { reason: 'Drop it again.', remove: { context_roots: ['e2'] } }).successor;
   assert.deepEqual(removed.meaning_model.context_roots.map((root) => root.event_id), ['e1']);
   assert.throws(() => validateModelChange({ reason: 'x', upsert: { context_roots: [{ kind: 'inner' }] } }), /needs a string event_id/);
+  // A temporal recomposition is keyed by the Cut it recomposes.
+  const recomposition = (coverage) => ({ parent_cut_id: 'c1', children: [], coverage, provenance: ['p'] });
+  const first = applyModelChange(base(), previousHash, { reason: 'Recompose c1.', upsert: { temporal_cut_recompositions: [recomposition('partial')] } }).successor;
+  const second = applyModelChange(first, previousHash, { reason: 'Complete it.', upsert: { temporal_cut_recompositions: [recomposition('complete')] } });
+  assert.deepEqual(second.successor.meaning_model.temporal_cut_recompositions.map((item) => [item.parent_cut_id, item.coverage]), [['c1', 'complete']]);
+  assert.deepEqual(second.summary, { temporal_cut_recompositions: { added: 0, replaced: 1, removed: 0 } });
+  assert.throws(() => validateModelChange({ reason: 'x', upsert: { temporal_cut_recompositions: [{ coverage: 'partial' }] } }), /needs a string parent_cut_id/);
 });
 
 test('a change is refused when it names unknown collections or records, repeats ids, or changes nothing', () => {
