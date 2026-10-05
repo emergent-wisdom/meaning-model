@@ -9,6 +9,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
 - `life_model_revise` changes can add, replace and remove context roots (keyed by the Event they declare) and temporal
   Cut recompositions (keyed by their parent Cut), as the service already keys them, so a new person's inner root or
   the modeler's understanding root no longer needs the complete model resent.
+- The minimal example gains two test-verified sections: issued forecasts kept beside a later one and settled by
+  `realizes_forecast`, each scored as issued (section 6), and one person's mistaken reading of another, held under
+  their own inner root, linked `about` the state it reads and causing their act (section 7). `life_model_questions`
+  jumps now include such a reading where it answers the read Event's question differently, and start-here asks what
+  each person believes about the others and where they are wrong.
 - The start-here guide hands an agent on: if it has not yet called `life_modeling_context`, it calls it with its
   purpose (all nine listed) to get the workflow for that purpose, adding `sessionMode` continuation to continue
   recorded work, so an agent whose client never shows the server instructions still finds the storytelling workflow.
@@ -36,11 +41,14 @@ unpublished work stays under Unreleased. This is not a development transcript.
 - `life_document_import` notes when a text or its label names Project Gutenberg, whose license
   applies while its name is attached; the start-here guide asks agents to strip a distributor's
   matter and name and describe the source by author, title and first publication.
-- Record early, then revise: a `life_series_record` reading takes an optional
-  confidence from 0 to 1, shown on hover. The start-here guide asks agents to put
-  rough readings in at once with a low confidence, open the viewer live so the
-  user watches the model fill, and record the same intervals again, more sure, as
-  they learn; the forecasting method asks the same of every forecast series.
+- Record early, then revise, and keep forecasts as issued. The start-here guide asks agents to put rough readings in
+  at once, tagged sketch or exploring with the reason they rest on, open the viewer live so the user watches the model
+  fill, and record the same intervals again with the better value, the tag that now fits and the reason for the
+  change; new evidence can make a reading less certain as well as more. A `life_series_record` reading takes an
+  optional confidence from 0 to 1, the modeler's own uncalibrated note, kept in its provenance and shown on hover.
+  Forecasts are different: each is issued once, as its own forecast Event and Cut with its horizon, evidence cutoff
+  and what settles it, and a changed view is a new forecast beside the old one; each is scored as issued. The minimal
+  example's section 6 shows the records, test-verified.
 - A live viewer link now fills as the model grows: it follows each model revision the server records after the one it
   shows (every `life_series_record` among them), as well as saved graph revisions, so a user can watch an agent's data
   arrive. It follows the newest revision without a child of its own, found through parent links, so submitting an

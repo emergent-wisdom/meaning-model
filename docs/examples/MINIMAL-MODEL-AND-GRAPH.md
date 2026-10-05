@@ -1,7 +1,8 @@
 # Minimal model and graph: complete valid payloads
 
-Every payload below is verified by `mcp-server/test/friction-fixes.test.mjs` against the
-bundled Rust engine, so it can be copied and adapted. It shows the smallest useful shapes,
+Every payload below is verified against the bundled Rust engine by `mcp-server/test/friction-fixes.test.mjs`
+(sections 1 to 4), `minimal-example-concepts.test.mjs` (section 5) and `minimal-example-perspectives.test.mjs`
+(sections 6 and 7), so it can be copied and adapted. It shows the smallest useful shapes,
 not a recommended vocabulary: one person, one thing, an accepted-world root with an inner
 root, an authored event with a description and an interval, one scalar process, and one
 normalized Cut with its explicit remainder.
@@ -252,6 +253,140 @@ carve below records where that concept sits and what it is made of.
         { "id": "acut.attention.uses", "parent_concept_id": "concept.attention", "child_concept_ids": ["concept.attention.money", "concept.attention.continuity"],
           "lens": "what Ada's attention is spent on when the offer arrives", "query": "Which uses must Ada's attention cover at the offer?", "provenance": ["minimal-example"] }
       ]
+    }
+  }
+}
+```
+
+## 6. `life_model_revise` request: an issued forecast, a later one, and the outcome
+
+A forecast is issued once and kept as issued. Each one is its own dated Event under the forecaster's perspective, here
+the modeler's understanding root, with a Cut whose answers are the outcomes and whose weights are probabilities declared
+before the outcome. The question names the horizon, each answer's meaning says what settles it, and the provenance gives
+the evidence cutoff and the source that settles it. When the evidence changes the view, a new forecast is issued beside
+the old one, in the same words and unit so the issued forecasts can be read in order. The outcome is an accepted-world
+Event, linked from each forecast it settles by a `realizes_forecast` relation that names the Cut and the answer that
+happened (the remainder if none of the named answers did).
+
+Each forecast is scored as issued. Ada declines: the hour-7 forecast gave that 0.30, a log score of −ln 0.30 = 1.20 and
+a Brier score of 0.60² + 0.70² + 0.10² = 0.86; the hour-12 forecast gave it 0.55, scoring 0.60 and 0.335. Lower is
+better for both, and a score means something only beside a baseline scored the same way. Accounts of what has already
+happened are different: record them early and correct them as you learn more.
+
+```json
+{
+  "requestId": "minimal-example-forecasts",
+  "previousModelHash": "<modelHash returned by life_model_register above>",
+  "change": {
+    "reason": "Issue two forecasts of Ada's answer, then record the outcome that settles both.",
+    "upsert": {
+      "events": [
+        { "id": "event.modeler", "boundary": "The modeler's understanding root: forecasts and judgments the modeler holds, never accepted as world fact.", "interval": null, "participants": {}, "process_ids": [], "observation_process_ids": [], "region": null, "substrate": null, "provenance": ["minimal-example"] },
+        { "id": "event.forecast.h07", "boundary": "The modeler's forecast of Ada's answer, issued at hour 7.",
+          "description": "Issued with what was known at hour 7: the offer, the loan, and Ada's attention at hour 6, mostly on money.",
+          "interval": { "start": 7, "end": 7.25 }, "participants": {}, "process_ids": [], "observation_process_ids": [], "region": null, "substrate": null, "provenance": ["minimal-example"] },
+        { "id": "event.forecast.h12", "boundary": "The modeler's forecast of Ada's answer, issued at hour 12.",
+          "description": "Issued after Ada asked the bank at hour 11 whether the loan could run longer: she is looking for a way to keep the bakery.",
+          "interval": { "start": 12, "end": 12.25 }, "participants": {}, "process_ids": [], "observation_process_ids": [], "region": null, "substrate": null, "provenance": ["minimal-example"] },
+        { "id": "event.ada.declines", "boundary": "Ada telephones the buyer at hour 20 and declines the offer.",
+          "description": "She keeps the bakery and asks the bank for the longer loan.",
+          "interval": { "start": 20, "end": 20.25 }, "participants": { "actor": "referent.ada" }, "process_ids": [], "observation_process_ids": [], "region": null, "substrate": null, "provenance": ["minimal-example"] }
+      ],
+      "event_relations": [
+        { "id": "modeler.contains.forecast.h07", "kind": "contains", "source_event_id": "event.modeler", "target_event_id": "event.forecast.h07", "description": "A forecast the modeler holds.", "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] },
+        { "id": "modeler.contains.forecast.h12", "kind": "contains", "source_event_id": "event.modeler", "target_event_id": "event.forecast.h12", "description": "A forecast the modeler holds.", "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] },
+        { "id": "forecast.h07.about.offer", "kind": "about", "source_event_id": "event.forecast.h07", "target_event_id": "event.offer", "description": "The forecast concerns Ada's answer to the offer.", "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] },
+        { "id": "forecast.h12.about.offer", "kind": "about", "source_event_id": "event.forecast.h12", "target_event_id": "event.offer", "description": "The forecast concerns Ada's answer to the offer.", "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] },
+        { "id": "world.contains.declines", "kind": "contains", "source_event_id": "event.world", "target_event_id": "event.ada.declines", "description": "Accepted-world containment.", "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] },
+        { "id": "forecast.h07.settled", "kind": "realizes_forecast", "source_event_id": "event.forecast.h07", "target_event_id": "event.ada.declines",
+          "forecast_answer": { "cut_id": "cut.forecast.h07", "answer_key": "declines" }, "description": "The outcome settles the hour-7 forecast.", "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] },
+        { "id": "forecast.h12.settled", "kind": "realizes_forecast", "source_event_id": "event.forecast.h12", "target_event_id": "event.ada.declines",
+          "forecast_answer": { "cut_id": "cut.forecast.h12", "answer_key": "declines" }, "description": "The outcome settles the hour-12 forecast.", "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] }
+      ],
+      "normalized_cuts": [
+        { "id": "cut.forecast.h07", "parent_event_id": "event.forecast.h07",
+          "question": "Will Ada accept the buyer's offer by hour 24?",
+          "unit": "one unit of the modeler's belief",
+          "answers": [
+            { "key": "accepts", "weight": 0.6, "meaning": "Ada signs the buyer's acceptance form before hour 24." },
+            { "key": "declines", "weight": 0.3, "meaning": "Ada tells the buyer no before hour 24." },
+            { "key": "remainder", "weight": 0.1, "meaning": "Neither happens by hour 24." } ],
+          "provenance": ["inferred: from the offer, the loan and Ada's attention at hour 6", "forecast: probabilities declared before the outcome",
+            "evidence cutoff: hour 7", "horizon: hour 24", "settled by: the buyer's record of Ada's answer"] },
+        { "id": "cut.forecast.h12", "parent_event_id": "event.forecast.h12",
+          "question": "Will Ada accept the buyer's offer by hour 24?",
+          "unit": "one unit of the modeler's belief",
+          "answers": [
+            { "key": "accepts", "weight": 0.35, "meaning": "Ada signs the buyer's acceptance form before hour 24." },
+            { "key": "declines", "weight": 0.55, "meaning": "Ada tells the buyer no before hour 24." },
+            { "key": "remainder", "weight": 0.1, "meaning": "Neither happens by hour 24." } ],
+          "provenance": ["inferred: Ada's question to the bank at hour 11 points to keeping the bakery", "forecast: probabilities declared before the outcome",
+            "evidence cutoff: hour 12", "horizon: hour 24", "settled by: the buyer's record of Ada's answer"] }
+      ],
+      "context_roots": [ { "event_id": "event.modeler", "kind": "understanding", "provenance": ["minimal-example"] } ]
+    }
+  }
+}
+```
+
+## 7. `life_model_revise` request: one person's mistaken understanding of another
+
+Each person's view lives under their own inner root, and the accepted world holds what happens. Lise, Ada's sister,
+misreads her: Ada wants to keep the bakery, Lise is sure she wants to sell, and Lise acts on her reading. The reading is
+an Event under Lise's inner root, linked `about` the state it reads, with a Cut that asks Ada's own question in the same
+words and unit, so the two can be compared answer by answer. The action is an accepted-world Event caused by the
+reading, not by what Ada wants. Neither reading becomes world fact, and `life_model_questions` returns the gap among
+its jumps, where a story or an explanation should look.
+
+```json
+{
+  "requestId": "minimal-example-misreading",
+  "previousModelHash": "<modelHash returned by life_model_register above>",
+  "change": {
+    "reason": "Lise misreads what Ada wants and acts on her reading.",
+    "upsert": {
+      "referents": [
+        { "id": "referent.lise", "boundary": "Lise, Ada's younger sister, who keeps the bakery's books", "continuity_criterion": "Same living embodied person",
+          "lifecycle_event_id": "event.lise.life", "interval": null, "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] }
+      ],
+      "events": [
+        { "id": "event.lise.life", "boundary": "Lise's lifecycle: two years younger than Ada, she keeps the bakery's books.", "interval": null, "participants": { "subject": "referent.lise" }, "process_ids": [], "observation_process_ids": [], "region": null, "substrate": null, "provenance": ["minimal-example"] },
+        { "id": "event.lise.inner", "boundary": "Lise's inner perspective root; her beliefs are attributed here, never accepted as world fact.", "interval": null, "participants": { "subject": "referent.lise" }, "process_ids": [], "observation_process_ids": [], "region": null, "substrate": null, "provenance": ["minimal-example"] },
+        { "id": "event.ada.stance.h08", "boundary": "Ada's stance on the offer at hour 8, in her own view.",
+          "description": "Ada has decided she wants to keep the bakery and means to ask the bank for a longer loan. She has told nobody.",
+          "interval": { "start": 8, "end": 8.25 }, "participants": { "subject": "referent.ada" }, "process_ids": [], "observation_process_ids": [], "region": null, "substrate": null, "provenance": ["minimal-example"] },
+        { "id": "event.lise.reads.ada.h08", "boundary": "Lise's reading of Ada's stance at hour 8.",
+          "description": "Lise saw Ada read the offer twice and put it in the till drawer, and took it for relief: she is sure Ada wants to sell.",
+          "interval": { "start": 8, "end": 8.25 }, "participants": { "subject": "referent.lise" }, "process_ids": [], "observation_process_ids": [], "region": null, "substrate": null, "provenance": ["minimal-example"] },
+        { "id": "event.lise.calls.buyer", "boundary": "Lise telephones the buyer at hour 9 and tells him Ada will sign.",
+          "description": "She means to spare Ada the call; the buyer starts drawing up the contract.",
+          "interval": { "start": 9, "end": 9.25 }, "participants": { "actor": "referent.lise" }, "process_ids": [], "observation_process_ids": [], "region": null, "substrate": null, "provenance": ["minimal-example"] }
+      ],
+      "event_referent_bindings": [
+        { "id": "binding.lise.life.subject", "binding_type": "lifecycle_subject", "role": "subject", "referent_id": "referent.lise", "target": { "kind": "event", "event_id": "event.lise.life" }, "interval": null, "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] }
+      ],
+      "event_relations": [
+        { "id": "world.contains.lise.life", "kind": "contains", "source_event_id": "event.world", "target_event_id": "event.lise.life", "description": "Accepted-world containment.", "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] },
+        { "id": "world.contains.lise.inner", "kind": "contains", "source_event_id": "event.world", "target_event_id": "event.lise.inner", "description": "Inner root nested in the accepted world.", "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] },
+        { "id": "ada.inner.contains.stance.h08", "kind": "contains", "source_event_id": "event.ada.inner", "target_event_id": "event.ada.stance.h08", "description": "Ada's own view, under her inner root.", "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] },
+        { "id": "lise.inner.contains.reading.h08", "kind": "contains", "source_event_id": "event.lise.inner", "target_event_id": "event.lise.reads.ada.h08", "description": "Lise's reading, under her inner root.", "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] },
+        { "id": "lise.reading.about.ada.stance", "kind": "about", "source_event_id": "event.lise.reads.ada.h08", "target_event_id": "event.ada.stance.h08", "description": "Lise's reading refers to Ada's stance without taking part in it.", "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] },
+        { "id": "world.contains.call", "kind": "contains", "source_event_id": "event.world", "target_event_id": "event.lise.calls.buyer", "description": "Accepted-world containment.", "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] },
+        { "id": "reading.causes.call", "kind": "causes", "source_event_id": "event.lise.reads.ada.h08", "target_event_id": "event.lise.calls.buyer", "description": "Lise acts on her reading of Ada, not on what Ada wants.", "authority": null, "uncertainty": { "kind": "unknown" }, "provenance": ["minimal-example"] }
+      ],
+      "normalized_cuts": [
+        { "id": "cut.ada.stance.h08", "parent_event_id": "event.ada.stance.h08",
+          "question": "How does Ada's stance on the offer divide between keeping the bakery and selling it?",
+          "unit": "one unit of Ada's stance on the offer",
+          "answers": [ { "key": "keep", "weight": 0.85, "meaning": "Keep the bakery and refinance the loan." }, { "key": "sell", "weight": 0.15, "meaning": "Accept the offer and clear the loan." } ],
+          "provenance": ["invented: Ada's own view at hour 8"] },
+        { "id": "cut.lise.reads.ada.h08", "parent_event_id": "event.lise.reads.ada.h08",
+          "question": "How does Ada's stance on the offer divide between keeping the bakery and selling it?",
+          "unit": "one unit of Ada's stance on the offer",
+          "answers": [ { "key": "keep", "weight": 0.1, "meaning": "Keep the bakery and refinance the loan." }, { "key": "sell", "weight": 0.9, "meaning": "Accept the offer and clear the loan." } ],
+          "provenance": ["invented: Lise's reading of Ada at hour 8, from what she saw at the counter"] }
+      ],
+      "context_roots": [ { "event_id": "event.lise.inner", "kind": "inner", "provenance": ["minimal-example"] } ]
     }
   }
 }

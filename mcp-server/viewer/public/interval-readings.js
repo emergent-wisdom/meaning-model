@@ -84,7 +84,8 @@ export function readingReason(cut) {
   return text ? { tag: null, text } : null;
 }
 
-// How sure a reading is, when it says: a provenance entry "confidence 0.4", the form life_series_record writes.
+// The modeler's own note of how sure a reading is, when it gives one: a provenance entry "confidence 0.4", the form
+// life_series_record writes. It is not calibrated and not an assessment of the evidence.
 export function readingConfidence(cut) {
   for (const entry of cut?.provenance ?? []) {
     const match = /^confidence (\d+(?:\.\d+)?)$/u.exec(String(entry).trim());

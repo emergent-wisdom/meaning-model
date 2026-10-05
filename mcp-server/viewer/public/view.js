@@ -280,7 +280,7 @@ function measureValueLines(row, t) {
     // What moved it comes first: the reading's own reason, then when it holds and how firmly it is claimed.
     const reason = readingReason(point.cut); const confidence = readingConfidence(point.cut);
     const when = `${point.cut?.eventLabel ?? point.eventId} · ${timeText(point.t, 1)}${point.end > point.t ? ` – ${timeText(point.end, 1)}` : ''}`;
-    return [['num', rowValueText(row, t)], ...(reason ? [['m', reason.text]] : []), ['a', `${when}${reason?.tag ? ` · ${reason.tag}` : ''}${confidence === null ? '' : ` · confidence ${confidence}`}`],
+    return [['num', rowValueText(row, t)], ...(reason ? [['m', reason.text]] : []), ['a', `${when}${reason?.tag ? ` · ${reason.tag}` : ''}${confidence === null ? '' : ` · noted confidence ${confidence}`}`],
       ['a', point.end > point.t ? 'Authored reading: the average over its whole interval.' : 'Authored reading at a moment.'],
       ...(position.finer ? [['a', `${position.finer} finer reading${position.finer === 1 ? '' : 's'} inside it: zoom in to see ${position.finer === 1 ? 'it' : 'them'}.`]] : []),
       ['a', row.measure.question], ['a', `Answer: ${row.measure.answerKey} · local weight from 0 to 1 · Unit: ${row.measure.unit}`], ['a', `Source Cut: ${point.cutId}`]];

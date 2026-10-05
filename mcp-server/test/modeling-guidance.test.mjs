@@ -322,6 +322,6 @@ test('every mode carries the method: categories first, series over time, open wh
   assert.match(methodCoreInstructions, /life_series_record/);
   assert.match(purposeMethod('person_reflection'), /do not invent their history/);
   assert.match(purposeMethod('source_reconstruction'), /tagged source or inferred/);
-  assert.match(purposeMethod('forecasting'), /never revise it after the fact/);
+  assert.match(purposeMethod('forecasting'), /Issue each forecast as its own record and never record it again/);
   assert.match(purposeMethod('human_author_feedback'), /Do not invent the author's biography/);
 });

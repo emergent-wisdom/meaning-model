@@ -270,7 +270,7 @@ server.registerTool(
         why: z.string().trim().min(1).max(2_000).describe('What happens in this stretch that gives these shares.'),
         weights: z.record(z.string(), z.number().finite()).describe('Share per answer key, summing to one.'),
         tag: z.enum(SERIES_TAGS),
-        confidence: z.number().min(0).max(1).optional().describe('How sure this reading is, from 0 to 1: low for a first estimate, higher each time you record the interval again with better evidence.'),
+        confidence: z.number().min(0).max(1).optional().describe('Optional: your own rough note of how sure you are of this reading, 0 to 1, kept in its provenance. It is not calibrated and not an assessment of the evidence; it can fall as well as rise when you record the interval again. Leave it out unless it helps.'),
         causes: z.array(z.string().trim().min(1).max(512)).max(16).optional().describe('Existing Events that moved the process into this stretch.'),
       }).strict()).min(1).max(400),
       reason: z.string().trim().min(1).max(4_000),

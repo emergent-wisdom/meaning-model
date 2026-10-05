@@ -213,6 +213,7 @@ export function readPerson(index, personId) {
 }
 
 const describe = (event) => (event?.description ?? event?.boundary ?? event?.id ?? '').toString().slice(0, 160);
+const title = (event) => (event?.boundary ?? event?.id ?? '').toString().slice(0, 160).replace(/\.$/u, '');
 const when = (event) => (start(event) === null ? 'at an untimed moment' : end(event) !== null && end(event) !== start(event) ? `from ${start(event)} to ${end(event)}` : `at ${start(event)}`);
 
 // Consecutive Cuts asking the same question can prompt a review of a large shift and its explanation.
@@ -874,16 +875,29 @@ export function modelJumps(model, { people = null, limit = 12 } = {}) {
       eventIds: [cut.parent_event_id], what: `"${cut.question}": ${named[0].key} ${named[0].weight.toFixed(2)} against ${named[1].key} ${named[1].weight.toFixed(2)}.` });
   }
   // Divergent readings: the same question asked of different people at one Event.
+  const distance = (p, q) => Object.keys(Object.fromEntries([...answersOf(p), ...answersOf(q)].map((answer) => [answer.key, 1])))
+    .reduce((sum, key) => sum + Math.abs((answersOf(p).find((answer) => answer.key === key)?.weight ?? 0) - (answersOf(q).find((answer) => answer.key === key)?.weight ?? 0)), 0) / 2;
   for (const [eventId, cuts] of index.cutsByEvent) {
     const byQuestion = new Map();
     for (const cut of cuts) push(byQuestion, `${cut.question}|${cut.unit}`, cut);
     for (const list of byQuestion.values()) {
       if (list.length < 2) continue;
-      const distance = (p, q) => Object.keys(Object.fromEntries([...answersOf(p), ...answersOf(q)].map((answer) => [answer.key, 1])))
-        .reduce((sum, key) => sum + Math.abs((answersOf(p).find((answer) => answer.key === key)?.weight ?? 0) - (answersOf(q).find((answer) => answer.key === key)?.weight ?? 0)), 0) / 2;
       const pairs = list.flatMap((p, i) => list.slice(i + 1).map((q) => [p, q, distance(p, q)])).sort((a, b) => b[2] - a[2]);
       if (pairs[0][2] >= 0.2) jumps.push({ kind: 'divergence', size: pairs[0][2], subject: eventId, at: [start(index.events.get(eventId)), end(index.events.get(eventId))],
         eventIds: [eventId], what: `At ${describe(index.events.get(eventId))}, "${pairs[0][0].question}" is read differently (${pairs[0][0].id} against ${pairs[0][1].id}).` });
+    }
+  }
+  // One person's reading of another: an Event under its holder's own root, linked about the Event it reads, with a Cut
+  // asking the same question in the same unit. The gap between the reading and what the read Event holds is where a
+  // misunderstanding acts.
+  for (const relation of index.relations.filter((item) => item.kind === 'about')) {
+    const [reader, read] = [index.events.get(relation.source_event_id), index.events.get(relation.target_event_id)];
+    if (!reader || !read) continue;
+    for (const p of index.cutsByEvent.get(reader.id) ?? []) for (const q of index.cutsByEvent.get(read.id) ?? []) {
+      if (p.question !== q.question || p.unit !== q.unit) continue;
+      const size = distance(p, q);
+      if (size >= 0.2) jumps.push({ kind: 'divergence', size, subject: read.id, at: [start(read), end(read)], eventIds: [reader.id, read.id],
+        what: `${title(reader)} answers "${q.question}" differently from ${title(read)} (${p.id} against ${q.id}).` });
     }
   }
   jumps.sort((a, b) => b.size - a.size);
