@@ -1,16 +1,10 @@
-// Big names: when a view shows many processes, each character's name, and the world's, stands large behind its own rows,
-// so a reader sees at a glance whose processes these are before reading any of them. The address setting names=big or
-// names=small chooses; without it the names are big once many processes show on two or more groups. These are the
-// parts that need no browser: when the names are big, where a group's name stands, and how large it is drawn.
+// Big names: each group's name, a character's or the world's, stands large behind its own rows, so a reader sees at a
+// glance whose processes these are before reading any of them. They are off unless chosen: names=big in the address,
+// the Big names switch, or a view that asks for them. These are the parts that need no browser: whether the names are
+// big, where a group's name stands, and how large it is drawn.
 export const NAME_SETTINGS = Object.freeze(['big', 'small']);
-// From this many processes shown, spread over two or more groups, a reader can no longer find a group by its small label.
-export const BIG_NAMES_FROM = 16;
 
-export function bigNamesOn(setting, { rows = 0, groups = 0 } = {}) {
-  if (setting === 'big') return true;
-  if (setting === 'small') return false;
-  return groups >= 2 && rows >= BIG_NAMES_FROM;
-}
+export const bigNamesOn = (setting) => setting === 'big';
 
 // A group's name stands over the middle of its rows: halfway across their depth, at the middle of the time window.
 export function namePlace(zs) {

@@ -139,7 +139,7 @@ const opt = {
   // By default the rows are the processes that change over time; rows=all shows every row (see tracesChange).
   onlyChanging: !params.has('everything') && params.get('rows') !== 'all',
   hideUndated: params.get('undated') === 'hide', // documents and notes about no dated moment
-  names: ['big', 'small'].includes(params.get('names')) ? params.get('names') : 'auto', // each group's name large behind its rows (character-names.js)
+  names: params.get('names') === 'big' ? 'big' : 'small', // each group's name large behind its rows (character-names.js); off unless chosen
   mode: params.get('mode') === 'construction' && data.constructionTiming !== 'unavailable' ? 'construction' : 'story',
   speed: [0.25, 0.5, 1, 2, 4].includes(Number(params.get('speed'))) ? Number(params.get('speed')) : 1,
   layout: initialLayout,
@@ -2722,7 +2722,7 @@ function setHideUndated(on) {
 undatedButton.addEventListener('click', () => setHideUndated(!opt.hideUndated));
 const namesButton = document.createElement('button'); namesButton.id = 'big-names'; namesButton.className = 'tool switch'; namesButton.textContent = 'Big names';
 const namesHelp = document.createElement('div'); namesHelp.className = 'note';
-namesHelp.textContent = 'Each group’s name large behind its own processes, so it stays clear whose processes these are. On by default once 16 or more processes show in two or more groups.';
+namesHelp.textContent = 'Each group’s name large behind its own processes, so it stays clear whose processes these are when many show. Off by default.';
 namesButton.title = namesHelp.textContent; namesButton.hidden = groups.length < 2; namesHelp.hidden = namesButton.hidden;
 document.getElementById('show-section').append(namesButton, namesHelp);
 function setBigNames(on) {
@@ -2848,7 +2848,7 @@ function syncURL(immediate = false) {
     if (opt.hideFlat) next.set('flat', 'hide');
     if (!opt.onlyChanging) next.set('rows', 'all');
     if (opt.hideUndated) next.set('undated', 'hide');
-    if (opt.names !== 'auto') next.set('names', opt.names);
+    if (opt.names === 'big') next.set('names', 'big');
     if (Number.isInteger(opt.detailLevel)) next.set('detail', String(opt.detailLevel));
     if (opt.processScope) next.set('scope', opt.processScope);
     if (opt.readingOverview === 'structure') next.set('readingOverview', 'structure');
@@ -2899,12 +2899,12 @@ function syncGroupLabel({ group, object }) {
   }
 }
 // Big names stand over the groups' rows in Processes, and fade as the view turns to Layers or Terrain, where the rows
-// stand elsewhere. Whether they are big follows names=big|small, else how many processes show.
+// stand elsewhere. They show only when chosen (names=big).
 function syncBigNames() {
   const together = terrain.on ? 0 : 1 - smooth(blend.now);
   const shown = opt.show.has('processes') ? rows.filter((row) => row.inT && presence(row) > 0.5 && row.name.visible) : [];
   const owners = groups.filter((group) => shown.some((row) => row.group === group));
-  bigNamesNow = bigNamesOn(opt.names, { rows: shown.length, groups: owners.length });
+  bigNamesNow = bigNamesOn(opt.names);
   const places = new Map(owners.map((group) => [group, namePlace(shown.filter((row) => row.group === group).map((row) => rowAt(row).z))]));
   const height = nameHeight([...places.values()].filter(Boolean).map((place) => place.depth + ROW));
   for (const group of groups) {

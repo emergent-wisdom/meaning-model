@@ -1,17 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { BIG_NAMES_FROM, NAME_SETTINGS, bigNamesOn, namePlace, nameHeight, screenHeight } from '../viewer/public/character-names.js';
+import { NAME_SETTINGS, bigNamesOn, namePlace, nameHeight, screenHeight } from '../viewer/public/character-names.js';
 import { VIEW_SETTINGS, viewSettingsProblems, settingsAt } from '../viewer/public/view-settings.js';
 
-test('big names follow the setting, and without one turn on once many processes show on two or more groups', () => {
+test('big names are off unless chosen', () => {
   assert.deepEqual(NAME_SETTINGS, ['big', 'small']);
-  assert.equal(bigNamesOn('big', { rows: 1, groups: 1 }), true);
-  assert.equal(bigNamesOn('small', { rows: 80, groups: 4 }), false);
-  assert.equal(bigNamesOn('auto', { rows: BIG_NAMES_FROM, groups: 2 }), true);
-  assert.equal(bigNamesOn('auto', { rows: BIG_NAMES_FROM - 1, groups: 4 }), false, 'a few rows keep their small labels');
-  assert.equal(bigNamesOn('auto', { rows: 60, groups: 1 }), false, 'one group needs no names to tell it apart');
-  assert.equal(bigNamesOn(undefined), false);
+  assert.equal(bigNamesOn('big'), true);
+  assert.equal(bigNamesOn('small'), false);
+  assert.equal(bigNamesOn(undefined), false, 'off by default, however many processes show');
 });
 
 test("a group's name stands halfway across its rows' depth, over the middle of the time window", () => {
@@ -49,10 +46,10 @@ test('a view can choose big or small names, and Everything keeps the choice', ()
   assert.equal(settingsAt(view, 1).names, 'big', 'Everything shows every record, in the names the view chose');
 });
 
-test('the viewer reads names from its address, writes it back, and offers a switch', () => {
+test('the viewer reads big names from its address, keeps a choice of them there, and offers a switch', () => {
   const source = readFileSync(new URL('../viewer/public/view.js', import.meta.url), 'utf8');
-  assert.match(source, /names: \['big', 'small'\]\.includes\(params\.get\('names'\)\) \? params\.get\('names'\) : 'auto'/);
-  assert.match(source, /if \(opt\.names !== 'auto'\) next\.set\('names', opt\.names\);/);
+  assert.match(source, /names: params\.get\('names'\) === 'big' \? 'big' : 'small'/);
+  assert.match(source, /if \(opt\.names === 'big'\) next\.set\('names', 'big'\);/);
   assert.match(source, /namesButton\.id = 'big-names'/);
   assert.match(source, /syncBigNames\(\);/);
 });
