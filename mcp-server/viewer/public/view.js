@@ -2722,7 +2722,7 @@ function setHideUndated(on) {
 undatedButton.addEventListener('click', () => setHideUndated(!opt.hideUndated));
 const namesButton = document.createElement('button'); namesButton.id = 'big-names'; namesButton.className = 'tool switch'; namesButton.textContent = 'Big names';
 const namesHelp = document.createElement('div'); namesHelp.className = 'note';
-namesHelp.textContent = 'Each character’s name, and the world’s, large behind their own processes, so it stays clear whose processes these are. On by default once many processes show.';
+namesHelp.textContent = 'Each group’s name large behind its own processes, so it stays clear whose processes these are. On by default once 16 or more processes show in two or more groups.';
 namesButton.title = namesHelp.textContent; namesButton.hidden = groups.length < 2; namesHelp.hidden = namesButton.hidden;
 document.getElementById('show-section').append(namesButton, namesHelp);
 function setBigNames(on) {
