@@ -185,7 +185,7 @@ test('an undated construction counts its steps instead of inventing a clock time
     fracOf: (frame, value) => (value - frame.a) / (frame.b - frame.a), document: { getElementById: (id) => elements[id] }, setText: (id, value) => { text[id] = value; },
     steps, data: { graph: { nodes: [] } }, NOTE_NAMES: {}, unitOf: new Map(), clip: (value) => value,
     isStory: () => false, momentText: String, partsNow: () => [], storyParts: [], hasStory: false,
-    captionBox: { hidden: false }, showStats() {}, applyTerrain() {}, drawNotes() {}, drawArcs() {}, syncStrip() {} };
+    captionBox: { hidden: false }, showStats() {}, applyTerrain() {}, drawNotes() {}, drawArcs() {}, syncStrip() {}, syncBigNames() {} };
   context.building = () => true;
   vm.createContext(context); vm.runInContext([functionSource('syncSeriesCaptions'), functionSource('apply')].join('\n'), context);
   context.apply();
@@ -208,7 +208,7 @@ test('construction captions return after an empty model-time caption is hidden',
     steps: [{ at: new Date(4000).toISOString(), kind: 'model', rev: 2, label: 'Correct the declared boundary.' }],
     data: { graph: { nodes: [] } }, NOTE_NAMES: {}, unitOf: new Map(), clip: (value) => value,
     isStory: () => false, momentText: String, partsNow: () => [], storyParts: [], hasStory: false,
-    captionBox: { hidden: false }, showStats() {}, applyTerrain() {}, drawNotes() {}, drawArcs() {}, syncStrip() {} };
+    captionBox: { hidden: false }, showStats() {}, applyTerrain() {}, drawNotes() {}, drawArcs() {}, syncStrip() {}, syncBigNames() {} };
   context.building = () => context.opt.mode === 'construction';
   vm.createContext(context); vm.runInContext([functionSource('syncSeriesCaptions'), functionSource('apply')].join('\n'), context);
   for (let i = 0; i < 2; i++) {

@@ -28,6 +28,7 @@ import { readingAt, readingsDomain, readingReason, readingConfidence, smoothWith
 import { typedScalarTrajectories } from './scalar-trajectories.js';
 import { buildModelGraph } from './model-graph.js';
 import { readingActs, actShares, actCounts } from './lens-readings.js';
+import { bigNamesOn, namePlace, nameHeight, screenHeight } from './character-names.js';
 import { readerInline } from './reader-markdown.js';
 import { onPlainClick } from './pointer-click.js';
 import { curationAt } from './view-settings.js';
@@ -138,6 +139,7 @@ const opt = {
   // By default the rows are the processes that change over time; rows=all shows every row (see tracesChange).
   onlyChanging: !params.has('everything') && params.get('rows') !== 'all',
   hideUndated: params.get('undated') === 'hide', // documents and notes about no dated moment
+  names: ['big', 'small'].includes(params.get('names')) ? params.get('names') : 'auto', // each group's name large behind its rows (character-names.js)
   mode: params.get('mode') === 'construction' && data.constructionTiming !== 'unavailable' ? 'construction' : 'story',
   speed: [0.25, 0.5, 1, 2, 4].includes(Number(params.get('speed'))) ? Number(params.get('speed')) : 1,
   layout: initialLayout,
@@ -784,6 +786,34 @@ if (!labelGroups.some((group) => group.id === 'world')) labelGroups.push({ id: '
 for (const group of labelGroups) {
   const object = label('group', group.label, new THREE.Vector3(-LENGTH / 2 - 1.2, 0.3, 0), [1, 0.5]); object.element.style.color = group.hue; groupLabels.push({ group, object });
   if (group.rows.some((row) => row.kind === 'cut-answer')) { Object.assign(object.element.style, { maxWidth: 'min(180px, 28vw)', overflow: 'hidden', textOverflow: 'ellipsis' }); object.element.title = group.label; }
+}
+// Big names (character-names.js): with many processes the small group labels are lost, so each group's name also stands
+// large behind its own rows. A name is drawn far behind the model along the line from the camera to its group, at the
+// size it would have there, so it reads as standing among the rows while every curve, card and gem lies over it.
+const bigNames = new Map(); let bigNamesNow = false;
+const NAME_PIXELS = 256; const towardName = new THREE.Vector3(); const nameCentre = new THREE.Vector3();
+function bigNameFor(group) {
+  let entry = bigNames.get(group.id); if (entry) return entry;
+  const font = `700 ${Math.round(NAME_PIXELS * 0.72)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  const canvas = document.createElement('canvas'); const context = canvas.getContext('2d'); context.font = font;
+  const pad = NAME_PIXELS * 0.3; canvas.width = Math.ceil(context.measureText(group.label).width + pad * 2); canvas.height = NAME_PIXELS;
+  context.font = font; context.textAlign = 'center'; context.textBaseline = 'middle';
+  context.shadowColor = group.hue; context.shadowBlur = NAME_PIXELS * 0.12;
+  context.fillStyle = new THREE.Color(group.hue).lerp(new THREE.Color('#ffffff'), 0.3).getStyle(); context.fillText(group.label, canvas.width / 2, NAME_PIXELS * 0.53);
+  const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0, depthWrite: false, fog: false }));
+  mesh.renderOrder = -1; mesh.frustumCulled = false; mesh.visible = false;
+  entry = { group, mesh, aspect: canvas.width / canvas.height, place: null, height: 0 };
+  mesh.onBeforeRender = (_renderer, _scene, view) => {
+    if (!entry.place) return;
+    nameCentre.set(entry.place.x, entry.height * 0.5 + 0.4, entry.place.z);
+    const distance = view.position.distanceTo(nameCentre); if (!(distance > 0)) return;
+    const height = screenHeight(entry.height, { distance, fov: view.fov, pixels: innerHeight });
+    const far = Math.max(distance, view.far * 0.9); towardName.subVectors(nameCentre, view.position).normalize();
+    mesh.position.copy(view.position).addScaledVector(towardName, far); mesh.quaternion.copy(view.quaternion);
+    mesh.scale.set(height * entry.aspect * (far / distance), height * (far / distance), 1); mesh.updateMatrixWorld();
+  };
+  scene.add(mesh); bigNames.set(group.id, entry); return entry;
 }
 // The time axis along the front: labels and faint lines across the field, from a pool.
 const tickPool = [];
@@ -1901,6 +1931,7 @@ function apply() {
   }
   syncSeriesCaptions();
   for (const entry of groupLabels) syncGroupLabel(entry);
+  syncBigNames();
   for (const thread of threads) {
     const on = (!opt.detailProjection || opt.detailProjection.eventIds.has(thread.userData.event.id)) && opt.show.has('threads') && inView(thread.userData.t, 0.2) && (construction ? bornAt(thread.userData.event) <= tau : thread.userData.t <= now) && thread.userData.touched.some((row) => row.wall.visible && rowValue(row, thread.userData.t) !== null);
     thread.visible = on; if (thread.userData.tag) thread.userData.tag.visible = on;
@@ -2675,6 +2706,15 @@ function setHideUndated(on) {
   opt.hideUndated = on; apply(); syncPanel(); syncURL(true); dirty = true; extrasDirty = true;
 }
 undatedButton.addEventListener('click', () => setHideUndated(!opt.hideUndated));
+const namesButton = document.createElement('button'); namesButton.id = 'big-names'; namesButton.className = 'tool switch'; namesButton.textContent = 'Big names';
+const namesHelp = document.createElement('div'); namesHelp.className = 'note';
+namesHelp.textContent = 'Each character’s name, and the world’s, large behind their own processes, so it stays clear whose processes these are. On by default once many processes show.';
+namesButton.title = namesHelp.textContent; namesButton.hidden = groups.length < 2; namesHelp.hidden = namesButton.hidden;
+document.getElementById('show-section').append(namesButton, namesHelp);
+function setBigNames(on) {
+  opt.names = on ? 'big' : 'small'; apply(); syncPanel(); syncURL(true); dirty = true;
+}
+namesButton.addEventListener('click', () => setBigNames(!bigNamesNow));
 { const box = document.getElementById('lenses');
   for (const lens of lensList) {
     const row = switchRow(); row.dataset.lens = lens.id; row.style.setProperty('--swatch', [...lens.palette.values()][0]);
@@ -2737,6 +2777,7 @@ function syncPanel() {
   flatButton.setAttribute('aria-pressed', String(opt.hideFlat));
   changingButton.setAttribute('aria-pressed', String(!opt.onlyChanging));
   undatedButton.setAttribute('aria-pressed', String(opt.hideUndated)); undatedButton.classList.toggle('on', opt.hideUndated);
+  namesButton.setAttribute('aria-pressed', String(bigNamesNow)); namesButton.classList.toggle('on', bigNamesNow);
   const projected = opt.detailProjection;
   processFocus.value = opt.processScope ?? '';
   document.getElementById('coarse-view').setAttribute('aria-pressed', String(Boolean(projected && projected.level === 0 && !terrain.on)));
@@ -2793,6 +2834,7 @@ function syncURL(immediate = false) {
     if (opt.hideFlat) next.set('flat', 'hide');
     if (!opt.onlyChanging) next.set('rows', 'all');
     if (opt.hideUndated) next.set('undated', 'hide');
+    if (opt.names !== 'auto') next.set('names', opt.names);
     if (Number.isInteger(opt.detailLevel)) next.set('detail', String(opt.detailLevel));
     if (opt.processScope) next.set('scope', opt.processScope);
     if (opt.readingOverview === 'structure') next.set('readingOverview', 'structure');
@@ -2840,6 +2882,22 @@ function syncGroupLabel({ group, object }) {
   } else {
     const zs = own.length ? own.map((row) => rowAt(row).z) : groupNodes.map((node) => nodeAt(node).z);
     object.position.set(-LENGTH / 2 - 1.2, 0.3, (zs.length ? Math.min(...zs) : 0) - GAP * 0.62);
+  }
+}
+// Big names stand over the groups' rows in Processes, and fade as the view turns to Layers or Terrain, where the rows
+// stand elsewhere. Whether they are big follows names=big|small, else how many processes show.
+function syncBigNames() {
+  const together = terrain.on ? 0 : 1 - smooth(blend.now);
+  const shown = opt.show.has('processes') ? rows.filter((row) => row.inT && presence(row) > 0.5 && row.name.visible) : [];
+  const owners = groups.filter((group) => shown.some((row) => row.group === group));
+  bigNamesNow = bigNamesOn(opt.names, { rows: shown.length, groups: owners.length });
+  const places = new Map(owners.map((group) => [group, namePlace(shown.filter((row) => row.group === group).map((row) => rowAt(row).z))]));
+  const height = nameHeight([...places.values()].filter(Boolean).map((place) => place.depth + ROW));
+  for (const group of groups) {
+    const place = places.get(group);
+    if (!bigNamesNow || together < 0.01 || !place) { const entry = bigNames.get(group.id); if (entry) { entry.mesh.visible = false; entry.place = null; } continue; }
+    const entry = bigNameFor(group); entry.place = place; entry.height = height;
+    entry.mesh.material.opacity = 0.72 * together; entry.mesh.visible = true;
   }
 }
 // How high the sweep stands: from half a unit under the lowest row, floor or Event drawn now to well above the highest

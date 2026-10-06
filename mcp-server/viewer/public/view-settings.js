@@ -15,7 +15,7 @@ export const VIEW_SETTINGS = Object.freeze({
   camera: oneOf('spin', 'free', 'locked'), glare: oneOf('full', 'soft'), edges: oneOf('on', 'off'), reading: oneOf('on', 'off'),
   text: oneOf('on', 'off'), legend: oneOf(''), world: oneOf('above', 'below'), smooth: between(0, 1),
   show: layers, everything: oneOf(''), nothoughts: oneOf(''), lenses: named, depth: whole, detail: whole, scope: named, focus: named,
-  rows: oneOf('all'), flat: oneOf('hide'), unopened: oneOf('hide'), undated: oneOf('hide'),
+  rows: oneOf('all'), flat: oneOf('hide'), unopened: oneOf('hide'), undated: oneOf('hide'), names: oneOf('big', 'small'),
   noteLayout: oneOf('floors', 'original', 'nearby', 'overhead', 'centered'), noteLinks: oneOf('some', 'all'),
   eventLayout: oneOf('nested', 'traditional'), readingOverview: oneOf('structure', 'named'), mode: oneOf('story', 'construction'),
   speed: oneOf('0.25', '0.5', '1', '2', '4'), zoom: oneOf('story', 'life', 'centuries', 'world'), life: named, t0: finite, t1: finite, at: finite,
@@ -51,7 +51,7 @@ export const levelCount = (view) => (view?.levels?.length ?? 0) + 2;
 export const everythingLevel = (view) => levelCount(view) - 1;
 export function settingsAt(view, level) {
   if (level >= everythingLevel(view)) {
-    const kept = Object.fromEntries(Object.entries(settingsAt(view, everythingLevel(view) - 1)).filter(([key]) => ['view', 'timeView', 'glare', 't0', 't1', 'zoom', 'life', 'reading', 'smooth', 'world'].includes(key)));
+    const kept = Object.fromEntries(Object.entries(settingsAt(view, everythingLevel(view) - 1)).filter(([key]) => ['view', 'timeView', 'glare', 't0', 't1', 'zoom', 'life', 'reading', 'smooth', 'world', 'names'].includes(key)));
     return { ...kept, everything: '', rows: 'all' };
   }
   let settings = viewOwn(view?.settings);
