@@ -10,6 +10,7 @@ import { temporalWindow } from '../viewer/public/temporal-layout.js';
 import { projectNumerics } from './viewer-numerics.mjs';
 import { projectScalarSeries } from './viewer-scalar-series.mjs';
 import { declaredViewerLives } from './viewer-snapshot.mjs';
+import { VIEW_SCHEMA, currentView } from '../viewer/public/view-settings.js';
 
 export async function buildViewerData({ history, rendered = null, documentRendered = null, calls = [], name = null, title: requestedTitle = null,
   display = null, meaningModelVersion = null, generatedAt = new Date().toISOString() } = {}) {
@@ -224,7 +225,7 @@ export async function buildViewerData({ history, rendered = null, documentRender
   });
   // Causal and other links between Events; containment is the tree, and about is a reading's reference to its record.
   const relations = (mm.event_relations ?? []).filter((relation) => relation.kind !== 'contains' && !isAboutRelation(relation)).map((relation) => ({
-    source: relation.source_event_id, target: relation.target_event_id, kind: relation.kind,
+    id: relation.id ?? `${relation.source_event_id}>${relation.kind}>${relation.target_event_id}`, source: relation.source_event_id, target: relation.target_event_id, kind: relation.kind,
     ...(relation.description ? { description: relation.description } : {}), ...(relation.forecast_answer ? { forecast: relation.forecast_answer } : {}),
     born: birthOf('relations', relation.id ?? `${relation.source_event_id}>${relation.kind}>${relation.target_event_id}`) }));
 
@@ -251,7 +252,19 @@ export async function buildViewerData({ history, rendered = null, documentRender
       return clip(payload?.text ?? data?.text ?? data?.summary ?? data?.question ?? node.title ?? raw, 900);
     } catch { return clip(raw, 1400); }
   };
-  const graphNodes = [...nodes.values()].map((node) => ({
+  // The views the model chose for its reader (life_model_viewer_view): decisions about what the viewer opens with, read as
+  // the viewer's opening settings rather than drawn as notes. The newest view no other view supersedes is the current one.
+  const viewPayload = (node) => { try { const payload = JSON.parse(String(node.text ?? '')); return payload?.data?.schema === VIEW_SCHEMA ? payload : null; } catch { return null; } };
+  const viewNotes = [...nodes.values()].map((node) => ({ node, payload: viewPayload(node) })).filter((item) => item.payload);
+  const viewIds = new Set(viewNotes.map(({ node }) => node.id));
+  const supersededViews = new Set([...edges.values()].filter((edge) => edge.relation === 'supersedes' && viewIds.has(edge.source?.node_id) && edge.target?.kind === 'node')
+    .map((edge) => edge.target.node_id));
+  const viewOrder = ({ node }) => [node.value_time ?? -Infinity, nodeBorn.get(node.id)?.order ?? -Infinity];
+  const views = viewNotes.sort((a, b) => viewOrder(a)[0] - viewOrder(b)[0] || viewOrder(a)[1] - viewOrder(b)[1]).map(({ node, payload }) => ({
+    id: node.id, title: clip(node.title ?? '', 140), caption: clip(payload.text ?? '', 1_200), holder: node.holder ?? null, born: nodeBorn.get(node.id) ?? null,
+    superseded: supersededViews.has(node.id), settings: payload.data.settings ?? {}, rows: payload.data.rows ?? [], highlights: payload.data.highlights ?? [],
+    levels: payload.data.levels ?? [], level: payload.data.level ?? 0 }));
+  const graphNodes = [...nodes.values()].filter((node) => !viewIds.has(node.id)).map((node) => ({
     id: node.id, type: node.node_type, category: category(node), role: node.role ?? null, title: clip(node.title ?? '', 140), text: textOf(node),
     holder: node.holder ?? null, words: category(node) === 'passage' ? countProseWords(node.text) : 0,
     born: nodeBorn.get(node.id) ?? null, valueTime: node.value_time ?? null }));
@@ -516,6 +529,7 @@ export async function buildViewerData({ history, rendered = null, documentRender
     timeUnit: unit, firstCall, lastCall: calls.at(-1)?.at ?? null, headGraphHash: history.headGraphHash ?? null, modelHash: selectedModelEntry.modelHash,
     window, extent, storyWindow, storyRoute, people, events, relations, draws, referents, processes, lenses,
     graph: { nodes: graphNodes, edges: graphEdges }, story, documentProjection, measures, numerics, typedScalarSeries, steps, toolCalls,
+    views, chosenView: currentView(views)?.id ?? null,
     totals: { events: events.length, cuts: allCuts.length - withdrawn.size, people: people.length, lives: lives.length, thoughts: graphNodes.filter((node) => node.category === 'thought').length,
       passages: graphNodes.filter((node) => node.category === 'passage').length, words: storyWords ?? graphNodes.reduce((sum, node) => sum + node.words, 0), modelRevisions: modelLineage.length, graphRevisions: history.revisions.length },
   };

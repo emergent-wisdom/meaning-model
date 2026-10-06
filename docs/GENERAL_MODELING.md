@@ -99,11 +99,11 @@ Explore recursively: open a process or meaning, discover its sub-processes,
 relationships and possible distinctions, follow fruitful new questions, then
 revise and revisit connected parts of the model. Start from the macro-processes, coarsely: the long
 developments, institutions, economies, technologies and environments that the
-focal lives and events sit within, then open detail inside them where the
-question or the work needs it. What someone meets in a scene, a report or a visit
-is believable when it follows from that larger structure: the world need not be
-detailed everywhere, but everything rendered must fit what the coarse account
-commits. Reviews, readings and checks show where the model is thin; the work is
+focal lives and events sit within, then open detail inside them wherever the
+question, the work or your curiosity leads. What someone meets in a scene, a
+report or a visit is believable when it follows from that larger structure:
+everything rendered must fit what the coarse account commits, and the richer the
+world beneath it, the more the work has to draw on. Reviews, readings and checks show where the model is thin; the work is
 deepening the model. Outside reviews can be useful, and a review may rightly
 confirm the account or correct only the prose; but if all you do is review and
 revise the prose, and the model and its processes never change as a consequence,
@@ -124,17 +124,18 @@ style, a belief, an institution's culture or a market's mood. A fixed descriptio
 can change, model its course in the time it changes in. A person you want to
 understand is the result of processes too: model how they came to be, from where
 their life began through what they were taught and what else they lived
-through, as far as the evidence reaches or the work needs. Make each explicit, then
+through, as far as the evidence reaches or, in creative work, as far as you can build. Make each explicit, then
 build on it: the new structure anchors further relationships, processes and
 concepts, and is revised when exploration shows a better account. Read what was
 built on the earlier account against the new structure, prose included, and
 revise that work or record why it stands. Curiosity can open a sufficient
 account without a defect to repair. After a substantive opening, inspect its
 connections and choose what to explore next for what it could explain or make
-possible. Follow the relevant earlier history, neighboring processes or higher
-abstractions within the delegation. At a stopping point, use the existing
-Understanding Nodes to record what was explored, why that scope is sufficient
-for the purpose and which promising questions remain. A local revision does
+possible. Follow earlier history, neighboring processes or higher abstractions
+wherever they lead: a part that seems unrelated to the task often turns out to
+explain it. At a stopping point, use the existing Understanding Nodes to record
+what was explored, what it opened and which promising questions remain for the
+next pass. A local revision does
 not establish review of the whole work, and completed checks do not establish
 complete understanding. These choices add no quota of records, categories or
 numerical changes. Invent and compare categories where useful;

@@ -30,6 +30,7 @@ import { buildModelGraph } from './model-graph.js';
 import { readingActs, actShares, actCounts } from './lens-readings.js';
 import { readerInline } from './reader-markdown.js';
 import { onPlainClick } from './pointer-click.js';
+import { curationAt } from './view-settings.js';
 
 let temporalActive = !window.modelViewer, temporalFrame = null, appliedSelection = null, hoveredRecord = null;
 // The thing under the pointer (a light, bar, link or card; null on a curtain or the ground) and the one the panel holds,
@@ -77,6 +78,25 @@ const nativeMeasures = cutTrajectories(data);
 const scalarMeasures = typedScalarTrajectories(data);
 const recordedMeasures = [...nativeMeasures, ...scalarMeasures];
 const boundedMeasure = (measure) => measure.kind === 'cut-answer' || measure.kind === 'typed-scalar';
+// The view the model chose, when the address follows it, at the reader's level of detail: the rows it shows, and the
+// links, moments, readings and notes it highlights. Everything is the last level and narrows nothing. It is kept in
+// opt.curation, since it is part of what the view shows.
+const chosenView = (data.views ?? []).find((view) => view.id === params.get('chosen')) ?? null;
+const chosenLevel = chosenView && params.has('level') && Number.isInteger(Number(params.get('level'))) ? Number(params.get('level')) : chosenView?.level ?? 0;
+const curation = (() => {
+  if (!chosenView) return null;
+  const { rows, highlights } = curationAt(chosenView, chosenLevel);
+  const ids = (list, kind) => new Set(list.filter((target) => target.record?.startsWith(`${kind}:`)).map((target) => target.record.slice(kind.length + 1)));
+  const rowCuts = ids(rows, 'cut'), rowProcesses = ids(rows, 'process');
+  return { rows: rowCuts.size + rowProcesses.size > 0,
+    row: (row) => (row.measure.kind === 'cut-answer' ? (row.points ?? row.measure.points ?? []).some((point) => rowCuts.has(point.cutId)) : rowProcesses.has(row.measure.processId ?? row.measure.id)),
+    relations: ids(highlights, 'event_relation'), events: ids(highlights, 'event'), cuts: ids(highlights, 'cut'),
+    notes: new Set(highlights.filter((target) => target.nodeId).map((target) => target.nodeId)),
+    why: new Map(highlights.map((target) => [target.record ?? `node:${target.nodeId}`, target.why])) };
+})();
+const noteMarks = []; // the titles of the notes the model highlighted, beside their lights
+// A name short enough to read in the scene: the first sentence, when it is short.
+const markName = (text, n = 48) => { const s = String(text ?? '').replace(/\s+/gu, ' ').trim(), end = s.search(/[.!?](\s|$)/u); return clip(end > 0 && end < n ? s.slice(0, end) : s, n); };
 const hasPaths = data.measures.some((measure) => measure.points.length >= 2) || recordedMeasures.length > 0;
 const BASE_SHOW = ['processes', 'threads', 'decisions', 'lovefear', 'causal', 'notes', 'numbers'];
 const ALL_SHOW = [...BASE_SHOW, 'events', 'subsidiary', 'prose'];
@@ -100,7 +120,7 @@ let explicitNoteLayout = NOTE_LAYOUTS.includes(params.get('noteLayout'));
 let explicitDepth = params.has('everything') || (params.has('depth') && Number.isFinite(Number(params.get('depth'))));
 let explicitEverything = params.has('everything');
 const opt = {
-  camera: ['spin', 'free', 'locked'].includes(params.get('camera')) ? params.get('camera') : params.has('still') ? 'free' : 'spin',
+  camera: ['spin', 'free', 'locked'].includes(params.get('camera')) ? params.get('camera') : 'free', // still unless asked to spin
   glare: params.get('glare') === 'full' ? 'full' : 'soft',
   readingOverview: params.get('readingOverview') === 'structure' ? 'structure' : 'named',
   noteLayout: explicitNoteLayout ? params.get('noteLayout') : defaultNoteLayout(initialLayout),
@@ -115,6 +135,8 @@ const opt = {
   text: params.get('text') !== 'off', // the names, values, dates and cards in the view
   hideUnopened: params.get('unopened') === 'hide',
   hideFlat: params.get('flat') === 'hide',
+  // By default the rows are the processes that change over time; rows=all shows every row (see tracesChange).
+  onlyChanging: !params.has('everything') && params.get('rows') !== 'all',
   hideUndated: params.get('undated') === 'hide', // documents and notes about no dated moment
   mode: params.get('mode') === 'construction' && data.constructionTiming !== 'unavailable' ? 'construction' : 'story',
   speed: [0.25, 0.5, 1, 2, 4].includes(Number(params.get('speed'))) ? Number(params.get('speed')) : 1,
@@ -136,6 +158,7 @@ function applyLayoutDefaults() {
   if (!explicitNoteLayout) opt.noteLayout = defaultNoteLayout(opt.layout);
 }
 let selectedPart = null; const selectedEventIds = new Set(); let selectedLinks = [];
+opt.curation = curation;
 let ready = false; // the panel and the URL follow the view once it has started
 let dirty = true; let relayout = true; let extrasDirty = true; let currentTicks = []; // what to redraw
 let pointerAt = null; let lit = null; let litNode = null; let litReading = null; let litUnit = null; let litArc = null; let litChain = new Set(); // what the pointer is on
@@ -201,7 +224,9 @@ const measurePosition = (points, t) => {
 };
 // At the current zoom: a reading shorter than this share of the window is shown through the longer reading around it,
 // and a moment reading is marked this many samples wide.
-const readingResolution = () => ({ minSpan: F.s * 0.02, momentHalfWidth: (F.s / NX) * 1.5 });
+// A reading opens into its detail once a reading inside it is a sixty-sixth of the window: quarters open across the
+// thirteen years of a story's present, and fold back into their periods across a whole life.
+const readingResolution = () => ({ minSpan: F.s * 0.015, momentHalfWidth: (F.s / NX) * 1.5 });
 const readingShown = (row, t) => readingAt(row.points ?? row.measure.points, t, readingResolution());
 function rowValue(row, t) {
   const points = row.points ?? row.measure.points;
@@ -241,7 +266,8 @@ for (const row of rows) {
 const money = (v, sign) => `${sign}${v >= 100 ? Math.round(v).toLocaleString('en-GB') : v.toFixed(2)}`;
 const format = (row, v) => {
   if (v === null) return 'No recorded value yet';
-  if (row.measure.kind === 'cut-answer') return v.toLocaleString('en-GB', { maximumSignificantDigits: 6 });
+  // A share at a glance: two decimals; the details keep what was recorded.
+  if (row.measure.kind === 'cut-answer') return v.toLocaleString('en-GB', { maximumFractionDigits: 2 });
   if (row.measure.kind === 'typed-scalar') return `${v.toLocaleString('en-GB', { maximumSignificantDigits: 6 })} ${row.measure.unit ?? ''}`.trim();
   const unit = String(row.measure.unit ?? '');
   if (/GBP/.test(unit)) return money(v, '£'); if (/USD/.test(unit)) return money(v, '$');
@@ -515,11 +541,44 @@ const visibleNode = (node, layers) => {
   if (node.depth > opt.depth) return false;
   return kindShown;
 };
-function visibleRow(row) {
+// A row earns its place in the default view when it follows something through time: its values change, and its
+// readings cover most of the stretch from the first to the last, as a series of periods does. A line that never changes,
+// and a row of single moments (a scene's reading, days long across years), stay in the model and return with "Show
+// every row". The stretch is the row's own, so a model reaching into deep time does not hide a life's series.
+const CHANGE_COVER = 0.25;
+function tracesChange(row) {
+  const points = row.points ?? row.measure.points ?? [];
+  if (points.length < 2 || points.every((point) => point.v === points[0].v)) return false;
+  if (row.measure.kind !== 'cut-answer') return true;
+  let covered = 0, reach = -Infinity, first = Infinity;
+  for (const point of [...points].sort((a, b) => a.t - b.t)) {
+    const end = Number.isFinite(point.end) ? point.end : point.t, from = Math.max(point.t, reach);
+    if (end > from) covered += end - from;
+    reach = Math.max(reach, end); first = Math.min(first, point.t);
+  }
+  return reach > first && covered >= CHANGE_COVER * (reach - first);
+}
+function eligibleRow(row) {
+  if (!opt.show.has('processes')) return false;
   if (opt.detailProjection && !opt.detailProjection.rowIds.has(row.measure.id)) return false;
   const points = row.points ?? row.measure.points;
   if (boundedMeasure(row.measure) && (!points || points.length < 2)) return false;
-  return opt.show.has('processes') && !(opt.hideFlat && points?.length && points.every((point) => point.v === points[0].v));
+  return !(opt.hideFlat && points?.length && points.every((point) => point.v === points[0].v));
+}
+function visibleRow(row) {
+  if (!eligibleRow(row)) return false;
+  // The rows the model chose show whether or not they change; Show every row (rows=all) and Everything show the rest.
+  if (opt.curation?.rows && opt.onlyChanging && !opt.rowsFallback) return opt.curation.row(row);
+  if (opt.onlyChanging && !opt.rowsFallback && !tracesChange(row)) return false;
+  return true;
+}
+function updateRowsFallback() {
+  opt.rowsFallback = false;
+  // Only relax row selection when it restores something at the active depth. Scope, explicit filters and replay
+  // sample availability still apply; an empty branch or hidden flat rows are not missing process histories.
+  const candidates = rows.filter((row) => eligibleRow(row)
+    && (opt.layout !== 'layers' || opt.detailProjection || row.depth <= opt.depth));
+  opt.rowsFallback = Boolean(opt.onlyChanging && candidates.length && !candidates.some(visibleRow));
 }
 const rowSpacing = (row) => row.measure.kind === 'cut-answer' ? CUT_ROW : ROW;
 function pack(items) {
@@ -585,6 +644,7 @@ function computeLayout() {
   opt.detailProjection = Number.isInteger(opt.detailLevel) ? processDetail.project({ scope: opt.processScope, level: opt.detailLevel }) : null;
   if (opt.detailProjection) { opt.detailLevel = opt.detailProjection.level; opt.processScope = opt.detailProjection.scope; }
   for (const node of nodes) { node.inT = visibleNode(node, false); node.inL = visibleNode(node, true); node.shown = node.inT || node.inL; }
+  updateRowsFallback();
   for (const row of rows) row.inT = visibleRow(row);
   // Together: the rows as they always were, and beneath each group's curtains the Events and subsidiary processes of its
   // tree, one floor further down for each level, spread across the group's rows.
@@ -663,11 +723,20 @@ for (const row of rows) {
   name.element.style.color = open ? 'var(--muted)' : `color-mix(in srgb, ${row.group.hue} 45%, #ffffff)`;
   if (boundedMeasure(row.measure)) Object.assign(name.element.style, { maxWidth: 'min(150px, 25vw)', overflow: 'hidden', textOverflow: 'ellipsis' });
   row.name = name; row.value = label('value', '', new THREE.Vector3(LENGTH / 2 + 1.2, 0.8, row.z), [0, 0.5]);
-  // A series of readings of one question is named once, by its question, above its first answer.
+  // One caption per series; syncSeriesCaptions places it above the first answer actually shown.
   if (row.measure.series?.first) {
     const within = row.measure.parentAnswer && !/^within\b/iu.test(row.measure.question) ? `Within ${row.measure.parentAnswer.replace(/_/g, ' ')}: ` : '';
     row.caption = label('series', clip(`${within}${row.measure.question}`, 96), new THREE.Vector3(-LENGTH / 2 - 1.2, 0.8, row.z), [1, 1]);
     row.caption.element.title = `${row.measure.question}\n\nUnit: ${row.measure.unit}`;
+  }
+}
+function syncSeriesCaptions() {
+  const firstShown = new Map();
+  for (const row of rows) if (row.name.visible && row.measure.series && !firstShown.has(row.measure.series.key)) firstShown.set(row.measure.series.key, row);
+  for (const row of rows) if (row.caption) {
+    const shown = firstShown.get(row.measure.series.key);
+    row.caption.visible = Boolean(shown);
+    if (shown) row.caption.position.copy(shown.name.position);
   }
 }
 // Lay a curtain over the window: samples evenly across the screen, over the years the curtain spans.
@@ -677,7 +746,6 @@ function layRow(row) {
   const shown = vis > 0.01 && d1 > d0; row.wall.visible = shown; row.crest.visible = shown;
   row.name.visible = vis > 0.5; row.value.visible = vis > 0.5;
   row.name.position.set(-LENGTH / 2 - 1.2, p.y + 0.8, p.z); row.value.position.set(LENGTH / 2 + 1.2, p.y + 0.8, p.z);
-  if (row.caption) { row.caption.position.copy(row.name.position); row.caption.visible = row.name.visible; }
   row.wall.material.opacity = vis; row.crest.material.opacity = vis;
   if (!shown) return;
   const x0 = X(d0); const x1 = X(d1); const amp = row.measure.kind === 'cut-answer' ? 1 : 1 - smooth(blend.now) * (1 - LAMP / AMP);
@@ -846,6 +914,13 @@ const NOTE = { root: ['Document', '#ffe6ae', 6], thought: ['Thought', '#c9d4ff',
 const hoverable = []; const notes = []; const mind = new THREE.Group(); mind.visible = opt.show.has('notes'); field.add(mind);
 const mindLines = new Lines(); const noteLinks = new Lines(); field.remove(mindLines.object, noteLinks.object); mind.add(mindLines.object, noteLinks.object);
 const graphNodes = data.graph.nodes;
+// A series reading is drawn as a point of its row, not as an Event of its own, so a link or a note about a reading ends
+// on that row at the reading's time. A series that opens an answer of another shares its Events; the end is on the
+// undivided series where there is one.
+const readingEnds = new Map();
+for (const measure of [...nativeMeasures].sort((a, b) => (a.level ?? 0) - (b.level ?? 0))) if (measure.series?.first) for (const point of measure.points ?? []) if (point.eventId && !byId.has(point.eventId) && !readingEnds.has(point.eventId))
+  readingEnds.set(point.eventId, { id: point.eventId, start: point.t, end: point.end, born: point.born, get label() { return `${measure.group?.label ?? ''} · ${measure.question}`; }, reading: measure });
+const linkEnd = (id) => byId.get(id) ?? readingEnds.get(id);
 const neighbours = new Map(); const moments = new Map(); const noteScopeEvents = new Map();
 for (const edge of data.graph.edges) {
   if (edge.target.node) { for (const [a, b] of [[edge.source, edge.target.node], [edge.target.node, edge.source]]) push(neighbours, a, b); }
@@ -853,7 +928,7 @@ for (const edge of data.graph.edges) {
   // date to the note or changing the dated moments used for its placement.
   const home = edge.target.event ?? edge.target.home;
   if (byId.has(home)) push(noteScopeEvents, edge.source, home);
-  const event = byId.get(edge.target.event); if (event && Number.isFinite(event.start)) push(moments, edge.source, event);
+  const event = linkEnd(edge.target.event); if (event && Number.isFinite(event.start)) push(moments, edge.source, event);
 }
 // A note is dated when it is about at least one Event with a date; Hide undated notes leaves only those.
 const undatedNote = (id) => !moments.has(id);
@@ -888,6 +963,7 @@ for (const node of graphNodes) {
   const light = spark(hex, node.category === 'passage' ? 2.6 : 2.0); const attached = attachmentsOf(node);
   light.userData = { node, color: color(hex), attached, hover: { kind: kindWords(kind, typeWord(node.type, node.category)), title: node.title, text: node.text, attached: attachmentText(attached) }, id: node.id, born: node.born };
   mind.add(light); notes.push(light); hoverable.push(light);
+  if (opt.curation?.notes.has(node.id)) noteMarks.push(label('chosen-mark note', markName(node.title || node.text, 56), new THREE.Vector3(), [0, 0.5], light));
 }
 const noteById = new Map(notes.map((light) => [light.userData.id, light]));
 const selectedDocumentLabel = label('selected-document', '', new THREE.Vector3(), [0.5, 1], mind); selectedDocumentLabel.visible = false;
@@ -897,14 +973,16 @@ generalNotesLabel.visible = false;
 const noteEdges = []; { const seen = new Set(); for (const edge of data.graph.edges) { if (!edge.target.node) continue; const key = [edge.source, edge.target.node].sort().join('|'); if (seen.has(key) || !noteById.has(edge.source) || !noteById.has(edge.target.node)) continue; seen.add(key); noteEdges.push([edge.source, edge.target.node]); } }
 // Where the moments a note is about meet the processes.
 const meet = (event) => {
+  // A series reading is a declared anchor of its own: the note meets its row at the reading's time, in every layout.
+  const onReading = (t) => { const row = readingRow(event, t); if (!row) return []; const p = rowAt(row); return [new THREE.Vector3(xOf(t), p.y + heightAt(row, t) + 0.05, p.z)]; };
   if (opt.noteLayout === 'original' && !opt.allNoteAttachments) {
-    const t = Math.max(F.a, Math.min(F.b, event.start)); const touched = rowsForEvent(event, t);
+    const t = Math.max(F.a, Math.min(F.b, event.start)); if (event.reading) return onReading(t); const touched = rowsForEvent(event, t);
     if (touched.length) return touched.map((row) => { const p = rowAt(row); return new THREE.Vector3(xOf(t), p.y + heightAt(row, t) + 0.05, p.z); });
     const node = nearestShown(event.id); if (node && (!rows.length || opt.layout === 'layers')) { const p = nodeAt(node); return [new THREE.Vector3(xOf(t), p.y + BAR, p.z)]; }
     const person = principals.find((p) => event.participants?.includes(p.id)); const group = groups.find((g) => g.id === person?.id); if (!group) return [];
     const own = rows.filter((row) => row.group === group && presence(row) > 0.5); if (!own.length) return []; const p = rowAt(own[Math.floor(own.length / 2)]); return [new THREE.Vector3(xOf(t), p.y + 0.1, p.z)];
   }
-  const t = event.start; const touched = rowsForEvent(event, t);
+  const t = event.start; if (event.reading) return onReading(t); const touched = rowsForEvent(event, t);
   if (touched.length) return touched.map((row) => { const p = rowAt(row); return new THREE.Vector3(xOf(t), p.y + heightAt(row, t) + 0.05, p.z); });
   const node = nearestShown(event.id); if (node) { const p = nodeAt(node); return [new THREE.Vector3(xOf(t), p.y + BAR, p.z)]; }
   return [];
@@ -1114,12 +1192,24 @@ function drawNotes() {
   mindLines.end(); noteLinks.end();
 }
 
-// Causal links between the story's events, as arcs in a lane before the processes.
+// Causal links between the story's events, as arcs in a lane before the processes. A series reading is drawn as a point
+// of its row, not as an Event of its own, so a link ends on a visible answer row at that reading's time. Its meaning
+// remains a relation to the whole reading Event, not a claim about the answer chosen as its display anchor.
 const arcsBuffer = new Lines(); const arcSparks = [];
-const causalAll = data.relations.filter((relation) => byId.has(relation.source) && byId.has(relation.target) && Number.isFinite(byId.get(relation.source).start) && Number.isFinite(byId.get(relation.target).start));
+const causalAll = data.relations.filter((relation) => Number.isFinite(linkEnd(relation.source)?.start) && Number.isFinite(linkEnd(relation.target)?.start));
 const inStory = (event) => event && Number.isFinite(event.start) && event.start >= T0 - 0.05 && event.start <= T1;
-const causal = causalAll.filter((relation) => inStory(byId.get(relation.source)) && inStory(byId.get(relation.target)));
+const causal = causalAll.filter((relation) => inStory(linkEnd(relation.source)) && inStory(linkEnd(relation.target)));
 const counts = causal.reduce((m, r) => ({ ...m, [r.kind]: (m[r.kind] ?? 0) + 1 }), {});
+// What the model highlighted is named where it lands: a link by its cause on the curve it moves, a moment by its name,
+// a reading by why it matters. When a cause and what it moves stand at nearly the same moment, the name says it better
+// than an arc between two points one above the other.
+const marks = [];
+function placeMark(i, point, text, hex) {
+  if (i >= marks.length) { const tag = label('chosen-mark', '', new THREE.Vector3(), [0, 1.2]); const dot = spark('#ffffff', 1.6); field.add(dot); marks.push({ tag, dot }); }
+  const { tag, dot } = marks[i]; tag.element.textContent = text; tag.element.style.color = hex; tag.position.copy(point); tag.visible = true;
+  dot.material.color.set(hex); dot.position.copy(point); dot.visible = true;
+}
+const hideMarks = (from) => { for (let i = from; i < marks.length; i += 1) { marks[i].tag.visible = false; marks[i].dot.visible = false; } };
 const laneTag = label('lane', `${causal.length} causal links`, new THREE.Vector3(-LENGTH / 2 - 1.2, 0.6, zFront + 6.5), [1, 0.5]);
 const sub = document.createElement('span'); sub.textContent = Object.entries(counts).map(([k, n]) => `${n} ${k.replace(/_/g, ' ').replace('realizes forecast', 'fulfil a forecast')}`).join(' · '); laneTag.element.append(sub);
 const laneAt = () => { const m = smooth(blend.now); const together = { y: 0.15, z: zFrontNow() + 6.5 }; if (!layersBounds || m < 0.001) return together; const layers = { y: layersBounds.y0 + 0.15, z: layersBounds.z1 + 6.5 }; return { y: together.y + (layers.y - together.y) * m, z: together.z + (layers.z - together.z) * m }; };
@@ -1130,8 +1220,15 @@ function rowsForEvent(event, t) {
   const candidates = [...(event.processIds ?? []).map((id) => rowOf.get(id)), ...(sourceEventRows.get(event.id) ?? [])];
   return [...new Set(candidates)].filter((row) => row && presence(row) > 0.5 && rowValue(row, t) !== null && shownByPlay(t, bornAt(row.measure)));
 }
+function readingRow(event, t) {
+  const candidates = rowsForEvent(event, t).filter((row) => row.measure.kind === 'cut-answer');
+  const seriesKey = event.reading?.series?.key;
+  return (seriesKey ? candidates.find((row) => row.measure.series.key === seriesKey) : null)
+    ?? candidates.sort((a, b) => (a.measure.level ?? 0) - (b.measure.level ?? 0))[0] ?? null;
+}
 function eventPoint(event) {
   const t = Math.max(F.a, Math.min(F.b, event.start)); let best = null;
+  if (event.reading) { const row = readingRow(event, t); if (!row) return null; const p = rowAt(row); return new THREE.Vector3(X(t), p.y + heightAt(row, t) + 0.05, p.z); }
   for (const row of rowsForEvent(event, t)) { const p = rowAt(row); const y = p.y + heightAt(row, t) + 0.05; if (!best || y > best.y) best = new THREE.Vector3(X(t), y, p.z); }
   if (best) return best;
   const eventNode = nearestShown(event.id);
@@ -1145,19 +1242,29 @@ function eventPoint(event) {
 }
 let arcTargets = [];
 function drawArcs() {
-  arcsBuffer.begin(); let s = 0; arcTargets = []; const on = opt.show.has('causal') && opt.edges; laneTag.visible = false;
+  arcsBuffer.begin(); let s = 0, marked = 0; arcTargets = []; const on = opt.show.has('causal') && opt.edges; laneTag.visible = false;
   if (on) for (const relation of causalAll) {
-    const source = byId.get(relation.source); const target = byId.get(relation.target);
-    if (opt.detailProjection && (!opt.detailProjection.eventIds.has(source.id) || !opt.detailProjection.eventIds.has(target.id))) continue;
+    // The links the model chose are drawn bright; the other links of the rows on show stay as faint context, so a view
+    // that highlights a few still shows the causes around them.
+    const context = Boolean(opt.curation?.relations.size && !opt.curation.relations.has(relation.id));
+    const source = linkEnd(relation.source); const target = linkEnd(relation.target);
+    if (opt.detailProjection && ![source, target].every((end) => (end.reading ? readingRow(end, end.start) : opt.detailProjection.eventIds.has(end.id)))) continue;
     if (!inView(source.start, 0.05) || !inView(target.start, 0.05) || !seen(relation, Math.max(source.start, target.start))
       || !shownByPlay(source.start, bornAt(source)) || !shownByPlay(target.start, bornAt(target))) continue;
-    const a = eventPoint(source); const b = eventPoint(target); if (!a || !b) continue; const hex = KIND[relation.kind] ?? '#9a9a9a'; const c = color(hex); const lit3 = litArc?.relation === relation;
+    const a = eventPoint(source); const b = eventPoint(target); if (!a || !b) continue; const hex = KIND[relation.kind] ?? '#9a9a9a'; const c = color(hex); const lit3 = litArc?.relation === relation || pinnedTarget === relation.id;
+    if (opt.curation?.relations.has(relation.id)) { placeMark(marked++, b, markName(source.label), hex); if (Math.abs(target.start - source.start) < 0.02 * F.s) continue; }
     const mid = new THREE.Vector3((a.x + b.x) / 2, arcControlY(a, b), (a.z + b.z) / 2); const pts = new THREE.QuadraticBezierCurve3(a, mid, b).getPoints(40);
-    for (let i = 1; i < pts.length; i += 1) arcsBuffer.add(pts[i - 1].x, pts[i - 1].y, pts[i - 1].z, pts[i].x, pts[i].y, pts[i].z, lit3 ? WHITE : c, lit3 ? 1 : 0.8);
+    for (let i = 1; i < pts.length; i += 1) arcsBuffer.add(pts[i - 1].x, pts[i - 1].y, pts[i - 1].z, pts[i].x, pts[i].y, pts[i].z, lit3 ? WHITE : c, lit3 ? 1 : context ? 0.22 : 0.8);
+    if (context) { arcTargets.push({ kind: 'arc', relation, source, target, pts: pts.filter((_, i) => i % 3 === 0 || i === pts.length - 1) }); continue; }
     for (const point of [a, b]) { if (s >= arcSparks.length) { const sprite = spark('#ffffff', 1.1); field.add(sprite); arcSparks.push(sprite); } const sprite = arcSparks[s]; sprite.material.color.set(hex); sprite.position.copy(point); sprite.visible = true; s += 1; }
     arcTargets.push({ kind: 'arc', relation, source, target, pts: pts.filter((_, i) => i % 3 === 0 || i === pts.length - 1) });
   }
   for (let i = s; i < arcSparks.length; i += 1) arcSparks[i].visible = false;
+  if (opt.curation && opt.show.has('processes')) {
+    for (const id of opt.curation.events) { const event = byId.get(id); const point = event && inView(event.start) && shownByPlay(event.start, bornAt(event)) ? eventPoint(event) : null; if (point) placeMark(marked++, point, markName(event.label), '#ffffff'); }
+    for (const id of opt.curation.cuts) { const cut = numericCutById.get(id), end = cut && linkEnd(cut.parentEventId); const point = end && inView(end.start) && shownByPlay(end.start, bornAt(end)) ? eventPoint(end) : null; if (point) placeMark(marked++, point, markName(opt.curation.why.get(`cut:${id}`), 64), '#ffffff'); }
+  }
+  if (opt.curation) hideMarks(marked);
   arcsBuffer.end();
 }
 // A causal link that crosses other processes passes over them, not through them: its arc clears every curtain it crosses
@@ -1603,6 +1710,7 @@ function terrainNumber(row, t, u) {
 }
 // Causal links over the terrain: from the top of one event's beam to the other's, else from where the life it belongs to stands.
 function terrainPoint(event) {
+  if (event.reading) return null; // the terrain draws the world and the lives, not the readings
   const beam = terrain.beamOf.get(event.id); if (beam) return new THREE.Vector3(beam.position.x, beam.scale.y, beam.position.z);
   const row = terrain.rows.find((item) => item.id === `${event.owner}:life`); if (!row?.samples) return null; const t = Math.max(F.a, Math.min(F.b, event.start));
   const i = Math.max(0, Math.min(TNX - 1, Math.round(fracOf(F, t) * (TNX - 1)))); return new THREE.Vector3(X(t), row.samples[i] * row.scale * (row.amp ?? 1) * TAMP + 0.3, row.z);
@@ -1611,12 +1719,13 @@ let terrainArcTargets = [];
 function drawTerrainArcs() {
   const buffer = terrain.arcs; buffer.begin(); terrainArcTargets = [];
   if (opt.edges && opt.show.has('causal')) for (const relation of causalAll) {
-    const source = byId.get(relation.source); const target = byId.get(relation.target);
+    const context = Boolean(opt.curation?.relations.size && !opt.curation.relations.has(relation.id)); // faint, as in the time view
+    const source = linkEnd(relation.source); const target = linkEnd(relation.target);
     if (!inView(source.start, 0.05) || !inView(target.start, 0.05) || !seen(relation, Math.max(source.start, target.start))
       || !shownByPlay(source.start, bornAt(source)) || !shownByPlay(target.start, bornAt(target))) continue;
     const a = terrainPoint(source); const b = terrainPoint(target); if (!a || !b) continue; const lit4 = litArc?.relation === relation; const c = lit4 ? WHITE : color(KIND[relation.kind] ?? '#9a9a9a');
     const mid = new THREE.Vector3((a.x + b.x) / 2, Math.max(a.y, b.y) + 2 * TS + Math.abs(b.x - a.x) * 0.1, (a.z + b.z) / 2); const pts = new THREE.QuadraticBezierCurve3(a, mid, b).getPoints(32);
-    for (let i = 1; i < pts.length; i += 1) buffer.add(pts[i - 1].x, pts[i - 1].y, pts[i - 1].z, pts[i].x, pts[i].y, pts[i].z, c, lit4 ? 1 : 0.75);
+    for (let i = 1; i < pts.length; i += 1) buffer.add(pts[i - 1].x, pts[i - 1].y, pts[i - 1].z, pts[i].x, pts[i].y, pts[i].z, c, lit4 ? 1 : context ? 0.2 : 0.75);
     terrainArcTargets.push({ kind: 'arc', relation, source, target, pts: pts.filter((_, i) => i % 3 === 0 || i === pts.length - 1) });
   }
   buffer.end();
@@ -1732,8 +1841,12 @@ function syncProcessDataHint() {
   const hasSpans = treeEvents.some((event) => event.reach?.length === 2 && event.reach.every(Number.isFinite));
   hint.hidden = !temporalActive || !['together', 'layers'].includes(opt.layout) || !hasSpans || hasCurves;
 }
+function syncEveryRowHint() {
+  const hint = document.getElementById('every-row-hint');
+  if (hint) hint.hidden = !temporalActive || !['together', 'layers'].includes(opt.layout) || !opt.rowsFallback;
+}
 function showStats() {
-  syncProcessDataHint();
+  syncProcessDataHint(); syncEveryRowHint();
   const made = (item) => !building() || bornAt(item) <= tau;
   if (terrain.on) {
     const nodesMade = data.graph.nodes.filter(made);
@@ -1785,8 +1898,8 @@ function apply() {
     const unmade = construction && !row.riseTo; const arrived = native ? row.points.length >= 2 && shownByPlay(row.points[0].t, -Infinity) : construction || shownByPlay(row.measure.points[0].t, bornAt(row.measure));
     row.name.visible = presence(row) > 0.5 && opt.show.has('processes') && arrived; row.value.visible = row.name.visible && value !== null && (!native || row.wall.visible);
     row.value.element.style.visibility = unmade ? 'hidden' : ''; row.name.element.style.opacity = unmade ? '0.3' : '';
-    if (row.caption) row.caption.visible = row.name.visible;
   }
+  syncSeriesCaptions();
   for (const entry of groupLabels) syncGroupLabel(entry);
   for (const thread of threads) {
     const on = (!opt.detailProjection || opt.detailProjection.eventIds.has(thread.userData.event.id)) && opt.show.has('threads') && inView(thread.userData.t, 0.2) && (construction ? bornAt(thread.userData.event) <= tau : thread.userData.t <= now) && thread.userData.touched.some((row) => row.wall.visible && rowValue(row, thread.userData.t) !== null);
@@ -1796,7 +1909,7 @@ function apply() {
   // Across the story's years the love-or-fear chips before them wait at their start, as they always did.
   for (const chip of lenses) chip.visible = (!opt.detailProjection || opt.detailProjection.eventIds.has(chip.userData.eventId)) && opt.show.has('lovefear') && (isStory() || inView(chip.userData.t)) && shownByPlay(chip.userData.t, bornAt(chip.userData)) && chip.userData.placed;
   mind.visible = opt.show.has('notes');
-  for (const light of notes) light.visible = light.userData.id === selectedPart?.unit.id || (!(opt.hideUndated && undatedNote(light.userData.id)) && (!opt.detailProjection || (noteScopeEvents.get(light.userData.id) ?? []).some((id) => opt.detailProjection.eventIds.has(id))) && (construction ? bornAt(light.userData) <= tau : light.userData.t <= now));
+  for (const light of notes) light.visible = light.userData.id === selectedPart?.unit.id || ((!opt.curation?.notes.size || opt.curation.notes.has(light.userData.id)) && !(opt.hideUndated && undatedNote(light.userData.id)) && (!opt.detailProjection || (noteScopeEvents.get(light.userData.id) ?? []).some((id) => opt.detailProjection.eventIds.has(id))) && (construction ? bornAt(light.userData) <= tau : light.userData.t <= now));
   sweep.position.x = xOf(now); sweep.visible = playing && !construction;
   const fill = construction ? activeClock(tau) / activeClock.total : fracOf(F, now);
   document.getElementById('fill').style.width = `${Math.max(0, Math.min(1, fill)) * 100}%`;
@@ -1864,7 +1977,7 @@ const LOCKED = { fov: 17, elevation: 0.8, pose: null, scroll: 0 };
 const HOME_DISTANCE = HOME.position.distanceTo(HOME.target); const FOG = 0.0048;
 function freeRoom() {
   const title = document.querySelector('.hud.title').getBoundingClientRect(); const stats = document.getElementById('stats').getBoundingClientRect(); const bar = document.querySelector('.hud.bar').getBoundingClientRect();
-  const side = [document.getElementById('details'), document.getElementById('legend')].map((el) => el.getBoundingClientRect()).find((r) => r.width && r.left > innerWidth * 0.5);
+  const side = [document.getElementById('details'), document.getElementById('legend'), document.getElementById('chosen-view')].filter(Boolean).map((el) => el.getBoundingClientRect()).find((r) => r.width && r.left > innerWidth * 0.5);
   const tools = document.getElementById('tools').getBoundingClientRect();
   // The caption and the reading position stand together above the time bar; the scene's room ends above them both.
   const dock = document.getElementById('dock')?.getBoundingClientRect(); const caption = dock?.height ? dock : document.querySelector('.hud.caption').getBoundingClientRect();
@@ -2420,7 +2533,10 @@ fetch('data/index.json', { cache: 'no-store' }).then((response) => response.json
   const select = document.getElementById('story'); select.hidden = false;
   for (const run of runs) { const option = document.createElement('option'); option.value = run.name; option.textContent = run.label ?? run.title ?? run.name; option.selected = run.name === dataName; select.append(option); }
   select.addEventListener('change', () => {
-    const next = new URLSearchParams(location.search); next.set('data', select.value); for (const key of ['at', 'pose', 'focus', 'lenses']) next.delete(key);
+    // Settings follow the reader to the next run, but not a view the model chose for this one: from such a view the next
+    // run opens as it opens, with its own chosen view.
+    const current = new URLSearchParams(location.search), chosen = current.get('chosen'), following = chosen && chosen !== 'none' && !current.has('adjusted');
+    const next = following ? new URLSearchParams() : current; next.set('data', select.value); for (const key of ['at', 'pose', 'focus', 'lenses', 'level', 'adjusted', ...(chosen === 'none' ? [] : ['chosen'])]) next.delete(key);
     location.search = next.toString().replace(/%2C/g, ',').replace(/%3A/g, ':').replace(/\+/g, '%20').replace(/=(&|$)/g, '$1');
   });
 }).catch(() => { /* one run, or none to choose from */ });
@@ -2435,11 +2551,12 @@ document.getElementById('shine').addEventListener('click', () => setShine(opt.gl
 function setEdges(on) { opt.edges = on; dirty = true; extrasDirty = true; syncPanel(); syncURL(); }
 document.getElementById('edges').addEventListener('click', () => setEdges(!opt.edges));
 // Everything: every kind of record, every lens and the whole tree; pressed again, the view as the stage showed it.
-const isEverything = () => !opt.detailProjection && !opt.hideUnopened && !opt.hideFlat && !opt.hideUndated && KINDS.every(([key, , , count]) => !count() || opt.show.has(key)) && opt.lenses.size === lensList.length && opt.depth >= MAX_DEPTH;
+const isEverything = () => !opt.detailProjection && !opt.hideUnopened && !opt.hideFlat && !opt.onlyChanging && !opt.hideUndated && KINDS.every(([key, , , count]) => !count() || opt.show.has(key)) && opt.lenses.size === lensList.length && opt.depth >= MAX_DEPTH;
 function setEverything(on) {
   opt.detailLevel = null; opt.processScope = null;
   opt.hideUnopened = false;
   opt.hideFlat = false;
+  opt.onlyChanging = !on;
   opt.hideUndated = false;
   layerOverrides.clear(); explicitDepth = on; explicitEverything = on;
   if (on) for (const key of ALL_SHOW) layerOverrides.set(key, true);
@@ -2539,6 +2656,15 @@ function setHideFlat(on) {
   opt.hideFlat = on; computeLayout(); apply(); syncPanel(); syncURL(true); extrasDirty = true;
 }
 flatButton.addEventListener('click', () => setHideFlat(!opt.hideFlat));
+const changingButton = document.createElement('button'); changingButton.id = 'every-row'; changingButton.className = 'tool switch'; changingButton.textContent = 'Show every row';
+changingButton.setAttribute('aria-pressed', String(!opt.onlyChanging));
+const changingHelp = document.createElement('div'); changingHelp.className = 'note';
+changingHelp.textContent = 'Off by default: show changing rows or the model\'s chosen rows. On, include unchanging lines and rows of single moments too. If the selection is empty at this level, other available rows appear. Your scope and display filters still apply.';
+changingButton.title = changingHelp.textContent; document.getElementById('show-section').append(changingButton, changingHelp);
+function setOnlyChanging(on) {
+  opt.onlyChanging = on; computeLayout(); apply(); syncPanel(); syncURL(true); extrasDirty = true;
+}
+changingButton.addEventListener('click', () => setOnlyChanging(!opt.onlyChanging));
 const undatedButton = document.createElement('button'); undatedButton.id = 'hide-undated'; undatedButton.className = 'tool switch'; undatedButton.textContent = 'Hide undated notes';
 undatedButton.setAttribute('aria-pressed', String(opt.hideUndated));
 const undatedHelp = document.createElement('div'); undatedHelp.className = 'note';
@@ -2609,6 +2735,7 @@ function syncPanel() {
   document.getElementById('everything').setAttribute('aria-pressed', String(isEverything()));
   unopenedButton.setAttribute('aria-pressed', String(opt.hideUnopened));
   flatButton.setAttribute('aria-pressed', String(opt.hideFlat));
+  changingButton.setAttribute('aria-pressed', String(!opt.onlyChanging));
   undatedButton.setAttribute('aria-pressed', String(opt.hideUndated)); undatedButton.classList.toggle('on', opt.hideUndated);
   const projected = opt.detailProjection;
   processFocus.value = opt.processScope ?? '';
@@ -2657,13 +2784,14 @@ function syncURL(immediate = false) {
   const save = () => {
     if (!temporalActive) return;
     const next = new URLSearchParams(); for (const key of ['data', 'title', 'live', 'capture']) if (params.has(key)) next.set(key, params.get(key));
-    if (opt.camera !== 'spin') next.set('camera', opt.camera); if (opt.glare !== 'soft') next.set('glare', opt.glare); if (!opt.edges) next.set('edges', 'off');
+    if (opt.camera !== 'free') next.set('camera', opt.camera); if (opt.glare !== 'soft') next.set('glare', opt.glare); if (!opt.edges) next.set('edges', 'off');
     if (opt.readingPosition) next.set('reading', 'on');
     if (Number.isFinite(opt.smoothing) && opt.smoothing !== DEFAULT_SMOOTHING) next.set('smooth', opt.smoothing.toFixed(2));
     if (opt.world === 'above') next.set('world', 'above');
     if (opt.legend) next.set('legend', ''); if (opt.text === false) next.set('text', 'off');
     if (opt.hideUnopened) next.set('unopened', 'hide');
     if (opt.hideFlat) next.set('flat', 'hide');
+    if (!opt.onlyChanging) next.set('rows', 'all');
     if (opt.hideUndated) next.set('undated', 'hide');
     if (Number.isInteger(opt.detailLevel)) next.set('detail', String(opt.detailLevel));
     if (opt.processScope) next.set('scope', opt.processScope);
@@ -2687,9 +2815,9 @@ function syncURL(immediate = false) {
     const madeText = () => (constructionByClock ? new Date(tau).toISOString() : `step:${tau.toFixed(3)}`);
     if (!atEnd && !playing) next.set('at', opt.mode === 'construction' ? madeText() : now.toFixed(4)); else if (!atEnd && opt.mode === 'construction') next.set('at', madeText());
     if (!document.getElementById('reader').hidden) next.set('read', document.getElementById('reader').classList.contains('full') ? 'full' : ''); if (!qrPanel.hidden) next.set('qr', '');
-    const retained = new URLSearchParams(location.search); for (const key of ['record', 'timeView']) if (retained.has(key)) next.set(key, retained.get(key));
+    const retained = new URLSearchParams(location.search); for (const key of ['record', 'timeView', 'chosen', 'level', 'adjusted']) if (retained.has(key)) next.set(key, retained.get(key));
     const keptQuery = next.toString().replace(/%2C/g, ',').replace(/%3A/g, ':').replace(/\+/g, '%20').replace(/=(&|$)/g, '$1');
-    history.replaceState(null, '', `${location.pathname}${keptQuery ? `?${keptQuery}` : ''}`);
+    history.replaceState(null, '', `${location.pathname}${keptQuery ? `?${keptQuery}` : ''}`); globalThis.modelViewer?.noteAddress?.();
   };
   if (immediate) save(); else urlTimer = setTimeout(save, 400);
 }
@@ -2814,6 +2942,18 @@ onPlainClick(renderer.domElement, (event) => {
   if (!tip.hidden && tip.childNodes.length) { if (hoveredRecord) publishRecord(hoveredRecord); showDetails([...tip.childNodes], hoveredTarget); tip.hidden = true; quietAt = { ...pointerAt }; } else hideDetails();
 }, { signal: temporalEvents.signal });
 // Love-or-fear chips lift clear of each other; values and event names that would cover something wait for their turn.
+// The names of what the model highlighted stack upward where they would cover each other.
+function stackMarks() {
+  const items = [...marks.map((mark) => mark.tag), ...noteMarks].filter((tag) => tag.visible && tag.parent?.visible !== false)
+    .map((tag) => { tag.element.style.translate = ''; return { element: tag.element, r: tag.element.getBoundingClientRect() }; }).filter((item) => item.r.width);
+  const placed = [];
+  for (const { element, r } of items.sort((a, b) => a.r.left - b.r.left)) {
+    const hits = (top) => placed.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && top < p.bottom && top + r.height > p.top);
+    let lift = 0; while (hits(r.top - lift) && lift < 240) lift += r.height + 2;
+    element.style.translate = lift ? `0 -${lift}px` : ''; element.style.setProperty('--lift', `${lift}px`); // a lifted name keeps a line to its point
+    placed.push({ left: r.left, right: r.right, top: r.top - lift, bottom: r.bottom - lift });
+  }
+}
 function declutter() {
   // A selected document may move out of view with the graph; never show a clipped badge.
   const selectedLabel = selectedDocumentLabel.element; selectedLabel.style.visibility = '';
@@ -2829,6 +2969,7 @@ function declutter() {
     if (tickRects.some((p) => r.left < p.right + 6 && r.right > p.left - 6 && r.top < p.bottom && r.bottom > p.top)) el.style.visibility = 'hidden';
     else tickRects.push(r);
   }
+  if (opt.curation) stackMarks();
   if (terrain.on) { declutterTerrain(); return; }
   const panels = [...document.querySelectorAll('.hud.caption, .hud.bar, .hud.legend, .hud.title, .hud.stats')].map((el) => el.getBoundingClientRect());
   for (const el of document.querySelectorAll('#tools, .pop:not([hidden]), #details:not([hidden])')) panels.push(el.getBoundingClientRect());
@@ -3010,7 +3151,8 @@ if (params.has('at')) { const at = params.get('at'); if (opt.mode === 'construct
 if (opt.layout === 'terrain') { showTerrain(true); if (opt.camera !== 'locked') { camera.position.copy(terrain.home.position); controls.target.copy(terrain.home.target); } }
 setCamera(opt.camera, true); if (opt.glare !== 'full') applyShine();
 // A kept pose was the camera's in the field as the URL has it.
-if (params.has('pose')) { const v = params.get('pose').split(',').map(Number); if (v.length === 6 && v.every(Number.isFinite)) { camera.position.set(v[0], v[1], v[2]); controls.target.set(v[3], v[4], v[5]); framed = fieldFrame(); } }
+let posed = false; // the camera came with a pose of its own: from the address, a live refresh or a return
+if (params.has('pose')) { posed = true; const v = params.get('pose').split(',').map(Number); if (v.length === 6 && v.every(Number.isFinite)) { camera.position.set(v[0], v[1], v[2]); controls.target.set(v[3], v[4], v[5]); framed = fieldFrame(); } }
 relayOut();
 // Following a run an agent is still making: when it has made more, the view opens again as it is, between plays.
 const liveTimer = params.has('live') && data.viewerLive?.mode !== 'live' ? setInterval(async () => {
@@ -3059,13 +3201,28 @@ function tick(clock, dt) {
 // Each frame reads the clock itself: a frame's own time stamp can come from before the last one, and time never runs
 // backwards here.
 let framesDrawn = 0;
+// Picking something the model highlighted brings it into view: the camera turns to it and comes as close as it needs
+// to hold the whole of it, a spinning camera stops, and a locked one keeps its framing. Touching the controls ends it.
+let glide = null;
+function glideTo(points) {
+  const placed = (points ?? []).filter(Boolean); if (!placed.length || opt.camera === 'locked') return;
+  if (opt.camera === 'spin') setCamera('free');
+  const box = new THREE.Box3().setFromPoints(placed), center = box.getCenter(new THREE.Vector3()), span = box.getSize(new THREE.Vector3()).length();
+  const direction = camera.position.clone().sub(controls.target).normalize();
+  const distance = Math.max(HOME_DISTANCE * 0.3, Math.min(HOME_DISTANCE, span * 1.5 + 10));
+  glide = { from: { position: camera.position.clone(), target: controls.target.clone() }, to: { position: center.clone().addScaledVector(direction, distance), target: center }, start: performance.now(), duration: 900 };
+}
+controls.addEventListener('start', () => { glide = null; });
 function frame() {
   temporalFrame = null; if (!temporalActive) return;
   const clock = performance.now(); const dt = Math.max(0, Math.min(0.1, (clock - last) / 1000)); last = clock; tick(clock, dt);
+  if (glide) { const u = Math.min(1, (clock - glide.start) / glide.duration), e = u * u * (3 - 2 * u); camera.position.lerpVectors(glide.from.position, glide.to.position, e); controls.target.lerpVectors(glide.from.target, glide.to.target, e); if (u >= 1) glide = null; }
   if (opt.camera === 'locked') placeLocked(); else controls.update();
   composer.render(); labels.render(scene, camera); declutter(); labels2.update(); hover();
   // Once the names are on the page their widths are known, and a locked view frames them.
-  framesDrawn += 1; if (framesDrawn === 2 && opt.camera === 'locked') { fitLocked(); placeLocked(true); }
+  // A still camera opened fresh frames the whole view in the room the panels leave, as Default does; a camera that came
+  // with a pose keeps it.
+  framesDrawn += 1; if (framesDrawn === 2 && opt.camera === 'locked') { fitLocked(); placeLocked(true); } else if (framesDrawn === 2 && opt.camera === 'free' && !posed) fitFree();
   temporalFrame = requestAnimationFrame(() => frame());
 }
 // For captures and tests: the window on screen, and the view's state.
@@ -3135,6 +3292,32 @@ function useSharedSelection(selection) {
 export const temporalController = {
   setDetail: setProcessDetail,
   recenter: recenterView,
+  // A highlight picked in the card of the model's view: a note shows what it says, as hovering it does; a link, moment
+  // or reading opens as any selection does.
+  showHighlight(target) {
+    const why = opt.curation?.why.get(target.record ?? `node:${target.nodeId}`) ?? target.why ?? null;
+    const reason = why ? [tipLine('k', 'Why the model shows this'), tipLine('m', why)] : [];
+    if (target.nodeId) {
+      const light = noteById.get(target.nodeId), hover = light?.userData.hover; if (!hover) return;
+      showDetails([...reason, tipLine('k', hover.kind), tipLine('v', hover.title ?? ''), tipLine('m', hover.text ?? ''), ...(hover.attached ?? []).map((line) => tipLine('a', line))], light);
+      glideTo([light.position, ...light.userData.moments.flatMap((event) => meet(event))]); drawNotes();
+      return;
+    }
+    const [kind, ...rest] = String(target.record).split(':'), id = rest.join(':');
+    // A link is described as hovering it describes it, also when its ends are too close in time to draw an arc.
+    const relation = kind === 'event_relation' ? data.relations.find((item) => item.id === id) : null;
+    const ends = relation ? [linkEnd(relation.source), linkEnd(relation.target)] : [];
+    const arc = relation ? arcTargets.find((item) => item.relation.id === id)
+      ?? (ends.every(Boolean) ? { relation, source: ends[0], target: ends[1], pts: ends.map((end) => eventPoint(end)).filter(Boolean) } : null) : null;
+    if (arc) {
+      publishRecord({ kind: 'event_relation', id }); showDetails([...reason, ...arcLines(arc).map(([cls, text]) => tipLine(cls, text))], arc);
+      glideTo(arc.pts); drawArcs(); return;
+    }
+    const selection = { kind: kind === 'cut' ? 'normalized_cut' : kind, id };
+    useSharedSelection(selection); publishRecord(selection);
+    if (reason.length && !details.hidden) document.getElementById('details-body').prepend(...reason);
+    const end = linkEnd(kind === 'cut' ? numericCutById.get(id)?.parentEventId : id); glideTo(end ? [eventPoint(end)] : []);
+  },
   activate(view, state) {
     temporalActive = true; controls.enabled = opt.camera !== 'locked'; setLayout(view); useSharedSelection(state.selection);
     if (state.time?.mode === 'story' && Number.isFinite(state.time.now)) { opt.mode = 'story'; now = state.time.now; atEnd = Boolean(state.time.atEnd); apply(); }
@@ -3144,7 +3327,7 @@ export const temporalController = {
     if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } syncPanel(); syncURL(true); relayout = true;
     if (state.temporalCamera?.layout === view) {
       if (opt.camera === 'locked') { LOCKED.scroll = state.temporalCamera.scroll ?? 0; placeLocked(true); }
-      else restoreCamera(camera, controls, state.temporalCamera);
+      else posed = restoreCamera(camera, controls, state.temporalCamera) || posed;
     }
     if (temporalFrame === null && !params.has('capture')) frame();
   },

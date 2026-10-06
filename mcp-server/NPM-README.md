@@ -24,7 +24,7 @@ See the [changelog](https://github.com/emergent-wisdom/meaning-model/blob/main/C
 
 ## Open your model
 
-Version 0.7.0 includes the browser viewer in the MCP package.
+Version 0.7.1 includes the browser viewer in the MCP package.
 
 After installing this MCP and its matching engine, connect it to your assistant as
 usual. Ask **“Open the model we are working on”** or **“Show me this story.”** The
@@ -211,7 +211,7 @@ can use the explicit source build below.
 In a directory where you want to keep the installation, run:
 
 ```sh
-npm install @emergent-wisdom/meaning-model-mcp@0.7.0
+npm install @emergent-wisdom/meaning-model-mcp@0.7.1
 npx meaning-model-mcp --install-engine
 ```
 
@@ -634,7 +634,7 @@ configuration looks like this:
   "mcpServers": {
     "meaning-model": {
       "command": "npx",
-      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.7.0"],
+      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.7.1"],
       "env": {
         "LIFE_SIM_ENGINE_BIN": "/absolute/path/to/life-sim-engine",
         "LIFE_SIM_STATE_FILE": "/absolute/private/path/meaning-model.sqlite"
@@ -664,7 +664,7 @@ starts the real Rust engine, then checks an MCP connection and engine status.
 Only passing jobs upload the version-named executable and its `.sha256` file.
 
 Once the reviewed source, workflow and matching tag are pushed, select **Build
-engine release** in the repository's Actions tab. Run it with `tag: v0.7.0` and
+engine release** in the repository's Actions tab. Run it with `tag: v0.7.1` and
 leave `create_draft` false for a build and smoke run that only uploads workflow
 artifacts. Set it true to create a draft release after all four platforms pass.
 Pushing a new `v*` tag also runs the workflow and prepares a draft release.
@@ -708,7 +708,7 @@ for release.
 Record the reviewed tarball's checksum and inspect the publication preview:
 
 ```sh
-release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.7.0.tgz"
+release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.7.1.tgz"
 shasum -a 256 "$release_tarball"
 npm publish "$release_tarball" --dry-run --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
@@ -720,7 +720,7 @@ exact tarball, authenticate with an npm account that can publish to
 ```sh
 npm whoami --registry=https://registry.npmjs.org/
 npm publish "$release_tarball" --access public --ignore-scripts --registry=https://registry.npmjs.org/
-npm view @emergent-wisdom/meaning-model-mcp@0.7.0 version dist.integrity --registry=https://registry.npmjs.org/
+npm view @emergent-wisdom/meaning-model-mcp@0.7.1 version dist.integrity --registry=https://registry.npmjs.org/
 ```
 
 A dry run does not establish registry authentication or scope access. Any change

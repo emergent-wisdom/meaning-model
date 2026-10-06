@@ -19,6 +19,8 @@
 import { changeQuestions, followedSubjects, innerHolders } from './development-gaps.mjs';
 import { spatialDiagnostics } from './spatial-diagnostics.mjs';
 import { isSeriesReadingEvent } from './series-mark.mjs';
+import { projectNumerics } from './viewer-numerics.mjs';
+import { cutTrajectories } from '../viewer/public/cut-trajectories.js';
 
 export const SLOW_PROCESSES = Object.freeze(['body', 'kin', 'partnership', 'work', 'place', 'means', 'knowledge', 'standing', 'meaning']);
 // The shared first-run comparison vocabulary of the Book; a person's own wants replace it.
@@ -130,7 +132,7 @@ export function indexModel(model) {
   const readings = new Set();
   for (const [root, kind] of rootKinds) if (kind === 'understanding') { readings.add(root); for (const id of walk(children, root)) readings.add(id); }
   for (const event of events.values()) if ((event.provenance ?? []).includes(READING_MARK)) readings.add(event.id);
-  return { events, children, parents, cuts, cutsByEvent, referents, settingEvents, eventsOf, arcsOf, abstractions, relations, readings, rootKinds, processes: (model?.processes ?? []).length, processList: model?.processes ?? [], timeUnit: String(model?.time_unit ?? '') };
+  return { model, events, children, parents, cuts, cutsByEvent, referents, settingEvents, eventsOf, arcsOf, abstractions, relations, readings, rootKinds, processes: (model?.processes ?? []).length, processList: model?.processes ?? [], timeUnit: String(model?.time_unit ?? '') };
 }
 
 function walk(map, eventId) {
@@ -377,7 +379,7 @@ function personQuestions(index, person, name, principal) {
 
 // Readings of one series: the same question in the same words, unit and answers, within the same life (or outside
 // any life). Decisions, conditional shares and readings of the text are other series.
-function readingSeries(index) {
+export function readingSeries(index) {
   const lifeOwners = new Map([...index.referents.values()].filter((referent) => referent.lifecycle_event_id).map((referent) => [referent.lifecycle_event_id, referent.id]));
   const lifeOf = (eventId) => (lifeOwners.has(eventId) ? eventId : [...ancestors(index, eventId)].find((id) => lifeOwners.has(id)) ?? null);
   const series = new Map();
@@ -393,6 +395,43 @@ function readingSeries(index) {
   return series;
 }
 const weightsOf = (cut) => Object.fromEntries(answersOf(cut).map((answer) => [answer.key, answer.weight]));
+// Stretches of a life read once though Events happen inside them, where most happens first: a story's present read
+// once outweighs a childhood read once. A stretch counts when it is a tenth of the life or more and nothing finer is
+// read inside it.
+function unopenedStretches(index, series, { subject = null } = {}) {
+  const found = [];
+  for (const list of series.values()) {
+    for (const item of list) {
+      if (subject && item.owner !== subject) continue;
+      const length = span(item.event); const lifeLength = span(index.events.get(item.life));
+      if (!item.life || !(length > 0) || !(lifeLength > 0) || length < lifeLength * 0.1) continue;
+      const [a, b] = [start(item.event), end(item.event)];
+      if (list.some((other) => other !== item && start(other.event) >= a && end(other.event) <= b && span(other.event) < length)) continue;
+      const happenings = [...descendants(index, item.life)].map((id) => index.events.get(id)).filter((event) => event && event.id !== item.event.id
+        && !index.readings?.has(event.id) && !isSeriesReadingEvent(event) && !/\.is\.[a-z]+$/u.test(event.id) && start(event) !== null && start(event) > a && start(event) < b
+        && !(span(event) !== null && start(event) <= a && end(event) >= b));
+      if (happenings.length >= 2) found.push({ item, a, b, happenings });
+    }
+  }
+  return found.sort((x, y) => y.happenings.length - x.happenings.length || (y.b - y.a) - (x.b - x.a));
+}
+// One question about one subject whose readings the viewer splits into separate curves, as cut-trajectories groups them.
+function splitSeries(index, series) {
+  if (!index.model) return [];
+  const drawnCuts = new Set(cutTrajectories({ inspection: { model: index.model }, numerics: projectNumerics(index.model) }).flatMap((row) => row.points.map((point) => point.cutId)));
+  const found = [];
+  for (const list of series.values()) {
+    const drawn = list.filter((item) => drawnCuts.has(item.cut.id)), apart = list.filter((item) => !drawnCuts.has(item.cut.id) && (span(item.event) ?? 0) > 0);
+    if (drawn.length >= 2 && apart.length) found.push({ owner: list[0].owner, question: questionOf(list[0].cut), drawn: drawn.length, apart });
+  }
+  return found;
+}
+// The stretches still read once in a subject's life, for a series tool to report after a change.
+export function flatStretches(model, subject, limit = 3) {
+  const index = indexModel(model);
+  return unopenedStretches(index, readingSeries(index), { subject }).slice(0, limit)
+    .map(({ item, a, b, happenings }) => ({ question: questionOf(item.cut), from: a, to: b, events: happenings.length, cut: item.cut.id }));
+}
 const sharesText = (values) => Object.entries(values).filter(([key, value]) => key !== 'remainder' || Math.abs(value) > 1e-9)
   .map(([key, value]) => `${key} ${(Math.round(value * 100) / 100).toFixed(2)}`).join(', ');
 // A reading across an interval is the average over it, so the readings opened inside it must average to it. Where they
@@ -530,18 +569,16 @@ function worldQuestions(index, lives, draws, spatial) {
     }
   }
   const stretch = capped('reading-stretch-unopened', 8);
-  for (const list of series.values()) {
-    for (const item of list) {
-      // Long within its own life: a tenth of the life or more.
-      const length = span(item.event); const lifeLength = span(index.events.get(item.life));
-      if (!item.life || !(length > 0) || !(lifeLength > 0) || length < lifeLength * 0.1) continue;
-      const [a, b] = [start(item.event), end(item.event)];
-      if (list.some((other) => other !== item && start(other.event) >= a && end(other.event) <= b && span(other.event) < length)) continue;
-      const happenings = [...descendants(index, item.life)].map((id) => index.events.get(id)).filter((event) => event && event.id !== item.event.id
-        && !index.readings?.has(event.id) && !isSeriesReadingEvent(event) && !/\.is\.[a-z]+$/u.test(event.id) && start(event) !== null && start(event) > a && start(event) < b
-        && !(span(event) !== null && start(event) <= a && end(event) >= b));
-      if (happenings.length >= 2) stretch(`"${questionOf(item.cut)}" is read once ${when(item.event)}: one average for the whole stretch, though ${happenings.length} Events happen inside it (for example "${describe(happenings[0]).slice(0, 90)}"). Open the stretch at those Events: what was it like after each? One reading per stretch is a sketch, not a life.`, 'life_model_revise', { at: [a, b], cuts: [item.cut.id] });
-    }
+  for (const { item, a, b, happenings } of unopenedStretches(index, series)) {
+    stretch(`${item.owner ? `${displayName(item.owner)}: ` : ''}"${questionOf(item.cut)}" is read once ${when(item.event)}: one average for the whole stretch, though ${happenings.length} Events happen inside it (for example "${describe(happenings[0]).slice(0, 90)}"). Open the stretch at those Events: what was it like after each? life_series_plan lays out the readings at a step you choose (quarterly where the work needs detail), each nested in this reading with the average it must keep. One reading per stretch is a sketch, not a life.`,
+      'life_series_plan', { at: [a, b], cuts: [item.cut.id], ...(item.owner ? { subject: item.owner } : {}) });
+  }
+  // One question about one subject the viewer cannot draw as one curve: some of its readings sit in Events that name
+  // processes the others do not, so they count as a separate series and drop out of the curve.
+  const split = capped('series-split', 4);
+  for (const { owner, question, drawn, apart } of splitSeries(index, series)) {
+    split(`${owner ? `${displayName(owner)}: ` : ''}"${question}" is read ${drawn + apart.length} times, but ${apart.length} of the readings (${apart.slice(0, 3).map((item) => `${when(item.event)}`).join('; ')}) sit in Events that name processes the others do not (${[...new Set(apart.flatMap((item) => item.event.process_ids ?? []))].slice(0, 4).join(', ') || 'a different process scope'}), so the viewer draws them apart from the curve. Record those stretches again with life_series_record under the life, or move the readings so they share one process scope.`,
+      'life_series_record', { cuts: apart.slice(0, 8).map((item) => item.cut.id), ...(owner ? { subject: owner } : {}) });
   }
   // What every change means. When a reading moves by more than MAX_UNCAUSED_SHIFT from the one before it, ask what that
   // means, why then, and what it changes in turn. People's series are asked by shift-uncaused; this asks it of every
@@ -611,8 +648,8 @@ function worldQuestions(index, lives, draws, spatial) {
   return questions;
 }
 
-const ORDER = ['author-separate', 'author-unlinked', 'life-missing', 'life-untimed', 'time-missing', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'choices-missing', 'macro-missing', 'structure-flat', 'readings-over-processes', 'period-gap', 'stage-unexplored', 'life-after-story',
-  'reading-average', 'reading-stretch-unopened', 'series-gap', 'change-unexplored', 'concept-undivided', 'question-reworded',
+const ORDER = ['author-separate', 'author-unlinked', 'life-missing', 'life-untimed', 'time-missing', 'reading-stretch-unopened', 'series-gap', 'series-split', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'choices-missing', 'macro-missing', 'structure-flat', 'readings-over-processes', 'period-gap', 'stage-unexplored', 'life-after-story',
+  'reading-average', 'change-unexplored', 'concept-undivided', 'question-reworded',
   'moment-unmodeled', 'decision-undrawn', 'remainder-unopened', 'shift-uncaused', 'development-missing', 'adaptation-open', 'laws-missing', 'place-missing', 'spatial-declaration-incomplete', 'spatial-resolution', 'spatial-history-unopened', 'process-unobserved', 'wants-generic', 'why-local',
   'concepts-thin', 'recurring-question', 'period-uncut', 'process-empty', 'secondary-without-life', 'life-thin', 'event-undescribed', 'weights-unestimated'];
 // Understanding Node kinds that look forward or explore, rather than record what was done and judged.

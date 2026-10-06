@@ -46,7 +46,7 @@ function model() {
 function fixture(data = model()) {
   freeze(data);
   const context = { THREE, CSS2DObject, isPlaybackVisible, document: { createElement: element },
-    data, byId: new Map(data.events.map((item) => [item.id, item])), constructionByClock: false,
+    data, byId: new Map(data.events.map((item) => [item.id, item])), constructionByClock: false, readingEnds: new Map(), linkEnd: (id) => context.byId.get(id) ?? context.readingEnds.get(id),
     scene: new THREE.Scene(), field: new THREE.Group(), renderer: {}, glow: null,
     terrain: { built: false, on: true }, rows: [], NAMES: {}, table: null,
     F: { a: 0, b: 100, s: 100, w: 0 }, now: 100, tau: 100, atEnd: true, playing: false,

@@ -189,6 +189,10 @@ test('every modeling purpose receives the common construction and application-ch
     assert.ok(context.orderedResources.slice(0, 2).every(({ required }) => required));
     assert.match(context.startHere, /You are an explorer, and the Meaning Model is your mind/u, purpose);
     assert.equal(Object.keys(context)[1], 'startHere', 'the point comes before any procedure');
+    // The centre of the method, for every purpose: an account of how the present came to be, whose consequences say what
+    // to look for next.
+    assert.match(context.startHere, /\*\*The method\.\*\* Build an account of how the present came to be\. Model the processes and relationships that could have produced it, including those we have not observed directly\. Follow their consequences to predict what else we should find\. Use new evidence to revise the account\./u, purpose);
+    assert.ok(context.startHere.indexOf('**The method.**') < context.startHere.indexOf('**What makes it work.**'), 'the method comes right after what the model is for');
     assert.match(context.constructionRecord, /^You are building an explicit world model from what you have learned:/, purpose);
     assert.match(context.constructionRecord, /Prior measurement is not a prerequisite for proposing these accounts/, purpose);
     assert.match(context.constructionRecord, /mark inference as inference/, purpose);

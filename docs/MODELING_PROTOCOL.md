@@ -263,8 +263,9 @@ and inspect the intended viewer view. Event spans and initial values alone do no
 show change. If expected curves are absent, check the stored samples, supported
 representation, time units and filters; repair missing modeling or explain the
 display limitation. Keep estimates, observations and display interpolation
-distinct. Constant processes may correctly remain flat, and qualitative changes
-do not need arbitrary numbers for visual motion.
+distinct. A process that stays flat while things happen to its owner is a
+question, not an answer: find what happened and how it moved them, and where
+something truly holds steady, say why. Never add noise to make a line move.
 
 Actively extrapolate beyond what the prompt names or the current model contains.
 Ask what overlooked process, relationship or earlier history could be operating

@@ -19,6 +19,10 @@ export function modelSwitchURL(current, target, remembered = null) {
     } catch { /* Ignore an invalid tab-session bookmark. */ }
   }
   after.search = ''; after.hash = '';
+  // A view the model chose belongs to its model: from one the reader has not changed, the next model opens as it opens,
+  // with its own chosen view, rather than with settings the reader never made.
+  const chosen = before.searchParams.get('chosen');
+  if (chosen && chosen !== 'none' && !before.searchParams.has('adjusted')) return after.href;
   for (const key of sharedOptions) if (before.searchParams.has(key)) after.searchParams.set(key, before.searchParams.get(key));
   return after.href;
 }

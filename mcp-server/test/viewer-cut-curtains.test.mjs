@@ -70,6 +70,21 @@ test('zoomed out, a long reading stands for the finer readings inside it; zoomed
   assert.deepEqual(context.readingsDomain(row.points), [0, 40]);
 });
 
+test('quarters inside a long reading show although a few weeks among them are read on their own', () => {
+  const context = fixture();
+  const reading = (cutId, t, end, v) => ({ t, end, v, cutId, eventId: cutId, born: born(100), cut: { id: cutId } });
+  // Seven years read once, opened quarter by quarter, with three weeks read on their own where a period ends mid-quarter.
+  const quarters = Array.from({ length: 27 }, (_, i) => reading(`q${i}`, 2013.25 + i * 0.25, 2013.5 + i * 0.25, i % 2 ? 0.6 : 0.8));
+  const row = { measure: { kind: 'cut-answer', question: 'How does she expect things to turn out?', answerKey: 'assurance', unit: 'outlook',
+    points: [reading('years', 2013.25, 2020.25, 0.7), ...quarters.slice(0, 26), reading('sliver', 2019.75, 2019.8, 0.7), reading('last', 2019.8, 2020.25, 0.6)] } };
+  row.points = row.measure.points;
+  context.F = { s: 10 };
+  assert.equal(context.rowValue(row, 2014.1), 0.6, 'the quarter, not the seven-year level');
+  assert.equal(context.rowValue(row, 2019.77), 0.7, 'the three weeks read on their own');
+  context.F = { s: 400 };
+  assert.equal(context.rowValue(row, 2014.1), 0.7, 'zoomed out to centuries, the long reading stands for its quarters');
+});
+
 test('an opened reading keeps its average: the uncovered years show the derived level they must average, marked as derived', () => {
   const context = fixture();
   const reading = (cutId, t, end, v) => ({ t, end, v, cutId, eventId: cutId, born: born(100), cut: { id: cutId } });

@@ -84,6 +84,16 @@ test('switching models keeps the chosen view and display controls but fits the n
   }
 });
 
+test('from a view the model chose, the next model opens with its own view; a reader\'s own settings carry over', () => {
+  const target = `http://127.0.0.1:1234/${'b'.repeat(48)}/`;
+  const following = `http://127.0.0.1:1234/${'a'.repeat(48)}/?view=together&camera=locked&show=causal,processes&chosen=understanding.view.v1&level=1`;
+  assert.equal(new URL(modelSwitchURL(following, target)).search, '');
+  const adjusted = `${following}&adjusted`;
+  assert.deepEqual(Object.fromEntries(new URL(modelSwitchURL(adjusted, target)).searchParams), { view: 'together', camera: 'locked', show: 'causal,processes' });
+  const own = `http://127.0.0.1:1234/${'a'.repeat(48)}/?view=together&camera=free&chosen=none`;
+  assert.deepEqual(Object.fromEntries(new URL(modelSwitchURL(own, target)).searchParams), { view: 'together', camera: 'free' });
+});
+
 test('switching models preserves an explicitly empty layer selection and depth zero', () => {
   const current = `http://127.0.0.1:1234/${'a'.repeat(48)}/?view=layers&depth=0&show=&lenses=all`;
   const next = new URL(modelSwitchURL(current, `/${'b'.repeat(48)}/`));

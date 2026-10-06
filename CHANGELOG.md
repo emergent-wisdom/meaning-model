@@ -4,6 +4,83 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## Unreleased
+
+## 0.7.1 — 2026-10-06
+
+- Changing the chosen view’s detail keeps the reader’s camera mode. Series plans with numeric steps
+  correctly convert calendar-year bounds into the model’s time unit.
+
+- Notes stand at their moments: a note about a series reading is dated by that reading, so it no longer falls back to
+  where it was written, and meets the reading's row in every note layout (a note still attaches only to what it
+  declares). Picking a highlight on the model's card frames it: the card folds to its title, the camera turns to
+  the link, note or moment and keeps it lit, and the panel opens with the model's reason first and the link in words.
+  The camera is still by default (Camera Spin turns it), and a fresh still camera frames the whole view in the room
+  the panels leave.
+- A view the model chose keeps the reasons in view: the links it highlights are drawn bright and the other links of
+  the rows on show faintly, instead of every other link disappearing; the start-here guide and the view tool ask
+  for the causal links, the agent's own notes beside what they are about, and a story's pages over the moments
+  they tell, and say the camera is the reader's.
+- One detail control at a time: on a view the model chose, its levels are the detail and the card's slider steps
+  through them, so the toolbar's subprocess stepper and Coarse hide until the reader turns to their own settings.
+- The camera is the reader's: a view the model chooses says what to look at, not how the reader moves through it.
+  `life_model_viewer_view` refuses a camera setting, a view recorded with one opens without it, and turning the
+  camera no longer counts as leaving the model's view.
+- The one thing every agent is told first, in the start-here guide and in simple mode: build a richer model
+  underneath whatever you are doing. A richer world beneath a story makes a better story; a richer model beneath
+  a question gives better understanding; never hold back because a part seems irrelevant. Sentences that capped
+  how far an agent builds are rewritten: an existing story's unknown periods are built (tagged invented) rather
+  than left unknown; deepening is limited in what may change in the story, not in how far the world beneath it
+  is explored; categories open as deep as curiosity leads; a flat process where things happen is a question,
+  not an answer; the depth review asks where a richer world would make the story better; and detail that shows
+  a coarse reading was wrong revises the reading instead of bending to fit it.
+- The viewer's default rows are the processes that change over time: a row shows when its values change and its
+  readings cover at least a quarter of its own stretch, from first reading to last. Lines that never change and rows
+  of single moments, such as a scene's reading among years, stay in the model and return with Show every row
+  (rows=all) or Everything. The stretch is the row's own, so a model reaching into deep time does not hide a life's
+  series. When the automatic row selection would leave the current view empty, available rows return within the
+  selected scope and depth, respecting the reader's explicit filters. A notice appears only when rows are restored;
+  it describes the display choice without treating stable values or sparse readings as missing modeling.
+- `life_model_viewer_view` lets the modeler choose what the viewer shows a reader: settings in the viewer's own
+  address vocabulary, the rows to show, the links, moments, readings and notes to highlight with why each matters,
+  and up to six levels of detail, each labelled with what it adds. The view is recorded as the modeler's decision, an
+  Understanding Node about the model and every record it names, and a new view supersedes the previous one. Viewer
+  snapshots list the views and name the current one; views are not drawn as notes, and links carry their ids.
+- The viewer opens the model's chosen view when the address names no settings of its own, and says so: a card beside
+  the scene, Chosen by the model, gives the view's title and caption, a Detail slider through the model's levels to
+  Everything, and what to notice, each highlight with why it matters. Rows, links and notes narrow to the model's
+  choice until Show every row or Everything, and a highlighted link is named on the curve it moves. A reader who
+  changes a setting has adjusted the model's view, and the card offers the way back; Your own settings leaves it. An
+  address that followed an earlier view unchanged opens the current one and marks that the model just changed it; one
+  the reader adjusted keeps the reader's settings and offers the new view.
+- Links that move a series reading are drawn: they end on the reading's point of its row, where before they were
+  dropped because a reading is not drawn as an Event of its own. If the first answer is hidden, the link and the
+  series question use a visible answer of that series.
+- Chosen process rows include their recorded scalar values. Existing Everything links show every available row.
+  Live updates apply the model's new display mode while keeping compatible reader context; ordinary refreshes keep
+  the reader's time position. Highlighted records can also be opened in models without a time axis.
+- Chosen views reject record qualifiers they cannot resolve and relation highlights the viewer does not display,
+  instead of silently selecting a different record or describing an existing relation as removed.
+- START_HERE puts the method at its centre: build an account of how the present came to be, model the processes and
+  relationships that could have produced it, including those not observed directly, follow their consequences to
+  predict what else should be found, and revise the account with new evidence. A hypothesis is tagged exploring until
+  it is settled, what it predicts is recorded before looking, and a failed prediction revises the explanation behind
+  it. START_HERE also says when to choose the viewer's view with `life_model_viewer_view`.
+
+- The tool now says when a life does not move, and lays out what would open it. Open questions put a question read
+  once across years in which things happen near the top, the stretch where most happens first (a story's present
+  read once outweighs a childhood read once), and name readings the viewer draws apart from their curve because
+  their Event names other processes. `life_series_plan` lays out the readings that would follow a subject at a step
+  the agent chooses (a quarter where the work needs detail, a year or a life stage before it), each nested in one
+  existing reading with the shares it must keep on average, and `life_series_record` reports the stretches still
+  read once (`stillFlat`).
+
+- A long reading opens into its detail when any reading inside it is wide enough to see, so a few weeks read on
+  their own where a period ends mid-quarter no longer hide the quarters around them, and the detail opens at a
+  sixty-sixth of the window instead of a fiftieth: quarters show across the thirteen years of a story's present and
+  fold back into their periods across a whole life. Share labels round to two decimals; the details keep what was
+  recorded.
+
 ## 0.7.0 — 2026-10-05
 
 - `life_model_revise` changes can add, replace and remove context roots (keyed by the Event they declare) and temporal

@@ -106,7 +106,7 @@ test('deepening binds exact canonical prose, model, selected life evidence and a
   assert.match(task.workflowInstructions, /recursive exploration, not only gap repair/u);
   assert.match(task.workflowInstructions, /even when the current account is sound/u);
   assert.match(task.workflowInstructions, /candidates and drafts.*while model-depth findings remain unresolved/u);
-  assert.match(task.workflowInstructions, /within the delegated scope/u);
+  assert.match(task.workflowInstructions, /The delegation limits what may change in the story, not how far you explore the world beneath it/u);
   assert.equal(task.assessment, null);
   assert.equal(task.evaluator, 'calling_llm');
   for (const field of ['worldMutation', 'graphMutation', 'semanticVerification']) assert.equal(task[field], false);

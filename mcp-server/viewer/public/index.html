@@ -178,6 +178,7 @@
   .label.group { font-size: 17px; font-weight: 600; }
   .label.year { color: var(--muted); font-size: 13px; }
   .label.event { color: #fff; font-size: 12px; font-weight: 500; max-width: 240px; white-space: normal; line-height: 1.25; }
+  .label.chosen-mark { font-size: 12px; font-weight: 600; padding-left: 9px; } .label.chosen-mark::before { content: ''; position: absolute; left: 2px; top: 80%; width: 1px; height: calc(var(--lift, 0px) + 6px); background: currentColor; opacity: 0.5; } .label.chosen-mark.note { color: #c9d4ff; font-weight: 500; font-style: italic; padding-left: 12px; }
   .label.lane { color: #fff; font-size: 13px; font-weight: 600; } .label.lane span { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
   .lens-host { white-space: normal; }
   .lens { pointer-events: auto; cursor: pointer; transition: transform 0.2s; background: rgba(10, 10, 12, 0.82); border-radius: 8px; padding: 6px 8px; box-shadow: 0 0 0 1px var(--ring) inset; font-size: 11px; color: #fff; width: 168px; white-space: normal; line-height: 1.25; }
@@ -311,6 +312,29 @@
   .details .split { display: flex; height: 7px; border-radius: 4px; overflow: hidden; margin-top: 8px; background: #333; } .details .split i { display: block; height: 100%; }
   .details .w { display: grid; grid-template-columns: 38px 1fr; gap: 2px 8px; margin-top: 6px; font-size: 12px; font-variant-numeric: tabular-nums; } .details .w b { font-weight: 600; color: #fff; text-align: right; } .details .w i { font-style: normal; }
   body.details-open .side .legend { display: none; }
+  /* The model's view: what it chose to show, the levels of detail to turn up through, and what to notice. */
+  .side > .chosen-view { grid-column: 1 / -1; }
+  .chosen-view { width: var(--panel-width); max-width: 100%; max-height: calc(100vh - 180px); overflow-y: auto; scrollbar-width: thin; display: grid; gap: 8px; background: var(--panel); border-radius: 12px; padding: 11px 13px 12px; box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); color: var(--ink-2); font-size: 12.5px; line-height: 1.45; }
+  .chosen-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .chosen-eyebrow { font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: #9fd0ff; font-weight: 600; }
+  .chosen-view[data-state="adjusted"] .chosen-eyebrow { color: var(--ink-2); } .chosen-view[data-state="own"] .chosen-eyebrow { color: var(--muted); }
+  .chosen-view.just-changed { box-shadow: 0 0 0 1px #ffd27a inset, 0 0 18px rgba(255, 210, 122, 0.3); } .chosen-view.just-changed .chosen-eyebrow { color: #ffd27a; }
+  .chosen-fold { border: 0; background: none; color: var(--muted); font: inherit; font-size: 16px; line-height: 1; cursor: pointer; padding: 0 4px; }
+  .chosen-title { margin: 0; color: var(--ink); font-size: 15px; font-weight: 600; line-height: 1.3; }
+  .chosen-caption { margin: 0; }
+  .chosen-levels { display: grid; gap: 5px; padding-top: 2px; }
+  .chosen-level-label { display: flex; gap: 6px; align-items: baseline; } .chosen-level-label i { font-style: normal; color: var(--muted); } .chosen-level-label b { color: var(--ink); font-weight: 600; }
+  .chosen-levels input[type="range"] { width: 100%; margin: 0; accent-color: #9fd0ff; }
+  .chosen-stops { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+  .chosen-stops button { border: 0; border-radius: 6px; background: rgba(255, 255, 255, 0.05); color: var(--ink-2); font: inherit; font-size: 11.5px; padding: 3px 7px; cursor: pointer; }
+  .chosen-stops button.on { background: rgba(159, 208, 255, 0.18); color: var(--ink); }
+  .chosen-view h3 { margin: 2px 0 0; font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .chosen-view h4 { margin: 2px 0 -2px; font-size: 12px; color: #9fd0ff; font-weight: 600; }
+  .chosen-highlights { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; } .chosen-highlights li { display: grid; gap: 1px; }
+  .chosen-highlights button { border: 0; background: none; padding: 0; text-align: left; color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; } .chosen-highlights button:hover { text-decoration: underline; }
+  .chosen-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chosen-highlights li.gone { opacity: 0.55; } .chosen-highlights li.gone button { cursor: default; text-decoration: none; }
+  body:has(#chosen-view) .dock { right: calc(var(--panel-width) + 2 * var(--edge)); }
   .seg { display: flex; gap: 3px; background: rgba(255,255,255,0.06); border-radius: 9px; padding: 3px; }
   .seg button { flex: 1 1 auto; min-width: 0; border: 0; background: none; color: var(--ink-2); font: inherit; font-size: 12.5px; padding: 5px 5px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
   .seg button:hover { color: #fff; background: rgba(255,255,255,0.07); }
@@ -351,7 +375,7 @@
     body { display: flex; flex-direction: column; }
     .title { position: relative; top: auto; left: auto; max-width: none; margin: 12px 16px 0; flex: none; }
     .side { position: relative; top: auto; right: auto; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; max-width: none; margin: 8px 16px 0; flex: none; }
-    .tools { flex: 1 1 0; justify-content: flex-start; } .toolbar-visibility { order: 2; } .side > .legend, .side > .details { order: 3; flex: 1 1 100%; }
+    .tools { flex: 1 1 0; justify-content: flex-start; } .toolbar-visibility { order: 2; } .side > .legend, .side > .details, .side > .chosen-view { order: 3; flex: 1 1 100%; }
     .bar { left: 16px; right: 16px; bottom: 12px; height: auto; flex-wrap: wrap; row-gap: 8px; }
     .bar > .read { padding: 0 9px; font-size: 12px; }
     .track { flex: 1 1 100%; order: 5; }
@@ -364,7 +388,7 @@
 <body>
 <div id="scene"></div>
 <!-- The HUD frames the scene: the model and its controls in one row at the top, time in one row at the bottom. -->
-<header class="hud title"><a class="brand-mark" href="https://meaningmodel.ai" target="_blank" rel="noopener" title="The Meaning Model" aria-label="The Meaning Model (opens meaningmodel.ai)"><img src="./logo.svg" alt="" width="24" height="24"></a><div class="eyebrow">The processes an agent modeled with the Meaning Model</div><h1 id="title">Processes</h1><div class="hud stats" id="stats"></div><div class="whose colour-key" id="colour-key" data-temporal aria-label="Whose colour is whose"></div><div class="process-data-hint" id="process-data-hint" data-temporal hidden><strong>No curves to show yet</strong>These bars show Event time spans. Ask your agent to check recorded values and use a compatible dated series to show how processes change over time.</div></header>
+<header class="hud title"><a class="brand-mark" href="https://meaningmodel.ai" target="_blank" rel="noopener" title="The Meaning Model" aria-label="The Meaning Model (opens meaningmodel.ai)"><img src="./logo.svg" alt="" width="24" height="24"></a><div class="eyebrow">The processes an agent modeled with the Meaning Model</div><h1 id="title">Processes</h1><div class="hud stats" id="stats"></div><div class="whose colour-key" id="colour-key" data-temporal aria-label="Whose colour is whose"></div><div class="process-data-hint" id="every-row-hint" data-temporal hidden><strong>Showing additional rows</strong>The row selection was empty at this level. Other rows are shown within your scope and display settings.</div><div class="process-data-hint" id="process-data-hint" data-temporal hidden><strong>No curves to show yet</strong>These bars show Event time spans. Ask your agent to check recorded values and use a compatible dated series to show how processes change over time.</div></header>
 <!-- What is happening now and where the reading is, stacked just above the time bar. -->
 <div class="dock" id="dock">
 <div class="hud caption"><div class="kind" id="kind">The story</div><div class="text" id="text"></div></div>

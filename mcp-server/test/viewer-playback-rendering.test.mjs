@@ -187,7 +187,7 @@ test('an undated construction counts its steps instead of inventing a clock time
     isStory: () => false, momentText: String, partsNow: () => [], storyParts: [], hasStory: false,
     captionBox: { hidden: false }, showStats() {}, applyTerrain() {}, drawNotes() {}, drawArcs() {}, syncStrip() {} };
   context.building = () => true;
-  vm.createContext(context); vm.runInContext(functionSource('apply'), context);
+  vm.createContext(context); vm.runInContext([functionSource('syncSeriesCaptions'), functionSource('apply')].join('\n'), context);
   context.apply();
   assert.equal(text.clock, 'Step 2 of 3');
   assert.equal(text.kind, 'The agent · model revision 1');
@@ -210,7 +210,7 @@ test('construction captions return after an empty model-time caption is hidden',
     isStory: () => false, momentText: String, partsNow: () => [], storyParts: [], hasStory: false,
     captionBox: { hidden: false }, showStats() {}, applyTerrain() {}, drawNotes() {}, drawArcs() {}, syncStrip() {} };
   context.building = () => context.opt.mode === 'construction';
-  vm.createContext(context); vm.runInContext(functionSource('apply'), context);
+  vm.createContext(context); vm.runInContext([functionSource('syncSeriesCaptions'), functionSource('apply')].join('\n'), context);
   for (let i = 0; i < 2; i++) {
     context.opt.mode = 'story'; context.apply();
     assert.equal(context.captionBox.hidden, true, 'no empty story caption for a model without prose');

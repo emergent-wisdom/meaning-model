@@ -1,6 +1,7 @@
 import { applyModelChange } from './model-change.mjs';
 import { SERIES_TAGS, seriesChange, seriesDrawing } from './series-record.mjs';
-import { readOpenQuestions, thinkInTheModelInstructions, VISIBLE_QUESTIONS, withOpenQuestions } from './model-questions.mjs';
+import { readOpenQuestions, thinkInTheModelInstructions, VISIBLE_QUESTIONS, withOpenQuestions, flatStretches } from './model-questions.mjs';
+import { seriesPlan } from './series-plan.mjs';
 import { scaffoldHint } from './scaffold-examples.mjs';
 import { McpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
@@ -18,6 +19,7 @@ import { grammarReadingInstructions, modelingSessionInstructions, processDevelop
 import { registerLensTools } from './lenses.mjs';
 import { registerRevisionCheckTools } from './revision-check.mjs';
 import { registerViewerTools } from './viewer-server.mjs';
+import { registerViewerViewTool } from './viewer-view.mjs';
 import { registerSavedWorkTools } from './saved-work.mjs';
 import { registerMemoryTools } from './memory-workflow.mjs';
 import { narrativeRebindSchema, rebindNarrativeGraph } from './narrative-rebind.mjs';
@@ -50,12 +52,23 @@ import {
 
 const enabledAddons = parseEnabledAddons(process.env.MEANING_MODEL_ADDONS);
 const estimator = createEstimator(parseEstimatorConfig(process.env));
+// Simple mode (MEANING_MODEL_SIMPLE=1), for ablation as in Claude Code's own simple mode: an agent is told only the method
+// and where the documentation lives, and each tool says only its first sentence. Nothing is withheld from an agent that
+// asks: the guides, the grammar and life_modeling_context stay available. Instructions come back only for what agents
+// repeatedly get wrong without them.
+const simple = process.env.MEANING_MODEL_SIMPLE === '1';
+const simpleInstructions = 'Whatever you are doing, build a richer model underneath it. If you are writing a story, build a richer world underneath it: a richer world makes a better story. If you want to understand something better, build a richer model underneath it. That is the loop. Never hold back because a part seems irrelevant: follow your curiosity, experiment, and let what you find change the work; the aim is richness, not finishing quickly. Build an account of how the present came to be. Model the processes and relationships that could have produced it, including those we have not observed directly. Follow their consequences to predict what else we should find. Use new evidence to revise the account. The Meaning Model\'s tools hold that account. Its documentation and theory are at https://github.com/emergent-wisdom/meaning-model.';
+const firstSentence = (text: string) => { const match = String(text ?? '').match(/^.*?[.!?](?=\s|$)/su); return (match ? match[0] : String(text ?? '')).trim(); };
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.7.0',
+  version: '0.7.1',
 }, {
-  instructions: `${startHereText}\n\n${grammarReadingInstructions}\n\n${modelingSessionInstructions}\n\n${processDevelopmentInstructions}\n\n` + 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.\n\nIn every mode, begin modeling with life_modeling_context and follow its shared construction guidance. Agent memory and user memory are core purposes: maintain their ongoing processes, not only isolated facts, within the declared scope. Human-author feedback leaves authorship and creative decisions with the human; use life_story_feedback with the storytelling add-on for read-only feedback. All workflows use the same linked, attributed Understanding Graph for questions, hypotheses, predictions, surprises, tests and revisions. Explore recursively where a useful question, connection or discovery warrants it; record what is sufficient and what remains uncertain without forcing extra detail. Anything that changes over time can be modeled as a process, including qualities often written as fixed descriptions, such as a voice, a style, a belief or the culture of an institution. From the first story exploration, consider how the telling itself develops across reading position: tension, pacing, disclosure or other processes that matter to this work. Follow these questions recursively, using stable passage links and authored evidence without a required dramatic formula or numerical score. Keep reading position distinct from world time and authoring history. Let the work choose its form; books need not have a protagonist, conflict, climax or resolution. Use the shared narrative graph for forms that do not fit scenes, without inventing a cast to satisfy a template. Before writing or revising prose, consider author and character voice, reader disclosure, and consequential physical placement. Use declared passage links and existing records. At meaningful milestones, use the controlled read-back guidance to compare selected output against a blind control, reporting fidelity separately from improvement over the control. Do not wait for a special user request; if independent readers are unavailable, record that limitation rather than inventing a result. These are instructions to the calling LLM, not claims that the server has assessed meaning or automatically run reviewers.',
+  instructions: simple ? simpleInstructions : `${startHereText}\n\n${grammarReadingInstructions}\n\n${modelingSessionInstructions}\n\n${processDevelopmentInstructions}\n\n` + 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.\n\nIn every mode, begin modeling with life_modeling_context and follow its shared construction guidance. Agent memory and user memory are core purposes: maintain their ongoing processes, not only isolated facts, within the declared scope. Human-author feedback leaves authorship and creative decisions with the human; use life_story_feedback with the storytelling add-on for read-only feedback. All workflows use the same linked, attributed Understanding Graph for questions, hypotheses, predictions, surprises, tests and revisions. Explore recursively where a useful question, connection or discovery warrants it; record what is sufficient and what remains uncertain without forcing extra detail. Anything that changes over time can be modeled as a process, including qualities often written as fixed descriptions, such as a voice, a style, a belief or the culture of an institution. From the first story exploration, consider how the telling itself develops across reading position: tension, pacing, disclosure or other processes that matter to this work. Follow these questions recursively, using stable passage links and authored evidence without a required dramatic formula or numerical score. Keep reading position distinct from world time and authoring history. Let the work choose its form; books need not have a protagonist, conflict, climax or resolution. Use the shared narrative graph for forms that do not fit scenes, without inventing a cast to satisfy a template. Before writing or revising prose, consider author and character voice, reader disclosure, and consequential physical placement. Use declared passage links and existing records. At meaningful milestones, use the controlled read-back guidance to compare selected output against a blind control, reporting fidelity separately from improvement over the control. Do not wait for a special user request; if independent readers are unavailable, record that limitation rather than inventing a result. These are instructions to the calling LLM, not claims that the server has assessed meaning or automatically run reviewers.',
 });
+if (simple) {
+  const register = server.registerTool.bind(server);
+  (server as any).registerTool = (name: string, config: any, handler: any) => register(name, { ...config, description: firstSentence(config.description) }, handler);
+}
 const service = new LifeSimulationService();
 const requestIdSchema = z.string().min(1).max(256);
 const handleSchema = z.string().min(1).max(256);
@@ -283,7 +296,30 @@ server.registerTool(
     const { successor, summary } = applyModelChange(previous, previousModelHash, change);
     const revised = await service.reviseModel({ requestId, previousModelHash, model: successor });
     const { model: stored } = await service.inspectModel({ modelHash: revised.modelHash, includeDefinition: true });
-    return toolResult(await withOpenQuestions(service, { ...revised, revisedByChange: true, change: summary, series: { id: input.series.id, ...seriesDrawing(stored, input.series.id) } }));
+    // What is still read once in this life, where most happens first: the next stretches to open.
+    const stillFlat = flatStretches(stored, input.subject);
+    return toolResult(await withOpenQuestions(service, { ...revised, revisedByChange: true, change: summary, series: { id: input.series.id, ...seriesDrawing(stored, input.series.id) },
+      ...(stillFlat.length ? { stillFlat } : {}) }));
+  },
+);
+
+server.registerTool(
+  'life_series_plan',
+  {
+    description: 'Lay out the readings that would follow a subject\'s life at a step you choose: quarterly where the work needs detail, yearly or by life stage before it. Each slot nests in one existing reading of the same question, with the shares the slots inside it must average to, so you write what happened in each stretch and how the shares moved while the long view still holds. Use it when a question about a person or thing is read once across years in which things happen (open questions name those stretches, and life_series_record reports them as stillFlat). It records nothing; record the slots with life_series_record.',
+    inputSchema: z.object({
+      modelHash: z.string().length(64),
+      subject: z.string().trim().min(1).max(512).describe('The referent whose life to follow.'),
+      question: z.string().trim().min(1).max(1_000).optional().describe('One series by its question; every series of the subject when left out.'),
+      from: z.number().finite().describe('Where the plan starts: a calendar year (for example 2013) in a calendar model, otherwise in the model\'s own unit.'),
+      to: z.number().finite().describe('Where it ends, likewise.'),
+      step: z.union([z.enum(['month', 'quarter', 'year']), z.number().positive()]).default('quarter').describe('month, quarter or year in a calendar model, or a number of the model\'s units.'),
+    }).strict(),
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  async ({ modelHash, ...input }) => {
+    const { model } = await service.inspectModel({ modelHash, includeDefinition: true });
+    return toolResult({ modelHash, ...seriesPlan(model, input) });
   },
 );
 
@@ -1002,6 +1038,7 @@ registerRevisionCheckTools(server, service, { toolResult });
 registerNarrativeGroundingTools(server, service, { toolResult });
 registerDocumentImportTools(server, service, { toolResult });
 const viewer = registerViewerTools(server, service);
+registerViewerViewTool(server, service, { toolResult });
 
 if (enabledAddons.includes('storytelling')) {
   const { registerStorytellingAddon } = await import('./storytelling-addon.mjs');

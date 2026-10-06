@@ -2,8 +2,9 @@
 // interval: in a series of time-average readings (one question, unit, answers, owner and perspective), it is the
 // average over that interval, not a point joined to the next reading by a line.
 //
-// Readings nested inside a longer reading are its detail. A longer reading opens when every reading directly inside
-// it is wide enough to see at the current zoom; otherwise it stands for them, and its own level is drawn. Once open,
+// Readings nested inside a longer reading are its detail. A longer reading opens when a reading directly inside it is
+// wide enough to see at the current zoom, so a few weeks read on their own beside quarters do not hide the quarters;
+// when none is, it stands for them, and its own level is drawn. Once open,
 // its finer readings are drawn, and the time they leave uncovered shows the derived level that time must average for
 // the longer reading to hold. That level constrains the average over those years; it does not say the value stayed
 // there. When the finer readings already take more than the longer reading allows, no level can hold and none is
@@ -61,7 +62,7 @@ export function readingAt(points, t, { minSpan = 0, momentHalfWidth = 0 } = {}) 
   let at = covering.reduce((best, point) => (spanOf(point) > spanOf(best) || (spanOf(point) === spanOf(best) && point.t > best.t) ? point : best));
   for (;;) {
     const children = directlyInside(points, at);
-    if (!children.length || children.some((child) => spanOf(child) < minSpan)) {
+    if (!children.some((child) => spanOf(child) >= minSpan)) {
       return { point: at, value: at.v, finer: covering.filter((point) => inside(point, at)).length, derived: null };
     }
     const next = children.find((child) => t >= child.t && t < child.t + spanOf(child));

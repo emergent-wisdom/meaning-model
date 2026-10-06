@@ -29,6 +29,12 @@ export function createViewerSession({ temporal, initialView, state = {}, mounts,
     recenter() { return current?.recenter?.(); },
     coarse() { return current?.coarse?.(); },
     selectRecord(selection) { shared.selection = selection ? { kind: selection.kind, id: selection.id } : null; onState(snapshot()); },
+    async revealRecord(selection) {
+      shared.selection = selection ? { kind: selection.kind, id: selection.id } : null;
+      // Reapply even in the active view: opening a highlight must show its record, without restoring an old camera.
+      await current?.activate?.(activeView, { selection: structuredClone(shared.selection) });
+      onState(snapshot());
+    },
     destroy() { request += 1; current?.deactivate?.(); for (const promise of mounted.values()) promise.then((surface) => surface.destroy?.()); mounted.clear(); current = null; activeView = null; },
   };
 }

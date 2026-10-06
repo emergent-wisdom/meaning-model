@@ -26,8 +26,10 @@ function fixture() {
       { source: 'many-events-note', target: { anchorKind: 'event', event: 'life' } },
       { source: 'many-events-note', target: { anchorKind: 'event', event: 'scene' } },
       { source: 'indirect-note', target: { node: 'person-note' } },
+      { source: 'reading-note', target: { anchorKind: 'normalized_cut', anchor: 'cut.1', event: 'reading.1' } },
     ] } },
     byId: new Map([life, work, scene].map((event) => [event.id, event])),
+    linkEnd: (id) => context.byId.get(id) ?? context.readingEnds.get(id), readingEnds: new Map([['reading.1', { id: 'reading.1', start: 2, reading: {} }]]),
     push(map, key, value) { if (!map.has(key)) map.set(key, []); map.get(key).push(value); },
     notes: [light('person-note'), light('process-note'), light('cut-note', [scene]), light('many-events-note', [life, scene]), light('indirect-note')],
     selectedPart: null, pinnedTarget: null, opt: { noteLayout: 'overhead', allNoteAttachments: false, edges: true, detailProjection: { eventIds: new Set(['life', 'work']) } },
@@ -54,6 +56,7 @@ test('notes explicitly about a process or referent remain in scope without acqui
   assert.deepEqual([...context.scopeEvents.get('process-note')], ['work']);
   assert.equal(context.datedMoments.has('person-note'), false);
   assert.equal(context.datedMoments.has('process-note'), false, 'an undated process home is not a world-time anchor');
+  assert.deepEqual(context.datedMoments.get('reading-note')?.map((event) => event.id), ['reading.1'], 'a note about a series reading is dated by that reading');
   context.opt.detailProjection.eventIds.add('scene'); context.applyVisibility();
   assert.equal(context.notes[2].visible, true, 'a Cut note opens with its explicitly targeted Event');
   context.now = 2; context.applyVisibility();

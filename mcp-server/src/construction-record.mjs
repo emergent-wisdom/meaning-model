@@ -113,14 +113,14 @@ export const linkRelations = Object.freeze(['about', 'supports', 'contradicts', 
 // ---------------------------------------------------------------------------------------------
 // Shared graph reading and writing.
 
-async function readGraph(service, graphHash, accessScopes) {
+export async function readGraph(service, graphHash, accessScopes) {
   const view = await service.queryNarrativeGraph({ graphHash, expectedGraphHash: graphHash, mode: 'full', includeContent: true,
     accessScopes: [...new Set(accessScopes)].sort() });
   if (view.graph_hash !== graphHash || !view.content_included) throw new Error('The construction record requires the exact graph with content.');
   if (!Number.isSafeInteger(view.graph.revision?.number) || view.graph.revision.number < 0) throw new Error('The graph needs a safe revision clock.');
   return view;
 }
-const boundModelHash = (view) => view.graph?.source?.model_hash ?? view.graph?.source_snapshot?.model_hash ?? null;
+export const boundModelHash = (view) => view.graph?.source?.model_hash ?? view.graph?.source_snapshot?.model_hash ?? null;
 async function boundModel(service, view) {
   const modelHash = boundModelHash(view);
   if (!modelHash) throw new Error('The graph is not bound to a model, so model records cannot be linked.');

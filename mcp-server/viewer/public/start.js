@@ -4,15 +4,27 @@ import { mountModelPicker } from './model-picker.js';
 import { defaultViewURL, forgetSavedView } from './default-view.js';
 import { createViewerSession } from './viewer-session.js';
 import { takeLiveContext, mountLiveViewer } from './live-viewer.js';
+import { openingView } from './view-settings.js';
+import { mountChosenView, noteAddress } from './chosen-view.js';
 
 const labels = { together: 'Processes', layers: 'Tree', terrain: 'Terrain', graph: 'Graph', structure: 'Structure', space: 'Space' };
 const timeViews = new Set(['together', 'layers', 'terrain']);
 const params = new URLSearchParams(location.search);
 let notice = null, data = null, dataName = null;
 try { ({ data, name: dataName } = await loadData(params)); } catch (error) { notice = `The model snapshot could not be opened: ${error.message}`; }
+// The view the model chose opens unless the reader has chosen: the address is rewritten before any view reads it.
+const opening = openingView(location.href, data?.views ?? []);
+if (opening.href !== location.href) {
+  history.replaceState(null, '', opening.href);
+  for (const key of [...params.keys()]) params.delete(key);
+  for (const [key, value] of new URL(opening.href).searchParams) params.append(key, value);
+}
 const temporal = Boolean(data && (data.capabilities?.temporal ?? data.capabilities?.trajectories ?? data.viewKind === 'timeline'));
 const liveContext = data?.viewerLive?.mode === 'live' ? takeLiveContext() : null;
-const requested = liveContext?.state?.view ?? params.get('view');
+const restoredState = { ...liveContext?.state };
+if (opening.state === 'changed' && restoredState.time?.mode !== (params.get('mode') ?? 'story')) delete restoredState.time;
+// A newly chosen view changes the presentation; the saved live context still carries the reader's selection and time.
+const requested = opening.state === 'changed' ? params.get('view') : restoredState.view ?? params.get('view');
 const initialView = !data ? 'structure' : labels[requested] ? requested : temporal ? data.capabilities?.trajectories ? 'together' : 'layers' : 'graph';
 
 for (const element of document.querySelectorAll('#scene, #stats, .caption, #strip, #labels2, #legend, #details, #tip, #qr-panel, #sub, #repos')) element.dataset.temporal = '';
@@ -82,7 +94,7 @@ function spaceParts() {
 let selection = null;
 try { const value = JSON.parse(params.get('record') ?? 'null'); if (value && typeof value.kind === 'string' && typeof value.id === 'string') selection = value; } catch { /* An invalid UI selection does not change the snapshot. */ }
 const session = createViewerSession({
-  temporal, initialView, state: { selection, timeView: params.get('timeView'), ...liveContext?.state },
+  temporal, initialView, state: { selection, timeView: params.get('timeView'), ...restoredState },
   mounts: {
     temporal: async () => (await import('./view.js')).temporalController,
     graph: async () => {
@@ -116,7 +128,7 @@ const session = createViewerSession({
     const url = new URL(location.href); url.searchParams.set('view', state.view);
     if (state.timeView) url.searchParams.set('timeView', state.timeView);
     if (state.selection) url.searchParams.set('record', JSON.stringify(state.selection)); else url.searchParams.delete('record');
-    url.searchParams.delete('visualView'); history.replaceState(null, '', url);
+    url.searchParams.delete('visualView'); history.replaceState(null, '', url); noteAddress();
     const status = document.getElementById('selection-label'); status.hidden = !state.selection; status.textContent = state.selection ? `Selected ${state.selection.kind.replace(/_/g, ' ')}: ${state.selection.id}` : '';
   },
 });
@@ -132,7 +144,7 @@ async function switchView(view) {
   catch (error) { console.error(error); notice = 'The 3D view is unavailable in this browser. The recorded model is available below.'; return session.setView('structure'); }
   finally { document.body.setAttribute('aria-busy', 'false'); }
 }
-window.modelViewer = { switchView, selectRecord: (record) => session.selectRecord(record), getState: () => session.snapshot(), getSnapshot: () => ({ name: dataName, data }) };
+window.modelViewer = { switchView, selectRecord: (record) => session.selectRecord(record), getState: () => session.snapshot(), getSnapshot: () => ({ name: dataName, data }), noteAddress };
 for (const button of document.querySelectorAll('#layouts button')) {
   button.disabled = !data || (timeViews.has(button.dataset.layout) && !temporal);
   if (!temporal && timeViews.has(button.dataset.layout)) button.title = 'This snapshot has no declared time axis for this representation.';
@@ -159,6 +171,18 @@ addEventListener('keydown', (event) => {
 addEventListener('pagehide', (event) => { if (!event.persisted) session.destroy(); });
 await mountModelPicker();
 await switchView(initialView);
+// A highlight opens in the time view when there is a clock, otherwise as a native record in Graph (or its fallback).
+const chosenCard = mountChosenView({ data, opening, onHighlight: async (target) => {
+  if (!temporal) {
+    await switchView('graph');
+    const [kind, ...id] = String(target.record).split(':');
+    await session.revealRecord(target.nodeId ? { kind: 'narrative', id: target.nodeId }
+      : { kind: kind === 'cut' ? 'normalized_cut' : kind, id: id.join(':') });
+    return;
+  }
+  if (!timeViews.has(session.snapshot().view)) await switchView('together');
+  if (timeViews.has(session.snapshot().view)) { chosenCard?.fold(true); (await import('./view.js')).temporalController.showHighlight(target); }
+} });
 const stopLive = mountLiveViewer({ data, getState: () => session.snapshot(), restored: liveContext });
 document.documentElement?.removeAttribute('data-live-reader-refresh');
 addEventListener('pagehide', (event) => { if (!event.persisted) stopLive(); });

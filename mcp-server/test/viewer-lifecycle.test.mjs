@@ -27,7 +27,7 @@ test('the actual temporal controller owns one frame loop and pauses keyboard/pla
     camera: { updateProjectionMatrix() {} }, scene: {},
     cameraState: () => ({}), cameraRestores: [], restoreCamera(_camera, _controls, saved) { context.cameraRestores.push(saved); }, LOCKED: { scroll: 0 },
     composer: { setSize() {}, render() { renders += 1; }, dispose() { disposed.push('composer'); } },
-    params: new URLSearchParams(), opt: { camera: 'free', layout: 'layers', mode: 'story' },
+    params: new URLSearchParams(), opt: { camera: 'free', layout: 'layers', mode: 'story' }, glide: null, posed: false, fitFree() {},
     now: 1843, tau: 20, atEnd: false, F: { a: 1836, b: 1857 },
     playing: true, timer: 17, liveTimer: 18, urlTimer: null,
     held: new Set(['w']), pointerAt: { x: 3, y: 4 }, tip: { hidden: false },
