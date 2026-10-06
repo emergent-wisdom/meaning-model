@@ -791,7 +791,9 @@ for (const group of labelGroups) {
 // large behind its own rows. A name is drawn far behind the model along the line from the camera to its group, at the
 // size it would have there, so it reads as standing among the rows while every curve, card and gem lies over it.
 const bigNames = new Map(); let bigNamesNow = false;
-const NAME_PIXELS = 256; const towardName = new THREE.Vector3(); const nameCentre = new THREE.Vector3();
+// The last frame's step in seconds, for fades that should take the same time in a recording as on screen.
+let frameDt = 1 / 60;
+const NAME_PIXELS = 256; const towardName = new THREE.Vector3(); const nameCentre = new THREE.Vector3(); const nameOnScreen = new THREE.Vector3();
 function bigNameFor(group) {
   let entry = bigNames.get(group.id); if (entry) return entry;
   const font = `700 ${Math.round(NAME_PIXELS * 0.72)}px system-ui, -apple-system, "Segoe UI", sans-serif`;
@@ -803,7 +805,7 @@ function bigNameFor(group) {
   const texture = new THREE.CanvasTexture(canvas); texture.colorSpace = THREE.SRGBColorSpace; texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0, depthWrite: false, fog: false }));
   mesh.renderOrder = -1; mesh.frustumCulled = false; mesh.visible = false;
-  entry = { group, mesh, aspect: canvas.width / canvas.height, place: null, height: 0 };
+  entry = { group, mesh, aspect: canvas.width / canvas.height, place: null, height: 0, base: 0, fade: 1, box: null, distance: Infinity };
   mesh.onBeforeRender = (_renderer, _scene, view) => {
     if (!entry.place) return;
     nameCentre.set(entry.place.x, entry.height * 0.5 + 0.4, entry.place.z);
@@ -812,6 +814,18 @@ function bigNameFor(group) {
     const far = Math.max(distance, view.far * 0.9); towardName.subVectors(nameCentre, view.position).normalize();
     mesh.position.copy(view.position).addScaledVector(towardName, far); mesh.quaternion.copy(view.quaternion);
     mesh.scale.set(height * entry.aspect * (far / distance), height * (far / distance), 1); mesh.updateMatrixWorld();
+    // A name that stands behind a nearer one, where they overlap on screen, fades so the nearer one reads.
+    nameOnScreen.copy(nameCentre).project(view);
+    const tall = height * innerHeight / (2 * distance * Math.tan((view.fov * Math.PI) / 360)), wide = tall * entry.aspect;
+    const x = (nameOnScreen.x + 1) / 2 * innerWidth, y = (1 - nameOnScreen.y) / 2 * innerHeight;
+    entry.box = nameOnScreen.z < 1 ? { x0: x - wide / 2, x1: x + wide / 2, y0: y - tall / 2, y1: y + tall / 2 } : null; entry.distance = distance;
+    let target = 1;
+    if (entry.box) for (const other of bigNames.values()) {
+      if (other === entry || !other.mesh.visible || !other.box || other.distance >= distance) continue;
+      const across = Math.min(entry.box.x1, other.box.x1) - Math.max(entry.box.x0, other.box.x0), down = Math.min(entry.box.y1, other.box.y1) - Math.max(entry.box.y0, other.box.y0);
+      if (across > 0 && down > 0 && across * down > 0.25 * wide * tall) { target = 0.15; break; }
+    }
+    entry.fade += (target - entry.fade) * Math.min(1, frameDt * 5); mesh.material.opacity = entry.base * entry.fade;
   };
   scene.add(mesh); bigNames.set(group.id, entry); return entry;
 }
@@ -2897,7 +2911,7 @@ function syncBigNames() {
     const place = places.get(group);
     if (!bigNamesNow || together < 0.01 || !place) { const entry = bigNames.get(group.id); if (entry) { entry.mesh.visible = false; entry.place = null; } continue; }
     const entry = bigNameFor(group); entry.place = place; entry.height = height;
-    entry.mesh.material.opacity = 0.72 * together; entry.mesh.visible = true;
+    entry.base = 0.72 * together; entry.mesh.visible = true;
   }
 }
 // How high the sweep stands: from half a unit under the lowest row, floor or Event drawn now to well above the highest
@@ -3243,6 +3257,7 @@ function walk(dt) {
 }
 let shiftDown = false; addEventListener('keydown', (event) => { if (event.key === 'Shift') shiftDown = true; }); addEventListener('keyup', (event) => { if (event.key === 'Shift') shiftDown = false; });
 function tick(clock, dt) {
+  frameDt = dt;
   walk(dt);
   if (animation) animation(clock);
   if (Math.abs(blend.now - blend.to) > 0.001) { blend.now += Math.sign(blend.to - blend.now) * Math.min(Math.abs(blend.to - blend.now), dt / 0.9); relayout = true; if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } } else if (blend.now !== blend.to) { blend.now = blend.to; relayout = true; }
