@@ -6,6 +6,16 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+## 0.7.2 — 2026-10-06
+
+- Big names: with many processes on screen, the small group labels at the left no longer say at a glance whose
+  processes these are. A Big names switch under Layers writes each group's name, each character's and the world's,
+  large behind its own processes in the Processes view, in the group's colour, with every curve, card and link drawn
+  over it. It is off by default; `names=big` in the address or in a view the model chooses
+  (`life_model_viewer_view`) turns it on, and Everything keeps the choice. A name behind a nearer one fades where
+  they overlap, a name stays readable however far the camera pulls back, and the names fade out as the view turns
+  to Tree and are not drawn in Terrain.
+
 ## 0.7.1 — 2026-10-06
 
 - Changing the chosen view’s detail keeps the reader’s camera mode. Series plans with numeric steps
