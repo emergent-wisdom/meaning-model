@@ -7,7 +7,7 @@ import { defaultEngine, directory, runImport } from './import-rust.mjs';
 
 const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 
-test('a fresh public MCP import preserves the complete reviewed Book history and Nora', { timeout: 300_000 }, async t => {
+test('a fresh public MCP import preserves the complete Book history and Nora', { timeout: 600_000 }, async t => {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'book-public-import-'));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
   const out = path.join(scratch, 'edition');
@@ -50,8 +50,11 @@ test('a fresh public MCP import preserves the complete reviewed Book history and
   const nora = receipt.authors.find(author => author.name === 'Nora Vale');
   assert(nora);
   const life = readJson(path.join(out, `author-${nora.modelHash}.json`));
-  assert.equal(life.revision.number, 0);
-  assert(!life.revision.previous_model_hash);
+  const dependency = manifest.authorDependencies.find(author => author.name === 'Nora Vale');
+  assert.equal(nora.modelHash, dependency.modelHash);
+  assert.equal(life.revision.number, dependency.modelRevision);
+  if (dependency.modelRevision > 0) assert.match(life.revision.previous_model_hash, /^[a-f0-9]{64}$/, "Nora's earlier revisions belong to the history");
+  else assert(!life.revision.previous_model_hash);
   assert(life.meaning_model.referents.some(person => person.id === nora.personId));
   assert.notEqual(nora.modelHash, receipt.modelHash, 'Nora belongs to her own declared world');
   const saved = readJson(path.join(out, 'saved-work.json'));

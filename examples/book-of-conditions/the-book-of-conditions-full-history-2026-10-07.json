@@ -1,0 +1,747 @@
+{
+  "schema": "meaning-model-full-construction-history/v1",
+  "title": "The Book of Conditions",
+  "publicationDate": "2026-10-07",
+  "proseEditionDate": "2026-10-02",
+  "summary": "The complete construction of The Book of Conditions, from its first graph revision to the edition published on October 6, 2026. The construction before the September 29 public root is published here for the first time, with private material removed. The public lineage published since September 29 follows it unchanged in content.",
+  "publication": {
+    "graphId": "narrative.book.07r2",
+    "headGraphHash": "bfb48b37f41d129ef254296893bcd198b3d0cb134d9be9cb81aa83dd922cb958",
+    "graphRevision": 333,
+    "modelHash": "227c0f01065972b3d62999366d8729a04365ee2508972d36ed71d978cbbf5464",
+    "modelId": "book-of-conditions-07r2-retrospective-import",
+    "modelRevision": 44,
+    "firstGraphHash": "a460b5cf6e9eee578877a02e84a7be7118150e6973026b7fa7bee68ca3191348",
+    "graphRevisions": 334,
+    "storedModelDefinitions": 48,
+    "constructionContentSha256": "d7393aa8ca2400fc7c3c00c4232ea0c07dfe63154516e3115797ed3a6c710455",
+    "file": "the-book-of-conditions.meaning-model.json",
+    "fileSha256": "bd5fbf3f2e998bcd146ad4cad277f39efa8b38f97169439c7442624f8ba66894",
+    "bytes": 82036416
+  },
+  "manuscript": {
+    "path": "stories/the-book-of-conditions.md",
+    "sha256": "4dbe1f5caa94aba8ef9d8d2a77a75e2faf56f3fff79e617d877672748fd97bb3",
+    "words": 13342
+  },
+  "lineage": {
+    "earlierHistory": {
+      "graphRevisions": [
+        0,
+        262
+      ],
+      "lastGraphHash": "c5f484db81ae849cf4594bfc1b4de773947acedf2e9d33e7190fcf9456fd2f7e",
+      "description": "The original construction, projected from the private Writer history. Every revision, model definition, note and review is kept, in order. Private material (verbatim chat messages, personal names, local file paths and coordination between working sessions) was replaced in the fields listed under redactions; everything else is the original record."
+    },
+    "joinRevision": {
+      "graphRevision": 263,
+      "graphHash": "99aa592f23728b4c840b5706ce261d5fca7bbb12d09296cd2dae2dbf9a5d13ac",
+      "formerPublicRootGraphHash": "7a52371c766ae6bffc87864e55923c6e8fe7b8ea47d76369523ba6c2d31b20df",
+      "updatedNodeIds": [
+        "ref.2bd4fd1c1b0a9eeb.concept_concept.nora.partial_transfer",
+        "ref.2bd4fd1c1b0a9eeb.concept_concept.nora.record_as_substitute",
+        "ref.2bd4fd1c1b0a9eeb.event_event.nora.body_adaptation",
+        "ref.2bd4fd1c1b0a9eeb.event_event.nora.body_limit",
+        "ref.2bd4fd1c1b0a9eeb.event_event.nora.care_adaptation",
+        "ref.2bd4fd1c1b0a9eeb.event_event.nora.care_fatigue",
+        "ref.2bd4fd1c1b0a9eeb.event_event.nora.care_quarrel",
+        "ref.2bd4fd1c1b0a9eeb.event_event.nora.choir_return",
+        "ref.2bd4fd1c1b0a9eeb.event_event.nora.composition",
+        "ref.2bd4fd1c1b0a9eeb.event_event.nora.first_job",
+        "ref.2bd4fd1c1b0a9eeb.event_event.nora.freelance",
+        "ref.2bd4fd1c1b0a9eeb.event_event.nora.kit_born",
+        "ref.2bd4fd1c1b0a9eeb.event_event.nora.kit_departure",
+        "ref.2bd4fd1c1b0a9eeb.event_event.nora.learning_adaptation",
+        "ref.2bd4fd1c1b0a9eeb.event_event.nora.writing_revision",
+        "world.book.nora-author-reader.20260927"
+      ],
+      "removedNodeIds": [],
+      "reason": "Publication on 29 September 2026: the public copy of this state resolved typed author references to the current author life. This revision applies only the changes that copy made; the public construction continues from here.",
+      "description": "The September 29 public copy re-pointed typed references to the author life at its public copy. This revision applies only those changes, so the history continues exactly into the published lineage."
+    },
+    "publishedLineage": {
+      "graphRevisions": [
+        264,
+        333
+      ],
+      "formerRootGraphHash": "7a52371c766ae6bffc87864e55923c6e8fe7b8ea47d76369523ba6c2d31b20df",
+      "formerHeadGraphHash": "0571000c6b3b4536bb6b43f4821cdc2612d392e07c46e0307b6852e483e40bed",
+      "formerHeadModelHash": "d01579189c8ef0ca2d9472d6f6863de6ed87887ae15b867cb16d76c3a853bee7",
+      "formerModelId": "book-of-conditions-07r2-retrospective-import.public-2026-09-29",
+      "description": "The lineage published from September 29 to October 6, 2026. Its records are unchanged. Its graph revisions are renumbered to follow the earlier history, and their hashes change because each revision hash covers its predecessor. Its model revisions carry the original model ids again; the September 29 copy used ids ending in .public-2026-09-29."
+    }
+  },
+  "verification": {
+    "tool": "Meaning Model MCP 0.7.1: life_construction_import into a new database, then life_narrative_render",
+    "importVerified": true,
+    "headGraphHashRebuilt": true,
+    "headContentEqualsFormerEdition": true,
+    "formerEditionGraphHash": "0571000c6b3b4536bb6b43f4821cdc2612d392e07c46e0307b6852e483e40bed",
+    "nodes": 544,
+    "edges": 4815,
+    "proseSha256Equal": true
+  },
+  "redactions": {
+    "count": 34,
+    "byRule": {
+      "reviewed-2026-09-29": 33,
+      "exact": 1
+    },
+    "rules": {
+      "reviewed-2026-09-29": "The replacement reviewed for the September 29 publication, applied wherever the same original field occurs in the earlier history.",
+      "exact": "A whole-field replacement reviewed for this publication."
+    },
+    "note": "Each entry names a field and why it was replaced. Original values and their hashes are not published.",
+    "fields": [
+      {
+        "where": "model:nora-vale-fictional-author-life#0",
+        "path": "meaning_model/events/11/description",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#0",
+        "path": "meaning_model/referents/0/boundary",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#1",
+        "path": "meaning_model/concepts/0/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#1",
+        "path": "meaning_model/concepts/1/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#1",
+        "path": "meaning_model/concepts/2/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#1",
+        "path": "meaning_model/events/11/description",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#1",
+        "path": "meaning_model/realizations/0/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#1",
+        "path": "meaning_model/realizations/1/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#1",
+        "path": "meaning_model/realizations/2/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#1",
+        "path": "meaning_model/realizations/3/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#1",
+        "path": "meaning_model/realizations/4/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#1",
+        "path": "meaning_model/realizations/5/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#1",
+        "path": "meaning_model/realizations/6/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#1",
+        "path": "meaning_model/referents/0/boundary",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#1",
+        "path": "revision/provenance/0",
+        "rule": "exact",
+        "reason": "Anonymize private human attribution without changing the fictional author, as the reviewed Nora cleanup does."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#2",
+        "path": "meaning_model/concepts/0/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#2",
+        "path": "meaning_model/concepts/1/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#2",
+        "path": "meaning_model/concepts/2/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#2",
+        "path": "meaning_model/events/11/description",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#2",
+        "path": "meaning_model/realizations/0/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#2",
+        "path": "meaning_model/realizations/1/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#2",
+        "path": "meaning_model/realizations/2/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#2",
+        "path": "meaning_model/realizations/3/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#2",
+        "path": "meaning_model/realizations/4/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#2",
+        "path": "meaning_model/realizations/5/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#2",
+        "path": "meaning_model/realizations/6/provenance/0",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "model:nora-vale-fictional-author-life#2",
+        "path": "meaning_model/referents/0/boundary",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution without changing the fictional author, events, numbers or relationships."
+      },
+      {
+        "where": "node:author-model.nora-vale.20260927@11",
+        "path": "text",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution; use the wording already present in the published Book snapshot. Preserve fictional-author distinction and all substantive model/review content."
+      },
+      {
+        "where": "node:ref.2bd4fd1c1b0a9eeb.event_event.nora.composition@11",
+        "path": "summary",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Anonymize private human attribution; use the wording already present in the published Book snapshot. Preserve fictional-author distinction and all substantive model/review content."
+      },
+      {
+        "where": "node:review.book.blind.fable-5-1.20260929@119",
+        "path": "data/prompt/text",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Omit a private local folder path from the public edition. The recorded prompt sha256 attests the unredacted prompt the reviewer received; only the two folder paths differ."
+      },
+      {
+        "where": "node:plan.book.branch.r23.20260929@167",
+        "path": "text",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Remove private coordination and personal attribution while preserving the recorded modeling plan, review limits and acceptance status."
+      },
+      {
+        "where": "node:plan.book.branch.r26.20260929@195",
+        "path": "text",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Remove private coordination and personal attribution while preserving the recorded modeling plan, review limits and acceptance status."
+      },
+      {
+        "where": "node:status.book.r29.narrow-readback-on-hold@241",
+        "path": "text",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Remove private coordination and personal attribution while preserving the recorded modeling plan, review limits and acceptance status."
+      },
+      {
+        "where": "node:answers.book.draft-direction.r29@245",
+        "path": "text",
+        "rule": "reviewed-2026-09-29",
+        "reason": "Remove private coordination and personal attribution while preserving the recorded modeling plan, review limits and acceptance status."
+      }
+    ]
+  },
+  "hashMapping": {
+    "description": "Former public hashes (September 29 to October 6, 2026) and their counterparts in this history. Hashes recorded inside historical notes and reviews keep their original meaning; use this table to find them here.",
+    "graphs": [
+      {
+        "former": "7a52371c766ae6bffc87864e55923c6e8fe7b8ea47d76369523ba6c2d31b20df",
+        "current": "99aa592f23728b4c840b5706ce261d5fca7bbb12d09296cd2dae2dbf9a5d13ac",
+        "graphRevision": 263
+      },
+      {
+        "former": "ab4e4c056d4dec31f6b0ffe741ffb31f1ead63be415f1a5d715b5cb52e71c35f",
+        "current": "28490ca9a28f424144ff70debbae31ad4ec3a04703c5c9321fb2de9e597fbd97",
+        "graphRevision": 264
+      },
+      {
+        "former": "a9f874c8b0923293fcf2435097fe41633efabb69624b78768f5a5856f2f79db2",
+        "current": "49dd11b6d23824c289e9fa53e4cb7fa241ebe338d3caf42da099d007ebe3ce00",
+        "graphRevision": 265
+      },
+      {
+        "former": "8f2c01653a6a150af318e40e54c3dc249bbcafdeb45b42cf28b589290979ce71",
+        "current": "24a47792f18489fe3f45c446084d96af7026572c6fdb67f0e0d758a90a8c2c68",
+        "graphRevision": 266
+      },
+      {
+        "former": "c220326a81a21eb2af04898e5dc2269705c2194d9f2a2611f43023ce31d9ea9b",
+        "current": "e1e4a83aff229985a754e8d61f70d28d1e3ce5e66ad113602a1afdca42800cc1",
+        "graphRevision": 267
+      },
+      {
+        "former": "f26c606ed9a10fb24c514b1e00bf37ba1ac6aeb20a077676e77b9a320d60bb56",
+        "current": "1a8fc3e7ffd1c22f9d2ceaacd032f9e68d380984a6e69ed51dca6ddace1dcc9d",
+        "graphRevision": 268
+      },
+      {
+        "former": "5494ec64d6c1e97668b524247bcbcfeac5ee412c74e0fd82b98dae39e2ae694e",
+        "current": "10b84dcbc7bcfaefc4e76b2df531dade5dc62b8a484eb613d6cf3c1784730386",
+        "graphRevision": 269
+      },
+      {
+        "former": "81d82994fffca528fc69dc8b8be612b722affe844828ec60cd5fbc1004b6fbba",
+        "current": "e626b822ea8aa83c65b6debe90441923eff30d49308744cd372c681c089941ce",
+        "graphRevision": 270
+      },
+      {
+        "former": "35573bab861732d71ada95c0dcfaa134c3e3120d2c7b1ba2d92e5512d5625ca7",
+        "current": "80c2fe16a193c5a171864b6bf02e29bd40481fc8f33707cdf5c249d810f15232",
+        "graphRevision": 271
+      },
+      {
+        "former": "49afdea371eed8186f1aed4b5609e07a4df975dac769c666b587c36ae76e0968",
+        "current": "8c41f64cd4ccac1a4b161c5bc1def50afe2795a10bc930ee1a83e69b3cae7ded",
+        "graphRevision": 272
+      },
+      {
+        "former": "ee10d2179e052bfdb08f6b1e2438451e363582a305e73664a7e1d8c48862a041",
+        "current": "9009ec091a29c84948480dbf19d7a93e192e74bb42b28bcaee31887151b281e2",
+        "graphRevision": 273
+      },
+      {
+        "former": "6d0ac26e3266bfa11d099547b42d6ff4e5d91e67b1a93bda8a0bcf8c09cd4c61",
+        "current": "2cbe6d6e7551d631cfb149fab034aa71281a0cb60af159bcb75669cf46bd1714",
+        "graphRevision": 274
+      },
+      {
+        "former": "5c116745becdc5346ec69ab7247e53f237ac0c12c664d304b051a1b82e9c7748",
+        "current": "14535c530dcdfdcfac473e956c3b975eef0262d29eeb043d7ab4f450bb8a2fdf",
+        "graphRevision": 275
+      },
+      {
+        "former": "8551bd5c651e79349f5d2f45d83948cee8c501144a331cdf22e757c2744b2e8b",
+        "current": "c8fd49ccd9404c94f0e572831c7feb362f176ae07fe4e511704f4df73f99332b",
+        "graphRevision": 276
+      },
+      {
+        "former": "94df0e58fc7609137677e1e94e93d0064b1b7adf6b3c4d77016a2bf279ca28e5",
+        "current": "e180bbaeed5e717d70841b724d8d58f125ee70207922336a1c1e00b4ac04fb36",
+        "graphRevision": 277
+      },
+      {
+        "former": "28b57f24d1c0a3a126459aea56e28a1e120d20fb0e49ab2df02eb4d5d3be736c",
+        "current": "8a799499519798141f949ffb79ac030efed858e6cf8dfd135f070bbe63963ccd",
+        "graphRevision": 278
+      },
+      {
+        "former": "91951e2a0e442ec0f155b064a6ee315104a7ceb91ec1975b116d4199d12b342b",
+        "current": "38e061eff8594e63337882dba61523c5409002c3d54a1ee3e40b9c65499d239a",
+        "graphRevision": 279
+      },
+      {
+        "former": "0213904ac43f63b5b76b73d70014e76536cf174a3cde7f5abb2a8cb3bff16466",
+        "current": "dc57d16eb367511ebdb6918ead0b7f1b0c019ae8a7b91b80f9c2b56ae2451aff",
+        "graphRevision": 280
+      },
+      {
+        "former": "3e4af97d2a82d8b47e311ea73d354b28b7f2aaa72ee5af2d1bf8b99788739f17",
+        "current": "064be873fefb3a9410d9b35b127f9cae06adf79823aaaa8701758c138e29e366",
+        "graphRevision": 281
+      },
+      {
+        "former": "08e91f6296eae5bfddc115bd8fde82369ec6198d7c25dfa4c6a91f54949f13f4",
+        "current": "061bf76ae00e205dac79eea5f766672238ad70c9115eede674fd7133fdd4905e",
+        "graphRevision": 282
+      },
+      {
+        "former": "9ad943f7a95efde52cd559548d7332f4d7b1625441ee4a00a3a5ff90ca4f2362",
+        "current": "0b34163f0af1d3fc8ebf02abeec7ad496146bf694b0473ff8648ceab92fd24a7",
+        "graphRevision": 283
+      },
+      {
+        "former": "edfe9e4989deb8a700373f9794e791895ea853edc794565569e3c2c69d84b3fa",
+        "current": "f56c84c8182e818b14d3369d46ab36e054dc84a4a186e56b45e4791ee0e033ee",
+        "graphRevision": 284
+      },
+      {
+        "former": "c7f1e65e7d1187cd9c0419aa60fb99983d71e45d28666f46183d3a8a35894378",
+        "current": "25bd6e49896bac72d521bd06a503be48f64d3c6d82d14c43b2f9bc003a6d3cd5",
+        "graphRevision": 285
+      },
+      {
+        "former": "6ed66a1d9673e8b70d3329f60fc2482bb7e4e1c28940da00e32e8a863ca342a5",
+        "current": "41b80a93a65075077fbd05500cc1d4f3ede2fe47d16743312cef6b3f00c92129",
+        "graphRevision": 286
+      },
+      {
+        "former": "d8654fee6083454a8ad37bc76b884b5d66a2b495f4b398fcf43519c977934d9c",
+        "current": "5061046d5d626ce9da89539d55238553305991eda8ad4c1c00a7a8a2f4da3fcf",
+        "graphRevision": 287
+      },
+      {
+        "former": "3deab92818fbaaef2abe75bcf0401d1a4e9667c171a138eab5f6d7ba26a8ea0f",
+        "current": "033ea8d8844b1bf81aa040c7eeb0ee0552e080b2aa3730fda4e7162ff9e97de5",
+        "graphRevision": 288
+      },
+      {
+        "former": "295df0818d8005da38e73dfd3e1c3903e80eb75bbd9366e8d417a4b5ae3be154",
+        "current": "7ccf6dd4b388028749a1a0bdbf3e10705e6642ad4834703fa4b717e111ef7b77",
+        "graphRevision": 289
+      },
+      {
+        "former": "156080780c7a0b1c4e26bef045ed6a3f6bd22eb4f5e28c87f415d86315b867af",
+        "current": "98d34c7084791160f2615b2643bea33134afb60f70bed6d1c727e3576d50414d",
+        "graphRevision": 290
+      },
+      {
+        "former": "85a9b41e5cc2f2762ed2ebf9da6487a2b2c6344bb6de8119153739ea16765500",
+        "current": "e3f941c9d44b6c0403419a9e71f3a3211ac80649837ab48a396a1ee895f35583",
+        "graphRevision": 291
+      },
+      {
+        "former": "7d621b86433b85511bda9dec5347b07d62ec4ba97ea1752ac934fd6fc25d212e",
+        "current": "ec315a1431d7584102b0d7483d57df7c7e9df8b5025007617dbb2f9188a8e943",
+        "graphRevision": 292
+      },
+      {
+        "former": "4e6536b8331ce6aeea82c6a063ed54ed352248b65e64d9f11a73131c0cb15dd9",
+        "current": "2c4777379875653005f804e080671c0f9299e4b0fc064f3fb8529b49b0aab9ce",
+        "graphRevision": 293
+      },
+      {
+        "former": "d96d94a421c581eb905fc0355f82fa4efb5fbd77bed907aeabf98f9401e4dbd7",
+        "current": "302a74512a6a48025ccfd06258b388559c1f023ff95719e602cda6cdf8caad40",
+        "graphRevision": 294
+      },
+      {
+        "former": "ed80c8e7e5afe38f3a860fd2f249db036cd9e9b2e78fd90fb07d27f8739935e9",
+        "current": "8e3e9bee5422f5f70ff8dc558fd9ea2902b83874c22bf60859c3c7a5f467ef3e",
+        "graphRevision": 295
+      },
+      {
+        "former": "0d837488fa3f77880dd2ffcaf23c9ca1b83db0b2943748910e7b617624cef8fb",
+        "current": "ed168503b156adce12636758d719d8192df5234f997f679ee4f5915df9431dc3",
+        "graphRevision": 296
+      },
+      {
+        "former": "1f16decbc49d62c73dc641716246f4455811b4bd8ae78f885b89fdb7d93b26b2",
+        "current": "29796fee53ab222597958a7aaf25bfe2e2d49947aceef39d24a5ee38cc4407c0",
+        "graphRevision": 297
+      },
+      {
+        "former": "fed16c969d25149d7e71667ec50cf12c1e03fd93ebaac83ed25fb449fbd6d945",
+        "current": "86383c882239a4625ea0261d0e806f9b7425e57ccf3e9cb47b4f8f0f460ac276",
+        "graphRevision": 298
+      },
+      {
+        "former": "62e3774f595029f4a7a281fe8c793e8bab5ec1de274886dac91732dce6a197ea",
+        "current": "24b420d022b6550120c1c7c5a30dfb003b5249174d21e817b8a5d7759af06249",
+        "graphRevision": 299
+      },
+      {
+        "former": "e10d91feec05eff3aba3917af9fc9d7e18fc798637d2069d4cb34b8334c20adb",
+        "current": "8d3eebbd3bcfce325eb468d5a10704cd913e720f9a5b59794b58bf5e92a97d99",
+        "graphRevision": 300
+      },
+      {
+        "former": "c5bfee7e44873962829cc4a4dcc9f4b6739c19988c7116d25b74731659ecea12",
+        "current": "23ec13e70427c0b621f033ee7eb447cd37db5d85f1c1faad201f832c505fb8ae",
+        "graphRevision": 301
+      },
+      {
+        "former": "84a71f28f6f983dbdacccd0f71c5c0939cb056784a8a7e35bd0716538c534e31",
+        "current": "3580a04125524363225506fde1fe2d89aa46e03d01dd298a79918a7db692faf5",
+        "graphRevision": 302
+      },
+      {
+        "former": "7d5eab9e31bd8d6280424bcf4a124ebf8630ddc83547e3a307dade9245407968",
+        "current": "5ba66436ac2367ccbb6288cedebeaf43513d547e028bff5bdca8e2c8713596d8",
+        "graphRevision": 303
+      },
+      {
+        "former": "eca1347af7f4e3ee7b01a4a79e2dfaeb5369bd08e90c76a34437e037e58de86c",
+        "current": "38bafdad850bda5608c901310dc9da07f48977c2d9504b6232bb93eab96038c3",
+        "graphRevision": 304
+      },
+      {
+        "former": "f90835f21d2e2085c2f5584ae6ad6b19fbdfecc5cd769d03d17bb186b2be3344",
+        "current": "bba95f8b65d0bb5bb72995a583d37b3a4b16034c86b3798b4267307538270b77",
+        "graphRevision": 305
+      },
+      {
+        "former": "e15aecc20c00d19618271b79f63c267dd3f8927c8050aeda53858eac9ef52505",
+        "current": "a302b003d25feb2ae235ea9b6011f5d2f8170771dcaff00dc0408c8ae85d055e",
+        "graphRevision": 306
+      },
+      {
+        "former": "d820c923b9fb6e209bac9708e12ad50ec55f859957052979c5a2982b579b4a17",
+        "current": "383d79d7f441aa8b70ae61bc9abcd7afba687a3b816e4ea993ec843c33924118",
+        "graphRevision": 307
+      },
+      {
+        "former": "b4afe81b5dd9abe19b346666b356b80199925753c53e9cf01a30992c2525192f",
+        "current": "45318fddeb3167730d310662c50a489dc28c5c0138733678ec3ad6d3e239a96b",
+        "graphRevision": 308
+      },
+      {
+        "former": "941975f2d415cb54d5c6c05d5a47bc68e8e966c9feb7f9b4dcc7ba798a437648",
+        "current": "e0f3fb2d5371355d3e4c8c7e8637d65ced9fba1605af573bc827579cc908f031",
+        "graphRevision": 309
+      },
+      {
+        "former": "7286067dbf84150dd1254ac14ed6f32ca809a454365b1435997b98c40be70042",
+        "current": "3d0a65b8ab4842cf63b76c3ce6c1c81cfaf8d26ead2219306fd83ba253d6b82b",
+        "graphRevision": 310
+      },
+      {
+        "former": "7e0777ea27671a4dc62b217ff39ac887507107182f49d6abd3ed5bd4b1301703",
+        "current": "52e5cf233e8c59f0f7599f06f7fc08c17187a93f9d73cde9f3a88a00824ff215",
+        "graphRevision": 311
+      },
+      {
+        "former": "a55be7efdd7a17c2c5fec5f5364a3e7b0273f2d1796abc0e540ec36bdf47a323",
+        "current": "3a6180c8cf26831f5ecf5d4d57516fbaef066486252aca73c8e93b103e482471",
+        "graphRevision": 312
+      },
+      {
+        "former": "a5ad1c73d1d0d7028a558c38e8ff6731e7bc5142f1e1b9224f3e4770b4f76766",
+        "current": "2e58b5886e06618c36d0f490b4f0f3a252b0b46b6eed13e2ebbdb17e879d68ae",
+        "graphRevision": 313
+      },
+      {
+        "former": "7f04e38707fccc0440e7d57f9781e1f83780a2c44f082f8fc3ddba92d1de1d53",
+        "current": "a3258ac879cf4e4176d8e2aa966d4871693f928904ca316b1acf3730958c9aec",
+        "graphRevision": 314
+      },
+      {
+        "former": "361bf187649f20269fe699e2c5eb87239e77675df7534f50aa69ea799c719da8",
+        "current": "8841f2999b7da3d51e6ba4a02e58725df1d04e22f35e396da0adb3efb209e461",
+        "graphRevision": 315
+      },
+      {
+        "former": "f9bf0503fed25ae9e3aa3a0a931e663eb231b3d06369f5649f77054fa3e65c62",
+        "current": "9b4f8aabc64fe4ed785176734c6f76896f8c5570f7066c7f2247e9f4504c7aa8",
+        "graphRevision": 316
+      },
+      {
+        "former": "e46ecf5eb4f75830ee98d83409a6c87d457970df06f4911ee616f20c7244970b",
+        "current": "c54b0bb5dee769d41654cb195c6fc9414bb5794deb2c9a2b2af6ce7856f0d016",
+        "graphRevision": 317
+      },
+      {
+        "former": "c6f5b85fb151042fdbdeb0dc5a56a411fcdadcb5a0f69918ef44d1266cc3fca7",
+        "current": "f86e129deda081c79a965ffd4a9e6ab9cb3cc5e6c26d504504ba9f8d032ec569",
+        "graphRevision": 318
+      },
+      {
+        "former": "ab9a622d2167ecd00669b712a320566a6c0335d44f114f503847b5f36da95fcb",
+        "current": "b49cfe3ef968c39179ee5926ed020faafebdce0eb4d4771212acff2cf805d682",
+        "graphRevision": 319
+      },
+      {
+        "former": "c2e6c51d561d8d5d2884231d5f09deaf2c2f51ad08afbd484ab25fdb04bdc224",
+        "current": "a688b3785fad5f83532b42a483affadefa33c9b220e1d8a7116f7c2a0ea03bd7",
+        "graphRevision": 320
+      },
+      {
+        "former": "91db46cf5cca86b12abd0c26ac1f61ea26caeaa462f4dddb7a500aec5ea64345",
+        "current": "586770d5ac5c9c74807aa662546c55425d85ad8949ca3a2463117591a7cdd694",
+        "graphRevision": 321
+      },
+      {
+        "former": "517bbe8b37363d40b29aef053c769b7bf78d810ea8304ec468a09151aac361a7",
+        "current": "581f85e6987ad68978981b386ee5df2f5ef4f07dab54268b63f0691efe0bffbc",
+        "graphRevision": 322
+      },
+      {
+        "former": "00ce682aeae879d0c7334860a0156ab119b6926b0be212f98be701818a5fa817",
+        "current": "c550de76047744e6bf0d6c054f8813c9302009299c9ba277a8e98f044648e12b",
+        "graphRevision": 323
+      },
+      {
+        "former": "62d98d73f85e4e8f722caaa04c81edb9f3b733df0e88a46e80209888bdf041b8",
+        "current": "a58fa054725471b469599b4faec4e340edd962416f1b1a75ea5f67bbd596afe5",
+        "graphRevision": 324
+      },
+      {
+        "former": "992b300282fa8f46c93c5ac872927632bdb7db92b293bf2d5313a925f432df6b",
+        "current": "636431dc87a0c7f8bef9c06fc66559f77004613d7754a991ded2317c0bc63e81",
+        "graphRevision": 325
+      },
+      {
+        "former": "5518e6b6ea10520346ae26e8ffc4cd4d822b0e0dae2dc4502832c78898093d15",
+        "current": "a341829534b6ef364fe8ea7b25989f25ad62f1e26f172398a8ca6af33a6a4152",
+        "graphRevision": 326
+      },
+      {
+        "former": "935af79fee6c6cf27dc6c2df5835e1aefb2413e52f28769cbc9f55be7bcb1586",
+        "current": "381e3a05516ec1b77a944339ddea83ef246259405c426fdabc8cacdb5b32f65e",
+        "graphRevision": 327
+      },
+      {
+        "former": "b403d587fca58f8dbd637952c085c98d27af0142e6e7e75ed1ced0728475907c",
+        "current": "b534196ea2a84e7bb7f1fde1d13de6a9e4a6e2269d03cff096b1cf1d45604d3e",
+        "graphRevision": 328
+      },
+      {
+        "former": "e3db64fc05556d357b943bcd26967d4519a73330910bbddd5965f5c7f4070c3e",
+        "current": "8cd4f72cb43106ad72d20af072656ec29093b67db52ffd2502b1ca273f189384",
+        "graphRevision": 329
+      },
+      {
+        "former": "c1d652cb2068d1eea886d6832a369d85cb0d54b81ea1fd1f608e46f69fb9b9a6",
+        "current": "2949f7bd234f20a387d4cc0113fc5edf8ba7df3e55fdf8d134029182622e610b",
+        "graphRevision": 330
+      },
+      {
+        "former": "c900b78f5624142be982b84b5fbdc21ebb9d22481acd4fc8fd0095300b56bf99",
+        "current": "fdedf84f07ba306df44d26fd4681b76b75a34bc2b5b57fc186ae22c5f038af4a",
+        "graphRevision": 331
+      },
+      {
+        "former": "d31ebf320a9d9b1aeaab425e7737e054c7f3ff3631d6ba11ea31729a535f9932",
+        "current": "3e99a0823bb524a35c2afdb843934cb79dd026259ec299f72ca367652f02eb4d",
+        "graphRevision": 332
+      },
+      {
+        "former": "0571000c6b3b4536bb6b43f4821cdc2612d392e07c46e0307b6852e483e40bed",
+        "current": "bfb48b37f41d129ef254296893bcd198b3d0cb134d9be9cb81aa83dd922cb958",
+        "graphRevision": 333
+      }
+    ],
+    "models": [
+      {
+        "former": "a153791242320f0db13c79d498956eda64d3e3eb5ec8a6739be0fd7bd8d80c00",
+        "current": "bae0b30c14614c648c0c63b55b99582e89635b3adfce251fe889b3e5871b8f64",
+        "modelId": "book-of-conditions-07r2-retrospective-import",
+        "modelRevision": 33
+      },
+      {
+        "former": "b1e050cb06e73db1ad77fbaa5d253fa6577cac0394e55f7d8e6eee57eefc7f58",
+        "current": "41ae0494119d0c27962e6c817781c6f3c08e2e7fff04072cd9e3434fe5a50eea",
+        "modelId": "book-of-conditions-07r2-retrospective-import",
+        "modelRevision": 34
+      },
+      {
+        "former": "59ade7958b42ab41f3dbe5832ed233d6543cd0c18c75a0aa1bd79d6e56c611db",
+        "current": "daa5f69d494ab52bcb5d0c99e66cf8b469e66f4e56c4de95ffc9b11100f0ca1e",
+        "modelId": "book-of-conditions-07r2-retrospective-import",
+        "modelRevision": 35
+      },
+      {
+        "former": "655598cf25458ae5ca90cdf6fbbc621fc04b227ae5c12bab3f1dd7971e78a3a5",
+        "current": "51da79476f08ce0b66428c7c4459effcd2610aef93fe9cdb08799c87da75eb68",
+        "modelId": "book-of-conditions-07r2-retrospective-import",
+        "modelRevision": 36
+      },
+      {
+        "former": "95e3e2c6f4950ef207b83e35733a0b0f8f47d4f73567d1c1425533b4473df54d",
+        "current": "2487b244f46aecdbaf25b0f38ecb68dae4d17c3cd4a3913c714c42c5547c2c7b",
+        "modelId": "book-of-conditions-07r2-retrospective-import",
+        "modelRevision": 37
+      },
+      {
+        "former": "1157d4959f6e8aad7a909d68a1bcbe46fb68e57978d85fa84a89c85aabd7f0cc",
+        "current": "a291f716aba81b98e7f4d8e9da222403a1d083ba14092f10af2daeff69fc2f88",
+        "modelId": "book-of-conditions-07r2-retrospective-import",
+        "modelRevision": 38
+      },
+      {
+        "former": "a53f932055942cd7a5100be7f30d0902a54902775eb1f6a91e37666359df0092",
+        "current": "64fc7a8ee1072842cdbc3c56d990e660d8bc670ae8dd52bea01aa021fcf0fa6a",
+        "modelId": "book-of-conditions-07r2-retrospective-import",
+        "modelRevision": 39
+      },
+      {
+        "former": "b46d1d86eba3dbe2977abb596ec80805a169f87959855bbca3afd4038b41468a",
+        "current": "86c6e4fa45400965c91c36aaf81cf857bcbd16e7ad029a8e0b876bd11d03c2c5",
+        "modelId": "book-of-conditions-07r2-retrospective-import",
+        "modelRevision": 40
+      },
+      {
+        "former": "8be6c23180b3128ef26aca05396fb206e7240eb936147ddaf482832f921260b4",
+        "current": "8ebcfc914ae7096b985fdff143e90a20f99726aa08217268b093b2ed8b1e4c9e",
+        "modelId": "book-of-conditions-07r2-retrospective-import",
+        "modelRevision": 41
+      },
+      {
+        "former": "315c4317bcee4cb36291f3fa748e3618d2805b1d540eb9ca681a5d4306c6bfec",
+        "current": "fdd46c426ca9a81fc77701a9a1b957a7c0825a9699cc7440033fb4e8cb1d049f",
+        "modelId": "book-of-conditions-07r2-retrospective-import",
+        "modelRevision": 42
+      },
+      {
+        "former": "aa439523965d61998183890c4ae3107792a9ea8ba1261773c5c8cec840fef7dd",
+        "current": "734b9492b7f3794431d52380b76390b09b9d203060b1faf8141cf66a8b6f5481",
+        "modelId": "book-of-conditions-07r2-retrospective-import",
+        "modelRevision": 43
+      },
+      {
+        "former": "d01579189c8ef0ca2d9472d6f6863de6ed87887ae15b867cb16d76c3a853bee7",
+        "current": "227c0f01065972b3d62999366d8729a04365ee2508972d36ed71d978cbbf5464",
+        "modelId": "book-of-conditions-07r2-retrospective-import",
+        "modelRevision": 44
+      },
+      {
+        "former": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84",
+        "current": "5eef7bd64ccf61cc0cce735b452568fc50e98d5f6861ea9cd47684857b2b9e8b",
+        "modelId": "nora-vale-fictional-author-life",
+        "modelRevision": 2
+      }
+    ]
+  },
+  "qualifications": {
+    "clockTimes": "Order only. The revisions keep their order; wall-clock times are not recorded or invented.",
+    "writerState": "Publishing this history does not change any private Writer database.",
+    "reviews": "Historical reviewers, task identities and reviewed-material hashes keep their original meaning. Publishing the earlier history does not renew any approval or numerical assessment."
+  }
+}

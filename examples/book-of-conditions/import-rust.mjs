@@ -31,7 +31,7 @@ function readEdition() {
   if (manifest.fileSha256) assert.equal(digest(files[bundleName]), manifest.fileSha256, 'The bundle does not match the publication manifest');
   assert.equal(bundle.schema, 'meaning-model-construction-history/v1');
   assert.equal(bundle.headGraphHash, manifest.graphHash);
-  // Preserve the reviewed public lineage, including its original publication root.
+  // Preserve the complete history from its first graph revision.
   // Import verifies every stored hash; this check rejects missing ancestry before import.
   assert.equal(bundle.revisions.length, manifest.constructionHistory.graphRevisions);
   assert.equal(bundle.revisionCount, bundle.revisions.length);
@@ -39,7 +39,7 @@ function readEdition() {
   let graph = bundle.revisions[0].definition;
   assert(graph && !bundle.revisions[0].delta);
   assert.equal(graph.revision.number, 0);
-  assert(!graph.revision.previous_graph_hash, 'The published graph must not depend on a private predecessor');
+  assert(!graph.revision.previous_graph_hash, 'The history must begin at its first graph revision');
   for (let index = 1; index < bundle.revisions.length; index += 1) {
     const entry = bundle.revisions[index];
     const revision = (entry.definition ?? entry.delta).revision;
@@ -137,11 +137,18 @@ export async function runImport(outputDirectory, binary = defaultEngine) {
       }
     }
     for (const expected of manifest.authorDependencies ?? []) assert(inspectedAuthors.some(author => author.modelHash === expected.modelHash && author.name === expected.name), 'Declared author dependency is missing');
-    const replay = await call('life_construction_replay', { graphHash: manifest.graphHash, accessScopes: manifest.accessScopes,
-      level: 'outline', format: 'json', limit: 80, maxChars: 400_000 });
-    assert.equal(replay.revisionCount, manifest.constructionHistory.graphRevisions, 'The complete selected public lineage must survive import');
-    assert.equal(replay.window.nextOffset, null, 'The replay check must cover every exported revision');
-    assert.equal(replay.truncated, false);
+    // The replay returns at most 80 revisions per page; read every page so the check covers the whole history.
+    const pages = [];
+    for (let offset = 0; offset !== null;) {
+      const page = await call('life_construction_replay', { graphHash: manifest.graphHash, accessScopes: manifest.accessScopes,
+        level: 'outline', format: 'json', offset, limit: 80, maxChars: 400_000 });
+      assert.equal(page.revisionCount, manifest.constructionHistory.graphRevisions, 'The complete construction history must survive import');
+      assert.equal(page.truncated, false);
+      pages.push(page);
+      offset = page.window.nextOffset;
+    }
+    const replay = { ...pages[0], window: { offset: 0, pages: pages.length, nextOffset: null }, steps: pages.flatMap(page => page.steps) };
+    assert.equal(replay.steps.length, manifest.constructionHistory.graphRevisions, 'The replay check must cover every exported revision');
     writeJson(out, 'construction-replay.json', replay);
     const saved = await call('life_saved_work_list', { accessScopes: manifest.accessScopes });
     assert.equal(saved.heads.length, 1);

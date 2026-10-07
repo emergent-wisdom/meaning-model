@@ -10,7 +10,8 @@
     {
       "role": "author",
       "name": "Nora Vale",
-      "modelHash": "9d7be364f47f4369388aaffc8725e6913eb508b8bbb420925c8683844e0c8f84"
+      "modelHash": "5eef7bd64ccf61cc0cce735b452568fc50e98d5f6861ea9cd47684857b2b9e8b",
+      "modelRevision": 2
     }
   ],
   "historicalExample": "https://github.com/emergent-wisdom/meaning-model/tree/v0.5.2/examples/book-of-conditions",
@@ -48,21 +49,19 @@
     "proseSha256": "SHA-256 of the exact rendered manuscript text.",
     "bundleSha256": "Legacy manifest alias for constructionContentSha256; use fileSha256 for the exact bundle-file bytes."
   },
-  "editionDate": "2026-10-02",
-  "graphHash": "e3db64fc05556d357b943bcd26967d4519a73330910bbddd5965f5c7f4070c3e",
-  "graphRevision": 66,
-  "modelHash": "1157d4959f6e8aad7a909d68a1bcbe46fb68e57978d85fa84a89c85aabd7f0cc",
-  "modelRevision": 5,
+  "editionDate": "2026-10-06",
+  "graphHash": "bfb48b37f41d129ef254296893bcd198b3d0cb134d9be9cb81aa83dd922cb958",
+  "graphRevision": 333,
+  "modelHash": "227c0f01065972b3d62999366d8729a04365ee2508972d36ed71d978cbbf5464",
+  "modelRevision": 44,
   "proseSha256": "4dbe1f5caa94aba8ef9d8d2a77a75e2faf56f3fff79e617d877672748fd97bb3",
-  "fileSha256": "1f08618e7591645f21b8620d9059b427f03a808b37bde655d493e0c7ffcb3fc0",
-  "bundleSha256": "3a13d5d51a6d9e694f488b4956f2317bf440746af93823665766c6aa31c1efb1",
-  "constructionContentSha256": "3a13d5d51a6d9e694f488b4956f2317bf440746af93823665766c6aa31c1efb1",
-  "sourceGraphHash": "d840d074f6712c6d56f93b79eefc06b02857c495dcb87f679daec5d33b4e303d",
-  "sourceModelHash": "1157d4959f6e8aad7a909d68a1bcbe46fb68e57978d85fa84a89c85aabd7f0cc",
+  "fileSha256": "bd5fbf3f2e998bcd146ad4cad277f39efa8b38f97169439c7442624f8ba66894",
+  "bundleSha256": "d7393aa8ca2400fc7c3c00c4232ea0c07dfe63154516e3115797ed3a6c710455",
+  "constructionContentSha256": "d7393aa8ca2400fc7c3c00c4232ea0c07dfe63154516e3115797ed3a6c710455",
   "inventory": {
-    "events": 589,
+    "events": 671,
     "processes": 257,
-    "normalizedCuts": 120,
+    "normalizedCuts": 202,
     "renderedLeaves": 34,
     "chapters": 12,
     "words": 13342,
@@ -70,21 +69,33 @@
     "tellingPhases": 63
   },
   "constructionHistory": {
-    "graphRevisions": 67,
-    "storedModelDefinitions": 7,
-    "bookModelRevisions": 6,
+    "graphRevisions": 334,
+    "storedModelDefinitions": 48,
+    "bookModelRevisions": 45,
     "currentModels": 2,
-    "currentModelMeaning": "The selected Book revision and Nora Vale author life. The stored count includes six successive Book definitions and the one Nora definition.",
-    "scope": "Complete selected lineage exported by the reviewed continuation, beginning at its September 29 public root. No missing earlier private construction or clock times are reconstructed."
+    "currentModelMeaning": "The selected Book revision and Nora Vale's author life. The stored count includes 45 successive Book definitions and 3 Nora definitions.",
+    "firstGraphHash": "a460b5cf6e9eee578877a02e84a7be7118150e6973026b7fa7bee68ca3191348",
+    "scope": "Complete history from the first graph revision of the construction. The earlier history is a privacy projection of the original Writer history; the lineage published from September 29 follows it unchanged in content. Wall-clock times are not recorded or invented."
   },
   "publicationProjection": {
-    "manifest": "publication-privacy-projection-2026-10-03.json",
-    "publicationDate": "2026-10-03",
-    "privateCoordinationOmitted": true,
-    "nativeDefinitionsUnchanged": true,
+    "manifest": "the-book-of-conditions-full-history-2026-10-07.json",
+    "publicationDate": "2026-10-07",
+    "completeHistoryFromFirstRevision": true,
+    "privateMaterialIncluded": false,
+    "nativeDefinitionsOfCurrentEditionUnchanged": true,
     "proseUnchanged": true,
-    "unchangedGraphPrefixRevisions": 13,
-    "addedDisclosureNodeId": "author.book.publication-privacy.20261003",
+    "redactedFields": 34,
+    "earlierHistoryGraphRevisions": [
+      0,
+      262
+    ],
+    "joinGraphRevision": 263,
+    "publishedLineageGraphRevisions": [
+      264,
+      333
+    ],
+    "formerGraphHash": "0571000c6b3b4536bb6b43f4821cdc2612d392e07c46e0307b6852e483e40bed",
+    "formerModelHash": "d01579189c8ef0ca2d9472d6f6863de6ed87887ae15b867cb16d76c3a853bee7",
     "privateFilesBundled": false
   },
   "authoringStateQualification": "This example is an exported reviewed continuation. Synchronizing this example does not update or establish parity with a canonical Writer database or the story repository. Continue from the imported graph returned by the public import tool.",
@@ -383,25 +394,38 @@
     "The latest bounded exploration refined two existing concepts and five realization readings, then added one qualitative process, three Event openings and twelve relations. It retained the already reviewed 13,342-word prose; this is not a prose-improvement claim.",
     "The fixed latest read-back compared selected passages plus preceding context with that same context alone, using one isolated language-model reader per condition. Four targets were recovered with the selected passages; the control conveyed two and partly supported two. This is a local meaning-recovery comparison, not statistical or aesthetic validation.",
     "The fresh 15-record depth assessment and zero affected declared dependencies cover a selected inquiry, not every implicit semantic dependency or every modeled life.",
-    "Fifty of the 120 Cuts retain recorded text bases; 70 have untracked text freshness. The latest qualitative exploration did not re-estimate their values or renew all numerical assessments. Recorded bases support text-change checks, not calibration or psychological truth.",
+    "Fifty of the 120 Cuts present on October 2 retain recorded text bases; 70 have untracked text freshness. The October 6 model adds 82 whole-life readings for the principals (where their time goes and their outlook on their work), recorded by life_series_record; they were not reviewed against the prose. Recorded bases support text-change checks, not calibration or psychological truth.",
     "The six-Cut review below is the historical September 28 assessment of the succession episode in the then-current 108-Cut revision. It is not a new approval of the present model.",
     "Current telling-phase status checks stored quotations and order against the retained prose; it does not establish reader psychology or semantic truth.",
     "Structural import, rendering and history checks do not establish historical truth, literary quality or the comparative benefits proposed in the paper."
   ],
   "priorPublicationProjection": {
-    "manifest": "book-publication-exploration-manifest-2026-10-02.json",
-    "nativeDefinitionsUnchangedFromReviewedExploration": true,
-    "proseUnchangedFromReviewedExploration": true,
-    "unchangedGraphPrefixRevisions": 61,
-    "replayedSourceRevisions": [
-      61,
-      62,
-      63,
-      64
-    ],
-    "redactedPathOccurrences": 1,
-    "redactedReviewNodeId": "review.book.exploration.final-native.6c5047708861",
-    "addedDisclosureNodeId": "author.book.publication-path-copy.exploration.20261002",
-    "privateFilesBundled": false
-  }
+    "manifest": "publication-privacy-projection-2026-10-03.json",
+    "publicationDate": "2026-10-03",
+    "privateCoordinationOmitted": true,
+    "nativeDefinitionsUnchanged": true,
+    "proseUnchanged": true,
+    "unchangedGraphPrefixRevisions": 13,
+    "addedDisclosureNodeId": "author.book.publication-privacy.20261003",
+    "privateFilesBundled": false,
+    "graphHash": "e3db64fc05556d357b943bcd26967d4519a73330910bbddd5965f5c7f4070c3e",
+    "modelHash": "1157d4959f6e8aad7a909d68a1bcbe46fb68e57978d85fa84a89c85aabd7f0cc",
+    "earlierProjection": {
+      "manifest": "book-publication-exploration-manifest-2026-10-02.json",
+      "nativeDefinitionsUnchangedFromReviewedExploration": true,
+      "proseUnchangedFromReviewedExploration": true,
+      "unchangedGraphPrefixRevisions": 61,
+      "replayedSourceRevisions": [
+        61,
+        62,
+        63,
+        64
+      ],
+      "redactedPathOccurrences": 1,
+      "redactedReviewNodeId": "review.book.exploration.final-native.6c5047708861",
+      "addedDisclosureNodeId": "author.book.publication-path-copy.exploration.20261002",
+      "privateFilesBundled": false
+    }
+  },
+  "proseEditionDate": "2026-10-02"
 }

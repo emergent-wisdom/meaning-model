@@ -18,21 +18,27 @@ repositories contain the same revision.
 
 - [The portable model](the-book-of-conditions.meaning-model.json) contains the
   current native Book model, document graph, attributed understanding and
-  reviews, and Nora Vale's separate fictional author life.
+  reviews, Nora Vale's separate fictional author life, and the complete
+  construction history from the first revision.
 - [The publication manifest](PUBLICATION-MANIFEST.json) records model, graph,
   prose and bundle hashes, the inventory, and the publication projection.
-- [The publication mapping](publication-privacy-projection-2026-10-03.json)
-  records the omission of private coordination without discarding construction history or
-  relabeling historical reviews as new approvals.
+- [The full-history record](the-book-of-conditions-full-history-2026-10-07.json)
+  describes how the earlier history was published: every replaced field and
+  why, and a map from former public hashes to their counterparts.
+- [The October 3 publication mapping](publication-privacy-projection-2026-10-03.json)
+  records the earlier omission of private coordination without discarding construction
+  history or relabeling historical reviews as new approvals.
 - `BOOK-DRAFT.md` is the exact native rendering of that graph.
 - `import-rust.mjs` imports and verifies the bundle through the public MCP tools.
   Its name preserves the existing command; it no longer rebuilds an earlier
   model from separate Markdown tables.
 - `story.tex` and `build-story-body.mjs` typeset the manuscript.
 
-The 2 October 2026 edition has 589 Events, 257 processes, 120 normalized Cuts, and
-34 rendered passage leaves across twelve chapters (13,342 whitespace-delimited
-words). Every leaf explicitly links to the Events it depicts. Nine qualitative
+The current edition keeps the prose of 2 October 2026 with the model of 6 October
+2026: 671 Events, 257 processes, 202 normalized Cuts, and 34 rendered passage
+leaves across twelve chapters (13,342 whitespace-delimited words). The 6 October
+model adds whole-life readings for the principals: where their time goes and
+their outlook on their work. Every leaf explicitly links to the Events it depicts. Nine qualitative
 telling processes have 63 phases attached to positions in the text. Spatial
 records distinguish declared geography, scene staging and unknown journeys.
 Nora's life belongs to a separate world and time; the viewer groups her with
@@ -52,8 +58,10 @@ two and partially supported two. This is bounded evidence of meaning recovery,
 not a claim that the unchanged prose improved or that the planned comparative
 evaluation has been run.
 
-Fifty of the 120 current normalized Cuts record a textual basis; the other 70 retain
-untracked text freshness. Reassessments preserve their attributed reasons and
+Fifty of the 120 normalized Cuts present on 2 October record a textual basis; the
+other 70 retain untracked text freshness. The 82 whole-life readings added on
+6 October were recorded with `life_series_record` and not reviewed against the
+prose. Reassessments preserve their attributed reasons and
 history. The latest qualitative pass does not renew all those assessments or
 re-estimate their values. Recorded text matching does not calibrate the quantities
 or establish psychological truth. All current telling phases have been checked against their
@@ -67,14 +75,21 @@ to import it with `life_construction_import`, using its absolute local path as
 `life_model_viewer_open`, using `accessScopes: ["book.07r2.authoring"]`. Choose
 `mode: "live"` when continuing the work so the viewer follows saved revisions.
 
-The bundle contains 67 graph revisions and seven native model definitions:
-six successive Book revisions and Nora's separate life model. The two current
-models are the selected Book revision and Nora; the others preserve the Book's
-development. The exported lineage starts at the September 29 publication root;
-missing earlier private history and construction clock times are not invented.
+The bundle contains the complete construction: 334 graph revisions and 48 native
+model definitions, 45 successive Book revisions and three of Nora's life. The two
+current models are the selected Book revision and Nora; the others preserve the
+Book's development. The history before the September 29 publication root (graph
+revisions 0–262) is a privacy projection of the original Writer history.
+Revision 263 joins it to the lineage published since September 29 (revisions
+264–333), whose content is unchanged. Construction clock times are not recorded
+or invented.
 
-The 3 October publication copy omits private coordination from non-rendered
-notes, replays the affected suffix and adds a disclosure. The earlier path
+The 7 October publication adds the earlier history. Private material in it
+(personal names, verbatim requests, local paths and coordination between
+working sessions) was replaced in 34 fields; the full-history record lists each
+with its reason, without the original values. The 3 October publication copy
+had omitted private coordination from non-rendered notes, replayed the affected
+suffix and added a disclosure. The earlier path
 cleanup remains documented in its historical publication mapping.
 Historical reviewer, task and reviewed-material hashes retain their original
 meaning. Native models and rendered prose are unchanged by that cleanup, and
@@ -94,7 +109,7 @@ node examples/book-of-conditions/import-rust.mjs "$book_run/construction"
 
 The importer refuses an existing output directory. It checks the bundle and
 manuscript hashes, imports into a fresh SQLite database, verifies the complete
-selected revision chain, inspects the model and
+revision chain, inspects the model and
 author dependency, and verifies exact prose rendering and current telling
 phases. Its tests also verify passage grounding. Generated database and
 verification receipts stay in the chosen output directory. No canonical
@@ -108,7 +123,8 @@ With LaTeX, `latexmk` and Libertinus installed, `make book` rebuilds
 The Book was constructed under Henrik Westerberg's direction by Codex and Claude,
 using GPT-5.6 Sol Ultra, then GPT-6 Astra Ultra and Claude Opus 5.5 for later
 development and revision. The latest continuation used GPT-6.1 Sol Ultra through
-the frozen `0.6.4-dev.exploration.6c5047708861` tool package. Nora is
+the frozen `0.6.4-dev.exploration.6c5047708861` tool package. Claude Opus 5.5
+added the 6 October whole-life readings with `life_series_record`. Nora is
 an invented compositional persona for continuation, not the recovered identity
 of an original author or a character living in nineteenth-century England.
 
