@@ -48,7 +48,7 @@ test('file writes refuse collisions and absent directories; reads refuse symlink
 test('tampered, unchecked and malformed files are rejected before any service mutation', async (t) => {
   const directory = await temporary(t), path = join(directory,'bad.json'); let writes = 0;
   const service = { registerModel() { writes += 1; throw new Error('Must not mutate'); }, reviseModel() { writes += 1; throw new Error('Must not mutate'); }, registerNarrativeGraph() { writes += 1; throw new Error('Must not mutate'); } };
-  const body = { schema: 'meaning-model-construction-history/v1', graphId:'g', headGraphHash:'b'.repeat(64), models:[{definition:{id:'original'}}], revisions:[] };
+  const body = { schema: 'meaning-model-construction-history/v1', graphId:'g', headGraphHash:'b'.repeat(64), models:[{modelHash:'c'.repeat(64),definition:{id:'original'}}], revisions:[] };
   const signed = { ...body, bundleSha256: historyDigest(body).sha256 }; signed.models[0].definition.id = 'tampered';
   await writeFile(path,JSON.stringify(signed));
   await assert.rejects(importConstructionHistory(service,{ requestId:'bad',sourcePath:path }), /does not match its bundleSha256/);

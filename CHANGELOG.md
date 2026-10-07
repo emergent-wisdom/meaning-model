@@ -10,7 +10,7 @@ unpublished work stays under Unreleased. This is not a development transcript.
   instead of a full copy of the whole model per revision; only a revision without a stored predecessor is kept whole.
   A full model is rebuilt when it is asked for and checked against its hash, and the most recently used ones stay
   ready. The session's 256 MiB model bound now counts what is stored, so a long history of small revisions no longer
-  exhausts it, and checking it no longer re-serializes every revision. On Twelve Words (229 model revisions) the
+  exhausts it, and checking it no longer re-serializes every revision. On Twelve Words (232 model revisions) the
   models table goes from 242.9 MB to 3.8 MB, the state file from 265 MB to 28 MB, the engine's memory from about
   960 MB to about 170–340 MB, and a one-Event revision from 163 ms to 71 ms; every revision rebuilds identically.
 - The session state file is now `life-sim-rust-session-state/v3`. A v2 file is read as it is, and is migrated on its
@@ -22,6 +22,14 @@ unpublished work stays under Unreleased. This is not a development transcript.
   v1 files, including the published story bundles, still import. The 256 MiB file limit applies to what the file
   holds. Twelve Words exports as 12.2 MB instead of 248.2 MB, with the same `bundleSha256`. Earlier releases refuse a
   v2 file with a schema error.
+- `life_construction_import` checks a history file before expanding any model in it: a portable file must carry its
+  `bundleSha256`, may hold at most 512 models, each with a 64-hex `modelHash`, and each change must follow the model
+  it is written from. It then expands one model at a time, each at most 8 MiB, keeps a model only while a later one is
+  written as changes from it, never more than 64 MiB of them at once, and stores nothing until the checksum holds.
+  These limits apply to v1 files too; the published Twelve Words and Book of Conditions bundles are within them. An
+  export never writes a file that would need more kept: a revision whose previous one a reader could not keep is
+  written whole. Importing Twelve Words' 12.2 MB v2 file peaks at about 500 MB.
+
 ## 0.7.2 — 2026-10-06
 
 - Big names: with many processes on screen, the small group labels at the left no longer say at a glance whose

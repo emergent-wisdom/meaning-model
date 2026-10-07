@@ -70,13 +70,14 @@ test('randomized revisions are always rebuilt exactly', () => {
 });
 
 test('a history file keeps model revisions as changes and reads back as the same history', () => {
+  const h1 = 'a'.repeat(64);
   const first = model(Array.from({ length: 60 }, (_, i) => ({ id: `e${String(i).padStart(2, '0')}`, d: i, text: 'a moment of the story' })));
-  const second = { ...structuredClone(first), revision: { number: 4, previous_model_hash: 'h1', reason: 'two', provenance: [] } };
+  const second = { ...structuredClone(first), revision: { number: 4, previous_model_hash: h1, reason: 'two', provenance: [] } };
   second.meaning_model.events[1].d = 3;
   const unrelated = { ...model([{ id: 'c' }]), id: 'other', revision: { number: 0, reason: 'own', provenance: [] } };
-  const models = [{ modelHash: 'h1', definition: first }, { modelHash: 'h2', definition: second }, { modelHash: 'h3', definition: unrelated }];
+  const models = [{ modelHash: h1, definition: first }, { modelHash: 'b'.repeat(64), definition: second }, { modelHash: 'c'.repeat(64), definition: unrelated }];
   const written = encodeHistoryModels(models);
-  assert.ok(written[0].definition && written[1].delta && written[1].baseModelHash === 'h1' && written[2].definition);
+  assert.ok(written[0].definition && written[1].delta && written[1].baseModelHash === h1 && written[2].definition);
   // A revision whose changes would not be smaller than the whole is written whole.
   const tiny = encodeHistoryModels([{ modelHash: 't1', definition: model([{ id: 'x' }]) }, { modelHash: 't2', definition: { ...model([{ id: 'y' }]), revision: { number: 4, previous_model_hash: 't1', reason: 'r', provenance: [] } } }]);
   assert.ok(tiny[1].definition && !tiny[1].delta);

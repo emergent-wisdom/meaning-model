@@ -11,7 +11,7 @@ import { assertDescribedEvents, descriptionCoverage } from './description-covera
 import { constructionRecordInstructions } from './construction-principles.mjs';
 import { additiveNarrativeBatch, applyNarrativeDefinitionDelta, definitionFromCompleteView, narrativeDefinitionDelta } from './narrative-delta.mjs';
 import { recordsQuoting, removedFragments, textRecords } from './prose-drift.mjs';
-import { absoluteHistoryPath, encodeHistoryModels, HISTORY_FILE_SCHEMA_V2, historyDigest, MAX_HISTORY_FILE_BYTES, MAX_INLINE_HISTORY_BYTES, readHistoryFile, writeHistoryFile } from './construction-files.mjs';
+import { absoluteHistoryPath, encodeHistoryModels, expandedHistoryDigest, expandHistoryModels, HISTORY_FILE_SCHEMA_V2, HISTORY_SCHEMA, historyDigest, MAX_HISTORY_FILE_BYTES, MAX_INLINE_HISTORY_BYTES, planHistoryModels, readHistoryFile, writeHistoryFile } from './construction-files.mjs';
 import { requireCompleteModelScopes } from './construction-scope.mjs';
 
 const id = z.string().trim().min(1).max(256);
@@ -1069,11 +1069,23 @@ export async function exportConstructionHistory(service, raw, { maximumBytes = M
 export async function importConstructionHistory(service, raw) {
   const input = historyImportSchema.parse(raw);
   const file = input.sourcePath ? await readHistoryFile(input.sourcePath) : null;
-  const history = file ? z.object({ schema: z.literal('meaning-model-construction-history/v1') }).passthrough().parse(file.history) : input.history;
-  const { bundleSha256, ...content } = history;
+  const history = file ? z.object({ schema: z.enum([HISTORY_SCHEMA, HISTORY_FILE_SCHEMA_V2]) }).passthrough().parse(file.history) : input.history;
+  const { bundleSha256 } = history;
   if (file && !/^[a-f0-9]{64}$/u.test(bundleSha256 ?? '')) throw new Error('A portable history file must include its bundleSha256 checksum.');
-  if (bundleSha256 && historyDigest(content, file ? Number.MAX_SAFE_INTEGER : MAX_HISTORY_FILE_BYTES).sha256 !== bundleSha256) throw new Error('The history bundle does not match its bundleSha256.');
-  for (const [index, entry] of (history.models ?? []).entries()) {
+  // Nothing is expanded before the file's structure is known to be sound, models are expanded one at a time, and
+  // nothing is stored before the checksum holds: one pass checks it (collecting the models' access scopes), a second
+  // stores the models.
+  const plan = planHistoryModels(history);
+  const modelScopes = new Set();
+  const checked = function* () { for (const model of expandHistoryModels(history, plan)) { scopesIn(model, modelScopes); yield model; } };
+  if (bundleSha256) {
+    if (expandedHistoryDigest(history, plan, checked()) !== bundleSha256) throw new Error('The history bundle does not match its bundleSha256.');
+  } else {
+    for (const _ of checked());
+  }
+  let index = -1;
+  for (const entry of expandHistoryModels(history, plan)) {
+    index += 1;
     const definition = entry.definition;
     const stored = definition.revision?.number === 0 || !definition.revision?.previous_model_hash
       ? await service.registerModel({ requestId: `${input.requestId}.model.${index}`, model: definition })
@@ -1082,7 +1094,7 @@ export async function importConstructionHistory(service, raw) {
   }
   // A step that only added records goes in as an additive batch, any other as a revision by change;
   // neither keeps a copy of the whole graph in its receipt, so a long history fits the receipt budget.
-  const scopes = [...scopesIn(history.revisions, scopesIn(history.models))].sort();
+  const scopes = [...scopesIn(history.revisions, modelScopes)].sort();
   if (scopes.length > 64) throw new Error(`The history uses ${scopes.length} access scopes; an import can read at most 64 at once.`);
   let definition = null; let graphHash = null;
   const applied = { registered: 0, additiveBatches: 0, revisionsByChange: 0 };
@@ -1115,7 +1127,7 @@ export async function importConstructionHistory(service, raw) {
     }
     if (graphHash !== entry.graphHash) throw new Error(`Graph revision ${index} rebuilt as ${graphHash}, not ${entry.graphHash}; the history cannot be reproduced.`);
   }
-  return { schema: 'meaning-model-construction-import/v1', graphId: history.graphId, headGraphHash: graphHash, revisions: history.revisions.length, models: history.models.length,
+  return { schema: 'meaning-model-construction-import/v1', graphId: history.graphId, headGraphHash: graphHash, revisions: history.revisions.length, models: plan.count,
     ...(file ? { sourceFile: { path: file.path, bytes: file.bytes, fileSha256: file.fileSha256 }, bundleSha256 } : {}),
     applied, verified: graphHash === history.headGraphHash, graphMutation: true, worldMutation: false,
     nextStep: 'Replay it with life_construction_replay on headGraphHash.' };
