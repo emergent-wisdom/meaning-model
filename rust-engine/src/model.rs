@@ -23,6 +23,9 @@ pub use meaning::*;
 mod narrative;
 pub use narrative::*;
 
+#[path = "model_delta.rs"]
+mod model_delta;
+
 pub const MODEL_SCHEMA: &str = "life-sim-rust-model/v1";
 pub const MODEL_QUERY_SCHEMA: &str = "life-sim-rust-model-query/v1";
 pub const WORLD_HEAD_SCHEMA: &str = "life-sim-rust-world-head/v1";
