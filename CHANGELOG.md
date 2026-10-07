@@ -6,6 +6,16 @@ unpublished work stays under Unreleased. This is not a development transcript.
 
 ## Unreleased
 
+- The engine keeps each model revision as its changes from the revision it was made from, in memory and on disk,
+  instead of a full copy of the whole model per revision; only a revision without a stored predecessor is kept whole.
+  A full model is rebuilt when it is asked for and checked against its hash, and the most recently used ones stay
+  ready. The session's 256 MiB model bound now counts what is stored, so a long history of small revisions no longer
+  exhausts it, and checking it no longer re-serializes every revision. On Twelve Words (229 model revisions) the
+  models table goes from 242.9 MB to 3.8 MB, the state file from 265 MB to 28 MB, the engine's memory from about
+  960 MB to about 170–340 MB, and a one-Event revision from 163 ms to 71 ms; every revision rebuilds identically.
+- The session state file is now `life-sim-rust-session-state/v3`. A v2 file is read as it is, and is migrated on its
+  first write (its whole revisions rewritten as changes, then compacted). **After that first write, earlier engines
+  can no longer open it**; keep a copy of a v2 file if you may need to open it with an older release.
 ## 0.7.2 — 2026-10-06
 
 - Big names: with many processes on screen, the small group labels at the left no longer say at a glance whose

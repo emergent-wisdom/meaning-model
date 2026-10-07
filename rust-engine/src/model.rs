@@ -26,6 +26,10 @@ pub use narrative::*;
 #[path = "model_delta.rs"]
 mod model_delta;
 
+#[path = "model_store.rs"]
+mod model_store;
+use model_store::{ModelStore, StoredModel};
+
 pub const MODEL_SCHEMA: &str = "life-sim-rust-model/v1";
 pub const MODEL_QUERY_SCHEMA: &str = "life-sim-rust-model-query/v1";
 pub const WORLD_HEAD_SCHEMA: &str = "life-sim-rust-world-head/v1";
@@ -36,7 +40,10 @@ pub const MODEL_VIEW_SCHEMA: &str = "life-sim-rust-view/v1";
 pub const MODEL_GRAPH_SCHEMA: &str = "life-sim-rust-graph/v1";
 pub const TRAJECTORY_SUMMARY_QUERY_SCHEMA: &str = "life-sim-rust-trajectory-summary-query/v1";
 pub const TRAJECTORY_SUMMARY_SCHEMA: &str = "life-sim-rust-trajectory-summary/v1";
-pub const SESSION_STATE_SCHEMA: &str = "life-sim-rust-session-state/v2";
+// v3 keeps a model revision whose previous revision is stored as its changes from it (models.base_model_hash).
+// A v2 file, where every revision is whole, is read as it is and rewritten as v3 on its first write.
+pub const SESSION_STATE_SCHEMA: &str = "life-sim-rust-session-state/v3";
+const SESSION_STATE_SCHEMA_V2: &str = "life-sim-rust-session-state/v2";
 pub const PROJECT_DOCUMENT_SCHEMA: &str = "life-sim-rust-project-document/v1";
 pub const PROJECT_CHECKPOINT_SCHEMA: &str = "life-sim-rust-project-checkpoint/v1";
 pub const PROJECT_CHECKPOINT_LIST_SCHEMA: &str = "life-sim-rust-project-checkpoint-list/v1";
@@ -6159,7 +6166,7 @@ fn encode(value: impl Serialize) -> Result<serde_json::Value, MachineError> {
 struct PersistedSession {
     schema: String,
     persistence_generation: u64,
-    models: Vec<ModelDefinition>,
+    models: Vec<StoredModel>,
     worlds: Vec<WorldHead>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     world_revisions: Vec<WorldRevision>,
@@ -6217,7 +6224,7 @@ impl SessionDirty {
 
 #[derive(Debug, Default)]
 pub struct MachineSession {
-    models: BTreeMap<String, CompiledModel>,
+    models: ModelStore,
     worlds: BTreeMap<String, WorldHead>,
     world_revisions: BTreeMap<String, WorldRevision>,
     candidates: BTreeMap<String, StoredCandidate>,
@@ -6320,7 +6327,7 @@ impl MachineSession {
     ) -> Result<NarrativeSourceSnapshot, MachineError> {
         match source {
             NarrativeGraphSource::Model { model_hash } => {
-                let model = self.models.get(model_hash).ok_or_else(|| {
+                let model = self.models.get(model_hash)?.ok_or_else(|| {
                     machine_error("not_found", format!("unknown model {model_hash}"))
                 })?;
                 Ok(NarrativeSourceSnapshot {
@@ -6358,7 +6365,7 @@ impl MachineSession {
                         ),
                     ));
                 }
-                let model = self.models.get(&world.model_hash).ok_or_else(|| {
+                let model = self.models.get(&world.model_hash)?.ok_or_else(|| {
                     machine_error("not_found", format!("unknown model {}", world.model_hash))
                 })?;
                 let occurrences = world
@@ -6390,7 +6397,7 @@ impl MachineSession {
                 let candidate = &stored.record.candidate;
                 let model = self
                     .models
-                    .get(&candidate.model_hash)
+                    .get(&candidate.model_hash)?
                     .ok_or_else(|| machine_error("not_found", "candidate model is unavailable"))?;
                 let candidate_status = serde_json::to_value(stored.record.status)
                     .ok()
@@ -6427,7 +6434,7 @@ impl MachineSession {
     ) -> EngineResult<()> {
         let model = self
             .models
-            .get(&snapshot.model_hash)
+            .get(&snapshot.model_hash)?
             .ok_or_else(|| error("narrative source model is unavailable"))?;
         if model.revision.number != snapshot.model_revision {
             return Err(error(
@@ -6496,7 +6503,7 @@ impl MachineSession {
                     "narrative snapshot candidate anchor {candidate_hash} changed canonical identity"
                 )));
             }
-            validate_candidate_with_frozen_parent(model, &stored.parent, &frozen)?;
+            validate_candidate_with_frozen_parent(&model, &stored.parent, &frozen)?;
         }
         let anchor_value = |kind: NarrativeAnchorKind, id: &str| -> Option<serde_json::Value> {
             match kind {
@@ -6660,7 +6667,7 @@ impl MachineSession {
         {
             return Err(error("session object-count limit exceeded"));
         }
-        let model_bytes = serialized_sum(self.models.values().map(|model| &model.definition))?;
+        let model_bytes = self.models.stored_bytes();
         let world_bytes = serialized_sum(self.worlds.values())?;
         let world_revision_bytes = serialized_sum(self.world_revisions.values())?;
         let candidate_bytes = serialized_sum(self.candidates.values())?
@@ -6991,11 +6998,14 @@ impl MachineSession {
         stored: &StoredNarrativeGraph,
         access_scopes: &[String],
     ) -> Result<(), MachineError> {
-        let model = self
-            .models
-            .get(&stored.snapshot.model_hash)
-            .or_else(|| self.project_model_snapshots.get(&stored.snapshot.model_hash))
-            .ok_or_else(|| machine_error("not_found", "narrative source model is unavailable"))?;
+        let rebuilt = self.models.get(&stored.snapshot.model_hash)?;
+        let model: &CompiledModel = match rebuilt.as_deref() {
+            Some(model) => model,
+            None => self
+                .project_model_snapshots
+                .get(&stored.snapshot.model_hash)
+                .ok_or_else(|| machine_error("not_found", "narrative source model is unavailable"))?,
+        };
         let visible: BTreeSet<String> = stored
             .definition
             .nodes
@@ -7496,18 +7506,20 @@ impl MachineSession {
             }
         }
         let model_hash = required_model_hashes.into_iter().next();
-        let model = model_hash
-            .as_deref()
-            .map(|hash| {
-                imported_model
-                    .as_ref()
-                    .filter(|model| model.model_hash == hash)
-                    .or_else(|| self.models.get(hash))
-                    .or_else(|| self.project_model_snapshots.get(hash))
-                    .cloned()
-                    .ok_or_else(|| machine_error("not_found", format!("unknown model {hash}")))
-            })
-            .transpose()?;
+        let model = match model_hash.as_deref() {
+            None => None,
+            Some(hash) => Some(match imported_model.as_ref().filter(|model| model.model_hash == hash) {
+                Some(model) => model.clone(),
+                None => match self.models.get(hash)? {
+                    Some(model) => CompiledModel::clone(&model),
+                    None => self
+                        .project_model_snapshots
+                        .get(hash)
+                        .cloned()
+                        .ok_or_else(|| machine_error("not_found", format!("unknown model {hash}")))?,
+                },
+            }),
+        };
         if let (Some(model), Some(world)) = (model.as_ref(), world.as_ref()) {
             if world.model_hash != model.model_hash {
                 return Err(machine_error(
@@ -7719,7 +7731,9 @@ impl MachineSession {
         encode(self.project_checkpoint_summary(&checkpoint)?)
     }
 
-    fn ensure_model_insert(&self, model: &CompiledModel) -> EngineResult<()> {
+    /// The bound counts the models as they are stored, a revision kept as its changes counting only those, so a long
+    /// history of small revisions does not exhaust it, and nothing is re-serialized to check it.
+    fn ensure_model_insert(&self, model: &CompiledModel, stored: &StoredModel) -> EngineResult<()> {
         if self.models.contains_key(&model.model_hash) {
             return Ok(());
         }
@@ -7728,8 +7742,8 @@ impl MachineSession {
                 "session model count would exceed {MAX_SESSION_MODELS}"
             )));
         }
-        let bytes = serialized_sum(self.models.values().map(|item| &item.definition))?
-            .checked_add(serialized_size(&model.definition)?)
+        let bytes = self.models.stored_bytes()
+            .checked_add(serialized_size(stored)?)
             .ok_or_else(|| error("session model byte estimate overflow"))?;
         if bytes > MAX_SESSION_MODEL_BYTES {
             return Err(error(format!(
@@ -7844,11 +7858,11 @@ impl MachineSession {
                 .ok_or_else(|| error("session candidate byte estimate overflow"))?;
             let model = self
                 .models
-                .get(&stored.record.candidate.model_hash)
+                .get(&stored.record.candidate.model_hash)?
                 .ok_or_else(|| error("candidate model is unavailable"))?;
             replay_work = replay_work
                 .checked_add(candidate_replay_work(
-                    model,
+                    &model,
                     &stored.parent,
                     &stored.record.candidate.query,
                 )?)
@@ -7860,11 +7874,11 @@ impl MachineSession {
                 .ok_or_else(|| error("session candidate byte estimate overflow"))?;
             let model = self
                 .models
-                .get(&stored.record.candidate.model_hash)
+                .get(&stored.record.candidate.model_hash)?
                 .ok_or_else(|| error("candidate model is unavailable"))?;
             replay_work = replay_work
                 .checked_add(candidate_replay_work(
-                    model,
+                    &model,
                     &stored.parent,
                     &stored.record.candidate.query,
                 )?)
@@ -7894,26 +7908,24 @@ impl MachineSession {
             persistence_generation: persisted.persistence_generation,
             ..Self::default()
         };
-        for definition in persisted.models {
-            let compiled = compile_model(definition)?;
-            if session
-                .models
-                .insert(compiled.model_hash.clone(), compiled)
-                .is_some()
-            {
-                return Err(error("state file contains a duplicate model hash"));
-            }
-        }
+        // Every revision is rebuilt once, after the revision it is rebuilt from, checked against its hash and against
+        // the revision before it, and kept as its changes from that revision when they are smaller than the whole.
+        // A whole revision read from an older file is converted here, so only this pass ever holds it whole.
+        let order = model_store::rebuild_order(&persisted.models)?;
+        let mut rows: Vec<Option<StoredModel>> = persisted.models.into_iter().map(Some).collect();
         let mut revision_zero_ids = BTreeSet::new();
-        for model in session.models.values() {
-            match &model.revision.previous_model_hash {
+        for index in order {
+            let row = rows[index].take().ok_or_else(|| error("a stored model revision is rebuilt twice"))?;
+            let model = std::sync::Arc::new(session.models.rebuild_stored(&row)?);
+            let previous = match &model.revision.previous_model_hash {
                 None => {
-                    if model.revision.number != 0 || !revision_zero_ids.insert(model.id.as_str()) {
+                    if model.revision.number != 0 || !revision_zero_ids.insert(model.id.clone()) {
                         return Err(error("state file contains an invalid model revision root"));
                     }
+                    None
                 }
                 Some(previous_hash) => {
-                    let previous = session.models.get(previous_hash).ok_or_else(|| {
+                    let previous = session.models.get(previous_hash)?.ok_or_else(|| {
                         error(format!(
                             "state file model {} lacks previous revision {previous_hash}",
                             model.model_hash
@@ -7924,18 +7936,31 @@ impl MachineSession {
                     {
                         return Err(error("state file contains a broken model revision link"));
                     }
-                    validate_revision_process_changes(previous, model)?;
+                    validate_revision_process_changes(&previous, &model)?;
+                    Some(previous)
                 }
-            }
+            };
+            let stored = match row {
+                StoredModel::Changes { ref base_model_hash, .. }
+                    if model.revision.previous_model_hash.as_ref() == Some(base_model_hash) => row,
+                StoredModel::Changes { .. } => {
+                    return Err(error("a stored model revision is kept against a revision other than its previous one"))
+                }
+                StoredModel::Whole { .. } => model_store::kept_form(
+                    &model,
+                    previous.as_ref().map(|previous| (previous.model_hash.as_str(), previous.definition())),
+                )?,
+            };
+            session.models.insert_stored(model, stored)?;
         }
         for world in persisted.worlds {
-            let model = session.models.get(&world.model_hash).ok_or_else(|| {
+            let model = session.models.get(&world.model_hash)?.ok_or_else(|| {
                 error(format!(
                     "state file world {} names an unknown model",
                     world.world_id
                 ))
             })?;
-            validate_world(model, &world)?;
+            validate_world(&model, &world)?;
             if session
                 .worlds
                 .insert(world.world_id.clone(), world)
@@ -7950,11 +7975,11 @@ impl MachineSession {
             return Err(error("state file exceeds world revision storage limits"));
         }
         for revision in persisted.world_revisions {
-            let source = session.models.get(&revision.source_head.model_hash)
+            let source = session.models.get(&revision.source_head.model_hash)?
                 .ok_or_else(|| error("world revision source model is unavailable"))?;
-            let target = session.models.get(&revision.target_head.model_hash)
+            let target = session.models.get(&revision.target_head.model_hash)?
                 .ok_or_else(|| error("world revision target model is unavailable"))?;
-            let rebuilt = build_world_revision(source, target, &revision.source_head, WorldRevisionSpec {
+            let rebuilt = build_world_revision(&source, &target, &revision.source_head, WorldRevisionSpec {
                 expected_world_hash: revision.source_head.world_hash.clone(),
                 mode: revision.mode,
                 state_values: revision.state_values.clone(),
@@ -7984,11 +8009,11 @@ impl MachineSession {
         for stored in &persisted.candidates {
             let model = session
                 .models
-                .get(&stored.record.candidate.model_hash)
+                .get(&stored.record.candidate.model_hash)?
                 .ok_or_else(|| error("state file candidate names an unknown model"))?;
             replay_work = replay_work
                 .checked_add(candidate_replay_work(
-                    model,
+                    &model,
                     &stored.parent,
                     &stored.record.candidate.query,
                 )?)
@@ -8002,11 +8027,11 @@ impl MachineSession {
         for stored in persisted.candidates {
             let model = session
                 .models
-                .get(&stored.record.candidate.model_hash)
+                .get(&stored.record.candidate.model_hash)?
                 .ok_or_else(|| error("state file candidate names an unknown model"))?;
-            validate_world(model, &stored.parent)?;
+            validate_world(&model, &stored.parent)?;
             let replay = roll_model_transition(
-                model,
+                &model,
                 &stored.parent,
                 stored.record.candidate.query.clone(),
             )?;
@@ -8370,7 +8395,7 @@ impl MachineSession {
     ) -> EngineResult<()> {
         let model = self
             .models
-            .get(&snapshot.model_hash)
+            .get(&snapshot.model_hash)?
             .ok_or_else(|| error("narrative snapshot names an unknown model"))?;
         if model.revision.number != snapshot.model_revision
             || snapshot.state.len() != model.processes.len()
@@ -8522,7 +8547,7 @@ impl MachineSession {
             let mut cursor = world.clone();
             loop {
                 if cursor.version == 0 {
-                    let model = self.models.get(&cursor.model_hash)
+                    let model = self.models.get(&cursor.model_hash)?
                         .ok_or_else(|| error("state file world model is unavailable"))?;
                     if cursor.lineage_head.is_some()
                         || cursor != model.genesis_world(cursor.world_id.clone())?
@@ -8616,11 +8641,7 @@ impl MachineSession {
         PersistedSession {
             schema: SESSION_STATE_SCHEMA.to_owned(),
             persistence_generation: self.persistence_generation,
-            models: self
-                .models
-                .values()
-                .map(|model| model.definition.clone())
-                .collect(),
+            models: self.models.entries().map(|(_, entry)| entry.stored.clone()).collect(),
             worlds: self.worlds.values().cloned().collect(),
             world_revisions: self.world_revisions.values().cloned().collect(),
             candidates: self.candidates.values().cloned().collect(),
@@ -8850,21 +8871,22 @@ impl MachineSession {
                     ));
                 }
                 self.validate_revision_link(&compiled)?;
-                self.ensure_model_insert(&compiled)?;
                 let result = serde_json::json!({
                     "summary": compiled.summary(),
                     "model": compiled.definition()
                 });
                 let model_hash = compiled.model_hash.clone();
                 if !self.models.contains_key(&model_hash) {
-                    self.models.insert(model_hash.clone(), compiled);
+                    let stored = self.models.kept_form(&compiled)?;
+                    self.ensure_model_insert(&compiled, &stored)?;
+                    self.models.insert_stored(std::sync::Arc::new(compiled), stored)?;
                     self.mark_model_dirty(model_hash);
                 }
                 encode(result)
             }
             "get_model" => {
                 let model_hash = required(command.model_hash, "get_model requires model_hash")?;
-                let model = self.models.get(&model_hash).ok_or_else(|| {
+                let model = self.models.get(&model_hash)?.ok_or_else(|| {
                     machine_error("not_found", format!("unknown model {model_hash}"))
                 })?;
                 encode(serde_json::json!({
@@ -8882,11 +8904,11 @@ impl MachineSession {
                         format!("world {world_id} already exists"),
                     ));
                 }
-                let model = self.models.get(&model_hash).ok_or_else(|| {
+                let model = self.models.get(&model_hash)?.ok_or_else(|| {
                     machine_error("not_found", format!("unknown model {model_hash}"))
                 })?;
                 let world = model.genesis_world(world_id.clone())?;
-                let projected = world_view(model, &world, command.view.unwrap_or_default())?;
+                let projected = world_view(&model, &world, command.view.unwrap_or_default())?;
                 self.ensure_world_insert(&world)?;
                 self.worlds.insert(world_id.clone(), world.clone());
                 self.mark_world_dirty(world_id);
@@ -8897,10 +8919,10 @@ impl MachineSession {
                 let world = self.worlds.get(&world_id).ok_or_else(|| {
                     machine_error("not_found", format!("unknown world {world_id}"))
                 })?;
-                let model = self.models.get(&world.model_hash).ok_or_else(|| {
+                let model = self.models.get(&world.model_hash)?.ok_or_else(|| {
                     machine_error("not_found", format!("unknown model {}", world.model_hash))
                 })?;
-                encode(world_view(model, world, command.view.unwrap_or_default())?)
+                encode(world_view(&model, world, command.view.unwrap_or_default())?)
             }
             "refine_genesis_world" => {
                 let world_id =
@@ -8914,8 +8936,8 @@ impl MachineSession {
                 })?;
                 let source = self
                     .models
-                    .get(&current.model_hash)
-                    .cloned()
+                    .get(&current.model_hash)?
+                    .map(|model| CompiledModel::clone(&model))
                     .ok_or_else(|| {
                         machine_error(
                             "not_found",
@@ -8936,8 +8958,8 @@ impl MachineSession {
 
                 let target = self
                     .models
-                    .get(&target_model_hash)
-                    .cloned()
+                    .get(&target_model_hash)?
+                    .map(|model| CompiledModel::clone(&model))
                     .ok_or_else(|| {
                         machine_error(
                             "not_found",
@@ -9009,17 +9031,17 @@ impl MachineSession {
                 if spec.expected_world_hash != current.world_hash {
                     return Err(machine_error("conflict", format!("world {world_id} changed: expected {}, found {}", spec.expected_world_hash, current.world_hash)));
                 }
-                let source = self.models.get(&current.model_hash).ok_or_else(|| machine_error("not_found", "world source model is unavailable"))?;
-                let target = self.models.get(&target_model_hash).ok_or_else(|| machine_error("not_found", format!("unknown target model {target_model_hash}")))?;
-                let revision = build_world_revision(source, target, current, spec)?;
+                let source = self.models.get(&current.model_hash)?.ok_or_else(|| machine_error("not_found", "world source model is unavailable"))?;
+                let target = self.models.get(&target_model_hash)?.ok_or_else(|| machine_error("not_found", format!("unknown target model {target_model_hash}")))?;
+                let revision = build_world_revision(&source, &target, current, spec)?;
                 self.ensure_world_replacement(&world_id, &revision.target_head)?;
                 self.ensure_world_revision_insert(&revision)?;
                 let view = command.view.unwrap_or_default();
                 let response = encode(serde_json::json!({
                     "operation": "revise_world",
                     "world_revision_hash": revision.world_revision_hash,
-                    "world_revision": world_revision_view(source, target, &revision, view.clone())?,
-                    "world_head": world_view(target, &revision.target_head, view)?,
+                    "world_revision": world_revision_view(&source, &target, &revision, view.clone())?,
+                    "world_head": world_view(&target, &revision.target_head, view)?,
                     "limitations": [
                         "new process values must be explicitly supplied at the current world time; target model initial values and claims are not injected",
                         "portable narrative and checkpoint export across world revisions is unsupported; complete accepted history remains in the session database"
@@ -9037,9 +9059,9 @@ impl MachineSession {
             "get_world_revision" => {
                 let hash = required(command.world_revision_hash, "get_world_revision requires world_revision_hash")?;
                 let revision = self.world_revisions.get(&hash).ok_or_else(|| machine_error("not_found", format!("unknown world revision {hash}")))?;
-                let source = self.models.get(&revision.source_head.model_hash).ok_or_else(|| machine_error("not_found", "revision source model is unavailable"))?;
-                let target = self.models.get(&revision.target_head.model_hash).ok_or_else(|| machine_error("not_found", "revision target model is unavailable"))?;
-                encode(serde_json::json!({"world_revision": world_revision_view(source, target, revision, command.view.unwrap_or_default())?}))
+                let source = self.models.get(&revision.source_head.model_hash)?.ok_or_else(|| machine_error("not_found", "revision source model is unavailable"))?;
+                let target = self.models.get(&revision.target_head.model_hash)?.ok_or_else(|| machine_error("not_found", "revision target model is unavailable"))?;
+                encode(serde_json::json!({"world_revision": world_revision_view(&source, &target, revision, command.view.unwrap_or_default())?}))
             }
             "roll_world" => {
                 let world_id = required(command.world_id, "roll_world requires world_id")?;
@@ -9047,10 +9069,10 @@ impl MachineSession {
                 let parent = self.worlds.get(&world_id).cloned().ok_or_else(|| {
                     machine_error("not_found", format!("unknown world {world_id}"))
                 })?;
-                let model = self.models.get(&parent.model_hash).ok_or_else(|| {
+                let model = self.models.get(&parent.model_hash)?.ok_or_else(|| {
                     machine_error("not_found", format!("unknown model {}", parent.model_hash))
                 })?;
-                let result = roll_model_transition(model, &parent, query)?;
+                let result = roll_model_transition(&model, &parent, query)?;
                 let record = CandidateRecord {
                     status: CandidateStatus::Pending,
                     candidate: result.candidate,
@@ -9093,7 +9115,7 @@ impl MachineSession {
                     let mut response_record = record;
                     response_record.status = existing.record.status;
                     let view = candidate_original_view(&response_record.candidate);
-                    let projected = candidate_record_view(model, &response_record, view)?;
+                    let projected = candidate_record_view(&model, &response_record, view)?;
                     return Ok(attach_retention_upgrade(projected, retention_upgraded));
                 }
                 let stored = StoredCandidate {
@@ -9110,7 +9132,7 @@ impl MachineSession {
                 }
                 let view = candidate_original_view(&record.candidate);
                 Ok(attach_retention_upgrade(
-                    candidate_record_view(model, &record, view)?,
+                    candidate_record_view(&model, &record, view)?,
                     false,
                 ))
             }
@@ -9124,10 +9146,10 @@ impl MachineSession {
                 })?;
                 let model = self
                     .models
-                    .get(&stored.record.candidate.model_hash)
+                    .get(&stored.record.candidate.model_hash)?
                     .ok_or_else(|| machine_error("not_found", "candidate model is unavailable"))?;
                 let view = command.view.unwrap_or_default();
-                encode(candidate_record_view(model, &stored.record, view)?)
+                encode(candidate_record_view(&model, &stored.record, view)?)
             }
             "summarize_trajectory" => {
                 let hash = required(
@@ -9143,10 +9165,10 @@ impl MachineSession {
                 })?;
                 let model = self
                     .models
-                    .get(&stored.record.candidate.model_hash)
+                    .get(&stored.record.candidate.model_hash)?
                     .ok_or_else(|| machine_error("not_found", "candidate model is unavailable"))?;
                 encode(summarize_model_trajectory(
-                    model,
+                    &model,
                     &stored.parent,
                     &stored.record.candidate,
                     spec,
@@ -9168,16 +9190,16 @@ impl MachineSession {
                 }
                 let model = self
                     .models
-                    .get(&original.record.candidate.model_hash)
+                    .get(&original.record.candidate.model_hash)?
                     .ok_or_else(|| machine_error("not_found", "candidate model is unavailable"))?;
                 let mut response_view = command.view.unwrap_or_default();
-                normalize_view(model, &mut response_view)?;
+                normalize_view(&model, &mut response_view)?;
                 let mut query = original.record.candidate.query.clone();
                 query.roll_index = query
                     .roll_index
                     .checked_add(1)
                     .ok_or_else(|| machine_error("invalid_request", "roll_index overflow"))?;
-                let result = roll_model_transition(model, &original.parent, query)?;
+                let result = roll_model_transition(&model, &original.parent, query)?;
                 let record = CandidateRecord {
                     status: CandidateStatus::Pending,
                     candidate: result.candidate,
@@ -9225,7 +9247,7 @@ impl MachineSession {
                     }
                     let mut response_record = record;
                     response_record.status = existing_status;
-                    let projected = candidate_record_view(model, &response_record, response_view)?;
+                    let projected = candidate_record_view(&model, &response_record, response_view)?;
                     return Ok(attach_retention_upgrade(projected, retention_upgraded));
                 }
                 let current_head = self
@@ -9265,7 +9287,7 @@ impl MachineSession {
                     }
                 }
                 Ok(attach_retention_upgrade(
-                    candidate_record_view(model, &record, response_view)?,
+                    candidate_record_view(&model, &record, response_view)?,
                     false,
                 ))
             }
@@ -9287,10 +9309,10 @@ impl MachineSession {
                 record.status = CandidateStatus::Rejected;
                 let model = self
                     .models
-                    .get(&record.candidate.model_hash)
+                    .get(&record.candidate.model_hash)?
                     .ok_or_else(|| machine_error("not_found", "candidate model is unavailable"))?;
                 let view = command.view.unwrap_or_default();
-                let projected = candidate_record_view(model, &record, view)?;
+                let projected = candidate_record_view(&model, &record, view)?;
                 let mut replacement = stored.clone();
                 replacement.record = record;
                 self.ensure_candidate_replacement(&hash, &replacement)?;
@@ -9484,7 +9506,7 @@ impl MachineSession {
     }
 
     fn validate_revision_link(&self, model: &CompiledModel) -> Result<(), MachineError> {
-        if let Some(existing) = self.models.get(&model.model_hash) {
+        if let Some(existing) = self.models.get(&model.model_hash)? {
             if existing.definition == model.definition {
                 return Ok(());
             }
@@ -9494,10 +9516,10 @@ impl MachineSession {
             ));
         }
         let Some(previous_hash) = &model.revision.previous_model_hash else {
-            if self.models.values().any(|existing| {
+            if self.models.entries().any(|(hash, existing)| {
                 existing.id == model.id
-                    && existing.revision.number == 0
-                    && existing.model_hash != model.model_hash
+                    && existing.revision_number == 0
+                    && hash != &model.model_hash
             }) {
                 return Err(machine_error(
                     "conflict",
@@ -9506,7 +9528,7 @@ impl MachineSession {
             }
             return Ok(());
         };
-        let previous = self.models.get(previous_hash).ok_or_else(|| {
+        let previous = self.models.get(previous_hash)?.ok_or_else(|| {
             machine_error(
                 "not_found",
                 format!("unknown previous model {previous_hash}"),
@@ -9518,7 +9540,7 @@ impl MachineSession {
                 "model revision must preserve id and increment the previous revision by one",
             ));
         }
-        validate_revision_process_changes(previous, model)?;
+        validate_revision_process_changes(&previous, model)?;
         Ok(())
     }
 
@@ -9564,10 +9586,10 @@ impl MachineSession {
                 let world = self.worlds.get(&world_id).ok_or_else(|| {
                     machine_error("not_found", format!("unknown world {world_id}"))
                 })?;
-                let model = self.models.get(&world.model_hash).ok_or_else(|| {
+                let model = self.models.get(&world.model_hash)?.ok_or_else(|| {
                     machine_error("not_found", format!("unknown model {}", world.model_hash))
                 })?;
-                encode(world_view(model, world, view)?)
+                encode(world_view(&model, world, view)?)
             }
             (None, Some(candidate_hash)) => {
                 let stored = self.candidates.get(&candidate_hash).ok_or_else(|| {
@@ -9575,9 +9597,9 @@ impl MachineSession {
                 })?;
                 let model = self
                     .models
-                    .get(&stored.record.candidate.model_hash)
+                    .get(&stored.record.candidate.model_hash)?
                     .ok_or_else(|| machine_error("not_found", "candidate model is unavailable"))?;
-                encode(candidate_record_view(model, &stored.record, view)?)
+                encode(candidate_record_view(&model, &stored.record, view)?)
             }
             _ => Err(machine_error(
                 "invalid_request",
@@ -9600,7 +9622,7 @@ impl MachineSession {
         if let Some(model_hash) = command.model_hash {
             let model = self
                 .models
-                .get(&model_hash)
+                .get(&model_hash)?
                 .ok_or_else(|| machine_error("not_found", format!("unknown model {model_hash}")))?;
             let state: BTreeMap<String, ProcessValue> = model
                 .processes
@@ -9618,7 +9640,7 @@ impl MachineSession {
                 candidate_status: None,
             };
             return encode(factor_graph_response(
-                model,
+                &model,
                 &state,
                 "model_initial_value",
                 None,
@@ -9631,10 +9653,10 @@ impl MachineSession {
                 .worlds
                 .get(&world_id)
                 .ok_or_else(|| machine_error("not_found", format!("unknown world {world_id}")))?;
-            let model = self.models.get(&world.model_hash).ok_or_else(|| {
+            let model = self.models.get(&world.model_hash)?.ok_or_else(|| {
                 machine_error("not_found", format!("unknown model {}", world.model_hash))
             })?;
-            validate_world(model, world)?;
+            validate_world(&model, world)?;
             let source = GraphSnapshotSource {
                 kind: "world".to_owned(),
                 model_hash: model.model_hash.clone(),
@@ -9646,7 +9668,7 @@ impl MachineSession {
                 candidate_status: None,
             };
             return encode(factor_graph_response(
-                model,
+                &model,
                 &world.state,
                 "accepted_world_state",
                 None,
@@ -9662,7 +9684,7 @@ impl MachineSession {
         })?;
         let model = self
             .models
-            .get(&stored.record.candidate.model_hash)
+            .get(&stored.record.candidate.model_hash)?
             .ok_or_else(|| machine_error("not_found", "candidate model is unavailable"))?;
         let source = GraphSnapshotSource {
             kind: "candidate".to_owned(),
@@ -9675,7 +9697,7 @@ impl MachineSession {
             candidate_status: Some(stored.record.status),
         };
         encode(factor_graph_response(
-            model,
+            &model,
             &stored.record.candidate.successor_state,
             "candidate_successor_state",
             Some(&stored.record.candidate.marks),
@@ -9708,14 +9730,14 @@ impl MachineSession {
         query: NarrativeGraphQuery,
     ) -> Result<serde_json::Value, MachineError> {
         let graph = compiled_stored_narrative(&stored.graph_hash, stored.definition.clone());
-        let model = self
-            .models
-            .get(&stored.snapshot.model_hash)
-            .or_else(|| {
-                self.project_model_snapshots
-                    .get(&stored.snapshot.model_hash)
-            })
-            .ok_or_else(|| machine_error("not_found", "narrative source model is unavailable"))?;
+        let rebuilt = self.models.get(&stored.snapshot.model_hash)?;
+        let model: &CompiledModel = match rebuilt.as_deref() {
+            Some(model) => model,
+            None => self
+                .project_model_snapshots
+                .get(&stored.snapshot.model_hash)
+                .ok_or_else(|| machine_error("not_found", "narrative source model is unavailable"))?,
+        };
         let (mode, include_content, mut access_scopes, expected, center, depth, direction) =
             match query {
                 NarrativeGraphQuery::Full {
@@ -10344,14 +10366,14 @@ impl MachineSession {
                 "accepted-history export requires a world or committed candidate source",
             ));
         }
-        let model = self
-            .models
-            .get(&stored.snapshot.model_hash)
-            .or_else(|| {
-                self.project_model_snapshots
-                    .get(&stored.snapshot.model_hash)
-            })
-            .ok_or_else(|| machine_error("not_found", "narrative source model is unavailable"))?;
+        let rebuilt = self.models.get(&stored.snapshot.model_hash)?;
+        let model: &CompiledModel = match rebuilt.as_deref() {
+            Some(model) => model,
+            None => self
+                .project_model_snapshots
+                .get(&stored.snapshot.model_hash)
+                .ok_or_else(|| machine_error("not_found", "narrative source model is unavailable"))?,
+        };
         let explicit = !spec.node_ids.is_empty();
         if spec.node_ids.len() > MAX_NARRATIVE_NODES {
             return Err(machine_error(
@@ -10558,7 +10580,7 @@ impl MachineSession {
         self.ensure_world_replacement(&world_id, &proposed)?;
         let model = self
             .models
-            .get(&stored.record.candidate.model_hash)
+            .get(&stored.record.candidate.model_hash)?
             .ok_or_else(|| machine_error("not_found", "candidate model is unavailable"))?;
         let mut committed = stored.record.clone();
         committed.status = CandidateStatus::Committed;
@@ -10580,8 +10602,8 @@ impl MachineSession {
         }
         self.ensure_candidate_changes(&replacements, None)?;
         let response = serde_json::json!({
-            "candidate": candidate_record_view(model, &committed, view.clone())?,
-            "world_head": world_view(model, &proposed, view)?
+            "candidate": candidate_record_view(&model, &committed, view.clone())?,
+            "world_head": world_view(&model, &proposed, view)?
         });
         self.worlds.insert(world_id.clone(), proposed.clone());
         self.mark_world_dirty(world_id);
@@ -11174,9 +11196,12 @@ CREATE TABLE IF NOT EXISTS session_metadata (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+-- A row holds a revision's whole definition, or, when base_model_hash names the revision it was made from, its changes
+-- from that revision (a life-sim-rust-model-delta/v1 document).
 CREATE TABLE IF NOT EXISTS models (
     model_hash TEXT PRIMARY KEY,
-    definition_json BLOB NOT NULL
+    definition_json BLOB NOT NULL,
+    base_model_hash TEXT REFERENCES models(model_hash)
 );
 CREATE TABLE IF NOT EXISTS worlds (
     world_id TEXT PRIMARY KEY,
@@ -11464,7 +11489,9 @@ fn preflight_sqlite_limits(connection: &Connection) -> EngineResult<()> {
     Ok(())
 }
 
-fn initialize_sqlite_schema(transaction: &Transaction<'_>) -> EngineResult<()> {
+/// Prepares the schema for a write. Returns true when a v2 file was migrated to v3, in which case every model row must
+/// be rewritten in its kept form.
+fn initialize_sqlite_schema(transaction: &Transaction<'_>) -> EngineResult<bool> {
     transaction
         .execute_batch(SQLITE_SESSION_SCHEMA)
         .map_err(|cause| sqlite_error("failed to initialize SQLite session schema", cause))?;
@@ -11485,6 +11512,21 @@ fn initialize_sqlite_schema(transaction: &Transaction<'_>) -> EngineResult<()> {
         .optional()
         .map_err(|cause| sqlite_error("failed to inspect SQLite session generation", cause))?;
     match (existing, generation) {
+        (Some(schema), Some(generation)) if schema == SESSION_STATE_SCHEMA_V2 => {
+            generation
+                .parse::<u64>()
+                .map_err(|cause| error(format!("invalid SQLite session generation: {cause}")))?;
+            transaction
+                .execute_batch("ALTER TABLE models ADD COLUMN base_model_hash TEXT REFERENCES models(model_hash);")
+                .map_err(|cause| sqlite_error("failed to migrate SQLite model rows", cause))?;
+            transaction
+                .execute(
+                    "UPDATE session_metadata SET value = ?1 WHERE key = 'session_schema'",
+                    [SESSION_STATE_SCHEMA],
+                )
+                .map_err(|cause| sqlite_error("failed to record SQLite session schema", cause))?;
+            Ok(true)
+        }
         (Some(schema), _) if schema != SESSION_STATE_SCHEMA => Err(error(format!(
             "unsupported session state schema {schema}; expected {SESSION_STATE_SCHEMA}"
         ))),
@@ -11492,7 +11534,7 @@ fn initialize_sqlite_schema(transaction: &Transaction<'_>) -> EngineResult<()> {
             generation
                 .parse::<u64>()
                 .map_err(|cause| error(format!("invalid SQLite session generation: {cause}")))?;
-            Ok(())
+            Ok(false)
         }
         (Some(_), None) | (None, Some(_)) => {
             Err(error("SQLite session metadata is partially initialized"))
@@ -11512,18 +11554,22 @@ fn initialize_sqlite_schema(transaction: &Transaction<'_>) -> EngineResult<()> {
                 .map_err(|cause| {
                     sqlite_error("failed to initialize SQLite session generation", cause)
                 })?;
-            Ok(())
+            Ok(false)
         }
     }
 }
 
-fn persist_model_row(transaction: &Transaction<'_>, model: &CompiledModel) -> EngineResult<()> {
-    let json = encode_sqlite_json(&model.definition)?;
+fn persist_model_row(transaction: &Transaction<'_>, stored: &StoredModel) -> EngineResult<()> {
+    let (json, base_model_hash) = match stored {
+        StoredModel::Whole { definition, .. } => (encode_sqlite_json(definition)?, None),
+        StoredModel::Changes { base_model_hash, delta, .. } => (encode_sqlite_json(delta)?, Some(base_model_hash)),
+    };
     transaction
         .execute(
-            "INSERT INTO models(model_hash, definition_json) VALUES (?1, ?2)\
-             ON CONFLICT(model_hash) DO UPDATE SET definition_json = excluded.definition_json",
-            params![model.model_hash, json],
+            "INSERT INTO models(model_hash, definition_json, base_model_hash) VALUES (?1, ?2, ?3)\
+             ON CONFLICT(model_hash) DO UPDATE SET definition_json = excluded.definition_json,\
+             base_model_hash = excluded.base_model_hash",
+            params![stored.model_hash(), json, base_model_hash],
         )
         .map_err(|cause| sqlite_error("failed to persist model row", cause))?;
     Ok(())
@@ -11734,7 +11780,7 @@ fn persist_sqlite_changes(path: &Path, after: &MachineSession) -> Result<u64, Pe
         let transaction = connection
             .transaction()
             .map_err(|cause| sqlite_error("failed to begin SQLite session transaction", cause))?;
-        initialize_sqlite_schema(&transaction)?;
+        let migrated = initialize_sqlite_schema(&transaction)?;
 
         let next_generation = after
             .persistence_generation
@@ -11758,12 +11804,32 @@ fn persist_sqlite_changes(path: &Path, after: &MachineSession) -> Result<u64, Pe
             ));
         }
 
-        for hash in &after.dirty.models {
-            let model = after
-                .models
-                .get(hash)
-                .ok_or_else(|| error("dirty model key is unavailable"))?;
-            persist_model_row(&transaction, model)?;
+        // A migrated file gets every model row rewritten in its kept form; otherwise only the new ones are written.
+        // Each row is written after the row its changes are kept against.
+        let pending: BTreeSet<&String> = if migrated {
+            after.models.entries().map(|(hash, _)| hash).collect()
+        } else {
+            after.dirty.models.iter().collect()
+        };
+        let mut written: BTreeSet<&String> = BTreeSet::new();
+        while written.len() < pending.len() {
+            let before = written.len();
+            for hash in &pending {
+                if written.contains(*hash) {
+                    continue;
+                }
+                let entry = after.models.entry(hash).ok_or_else(|| error("dirty model key is unavailable"))?;
+                if let StoredModel::Changes { base_model_hash, .. } = &entry.stored {
+                    if pending.contains(base_model_hash) && !written.contains(base_model_hash) {
+                        continue;
+                    }
+                }
+                persist_model_row(&transaction, &entry.stored)?;
+                written.insert(*hash);
+            }
+            if written.len() == before {
+                return Err(error("model rows to write form a cycle"));
+            }
         }
         for id in &after.dirty.worlds {
             let world = after
@@ -11856,6 +11922,11 @@ fn persist_sqlite_changes(path: &Path, after: &MachineSession) -> Result<u64, Pe
             .commit()
             .map_err(|cause| sqlite_error("failed to commit SQLite session transaction", cause))?;
         committed_generation = Some(next_generation);
+        if migrated {
+            // The whole revisions a v2 file held leave their pages free; give them back once. The write has already
+            // committed, so a failure here only leaves the file larger than it needs to be.
+            let _ = connection.execute_batch("VACUUM;");
+        }
         harden_sqlite_permissions(path)?;
         Ok(())
     })();
@@ -11892,7 +11963,7 @@ fn load_sqlite_session(path: &Path) -> EngineResult<PersistedSession> {
         .optional()
         .map_err(|cause| sqlite_error("failed to inspect SQLite session identity", cause))?;
     match identity_schema {
-        Some(schema) if schema == SESSION_STATE_SCHEMA => {}
+        Some(schema) if schema == SESSION_STATE_SCHEMA || schema == SESSION_STATE_SCHEMA_V2 => {}
         Some(schema) => {
             return Err(error(format!(
                 "unsupported session state schema {schema}; expected {SESSION_STATE_SCHEMA}"
@@ -11918,7 +11989,8 @@ fn load_sqlite_session(path: &Path) -> EngineResult<PersistedSession> {
         .optional()
         .map_err(|cause| sqlite_error("failed to read SQLite session schema", cause))?;
     let schema = schema.ok_or_else(|| error("SQLite state file lacks a session schema"))?;
-    if schema != SESSION_STATE_SCHEMA {
+    let kept_as_changes = schema == SESSION_STATE_SCHEMA;
+    if schema != SESSION_STATE_SCHEMA && schema != SESSION_STATE_SCHEMA_V2 {
         return Err(error(format!(
             "unsupported session state schema {schema}; expected {SESSION_STATE_SCHEMA}"
         )));
@@ -11958,8 +12030,13 @@ fn load_sqlite_session(path: &Path) -> EngineResult<PersistedSession> {
 
     let mut models = Vec::new();
     {
+        // Each row's hash is checked when the session rebuilds it (restore), once per revision.
         let mut statement = connection
-            .prepare("SELECT model_hash, definition_json FROM models ORDER BY model_hash")
+            .prepare(if kept_as_changes {
+                "SELECT model_hash, definition_json, base_model_hash FROM models ORDER BY model_hash"
+            } else {
+                "SELECT model_hash, definition_json, NULL FROM models ORDER BY model_hash"
+            })
             .map_err(|cause| sqlite_error("failed to prepare model restore", cause))?;
         let mut rows = statement
             .query([])
@@ -11968,20 +12045,19 @@ fn load_sqlite_session(path: &Path) -> EngineResult<PersistedSession> {
             .next()
             .map_err(|cause| sqlite_error("failed to read model row", cause))?
         {
-            let stored_hash: String = row
+            let model_hash: String = row
                 .get(0)
                 .map_err(|cause| sqlite_error("invalid model hash column", cause))?;
-            let definition: ModelDefinition = decode_sqlite_json(
-                row.get(1)
-                    .map_err(|cause| sqlite_error("invalid model JSON column", cause))?,
-                "model",
-            )?;
-            if compile_model(definition.clone())?.model_hash != stored_hash {
-                return Err(error(
-                    "SQLite model row key does not match its content hash",
-                ));
-            }
-            models.push(definition);
+            let json: Vec<u8> = row
+                .get(1)
+                .map_err(|cause| sqlite_error("invalid model JSON column", cause))?;
+            let base_model_hash: Option<String> = row
+                .get(2)
+                .map_err(|cause| sqlite_error("invalid model base column", cause))?;
+            models.push(match base_model_hash {
+                None => StoredModel::Whole { model_hash, definition: Box::new(decode_sqlite_json(json, "model")?) },
+                Some(base_model_hash) => StoredModel::Changes { model_hash, base_model_hash, delta: decode_sqlite_json(json, "model delta")? },
+            });
         }
     }
     let mut worlds = Vec::new();
@@ -12338,7 +12414,8 @@ fn load_sqlite_session(path: &Path) -> EngineResult<PersistedSession> {
         }
     }
     Ok(PersistedSession {
-        schema,
+        // A v2 file's whole revisions are read into the same form; the file itself is migrated on its first write.
+        schema: if kept_as_changes { schema } else { SESSION_STATE_SCHEMA.to_owned() },
         persistence_generation,
         models,
         worlds,
@@ -15104,7 +15181,9 @@ mod tests {
         let model = session
             .models
             .get(&stored.record.candidate.model_hash)
+            .unwrap()
             .unwrap();
+        let model = &*model;
         validate_model_trajectory_summary(
             model,
             &stored.parent,
@@ -16682,6 +16761,164 @@ mod tests {
         assert!(failure.message.contains("direct next revision"));
         assert!(failure.message.contains("sibling"));
         assert_eq!(session.worlds["sibling-world"].model_hash, first_hash);
+    }
+
+    fn stored_model_example() -> ModelDefinition {
+        let command: serde_json::Value =
+            serde_json::from_str(include_str!("../examples/meaning-model-command.json")).unwrap();
+        let mut model: ModelDefinition = serde_json::from_value(command["model"].clone()).unwrap();
+        // A model of some size, so that a revision changing one Event is small next to the whole.
+        let events = &mut model.meaning_model.as_mut().unwrap().events;
+        let template = events[0].clone();
+        for index in 0..120 {
+            let mut event = template.clone();
+            event.id = format!("event.stored-test-{index:03}");
+            event.boundary = format!("one of the many moments the stored-model test adds, number {index}");
+            events.push(event);
+        }
+        model
+    }
+
+    /// A lineage of revisions, each changing one Event's boundary, registered in a durable session.
+    fn stored_model_lineage(state_file: &Path, revisions: u64) -> Vec<(String, serde_json::Value)> {
+        let mut session = MachineSession::with_state_file(state_file).unwrap();
+        let mut model = stored_model_example();
+        let mut lineage = Vec::new();
+        for number in 0..=revisions {
+            if number > 0 {
+                model.revision = ModelRevision {
+                    number,
+                    previous_model_hash: Some(lineage.last().map(|(hash, _): &(String, serde_json::Value)| hash.clone()).unwrap()),
+                    reason: format!("revision {number}"),
+                    provenance: vec!["stored-model-test".to_owned()],
+                };
+                let events = &mut model.meaning_model.as_mut().unwrap().events;
+                let index = number as usize % events.len();
+                events[index].boundary = format!("revised in revision {number}");
+            }
+            let registered = result(session.parse_and_execute(&command(
+                if number == 0 { "register_model" } else { "revise_model" },
+                serde_json::json!({ "model": model.clone() }),
+            )));
+            lineage.push((registered["summary"]["model_hash"].as_str().unwrap().to_owned(), registered["model"].clone()));
+        }
+        lineage
+    }
+
+    fn stored_model_rows(state_file: &Path) -> (String, usize, usize, usize) {
+        let connection = Connection::open(state_file).unwrap();
+        let schema: String = connection.query_row("SELECT value FROM session_metadata WHERE key = 'session_schema'", [], |row| row.get(0)).unwrap();
+        let (whole, changes, bytes): (i64, i64, i64) = connection
+            .query_row("SELECT sum(base_model_hash IS NULL), sum(base_model_hash IS NOT NULL), sum(length(definition_json)) FROM models", [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+            .unwrap();
+        (schema, whole as usize, changes as usize, bytes as usize)
+    }
+
+    fn assert_lineage_rebuilds(state_file: &Path, lineage: &[(String, serde_json::Value)]) {
+        let mut session = MachineSession::with_state_file(state_file).unwrap();
+        // Newest first, so every revision is rebuilt from changes rather than read from what is ready.
+        for (hash, definition) in lineage.iter().rev() {
+            let read = result(session.parse_and_execute(&command("get_model", serde_json::json!({ "model_hash": hash }))));
+            assert_eq!(&read["model"], definition, "revision {hash} rebuilds exactly");
+        }
+    }
+
+    fn stored_model_state_file(label: &str) -> PathBuf {
+        let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        std::env::temp_dir().join(format!("life-sim-{label}-{}-{nonce}.sqlite", std::process::id()))
+    }
+
+    fn remove_state_file(path: &Path) {
+        for suffix in ["", "-wal", "-shm"] {
+            let _ = fs::remove_file(format!("{}{suffix}", path.display()));
+        }
+    }
+
+    #[test]
+    fn model_revisions_are_stored_as_their_changes_and_rebuild_exactly() {
+        let state_file = stored_model_state_file("stored-model-changes");
+        let lineage = stored_model_lineage(&state_file, 24);
+        let (schema, whole, changes, bytes) = stored_model_rows(&state_file);
+        assert_eq!(schema, SESSION_STATE_SCHEMA);
+        assert_eq!((whole, changes), (1, 24), "only the first revision is stored whole");
+        let full: usize = lineage.iter().map(|(_, definition)| serde_json::to_vec(definition).unwrap().len()).sum();
+        assert!(bytes * 8 < full, "25 revisions take {bytes} bytes stored, {full} as whole copies");
+        let session = MachineSession::with_state_file(&state_file).unwrap();
+        assert!(session.models.stored_bytes() * 8 < full, "the session limit counts what is stored");
+        drop(session);
+        assert_lineage_rebuilds(&state_file, &lineage);
+        remove_state_file(&state_file);
+    }
+
+    #[test]
+    fn a_v2_state_file_is_read_as_it_is_and_migrated_on_its_first_write() {
+        let source = stored_model_state_file("stored-model-v2-source");
+        let lineage = stored_model_lineage(&source, 6);
+        remove_state_file(&source);
+        // The file a v2 engine wrote: the same tables, with every model revision stored whole.
+        let state_file = stored_model_state_file("stored-model-v2");
+        {
+            let connection = Connection::open(&state_file).unwrap();
+            let v2_schema = SQLITE_SESSION_SCHEMA.replace(",\n    base_model_hash TEXT REFERENCES models(model_hash)\n);", "\n);");
+            assert_ne!(v2_schema, SQLITE_SESSION_SCHEMA);
+            connection.execute_batch(&v2_schema).unwrap();
+            connection.execute("INSERT INTO session_metadata(key, value) VALUES ('session_schema', ?1)", [SESSION_STATE_SCHEMA_V2]).unwrap();
+            connection.execute("INSERT INTO session_metadata(key, value) VALUES ('generation', '7')", []).unwrap();
+            for (hash, definition) in &lineage {
+                connection.execute("INSERT INTO models(model_hash, definition_json) VALUES (?1, ?2)", params![hash, serde_json::to_vec(definition).unwrap()]).unwrap();
+            }
+        }
+        // Reading it leaves it a v2 file, so an older engine can still open it.
+        assert_lineage_rebuilds(&state_file, &lineage);
+        let connection = Connection::open(&state_file).unwrap();
+        let schema: String = connection.query_row("SELECT value FROM session_metadata WHERE key = 'session_schema'", [], |row| row.get(0)).unwrap();
+        assert_eq!(schema, SESSION_STATE_SCHEMA_V2);
+        drop(connection);
+        // Its first write migrates it: every revision but the first is rewritten as its changes.
+        {
+            let mut session = MachineSession::with_state_file(&state_file).unwrap();
+            let mut next: ModelDefinition = serde_json::from_value(lineage.last().unwrap().1.clone()).unwrap();
+            next.revision = ModelRevision { number: next.revision.number + 1, previous_model_hash: Some(lineage.last().unwrap().0.clone()), reason: "after migration".to_owned(), provenance: vec!["stored-model-test".to_owned()] };
+            result(session.parse_and_execute(&command("revise_model", serde_json::json!({ "model": next }))));
+        }
+        let (schema, whole, changes, _) = stored_model_rows(&state_file);
+        assert_eq!(schema, SESSION_STATE_SCHEMA);
+        assert_eq!((whole, changes), (1, lineage.len()), "the migrated file keeps only the first revision whole");
+        assert_lineage_rebuilds(&state_file, &lineage);
+        remove_state_file(&state_file);
+    }
+
+    #[test]
+    fn a_stored_change_that_does_not_rebuild_its_revision_is_refused() {
+        let state_file = stored_model_state_file("stored-model-tampered");
+        let lineage = stored_model_lineage(&state_file, 3);
+        {
+            let connection = Connection::open(&state_file).unwrap();
+            let json: Vec<u8> = connection.query_row("SELECT definition_json FROM models WHERE model_hash = ?1", [&lineage[2].0], |row| row.get(0)).unwrap();
+            let tampered = String::from_utf8(json).unwrap().replace("revised in revision 2", "quietly changed");
+            connection.execute("UPDATE models SET definition_json = ?1 WHERE model_hash = ?2", params![tampered.into_bytes(), &lineage[2].0]).unwrap();
+        }
+        let refused = MachineSession::with_state_file(&state_file).unwrap_err();
+        assert!(refused.to_string().contains("content hash"), "{refused}");
+        remove_state_file(&state_file);
+    }
+
+    #[test]
+    fn stored_revisions_must_each_have_their_base() {
+        let lineage = {
+            let state_file = stored_model_state_file("stored-model-order");
+            let lineage = stored_model_lineage(&state_file, 2);
+            remove_state_file(&state_file);
+            lineage
+        };
+        let delta = model_delta::compute(&lineage[0].1, &lineage[1].1).unwrap();
+        let orphan = StoredModel::Changes { model_hash: lineage[1].0.clone(), base_model_hash: "0".repeat(64), delta };
+        assert!(model_store::rebuild_order(&[orphan]).unwrap_err().to_string().contains("lacks its base"));
+        let whole = |index: usize| StoredModel::Whole { model_hash: lineage[index].0.clone(), definition: Box::new(serde_json::from_value(lineage[index].1.clone()).unwrap()) };
+        assert!(model_store::rebuild_order(&[whole(0), whole(0)]).unwrap_err().to_string().contains("duplicate"));
+        // Rows arrive in hash order; the order rebuilds each after the revision it is rebuilt from.
+        let order = model_store::rebuild_order(&[whole(2), whole(0), whole(1)]).unwrap();
+        assert_eq!(order, vec![1, 2, 0]);
     }
 
     #[test]
