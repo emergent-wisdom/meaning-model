@@ -3,8 +3,44 @@ import { constants } from 'node:fs';
 import { lstat, open, unlink } from 'node:fs/promises';
 import { isAbsolute, resolve, sep } from 'node:path';
 import * as z from 'zod/v4';
+import { applyModelDelta, computeModelDelta } from './model-delta.mjs';
 
 export const MAX_HISTORY_FILE_BYTES = 256 * 1024 * 1024;
+export const HISTORY_SCHEMA = 'meaning-model-construction-history/v1';
+// A v2 file writes each model revision whose previous revision it also holds as its changes from that one. Reading
+// expands them, so the history a reader sees, and its bundleSha256, do not depend on how the file was written.
+export const HISTORY_FILE_SCHEMA_V2 = 'meaning-model-construction-history/v2';
+
+export function encodeHistoryModels(models) {
+  const definitions = new Map();
+  return models.map(({ modelHash, definition }) => {
+    const base = definition?.revision?.previous_model_hash;
+    let entry = { modelHash, definition };
+    if (base && definitions.has(base)) {
+      const delta = computeModelDelta(definitions.get(base), definition);
+      const changes = delta && { modelHash, baseModelHash: base, delta };
+      if (changes && JSON.stringify(changes).length < JSON.stringify(entry).length) entry = changes;
+    }
+    definitions.set(modelHash, definition);
+    return entry;
+  });
+}
+
+export function decodeHistoryModels(history) {
+  if (history?.schema !== HISTORY_FILE_SCHEMA_V2) return history;
+  const definitions = new Map();
+  const models = (history.models ?? []).map((entry, index) => {
+    let definition = entry.definition;
+    if (entry.delta) {
+      const base = definitions.get(entry.baseModelHash);
+      if (!base) throw new Error(`History model ${index} is written as changes from ${entry.baseModelHash}, which the file does not hold before it.`);
+      definition = applyModelDelta(base, entry.delta);
+    }
+    definitions.set(entry.modelHash, definition);
+    return { modelHash: entry.modelHash, definition };
+  });
+  return { ...history, schema: HISTORY_SCHEMA, models };
+}
 export const MAX_INLINE_HISTORY_BYTES = 1024 * 1024;
 export const absoluteHistoryPath = z.string().min(1).max(4_096).refine((value) =>
   !value.includes('\0') && isAbsolute(value) && !value.split(/[\\/]/u).includes('..'),
@@ -97,7 +133,7 @@ export async function readHistoryFile(sourcePath) {
       chunks.push(chunk.subarray(0, bytesRead));
     }
     const buffer = Buffer.concat(chunks, bytes);
-    const history = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(buffer));
+    const history = decodeHistoryModels(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(buffer)));
     return { history, path, bytes, fileSha256: createHash('sha256').update(buffer).digest('hex') };
   } finally { await file.close(); }
 }

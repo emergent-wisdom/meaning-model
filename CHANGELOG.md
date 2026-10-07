@@ -16,6 +16,12 @@ unpublished work stays under Unreleased. This is not a development transcript.
 - The session state file is now `life-sim-rust-session-state/v3`. A v2 file is read as it is, and is migrated on its
   first write (its whole revisions rewritten as changes, then compacted). **After that first write, earlier engines
   can no longer open it**; keep a copy of a v2 file if you may need to open it with an older release.
+- A construction history file written by `life_construction_export` is now `meaning-model-construction-history/v2`:
+  each model revision whose previous revision the file holds is written as its changes from it, in the engine's delta
+  format. Reading expands them, so the history and its `bundleSha256` are the same however the file was written, and
+  v1 files, including the published story bundles, still import. The 256 MiB file limit applies to what the file
+  holds. Twelve Words exports as 12.2 MB instead of 248.2 MB, with the same `bundleSha256`. Earlier releases refuse a
+  v2 file with a schema error.
 ## 0.7.2 — 2026-10-06
 
 - Big names: with many processes on screen, the small group labels at the left no longer say at a glance whose

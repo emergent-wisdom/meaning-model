@@ -6,6 +6,8 @@ import test from 'node:test';
 import { LifeSimulationService, serviceLimits } from '../src/service.mjs';
 import { RustEngineProcess } from '../src/rust-engine-process.mjs';
 import { exportConstructionHistory, importConstructionHistory } from '../src/construction-record.mjs';
+import { decodeHistoryModels, HISTORY_FILE_SCHEMA_V2, HISTORY_SCHEMA } from '../src/construction-files.mjs';
+import { writeFile } from 'node:fs/promises';
 
 async function example() {
   const markdown = await readFile(new URL('../../docs/examples/MINIMAL-MODEL-AND-GRAPH.md', import.meta.url), 'utf8');
@@ -78,8 +80,16 @@ test('a file history with more than 32 model revisions imports and survives a re
   });
   assert.equal(exported.modelCount, 35);
   const contents = await readFile(path);
-  const bundle = JSON.parse(contents);
-  assert.deepEqual(bundle.models.map((entry) => entry.modelHash), hashes);
+  const written = JSON.parse(contents);
+  // The file keeps the first model revision whole and every later one as its changes from the one before.
+  assert.equal(written.schema, HISTORY_FILE_SCHEMA_V2);
+  assert.deepEqual(written.models.map((entry) => entry.modelHash), hashes);
+  assert.ok(written.models[0].definition && !written.models[0].delta);
+  assert.ok(written.models.slice(1).every((entry, index) => entry.delta && entry.baseModelHash === hashes[index] && !entry.definition));
+  const bundle = decodeHistoryModels(written);
+  assert.equal(bundle.schema, HISTORY_SCHEMA);
+  const expanded = Buffer.byteLength(JSON.stringify(bundle.models)), kept = Buffer.byteLength(JSON.stringify(written.models));
+  assert.ok(kept * 4 < expanded, `35 model revisions take ${kept} bytes as changes and ${expanded} whole`);
   assert.equal(exported.models, undefined, 'file export returns a compact receipt');
 
   let target = await start('target');
@@ -108,6 +118,13 @@ test('a file history with more than 32 model revisions imports and survives a re
   const reimported = await importConstructionHistory(target, importRequest);
   assert.equal(reimported.verified, true);
   assert.equal(reimported.headGraphHash, imported.headGraphHash);
+
+  // A file written before model revisions were kept as changes, every one whole, still imports.
+  const wholePath = join(directory, 'construction-v1.json');
+  await writeFile(wholePath, JSON.stringify(bundle));
+  const fromWholeFile = await importConstructionHistory(await start('whole'), { requestId: 'import.whole', sourcePath: wholePath });
+  assert.equal(fromWholeFile.verified, true);
+  assert.equal(fromWholeFile.headGraphHash, stored.graphHash);
   assert.equal(reimported.models, 35);
   assert.equal(target.models.size, 32);
   assert.equal((await target.inspectModel({ modelHash: hashes[0], includeDefinition: true })).model.revision.number, 0);

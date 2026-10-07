@@ -11,7 +11,7 @@ import { assertDescribedEvents, descriptionCoverage } from './description-covera
 import { constructionRecordInstructions } from './construction-principles.mjs';
 import { additiveNarrativeBatch, applyNarrativeDefinitionDelta, definitionFromCompleteView, narrativeDefinitionDelta } from './narrative-delta.mjs';
 import { recordsQuoting, removedFragments, textRecords } from './prose-drift.mjs';
-import { absoluteHistoryPath, historyDigest, MAX_HISTORY_FILE_BYTES, MAX_INLINE_HISTORY_BYTES, readHistoryFile, writeHistoryFile } from './construction-files.mjs';
+import { absoluteHistoryPath, encodeHistoryModels, HISTORY_FILE_SCHEMA_V2, historyDigest, MAX_HISTORY_FILE_BYTES, MAX_INLINE_HISTORY_BYTES, readHistoryFile, writeHistoryFile } from './construction-files.mjs';
 import { requireCompleteModelScopes } from './construction-scope.mjs';
 
 const id = z.string().trim().min(1).max(256);
@@ -1037,7 +1037,8 @@ export async function exportConstructionHistory(service, raw, { maximumBytes = M
         throw new Error(`Construction export cannot include model ${cursor}, required by ${reference.nodeId} (${reference.field}: ${modelHash}). Import or restore that declared model and its ancestry, or explicitly revise the reference; no incomplete bundle was exported.`, { cause });
       }
       requireCompleteModelScopes(model, input.accessScopes);
-      retain({ modelHash: cursor, definition: model }); pending.push({ hash: cursor, model });
+      if (!input.destinationPath) retain({ modelHash: cursor, definition: model });
+      pending.push({ hash: cursor, model });
       cursor = model.revision?.previous_model_hash ?? null;
     }
     for (const entry of pending.reverse()) models.set(entry.hash, entry.model);
@@ -1053,9 +1054,13 @@ export async function exportConstructionHistory(service, raw, { maximumBytes = M
   }
   const history = { schema: 'meaning-model-construction-history/v1', graphId: head.graph.id, headGraphHash: head.graph_hash,
     revisionCount: revisions.length, models: ordered, revisions };
-  const bundle = { ...history, bundleSha256: historyDigest(history, budget).sha256 };
-  if (!input.destinationPath) return bundle;
-  const file = await writeHistoryFile(input.destinationPath, bundle);
+  if (!input.destinationPath) return { ...history, bundleSha256: historyDigest(history, budget).sha256 };
+  // A file writes model revisions as their changes and is bounded by what it holds; the checksum covers the history
+  // as a reader sees it, expanded, however large that is.
+  const fileModels = encodeHistoryModels(ordered);
+  for (const entry of fileModels) retain(entry);
+  const bundle = { ...history, bundleSha256: historyDigest(history, Number.MAX_SAFE_INTEGER).sha256 };
+  const file = await writeHistoryFile(input.destinationPath, { ...bundle, schema: HISTORY_FILE_SCHEMA_V2, models: fileModels });
   return { schema: 'meaning-model-construction-file-export/v1', ...file, bundleSha256: bundle.bundleSha256,
     graphId: history.graphId, headGraphHash: history.headGraphHash, revisionCount: revisions.length, modelCount: ordered.length,
     graphMutation: false, worldMutation: false, nextStep: 'Import with life_construction_import using sourcePath and a requestId. The file contains complete history within this selected model-bound lineage.' };
@@ -1067,7 +1072,7 @@ export async function importConstructionHistory(service, raw) {
   const history = file ? z.object({ schema: z.literal('meaning-model-construction-history/v1') }).passthrough().parse(file.history) : input.history;
   const { bundleSha256, ...content } = history;
   if (file && !/^[a-f0-9]{64}$/u.test(bundleSha256 ?? '')) throw new Error('A portable history file must include its bundleSha256 checksum.');
-  if (bundleSha256 && historyDigest(content).sha256 !== bundleSha256) throw new Error('The history bundle does not match its bundleSha256.');
+  if (bundleSha256 && historyDigest(content, file ? Number.MAX_SAFE_INTEGER : MAX_HISTORY_FILE_BYTES).sha256 !== bundleSha256) throw new Error('The history bundle does not match its bundleSha256.');
   for (const [index, entry] of (history.models ?? []).entries()) {
     const definition = entry.definition;
     const stored = definition.revision?.number === 0 || !definition.revision?.previous_model_hash
