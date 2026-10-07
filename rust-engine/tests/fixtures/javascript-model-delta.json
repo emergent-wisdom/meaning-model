@@ -1,0 +1,382 @@
+{
+ "base": {
+  "schema": "life-sim-rust-model/v1",
+  "id": "story",
+  "time_unit": "year",
+  "revision": {
+   "number": 3,
+   "previous_model_hash": "a",
+   "reason": "r",
+   "provenance": []
+  },
+  "processes": [
+   {
+    "id": "p.a",
+    "v": 1
+   },
+   {
+    "id": "p.b",
+    "v": 2
+   }
+  ],
+  "unordered": [
+   {
+    "id": "z"
+   },
+   {
+    "id": "a"
+   }
+  ],
+  "gone": true,
+  "meaning_model": {
+   "events": [
+    {
+     "id": "ev.00",
+     "boundary": "moment 0",
+     "tags": [
+      "x",
+      0
+     ]
+    },
+    {
+     "id": "ev.01",
+     "boundary": "moment 1",
+     "tags": [
+      "x",
+      1
+     ]
+    },
+    {
+     "id": "ev.02",
+     "boundary": "moment 2",
+     "tags": [
+      "x",
+      2
+     ]
+    },
+    {
+     "id": "ev.03",
+     "boundary": "moment 3",
+     "tags": [
+      "x",
+      3
+     ]
+    },
+    {
+     "id": "ev.04",
+     "boundary": "moment 4",
+     "tags": [
+      "x",
+      4
+     ]
+    },
+    {
+     "id": "ev.05",
+     "boundary": "moment 5",
+     "tags": [
+      "x",
+      5
+     ]
+    },
+    {
+     "id": "ev.06",
+     "boundary": "moment 6",
+     "tags": [
+      "x",
+      6
+     ]
+    },
+    {
+     "id": "ev.07",
+     "boundary": "moment 7",
+     "tags": [
+      "x",
+      7
+     ]
+    },
+    {
+     "id": "ev.08",
+     "boundary": "moment 8",
+     "tags": [
+      "x",
+      8
+     ]
+    },
+    {
+     "id": "ev.09",
+     "boundary": "moment 9",
+     "tags": [
+      "x",
+      9
+     ]
+    },
+    {
+     "id": "ev.10",
+     "boundary": "moment 10",
+     "tags": [
+      "x",
+      10
+     ]
+    },
+    {
+     "id": "ev.11",
+     "boundary": "moment 11",
+     "tags": [
+      "x",
+      11
+     ]
+    }
+   ]
+  }
+ },
+ "target": {
+  "schema": "life-sim-rust-model/v1",
+  "id": "story",
+  "time_unit": "year",
+  "revision": {
+   "number": 4,
+   "previous_model_hash": "b",
+   "reason": "s",
+   "provenance": [
+    "p"
+   ]
+  },
+  "processes": [
+   {
+    "id": "p.a",
+    "v": 1
+   },
+   {
+    "id": "p.b",
+    "v": 3
+   }
+  ],
+  "unordered": [
+   {
+    "id": "z"
+   },
+   {
+    "id": "q"
+   },
+   {
+    "id": "a"
+   }
+  ],
+  "meaning_model": {
+   "events": [
+    {
+     "id": "ev.00",
+     "boundary": "moment 0",
+     "tags": [
+      "x",
+      0
+     ]
+    },
+    {
+     "id": "ev.01",
+     "boundary": "moment 1",
+     "tags": [
+      "x",
+      1
+     ]
+    },
+    {
+     "id": "ev.02",
+     "boundary": "moment 2",
+     "tags": [
+      "x",
+      2
+     ]
+    },
+    {
+     "id": "ev.03",
+     "boundary": "a revised moment",
+     "tags": [
+      "x",
+      3
+     ]
+    },
+    {
+     "id": "ev.04",
+     "boundary": "moment 4",
+     "tags": [
+      "x",
+      4
+     ]
+    },
+    {
+     "id": "ev.05",
+     "boundary": "moment 5",
+     "tags": [
+      "x",
+      5
+     ]
+    },
+    {
+     "id": "ev.06",
+     "boundary": "moment 6",
+     "tags": [
+      "x",
+      6
+     ]
+    },
+    {
+     "id": "ev.08",
+     "boundary": "moment 8",
+     "tags": [
+      "x",
+      8
+     ]
+    },
+    {
+     "id": "ev.09",
+     "boundary": "moment 9",
+     "tags": [
+      "x",
+      9
+     ]
+    },
+    {
+     "id": "ev.10",
+     "boundary": "moment 10",
+     "tags": [
+      "x",
+      10
+     ]
+    },
+    {
+     "id": "ev.11",
+     "boundary": "moment 11",
+     "tags": [
+      "x",
+      11
+     ]
+    },
+    {
+     "id": "ev.99",
+     "boundary": "added",
+     "tags": []
+    }
+   ]
+  },
+  "added": {
+   "nested": [
+    1,
+    2
+   ]
+  }
+ },
+ "delta": {
+  "schema": "life-sim-rust-model-delta/v1",
+  "changes": [
+   {
+    "op": "unset",
+    "path": [
+     "gone"
+    ]
+   },
+   {
+    "op": "set",
+    "path": [
+     "revision",
+     "number"
+    ],
+    "value": 4
+   },
+   {
+    "op": "set",
+    "path": [
+     "revision",
+     "previous_model_hash"
+    ],
+    "value": "b"
+   },
+   {
+    "op": "set",
+    "path": [
+     "revision",
+     "reason"
+    ],
+    "value": "s"
+   },
+   {
+    "op": "set",
+    "path": [
+     "revision",
+     "provenance"
+    ],
+    "value": [
+     "p"
+    ]
+   },
+   {
+    "op": "records",
+    "path": [
+     "processes"
+    ],
+    "upsert": [
+     {
+      "id": "p.b",
+      "v": 3
+     }
+    ],
+    "sorted": true
+   },
+   {
+    "op": "set",
+    "path": [
+     "unordered"
+    ],
+    "value": [
+     {
+      "id": "z"
+     },
+     {
+      "id": "q"
+     },
+     {
+      "id": "a"
+     }
+    ]
+   },
+   {
+    "op": "records",
+    "path": [
+     "meaning_model",
+     "events"
+    ],
+    "upsert": [
+     {
+      "id": "ev.03",
+      "boundary": "a revised moment",
+      "tags": [
+       "x",
+       3
+      ]
+     },
+     {
+      "id": "ev.99",
+      "boundary": "added",
+      "tags": []
+     }
+    ],
+    "remove": [
+     "ev.07"
+    ],
+    "sorted": true
+   },
+   {
+    "op": "set",
+    "path": [
+     "added"
+    ],
+    "value": {
+     "nested": [
+      1,
+      2
+     ]
+    }
+   }
+  ]
+ }
+}

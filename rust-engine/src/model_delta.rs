@@ -275,6 +275,24 @@ mod tests {
         assert!(apply(&mut base.clone(), &twice).is_err());
     }
 
+    #[test]
+    fn a_delta_written_by_the_mcp_javascript_rebuilds_the_same_revision_here() {
+        // Written by mcp-server/src/model-delta.mjs; the history files the MCP writes use the same format.
+        let fixture: Value = serde_json::from_str(include_str!("../tests/fixtures/javascript-model-delta.json")).unwrap();
+        let written: ModelDelta = serde_json::from_value(fixture["delta"].clone()).unwrap();
+        let mut rebuilt = fixture["base"].clone();
+        apply(&mut rebuilt, &written).unwrap();
+        assert_eq!(rebuilt, fixture["target"]);
+        let mut ours = compute(&fixture["base"], &fixture["target"]).unwrap().changes;
+        let mut theirs = written.changes;
+        let path = |change: &ModelChange| match change {
+            ModelChange::Set { path, .. } | ModelChange::Unset { path } | ModelChange::Records { path, .. } => path.clone(),
+        };
+        ours.sort_by_key(path);
+        theirs.sort_by_key(path);
+        assert_eq!(ours, theirs, "both sides compute the same changes");
+    }
+
     /// A small deterministic generator, so the randomized round trips are reproducible without a dependency.
     struct Rng(u64);
     impl Rng {
