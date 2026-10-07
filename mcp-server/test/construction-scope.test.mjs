@@ -28,6 +28,10 @@ function fixture({ privateAncestor = false } = {}) {
     },
     async listNarrativeRevisions() { return { revisions: [{ graph_hash: graphHash, previous_graph_hash: null }], heads: [graphHash] }; },
     async inspectModel({ modelHash: requested }) { return { modelHash: requested, model: requested === modelHash ? model : ancestor }; },
+    async validateModel({ model: requested }) {
+      assert.ok(requested === model || requested === ancestor, 'only an inspected fixture model is validated');
+      return { modelHash: requested === model ? modelHash : parentHash };
+    },
   };
   return { service, graphHash };
 }

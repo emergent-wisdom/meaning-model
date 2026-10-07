@@ -2,12 +2,15 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { LifeSimulationService, serviceLimits } from '../src/service.mjs';
-import { RustEngineProcess } from '../src/rust-engine-process.mjs';
+import { resolveEngineBinary, RustEngineProcess } from '../src/rust-engine-process.mjs';
 import { exportConstructionHistory, importConstructionHistory } from '../src/construction-record.mjs';
 import { decodeHistoryModels, HISTORY_FILE_SCHEMA_V2, HISTORY_SCHEMA } from '../src/construction-files.mjs';
 import { writeFile } from 'node:fs/promises';
+import { stringifyJson } from '../src/exact-json.mjs';
+import { toolResult } from '../src/tool-result.mjs';
 
 async function example() {
   const markdown = await readFile(new URL('../../docs/examples/MINIMAL-MODEL-AND-GRAPH.md', import.meta.url), 'utf8');
@@ -42,6 +45,86 @@ function successor(model, previousModelHash, number) {
     `Fixture revision ${number}: the written offer remains private.`;
   return next;
 }
+
+test('signed zeros keep their model hashes through MCP, delta files, inline JSON and restart', { timeout: 30_000 }, async (t) => {
+  const { directory, start } = await sessions(t);
+  const { model, graph } = await example();
+  const source = await start('signed-zero-source');
+  model.processes[0].initial_value.value = 0;
+  const registered = await source.registerModel({ requestId: 'zero.root', model });
+  const hashes = [registered.modelHash], definitions = [];
+  definitions.push((await source.inspectModel({ modelHash: hashes[0], includeDefinition: true })).model);
+  const changedRequest = structuredClone(model);
+  changedRequest.processes[0].initial_value.value = -0;
+  await assert.rejects(source.registerModel({ requestId: 'zero.root', model: changedRequest }), /already bound to a different register-model payload/);
+  for (let number = 1; number <= 3; number += 1) {
+    const next = successor(definitions.at(-1), hashes.at(-1), number);
+    next.processes[0].initial_value.value = number % 2 ? -0 : 0;
+    const revised = await source.reviseModel({ requestId: `zero.${number}`, previousModelHash: hashes.at(-1), model: next });
+    hashes.push(revised.modelHash);
+    const inspected = (await source.inspectModel({ modelHash: revised.modelHash, includeDefinition: true })).model;
+    assert.ok(Object.is(inspected.processes[0].initial_value.value, next.processes[0].initial_value.value));
+    definitions.push(inspected);
+  }
+  graph.source.model_hash = hashes.at(-1);
+  const stored = await source.registerNarrativeGraph({ requestId: 'zero.graph', narrativeGraph: graph });
+  const path = join(directory, 'signed-zeros.json');
+  const exported = await exportConstructionHistory(source, { graphHash: stored.graphHash, accessScopes: ['author'], destinationPath: path });
+  const file = JSON.parse(await readFile(path, 'utf8'));
+  assert.ok(file.models.slice(1).every((entry) => entry.delta), 'the file exercises model deltas');
+  assert.deepEqual(decodeHistoryModels(file).models.map((entry) => entry.definition), definitions);
+  const inline = await exportConstructionHistory(source, { graphHash: stored.graphHash, accessScopes: ['author'] });
+  assert.equal(inline.bundleSha256, exported.bundleSha256);
+  const reply = JSON.parse(JSON.stringify(toolResult(inline)));
+  assert.deepEqual(reply.structuredContent, inline, 'the SDK-owned JSON.stringify keeps inline model values');
+  assert.deepEqual(JSON.parse(reply.content[0].text), inline);
+  const wholePath = join(directory, 'signed-zeros-v1.json');
+  await writeFile(wholePath, stringifyJson(inline));
+  for (const [name, input] of [
+    ['zero-file', { sourcePath: path }],
+    ['zero-v1', { sourcePath: wholePath }],
+    // An MCP request must likewise retain the sign on its JSON wire. Client-side JSON.stringify alone loses it.
+    ['zero-inline', JSON.parse(stringifyJson({ history: reply.structuredContent }))],
+  ]) {
+    let target = await start(name);
+    const imported = await importConstructionHistory(target, { requestId: `import.${name}`, ...input });
+    assert.equal(imported.verified, true);
+    assert.equal(imported.headGraphHash, stored.graphHash);
+    await target.close();
+    target = await start(name);
+    for (const [i, modelHash] of hashes.entries()) {
+      const inspected = await target.inspectModel({ modelHash, includeDefinition: true });
+      assert.equal(inspected.summary.model_hash, modelHash);
+      assert.deepEqual(inspected.model, definitions[i]);
+    }
+  }
+});
+
+test('export refuses native numeric identities JavaScript cannot reproduce before creating a file', async (t) => {
+  const { directory, start } = await sessions(t);
+  for (const token of ['1.0', '9007199254740993']) {
+    const { model, graph } = await example();
+    model.meaning_model.concepts = [{ id: 'concept.numeric', provenance: ['numeric-identity-test'] }];
+    model.meaning_model.realizations = [{ id: 'realization.numeric', concept_id: 'concept.numeric', purpose: 'describe',
+      roles: { instance: 'event.offer' }, parameters: { exact: JSON.rawJSON(token) }, degree: 1,
+      provenance: ['numeric-identity-test'], viewpoint: 'test' }];
+    const name = `native-${token}`, state = join(directory, `${name}.sqlite`);
+    // Bypass JavaScript number conversion on input: these are legal, distinct native model identities.
+    const native = spawnSync(resolveEngineBinary(), ['--state-file', state], { encoding: 'utf8', input: JSON.stringify({
+      schema: 'life-sim-rust-command/v1', operation: 'register_model', model,
+    }) });
+    assert.equal(native.status, 0, native.stderr);
+    const registered = JSON.parse(native.stdout);
+    assert.equal(registered.ok, true, native.stdout);
+    const source = await start(name);
+    graph.source.model_hash = registered.result.summary.model_hash;
+    const stored = await source.registerNarrativeGraph({ requestId: 'numeric.graph', narrativeGraph: graph });
+    const path = join(directory, `${name}.json`);
+    await assert.rejects(exportConstructionHistory(source, { graphHash: stored.graphHash, accessScopes: ['author'], destinationPath: path }), /cannot preserve model .* exactly.*No history was exported/u);
+    await assert.rejects(readFile(path), { code: 'ENOENT' });
+    await assert.rejects(exportConstructionHistory(source, { graphHash: stored.graphHash, accessScopes: ['author'] }), /cannot preserve model .* exactly/u);
+  }
+});
 
 test('a file history with more than 32 model revisions imports and survives a real restart under default limits', { timeout: 60_000 }, async (t) => {
   const { directory, start } = await sessions(t);

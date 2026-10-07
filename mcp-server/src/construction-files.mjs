@@ -3,6 +3,7 @@ import { constants } from 'node:fs';
 import { lstat, open, unlink } from 'node:fs/promises';
 import { isAbsolute, resolve, sep } from 'node:path';
 import * as z from 'zod/v4';
+import { stringifyJson } from './exact-json.mjs';
 import { applyModelDelta, computeModelDelta, MODEL_DELTA_SCHEMA } from './model-delta.mjs';
 
 export const MAX_HISTORY_FILE_BYTES = 256 * 1024 * 1024;
@@ -38,11 +39,11 @@ export function encodeHistoryModels(models, maximumKeptBytes = MAX_HISTORY_KEPT_
     if (parent !== null && kept.has(parent)) {
       const delta = computeModelDelta(models[parent].definition, definition);
       const changes = delta && { modelHash, baseModelHash: models[parent].modelHash, delta };
-      if (changes && JSON.stringify(changes).length < JSON.stringify(entry).length) entry = changes;
+      if (changes && stringifyJson(changes).length < stringifyJson(entry).length) entry = changes;
     }
     for (const [earlier, bytes] of kept) if (lastChild[earlier] <= i) { kept.delete(earlier); keptBytes -= bytes; }
     if (lastChild[i] > i) {
-      const bytes = Buffer.byteLength(JSON.stringify(definition));
+      const bytes = Buffer.byteLength(stringifyJson(definition));
       if (keptBytes + bytes <= maximumKeptBytes) { kept.set(i, bytes); keptBytes += bytes; }
     }
     return entry;
@@ -90,7 +91,7 @@ export function* expandHistoryModels(history, plan = planHistoryModels(history),
   for (const [i, entry] of history.models.entries()) {
     const base = plan.bases[i];
     const definition = base === null ? entry.definition : applyModelDelta(JSON.parse(kept.get(base).json), entry.delta);
-    const json = JSON.stringify(definition), bytes = Buffer.byteLength(json);
+    const json = stringifyJson(definition), bytes = Buffer.byteLength(json);
     if (bytes > MAX_HISTORY_MODEL_BYTES) throw new Error(`History model ${i} is ${bytes} bytes once expanded; a model may be at most ${MAX_HISTORY_MODEL_BYTES}.`);
     if (base !== null && plan.lastUse[base] <= i) { keptBytes -= kept.get(base).bytes; kept.delete(base); }
     if (plan.lastUse[i] > i) {
@@ -127,7 +128,7 @@ function* expandedTokens(content, models) {
     const value = content[key];
     if (value === undefined || typeof value === 'function' || typeof value === 'symbol') continue;
     if (!first) yield ','; first = false;
-    yield JSON.stringify(key); yield ':';
+    yield stringifyJson(key); yield ':';
     if (key !== 'models') { yield* jsonTokens(value); continue; }
     yield '['; let index = 0;
     for (const model of models) { if (index) yield ','; index += 1; yield* jsonTokens(model); }
@@ -146,10 +147,10 @@ export const absoluteHistoryPath = z.string().min(1).max(4_096).refine((value) =
   !value.includes('\0') && isAbsolute(value) && !value.split(/[\\/]/u).includes('..'),
   'Use an explicit absolute local file path without parent traversal.');
 
-// Match the existing JSON.stringify(sorted-object replacer) checksum without
+// Match the existing sorted-object checksum, preserving negative zero, without
 // constructing a second, potentially enormous, complete history string.
 function* jsonTokens(value) {
-  if (value === null || typeof value !== 'object') { yield JSON.stringify(value) ?? 'null'; return; }
+  if (value === null || typeof value !== 'object') { yield stringifyJson(value) ?? 'null'; return; }
   if (Array.isArray(value)) {
     yield '[';
     for (let i = 0; i < value.length; i += 1) { if (i) yield ','; yield* jsonTokens(value[i]); }
@@ -161,7 +162,7 @@ function* jsonTokens(value) {
   for (const key of sorted) {
     if (value[key] === undefined || typeof value[key] === 'function' || typeof value[key] === 'symbol') continue;
     if (!first) yield ','; first = false;
-    yield JSON.stringify(key); yield ':'; yield* jsonTokens(value[key]);
+    yield stringifyJson(key); yield ':'; yield* jsonTokens(value[key]);
   }
   yield '}';
 }

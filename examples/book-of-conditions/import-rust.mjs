@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { Client } from '../../mcp-server/node_modules/@modelcontextprotocol/client/dist/index.mjs';
 import { StdioClientTransport } from '../../mcp-server/node_modules/@modelcontextprotocol/client/dist/stdio.mjs';
 import { applyNarrativeDefinitionDelta } from '../../mcp-server/src/narrative-delta.mjs';
+import { expandHistoryModels, planHistoryModels, readHistoryFile } from '../../mcp-server/src/construction-files.mjs';
+import { stringifyJson } from '../../mcp-server/src/exact-json.mjs';
 
 export const directory = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.resolve(directory, '../..');
@@ -17,19 +19,19 @@ const bundleName = 'the-book-of-conditions.meaning-model.json';
 const manifestName = 'PUBLICATION-MANIFEST.json';
 const proseName = 'BOOK-DRAFT.md';
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
-const writeJson = (out, name, value) => fs.writeFileSync(path.join(out, name), `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx' });
+const writeJson = (out, name, value) => fs.writeFileSync(path.join(out, name), `${stringifyJson(value, null, 2)}\n`, { flag: 'wx' });
 
-function readEdition() {
-  const files = Object.fromEntries([bundleName, manifestName, proseName].map(name => [name, fs.readFileSync(path.join(directory, name))]));
+export async function readEdition(sourceDirectory = directory) {
+  const files = Object.fromEntries([manifestName, proseName].map(name => [name, fs.readFileSync(path.join(sourceDirectory, name))]));
   const manifest = JSON.parse(files[manifestName]);
-  const bundle = JSON.parse(files[bundleName]);
+  const { history: bundle, fileSha256 } = await readHistoryFile(path.resolve(sourceDirectory, bundleName));
   for (const field of ['graphHash', 'modelHash', 'proseSha256']) assert.match(manifest[field] ?? '', /^[a-f0-9]{64}$/, `Missing or invalid ${field} in ${manifestName}`);
   assert.equal(typeof manifest.rootId, 'string');
   assert(manifest.rootId.length > 0 && Array.isArray(manifest.accessScopes));
   assert(manifest.accessScopes.every(scope => typeof scope === 'string'));
   assert.equal(digest(files[proseName]), manifest.proseSha256, 'The manuscript does not match the publication manifest');
-  if (manifest.fileSha256) assert.equal(digest(files[bundleName]), manifest.fileSha256, 'The bundle does not match the publication manifest');
-  assert.equal(bundle.schema, 'meaning-model-construction-history/v1');
+  if (manifest.fileSha256) assert.equal(fileSha256, manifest.fileSha256, 'The bundle does not match the publication manifest');
+  const plan = planHistoryModels(bundle);
   assert.equal(bundle.headGraphHash, manifest.graphHash);
   // Preserve the complete history from its first graph revision.
   // Import verifies every stored hash; this check rejects missing ancestry before import.
@@ -50,18 +52,22 @@ function readEdition() {
   assert.equal(bundle.revisions.at(-1).graphHash, manifest.graphHash);
   assert.equal(graph.revision.number, manifest.graphRevision);
   assert.equal(graph.source.model_hash, manifest.modelHash);
-  const models = new Map(bundle.models.map(entry => [entry.modelHash, entry.definition]));
+  // Keep only ancestry metadata while the shared reader expands each model within its memory limits.
+  const models = new Map();
+  for (const { modelHash, definition } of expandHistoryModels(bundle, plan)) {
+    models.set(modelHash, { number: definition.revision.number, previous_model_hash: definition.revision.previous_model_hash });
+  }
   assert(models.has(manifest.modelHash));
-  assert.equal(models.get(manifest.modelHash).revision.number, manifest.modelRevision);
-  for (const model of models.values()) {
-    const previous = model.revision.previous_model_hash;
+  assert.equal(models.get(manifest.modelHash).number, manifest.modelRevision);
+  for (const revision of models.values()) {
+    const previous = revision.previous_model_hash;
     if (previous) {
       assert(models.has(previous), 'Every native model predecessor must be included');
-      assert.equal(model.revision.number, models.get(previous).revision.number + 1);
-    } else assert.equal(model.revision.number, 0, 'Only a model root may omit its predecessor');
+      assert.equal(revision.number, models.get(previous).number + 1);
+    } else assert.equal(revision.number, 0, 'Only a model root may omit its predecessor');
   }
   return { manifest, bundle, prose: files[proseName].toString('utf8'),
-    sourceHashes: Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name, digest(bytes)])) };
+    sourceHashes: { [bundleName]: fileSha256, ...Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name, digest(bytes)])) } };
 }
 
 function authorReferences(graph) {
@@ -79,7 +85,7 @@ function authorReferences(graph) {
 export async function runImport(outputDirectory, binary = defaultEngine) {
   const out = path.resolve(outputDirectory);
   assert(!fs.existsSync(out), 'The output directory already exists and is never overwritten; choose a fresh directory.');
-  const edition = readEdition();
+  const edition = await readEdition();
   const { manifest } = edition;
   assert(fs.existsSync(binary), `Engine not found: ${binary}. Run make build first.`);
   fs.mkdirSync(out, { recursive: true });

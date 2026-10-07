@@ -11,13 +11,15 @@ import { projectNumerics } from './viewer-numerics.mjs';
 import { projectScalarSeries } from './viewer-scalar-series.mjs';
 import { declaredViewerLives } from './viewer-snapshot.mjs';
 import { VIEW_SCHEMA, currentView } from '../viewer/public/view-settings.js';
+import { expandHistoryModels, HISTORY_FILE_SCHEMA_V2, planHistoryModels } from './construction-files.mjs';
 
 export async function buildViewerData({ history, rendered = null, documentRendered = null, calls = [], name = null, title: requestedTitle = null,
   display = null, meaningModelVersion = null, generatedAt = new Date().toISOString() } = {}) {
   if (!Array.isArray(history?.models) || !history.models.length || !Array.isArray(history.revisions)
-    || history.models.some((entry) => !entry?.definition || typeof entry.definition !== 'object')) {
+    || (history.schema !== HISTORY_FILE_SCHEMA_V2 && history.models.some((entry) => !entry?.definition || typeof entry.definition !== 'object'))) {
     throw new Error('A viewer snapshot needs at least one complete model definition and a graph revisions array.');
   }
+  const modelPlan = history.schema === HISTORY_FILE_SCHEMA_V2 ? planHistoryModels(history) : null;
   const HASH = /\b[0-9a-f]{64}\b/g;
   // When each hash first appeared in a logged result: the call that made it.
   const hashAt = new Map();
@@ -68,8 +70,14 @@ export async function buildViewerData({ history, rendered = null, documentRender
 
   // The model a live view follows to (revisions recorded after the graph's binding), else the one the story graph is
   // bound to at its head, else the newest one.
-  const modelsByHash = new Map(history.models.map((entry) => [entry.modelHash, entry]));
-  const selectedModelEntry = (history.selectedModelHash ? modelsByHash.get(history.selectedModelHash) : null) ?? (boundModel ? modelsByHash.get(boundModel) : history.models.at(-1));
+  // A portable v2 file is expanded in two bounded passes: ancestry metadata first, then model births below.
+  // Keeping every expanded revision here would undo the file reader's memory bound.
+  const modelsByHash = new Map();
+  for (const entry of modelPlan ? expandHistoryModels(history, modelPlan) : history.models) {
+    modelsByHash.set(entry.modelHash, modelPlan ? { modelHash: entry.modelHash,
+      definition: { revision: { previous_model_hash: entry.definition.revision?.previous_model_hash } } } : entry);
+  }
+  let selectedModelEntry = (history.selectedModelHash ? modelsByHash.get(history.selectedModelHash) : null) ?? (boundModel ? modelsByHash.get(boundModel) : modelsByHash.get(history.models.at(-1).modelHash));
   if (!selectedModelEntry) throw new Error('The viewer history is missing the graph-bound model definition.');
 
   // Portable history also carries independent author/reader lives and other
@@ -87,7 +95,11 @@ export async function buildViewerData({ history, rendered = null, documentRender
   const scalarClaimBorn = new Map(), scalarProcessBorn = new Map(); let previousClaims = new Map(), previousProcesses = new Map();
   const modelSteps = [];
   let previous = { events: new Set(), cuts: new Set(), referents: new Set(), relations: new Set(), processes: new Set() };
-  modelLineage.forEach((entry, rev) => {
+  let rev = 0;
+  for (const entry of modelPlan ? expandHistoryModels(history, modelPlan) : modelLineage) {
+    if (!seenModels.has(entry.modelHash)) continue;
+    if (entry.modelHash !== modelLineage[rev].modelHash) throw new Error('A portable viewer history must hold model ancestors before their revisions.');
+    if (entry.modelHash === selectedModelEntry.modelHash) selectedModelEntry = entry;
     const mm = entry.definition.meaning_model ?? {};
     const now = {
       events: new Set((mm.events ?? []).map((item) => item.id)), cuts: new Set((mm.normalized_cuts ?? []).map((item) => item.id)),
@@ -111,7 +123,8 @@ export async function buildViewerData({ history, rendered = null, documentRender
       added: Object.fromEntries(Object.entries(added).map(([key, ids]) => [key, ids.length])),
       totals: Object.fromEntries(Object.entries(now).map(([key, ids]) => [key, ids.size])) });
     previous = now;
-  });
+    rev += 1;
+  }
 
   const model = selectedModelEntry.definition;
   const runName = name ?? history.graphId ?? model.id ?? 'model';

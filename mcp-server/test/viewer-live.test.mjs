@@ -21,6 +21,7 @@ function fixture(t) {
   add(rootHash);
   const service = {
     async inspectModel({ modelHash }) { return { modelHash, model: models.get(modelHash) }; },
+    async validateModel({ model }) { return { modelHash: [...models].find(([, definition]) => definition === model)?.[0] }; },
     async listNarrativeRevisions({ graphId }) {
       assert.equal(graphId, 'growing-story');
       const revisions = [...graphs].map(([graph_hash, graph]) => ({ graph_hash, previous_graph_hash: graph.revision.previous_graph_hash ?? null }));

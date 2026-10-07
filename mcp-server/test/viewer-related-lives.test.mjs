@@ -27,6 +27,7 @@ function setup(t, { nodes = [declaration('world.author_reader')], edges = [], mo
   const calls = [];
   const service = {
     async inspectModel(input) { calls.push(['inspect', structuredClone(input)]); const found = definitions.get(input.modelHash); if (!found) throw new Error('Model missing'); return { modelHash: input.modelHash, model: found }; },
+    async validateModel({ model }) { return { modelHash: [...definitions].find(([, definition]) => definition === model)?.[0] }; },
     async listNarrativeRevisions({ graphId }) {
       const entry = [...graphDefinitions].find(([, definition]) => definition.id === graphId);
       return { revisions: [{ graph_hash: entry[0], previous_graph_hash: null }], heads: [entry[0]] };

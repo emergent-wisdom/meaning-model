@@ -49,6 +49,7 @@ test('default MCP stdio client receives complete large graph results and a bound
     server.registerTool('twelve', {}, async () => toolResult(graphResult(501, 3004, 9500)));
     server.registerTool('oversized', {}, async () => toolResult({ text: '🙂'.repeat(MAX_TOOL_RESULT_BYTES / 4) }));
     server.registerTool('small', {}, async () => toolResult({ complete: true }));
+    server.registerTool('zeros', {}, async () => toolResult({ values: [-0, 0], nested: { zero: -0 } }));
     await server.connect(new StdioServerTransport());
   `;
   const transport = new StdioClientTransport({ command: process.execPath,
@@ -75,4 +76,7 @@ test('default MCP stdio client receives complete large graph results and a bound
   const after = await client.callTool({ name: 'small', arguments: {} });
   assert.deepEqual(after.structuredContent, { complete: true }, 'the oversize result does not poison the transport');
   assert.deepEqual(JSON.parse(after.content[0].text), { complete: true });
+  const zeros = await client.callTool({ name: 'zeros', arguments: {} });
+  assert.deepEqual(zeros.structuredContent, { values: [-0, 0], nested: { zero: -0 } }, 'SDK JSON transport preserves each zero sign');
+  assert.deepEqual(JSON.parse(zeros.content[0].text), zeros.structuredContent, 'text and structured responses agree');
 });

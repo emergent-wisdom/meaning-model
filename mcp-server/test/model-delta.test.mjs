@@ -26,6 +26,30 @@ test('the sign of a zero is a change', () => {
   assert.ok(Object.is(applyModelDelta(base, delta).start, -0) && Object.is(applyModelDelta(base, delta).events[0].start, -0));
 });
 
+test('prototype keys remain own JSON data through additions, nested changes and removals', () => {
+  const base = { nested: {} };
+  const target = JSON.parse('{"__proto__":{"marker":"root"},"nested":{"__proto__":[{"id":"a","value":1}]}}');
+  const delta = computeModelDelta(base, target);
+  assert.ok(delta, 'adding a JSON __proto__ key can be represented faithfully');
+  const rebuilt = applyModelDelta(base, delta);
+  assert.deepEqual(rebuilt, target);
+  assert.equal(Object.getPrototypeOf(rebuilt), Object.prototype);
+  assert.equal(Object.getPrototypeOf(rebuilt.nested), Object.prototype);
+  assert.equal(Object.hasOwn(rebuilt, '__proto__'), true);
+  assert.equal(Object.hasOwn(rebuilt.nested, '__proto__'), true);
+  assert.equal(rebuilt.marker, undefined);
+  const changed = structuredClone(target);
+  changed.__proto__.marker = 'changed';
+  changed.nested.__proto__.push({ id: 'b', value: 2 });
+  assert.deepEqual(applyModelDelta(rebuilt, computeModelDelta(rebuilt, changed)), changed);
+  assert.deepEqual(applyModelDelta(changed, computeModelDelta(changed, base)), base);
+  for (const path of [['__proto__', 'marker'], ['constructor', 'prototype', 'marker']]) {
+    assert.throws(() => applyModelDelta({}, { schema: MODEL_DELTA_SCHEMA, changes: [{ op: 'set', path, value: true }] }), /does not have/);
+  }
+  assert.equal(Object.prototype.marker, undefined);
+  assert.deepEqual(base, { nested: {} });
+});
+
 test('collections whose order or ids a delta cannot keep are replaced whole, and wrong deltas are refused', () => {
   const unsorted = { items: [{ id: 'z' }, { id: 'a' }] }, inserted = { items: [{ id: 'z' }, { id: 'q' }, { id: 'a' }] };
   assert.deepEqual(applyModelDelta(unsorted, computeModelDelta(unsorted, inserted)), inserted);

@@ -1218,8 +1218,9 @@ response line to 64 MiB, aggregate pending command bytes to 32 MiB, pending
 calls to 32, and a call to 30 seconds. Node caches only 32 recent model summaries
 and permits up to 32 concurrent model writes; cache eviction leaves immutable
 revisions in Rust available for inspection and continuation. The Rust engine
-currently allows 512 model revisions and 256 MiB of model definitions per
-session, including loaded history. Read the live native storage limits from
+currently allows 512 model revisions and 256 MiB of stored model data per
+session, including loaded history. Revisions are stored as changes when smaller
+than a whole definition; each expanded model is limited to 8 MiB. Read the live native storage limits from
 `life_engine_status.engine.nativeLimits`.
 
 The adapter also caps world/candidate handles, receipts and retained receipt
@@ -1280,6 +1281,22 @@ and `destinationPath`, for example
 absolute path without `..`, its parent must exist, and the file must be new.
 Export writes private JSON, up to 256 MiB, and returns its path, byte count,
 checksums and revision counts instead of echoing the bundle through MCP.
+
+Version 0.8.0 writes history files in `meaning-model-construction-history/v2`.
+Model revisions use changes from earlier models where this reduces file size;
+whole definitions are used when needed to keep reading memory bounded. Both v1
+and v2 files import, but older packages cannot read v2. The checksum describes the
+expanded history, so changing the encoding does not change its identity.
+
+Export checks that each transported model still has its original engine hash.
+Negative zero is preserved. If another numeric representation cannot survive
+JavaScript's number handling exactly, export refuses before writing a file;
+retain the native database in that case. Clients that re-serialize inline JSON
+can also change numbers, so use a file export for exact transfer.
+
+The database format is now `life-sim-rust-session-state/v3`. An existing v2 file
+is upgraded on its first write, after which older engines cannot open it. Keep a
+copy before upgrading if you need to return to an older engine.
 
 Restore it with `life_construction_import`, supplying `requestId` and
 `sourcePath` on the destination machine. Import requires a regular JSON file

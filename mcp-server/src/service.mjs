@@ -4,6 +4,7 @@ import { descriptionCoverage } from './description-coverage.mjs';
 import { validateNarrativeDelta, applyNarrativeDefinitionDelta, definitionFromCompleteView } from './narrative-delta.mjs';
 import { assertPassageGrounding, NARRATIVE_HISTORY_REPLAY } from './narrative-grounding.mjs';
 import { createHash, randomUUID } from 'node:crypto';
+import { stringifyJson } from './exact-json.mjs';
 
 import {
   forcingTargets,
@@ -456,7 +457,7 @@ function validateAnnotation({ verdict, issues }) {
 function validateAggregateJsonBytes(value, label, maximum) {
   let encoded;
   try {
-    encoded = JSON.stringify(value);
+    encoded = stringifyJson(value);
   } catch (cause) {
     throw new Error(`${label} must be JSON-serializable: ${cause.message}`);
   }
@@ -471,7 +472,7 @@ function canonicalJson(value, ancestors = new Set()) {
     return JSON.stringify(value);
   }
   if (typeof value === 'number') {
-    return JSON.stringify(Number.isFinite(value) ? value : null);
+    return stringifyJson(Number.isFinite(value) ? value : null);
   }
   if (Array.isArray(value)) {
     if (ancestors.has(value)) throw new Error('Request payload must not contain cycles.');
@@ -646,7 +647,7 @@ function validateMeaningQuery({ collections, ids, offset, limit }) {
 function validateModelBounds(model) {
   let encoded;
   try {
-    encoded = JSON.stringify(model);
+    encoded = stringifyJson(model);
   } catch (cause) {
     throw new Error(`Model is not JSON-serializable: ${cause.message}`);
   }

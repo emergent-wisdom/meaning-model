@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { accessSync, constants, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stringifyJson } from './exact-json.mjs';
 
 const COMMAND_SCHEMA = 'life-sim-rust-command/v1';
 const RESPONSE_SCHEMA = 'life-sim-rust-response/v1';
@@ -264,7 +265,7 @@ export class RustEngineProcess {
     };
     let encoded;
     try {
-      encoded = `${JSON.stringify(command)}\n`;
+      encoded = `${stringifyJson(command)}\n`;
     } catch (cause) {
       return Promise.reject(errorWithCause(`Could not encode Rust command: ${cause.message}`, cause));
     }

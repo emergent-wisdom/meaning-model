@@ -1052,6 +1052,15 @@ export async function exportConstructionHistory(service, raw, { maximumBytes = M
     }
     if (ordered.length === before) throw new Error('The model revisions do not form a chain.');
   }
+  // JavaScript keeps a zero's sign, but cannot keep every Rust JSON number (for example, an integer above 2^53 or
+  // 1.0 versus 1 in an untyped parameter). Prove the transported definition still has its engine identity before
+  // returning a bundle or opening its destination. Never export silently changed content under the original hash.
+  for (const { modelHash, definition } of ordered) {
+    const rebuilt = await service.validateModel({ model: definition });
+    if (rebuilt.modelHash !== modelHash) {
+      throw new Error(`Construction export cannot preserve model ${modelHash} exactly through JavaScript JSON numbers (rebuilt as ${rebuilt.modelHash}). No history was exported; preserve the native session file instead.`);
+    }
+  }
   const history = { schema: 'meaning-model-construction-history/v1', graphId: head.graph.id, headGraphHash: head.graph_hash,
     revisionCount: revisions.length, models: ordered, revisions };
   if (!input.destinationPath) return { ...history, bundleSha256: historyDigest(history, budget).sha256 };

@@ -397,7 +397,7 @@ justify those interpretations separately.
 Persistence has two explicit modes. With no configuration, state is held only
 in one process and the machine causes no filesystem side effects. With
 `--state-file PATH` or `LIFE_SIM_STATE_FILE=PATH`, Rust uses one transactional
-SQLite v2 state file. Foreign keys are enabled, the journal is WAL, synchronous
+SQLite v3 state file. Foreign keys are enabled, the journal is WAL, synchronous
 durability is FULL, and Unix database and sidecar permissions are restricted to
 `0600`. One successful command writes only its dirty model, world, candidate,
 world-revision, source-snapshot, narrative-revision, and project-checkpoint rows. A generation compare-and-swap
@@ -405,6 +405,14 @@ rejects stale session writers before their rows are applied. Schema bootstrap,
 generation advance, and row changes commit atomically; failed persistence is
 not acknowledged and the in-memory session reloads authoritative durable state.
 An ambiguous failed commit is reported as `persistence_uncertain`.
+
+Model revisions are stored as changes from their predecessors, with whole-model
+fallbacks when changes are not smaller. Reading a revision rebuilds it and checks
+its content hash; a small cache keeps recent revisions ready. Loading a state file
+uses one read transaction, including schema and generation checks. A v2 database
+is accepted and upgraded atomically on its first write. Earlier engines cannot
+open the upgraded file, so keep a backup before upgrading if you need to return
+to an earlier release.
 
 Narrative history stores one deduplicated source snapshot plus append-only
 revision deltas, rather than another full graph for every edit. Raw insertion

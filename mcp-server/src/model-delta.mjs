@@ -38,7 +38,10 @@ export function applyModelDelta(base, delta) {
     const path = change.path ?? [];
     if (change.op === 'set') {
       if (!path.length) { value = clone(change.value); continue; }
-      objectAt(value, path.slice(0, -1))[path.at(-1)] = clone(change.value);
+      // JSON keys are own data properties, including __proto__; assignment would invoke its inherited setter.
+      Object.defineProperty(objectAt(value, path.slice(0, -1)), path.at(-1), {
+        value: clone(change.value), writable: true, enumerable: true, configurable: true,
+      });
     } else if (change.op === 'unset') {
       if (!path.length) throw new Error('A model delta cannot remove the whole model.');
       const parent = objectAt(value, path.slice(0, -1));

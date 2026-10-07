@@ -195,6 +195,61 @@ test('an undated construction counts its steps instead of inventing a clock time
   assert.doesNotMatch(text.clock, /UTC|minutes/);
 });
 
+test('a dated construction names the step made latest by playback time, without reordering its steps', () => {
+  const text = {};
+  const elements = { fill: { style: {} }, reader: { hidden: true } };
+  const clock = (value) => value; clock.total = 1;
+  const at = (minute) => new Date(Date.UTC(2026, 9, 7, 10, minute)).toISOString();
+  // In construction order, the third step's logged time falls before the second's.
+  const steps = [
+    { order: 0, at: at(0), kind: 'model', rev: 0, label: 'The world.' },
+    { order: 1, at: at(5), kind: 'model', rev: 1, label: 'The latest revision.' },
+    { order: 2, at: at(3), kind: 'graph', rev: 0, label: 'An earlier graph revision.' },
+  ];
+  const stored = structuredClone(steps);
+  const context = { madeAt: (born) => (born?.at ? Date.parse(born.at) : NaN), stepClock: (step) => Date.parse(step.at), constructionByClock: true,
+    opt: { mode: 'construction', show: new Set() }, atEnd: false, playing: false, now: 3, tau: Date.parse(at(6)), F: { a: 0, b: 10 }, T1: 10, calendarTime: false,
+    rows: [], groupLabels: [], threads: [], decisions: [], lenses: [], notes: [], mind: {}, sweep: { position: {} }, activeClock: clock, xOf: (value) => value,
+    fracOf: (frame, value) => (value - frame.a) / (frame.b - frame.a), document: { getElementById: (id) => elements[id] }, setText: (id, value) => { text[id] = value; },
+    steps, data: { graph: { nodes: [] } }, NOTE_NAMES: {}, unitOf: new Map(), clip: (value) => value,
+    isStory: () => false, momentText: String, partsNow: () => [], storyParts: [], hasStory: false,
+    captionBox: { hidden: false }, showStats() {}, applyTerrain() {}, drawNotes() {}, drawArcs() {}, syncStrip() {}, syncBigNames() {} };
+  context.building = () => true;
+  vm.createContext(context); vm.runInContext([functionSource('syncSeriesCaptions'), functionSource('apply')].join('\n'), context);
+  context.apply();
+  assert.equal(text.kind, 'The agent · model revision 1', 'after every step, the caption names the one made last');
+  assert.equal(text.text, 'The latest revision.');
+  context.tau = Date.parse(at(4)); context.apply();
+  assert.equal(text.kind, 'The agent · story graph revision 0', 'between them, the latest step made by then, though it comes later in order');
+  assert.equal(text.text, 'An earlier graph revision.');
+  context.tau = Date.parse(at(0)); context.apply();
+  assert.equal(text.text, 'The world.');
+  assert.deepEqual(context.steps, stored, 'the stored construction order is unchanged');
+});
+
+test('a step-based replay names the latest step by order, and that order is unchanged', () => {
+  const text = {};
+  const elements = { fill: { style: {} }, reader: { hidden: true } };
+  const clock = (value) => value; clock.total = 2;
+  const steps = [{ order: 0, at: null, kind: 'model', rev: 0, label: 'The world.' }, { order: 1, at: null, kind: 'graph', rev: 0, label: '' }, { order: 2, at: null, kind: 'model', rev: 1, label: 'Kieran.' }];
+  const stored = structuredClone(steps);
+  const context = { madeAt: (born) => (Number.isFinite(born?.order) ? born.order : NaN), stepClock: (step) => step.order, constructionByClock: false,
+    opt: { mode: 'construction', show: new Set() }, atEnd: false, playing: false, now: 3, tau: 1, F: { a: 0, b: 10 }, T1: 10, calendarTime: false,
+    rows: [], groupLabels: [], threads: [], decisions: [], lenses: [], notes: [], mind: {}, sweep: { position: {} }, activeClock: clock, xOf: (value) => value,
+    fracOf: (frame, value) => (value - frame.a) / (frame.b - frame.a), document: { getElementById: (id) => elements[id] }, setText: (id, value) => { text[id] = value; },
+    steps, data: { graph: { nodes: [] } }, NOTE_NAMES: {}, unitOf: new Map(), clip: (value) => value,
+    isStory: () => false, momentText: String, partsNow: () => [], storyParts: [], hasStory: false,
+    captionBox: { hidden: false }, showStats() {}, applyTerrain() {}, drawNotes() {}, drawArcs() {}, syncStrip() {}, syncBigNames() {} };
+  context.building = () => true;
+  vm.createContext(context); vm.runInContext([functionSource('syncSeriesCaptions'), functionSource('apply')].join('\n'), context);
+  context.apply();
+  assert.equal(text.clock, 'Step 2 of 3');
+  assert.equal(text.text, 'The world.', 'a step without a reason is passed over for the latest one that has one');
+  context.tau = 2; context.apply();
+  assert.equal(text.clock, 'Step 3 of 3'); assert.equal(text.text, 'Kieran.');
+  assert.deepEqual(context.steps, stored);
+});
+
 test('construction captions return after an empty model-time caption is hidden', () => {
   const text = {};
   const elements = { fill: { style: {} }, reader: { hidden: true } };

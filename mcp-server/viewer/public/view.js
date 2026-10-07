@@ -1962,7 +1962,9 @@ function apply() {
     if (captionBox) captionBox.hidden = false;
     setText('clock', constructionByClock ? `${new Date(tau).toISOString().slice(11, 19)} UTC · ${Math.round(activeClock(tau) / 60000)} minutes of work` : `Step ${steps.filter((item) => stepClock(item) <= tau).length} of ${steps.length}`);
     // The newest of the agent's own words: its reason for a revision, or the thought, stage or prose it wrote.
-    const step = steps.filter((item) => item.label && stepClock(item) <= tau).at(-1);
+    // The step the caption names is the one made latest by playback time, at or before the playhead. The steps keep
+    // the order they were made in, which the times a call log gives them need not follow; equal times keep that order.
+    const step = steps.reduce((latest, item) => (item.label && stepClock(item) <= tau && (!latest || stepClock(item) >= stepClock(latest)) ? item : latest), null);
     const newest = data.graph.nodes.filter((node) => NOTE_NAMES[node.category] && madeAt(node.born) <= tau).sort((a, b) => madeAt(b.born) - madeAt(a.born))[0];
     if (newest && (!step || madeAt(newest.born) >= stepClock(step))) {
       const unit = unitOf.get(newest.id); setText('kind', unit?.title ? `${NOTE_NAMES[newest.category]} · ${unit.title}` : NOTE_NAMES[newest.category]);

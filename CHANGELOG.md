@@ -4,10 +4,20 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
-## Unreleased
+## 0.8.0 — 2026-10-07
+
+- Model exports and engine commands preserve the sign of zero, including through the MCP response and history
+  round trip. Export verifies each model's hash before writing; if JavaScript cannot preserve another numeric
+  representation exactly, export refuses with an explanation instead of writing a bundle that cannot be restored.
+- The shared viewer snapshot builder and Book example reader accept both v1 and v2 history files, expanding models
+  within the same memory limits as import. Model deltas preserve JSON properties named `__proto__` as ordinary data.
+- A dated construction replay now captions the latest step by its playback time even when timestamps and stored
+  construction order disagree. Replays by step keep their existing order.
+- The npm package page and package metadata link to [meaningmodel.ai](https://meaningmodel.ai/).
 
 - The engine keeps each model revision as its changes from the revision it was made from, in memory and on disk,
-  instead of a full copy of the whole model per revision; only a revision without a stored predecessor is kept whole.
+  instead of a full copy of the whole model per revision. A whole definition is kept when it has no stored predecessor
+  or when the changes would be larger.
   A full model is rebuilt when it is asked for and checked against its hash, and the most recently used ones stay
   ready. The session's 256 MiB model bound now counts what is stored, so a long history of small revisions no longer
   exhausts it, and checking it no longer re-serializes every revision. On Twelve Words (232 model revisions) the

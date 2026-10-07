@@ -3,6 +3,7 @@ import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { buildViewerData } from '../src/viewer-data.mjs';
+import { encodeHistoryModels, HISTORY_FILE_SCHEMA_V2, HISTORY_SCHEMA } from '../src/construction-files.mjs';
 
 const MODEL = 'a'.repeat(64);
 const OTHER_MODEL = 'b'.repeat(64);
@@ -40,6 +41,36 @@ function freezeDeep(value) {
   }
   return value;
 }
+
+test('v2 bundles build the same selected model, births and timeline as v1', async () => {
+  const head = '1'.repeat(64), authorHead = '2'.repeat(64);
+  const first = { ...model(), revision: { number: 0, reason: 'First' }, notes: 'x'.repeat(2000) };
+  const second = structuredClone(first);
+  second.revision = { number: 1, previous_model_hash: MODEL, reason: 'Changed' };
+  second.processes[0].initial_value.value = 3;
+  second.meaning_model.events.push({ id: 'cool', boundary: 'Cooling', interval: { start: 2, end: 4 } });
+  const author = { ...structuredClone(first), id: 'author' };
+  const laterAuthor = { ...structuredClone(author), revision: { number: 1, previous_model_hash: OTHER_MODEL } };
+  const models = [{ modelHash: MODEL, definition: first }, { modelHash: OTHER_MODEL, definition: author },
+    { modelHash: head, definition: second }, { modelHash: authorHead, definition: laterAuthor }];
+  const encoded = encodeHistoryModels(models);
+  assert(encoded[2].delta && encoded[3].delta, 'the fixture exercises interleaved model deltas');
+  for (const selection of [
+    { revisions: [graphRevision(head)] },
+    { revisions: [graphRevision(MODEL)], selectedModelHash: head },
+    { revisions: [] },
+  ]) {
+    const whole = { schema: HISTORY_SCHEMA, models, ...selection };
+    const compact = { ...whole, schema: HISTORY_FILE_SCHEMA_V2, models: encoded };
+    const before = structuredClone(compact);
+    const expected = await buildViewerData({ history: whole, generatedAt });
+    const actual = await buildViewerData({ history: freezeDeep(compact), generatedAt });
+    assert.deepEqual(actual, expected);
+    assert.deepEqual(compact, before, 'the file remains encoded and unchanged');
+  }
+  const broken = { schema: HISTORY_FILE_SCHEMA_V2, models: encoded.slice(2), revisions: [] };
+  await assert.rejects(buildViewerData({ history: broken, generatedAt }), /does not hold before it/);
+});
 
 test('the snapshot uses the exact graph-bound model, even when a newer unrelated model is present', async () => {
   const boundModel = model('year');
