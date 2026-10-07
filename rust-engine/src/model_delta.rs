@@ -6,7 +6,7 @@
 //! proves that before it returns a delta, so a delta that would rebuild anything else is never produced.
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Number, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub const MODEL_DELTA_SCHEMA: &str = "life-sim-rust-model-delta/v1";
@@ -46,7 +46,26 @@ pub fn compute(base: &Value, target: &Value) -> Option<ModelDelta> {
     let delta = ModelDelta { schema: MODEL_DELTA_SCHEMA.to_owned(), changes };
     let mut rebuilt = base.clone();
     apply(&mut rebuilt, &delta).ok()?;
-    (rebuilt == *target).then_some(delta)
+    same(&rebuilt, target).then_some(delta)
+}
+
+/// Whether two values are written identically, and so hash identically. `Value` equality is not enough: it holds
+/// between 0.0 and -0.0, which are written, and hashed, differently.
+fn same(a: &Value, b: &Value) -> bool {
+    match (a, b) {
+        (Value::Number(a), Value::Number(b)) => same_number(a, b),
+        (Value::Array(a), Value::Array(b)) => a.len() == b.len() && a.iter().zip(b).all(|(a, b)| same(a, b)),
+        (Value::Object(a), Value::Object(b)) => a.len() == b.len() && a.iter().all(|(key, value)| b.get(key).is_some_and(|other| same(value, other))),
+        _ => a == b,
+    }
+}
+
+fn same_number(a: &Number, b: &Number) -> bool {
+    if a.is_f64() || b.is_f64() {
+        a.is_f64() && b.is_f64() && a.as_f64().map(f64::to_bits) == b.as_f64().map(f64::to_bits)
+    } else {
+        a == b
+    }
 }
 
 /// Rebuilds a revision in place from its base. A delta that does not fit its base is an error, never a guess.
@@ -82,7 +101,7 @@ pub fn apply(value: &mut Value, delta: &ModelDelta) -> Result<(), String> {
 }
 
 fn diff(base: &Value, target: &Value, path: &mut Vec<String>, out: &mut Vec<ModelChange>) {
-    if base == target {
+    if same(base, target) {
         return;
     }
     match (base, target) {
@@ -119,14 +138,14 @@ fn records_change(old: &[Value], new: &[Value]) -> Option<(Vec<Value>, Vec<Strin
     let upsert: Vec<Value> = new_ids
         .iter()
         .zip(new.iter())
-        .filter(|(id, record)| before.get(*id) != Some(record))
+        .filter(|(id, record)| !before.get(*id).is_some_and(|old| same(old, record)))
         .map(|(_, record)| record.clone())
         .collect();
     let remove: Vec<String> = old_ids.iter().filter(|id| !after.contains(*id)).map(|id| (*id).to_owned()).collect();
     let sorted = new_ids.windows(2).all(|pair| pair[0] < pair[1]);
     let mut rebuilt = old.to_vec();
     apply_records(&mut rebuilt, &upsert, &remove, sorted).ok()?;
-    (rebuilt == new).then_some((upsert, remove, sorted))
+    (rebuilt.len() == new.len() && rebuilt.iter().zip(new).all(|(a, b)| same(a, b))).then_some((upsert, remove, sorted))
 }
 
 /// Each record's id, if every record is an object with a string id and no id repeats.
@@ -196,11 +215,16 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    /// What is written, and hashed: Value equality cannot tell 0.0 from -0.0.
+    fn written(value: &Value) -> Vec<u8> {
+        serde_json::to_vec(value).unwrap()
+    }
+
     fn rebuilds(base: &Value, target: &Value) -> ModelDelta {
         let delta = compute(base, target).expect("a delta rebuilds the target");
         let mut rebuilt = base.clone();
         apply(&mut rebuilt, &delta).unwrap();
-        assert_eq!(&rebuilt, target);
+        assert_eq!(written(&rebuilt), written(target));
         let stored: ModelDelta = serde_json::from_str(&serde_json::to_string(&delta).unwrap()).unwrap();
         assert_eq!(stored, delta, "a delta survives storage unchanged");
         delta
@@ -211,6 +235,20 @@ mod tests {
             "revision": { "number": 3, "previous_model_hash": "a", "reason": "r", "provenance": [] },
             "processes": [{ "id": "p", "value_type": "number" }],
             "meaning_model": { "events": events, "normalized_cuts": [] } })
+    }
+
+    #[test]
+    fn a_sign_of_zero_is_a_change() {
+        let base = json!({ "start": 0.0, "events": [{ "id": "a", "start": 0.0 }, { "id": "b", "start": -0.0 }] });
+        let target = json!({ "start": -0.0, "events": [{ "id": "a", "start": -0.0 }, { "id": "b", "start": 0.0 }] });
+        assert_eq!(base, target, "Value equality cannot see it");
+        assert_ne!(written(&base), written(&target), "what is written, and hashed, can");
+        let delta = rebuilds(&base, &target);
+        assert!(!delta.changes.is_empty());
+        let integer = json!({ "n": 1 });
+        let float = json!({ "n": 1.0 });
+        rebuilds(&integer, &float);
+        rebuilds(&float, &integer);
     }
 
     #[test]
@@ -282,7 +320,7 @@ mod tests {
         let written: ModelDelta = serde_json::from_value(fixture["delta"].clone()).unwrap();
         let mut rebuilt = fixture["base"].clone();
         apply(&mut rebuilt, &written).unwrap();
-        assert_eq!(rebuilt, fixture["target"]);
+        assert_eq!(serde_json::to_vec(&rebuilt).unwrap(), serde_json::to_vec(&fixture["target"]).unwrap());
         let mut ours = compute(&fixture["base"], &fixture["target"]).unwrap().changes;
         let mut theirs = written.changes;
         let path = |change: &ModelChange| match change {
@@ -310,7 +348,12 @@ mod tests {
     fn random_value(rng: &mut Rng, depth: u32) -> Value {
         match if depth == 0 { rng.below(4) } else { rng.below(7) } {
             0 => Value::Null,
-            1 => json!(rng.below(100) as f64 / 7.0),
+            1 => match rng.below(4) {
+                0 => json!(0.0),
+                1 => json!(-0.0),
+                2 => json!(rng.below(5)),
+                _ => json!(rng.below(100) as f64 / 7.0),
+            },
             2 => json!(format!("s{}", rng.below(50))),
             3 => json!(rng.below(2) == 0),
             4 => {
@@ -369,7 +412,7 @@ mod tests {
             if let Some(delta) = compute(&base, &target) {
                 let mut rebuilt = base.clone();
                 apply(&mut rebuilt, &delta).unwrap();
-                assert_eq!(rebuilt, target);
+                assert_eq!(written(&rebuilt), written(&target), "{base} -> {target}");
             } else {
                 panic!("no delta for {base} -> {target}");
             }

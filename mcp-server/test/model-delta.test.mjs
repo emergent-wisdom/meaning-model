@@ -19,6 +19,13 @@ test('a small revision is kept as only what changed and rebuilds exactly', () =>
   assert.deepEqual(base.meaning_model.events, events, 'the base is not changed');
 });
 
+test('the sign of a zero is a change', () => {
+  const base = { start: 0, events: [{ id: 'a', start: 0 }] }, target = { start: -0, events: [{ id: 'a', start: -0 }] };
+  const delta = computeModelDelta(base, target);
+  assert.ok(delta.changes.length > 0);
+  assert.ok(Object.is(applyModelDelta(base, delta).start, -0) && Object.is(applyModelDelta(base, delta).events[0].start, -0));
+});
+
 test('collections whose order or ids a delta cannot keep are replaced whole, and wrong deltas are refused', () => {
   const unsorted = { items: [{ id: 'z' }, { id: 'a' }] }, inserted = { items: [{ id: 'z' }, { id: 'q' }, { id: 'a' }] };
   assert.deepEqual(applyModelDelta(unsorted, computeModelDelta(unsorted, inserted)), inserted);
@@ -33,7 +40,7 @@ test('randomized revisions are always rebuilt exactly', () => {
   const next = (n) => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >>> 17; seed ^= seed << 5; seed >>>= 0; return seed % Math.max(1, n); };
   const value = (depth) => {
     switch (depth ? next(7) : next(4)) {
-      case 0: return null; case 1: return next(100) / 7; case 2: return `s${next(50)}`; case 3: return next(2) === 0;
+      case 0: return null; case 1: return [0, -0, next(5), next(100) / 7][next(4)]; case 2: return `s${next(50)}`; case 3: return next(2) === 0;
       case 4: return Object.fromEntries(Array.from({ length: next(5) }, () => [`k${next(8)}`, value(depth - 1)]));
       case 5: { const ids = [...new Set(Array.from({ length: next(8) }, () => next(30)))].sort((a, b) => a - b); if (next(3) === 0) ids.reverse();
         return ids.map((id) => ({ id: `r${String(id).padStart(2, '0')}`, v: value(depth - 1) })); }

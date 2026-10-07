@@ -16819,7 +16819,7 @@ mod tests {
         // Newest first, so every revision is rebuilt from changes rather than read from what is ready.
         for (hash, definition) in lineage.iter().rev() {
             let read = result(session.parse_and_execute(&command("get_model", serde_json::json!({ "model_hash": hash }))));
-            assert_eq!(&read["model"], definition, "revision {hash} rebuilds exactly");
+            assert_eq!(serde_json::to_vec(&read["model"]).unwrap(), serde_json::to_vec(definition).unwrap(), "revision {hash} rebuilds exactly");
         }
     }
 
@@ -16846,6 +16846,35 @@ mod tests {
         let session = MachineSession::with_state_file(&state_file).unwrap();
         assert!(session.models.stored_bytes() * 8 < full, "the session limit counts what is stored");
         drop(session);
+        assert_lineage_rebuilds(&state_file, &lineage);
+        remove_state_file(&state_file);
+    }
+
+    #[test]
+    fn a_revision_that_only_changes_the_sign_of_a_zero_is_kept_and_reopens() {
+        // 0.0 and -0.0 compare equal as values but are written, and hashed, differently.
+        let state_file = stored_model_state_file("stored-model-signed-zero");
+        let mut lineage = stored_model_lineage(&state_file, 6);
+        {
+            let mut session = MachineSession::with_state_file(&state_file).unwrap();
+            let (previous, current) = lineage.last().unwrap().clone();
+            let mut next = current.clone();
+            let events = next["meaning_model"]["events"].as_array_mut().unwrap();
+            let event = events.iter_mut().find(|event| event["interval"]["start"].as_f64() == Some(0.0)).expect("an event starting at 0.0");
+            event["interval"]["start"] = serde_json::json!(-0.0);
+            next["revision"] = serde_json::json!({ "number": current["revision"]["number"].as_u64().unwrap() + 1,
+                "previous_model_hash": previous, "reason": "only the sign of a zero", "provenance": ["stored-model-test"] });
+            let revised = result(session.parse_and_execute(&command("revise_model", serde_json::json!({ "model": next }))));
+            let hash = revised["summary"]["model_hash"].as_str().unwrap().to_owned();
+            assert_ne!(&hash, &previous, "the sign of a zero changes the hash");
+            lineage.push((hash.clone(), revised["model"].clone()));
+            // Read four others, so it is no longer ready, then read it again from what is kept.
+            for (other, _) in lineage.iter().take(4) {
+                result(session.parse_and_execute(&command("get_model", serde_json::json!({ "model_hash": other }))));
+            }
+            let read = result(session.parse_and_execute(&command("get_model", serde_json::json!({ "model_hash": hash }))));
+            assert_eq!(serde_json::to_vec(&read["model"]).unwrap(), serde_json::to_vec(&lineage.last().unwrap().1).unwrap());
+        }
         assert_lineage_rebuilds(&state_file, &lineage);
         remove_state_file(&state_file);
     }
