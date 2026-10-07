@@ -11946,6 +11946,20 @@ fn persist_sqlite_changes(path: &Path, after: &MachineSession) -> Result<u64, Pe
         })
 }
 
+#[cfg(test)]
+thread_local! {
+    /// A test can run something once, between a load reading the file's storage version and reading its rows.
+    static AFTER_SCHEMA_READ: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = std::cell::RefCell::new(None);
+}
+
+#[cfg(test)]
+fn after_schema_read() {
+    let hook = AFTER_SCHEMA_READ.with(|cell| cell.borrow_mut().take());
+    if let Some(hook) = hook {
+        hook();
+    }
+}
+
 fn load_sqlite_session(path: &Path) -> EngineResult<PersistedSession> {
     let identity =
         Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|cause| {
@@ -11972,7 +11986,7 @@ fn load_sqlite_session(path: &Path) -> EngineResult<PersistedSession> {
         None => return Err(error("SQLite state file lacks a session schema")),
     }
     drop(identity);
-    let connection = Connection::open(path).map_err(|cause| {
+    let mut connection = Connection::open(path).map_err(|cause| {
         sqlite_error(
             &format!("failed to open SQLite state file {}", path.display()),
             cause,
@@ -11980,6 +11994,12 @@ fn load_sqlite_session(path: &Path) -> EngineResult<PersistedSession> {
     })?;
     harden_sqlite_permissions(path)?;
     configure_sqlite(&connection)?;
+    // Everything below is read from one snapshot of the file, starting with its storage version: another process that
+    // writes or migrates it meanwhile cannot show this load an old version with new rows, or new rows with an old
+    // generation (which would let this session's next write pass the generation check over newer content).
+    let connection = connection
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)
+        .map_err(|cause| sqlite_error("failed to begin SQLite read transaction", cause))?;
     let schema: Option<String> = connection
         .query_row(
             "SELECT value FROM session_metadata WHERE key = 'session_schema'",
@@ -11989,6 +12009,8 @@ fn load_sqlite_session(path: &Path) -> EngineResult<PersistedSession> {
         .optional()
         .map_err(|cause| sqlite_error("failed to read SQLite session schema", cause))?;
     let schema = schema.ok_or_else(|| error("SQLite state file lacks a session schema"))?;
+    #[cfg(test)]
+    after_schema_read();
     let kept_as_changes = schema == SESSION_STATE_SCHEMA;
     if schema != SESSION_STATE_SCHEMA && schema != SESSION_STATE_SCHEMA_V2 {
         return Err(error(format!(
@@ -16875,6 +16897,62 @@ mod tests {
             let read = result(session.parse_and_execute(&command("get_model", serde_json::json!({ "model_hash": hash }))));
             assert_eq!(serde_json::to_vec(&read["model"]).unwrap(), serde_json::to_vec(&lineage.last().unwrap().1).unwrap());
         }
+        assert_lineage_rebuilds(&state_file, &lineage);
+        remove_state_file(&state_file);
+    }
+
+    /// A v2 state file holding a short lineage, every revision whole, as an older engine wrote it.
+    fn v2_state_file(label: &str, lineage: &[(String, serde_json::Value)]) -> PathBuf {
+        let state_file = stored_model_state_file(label);
+        let connection = Connection::open(&state_file).unwrap();
+        connection.execute_batch("PRAGMA journal_mode = WAL;").unwrap();
+        let v2_schema = SQLITE_SESSION_SCHEMA.replace(",\n    base_model_hash TEXT REFERENCES models(model_hash)\n);", "\n);");
+        assert_ne!(v2_schema, SQLITE_SESSION_SCHEMA);
+        connection.execute_batch(&v2_schema).unwrap();
+        connection.execute("INSERT INTO session_metadata(key, value) VALUES ('session_schema', ?1)", [SESSION_STATE_SCHEMA_V2]).unwrap();
+        connection.execute("INSERT INTO session_metadata(key, value) VALUES ('generation', '7')", []).unwrap();
+        for (hash, definition) in lineage {
+            connection.execute("INSERT INTO models(model_hash, definition_json) VALUES (?1, ?2)", params![hash, serde_json::to_vec(definition).unwrap()]).unwrap();
+        }
+        state_file
+    }
+
+    fn next_revision(lineage: &[(String, serde_json::Value)], reason: &str) -> serde_json::Value {
+        let (previous, current) = lineage.last().unwrap();
+        let mut next = current.clone();
+        next["revision"] = serde_json::json!({ "number": current["revision"]["number"].as_u64().unwrap() + 1,
+            "previous_model_hash": previous, "reason": reason, "provenance": ["stored-model-test"] });
+        next
+    }
+
+    #[test]
+    fn a_load_reads_one_snapshot_while_another_session_migrates_the_file() {
+        let lineage = {
+            let source = stored_model_state_file("stored-model-race-source");
+            let lineage = stored_model_lineage(&source, 6);
+            remove_state_file(&source);
+            lineage
+        };
+        let state_file = v2_state_file("stored-model-race", &lineage);
+        // Between this load reading "v2" and reading the rows, another session writes, which migrates the file.
+        let other = state_file.clone();
+        let written = next_revision(&lineage, "written by the other session");
+        AFTER_SCHEMA_READ.with(|cell| *cell.borrow_mut() = Some(Box::new(move || {
+            let mut session = MachineSession::with_state_file(&other).unwrap();
+            result(session.parse_and_execute(&command("revise_model", serde_json::json!({ "model": written }))));
+        })));
+        let mut session = MachineSession::with_state_file(&state_file).expect("the load sees the file as it was when it began");
+        for (hash, definition) in &lineage {
+            let read = result(session.parse_and_execute(&command("get_model", serde_json::json!({ "model_hash": hash }))));
+            assert_eq!(serde_json::to_vec(&read["model"]).unwrap(), serde_json::to_vec(definition).unwrap());
+        }
+        // Its generation is the one it read the rows with, so it cannot overwrite what the other session wrote.
+        let late = session.parse_and_execute(&command("revise_model", serde_json::json!({ "model": next_revision(&lineage, "written late") })));
+        assert!(!late.ok, "a write from the earlier snapshot is refused");
+        assert!(late.error.as_ref().unwrap().message.contains("changed since it was opened"), "{:?}", late.error);
+        drop(session);
+        let (schema, whole, changes, _) = stored_model_rows(&state_file);
+        assert_eq!((schema.as_str(), whole, changes), (SESSION_STATE_SCHEMA, 1, lineage.len()));
         assert_lineage_rebuilds(&state_file, &lineage);
         remove_state_file(&state_file);
     }
