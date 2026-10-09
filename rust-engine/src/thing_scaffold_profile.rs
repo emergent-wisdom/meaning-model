@@ -180,6 +180,8 @@ impl OptionalModelProfile for ThingScaffoldProfile {
                 semantic_coverage: None,
                 normalized_cuts: vec![],
                 context_roots: vec![],
+                importance_scales: vec![],
+                event_importance: vec![],
                 temporal_cut_recompositions: vec![],
             }),
             ..ProfileFragment::default()

@@ -60,7 +60,7 @@ const contextReviewTask = {
   task: 'Review the broader system and longer-term developments before local construction. Complete this within the agreed delegation; it does not require a new user checkpoint.',
   required: 'Supply scaffold.contextReview with holder, focalInterval, broaderContext and longerTerm. Each aspect needs status (represented, unknown or out_of_scope), assessment, processIds, eventIds and sourceIds. broaderContext also needs its boundary; longerTerm needs an interval or null when unresolved/excluded.',
   evidence: 'For represented context, link sources and processes and explain its relationship to the focal question. Represented longer-term context also needs dated events outside the focal interval and an interval containing and extending beyond it. A historical event is not itself a sampled numerical trajectory; estimate dated process values separately.',
-  uncertainty: 'If evidence is missing, use unknown and explain the gap; for a deliberately narrow task, justify out_of_scope. Do not invent macro context, dates, values or causal laws to pass the review.',
+  uncertainty: 'If evidence is missing, represent the context with estimates that carry honest bands and tags, or mark it unknown and explain the gap; for a deliberately narrow task, justify out_of_scope. Never pass an invention off as evidence to pass the review.',
 };
 
 export const worldModelScaffoldSchema = z.object({

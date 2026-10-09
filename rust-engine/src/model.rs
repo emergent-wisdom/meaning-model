@@ -393,6 +393,48 @@ pub struct Claim {
     pub access_scopes: Vec<String>,
 }
 
+/// The tags a value carries: what kind of claim it is. A guess is a value too; it is tagged, not withheld.
+pub const VALUE_TAGS: [&str; 5] = ["source", "inferred", "invented", "exploring", "sketch"];
+const MAX_VALUE_POINTS: usize = 100_000;
+const MAX_VALUE_TEXT_BYTES: usize = 4_000;
+
+/// One process's states over time, held by one holder: numbers for a scalar process, defined states for a category
+/// or regime process. The model's working surface. Values are an
+/// account's estimates at their own times, past or present, not the state of a running world, so the engine does
+/// not bind them to genesis or copy them into worlds; a process's initial value is its own field. Recording a time
+/// again replaces its value; the model's revision history keeps the earlier one.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ValueSeries {
+    pub id: String,
+    pub process_id: String,
+    pub holder: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    pub points: Vec<ValuePoint>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub provenance: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct ValuePoint {
+    pub time: f64,
+    /// A number, for a scalar process.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<f64>,
+    /// One of the process's defined states, for a category or regime process.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub state: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lower: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upper: Option<f64>,
+    pub tag: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct ClaimTemplate {
@@ -618,6 +660,8 @@ pub struct ModelDefinition {
     pub laws: Vec<LawDefinition>,
     #[serde(default)]
     pub initial_claims: Vec<Claim>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub value_series: Vec<ValueSeries>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub meaning_model: Option<MeaningModelDefinition>,
 }
@@ -726,6 +770,7 @@ pub fn compile_model(mut definition: ModelDefinition) -> EngineResult<CompiledMo
     definition.dependencies.sort_by(|a, b| a.id.cmp(&b.id));
     definition.laws.sort_by(|a, b| a.id.cmp(&b.id));
     definition.initial_claims.sort_by(|a, b| a.id.cmp(&b.id));
+    definition.value_series.sort_by(|a, b| a.id.cmp(&b.id));
     if let Some(meaning_model) = &mut definition.meaning_model {
         meaning::normalize_meaning_model(meaning_model);
     }
@@ -763,6 +808,7 @@ pub fn compile_model(mut definition: ModelDefinition) -> EngineResult<CompiledMo
             return Err(error(format!("duplicate initial claim id {}", claim.id)));
         }
     }
+    validate_value_series(&definition.value_series, &processes)?;
     let model_hash = hash_serializable(&definition)?;
     Ok(CompiledModel {
         model_hash,
@@ -927,6 +973,7 @@ pub fn encode_legacy_registry_as_model(
         dependencies,
         laws,
         initial_claims: vec![],
+        value_series: vec![],
         meaning_model: None,
     })
 }
@@ -1153,6 +1200,98 @@ fn validate_numeric(value: f64, bounds: &NumericBounds, label: &str) -> EngineRe
     finite(value, label)?;
     if value < bounds.minimum || value > bounds.maximum {
         return Err(error(format!("{label} is outside declared bounds")));
+    }
+    Ok(())
+}
+
+fn validate_value_series(
+    series: &[ValueSeries],
+    processes: &BTreeMap<String, ProcessDefinition>,
+) -> EngineResult<()> {
+    let mut ids = BTreeSet::new();
+    let mut owners = BTreeSet::new();
+    let mut total = 0usize;
+    for item in series {
+        if !owners.insert((item.process_id.as_str(), item.holder.as_str())) {
+            return Err(error(format!(
+                "two value series hold {} for {}; one series per process and holder",
+                item.process_id, item.holder
+            )));
+        }
+        if item.id.trim().is_empty() || item.id.len() > MAX_MODEL_IDENTIFIER_BYTES {
+            return Err(error("value series id must be nonempty and short"));
+        }
+        if !ids.insert(item.id.as_str()) {
+            return Err(error(format!("duplicate value series id {}", item.id)));
+        }
+        if item.holder.trim().is_empty() || item.holder.len() > MAX_MODEL_IDENTIFIER_BYTES {
+            return Err(error(format!("value series {} needs a holder of at most {MAX_MODEL_IDENTIFIER_BYTES} bytes", item.id)));
+        }
+        if item.provenance.iter().any(|entry| entry.trim().is_empty() || entry.len() > MAX_VALUE_TEXT_BYTES) {
+            return Err(error(format!("value series {} provenance entries must be nonempty and at most {MAX_VALUE_TEXT_BYTES} bytes", item.id)));
+        }
+        if item.reason.as_ref().is_some_and(|text| text.len() > MAX_VALUE_TEXT_BYTES) {
+            return Err(error(format!("value series {} reason is too long", item.id)));
+        }
+        let process = processes.get(&item.process_id).ok_or_else(|| {
+            error(format!("value series {} names unknown process {}", item.id, item.process_id))
+        })?;
+        let bounds = process.value_type.scalar_bounds();
+        let states: Option<&Vec<String>> = match &process.value_type {
+            ProcessType::Category { variants } | ProcessType::Regime { variants } => Some(variants),
+            _ => None,
+        };
+        if bounds.is_none() && states.is_none() {
+            return Err(error(format!("value series {} needs a scalar, category or regime process; {} is {}", item.id, item.process_id, process.value_type.name())));
+        }
+        if item.points.is_empty() {
+            return Err(error(format!("value series {} has no points", item.id)));
+        }
+        total += item.points.len();
+        if total > MAX_VALUE_POINTS {
+            return Err(error(format!("model holds more than {MAX_VALUE_POINTS} values")));
+        }
+        let mut previous: Option<f64> = None;
+        for point in &item.points {
+            let at = format!("value series {} at {}", item.id, point.time);
+            finite(point.time, &at)?;
+            if previous.is_some_and(|time| point.time <= time) {
+                return Err(error(format!("value series {} times must increase; {} repeats or goes back", item.id, point.time)));
+            }
+            previous = Some(point.time);
+            if let Some(bounds) = bounds {
+                let value = point.value.ok_or_else(|| error(format!("{at}: a scalar process needs a value")))?;
+                if point.lower.is_some() != point.upper.is_some() {
+                    return Err(error(format!("{at}: a band needs both lower and upper, or neither")));
+                }
+                if point.state.is_some() {
+                    return Err(error(format!("{at}: a scalar process takes a value, not a state")));
+                }
+                validate_numeric(value, bounds, &at)?;
+                for (name, edge) in [("lower", point.lower), ("upper", point.upper)] {
+                    if let Some(edge) = edge {
+                        validate_numeric(edge, bounds, &format!("{at} {name}"))?;
+                    }
+                }
+                if point.lower.is_some_and(|lower| lower > value) || point.upper.is_some_and(|upper| upper < value) {
+                    return Err(error(format!("{at}: lower and upper must surround the value")));
+                }
+            } else if let Some(states) = states {
+                let state = point.state.as_ref().ok_or_else(|| error(format!("{at}: a process with defined states needs a state")))?;
+                if point.value.is_some() || point.lower.is_some() || point.upper.is_some() {
+                    return Err(error(format!("{at}: a process with defined states takes a state, not a number")));
+                }
+                if !states.contains(state) {
+                    return Err(error(format!("{at}: {state} is not one of the process's states ({})", states.join(", "))));
+                }
+            }
+            if !VALUE_TAGS.contains(&point.tag.as_str()) {
+                return Err(error(format!("{at}: tag {} is not one of {}", point.tag, VALUE_TAGS.join(", "))));
+            }
+            if point.note.as_ref().is_some_and(|text| text.len() > MAX_VALUE_TEXT_BYTES) {
+                return Err(error(format!("{at}: note is too long")));
+            }
+        }
     }
     Ok(())
 }
@@ -10977,6 +11116,11 @@ fn validate_monotonic_genesis_refinement(
         &previous.definition.initial_claims,
         &revised.definition.initial_claims
     );
+    preserve_collection!(
+        "value_series",
+        &previous.definition.value_series,
+        &revised.definition.value_series
+    );
 
     match (
         previous.definition.meaning_model.as_ref(),
@@ -11092,6 +11236,8 @@ fn validate_monotonic_genesis_refinement(
             preserve_collection!("meaning.realizations", &old.realizations, &new.realizations);
             preserve_collection!("meaning.normalized_cuts", &old.normalized_cuts, &new.normalized_cuts);
             preserve_collection!("meaning.context_roots", &old.context_roots, &new.context_roots, event_id);
+            preserve_collection!("meaning.importance_scales", &old.importance_scales, &new.importance_scales);
+            preserve_collection!("meaning.event_importance", &old.event_importance, &new.event_importance);
             // A partial declaration can expose additional already-validated
             // children and become complete without changing any committed Cut
             // vector or existing projection. Complete contracts stay exact.
@@ -11147,6 +11293,8 @@ fn validate_monotonic_genesis_refinement(
             added_meaning_collection!("meaning.normalized_cuts", &new.normalized_cuts);
             added_meaning_collection!("meaning.context_roots", &new.context_roots);
             added_meaning_collection!("meaning.temporal_cut_recompositions", &new.temporal_cut_recompositions);
+            added_meaning_collection!("meaning.importance_scales", &new.importance_scales);
+            added_meaning_collection!("meaning.event_importance", &new.event_importance);
             preserved_records.insert("meaning.semantic_coverage.unresolved_events".to_owned(), 0);
             added_records.insert(
                 "meaning.semantic_coverage.unresolved_events".to_owned(),
@@ -11170,6 +11318,8 @@ fn validate_monotonic_genesis_refinement(
                 "meaning.normalized_cuts",
                 "meaning.context_roots",
                 "meaning.temporal_cut_recompositions",
+                "meaning.importance_scales",
+                "meaning.event_importance",
                 "meaning.semantic_coverage.unresolved_events",
             ] {
                 preserved_records.insert(label.to_owned(), 0);
@@ -12577,8 +12727,14 @@ pub fn machine_description() -> serde_json::Value {
                 "concepts", "abstract_relations", "abstract_cuts",
                 "referents", "encapsulation_cuts", "events",
                 "event_relations", "event_referent_bindings", "physical_cuts", "realizations",
-                "normalized_cuts", "context_roots", "temporal_cut_recompositions"
+                "normalized_cuts", "context_roots", "temporal_cut_recompositions",
+                "importance_scales", "event_importance"
             ],
+            "importance": {
+                "scales": "an audience (a world's inhabitants, or those who follow one category, optionally naming a concept) and 2 to 12 levels ordered from the most important down, each with an anchor",
+                "judgments": "one level per Event, scale and holder; a reassessment replaces it and the revision history keeps the earlier one",
+                "scope": "a perspective-relative judgment that chooses what a reader is shown; not containment, a Cut's shares or a process value, and never scheduled or executed"
+            },
             "normalized_cuts": {
                 "remainder_key": NORMALIZED_CUT_REMAINDER_KEY,
                 "sum_tolerance": NORMALIZED_CUT_SUM_TOLERANCE,
@@ -12987,6 +13143,78 @@ mod tests {
         ]
     }
 
+    #[test]
+    fn value_series_hold_numbers_and_states_at_any_time() {
+        let mut model = test_model();
+        model.value_series = vec![
+            ValueSeries {
+                id: "values.person.stress.modeler".to_owned(),
+                process_id: "person.stress".to_owned(),
+                holder: "modeler".to_owned(),
+                reason: None,
+                points: vec![
+                    ValuePoint { time: -30.0, value: Some(0.1), state: None, lower: Some(0.0), upper: Some(0.2), tag: "sketch".to_owned(), note: None },
+                    ValuePoint { time: 40.0, value: Some(0.6), state: None, lower: None, upper: None, tag: "inferred".to_owned(), note: None },
+                ],
+                provenance: vec![],
+            },
+            ValueSeries {
+                id: "values.person.regime.modeler".to_owned(),
+                process_id: "person.regime".to_owned(),
+                holder: "modeler".to_owned(),
+                reason: Some("a first guess".to_owned()),
+                points: vec![ValuePoint { time: 5.0, value: None, state: Some("alert".to_owned()), lower: None, upper: None, tag: "exploring".to_owned(), note: Some("after the letter".to_owned()) }],
+                provenance: vec![],
+            },
+        ];
+        let compiled = compile_model(model).expect("value series compile");
+        assert_eq!(compiled.definition().value_series.len(), 2);
+    }
+
+    #[test]
+    fn value_series_refuse_what_their_process_cannot_hold() {
+        let point = |time: f64, value: Option<f64>, state: Option<&str>, tag: &str| ValuePoint {
+            time, value, state: state.map(str::to_owned), lower: None, upper: None, tag: tag.to_owned(), note: None,
+        };
+        let series = |process: &str, points: Vec<ValuePoint>| ValueSeries {
+            id: format!("values.{process}"), process_id: process.to_owned(), holder: "modeler".to_owned(), reason: None, points, provenance: vec![],
+        };
+        for (bad, why) in [
+            (series("person.regime", vec![point(1.0, None, Some("asleep"), "sketch")]), "not one of"),
+            (series("person.regime", vec![point(1.0, Some(1.0), None, "sketch")]), "needs a state"),
+            (series("person.stress", vec![point(1.0, None, Some("calm"), "sketch")]), "needs a value"),
+            (series("person.stress", vec![point(2.0, Some(0.1), None, "sketch"), point(1.0, Some(0.2), None, "sketch")]), "must increase"),
+            (series("person.stress", vec![point(1.0, Some(0.1), None, "guess")]), "tag"),
+            (series("person.stress", vec![point(1.0, Some(50.0), None, "sketch")]), "bounds"),
+            (series("nobody", vec![point(1.0, Some(0.1), None, "sketch")]), "unknown process"),
+            (series("person.stress", vec![ValuePoint { lower: Some(0.05), ..point(1.0, Some(0.1), None, "sketch") }]), "both lower and upper"),
+        ] {
+            let mut model = test_model();
+            model.value_series = vec![bad];
+            let message = compile_model(model).expect_err("refused").0;
+            assert!(message.contains(why), "{message}");
+        }
+        // A holder and provenance are bounded like every other record's text.
+        let mut long_holder = test_model();
+        long_holder.value_series = vec![ValueSeries { holder: "h".repeat(2_000), ..series("person.stress", vec![point(1.0, Some(0.1), None, "sketch")]) }];
+        assert!(compile_model(long_holder).expect_err("refused").0.contains("holder of at most"));
+        let mut blank_provenance = test_model();
+        blank_provenance.value_series = vec![ValueSeries { provenance: vec![" ".to_owned()], ..series("person.stress", vec![point(1.0, Some(0.1), None, "sketch")]) }];
+        assert!(compile_model(blank_provenance).expect_err("refused").0.contains("provenance entries"));
+        // Two series for one process and holder would split one account in two, whatever their ids.
+        let mut model = test_model();
+        let other = ValueSeries { id: "values.other".to_owned(), ..series("person.stress", vec![point(2.0, Some(0.3), None, "sketch")]) };
+        model.value_series = vec![series("person.stress", vec![point(1.0, Some(0.1), None, "sketch")]), other];
+        let message = compile_model(model).expect_err("refused").0;
+        assert!(message.contains("one series per process and holder"), "{message}");
+    }
+
+    #[test]
+    fn a_model_without_value_series_keeps_its_serialization() {
+        let json = serde_json::to_string(&test_model()).unwrap();
+        assert!(!json.contains("value_series"));
+    }
+
     fn test_model() -> ModelDefinition {
         ModelDefinition {
             schema: MODEL_SCHEMA.to_owned(),
@@ -13159,6 +13387,7 @@ mod tests {
                 },
             ],
             initial_claims: vec![],
+            value_series: vec![],
             meaning_model: None,
         }
     }
@@ -13357,6 +13586,7 @@ mod tests {
                 },
             ],
             initial_claims: vec![],
+            value_series: vec![],
             meaning_model: None,
         }
     }
@@ -13428,6 +13658,7 @@ mod tests {
                 provenance: vec!["analytic dx/dt=2".to_owned()],
             }],
             initial_claims: vec![],
+            value_series: vec![],
             meaning_model: None,
         }
     }
@@ -13480,6 +13711,7 @@ mod tests {
                 },
             ],
             initial_claims: vec![],
+            value_series: vec![],
             meaning_model: None,
         }
     }
@@ -13567,6 +13799,7 @@ mod tests {
                 provenance: vec!["analytic derived relation".to_owned()],
             }],
             initial_claims: vec![],
+            value_series: vec![],
             meaning_model: None,
         }
     }
@@ -14275,6 +14508,7 @@ mod tests {
             dependencies: vec![],
             laws,
             initial_claims: vec![],
+            value_series: vec![],
             meaning_model: None,
         };
         let model = compile_model(definition).unwrap();
@@ -16289,7 +16523,9 @@ mod tests {
                 "realizations",
                 "normalized_cuts",
                 "context_roots",
-                "temporal_cut_recompositions"
+                "temporal_cut_recompositions",
+                "importance_scales",
+                "event_importance"
             ])
         );
         assert_eq!(
@@ -17575,6 +17811,7 @@ mod tests {
                 },
             ],
             initial_claims: vec![],
+            value_series: vec![],
             meaning_model: None,
         })
         .unwrap();
@@ -17603,6 +17840,7 @@ mod tests {
                 provenance: vec!["commutation-fixture".to_owned()],
             }],
             initial_claims: vec![],
+            value_series: vec![],
             meaning_model: None,
         })
         .unwrap();

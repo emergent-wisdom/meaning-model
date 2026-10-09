@@ -152,6 +152,7 @@ test('life_model_viewer_view records the view as a decision about what it names 
 
   await refused({ ...request('bad-1', 'x'), settings: { colour: 'red' } }, /colour is not a viewer setting/u);
   await refused({ ...request('bad-2', 'x'), settings: { scope: 'event.nowhere' } }, /scope names event\.nowhere, which is not an Event/u);
+  await refused({ ...request('bad-2b', 'x'), settings: { importance: 'importance.nowhere' } }, /importance names importance\.nowhere, which is not an importance scale/u);
   await refused({ ...request('bad-3', 'x'), highlights: [{ record: 'event_relation:no.such.link', why: 'x' }] }, /not a record of the bound model/u);
   await refused({ ...request('bad-4', 'x'), rows: [{ record: 'event:event.offer' }] }, /a row is shown for a Cut or a process/u);
   await refused({ ...request('bad-5', 'x'), level: 2 }, /level 2 is past the 1 levels given/u);

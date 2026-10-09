@@ -74,7 +74,14 @@ test('a long reading across Events with no reading after them, and a reworded qu
     const [stretch] = of(result, 'reading-stretch-unopened');
     assert.match(stretch.question, /"How does her health divide across this stretch\?" is read once from 1920 to 1980: one average for the whole stretch, though 4 Events happen inside it/);
     assert.match(stretch.question, /Open the stretch at those Events: what was it like after each\?/);
-    assert.ok(!of(result, 'reading-stretch-unopened').some((item) => item.cuts.includes('cut.adult')), 'a stretch already opened by finer readings is not asked');
+    // A stretch is asked about where its Events lie in no finer reading. The outlook detail reads 1930 to 1950, so the
+    // move (1925) and the loss (1960) are still read only by the long reading.
+    const adult = of(result, 'reading-stretch-unopened').find((item) => item.cuts.includes('cut.adult'));
+    assert.match(adult.question, /though 2 Events happen inside it/u);
+    // Finer readings across the whole stretch open it, and it is no longer asked.
+    const opened = lives({ detailInterval: [1920, 1950], extraCuts: [cut('cut.late', 'ada.late', { assurance: 0.5, threat: 0.5 })] });
+    opened.meaning_model.events.push(event('ada.late', 1950, 1980)); opened.meaning_model.event_relations.push(contains('ada.adult', 'ada.late'));
+    assert.ok(!of(ask(opened), 'reading-stretch-unopened').some((item) => item.cuts.includes('cut.adult')), 'a stretch opened by finer readings is not asked');
     const [reworded] = of(result, 'question-reworded');
     assert.match(reworded.question, /2 differently worded questions share the unit .* in Ada's life/);
     assert.match(reworded.question, /use one wording: a reworded question starts a separate series/);

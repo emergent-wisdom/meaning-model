@@ -178,6 +178,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_estimation_request_create',
       'life_estimation_response_submit',
       'life_graph_query',
+      'life_importance_record',
       'life_lens_define',
       'life_lens_place',
       'life_lens_questions',
@@ -225,6 +226,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_trajectory_summarize',
       'life_understanding_read',
       'life_understanding_record',
+      'life_values_record',
       'life_view_query',
       'life_world_create',
       'life_world_inspect',
@@ -464,6 +466,8 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'normalized_cuts',
       'context_roots',
       'temporal_cut_recompositions',
+      'importance_scales',
+      'event_importance',
     ]);
     const estimationSubmitTool = tools.find(
       ({ name }) => name === 'life_estimation_response_submit',
@@ -540,6 +544,8 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'normalized_cuts',
       'context_roots',
       'temporal_cut_recompositions',
+      'importance_scales',
+      'event_importance',
     ]);
     assert.equal(
       status.structuredContent.meaningModelLayer.schema,
@@ -565,6 +571,8 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'normalized_cuts',
       'context_roots',
       'temporal_cut_recompositions',
+      'importance_scales',
+      'event_importance',
     ]);
     assert.equal(status.structuredContent.controlPlaneUsage.retainedAndPendingReceiptBytes, 0);
     assert.equal(status.structuredContent.estimationExchange.providerNeutral, true);

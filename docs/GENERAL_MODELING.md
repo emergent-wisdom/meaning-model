@@ -133,12 +133,13 @@ account without a defect to repair. After a substantive opening, inspect its
 connections and choose what to explore next for what it could explain or make
 possible. Follow earlier history, neighboring processes or higher abstractions
 wherever they lead: a part that seems unrelated to the task often turns out to
-explain it. At a stopping point, use the existing Understanding Nodes to record
-what was explored, what it opened and which promising questions remain for the
-next pass. A local revision does
+explain it. When you pause to report, use the existing Understanding Nodes to
+record what was explored, what it opened and which promising questions remain,
+then go on with the pass; pausing to report is not stopping. When the pass is
+done, report what changed and where another pass could go deeper. A local revision does
 not establish review of the whole work, and completed checks do not establish
-complete understanding. These choices add no quota of records, categories or
-numerical changes. Invent and compare categories where useful;
+complete understanding. Every process opened gets values over the span the
+work covers, guessed where nothing better is known. Invent and compare categories where useful;
 the supplied questions are starting points, not the limits of inquiry. Record
 speculative connections as hypotheses rather than observations or accepted
 history.
@@ -200,8 +201,9 @@ not lived in the system it describes; the model gives it one.
   processes, constraints, observations, dependencies and alternatives. The
   storytelling profile adds what fiction needs: whole lives, the reasons
   behind acts (fear/love is an optional available lens), and drawn decisions. A draw
-  constructs fiction; in a model of what happened, a decision is observed, and
-  what is unknown stays unresolved.
+  constructs fiction; in a model of what happened, a decision is observed or
+  inferred, never drawn, and a state nobody recorded is estimated with an honest
+  band and a tag rather than left empty.
 - **Background processes.** Model far more than the question shows: the
   surrounding economy, institutions, technology, people and their incentives,
   and long histories run in the model whether or not the answer mentions them.
@@ -341,7 +343,8 @@ before calling Jev or writing the model or graph.
 Each consideration has an attributed assessment and a `represented`, `unknown`
 or `out_of_scope` status. Represented claims must refer to actual matching model
 records. Unknowns and exclusions need reasons; a narrowly scoped measurement
-model can remain narrow. There is no quota of invented numbers, cuts or layers.
+model can remain narrow. Within its scope, every process carries values: a
+guess with an honest band and a tag is part of the work, not an invention to avoid.
 These considerations become real Understanding Nodes, and the builder supports
 native concepts and abstract cuts so it can ingest the declared opening itself.
 Revisit the review when new evidence or a consequential revision challenges it.
@@ -411,11 +414,11 @@ returns bounded tasks for the caller or accepts supplied answers.
    An initial value with evidence type `observation` or `report` becomes an
    observed claim on an observed process; its `evidence_type` stays `report`, so
    it remains distinguishable from a measurement. File a recollection as `estimate`
-   when that is its real strength. Unknown processes remain graph definitions
-   with no native process, so they cannot yet hold dated values or be anchor
-   targets; link to their definition node instead. At least one supported process
-   value is needed to create an executable world. The tool does not invent a zero
-   to satisfy this constraint.
+   when that is its real strength. The builder keeps a process whose initial
+   value is marked unknown out of the model, as an unresolved definition in the
+   graph; give it a state by opening it with `life_values_record`, which creates
+   the process and records its guessed values, tagged sketch with a band, in one
+   call.
 2. **Estimate process states.** `life_process_estimate` binds questions to process
    coordinates, evidence cutoff, access scopes, and an exact world/model revision.
    Jev answers are validated and submitted to the existing estimation exchange.
@@ -465,7 +468,8 @@ returns bounded tasks for the caller or accepts supplied answers.
    Save substantive assessments as Understanding Nodes linked to their subjects.
    Later observations can test forecasts; an internally consistent graph cannot.
 
-Records and assessments belong in the graph. Reading documents and tables are
+Reasons, reviews and assessments belong in the graph, and dated values in the
+model. Reading documents and tables are
 exports, not parallel sources of modeling truth. A partial multi-step operation
 reports completed work and a retry path; do not mistake it for an atomic world update.
 Process-local request and proposal handles do not survive an MCP restart; graph
@@ -473,43 +477,35 @@ records and engine persistence have their own explicit retention guarantees.
 
 ## Record dated history
 
-A long event is not a trend. To keep dated values, file them as claims at their
-own times and record them in the graph. With time 0 at the evidence cutoff, a
-value twelve months earlier sits at time -12 in a monthly model.
+A long event is not a trend. Dated values of a process go into the model with
+`life_values_record`: one call takes many processes, each with a list of
+`{time, value, lower, upper, tag, note}` at any times, past or present, and can
+open a new process under its parent as it goes. A process opened before its
+parent is filed under it with `process: {"parent": ...}` and no points. The values are stored in the
+model as one series per process and holder (`value_series`), drawn by the
+viewer as the process's curve. Recording a time again replaces its value, and
+the model's history keeps the earlier one. Guess where you do not know: a value
+tagged `sketch` with an honest band is the starting point, improved by later
+calls. The result lists the processes that still have no values, and, where a
+parent declares `aggregate: sum` or `mean`, the times at which its children
+contradict it.
 
-1. Create a request with `life_estimation_request_create`: `operation: "infer"`,
-   `intent: "reality"`, `evidenceCutoff: 0`, and one coordinate per dated value,
-   for example `{ id: "rate.m12", processId: "rate", targetTime: -12 }`.
-2. Submit the values with `life_estimation_response_submit`. Dispose every
-   coordinate as `known`, `unknown` or `unmodeled`, and give each known one a claim
-   with exactly these fields:
+```json
+{ "requestId": "populate-1", "previousModelHash": "EXACT_CURRENT_MODEL_HASH", "holder": "modeler",
+  "reason": "First pass over the population tree.",
+  "values": [
+    { "processId": "world.population", "points": [
+      { "time": 1800, "value": 0.99, "lower": 0.9, "upper": 1.1, "tag": "inferred" },
+      { "time": 1900, "value": 1.65, "lower": 1.55, "upper": 1.75, "tag": "inferred" } ] },
+    { "processId": "world.population.africa", "process": { "label": "Africa", "unit": "billion people", "parent": "world.population" },
+      "points": [ { "time": 1800, "value": 0.09, "lower": 0.06, "upper": 0.12, "tag": "sketch" } ] } ] }
+```
 
-   ```json
-   { "coordinateId": "rate.m12", "outputMode": "observed", "valueTime": -12,
-     "claim": { "id": "hist.rate.m12", "subject": "rate", "value": { "kind": "scalar", "value": 4.5 },
-       "uncertainty": { "kind": "exact" }, "evidence_type": "report", "holder": "modeler",
-       "evidence_cutoff": -12, "provenance": ["recalled FOMC statement"],
-       "authority": { "source": "modeler", "weight": 1 }, "access_scopes": ["market"] } }
-   ```
-
-   `observed` output needs an observed process, `observation` or `report`
-   evidence, and `evidence_cutoff` equal to `valueTime`. A process is observed
-   when its initial value was an observation or report, or when the scaffold
-   declares `updateMode: "observed"`, the right choice for a measured series whose
-   starting value is only an estimate. An existing model can be revised to set a
-   process's `update_mode` to `observed`, and a world can adopt that revision. A retrospective estimate
-   of a past value uses `outputMode: "estimated"`, `evidence_type: "estimate"`, the
-   cutoff of the knowledge it rests on (0 for present recollection), and an honest
-   `uncertainty` such as `{ "kind": "interval", "lower": 90000, "upper": 97000 }`.
-   `valueTime` and the claim's `subject` must match the coordinate. The claim takes
-   no `value_time` or `mode` field.
-3. Review the proposal and record it with `life_process_estimation_record`. Each
-   value becomes a graph node anchored to its process at its value time, keeping
-   its holder, evidence type, cutoff and uncertainty, beside an Understanding Node
-   with the review.
-
-Proposals and requests are process-local, so record them in the same server
-session. The graph copy is durable.
+The estimation exchange (`life_estimation_request_create`,
+`life_estimation_response_submit`, `life_process_estimation_record`) is for an
+external estimator's answers and for values bound to a running world's head; it
+records each value as a graph node, so do not use it to fill a model with its
+history.
 
 ### Reports retrieved after the time they describe
 
@@ -563,6 +559,39 @@ executed world's state history; adding them does not advance or overwrite a
 running world. The process's initial value also does not reconstruct its past.
 Reports learned after time zero require a suitable model origin or the runtime
 observation workflow. Keep unknown dates and gaps unresolved.
+
+## Record importance
+
+How much an Event matters is a judgment held for an audience: everyone who
+lives in the world, or those of them who follow one category, such as football.
+`life_importance_record` declares a scale for each audience whose ranking
+differs, with its levels from the most important down and an anchor for each
+(the go-to preset `rarity` has `top_10`, `top_100`, `top_1000` and `noted`,
+counted over the whole span for that audience), and places Events on it, one
+level per Event, scale and holder. Judging an Event again replaces its level;
+the revision history keeps the earlier one. Give every Event a level on the
+whole audience's scale, and the Events a category's followers care about a level
+on that category's scale, which may include Events outside the category, such
+as a pandemic that stopped the season. Keep the top level rare. The result
+counts each level and points to Events without a level and to a top level so
+full that it picks nothing out. The viewer keeps to a scale's top level, then
+the top two, and so on (address settings `importance` and `importanceTop`,
+which `life_model_viewer_view` can choose for the reader). Importance is not
+containment, a Cut's share or a process value. `life_model_revise` can also
+upsert `importance_scales` and `event_importance` with the Events in one change.
+
+```json
+{ "requestId": "importance-1", "previousModelHash": "EXACT_CURRENT_MODEL_HASH", "holder": "modeler",
+  "tag": "sketch", "reason": "First ranking of the turning points.",
+  "scales": [
+    { "id": "importance.world", "audience": "Everyone who lives in this world", "preset": "rarity" },
+    { "id": "importance.football", "audience": "Those who follow football", "concept": "concept.football",
+      "levels": [["legendary", "Every follower knows it a lifetime later."], ["remembered", "Followers of that era remember it."], ["reported", "It made the results pages."]] } ],
+  "judgments": [
+    { "eventId": "event.printing", "scaleId": "importance.world", "level": "top_10", "reason": "Literacy and science spread from it." },
+    { "eventId": "event.world_cup_1966", "scaleId": "importance.world", "level": "noted" },
+    { "eventId": "event.world_cup_1966", "scaleId": "importance.football", "level": "legendary" } ] }
+```
 
 ## Rejected answers
 

@@ -24,11 +24,12 @@ file digests are recorded beside it in `SOURCE.json`.
 At the start of a new task, ask what the user wants to do with the Meaning Model
 and what they want to understand or create, unless their request already says.
 Reuse the agreed scope and delegation on continuation; a bounded edit or review
-does not need a new intake. Offer once to open the viewer so the user can see the
-processes and their changes over time. Reuse a stated viewer preference, and do
-not hold up modeling while an optional viewer offer is unanswered. If requested,
-call `life_model_viewer_open` once a model is available, return the local URL and
-open it in the browser when supported. For ongoing work with a stored graph, use
+does not need a new intake. Before building, ask the two opening questions of
+start-here, whether the user wants to watch the model fill in the live viewer and
+whether to use Sema, together with any other opening questions, and wait for the
+answer; reuse an answer already given. If they want the viewer, call
+`life_model_viewer_open` in mode live once a model is registered, return the local
+URL and open it in the browser when supported. For ongoing work with a stored graph, use
 `mode: "live"` with the intended `graphHash` and existing `accessScopes`; use a
 snapshot for a fixed revision or a model-only view. The viewer runs on the MCP
 computer and follows saved revisions in live mode; it does not publish the model
@@ -62,7 +63,7 @@ conversational reply does not require rereading or a compliance record.
   time-scoped participation; an `about` link only references its target.
 - **Numbers:** a normalized Cut divides one declared unit under one question
   among mutually exclusive answers. Nonnegative shares sum to one and are local
-  to those siblings, never an Event's global importance. The remainder is off by
+  to those siblings, never an Event's importance. The remainder is off by
   default: name one only for a share that is genuinely unresolved, as often in
   real-world evidence and rarely in fiction; when none is named, the tool stores
   an explicit zero remainder.
@@ -72,6 +73,15 @@ conversational reply does not require rereading or a compliance record.
   rubric values instead retain their unit or protocol, version, question, anchors,
   provenance and uncertainty; a zero-to-one encoding does not make a Cut. A rubric
   must justify the comparisons or aggregation claimed for it.
+- **Importance:** how much an Event matters is a judgment held for an audience:
+  the inhabitants of a world, or those of them who follow one category, such as
+  football. Declare a scale for each audience whose ranking differs, with levels
+  from the most important down and an anchor for each, and place Events on it
+  with `life_importance_record`; a holder's later judgment replaces the earlier
+  one, and the revision history keeps it. Keep the top level rare, so it picks
+  out the few Events that matter most. Importance is not containment (what an
+  Event is part of), not a Cut's share and not a process value. The viewer keeps
+  to a scale's top level, then the top two, and so on.
 - **Perspective:** each claim or assessment belongs under its declared context
   root; a Cut inherits its parent Event's context. Participation, `about`, grounding
   and rendering links do not confer another record's authority. Conflicting
@@ -204,7 +214,8 @@ do not wait for the user to suggest them:
 Save concise assessments as Understanding Nodes linked to the actual records.
 Explain when existing boundaries are sufficient, evidence is missing or a
 dimension is irrelevant. The requirement is to consider useful depth, not to
-produce a quota of scores or cuts. Revisit these questions after consequential
+produce a quota of scores or cuts; every process that is opened still carries its
+state over time, guessed where it is not known. Revisit these questions after consequential
 findings or revisions. The general builder checks that these considerations and
 their references are present; the other core paths receive this guidance but do
 not enforce the builder's review schema. Story depth and voice reviews should
@@ -238,6 +249,12 @@ defined extension:
 
 Keep value or distribution, time, support, uncertainty, evidence cutoff,
 holder or viewpoint, provenance, authority, and access scope together.
+
+A value series is the lighter record for a modeler's own working values: each
+point keeps its time, value or state, optional band, tag, and note, under the
+series' holder. The tag says how strong a value is, not where it comes from.
+Name a source in the note, and record a value whose evidence cutoff, authority,
+or access scope matters as a claim.
 
 ### 6. Develop the processes across the model
 
@@ -295,8 +312,23 @@ only a beginning. Make the model inspectable in the viewer, including clearly
 labeled hypothetical trajectories, so the user can follow several processes
 through time. A current value plus prose about past change does not represent
 that course. Refine an existing process when that is more informative than adding
-another; avoid duplicate labels and activity added solely for display. At a useful
-stopping point, state what was modeled, its assumptions and what remains to explore.
+another; avoid duplicate labels and activity added solely for display. When you
+pause to report, state what was modeled, its assumptions and what remains to
+explore, then go on. Pausing to report is not stopping. Nothing here is ever
+finished: the model can always learn more and grow its understanding, and a
+story can always gain backstory and be revised by it. What ends is a pass. A
+pass is done when the coverage report says done: every level of its time
+schedule filled, by values and series readings, no process empty, none passing
+over your own Events and no reading left flat. life_values_record,
+life_series_record and life_model_questions each return it. A story's pass is
+done when the agreed prose is delivered and every gap in the world the story
+depends on, such as those the coverage report names, is filled in the model and
+reflected in the prose: stating a gap does not fill it. A narrow task's pass is
+done when the task has what it needs. If the user, time or budget ends a pass
+sooner, say the pass is unfinished and what is left undone; budget not yet spent
+is no reason to end it. When a pass is done, say you are done for this pass,
+report what changed, and record what you leave for another pass, each with why
+it can wait: another pass can always move through the world in more depth.
 
 Candidate actor processes may include wants, fears, concern, attachment, beliefs,
 strategies, decisions, emotions, relationships, bodily state, and perceived options. These are

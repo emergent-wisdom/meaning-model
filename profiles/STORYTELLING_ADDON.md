@@ -250,9 +250,15 @@ when the current account is sufficient. A run may pause with open branches
 recorded; local sufficiency neither closes inquiry nor demands endless work. After
 a substantive opening, follow its connections and choose the next investigation
 for what it could explain or make possible in the story. Keep the whole work in
-view when selecting smaller units. At a stopping point, record the explored
-scope, why it is sufficient for the delegated purpose, and promising questions
-left open. A local improvement is not evidence that the whole book was deeply
+view when selecting smaller units. When you pause, record the explored
+scope, what it opened and the promising questions left open, then go on: as
+start-here says, nothing is ever finished, and a story can always gain
+backstory. A story's pass is done when the agreed prose is delivered and every
+gap in the world the story depends on, such as those the coverage report names,
+is filled in the model and reflected in the prose: stating a gap does not fill
+it. Record the backstory and questions you leave for another pass, each with why
+it can wait; another pass can always add backstory and revise the story with it.
+Pausing to report is not stopping. A local improvement is not evidence that the whole book was deeply
 reviewed. Use the existing Understanding Nodes; there is no required count of
 openings, numerical changes or review rounds.
 

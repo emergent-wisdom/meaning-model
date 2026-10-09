@@ -123,6 +123,8 @@ export const meaningModelCollections = Object.freeze([
   'normalized_cuts',
   'context_roots',
   'temporal_cut_recompositions',
+  'importance_scales',
+  'event_importance',
 ]);
 
 function meaningRecordId(collection, record) {

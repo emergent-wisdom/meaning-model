@@ -295,6 +295,25 @@ The model tools expose immutable typed profiles:
   a dimension or law is an atomic schema revision, never an in-place patch. Its
   `worldAdoption` names changes a world on the parent revision cannot adopt,
   and `requireWorldAdoptable` refuses such a revision before storing it.
+- `life_values_record` records the dated states of processes straight into the
+  model as value series, one per process and holder: values with a unit,
+  readings on a defined scale with anchors, or defined states (a process's own
+  set or a go-to set: phase, intensity, direction, presence). One call takes many
+  processes, can open new ones under a parent, and files an existing process
+  that has no parent under one; recording a time again
+  replaces its value while the revision history keeps the earlier one. The result
+  points to the next steps down the tree of processes and the tree of time:
+  contradictions, processes with no state, many processes with nothing above
+  them, processes never divided, processes with no value across stretches
+  where the model's own Events happen, and a time schedule dividing the span
+  coarse to fine, with the boundaries each process still lacks.
+- `life_importance_record` records how much Events matter, and to whom: scales
+  for an audience (a world's inhabitants, or those who follow one category,
+  optionally naming its Concept), with levels from the most important down and
+  an anchor for each (preset `rarity`), and one level per Event, scale and
+  holder; judging again replaces it while the revision history keeps the
+  earlier one. The result counts each level and points to Events without one.
+  The viewer keeps to a scale's top levels (`importance`, `importanceTop`).
 - `life_meaning_query` pages authored records from an optional Meaning Model
   layer by collection and exact id without returning the full model.
 - `life_world_refine_genesis` applies an already registered direct-next
@@ -1159,8 +1178,8 @@ The builder's preview can evaluate Jev
 values as estimates without another provider call. `life_process_estimate`
 uses bounded questions to create typed process-value proposals, declining an
 invalid answer on its own coordinate; `life_process_estimation_record` saves the
-exact proposal, process records and review in the graph, including a caller's own
-dated history submitted through the estimation exchange. `validateOnly` checks a
+exact proposal, process records and review in the graph. The modeler's own dated
+values belong in the model instead, through `life_values_record`. `validateOnly` checks a
 scaffold without an estimator call. Estimates retain their status and evidence,
 and do not silently become observations in accepted runtime history.
 

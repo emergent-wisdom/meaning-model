@@ -108,3 +108,13 @@ test('life_series_plan answers over MCP in a model\'s own units', async (t2) => 
   const refused = await client.callTool({ name: 'life_series_plan', arguments: { modelHash: recorded.modelHash, subject: 'referent.ada', from: 6, to: 12, step: 'quarter' } });
   assert.ok(refused.isError && /not a calendar/u.test(JSON.stringify(refused.content)));
 });
+
+test('a stretch read once names the Events it passes over, the most important first', () => {
+  const model = lifeModel();
+  // The fifth Event of the story's years is the one that matters most to Kim's world.
+  model.meaning_model.importance_scales = [{ id: 'importance.kim', audience: 'Kim and those around her', levels: [{ key: 'turning', anchor: 'Changes her life.' }, { key: 'passing', anchor: 'A day among others.' }], provenance: t }];
+  model.meaning_model.event_importance = [{ id: 'i.4', event_id: 'e.story4', scale_id: 'importance.kim', level: 'turning', holder: 'm', provenance: t },
+    { id: 'i.0', event_id: 'e.story0', scale_id: 'importance.kim', level: 'passing', holder: 'm', provenance: t }];
+  const [story] = flatStretches(model, 'ref.kim');
+  assert.deepEqual(story.examples, ['e.story4', 'e.story0', 'e.story1']);
+});

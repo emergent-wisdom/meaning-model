@@ -10,10 +10,9 @@ The `life-sim-engine` package and binary names, `life_sim_engine` library name,
 and existing serialized identifiers remain unchanged for compatibility. Life
 Simulation consumes this same implementation from the Meaning Model repository.
 
-This checkout prepares `0.2.0`; its package and platform assets are not yet
-published. The MCP launcher adds explicit `--install-engine` setup to download
-and verify a matching release executable once available. Use `--build-engine`
-with Cargo and native build tools for the included source in the meantime.
+The MCP launcher provides explicit `--install-engine` setup to download and
+verify the matching release executable. Use `--build-engine` with Cargo and
+native build tools to build the included source instead.
 Normal package installation and startup perform neither step. See the
 [package setup guide](../mcp-server/NPM-README.md).
 

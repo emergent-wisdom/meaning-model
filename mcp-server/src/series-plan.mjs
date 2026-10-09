@@ -8,7 +8,7 @@ import { indexModel, readingSeries } from './model-questions.mjs';
 const STEPS = { month: 1 / 12, quarter: 1 / 4, year: 1 };
 const QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4'];
 // Calendar time in the model's own unit: years, or days since 1970 as the Rust clock counts them.
-function calendar(unit) {
+export function calendar(unit) {
   if (/^year/u.test(unit)) return { toYear: (value) => value, fromYear: (year) => year };
   if (/^civil_day_since_1970/u.test(unit)) return { toYear: (value) => 1970 + value / 365.2425, fromYear: (year) => (year - 1970) * 365.2425 };
   return null;

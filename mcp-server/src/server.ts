@@ -1,6 +1,8 @@
 import { applyModelChange } from './model-change.mjs';
 import { SERIES_TAGS, seriesChange, seriesDrawing } from './series-record.mjs';
-import { readOpenQuestions, thinkInTheModelInstructions, VISIBLE_QUESTIONS, withOpenQuestions, flatStretches } from './model-questions.mjs';
+import { STATE_PRESETS, VALUE_TAGS, coverageSummary, valuesChange, valuesReport } from './values-record.mjs';
+import { IMPORTANCE_PRESETS, importanceChange, importanceReport } from './importance-record.mjs';
+import { readOpenQuestions, thinkInTheModelInstructions, VISIBLE_QUESTIONS, withOpenQuestions, flatStretches, questionModel } from './model-questions.mjs';
 import { seriesPlan } from './series-plan.mjs';
 import { scaffoldHint } from './scaffold-examples.mjs';
 import { McpServer } from '@modelcontextprotocol/server';
@@ -61,9 +63,9 @@ const simpleInstructions = 'Whatever you are doing, build a richer model underne
 const firstSentence = (text: string) => { const match = String(text ?? '').match(/^.*?[.!?](?=\s|$)/su); return (match ? match[0] : String(text ?? '')).trim(); };
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.8.0',
+  version: '0.9.0',
 }, {
-  instructions: simple ? simpleInstructions : `${startHereText}\n\n${grammarReadingInstructions}\n\n${modelingSessionInstructions}\n\n${processDevelopmentInstructions}\n\n` + 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.\n\nIn every mode, begin modeling with life_modeling_context and follow its shared construction guidance. Agent memory and user memory are core purposes: maintain their ongoing processes, not only isolated facts, within the declared scope. Human-author feedback leaves authorship and creative decisions with the human; use life_story_feedback with the storytelling add-on for read-only feedback. All workflows use the same linked, attributed Understanding Graph for questions, hypotheses, predictions, surprises, tests and revisions. Explore recursively where a useful question, connection or discovery warrants it; record what is sufficient and what remains uncertain without forcing extra detail. Anything that changes over time can be modeled as a process, including qualities often written as fixed descriptions, such as a voice, a style, a belief or the culture of an institution. From the first story exploration, consider how the telling itself develops across reading position: tension, pacing, disclosure or other processes that matter to this work. Follow these questions recursively, using stable passage links and authored evidence without a required dramatic formula or numerical score. Keep reading position distinct from world time and authoring history. Let the work choose its form; books need not have a protagonist, conflict, climax or resolution. Use the shared narrative graph for forms that do not fit scenes, without inventing a cast to satisfy a template. Before writing or revising prose, consider author and character voice, reader disclosure, and consequential physical placement. Use declared passage links and existing records. At meaningful milestones, use the controlled read-back guidance to compare selected output against a blind control, reporting fidelity separately from improvement over the control. Do not wait for a special user request; if independent readers are unavailable, record that limitation rather than inventing a result. These are instructions to the calling LLM, not claims that the server has assessed meaning or automatically run reviewers.',
+  instructions: simple ? simpleInstructions : `${startHereText}\n\n${grammarReadingInstructions}\n\n${modelingSessionInstructions}\n\n${processDevelopmentInstructions}\n\n` + 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.\n\nIn every mode, begin modeling with life_modeling_context and follow its shared construction guidance. Agent memory and user memory are core purposes: maintain their ongoing processes, not only isolated facts, within the declared scope. Human-author feedback leaves authorship and creative decisions with the human; use life_story_feedback with the storytelling add-on for read-only feedback. All workflows use the same linked, attributed Understanding Graph for questions, hypotheses, predictions, surprises, tests and revisions. Explore recursively, following each useful question, connection and discovery; guess where you do not know, with an honest band and a tag, and record what remains uncertain. Anything that changes over time can be modeled as a process, including qualities often written as fixed descriptions, such as a voice, a style, a belief or the culture of an institution. From the first story exploration, consider how the telling itself develops across reading position: tension, pacing, disclosure or other processes that matter to this work. Follow these questions recursively, using stable passage links and authored evidence without a required dramatic formula or numerical score. Keep reading position distinct from world time and authoring history. Let the work choose its form; books need not have a protagonist, conflict, climax or resolution. Use the shared narrative graph for forms that do not fit scenes, without inventing a cast to satisfy a template. Before writing or revising prose, consider author and character voice, reader disclosure, and consequential physical placement. Use declared passage links and existing records. At meaningful milestones, use the controlled read-back guidance to compare selected output against a blind control, reporting fidelity separately from improvement over the control. Do not wait for a special user request; if independent readers are unavailable, record that limitation rather than inventing a result. These are instructions to the calling LLM, not claims that the server has assessed meaning or automatically run reviewers.',
 });
 if (simple) {
   const register = server.registerTool.bind(server);
@@ -136,7 +138,7 @@ server.registerPrompt(
 server.registerTool(
   'life_modeling_context',
   {
-    description: 'Return the reading order and operational contract for every mode: the complete grammar first, then the protocol, the guide or profile, and an example, with full research papers as optional references for fuller explanations. Every fresh agent reads the grammar; use life_modeling_read when direct resource reads are unavailable. Reading is instructed, not tracked or verified. Resource digests identify bytes, not comprehension.',
+    description: 'Opens with two questions to ask the user before you build (askTheUserFirst). Return the reading order and operational contract for every mode: the complete grammar first, then the protocol, the guide or profile, and an example, with full research papers as optional references for fuller explanations. Every fresh agent reads the grammar; use life_modeling_read when direct resource reads are unavailable. Reading is instructed, not tracked or verified. Resource digests identify bytes, not comprehension.',
     inputSchema: z.object({
       purpose: z.enum(modelingPurposes).describe(`One of ${modelingPurposes.join(', ')}.`),
       sessionMode: z.enum(modelingSessionModes).default('first_use').describe('One of first_use, repeat_same_domain, new_domain, consequential or continuation. Use continuation when you continue recorded work in this server; it begins with reading the construction record.'),
@@ -147,7 +149,7 @@ server.registerTool(
 );
 
 server.registerTool('life_modeling_read', {
-  description: 'Read canonical grammar or guidance through a tool, including in clients that do not expose MCP resources. Read life-sim://protocol/grammar before first modeling, then the required resources listed by life_modeling_context. Follow nextOffset until null to read the complete resource; pass expectedSha256 on later pages to detect changes. This tool does not attest comprehension or unlock mutations.',
+  description: 'Read canonical grammar or guidance through a tool, including in clients that do not expose MCP resources. Begin with life-sim://guide/start-here, which says what the Meaning Model is for and how to work in it, then read life-sim://protocol/grammar before first modeling, then the required resources listed by life_modeling_context. Follow nextOffset until null to read the complete resource; pass expectedSha256 on later pages to detect changes. This tool does not attest comprehension or unlock mutations.',
   inputSchema: z.object({
     uri: z.enum(listModelingResources().map((resource) => resource.uri)),
     offset: z.number().int().nonnegative().default(0),
@@ -175,9 +177,9 @@ server.registerPrompt('life_general_modeling_start', {
     'Use life-sim://guide/general-modeling. Reuse the user\'s supplied scope and delegation; establish missing purpose, interval, evidence and retained decisions before substantive modeling. Choose useful processes across the system, not only an outcome such as price.',
     'Before construction, supply contextReview for broaderContext and longerTerm, with focal and broader intervals, assessments and supporting process/event/source references. life_world_model_build returns needs_context_review without a provider call or write when this is missing. Complete the review within the agreed delegation. Unknown context and deliberate scope exclusions require reasons; do not invent history or request a new user checkpoint just to fill the review.',
     'Also complete contextReview.authoredJudgments, conceptualStructure and conceptVariation without waiting for the user to suggest them. Consider defined numerical scales for interpretive judgments, native concepts and abstract cuts for useful decomposition, and dated or perspective-specific meanings. The builder returns needs_modeling_review before estimation or writing when these considerations are absent. Link represented assessments to actual records or explain sufficient boundaries, unknowns and exclusions; do not manufacture scores or depth.',
-    'Use life_world_model_build for compact initial construction; life_process_estimate for batched bounded estimates; life_process_estimation_record for exact reviewed graph records and Understanding Nodes. Keep unknown values unknown and source measurements in their actual units. Inspect and revise categories or deepen processes when needed.',
+    'Use life_world_model_build for compact initial construction; life_process_estimate for batched bounded estimates; life_process_estimation_record for exact reviewed graph records and Understanding Nodes. Record dated values with life_values_record, guessing with an honest band and a tag where a value is not known, and keep source measurements in their actual units. Inspect and revise categories or deepen processes when needed.',
     estimator ? `The configured estimator is ${estimator.label}. It evaluates supplied questions; the calling LLM frames and reviews them. Measure latency and usage; do not assume a speedup.` : 'No external estimator is configured. Use supplied answers or the returned estimation tasks; general modeling works without Jev.',
-    'Keep modeling artifacts and substantive assessments in the graph. Recorded numerical estimates are not accepted runtime observations. Automatic storytelling requires its separate opt-in add-on; this general workflow imposes no literary requirements.',
+    'Keep the reasons for modeling choices, reviews and substantive assessments in the graph, and dated values in the model. Recorded numerical estimates are not accepted runtime observations. Automatic storytelling requires its separate opt-in add-on; this general workflow imposes no literary requirements.',
   ].filter(Boolean).join('\n\n') } }],
 }));
 
@@ -259,9 +261,101 @@ server.registerTool(
 );
 
 server.registerTool(
+  'life_values_record',
+  {
+    description: 'Record the dated states of processes straight into the model: the working surface. A process is an empirical value with a unit or a defined scale with anchors (each point {time, value, lower?, upper?, tag, note?}), or a defined set of states (each point {time, state, tag, note?}; open it with states or a go-to preset: phase, intensity, direction, presence). One call takes many processes, at any times, past or present, and can open a new process under a parent as it goes (give process {label, unit, parent}), so populating a decomposition and deepening it are each one call; a process opened before its parent is filed under it with process {parent} alone. Every process should carry values over the whole span the work covers; a guess with an honest band and a tag (sketch, exploring, inferred, invented, source) is better than no value, and it is improved by recording the same time again, which replaces it while the history keeps the earlier one. Values are stored in the model as one series per process and holder, not in the understanding graph, which keeps the reasons. The result says where to go next, down the two trees: contradictions to resolve (children exceeding a parent that declares aggregate sum, or disagreeing with a mean), processes with no state, processes never divided (highest first), and the coverage report it shares with the series of Cuts: the model\'s span divided coarse to fine (1, 6, 18 and 54 blocks, in log time for a long span), the level every process and series has reached and what the next level still lacks. It says this pass is done when every level is filled, no process is empty, none passes over the model\'s own Events and no reading is left flat, judging every holder\'s values together as the model\'s one account; a whole is compared only with the same holder\'s parts. life_series_record and life_model_questions return the same report.',
+    inputSchema: z.object({
+      requestId: requestIdSchema,
+      previousModelHash: z.string().length(64),
+      holder: z.string().trim().min(1).max(200).describe('Whose values these are, such as the model you are.'),
+      values: z.array(z.object({
+        processId: z.string().trim().min(1).max(200),
+        process: z.object({
+          label: z.string().trim().min(1).max(200).optional().describe('Required to open a process; leave it out to file an existing one under parent.'),
+          unit: z.string().trim().min(1).max(300).optional().describe('For a number: its unit or declared scale.'),
+          states: z.array(z.tuple([z.string().regex(/^[a-z][a-z0-9_]{0,63}$/u), z.string().trim().min(1).max(500)])).min(2).max(32).optional()
+            .describe('For a defined set of states: [key, meaning] pairs.'),
+          preset: z.enum(Object.keys(STATE_PRESETS) as [string, ...string[]]).optional().describe('A go-to state set: phase, intensity, direction or presence.'),
+          scale: z.object({ minimum: z.number().finite(), maximum: z.number().finite(),
+            anchors: z.array(z.tuple([z.number().finite(), z.string().trim().min(1).max(300)])).min(2).max(16) }).strict().optional()
+            .describe('For a defined scale: a continuous range whose anchors say what values mean, such as [[0, "none"], [10, "total"]].'),
+          meaning: z.string().trim().max(1_000).optional(),
+          parent: z.string().trim().min(1).max(200).optional().describe('The process this one is a part of in the decomposition. A process that has none yet takes it even if it already exists.'),
+          subject: z.string().trim().min(1).max(512).optional().describe('The referent this process is about, such as a person or a polity, so state lookups at a date find it and the time schedule holds it only to that Thing\'s life. A process that has none yet takes it even if it already exists.'),
+          aggregate: z.enum(['sum', 'mean']).optional().describe('Only if this process is the sum or mean of its children, so contradictions can be found.'),
+          bounds: z.object({ minimum: z.number().finite(), maximum: z.number().finite() }).strict().optional(),
+          frame: z.string().trim().max(200).optional(),
+          edge: z.enum(['functional_refinement', 'physical_part', 'membership_view', 'semantic_subtype', 'observational_partition', 'temporal_phase']).optional(),
+        }).strict().optional().describe('To open a process the model does not have yet, or with parent or subject alone to file an existing process that has neither.'),
+        reason: z.string().trim().max(1_000).optional().describe('Optional: what the values rest on, for the series as a whole.'),
+        points: z.array(z.object({
+          time: z.number().finite(),
+          value: z.number().finite().optional().describe('For a number.'),
+          state: z.string().trim().min(1).max(64).optional().describe('For a process with defined states: one of its states.'),
+          lower: z.number().finite().optional(),
+          upper: z.number().finite().optional(),
+          tag: z.enum(VALUE_TAGS),
+          note: z.string().trim().max(1_000).optional(),
+        }).strict()).max(5_000).optional().describe('The dated values; may be left out only when process {parent} or {subject} files an existing process.'),
+      }).strict()).min(1).max(500),
+      reason: z.string().trim().min(1).max(4_000),
+    }).strict(),
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  async ({ requestId, previousModelHash, ...input }) => {
+    const { model: previous } = await service.inspectModel({ modelHash: previousModelHash, includeDefinition: true });
+    const change = valuesChange(previous, input);
+    const { successor, summary } = applyModelChange(previous, previousModelHash, change);
+    const revised = await service.reviseModel({ requestId, previousModelHash, model: successor });
+    const { model: stored } = await service.inspectModel({ modelHash: revised.modelHash, includeDefinition: true });
+    return toolResult({ ...revised, revisedByChange: true, change: summary, values: valuesReport(questionModel(stored, []), { holder: input.holder, focus: input.values.map((entry) => entry.processId) }) });
+  },
+);
+
+server.registerTool(
+  'life_importance_record',
+  {
+    description: 'Record how much Events matter, and to whom. A scale names an audience, such as everyone who lives in this world, or those of them who follow one category such as football (concept names its Concept), and its levels from the most important down, each with an anchor that says what an Event must be to stand there; the go-to preset rarity has top_10, top_100, top_1000 and noted, counted over the whole span for that audience. Each judgment places one Event at one level of one scale, with a tag and an optional reason; judging it again replaces the level for this holder, and the revision history keeps the earlier one. Give every Event a level on the whole audience\'s scale, and the Events a category\'s followers care about a level on that category\'s scale; keep the top level rare. The viewer keeps to the top level of a scale, or the top two and so on (settings importance and importanceTop). Importance is a judgment for an audience: not containment (what an Event is part of), not a Cut\'s shares and not a process value. life_model_revise can also upsert importance_scales and event_importance with the Events in one change.',
+    inputSchema: z.object({
+      requestId: requestIdSchema,
+      previousModelHash: z.string().length(64),
+      holder: z.string().trim().min(1).max(200).describe('Whose judgments these are, such as the model you are.'),
+      tag: z.enum(VALUE_TAGS).describe('What the judgments rest on, for any judgment without its own tag: source, inferred, invented, exploring or sketch.'),
+      scales: z.array(z.object({
+        id: z.string().trim().min(1).max(200),
+        audience: z.string().trim().min(1).max(500).optional().describe('Whose judgment this is: the world\'s inhabitants, or those who follow one category. Required for a new scale.'),
+        concept: z.string().trim().min(1).max(512).optional().describe('The Concept of the category whose followers this scale is for.'),
+        levels: z.array(z.tuple([z.string().regex(/^[a-z][a-z0-9_]{0,63}$/u), z.string().trim().min(1).max(500)])).min(2).max(12).optional()
+          .describe('[key, anchor] pairs, the most important first.'),
+        preset: z.enum(Object.keys(IMPORTANCE_PRESETS) as [string, ...string[]]).optional().describe('A go-to set of levels: rarity.'),
+        tag: z.enum(VALUE_TAGS).optional(),
+        reason: z.string().trim().min(1).max(2_000).optional(),
+      }).strict()).max(64).optional(),
+      judgments: z.array(z.object({
+        eventId: z.string().trim().min(1).max(512),
+        scaleId: z.string().trim().min(1).max(200),
+        level: z.string().trim().min(1).max(64),
+        tag: z.enum(VALUE_TAGS).optional(),
+        reason: z.string().trim().min(1).max(1_000).optional(),
+      }).strict()).max(5_000).optional(),
+      reason: z.string().trim().min(1).max(4_000),
+    }).strict(),
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  async ({ requestId, previousModelHash, ...input }) => {
+    const { model: previous } = await service.inspectModel({ modelHash: previousModelHash, includeDefinition: true });
+    const change = importanceChange(previous, input);
+    const { successor, summary } = applyModelChange(previous, previousModelHash, change);
+    const revised = await service.reviseModel({ requestId, previousModelHash, model: successor });
+    const { model: stored } = await service.inspectModel({ modelHash: revised.modelHash, includeDefinition: true });
+    return toolResult({ ...revised, revisedByChange: true, change: summary, importance: importanceReport(stored, { holder: input.holder }) });
+  },
+);
+
+server.registerTool(
   'life_series_record',
   {
-    description: 'Record a whole series of readings in one call: one question asked of one subject (a person, a company, a protocol, a market) at many dated intervals, each with its shares and its reason. Readings may nest, a long one with finer ones inside it, and must not partly overlap. Each reading becomes a dated Event inside the subject\'s life (or parentEventId), carrying its Cut, its tag as source, inferred, invented, exploring or sketch, and optional causes; the series is one model revision through the ordinary change path, with the remainder off unless series.remainder names a real unresolved share. Choose the answers first as the concept\'s mutually exclusive categories (necessary, independent, universal over the cases, complete together). To open one category into its own exclusive categories, record a second series with conditionedOn {seriesId, answerKey}: its readings divide that answer\'s share on the same Events, interval by interval. Ids follow the series and the interval, so recording an interval again replaces that reading whole, causes included; a series id holds one subject. Record a rough first series early, tagged sketch or exploring with its reasons, and revise the same intervals as the evidence changes; confidence can fall as well as rise, and the history keeps each earlier reading. The result says how many readings will draw as a curve in the viewer and why any will not.',
+    description: 'Record a whole series of readings in one call: one question asked of one subject (a person, a company, a protocol, a market) at many dated intervals, each with its shares and its reason. Readings may nest, a long one with finer ones inside it, and must not partly overlap. Each reading becomes a dated Event inside the subject\'s life (or parentEventId), carrying its Cut, its tag as source, inferred, invented, exploring or sketch, and optional causes; the series is one model revision through the ordinary change path, with the remainder off unless series.remainder names a real unresolved share. Choose the answers first as the concept\'s mutually exclusive categories (necessary, independent, universal over the cases, complete together). To open one category into its own exclusive categories, record a second series with conditionedOn {seriesId, answerKey}: its readings divide that answer\'s share on the same Events, interval by interval. Ids follow the series and the interval, so recording an interval again replaces that reading whole, causes included; a series id holds one subject. Record a rough first series early, tagged sketch or exploring with its reasons, and revise the same intervals as the evidence changes; confidence can fall as well as rise, and the history keeps each earlier reading. Mark a reading steady when its shares truly hold across the whole stretch, with the reason in its why: the time schedule then asks for nothing finer inside it. The result says how many readings will draw as a curve in the viewer and why any will not, and carries the coverage report shared with life_values_record: how far the time schedule is filled by values and readings together, every line that keeps this pass from being done, and done when nothing does; another pass can always go deeper.',
     inputSchema: z.object({
       requestId: requestIdSchema,
       previousModelHash: z.string().length(64),
@@ -284,6 +378,7 @@ server.registerTool(
         weights: z.record(z.string(), z.number().finite()).describe('Share per answer key, summing to one.'),
         tag: z.enum(SERIES_TAGS),
         confidence: z.number().min(0).max(1).optional().describe('Optional: your own rough note of how sure you are of this reading, 0 to 1, kept in its provenance. It is not calibrated and not an assessment of the evidence; it can fall as well as rise when you record the interval again. Leave it out unless it helps.'),
+        steady: z.boolean().optional().describe('True when the shares truly hold steady across the whole stretch; say why in why. A steady reading covers every finer block inside it in the time schedule, so nothing finer is asked for there. A stretch of a life where the subject\'s own Events happen is still asked about.'),
         causes: z.array(z.string().trim().min(1).max(512)).max(16).optional().describe('Existing Events that moved the process into this stretch.'),
       }).strict()).min(1).max(400),
       reason: z.string().trim().min(1).max(4_000),
@@ -299,7 +394,7 @@ server.registerTool(
     // What is still read once in this life, where most happens first: the next stretches to open.
     const stillFlat = flatStretches(stored, input.subject);
     return toolResult(await withOpenQuestions(service, { ...revised, revisedByChange: true, change: summary, series: { id: input.series.id, ...seriesDrawing(stored, input.series.id) },
-      ...(stillFlat.length ? { stillFlat } : {}) }));
+      ...(stillFlat.length ? { stillFlat } : {}), coverage: coverageSummary(questionModel(stored, [])) }));
   },
 );
 
@@ -326,7 +421,7 @@ server.registerTool(
 server.registerTool(
   'life_model_questions',
   {
-    description: `Read a model's own open questions, in any mode: what its structure shows is missing, inconsistent in time, undecided or unexplained, each as a question to answer by adding structure, with the tool to use. They go down the ladder (open what is coarse, give people whole lives, follow shocks into adaptations) and up it (the longer developments behind a moment, the concepts and laws Events instantiate). Also returns the model's jumps, where it changes most (the largest shifts, shocks, closest decisions and divergent readings), which is where a story or an explanation should look; and, with at, the state of each person at that moment: their period, latest Cuts, the shock they are adapting to and what is undecided. Supply graphHash to count recorded draws. Every model registration and revision returns the first of these questions; this returns them all. ${thinkInTheModelInstructions}`,
+    description: `Read a model's own open questions, in any mode: what its structure shows is missing, inconsistent in time, undecided or unexplained, each as a question to answer by adding structure, with the tool to use. They go down the ladder (open what is coarse, give people whole lives, follow shocks into adaptations) and up it (the longer developments behind a moment, the concepts and laws Events instantiate). Also returns the model's jumps, where it changes most (the largest shifts, shocks, closest decisions and divergent readings), which is where a story or an explanation should look; and, with at, the state of each person at that moment: their period, latest Cuts, the shock they are adapting to and what is undecided. Supply graphHash to count recorded draws. Every model registration and revision returns the first of these questions; this returns them all, with the coverage report: the time schedule, what it still lacks and whether this pass is done. ${thinkInTheModelInstructions}`,
     inputSchema: z.object({
       modelHash: z.string().length(64),
       people: z.array(z.object({ id: z.string().trim().min(1).max(512), name: z.string().trim().min(1).max(200).optional(), principal: z.boolean().optional() }).strict()).max(64).optional()
@@ -340,7 +435,10 @@ server.registerTool(
     }).strict(),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
-  async (input) => toolResult(await readOpenQuestions(service, input)),
+  async (input) => {
+    const { model } = await service.inspectModel({ modelHash: input.modelHash, includeDefinition: true });
+    return toolResult({ ...(await readOpenQuestions(service, { ...input, model })), coverage: coverageSummary(questionModel(model, input.accessScopes)) });
+  },
 );
 
 server.registerTool(
@@ -359,7 +457,7 @@ server.registerTool(
 server.registerTool(
   'life_meaning_query',
   {
-    description: 'Read a bounded page of authored concepts, abstract relations or cuts, referents, encapsulation cuts, events, event-referent bindings, physical cuts, and realization records from an optional Rust-stored Meaning Model layer. Filters are exact ids; this static administrative view of semantic data does not infer links, execute semantic records, apply cuts, or mutate the model, and must be protected by authentication/authorization outside this local MCP service.',
+    description: 'Read a bounded page of authored concepts, abstract relations or cuts, referents, encapsulation cuts, events, event-referent bindings, physical cuts, realization records, importance scales and event importance judgments from an optional Rust-stored Meaning Model layer. Filters are exact ids; this static administrative view of semantic data does not infer links, execute semantic records, apply cuts, or mutate the model, and must be protected by authentication/authorization outside this local MCP service.',
     inputSchema: z.object({
       modelHash: z.string().length(64),
       collections: z.array(z.enum(meaningModelCollections))

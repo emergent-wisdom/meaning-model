@@ -31,7 +31,7 @@
 \title{The Meaning Model:\\Constructing Worlds and Stories at Progressive Resolution}
 \author{Henrik Westerberg\\Emergent Wisdom\\
   \texttt{henrik.westerberg@emergentwisdom.org}}
-\ewreviseddates{September 5, 2026}{October 4, 2026}
+\ewreviseddates{September 5, 2026}{October 9, 2026}
 
 \begin{document}
 \maketitle
@@ -379,14 +379,26 @@ tested.
 The paper also plays, deliberately, with a stronger idea: that a person's inner
 state, their wants, feelings, beliefs, attention, and outlook, and more broadly
 the processes of a world, can be described at a declared resolution as a set of
-numbers that change over time, and that the set can be opened into ever finer
-detail. Nobody has recorded hundreds of such variables across a whole life,
-because nobody needed to; a language model can now construct them. The paper
-adopts this as a working hypothesis to explore, not as a result. Its numbers are
-comparative shares under declared questions, not intrinsic intensities, and they
-sit beside qualitative processes and relations that carry no numbers. Whether
+numbers and states that change over time, and that the set can be opened into
+ever finer detail. Nobody has recorded hundreds of such variables across a whole
+life, because nobody needed to; a language model can now construct them. The
+paper adopts this as a working hypothesis to explore, not as a result. Whether
 such a description predicts what a person does, or what a reader recognizes as
 true to them, is what the evaluation and Life Simulation are designed to test.
+
+The hypothesis is also the working method of construction: every process the
+model opens carries its state across the span the work covers, in one of five
+forms. A state may be a value with a real unit, one of a set of defined states, a
+reading on a defined scale whose anchors say what its values mean, a comparative
+share under a declared question, or the output of a program that computes the
+process from others. Assigning one of these forms to a person's inner state does
+not establish an intrinsic psychological intensity. Where nobody knows a state,
+the model guesses it, with an honest band and a tag saying what the guess rests
+on, so that the account is complete enough to test and its errors can be found.
+A world is generated this way down two trees at once: the tree of processes,
+opened from the highest abstraction by conceptual decomposition, and the tree of
+time, opened from the longest span into periods, each level guessed within the
+one above.
 
 The construction discipline belongs to this paper: frozen-parent whole
 candidates, direction rolls, atomic commit or rejection, explicit revision,
@@ -571,8 +583,10 @@ unit, and the answers plus remainder sum to one. A non-summing process relation
 is unweighted. Literal dates, durations, counts, currency amounts, positions,
 and other quantities with independently interpretable units or declared
 measurement protocols are typed Event data with units or protocol references
-and provenance. They add neither a weighted Cut relation nor an unweighted process
-parent relation. A Realization is likewise unweighted; optional
+and provenance. So are readings on a scale the modeler declares with its anchors
+and states from a defined set: each means what its unit, anchors, or states say,
+and none is a share that must sum with others. They add neither a weighted Cut
+relation nor an unweighted process parent relation. A Realization is likewise unweighted; optional
 graded fit is represented by its own local Cut. If no divided unit and mutually
 exclusive answers can be named, no semantic number is assigned.
 
@@ -613,6 +627,7 @@ record grammar.
 Facet, contribution, cause & Allocation Cut & Their answer eligibility, interpretation, and validation differ \\
 Presence, membership, part--whole & Event plus typed Bindings & Their roles and interval constraints support different queries and validators \\
 Update & Event plus \texttt{updates} link & It asserts an effect on a process or typed world datum rather than generic reference \\
+Value series & Events of typed world data with \texttt{updates} links, serialized per process and holder & Populating and deepening record many dated states in one operation; each point keeps its band and tag and remains an attributed datum, not an observation \\
 Supersession & Typed \texttt{supersedes} link & Its scope and clock determine which lineage changes authority \\
 Roll & Direction Cut plus Decide & The original forecast, seed, fixed mass, drawn mass, and alternatives must survive selection \\
 Roster, inherited presence, summaries & Read-only derivations & They follow from committed records and carry derivation lineage rather than new authority \\
@@ -753,7 +768,10 @@ Otherwise the detail remains implicit at the declared purpose and resolution.
 Where a governing Cut exists, its unallocated share stays in that Cut's
 remainder; an unweighted process or relation acquires no fictional remainder.
 This rule does not guarantee that the chosen frontier is optimal; it prevents
-detail from expanding merely because it can.
+detail from expanding merely because it can. It decides which processes and
+which finer periods to open. Once a process is open, its state is recorded
+across the span the work covers, guessed where it is not known, rather than
+left implicit.
 
 \subsubsection{Cuts, Event-processes, and world data}
 \label{sec:normalized-cuts}
@@ -773,8 +791,9 @@ $K$,
 Each $w_i$ is meaningful only beside its siblings under the Cut's parent Event,
 question, and unit. The answers must be mutually exclusive as shares of that
 unit even when the records they reference coexist. The same Event can receive
-different weights under different questions; the grammar assigns it no global
-importance. If increasing one proposed answer need not reduce another and no
+different weights under different questions; no Cut assigns it a global
+importance. How much an Event matters is a separate judgment held for an
+audience, described below. If increasing one proposed answer need not reduce another and no
 competing unit can be named, the relation is not a Cut.
 
 Table~\ref{tab:life-relations} states the complete boundary. The first two rows
@@ -805,17 +824,45 @@ when authoring a fictional setting. Each value retains its unit, assumptions,
 provenance, and applicable uncertainty, distinguishing measurement, inference,
 and authorship. The usual perspective and acceptance rules determine whose
 account contains the value; later evidence can prompt an explicit revision.
-These values do not have to sum to one. That rule belongs to Cuts.
+These values do not have to sum to one. That rule belongs to Cuts. A world
+datum may also be a defined state, one of a declared set such as the phases of a
+process's growth and decline. A process's successive data can be kept compactly
+as a value series: one record per process and holder whose points carry the
+time, the value or state, an optional band, and a tag distinguishing
+measurement, inference, estimate, and authorship. Each point stands for a typed
+world datum of the holder's account, not a runtime observation. A running world
+starts from each process's declared initial value; when that value is copied
+from a point, the process's support says which. A tag states a value's
+strength, not its reference: a value whose source, evidence cutoff, or authority
+matters is named in the point's note or kept as a claim that carries them.
 
 A defined scale need not have a physical unit. Protocol-valued data retain the
 instrument version, question, anchors, time, and provenance. For example, a
 report of seven on a stated fatigue scale records a response under that
-protocol, not an intrinsic amount of fatigue or a share of attention. Inferred
+protocol, not an intrinsic amount of fatigue or a share of attention. A modeler
+may declare such a scale for a process, with its range and anchors, and read the
+process on it over time; the readings are results under that declaration. Inferred
 and authored scale values retain their respective status. Comparisons and
 aggregation require justification under the scale; a zero-to-one encoding
 alone does not make a Cut.
 
-The five named profiles fall into three families. An \emph{allocation} Cut
+How much an Event matters is another such judgment, and it is held for an
+audience. A modeler declares an importance scale for the inhabitants of a
+world, or for those of them who follow one category such as football, with
+ordered levels from the most important down, each with an anchor that says what
+an Event must be to stand there. One go-to scale counts how few Events of the
+whole span stand as high: about ten, a hundred, and a thousand. A holder places
+each Event at one level, and a later judgment replaces the earlier one in the
+revision history. Kept compactly as one record per Event, scale, and holder,
+each judgment stands for an assessment Event about the judged Event with its
+reading on that scale. Importance differs from the relations it is easily taken
+for: containment says what an Event is part of, a Realization says what kind of
+thing it is, and a Cut's shares are local to one question. None of them says how
+much the Event matters to anyone. A reader, or a view the modeler chooses, can
+keep to a scale's top level, then the top two, and so on, so that the most
+important Events of a category stand out from the rest.
+
+The five Cut profiles fall into three families. An \emph{allocation} Cut
 divides a unit among answers in a frozen vocabulary or among referenced records.
 Facet answers use the frozen vocabulary; contribution answers name Things bound
 to the parent Event; cause answers reference existing wants, beliefs, actions,
@@ -2494,8 +2541,9 @@ real alternatives, draws and random words propose what the constructor would not
 have chosen, and the most interesting is kept with a recorded reason. Descriptive
 work accounts for something that exists: a market, an institution, or, in
 memory modeling, a person's own life. There the constructor asks for the data
-the model lacks, infers what the evidence supports, marks each value as observed,
-inferred, or estimated, and lets later evidence test the account. A direction
+the model lacks, infers what the evidence supports, estimates what neither
+supplies, marks each value as observed, inferred, or estimated, and lets later
+evidence test the account. A direction
 Cut there is a forecast only when its weights are declared as probabilities over
 the outcomes before the outcome is known; the answer that happens is realized
 from the evidence, not drawn, and a draw only samples a hypothetical scenario;
@@ -2537,7 +2585,9 @@ through which it is understood. Physical placement and its consequences are deve
 to the inquiry. Diagnostics expose missing declarations and unopened structure;
 they do not certify semantic completeness. The agent chooses useful depth and
 records why it matters or why the present resolution suffices. Neither a fixed
-inventory of categories nor numerical coordinates are required of every model.
+inventory of categories nor numerical coordinates are required of every model;
+what every opened process requires is its state over time, in the form that
+fits it.
 Figure~\ref{fig:construction-loop} summarizes the loop and how its work is
 divided between the instructed agent and the tool.
 
@@ -2559,7 +2609,11 @@ because each check returned more items to clear. The tool now asks for a reading
 only where a decision, a turn, or a passage depends on it, has readings and
 telling phases renewed together once the text settles, and asks the model a
 question when its readings outgrow its processes or its processes stand
-unrelated. Outside reviews remain useful, and a review may rightly confirm the
+unrelated. Recording values follows the same principle: after each batch the
+tool points down the two trees, to contradictions between a whole and its parts,
+processes with no recorded state, processes never divided, and the coarsest
+stretches of time, rather than asking for more readings of what is already
+read. Outside reviews remain useful, and a review may rightly confirm the
 account or correct only the prose. But an agent that only reviews and revises
 the prose, while the model and its processes never change, is not using the
 tool; it is revising a text. Where a review exposes an unmodeled assumption or
@@ -2606,8 +2660,8 @@ description an executable law or establishes its truth.
 
 The division of work separates open-ended construction from bounded evaluation.
 The language model develops process descriptions and candidate explanations,
-writes Document Nodes, and records concise assessments and
-revision reasons in Understanding Nodes. It also designs the numerical
+guesses and records the states of the processes it opens, writes Document Nodes,
+and records concise assessments and revision reasons in Understanding Nodes. It also designs the numerical
 questions and revises inadequate categories. An optional estimator supplies
 structured judgments for those questions. Deterministic tool code validates,
 types, and stores the results with their coordinates and provenance, avoiding a
@@ -2632,14 +2686,18 @@ The general workflow is:
   minimally adequate account rather than attempting exhaustive construction.
   \item Supply a compact scaffold of referents, processes, events, sources, and
   descriptions. The tool expands the initial model and graph. Supplied numerical
-  measurements retain their units; missing states remain unresolved unless an
-  explicit estimation question is answered.
-  \item Obtain typed process-value proposals for the selected process coordinates.
-  Validate their types, bounds, question identities, evidence cutoffs, and access
-  scopes. Preserve the exact questions, answers, and model revision for review.
+  measurements retain their units; missing states are estimated, each with an
+  honest band and a tag, so that every opened process carries its state.
+  \item Record the modeler's own dated values, states, and scale readings as
+  value series in the model, where the engine checks their types, bounds,
+  states, bands, and tags. Or obtain typed process-value proposals from an
+  estimator for the selected process coordinates, and validate their types,
+  bounds, question identities, evidence cutoffs, and access scopes. Preserve the exact questions, answers, and model revision for review.
   \item Review and apply the exact construction proposal, or record a later
-  estimate and its attributed review in the graph. Understanding Nodes explain
-  what was retained, questioned, or revised. A retry must not silently regenerate
+  estimate in the model's value series, where it replaces the earlier value at
+  that time while the revision history keeps it. Understanding Nodes explain
+  what was retained, questioned, or revised; they carry the reasons, not the
+  values. A retry must not silently regenerate
   a different set of values.
   \item Use the account, inspect missing evidence and competing explanations,
   and deepen or revise the processes where this improves the inquiry. Preserve
@@ -2656,15 +2714,17 @@ with a reason, and the review is stored as Understanding Nodes. Recording the
 review does not establish that the account is explanatorily adequate. The
 builder also requires consideration of whether authored numerical judgments, a
 finer conceptual decomposition, or a change of meaning across dates or
-perspectives would help; that consideration does not require invented scores,
-finer categories, or a claim that meaning changed. A long event is not a sampled
-numerical trend: numerical histories require values at explicit coordinates
-with their evidence cutoffs.
+perspectives would help; that consideration does not require scores without a
+unit or declared anchors, finer categories, or a claim that meaning changed. A long event is not a sampled
+numerical trend: numerical histories require values at explicit dates, kept as
+value series or as claims and estimates with their evidence cutoffs.
 
-The compact construction tool and typed estimation exchange are distinct
-operations. Initial estimates can be explicitly adopted as estimated initial
-claims. Subsequent provider estimates and reviews can be recorded durably in
-the graph without advancing accepted runtime history. A review approval does
+The compact construction tool, the value series, and the typed estimation
+exchange are distinct operations. The modeler's own dated values are kept in the
+model as value series and are not runtime history. Initial estimates can be
+explicitly adopted as estimated initial claims. An external provider's estimates
+and their reviews can be recorded durably in the graph without advancing
+accepted runtime history. A review approval does
 not turn an inferred state into an observation; runtime observations retain the
 ordinary candidate and acceptance path. Multi-operation construction reports
 partial completion rather than claiming transactionality across separate model,

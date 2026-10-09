@@ -382,3 +382,20 @@ test('abstract relations between concepts do not state the regularities laws ask
 test('the loop names the goal: structures built on structures, and the ones already built refined', () => {
   assert.match(thinkInTheModelInstructions, /building structures on top of structures, interpreting them and refining the ones you have/);
 });
+
+test('the state at a moment reads the values recorded for it: the one held then and the next', () => {
+  const model = lived();
+  model.processes = [...(model.processes ?? []), { id: 'leo.health', value_type: { kind: 'scalar', bounds: { minimum: 0, maximum: 10 } },
+    initial_value: { kind: 'scalar', value: 1 }, unit: 'on a scale of 0 to 10', scale: { semantic_role: 'Health', subject_referent_id: 'leo' } }];
+  model.value_series = [{ id: 'values.leo.health~claude', process_id: 'leo.health', holder: 'claude',
+    points: [{ time: 20, value: 2, tag: 'sketch' }, { time: 25, value: 8, lower: 7, upper: 9, tag: 'inferred' }] }];
+  const at = (t) => personStateAt(model, 'leo', t).values.find((item) => item.processId === 'leo.health');
+  assert.deepEqual(at(25).recorded, [{ holder: 'claude', held: { at: 25, value: 8, lower: 7, upper: 9, tag: 'inferred' }, next: null }]);
+  const between = at(22).recorded[0];
+  assert.deepEqual([between.held.value, between.next.value], [2, 8]);
+  // Two recorded points bound nothing about the value between them; the lookup says the time is unrecorded.
+  assert.equal(between.between, undefined);
+  assert.match(between.atThisTime, /^not recorded: held and next are the recorded values around it/u);
+  assert.equal(at(25).recorded[0].atThisTime, undefined, 'a recorded time says nothing more');
+  assert.deepEqual([at(10).recorded[0].held, at(10).recorded[0].next.at], [null, 20], 'before the first value only the next is known');
+});

@@ -2,7 +2,9 @@ import { thinkInTheModelInstructions } from './model-questions.mjs';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { constructionRecordInstructions, grammarReadingInstructions, modelingSessionInstructions } from './construction-principles.mjs';
+import { askTheUserFirst, constructionRecordInstructions, grammarReadingInstructions, modelingSessionInstructions } from './construction-principles.mjs';
+
+export { askTheUserFirst };
 import { methodCoreInstructions, modelingWorkflows, purposeInstructions, purposeMethod, workflowForPurpose } from './workflow-guidance.mjs';
 
 export const modelingPurposes = Object.freeze([
@@ -58,7 +60,7 @@ export const scaleReview =
   'Start macro to micro: assess the enclosing system and its longer-term developments before selecting local detail. State the focal interval and a useful broader horizon; connect large-scale processes and enduring events to the focal processes through evidenced relationships or explicit hypotheses. Record the assessment in Understanding Nodes, with missing evidence and deliberate scope exclusions. Choose depth and timescales for the question, without a fixed ontology or horizon. A long event alone is not a numerical trend: retain dated process values, their evidence cutoffs and uncertainty. Revisit the broader account when local findings change it.';
 
 export const conceptualReview =
-  'Within the agreed delegation, review numerical meaning and conceptual depth without waiting for the user to suggest them. Consider authored judgment scales for relevant meanings, motives, capacities or process changes that are not directly measured; define their comparison, units, anchors and uncertainty, and preserve source measurements separately. Open important concepts into useful parts or alternative lenses using native concepts and abstract cuts, then deepen a child when its label does not explain the relevant behavior or distinction. Assess how meanings differ across dates, actors or contexts; distinguish a changing world from a changed estimate, viewpoint or rubric. Store these assessments as Understanding Nodes linked to the actual definitions and evidence. Revisit them after consequential findings or revisions. Explain adequate boundaries, missing evidence or deliberate exclusions; do not invent scores, change or detail just to fill a checklist.';
+  'Within the agreed delegation, review numerical meaning and conceptual depth without waiting for the user to suggest them. Consider authored judgment scales for relevant meanings, motives, capacities or process changes that are not directly measured; define their comparison, units, anchors and uncertainty, and preserve source measurements separately. Open important concepts into useful parts or alternative lenses using native concepts and abstract cuts, then deepen a child when its label does not explain the relevant behavior or distinction. Assess how meanings differ across dates, actors or contexts; distinguish a changing world from a changed estimate, viewpoint or rubric. Store these assessments as Understanding Nodes linked to the actual definitions and evidence. Revisit them after consequential findings or revisions. Explain adequate boundaries, missing evidence or deliberate exclusions; do not invent scores, change or detail just to fill a checklist. A guess with an honest band, a tag and a reason is not filler: it is how the world is generated.';
 
 const START_HERE_FILE = new URL('../../docs/START_HERE.md', import.meta.url);
 // What the Meaning Model is for and how to work in it: served first, in the server instructions, at the head of
@@ -357,6 +359,8 @@ export async function buildModelingContext({
     { uri: life.uri, sha256: life.sha256, required: false, reason: theoryReference },
   ];
   return {
+    // First, so a client that previews only the start of a long result still shows it to an agent that works without stopping.
+    askTheUserFirst,
     schema: 'life-sim-modeling-context/v2',
     startHere: startHere.text,
     method: { core: methodCoreInstructions, inThisMode: purposeMethod(purpose) },
@@ -392,7 +396,8 @@ export async function buildModelingContext({
       'assess the enclosing system and longer-term trends before local detail; link supporting processes/events or record unknowns and justified exclusions in Understanding Nodes',
       'choose application-specific processes and categories; inspect any starter assumptions and omit unnecessary layers',
       'consider authored numerical judgment scales as well as measured values, with explicit meanings and comparison anchors',
-      'open important concepts into native concepts and abstract cuts when useful; explain a sufficient boundary or missing evidence instead of adding arbitrary depth',
+      'open important concepts into their dimensions, each a process under the one it divides with values of its own, and record the carve as concepts and abstract cuts; guessed values with honest bands are depth, not filler',
+      'fill the coverage report\'s time schedule level by level, with values and series readings, name in each Event\'s process_ids the processes it changes, and give each a value at it',
       'compare dated or perspective-specific meanings and preserve the difference between conceptual change, revised estimates and changed rubrics',
       'identify continuing referents and accepted event history',
       'separate observations, reports, estimates, completions, forecasts, and creative premises',

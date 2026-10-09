@@ -4,6 +4,118 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## 0.9.0 — 2026-10-09
+
+Install the matching 0.9.0 engine. Models without value series or importance records keep their hashes; a model
+that has them needs 0.9.0 or later. The instructions now ask agents to keep working until the coverage report says
+their pass is done, which can mean a long session; the user can stop it at any time, and another pass can always go
+deeper.
+
+- START_HERE points to Sema when it is connected: its Dynamics patterns are candidate mechanisms for processes and
+  laws, checked against the recorded values, and the patterns used are cited by short reference in Understanding
+  Nodes. Before building, the agent asks the user whether to open the live viewer and whether to use Sema (saying
+  where to add Sema if it is not connected); with nobody to answer, it opens the viewer and uses Sema when available.
+  The two questions open START_HERE and lead the `life_modeling_context` result, and say to ask them even when the
+  agent otherwise works without stopping.
+- START_HERE says to open each dimension of a carve as a process under the process it divides, with a measure and
+  values of its own, before its parts; a carve kept only as concepts gives the world no processes.
+  `life_values_record` files an existing process that has no parent under one (`process {parent}`, without points),
+  and refuses a second parent or a cycle. Its report points out when more than three processes have nothing above
+  them, and processes with no value across a stretch where three or more of the model's own Events happen, naming the
+  most important of them. `life_series_record`'s `stillFlat`, the same check for a reading that spans a stretch of a
+  life, now names the Events it passes over in the same order.
+- One coverage report keeps a time schedule for dated values and series of Cuts together, and `life_values_record`,
+  `life_series_record` and `life_model_questions` all return it, so work told in Cuts reaches it as well as work told
+  in values. The schedule divides the model's span coarse to fine into 1, 6, 18 and 54 blocks (in log time, finer
+  toward the latest date, for spans over ten thousand years by the model's time unit, civil days since 1970 included;
+  evenly otherwise). The span comes from the accepted world's Events, values and series readings; an Event under
+  another root, such as a character's imagined future, does not stretch it. A process or series about nothing in
+  particular is held to the whole span. One about a Thing (`process.subject`, which can now be given to an existing
+  process too, or a series' subject) is held to that Thing's life: its two ends, the schedule's boundaries inside it
+  and, at the finest level, its own Events, so a short life is not done with one value. Values go in at the
+  boundaries. A series reads a block when its readings, each no more than half again as long as the block, cover all
+  of it together (a hundredth is forgiven for rounded boundaries); a reading that only touches a block, or a sliver
+  inside it, does not read it. A reading marked steady, with its reason, where its shares truly hold across a longer
+  stretch covers every finer block inside it; a stretch of a life where the subject's own Events happen is still asked
+  about. A reading over such a stretch counts as flat, in the report and in the model's questions, while two or more
+  of its Events lie in no finer reading. A reading contains an Event that begins at or after its start and before its
+  end, as the grammar's half-open intervals say, so a reading that ends where an Event begins, or one elsewhere in the
+  stretch, does not open it, while complete finer detail of any grain does. A series is a question recorded with
+  `life_series_record`, held to its Thing's life, or one recorded otherwise whose readings join end to end into one
+  stretch, held to that stretch; the same question asked of separate episodes, such as a cause asked of two incidents,
+  is not a series and is not held to the schedule. The span also takes in the dates of the accepted world's own root
+  and the dated lives of the Things a record is about, when they are lived in the accepted world. A reading in a
+  character's inner view, or one passing over only that view's Events, does not keep the accepted world from being
+  done; the series tool still asks about it. Values are judged as the model's one account, every holder's together, by
+  all three tools, and a holder's whole is compared only with that holder's parts. Every report opens with the pass's
+  standing in plain words: done by this measure, or not done with one count of all the schedule still lacks, counted
+  at its finest level, and of the processes passing over Events, readings left flat, empty processes and
+  contradictions; in a story it names these, and the schedule's next level, as gaps to fill where the story depends on
+  them rather than a gate. The report says which level every record has reached and what the next level still lacks;
+  while a level is unfilled it replaces the coarsest-stretch hint, and with nothing to divide it says why. Like the
+  model's questions, the values and coverage reports read only what the caller's access scopes reveal, so a private
+  process neither appears in them nor counts toward done in a public reading.
+- The instructions agree on two rules. The opening questions (live viewer, Sema) are asked and waited for, together
+  with any other opening questions, in one message; the older "offer the viewer once, do not hold up modeling" is
+  gone. Pausing to report is not stopping, and nothing is ever finished: the model can always learn more and grow its
+  understanding, and a story can always gain backstory. What ends is a pass. A pass is done when the coverage report
+  says done (a `done` flag: every level of the time schedule filled by values and series readings, no process empty,
+  none passing over the model's own Events, no contradictions and no reading left flat); a story's pass when the
+  agreed prose is delivered and every gap in the world the story depends on is filled in the model and reflected in
+  the prose (stating a gap does not fill it); a narrow task's when it has what it needs. If the user, time or budget
+  ends a pass sooner, the agent says the pass is unfinished and what is left undone; budget not yet spent is no reason
+  to end it. When a pass is done, it says it is done for this pass, reports what changed and records what it leaves
+  for another pass, each with why it can wait; another pass can always go deeper. Pausing to report inside a pass no
+  longer reads as taking the next pass. START_HERE, the protocol and the modeling context state this definition word
+  for word, the storytelling profile points to it, and a report that says not done says why. The wording that asked
+  agents to say why their scope was sufficient, or not to add "arbitrary depth", now says a guess with an honest band
+  is not filler. `life_modeling_read` now says to begin with START_HERE, as the modeling context does. START_HERE asks
+  for each Event's process_ids, the processes it changes, with a value of each at it. The method at the top of the
+  modeling context sends shares that compete for a unit to series of Cuts and quantities, scale readings and states to
+  dated values, as START_HERE does.
+- START_HERE says the agent generates the world by guessing, each guess a step into it, and should keep moving to see
+  what more guesses show rather than stop after a first sketch. The value report answers each call with what the
+  values just recorded show: where a curve peaks or bottoms out and where it changes most, against its own range.
+- Event importance: a model can say how much its Events matter, and to whom. An importance scale names an audience,
+  such as everyone who lives in the world or those who follow one category (optionally its Concept), and 2 to 12
+  levels from the most important down, each with an anchor; `event_importance` places an Event at one level, once per
+  Event, scale and holder. `life_importance_record` declares scales (with the go-to preset `rarity`: top_10, top_100,
+  top_1000, noted) and records judgments in batches; judging again replaces the level while the revision history keeps
+  the earlier one, and the result points to Events without a level and to a crowded top level. `life_model_revise`
+  can upsert both collections. The viewer's Importance picker, and the address settings `importance` and
+  `importanceTop` that a chosen view can set, keep to a scale's top level, then the top two, and so on. Importance is
+  kept apart from containment, Cut shares and process values in the grammar, the protocol and the paper. Models
+  without importance keep their hashes.
+- A model can hold the dated states of its processes directly, as `value_series`: one series per process and holder,
+  each point a time with a value and an optional band given by both ends, or one of the process's defined states, and
+  a tag (source, inferred, invented, exploring, sketch). A series' id is derived from its process and holder, and an
+  importance judgment's from its scale, Event and holder (digests, so ids never collide and any holder fits). The
+  values are the account's, not a running world's: the engine does not bind them to time zero or copy them into
+  worlds. A process opened by `life_values_record` takes its initial value from its value nearest time zero, and its
+  support names that value. Models without value series keep their hashes; a model with them needs this release or
+  later.
+- `life_values_record` records values, scale readings and states for many processes in one call, and opens new
+  processes under a parent as it goes: with a unit, with a defined scale and its anchors, or with defined states, a
+  process's own or a go-to set (phase, intensity, direction, presence). Recording a time again replaces its value;
+  the revision history keeps the earlier one. A number needs a unit or a declared scale. Each result points to the
+  next steps down the tree of processes and the tree of time: contradictions (parts in the parent's unit exceeding a
+  parent that declares a sum, or disagreeing with a mean; parts in other units are named, not added), processes with
+  no state (not counting one a law computes or one with dated claims), processes never divided, processes with only
+  one date, and the coarsest stretches. For the processes about the asked referent, `life_model_questions` reads the
+  recorded values at the asked time: the value held then and the next one, and between two recorded values it says
+  the value at that time is not recorded and is an estimate still to make, not a number bounded by its neighbours.
+- The viewer draws value series as curves labelled by name, states as held steps named by state (when a view holds
+  more changes than it can draw exactly, the briefest states, each lasting until a different state, keep their exact
+  steps and the row says how many changes are drawn approximately until you zoom in), a defined scale over its
+  declared range with its anchors in the details, and shows each value from the revision that recorded it in the
+  construction replay. Over long calendar spans it no longer pads the time window thousands of years into the future,
+  which had labelled ticks with future years and counted "years ago" from the wrong present.
+- The instructions say how a world is generated: by guessing, down the tree of processes and the tree of time, each
+  level within the one above. Every opened process carries its state over time in one of five forms (a value with a
+  unit, defined states, a defined scale, a Cut, or a law), guessed where unknown; the work moves between populating,
+  deepening and correctness; and the understanding graph keeps the reasons, not the values. Dated history no longer
+  goes through the estimation exchange into the graph. The paper and the grammar say the same.
+
 ## 0.8.0 — 2026-10-07
 
 - Model exports and engine commands preserve the sign of zero, including through the MCP response and history

@@ -89,7 +89,7 @@ conversation itself.
 
 ## The construction record
 
-Version 0.8.0 bundles a browser viewer. Ask the connected assistant
+Version 0.9.0 bundles a browser viewer. Ask the connected assistant
 to **“Open this model”**; `life_model_viewer_open` returns a local link to the chosen
 model or graph revision. No separate viewer checkout or special run folder is
 required. While writing, ask **“Keep the viewer following as we work.”** The
@@ -307,8 +307,7 @@ textual thought experiments and transfers are ideas, not evidence. See the
 
 ## Papers and worked example
 
-The paper was revised on October 4, 2026, and the grammar appendix on
-September 28, 2026.
+The paper and the grammar appendix were revised on October 9, 2026.
 The [Zenodo series](https://doi.org/10.5281/zenodo.22313515) provides the
 archived versions.
 
@@ -320,6 +319,10 @@ archived versions.
   - the current revised story; [Markdown, an importable model and verification](examples/book-of-conditions/README.md)
   are included. The [story repository](https://github.com/emergent-wisdom/story#readme)
   also distributes the books; each edition has a publication manifest.
+- [World history](https://github.com/emergent-wisdom/world-history#readme) - an
+  account of how the present came to be, built in the Meaning Model as processes,
+  Events and concepts with the reasoning behind each choice; its construction
+  record imports and replays.
 
 The six world-record forms are Concept, Thing, Event, Binding, Cut, and
 Realization. A Cut divides one declared unit among exclusive sibling answers

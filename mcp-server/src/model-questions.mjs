@@ -16,6 +16,7 @@
 // attention for what they feel, decision allocation for a decision between continuations); decisions are drawn
 // with life_direction_draw, and estimates carry estimator or supplied provenance.
 
+import { importanceRanks } from './importance-rank.mjs';
 import { changeQuestions, followedSubjects, innerHolders } from './development-gaps.mjs';
 import { spatialDiagnostics } from './spatial-diagnostics.mjs';
 import { isSeriesReadingEvent } from './series-mark.mjs';
@@ -47,8 +48,9 @@ const answersOf = (cut) => cut.answers ?? [];
 const estimated = (cut) => (cut.provenance ?? []).some((item) => /^(estimator|supplied):/u.test(String(item)));
 
 // Administrative model inspection returns every native process and claim. Questions are a scoped reading:
-// remove inaccessible records and their typed process links before deriving counts, hints or person values.
-function questionModel(model, accessScopes) {
+// remove inaccessible records and their typed process links before deriving counts, hints or person values. The
+// values and coverage reports read the same scoped model, so no hint names a record the reader may not see.
+export function questionModel(model, accessScopes) {
   const visible = (record) => !(record.access_scopes ?? []).length || record.access_scopes.some((scope) => accessScopes.includes(scope));
   const processes = (model?.processes ?? []).filter(visible);
   const processIds = new Set(processes.map((process) => process.id));
@@ -60,6 +62,7 @@ function questionModel(model, accessScopes) {
   const initial_claims = (model?.initial_claims ?? []).filter((claim) => visible(claim) && !hidden.has(claim.subject));
   const mm = model?.meaning_model;
   return { ...model, processes, initial_claims,
+    value_series: (model?.value_series ?? []).filter((series) => processIds.has(series.process_id)),
     dependencies: (model?.dependencies ?? []).filter((edge) => !referencesHidden(edge)),
     decomposition: (model?.decomposition ?? model?.decompositions ?? []).filter((edge) => !referencesHidden(edge)),
     laws: (model?.laws ?? []).filter((law) => !referencesHidden(law) && !scopedContent(law)),
@@ -396,20 +399,28 @@ export function readingSeries(index) {
 }
 const weightsOf = (cut) => Object.fromEntries(answersOf(cut).map((answer) => [answer.key, answer.weight]));
 // Stretches of a life read once though Events happen inside them, where most happens first: a story's present read
-// once outweighs a childhood read once. A stretch counts when it is a tenth of the life or more and nothing finer is
-// read inside it.
-function unopenedStretches(index, series, { subject = null } = {}) {
+// once outweighs a childhood read once. A stretch counts when it is a tenth of the life or more and two or more of the
+// Events inside it lie in no finer reading: an Event a finer reading contains has been read more closely, and the rest
+// are still read only here. A reading contains an Event that begins at or after its start and before its end, as the
+// grammar's half-open intervals say: a reading ending where an Event begins says nothing of it, and a reading
+// elsewhere in the stretch opens nothing at that Event, however fine the detail around it. With world, only
+// accepted-world readings count, and only the accepted world's Events inside them: a character's inner view is a
+// question of its own, not a gap in the world.
+function unopenedStretches(index, series, { subject = null, world = false } = {}) {
   const found = [];
+  const inWorld = (eventId) => { const kind = contextKindOf(index, eventId); return !kind || kind === 'accepted_world'; };
   for (const list of series.values()) {
     for (const item of list) {
       if (subject && item.owner !== subject) continue;
+      if (world && item.root && index.rootKinds.get(item.root) !== 'accepted_world') continue;
       const length = span(item.event); const lifeLength = span(index.events.get(item.life));
       if (!item.life || !(length > 0) || !(lifeLength > 0) || length < lifeLength * 0.1) continue;
       const [a, b] = [start(item.event), end(item.event)];
-      if (list.some((other) => other !== item && start(other.event) >= a && end(other.event) <= b && span(other.event) < length)) continue;
+      const finer = list.filter((other) => other !== item && start(other.event) >= a && end(other.event) <= b && span(other.event) < length);
       const happenings = [...descendants(index, item.life)].map((id) => index.events.get(id)).filter((event) => event && event.id !== item.event.id
         && !index.readings?.has(event.id) && !isSeriesReadingEvent(event) && !/\.is\.[a-z]+$/u.test(event.id) && start(event) !== null && start(event) > a && start(event) < b
-        && !(span(event) !== null && start(event) <= a && end(event) >= b));
+        && !(span(event) !== null && start(event) <= a && end(event) >= b) && (!world || inWorld(event.id))
+        && !finer.some((other) => start(other.event) <= start(event) && start(event) < end(other.event)));
       if (happenings.length >= 2) found.push({ item, a, b, happenings });
     }
   }
@@ -427,10 +438,14 @@ function splitSeries(index, series) {
   return found;
 }
 // The stretches still read once in a subject's life, for a series tool to report after a change.
-export function flatStretches(model, subject, limit = 3) {
+export function flatStretches(model, subject, limit = 3, { world = false } = {}) {
   const index = indexModel(model);
-  return unopenedStretches(index, readingSeries(index), { subject }).slice(0, limit)
-    .map(({ item, a, b, happenings }) => ({ question: questionOf(item.cut), from: a, to: b, events: happenings.length, cut: item.cut.id }));
+  // The Events a stretch passes over, the most important first and then the shortest, so the agent sees what it skips.
+  const rank = importanceRanks(model?.meaning_model);
+  const order = (x, y) => (rank.get(x.id) ?? Infinity) - (rank.get(y.id) ?? Infinity) || (span(x) ?? 0) - (span(y) ?? 0);
+  return unopenedStretches(index, readingSeries(index), { subject, world }).slice(0, limit)
+    .map(({ item, a, b, happenings }) => ({ question: questionOf(item.cut), from: a, to: b, events: happenings.length,
+      examples: [...happenings].sort(order).slice(0, 3).map((event) => String(event.boundary ?? event.id).replace(/\s+/gu, ' ').slice(0, 60)), cut: item.cut.id }));
 }
 const sharesText = (values) => Object.entries(values).filter(([key, value]) => key !== 'remainder' || Math.abs(value) > 1e-9)
   .map(([key, value]) => `${key} ${(Math.round(value * 100) / 100).toFixed(2)}`).join(', ');
@@ -785,6 +800,19 @@ export function processValuesAt(model, index, person, t, limit = 12) {
   }
   const accountsOf = new Map();
   for (const claim of model?.initial_claims ?? []) if (relevant.has(claim.subject)) push(accountsOf, claim.subject, claim);
+  // Dated values recorded in the model: for each holder, the value or state held at t (the latest point at or before
+  // it) and the next recorded point, so the agent reads what it recorded rather than the initial value.
+  const seriesOf = new Map();
+  for (const series of model?.value_series ?? []) if (relevant.has(series.process_id)) push(seriesOf, series.process_id, series);
+  const pointText = (point) => (point ? { at: point.time, ...(point.state !== undefined ? { state: point.state } : { value: point.value }),
+    ...(Number.isFinite(point.lower) ? { lower: point.lower } : {}), ...(Number.isFinite(point.upper) ? { upper: point.upper } : {}), tag: point.tag, ...(point.note ? { note: point.note } : {}) } : null);
+  const recordedAt = (processId) => (seriesOf.get(processId) ?? []).map((series) => {
+    const points = series.points ?? [];
+    const before = points.filter((point) => point.time <= t).at(-1) ?? null;
+    const after = points.find((point) => point.time > t) ?? null;
+    return { holder: series.holder, held: pointText(before), next: pointText(after),
+      ...(before && before.time !== t ? { atThisTime: 'not recorded: held and next are the recorded values around it; any value in between is an estimate still to make' } : {}) };
+  }).filter((entry) => entry.held || entry.next);
   const cutoff = (claim) => (Number.isFinite(claim.evidence_cutoff) ? claim.evidence_cutoff : -Infinity);
   const items = index.processList.filter((process) => relevant.has(process.id)).map((process) => {
     const known = (accountsOf.get(process.id) ?? []).filter((claim) => cutoff(claim) <= t).sort((a, b) => cutoff(a) - cutoff(b));
@@ -793,6 +821,7 @@ export function processValuesAt(model, index, person, t, limit = 12) {
       processId: process.id, meaning: process.scale?.semantic_role ?? null, unit: process.unit ?? null, bounds: process.value_type?.bounds ?? null,
       ...(rubric ? { rubric } : {}),
       state: { initialValue: plainValue(process.initial_value), updateMode: process.update_mode ?? null },
+      ...(recordedAt(process.id).length ? { recorded: recordedAt(process.id) } : {}),
       accounts: known.slice(-4).map((claim) => ({ holder: claim.holder ?? null, value: plainValue(claim.value), at: claim.value_time ?? null,
         evidenceType: claim.evidence_type ?? null, evidenceCutoff: claim.evidence_cutoff ?? null, uncertainty: claim.uncertainty ?? null, ...(claim.mode ? { mode: claim.mode } : {}) })),
       ...(known.length > 4 ? { earlierAccounts: known.length - 4 } : {}) } };
@@ -861,7 +890,7 @@ export function standingQuestions(focus = {}) {
     `What can be richer about ${about}? A process still coarse, a person without a life, a thing without a history, a feeling whose causes are open, a consequence nobody followed, or an unexpected connection worth exploring for its own sake. Open it in the model, record what you discover and follow the new questions it raises. Keep hypotheses and exploratory drafts distinguishable from accepted facts.`,
     `What is ${about} an instance of? Climb up the ladder: which concept, pattern or law explains it together with other things in the model, and what does that abstraction predict elsewhere?`,
     `What else? These questions are a start, not a boundary: what question about ${about} has nobody asked yet, and what category would you need to invent to answer it? What does the current grouping hide about how situations unfold differently? Model a promising distinction and try it elsewhere; what does it explain or make possible, where does it fail, and what structure does that suggest opening next?`,
-    `What did your last substantive opening of ${about} reveal, and which connection is most worth following now? Choose by what it could explain or make possible in the work. Inspect the linked history, neighboring processes or higher abstractions and pursue the chosen direction within the delegation. When stopping, record what you explored, why this scope is sufficient for the purpose, and the promising questions left open; a local success does not establish a whole-work review. These are choices to record in the existing Understanding Nodes, not a required number of openings, new categories or numerical changes.`,
+    `What did your last substantive opening of ${about} reveal, and which connection is most worth following now? Choose by what it could explain or make possible in the work. Inspect the linked history, neighboring processes or higher abstractions and pursue the chosen direction within the delegation. When you pause, record what you explored, what it opened and the promising questions left open, then go on; a local success does not establish a whole-work review. These are choices to record in the existing Understanding Nodes, not a required number of openings, new categories or numerical changes.`,
     ...(story && focus.people?.length ? [`Can you understand ${focus.people.join(', ')} better by inventing processes or subcategories of your own for them? A template is a suggestion: look at it, and at the life, and ask what distinctions this life actually turns on.`,
       `What is flawed in ${focus.people.join(', ')}, and how does the flaw work over the life? Model where it came from (often a strategy that once served a deep want), when it takes over, where the same trait is a strength and where it does harm, what it costs here, and whether they see it.`] : []),
   ];
@@ -1022,8 +1051,9 @@ function visibleStoryRoots(view) {
   return stories;
 }
 
-export async function readOpenQuestions(service, { modelHash, people = null, at = null, focus = {}, graphHash = null, accessScopes = [], limit = 16, author = null }) {
-  const { model } = await service.inspectModel({ modelHash, includeDefinition: true });
+export async function readOpenQuestions(service, { modelHash, model: read = null, people = null, at = null, focus = {}, graphHash = null, accessScopes = [], limit = 16, author = null }) {
+  // A caller that has already read the model passes it, so it is read once.
+  const model = read ?? (await service.inspectModel({ modelHash, includeDefinition: true })).model;
   let draws = null;
   let view = null;
   if (graphHash) {

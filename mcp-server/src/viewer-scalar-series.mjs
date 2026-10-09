@@ -3,7 +3,7 @@
 import { isDeepStrictEqual } from 'node:util';
 
 export function projectScalarSeries(model, { modelHash = null, graph = null, toDisplayTime = (value) => value,
-  claimBorn = () => null, processBorn = () => null, nodeBorn = () => null, edgeBorn = () => null } = {}) {
+  claimBorn = () => null, processBorn = () => null, pointBorn = () => null, nodeBorn = () => null, edgeBorn = () => null } = {}) {
   const copy = (value) => value === undefined ? null : structuredClone(value);
   const processes = new Map((model?.processes ?? []).map((process) => [process.id, process]));
   const groups = new Map();
@@ -11,21 +11,40 @@ export function projectScalarSeries(model, { modelHash = null, graph = null, toD
   const add = (processId, sample, source) => {
     const process = processes.get(processId);
     const t = Number.isFinite(sample.valueTime) ? toDisplayTime(sample.valueTime) : null;
-    if (!String(model?.time_unit ?? '').trim() || process?.value_type?.kind !== 'scalar'
-      || !Number.isFinite(t) || !Number.isFinite(sample.v) || !Number.isFinite(sample.evidenceCutoff)) return;
+    // A process with defined states is drawn as steps by the position of its state among its states.
+    const stateful = source.kind === 'value-series' && ['category', 'regime'].includes(process?.value_type?.kind);
+    if (!String(model?.time_unit ?? '').trim() || (process?.value_type?.kind !== 'scalar' && !stateful)
+      || !Number.isFinite(t) || !Number.isFinite(sample.v) || (source.kind !== 'value-series' && !Number.isFinite(sample.evidenceCutoff))) return;
     const identity = { processId, source, holder: sample.holder, mode: sample.mode, evidenceType: sample.evidenceType,
       authoritySource: sample.authority?.source ?? null, accessScopes: [...(sample.accessScopes ?? [])].sort() };
     const key = JSON.stringify(identity);
     if (!groups.has(key)) {
       const sourceEventIds = [...new Set((model.meaning_model?.events ?? []).filter((event) => event.process_ids?.includes(processId)).map((event) => event.id))];
       groups.set(key, { id: `typed-scalar:${encodeURIComponent(key)}`, kind: 'typed-scalar', processId,
-        label: processId, unit: process.unit ?? null, frame: process.reference_frame ?? null,
+        label: process.scale?.label ?? ((process.scale?.semantic_role ?? '').split(':')[0].trim() || processId), unit: process.unit ?? null, frame: process.reference_frame ?? null,
         role: process.scale?.semantic_role ?? null, timeUnit: model.time_unit, source: copy(source),
         holder: sample.holder, mode: sample.mode, evidenceType: sample.evidenceType,
-        sourceEventIds, home: sourceEventIds.length === 1 ? sourceEventIds[0] : null, points: [] });
+        sourceEventIds, home: sourceEventIds.length === 1 ? sourceEventIds[0] : null, points: [],
+        ...(stateful ? { states: process.value_type.variants.map((key) => ({ key, meaning: process.scale?.[`state:${key}`] ?? null })) } : {}),
+        ...(process.scale?.kind === 'defined-scale' && process.value_type?.bounds ? { scaleBounds: { ...process.value_type.bounds } } : {}),
+        ...(Object.keys(process.scale ?? {}).some((key) => key.startsWith('anchor:')) ? { anchors: Object.entries(process.scale)
+          .filter(([key]) => key.startsWith('anchor:')).map(([key, meaning]) => ({ at: Number(key.slice(7)), meaning })).sort((a, b) => a.at - b.at) } : {}) });
     }
     groups.get(key).points.push(copy({ ...sample, t, born: latest(sample.born, processBorn(processId)) }));
   };
+  // The model's own dated values: one series per process and holder, each point a guess or better with its tag.
+  for (const series of model?.value_series ?? []) {
+    const variants = processes.get(series.process_id)?.value_type?.variants ?? [];
+    for (const point of series.points ?? []) {
+      const v = point.state !== undefined ? variants.indexOf(point.state) : point.value;
+      // The time a value describes is not the date of the evidence behind it, so a series declares no cutoff.
+      add(series.process_id, { id: `${series.id}@${point.time}`, v, ...(point.state !== undefined ? { state: point.state } : {}), valueTime: point.time, evidenceCutoff: null,
+        holder: series.holder ?? null, mode: 'estimated', evidenceType: 'estimate', tag: point.tag, authority: { source: series.holder ?? null, weight: 1 },
+        uncertainty: Number.isFinite(point.lower) && Number.isFinite(point.upper) ? { kind: 'interval', lower: point.lower, upper: point.upper } : { kind: 'unknown' },
+        provenance: [point.tag, ...(point.note ? [point.note] : [])], accessScopes: [], born: copy(pointBorn(`${series.id}@${point.time}`)), record: copy(point), reviewStatus: null, acceptedWorldValue: false,
+      }, { kind: 'value-series', modelHash, seriesId: series.id });
+    }
+  }
   for (const claim of model?.initial_claims ?? []) {
     if (claim.value?.kind !== 'scalar' || !Number.isFinite(claim.value_time)
       || claim.value_time > claim.evidence_cutoff || claim.evidence_cutoff > 0) continue;
@@ -98,6 +117,6 @@ export function projectScalarSeries(model, { modelHash = null, graph = null, toD
     for (const point of series.points) push(byTime, point.t, point.id);
     const conflicts = [...byTime].filter(([, ids]) => ids.length > 1).map(([t, recordIds]) => ({ t, recordIds }));
     return { ...series, domain: [series.points[0].t, series.points.at(-1).t], conflicts,
-      interpolation: { kind: series.points.length >= 2 && !conflicts.length ? 'linear-visual-guide' : 'none', extrapolate: false } };
+      interpolation: { kind: series.points.length >= 2 && !conflicts.length ? (series.states ? 'step-hold' : 'linear-visual-guide') : 'none', extrapolate: false } };
   }).sort((a, b) => a.id.localeCompare(b.id));
 }

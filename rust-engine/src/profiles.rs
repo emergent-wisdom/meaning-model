@@ -152,6 +152,8 @@ fn empty_meaning_model() -> MeaningModelDefinition {
         semantic_coverage: None,
         normalized_cuts: vec![],
         context_roots: vec![],
+        importance_scales: vec![],
+        event_importance: vec![],
         temporal_cut_recompositions: vec![],
     }
 }
@@ -205,6 +207,7 @@ impl OptionalProfileCompiler {
             dependencies: vec![],
             laws: vec![],
             initial_claims: vec![],
+            value_series: vec![],
             meaning_model: None,
         })
     }

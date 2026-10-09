@@ -7,14 +7,14 @@
     "url": "https://github.com/emergent-wisdom/meaning-model",
     "source": "github"
   },
-  "version": "0.8.0",
+  "version": "0.9.0",
   "websiteUrl": "https://meaningmodel.ai/",
   "packages": [
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@emergent-wisdom/meaning-model-mcp",
-      "version": "0.8.0",
+      "version": "0.9.0",
       "runtimeHint": "npx",
       "runtimeArguments": [
         {

@@ -15,6 +15,8 @@ pub const NORMALIZED_CUT_REMAINDER_KEY: &str = "remainder";
 pub const NORMALIZED_CUT_SUM_TOLERANCE: f64 = 1e-9;
 pub const MAX_MEANING_EVENT_DESCRIPTION_BYTES: usize = 64 * 1024;
 pub const MAX_NORMALIZED_CUT_ANSWER_MEANING_BYTES: usize = 64 * 1024;
+pub const MIN_IMPORTANCE_LEVELS: usize = 2;
+pub const MAX_IMPORTANCE_LEVELS: usize = 12;
 
 /// An abstract schema in the optional Meaning Model layer.
 ///
@@ -484,6 +486,48 @@ pub struct MeaningContextRootDefinition {
     pub provenance: Vec<String>,
 }
 
+/// One level of an importance scale: its key, and the anchor that says what an
+/// Event must be, for the scale's audience, to stand at this level.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ImportanceLevelDefinition {
+    pub key: String,
+    pub anchor: String,
+}
+
+/// How much Events matter to one audience, as levels ordered from the most
+/// important down, each with its anchor. The audience is whoever the judgment
+/// is for: the inhabitants of a world, or those of them who follow one
+/// category, which `concept_id` may name. Importance is its own judgment: not
+/// containment, not a Cut's shares and not a process value. It chooses what a
+/// reader is shown, never what happens.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ImportanceScaleDefinition {
+    pub id: String,
+    pub audience: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub concept_id: Option<String>,
+    pub levels: Vec<ImportanceLevelDefinition>,
+    pub provenance: Vec<String>,
+}
+
+/// One holder's judgment of how much one Event matters on one scale: a level of
+/// that scale. A holder has one judgment per Event and scale; a reassessment
+/// replaces it, and the revision history keeps the earlier one.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct EventImportanceDefinition {
+    pub id: String,
+    pub event_id: String,
+    pub scale_id: String,
+    pub level: String,
+    pub holder: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    pub provenance: Vec<String>,
+}
+
 /// Optional static semantic layer over the executable Life Simulation kernel.
 /// Its collections default independently so producers can author either plane
 /// incrementally while the entire layer remains an explicit opt-in.
@@ -522,6 +566,11 @@ pub struct MeaningModelDefinition {
     pub temporal_cut_recompositions: Vec<TemporalCutRecompositionDefinition>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub context_roots: Vec<MeaningContextRootDefinition>,
+    /// Omission preserves pre-extension canonical JSON and model hashes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub importance_scales: Vec<ImportanceScaleDefinition>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub event_importance: Vec<EventImportanceDefinition>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -767,6 +816,9 @@ pub(super) fn normalize_meaning_model(meaning_model: &mut MeaningModelDefinition
         contract.children.sort_by(|a, b| a.cut_id.cmp(&b.cut_id));
     }
     meaning_model.context_roots.sort_by(|a, b| a.event_id.cmp(&b.event_id));
+    // A scale's levels keep their order: the most important comes first.
+    meaning_model.importance_scales.sort_by(|a, b| a.id.cmp(&b.id));
+    meaning_model.event_importance.sort_by(|a, b| a.id.cmp(&b.id));
     for cut in &mut meaning_model.normalized_cuts {
         cut.answers.sort_by(|a, b| a.key.cmp(&b.key));
         for answer in &mut cut.answers {
@@ -1223,6 +1275,103 @@ fn validate_temporal_cut_recompositions<'a>(
     Ok(())
 }
 
+fn importance_level_key(key: &str) -> bool {
+    let mut chars = key.chars();
+    key.len() <= 64
+        && chars.next().is_some_and(|first| first.is_ascii_lowercase())
+        && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+}
+
+/// Scales name their audience and 2 to 12 anchored levels, most important first;
+/// a judgment names an existing Event, scale and level, once per holder.
+fn validate_importance<'a>(
+    meaning_model: &'a MeaningModelDefinition,
+    event_ids: &BTreeSet<&'a str>,
+    concept_ids: &BTreeSet<&'a str>,
+) -> EngineResult<()> {
+    let mut scales: BTreeMap<&str, &ImportanceScaleDefinition> = BTreeMap::new();
+    for scale in &meaning_model.importance_scales {
+        validate_identifier(&scale.id, "importance scale id")?;
+        if scales.insert(scale.id.as_str(), scale).is_some() {
+            return Err(error(format!("duplicate importance scale id {}", scale.id)));
+        }
+        validate_text(&scale.audience, &format!("importance scale {} audience", scale.id))?;
+        if let Some(concept_id) = &scale.concept_id {
+            if !concept_ids.contains(concept_id.as_str()) {
+                return Err(error(format!(
+                    "importance scale {} names unknown concept {concept_id}",
+                    scale.id
+                )));
+            }
+        }
+        if !(MIN_IMPORTANCE_LEVELS..=MAX_IMPORTANCE_LEVELS).contains(&scale.levels.len()) {
+            return Err(error(format!(
+                "importance scale {} needs {MIN_IMPORTANCE_LEVELS} to {MAX_IMPORTANCE_LEVELS} levels, the most important first",
+                scale.id
+            )));
+        }
+        let mut keys = BTreeSet::new();
+        for level in &scale.levels {
+            if !importance_level_key(&level.key) {
+                return Err(error(format!(
+                    "importance scale {} level key {:?} must start with a lowercase letter and hold only lowercase letters, digits and underscores",
+                    scale.id, level.key
+                )));
+            }
+            if !keys.insert(level.key.as_str()) {
+                return Err(error(format!(
+                    "importance scale {} names level {} twice",
+                    scale.id, level.key
+                )));
+            }
+            validate_text(
+                &level.anchor,
+                &format!("importance scale {} level {} anchor", scale.id, level.key),
+            )?;
+        }
+        validate_provenance(&scale.provenance, &format!("importance scale {}", scale.id))?;
+    }
+    let mut ids = BTreeSet::new();
+    let mut judged = BTreeSet::new();
+    for judgment in &meaning_model.event_importance {
+        validate_identifier(&judgment.id, "event importance id")?;
+        if !ids.insert(judgment.id.as_str()) {
+            return Err(error(format!("duplicate event importance id {}", judgment.id)));
+        }
+        if !event_ids.contains(judgment.event_id.as_str()) {
+            return Err(error(format!(
+                "event importance {} names unknown event {}",
+                judgment.id, judgment.event_id
+            )));
+        }
+        let scale = scales.get(judgment.scale_id.as_str()).ok_or_else(|| {
+            error(format!(
+                "event importance {} names unknown importance scale {}",
+                judgment.id, judgment.scale_id
+            ))
+        })?;
+        if !scale.levels.iter().any(|level| level.key == judgment.level) {
+            return Err(error(format!(
+                "event importance {}: {} is not a level of importance scale {}",
+                judgment.id, judgment.level, judgment.scale_id
+            )));
+        }
+        validate_identifier(&judgment.holder, &format!("event importance {} holder", judgment.id))?;
+        if !judged.insert((judgment.event_id.as_str(), judgment.scale_id.as_str(), judgment.holder.as_str())) {
+            return Err(error(format!(
+                "event importance {}: {} already has a level on {} from {}; replace that judgment instead",
+                judgment.id, judgment.event_id, judgment.scale_id, judgment.holder
+            )));
+        }
+        validate_optional_text(
+            judgment.reason.as_deref(),
+            &format!("event importance {} reason", judgment.id),
+        )?;
+        validate_provenance(&judgment.provenance, &format!("event importance {}", judgment.id))?;
+    }
+    Ok(())
+}
+
 pub(super) fn validate_meaning_model(
     meaning_model: &MeaningModelDefinition,
     processes: &BTreeMap<String, ProcessDefinition>,
@@ -1255,6 +1404,8 @@ pub(super) fn validate_meaning_model(
         meaning_model.normalized_cuts.len(),
         meaning_model.temporal_cut_recompositions.len(),
         meaning_model.context_roots.len(),
+        meaning_model.importance_scales.len(),
+        meaning_model.event_importance.len(),
         meaning_model
             .semantic_coverage
             .as_ref()
@@ -1556,6 +1707,7 @@ pub(super) fn validate_meaning_model(
     let event_contexts = validate_event_contexts(meaning_model, &events)?;
     validate_normalized_cuts(meaning_model, &event_ids, &event_contexts)?;
     validate_temporal_cut_recompositions(meaning_model, &events, &event_contexts)?;
+    validate_importance(meaning_model, &event_ids, &concept_ids)?;
 
     let mut relation_ids = BTreeSet::new();
     let mut abstract_edges = Vec::new();
@@ -2450,6 +2602,8 @@ pub(super) fn test_meaning_model_fixture() -> MeaningModelDefinition {
         normalized_cuts: vec![],
         temporal_cut_recompositions: vec![],
         context_roots: vec![],
+        importance_scales: vec![],
+        event_importance: vec![],
     }
 }
 
@@ -2781,6 +2935,103 @@ mod tests {
         assert!(failure(repeated).contains("Cut care-direction has more than one realized continuation"));
     }
 
+    fn with_importance(mut meaning_model: MeaningModelDefinition) -> MeaningModelDefinition {
+        let level = |key: &str, anchor: &str| ImportanceLevelDefinition { key: key.to_owned(), anchor: anchor.to_owned() };
+        meaning_model.importance_scales.push(ImportanceScaleDefinition {
+            id: "importance.world".to_owned(),
+            audience: "Everyone who lives in this world".to_owned(),
+            concept_id: Some("love".to_owned()),
+            levels: vec![
+                level("epochal", "Changes how most people live for generations"),
+                level("major", "Changes life across a region for years"),
+                level("notable", "Remembered by those near it"),
+            ],
+            provenance: vec!["unit-test".to_owned()],
+        });
+        let judgment = |id: &str, event_id: &str, level: &str, holder: &str| EventImportanceDefinition {
+            id: id.to_owned(),
+            event_id: event_id.to_owned(),
+            scale_id: "importance.world".to_owned(),
+            level: level.to_owned(),
+            holder: holder.to_owned(),
+            reason: Some("unit test".to_owned()),
+            provenance: vec!["unit-test".to_owned()],
+        };
+        meaning_model.event_importance.push(judgment("importance.world.repair-event.modeler", "repair-event", "major", "modeler"));
+        meaning_model.event_importance.push(judgment("importance.world.care-event.modeler", "care-event", "epochal", "modeler"));
+        // Another holder judges the same Event on the same scale differently; both are kept.
+        meaning_model.event_importance.push(judgment("importance.world.care-event.reader", "care-event", "notable", "reader"));
+        meaning_model
+    }
+
+    #[test]
+    fn importance_is_judged_per_event_scale_and_holder_on_ordered_anchored_levels() {
+        let mut meaning_model = with_importance(test_meaning_model_fixture());
+        validate_meaning_model(&meaning_model, &test_processes()).unwrap();
+        normalize_meaning_model(&mut meaning_model);
+        assert_eq!(
+            meaning_model.event_importance.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(),
+            ["importance.world.care-event.modeler", "importance.world.care-event.reader", "importance.world.repair-event.modeler"]
+        );
+        // Levels keep their authored order: the most important first.
+        assert_eq!(
+            meaning_model.importance_scales[0].levels.iter().map(|level| level.key.as_str()).collect::<Vec<_>>(),
+            ["epochal", "major", "notable"]
+        );
+        // A model without importance serializes as before, so its hash is unchanged.
+        let plain = serde_json::to_value(test_meaning_model_fixture()).unwrap();
+        assert!(plain.get("importance_scales").is_none() && plain.get("event_importance").is_none());
+        let json = serde_json::to_value(&meaning_model).unwrap();
+        assert_eq!(json["importance_scales"][0]["levels"][0]["key"], "epochal");
+        let round: MeaningModelDefinition = serde_json::from_value(json).unwrap();
+        assert_eq!(round, meaning_model);
+    }
+
+    #[test]
+    fn importance_rejects_unknown_records_unordered_levels_and_second_judgments() {
+        let mut twice = with_importance(test_meaning_model_fixture());
+        twice.event_importance[1].id = "importance.second".to_owned();
+        twice.event_importance[1].event_id = "repair-event".to_owned();
+        assert!(failure(twice).contains("already has a level on importance.world from modeler"));
+
+        let mut unknown_event = with_importance(test_meaning_model_fixture());
+        unknown_event.event_importance[0].event_id = "nothing".to_owned();
+        assert!(failure(unknown_event).contains("names unknown event nothing"));
+
+        let mut unknown_scale = with_importance(test_meaning_model_fixture());
+        unknown_scale.event_importance[0].scale_id = "importance.none".to_owned();
+        assert!(failure(unknown_scale).contains("unknown importance scale importance.none"));
+
+        let mut unknown_level = with_importance(test_meaning_model_fixture());
+        unknown_level.event_importance[0].level = "huge".to_owned();
+        assert!(failure(unknown_level).contains("huge is not a level of importance scale importance.world"));
+
+        let mut one_level = with_importance(test_meaning_model_fixture());
+        one_level.importance_scales[0].levels.truncate(1);
+        one_level.event_importance.clear();
+        assert!(failure(one_level).contains("needs 2 to 12 levels"));
+
+        let mut repeated_level = with_importance(test_meaning_model_fixture());
+        repeated_level.importance_scales[0].levels[2].key = "major".to_owned();
+        assert!(failure(repeated_level).contains("names level major twice"));
+
+        let mut bad_key = with_importance(test_meaning_model_fixture());
+        bad_key.importance_scales[0].levels[0].key = "Epochal".to_owned();
+        assert!(failure(bad_key).contains("must start with a lowercase letter"));
+
+        let mut blank_anchor = with_importance(test_meaning_model_fixture());
+        blank_anchor.importance_scales[0].levels[0].anchor = " ".to_owned();
+        assert!(failure(blank_anchor).contains("anchor must be nonempty"));
+
+        let mut unknown_concept = with_importance(test_meaning_model_fixture());
+        unknown_concept.importance_scales[0].concept_id = Some("football".to_owned());
+        assert!(failure(unknown_concept).contains("names unknown concept football"));
+
+        let mut blank_audience = with_importance(test_meaning_model_fixture());
+        blank_audience.importance_scales[0].audience = String::new();
+        assert!(failure(blank_audience).contains("audience must be nonempty"));
+    }
+
     #[test]
     fn referent_only_meaning_model_is_a_valid_optional_profile() {
         let fixture = test_meaning_model_fixture();
@@ -2803,6 +3054,8 @@ mod tests {
             normalized_cuts: vec![],
             temporal_cut_recompositions: vec![],
             context_roots: vec![],
+            importance_scales: vec![],
+            event_importance: vec![],
         };
         validate_meaning_model(&referent_only, &test_processes()).unwrap();
     }

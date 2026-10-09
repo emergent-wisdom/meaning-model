@@ -34,6 +34,11 @@ export function numericTimeTicks(start, end) {
   return Array.from({ length: Math.min(32, Math.max(0, Math.floor((end - first) / step + 1e-9) + 1)) }, (_, index) => +(first + index * step).toPrecision(12));
 }
 
+// Room after the latest record is camera room only. On a calendar a proportional pad over a long span would reach
+// centuries into the future (2% of 300,000 years is 6,000), labelling ticks with years that have not happened and
+// counting "years ago" from them, so it is capped at one year.
+const futurePad = (pad, calendar) => (calendar ? Math.min(pad, 1) : pad);
+
 export function temporalWindow(data) {
   if (!String(data.timeUnit ?? '').trim()) return null;
   const calendar = isCalendarTime(data.timeUnit);
@@ -50,7 +55,7 @@ export function temporalWindow(data) {
     }
     const start = Math.min(...starts), end = Math.max(...ends);
     const pad = start === end ? (calendar ? 0.12 : 0.5) : Math.max(Number.EPSILON, (end - start) * 0.02);
-    return { start: start - pad, end: end + pad, source: 'typed-samples' };
+    return { start: start - pad, end: end + futurePad(pad, calendar), source: 'typed-samples' };
   }
   const plotted = (calendar ? data.measures ?? [] : []).filter((measure) => measure.points?.length >= 2)
     .flatMap((measure) => measure.points.map((point) => point.t)).filter(Number.isFinite);
@@ -68,5 +73,5 @@ export function temporalWindow(data) {
   const start = storyRange ? story.start : Math.min(...events.map((event) => event.start));
   const end = storyRange ? story.end : Math.max(...events.map((event) => Number.isFinite(event.end) ? event.end : event.start));
   const pad = start === end ? (calendar ? 0.12 : 0.5) : Math.max(Number.EPSILON, (end - start) * 0.02);
-  return { start: start - pad, end: end + pad, source: 'events' };
+  return { start: start - pad, end: end + futurePad(pad, calendar), source: 'events' };
 }

@@ -188,7 +188,7 @@ test('every modeling purpose receives the common construction and application-ch
     assert.equal(context.orderedResources[1].uri, 'life-sim://protocol/grammar');
     assert.ok(context.orderedResources.slice(0, 2).every(({ required }) => required));
     assert.match(context.startHere, /You are an explorer, and the Meaning Model is your mind/u, purpose);
-    assert.equal(Object.keys(context)[1], 'startHere', 'the point comes before any procedure');
+    assert.deepEqual(Object.keys(context).slice(0, 3), ['askTheUserFirst', 'schema', 'startHere'], 'the user\'s two choices, then the point, come before any procedure');
     // The centre of the method, for every purpose: an account of how the present came to be, whose consequences say what
     // to look for next.
     assert.match(context.startHere, /\*\*The method\.\*\* Build an account of how the present came to be\. Model the processes and relationships that could have produced it, including those we have not observed directly\. Follow their consequences to predict what else we should find\. Use new evidence to revise the account\./u, purpose);
@@ -221,6 +221,17 @@ test('start-here names the entry call with every purpose, and how text stays in 
   assert.match(startHere, /Keep the deliverable of the project you were given in the model \(the story, report or forecast, not every conversational answer\), each passage linked to the Events it renders\./u);
   assert.match(startHere, /registered once, as a new narrative, with life_narrative_register; later versions revise that narrative instead of registering another/u);
   assert.match(startHere, /move the narrative onto the new model revision with life_narrative_rebind; life_revision_check then lists the passages to reread\./u);
+});
+
+// Opening questions lead both entry points so agents encounter them before building.
+test('the two questions for the user open start-here and lead the context result', async () => {
+  const context = await buildModelingContext({ purpose: 'source_reconstruction', sessionMode: 'first_use' });
+  assert.equal(Object.keys(context)[0], 'askTheUserFirst');
+  assert.match(context.askTheUserFirst, /live viewer[\s\S]*Sema[\s\S]*wait for the answer/u);
+  assert.match(context.askTheUserFirst, /even when you otherwise work without stopping/u);
+  const firstSection = context.startHere.indexOf('**');
+  assert.equal(context.startHere.indexOf('**Before you build, ask two questions.**'), firstSection);
+  assert.match(context.startHere, /semahash\.org/u);
 });
 
 // From the 2026-10-05 review: an issued forecast is kept as issued while accounts are revised, confidence is not
@@ -345,4 +356,31 @@ test('every mode carries the method: categories first, series over time, open wh
   assert.match(purposeMethod('source_reconstruction'), /tagged source or inferred/);
   assert.match(purposeMethod('forecasting'), /Issue each forecast as its own record and never record it again/);
   assert.match(purposeMethod('human_author_feedback'), /Do not invent the author's biography/);
+});
+
+// All agent-facing instructions share the opening questions and pass-completion rule.
+test('every agent-facing text asks the opening questions and keeps going until the pass is done', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { modelingSessionInstructions, processDevelopmentInstructions, whenToStop } = await import('../src/construction-principles.mjs');
+  const root = new URL('../../', import.meta.url);
+  const texts = await Promise.all(['docs/START_HERE.md', 'docs/MODELING_PROTOCOL.md', 'docs/GENERAL_MODELING.md', 'profiles/STORYTELLING_ADDON.md',
+    'mcp-server/src/construction-principles.mjs', 'mcp-server/src/modeling-guidance.mjs', 'mcp-server/src/server.ts', 'mcp-server/src/model-questions.mjs']
+    .map((path) => readFile(new URL(path, root), 'utf8')));
+  for (const stale of [/offer once to open the viewer/iu, /hold up modeling/iu, /sufficient for the (delegated )?purpose/iu, /without forcing extra detail/iu, /instead of adding arbitrary depth/iu, /useful stopping point/iu,
+    /values report says done/iu, /reported stillFlat/iu, /until the agreed work is delivered;/iu, /the work is done when/iu, /a story is never done/iu, /finished first pass/iu, /filled or stated/iu, /then take the next pass/iu]) {
+    for (const text of texts) assert.doesNotMatch(text, stale);
+  }
+  assert.match(modelingSessionInstructions, /Ask the two opening questions of start-here, about the live viewer and Sema, and wait for the answer/u);
+  assert.ok(processDevelopmentInstructions.includes(whenToStop));
+  const startHere = (await buildModelingContext({ purpose: 'observation', sessionMode: 'first_use' })).startHere;
+  // One definition of done, word for word wherever it is stated, measured by the coverage report.
+  assert.ok(startHere.includes(whenToStop), 'start-here states the definition of done word for word');
+  assert.ok(texts[1].replace(/\s+/gu, ' ').includes(whenToStop), 'so does the protocol');
+  assert.match(whenToStop, /Nothing here is ever finished: the model can always learn more and grow its understanding/u);
+  assert.match(whenToStop, /A pass is done when the coverage report says done/u);
+  assert.match(whenToStop, /stating a gap does not fill it/u);
+  assert.match(whenToStop, /say the pass is unfinished and what is left undone; budget not yet spent is no reason to end it/u);
+  assert.match(whenToStop, /say you are done for this pass, report what changed, and record what you leave for another pass, each with why it can wait: another pass can always move through the world in more depth/u);
+  assert.match(texts[3].replace(/\s+/gu, ' '), /nothing is ever finished, and a story can always gain backstory/u);
+  assert.match(startHere, /name the processes it changes in its process_ids and give each a value at it/u);
 });

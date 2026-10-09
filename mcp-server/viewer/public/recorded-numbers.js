@@ -139,7 +139,10 @@ export function appendTypedScalarSeries(container, series, options = {}) {
   line('a', `Unit: ${metadataText(series.unit)}`);
   if (series.frame !== null && series.frame !== undefined) line('a', `Reference frame: ${series.frame}`);
   line('a', `Holder: ${metadataText(series.holder)} · Mode: ${metadataText(series.mode)} · Evidence type: ${metadataText(series.evidenceType)}`);
-  line('a', series.interpolation?.kind === 'linear-visual-guide'
+  if (series.states) line('a', `States: ${series.states.map((s) => s.meaning ? `${s.key} (${s.meaning})` : s.key).join('; ')}`);
+  line('a', series.interpolation?.kind === 'step-hold'
+    ? 'Each recorded state holds until the next; nothing is extended beyond the last.'
+    : series.interpolation?.kind === 'linear-visual-guide'
     ? 'The curve is a linear visual guide between recorded readings, with no extrapolation.'
     : series.conflicts?.length ? 'Conflicting readings are kept separate; no numerical curve is drawn.'
       : points.length === 1 ? 'One dated reading: no numerical curve is drawn.'
@@ -158,7 +161,7 @@ export function appendTypedScalarSeries(container, series, options = {}) {
   }
   for (const point of points) {
     const item = element(document, 'details', ''); item.style.margin = '8px 0';
-    item.append(element(document, 'summary', '', `${displayTime(point)} · ${metadataText(point.v)}${unit}${point.reviewStatus ? ` · ${point.reviewStatus}` : ''}`));
+    item.append(element(document, 'summary', '', `${displayTime(point)} · ${point.state ?? `${metadataText(point.v)}${unit}`}${point.reviewStatus ? ` · ${point.reviewStatus}` : ''}`));
     let built = false;
     item.addEventListener('toggle', () => {
       if (!item.open || built) return; built = true;

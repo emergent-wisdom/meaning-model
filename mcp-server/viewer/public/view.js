@@ -146,6 +146,9 @@ const opt = {
   depth: Number.isFinite(Number(params.get('depth'))) && params.has('depth') ? Number(params.get('depth')) : defaultDepth(initialLayout),
   detailLevel: params.has('detail') && Number.isInteger(Number(params.get('detail'))) ? Math.max(0, Number(params.get('detail'))) : null,
   processScope: params.get('scope') || null,
+  // Importance keeps to one scale's top levels: importance=<scale id>, importanceTop=<n> (1, the top level, by default).
+  importance: params.get('importance') || null,
+  importanceTop: Number.isInteger(Number(params.get('importanceTop'))) && Number(params.get('importanceTop')) >= 1 ? Number(params.get('importanceTop')) : 1,
   show: new Set(ALL_SHOW.filter((key) => layerOverrides.has(key) ? layerOverrides.get(key) : defaultShow(initialLayout).includes(key))),
   lenses: new Set(),
 };
@@ -230,8 +233,11 @@ const measurePosition = (points, t) => {
 // thirteen years of a story's present, and fold back into their periods across a whole life.
 const readingResolution = () => ({ minSpan: F.s * 0.015, momentHalfWidth: (F.s / NX) * 1.5 });
 const readingShown = (row, t) => readingAt(row.points ?? row.measure.points, t, readingResolution());
+// A state holds from the date it is recorded until the next recorded state.
+const stepAt = (points, t) => { if (!points.length || t < points[0].t || t > points.at(-1).t) return null; let v = points[0].v; for (const p of points) { if (p.t > t) break; v = p.v; } return v; };
 function rowValue(row, t) {
   const points = row.points ?? row.measure.points;
+  if (row.measure.states) return stepAt(points, t);
   if (row.measure.kind === 'cut-answer') return readingShown(row, t)?.value ?? null;
   if (boundedMeasure(row.measure) && (!points.length || t > points.at(-1).t)) return null;
   return valueAt(points, t);
@@ -259,7 +265,8 @@ for (const row of rows) {
   const values = row.measure.points.map((p) => p.v); const unit = String(row.measure.unit ?? '');
   const hi = Math.max(...values); const lo = Math.min(...values);
   row.points = row.measure.points;
-  row.range = row.measure.kind === 'cut-answer' ? [0, 1] : row.measure.kind === 'typed-scalar' ? [Math.min(0, lo), Math.max(0, hi)] : /0-10/.test(unit) ? [0, 10] : /0-1|share/.test(unit) ? [0, Math.max(1, hi)] : [Math.min(0, lo), hi];
+  row.range = row.measure.kind === 'cut-answer' ? [0, 1] : row.measure.states ? [0, Math.max(1, row.measure.states.length - 1)]
+    : row.measure.scaleBounds ? [row.measure.scaleBounds.minimum, row.measure.scaleBounds.maximum] : row.measure.kind === 'typed-scalar' ? [Math.min(0, lo), Math.max(0, hi)] : /0-10/.test(unit) ? [0, 10] : /0-1|share/.test(unit) ? [0, Math.max(1, hi)] : [Math.min(0, lo), hi];
   row.height = (t) => { const v = rowValue(row, t); if (v === null) return 0; return ((v - row.range[0]) / (row.range[1] - row.range[0] || 1)) * (row.measure.kind === 'cut-answer' ? CUT_AMP : AMP); };
   // A curtain runs from its first recorded sample to its last (for readings, to the end of the last interval); nothing
   // is held after it.
@@ -270,6 +277,7 @@ const format = (row, v) => {
   if (v === null) return 'No recorded value yet';
   // A share at a glance: two decimals; the details keep what was recorded.
   if (row.measure.kind === 'cut-answer') return v.toLocaleString('en-GB', { maximumFractionDigits: 2 });
+  if (row.measure.states) return String(row.measure.states[Math.round(v)]?.key ?? v).replace(/_/g, ' ');
   if (row.measure.kind === 'typed-scalar') return `${v.toLocaleString('en-GB', { maximumSignificantDigits: 6 })} ${row.measure.unit ?? ''}`.trim();
   const unit = String(row.measure.unit ?? '');
   if (/GBP/.test(unit)) return money(v, '£'); if (/USD/.test(unit)) return money(v, '$');
@@ -279,7 +287,7 @@ const format = (row, v) => {
 };
 function rowValueText(row, t) {
   const value = rowValue(row, t); if (value === null) return '';
-  const interpolated = row.measure.kind === 'typed-scalar' ? !(row.points ?? row.measure.points).some((point) => point.t === t)
+  const interpolated = row.measure.states ? false : row.measure.kind === 'typed-scalar' ? !(row.points ?? row.measure.points).some((point) => point.t === t)
     : row.measure.kind === 'cut-answer' && Boolean(readingShown(row, t)?.derived);
   return `${interpolated ? '~' : ''}${format(row, value)}`;
 }
@@ -287,7 +295,9 @@ function measureValueLines(row, t) {
   if (row.measure.kind === 'typed-scalar') {
     if (rowValue(row, t) === null) return [['a', 'No recorded value at this time. This series is not extrapolated.']];
     const position = measurePosition(row.points ?? row.measure.points, t);
-    return [['num', rowValueText(row, t)], ['a', position.samples.length === 1 ? 'Recorded dated value.' : 'Visual interpolation between recorded samples; not a measured or simulated value.'],
+    const state = row.measure.states?.[Math.round(rowValue(row, t))];
+    return [['num', rowValueText(row, t)], ['a', row.measure.states ? `${state?.meaning ?? ''} Held from the last recorded state until the next.${row.omittedChanges ? ` ${row.omittedChanges} state change(s) in view are drawn approximately at this zoom; zoom in to see each exactly.` : ''}`.trim()
+      : position.samples.length === 1 ? 'Recorded dated value.' : 'Visual interpolation between recorded samples; not a measured or simulated value.'],
       ['a', `Source: ${row.measure.source.kind} · Holder: ${row.measure.holder ?? 'not declared'} · Mode: ${row.measure.mode ?? 'not declared'}`],
       ...(row.measure.source.kind === 'process-estimation' ? [['a', 'Reviewed record; approval does not make it an accepted world value.']] : []),
       ...position.samples.flatMap((point) => [['a', `${point.id}: ${format(row, point.v)} at ${timeText(point.t, 1)}`],
@@ -488,6 +498,17 @@ if (hasTree) for (const event of treeEvents) {
 }
 const nodeById = new Map(nodes.map((node) => [node.id, node]));
 const unopenedProcessIds = unopenedProcessEvents(data);
+// Importance keeps to the Events one scale's audience ranks highest: its top level, then the top two, and so on. An Event
+// any holder places within them stays. A Thing's life, an inner life, a slow process or phase and a reading are not Events
+// a scale ranks, so the filter leaves them in place.
+const importanceScales = data.importance?.scales ?? [];
+const UNRANKED = new Set(['life', 'inner', 'slow', 'phase', 'reading']);
+function unimportantEventIds() {
+  const scale = importanceScales.find((item) => item.id === opt.importance); if (!scale) return null;
+  const top = Math.min(opt.importanceTop, scale.levels.length);
+  return new Set(data.events.filter((event) => !UNRANKED.has(event.role) && !event.reading
+    && !(event.importance ?? []).some((judgment) => judgment.scale === scale.id && judgment.rank <= top)).map((event) => event.id));
+}
 // A row's place in the tree: its process's depth (one below the Event it belongs to) and its home.
 const processById = new Map((data.processes ?? []).map((process) => [process.id, process]));
 for (const row of rows) {
@@ -532,6 +553,7 @@ const bornAt = (item) => { const made = madeAt(item?.born); return Number.isFini
 const LANE = 1.0; const LAMP = 3.2; const MIN_DUR = 0.02;
 const blend = { now: opt.layout === 'layers' ? 1 : 0, to: opt.layout === 'layers' ? 1 : 0 };
 const visibleNode = (node, layers) => {
+  if (opt.unimportant?.has(node.id)) return false;
   // What kinds of record a view shows is its Show choice; detail and focus only choose among them, so opening detail
   // never turns the processes into the tree.
   const kindShown = node.kind === 'sub' ? opt.show.has('subsidiary') : (node.trunk && layers) || opt.show.has('events');
@@ -643,6 +665,7 @@ function computeNestedLayout() {
   for (const node of nodes) node.displayGroup = tree.groupById.get(node.id) ?? together.groupById.get(node.id) ?? node.group;
 }
 function computeLayout() {
+  opt.unimportant = opt.importance ? unimportantEventIds() : null;
   opt.detailProjection = Number.isInteger(opt.detailLevel) ? processDetail.project({ scope: opt.processScope, level: opt.detailLevel }) : null;
   if (opt.detailProjection) { opt.detailLevel = opt.detailProjection.level; opt.processScope = opt.detailProjection.scope; }
   for (const node of nodes) { node.inT = visibleNode(node, false); node.inL = visibleNode(node, true); node.shown = node.inT || node.inL; }
@@ -741,6 +764,26 @@ function syncSeriesCaptions() {
     if (shown) row.caption.position.copy(shown.name.position);
   }
 }
+// The sample times for a row of states: a pair at each change in the window (the old state just before it, the new
+// one at it), at most a third of the samples, and the rest spread evenly across the screen.
+function stateSampleTimes(row, d0, d1, x0, x1) {
+  const points = row.points ?? row.measure.points;
+  // Each change and how long the new state lasts. A long state shows between the even samples anyway; a brief one needs
+  // its own pair of vertices, so when there are more changes than pairs, the briefest keep theirs, wherever they fall,
+  // and the row says how many it could not draw exactly. A state lasts until the next different state: reading the same
+  // state again does not end it.
+  const nextChange = new Array(points.length).fill(d1);
+  for (let k = points.length - 2, at = d1; k >= 0; k -= 1) { if (points[k + 1].v !== points[k].v) at = points[k + 1].t; nextChange[k] = at; }
+  const changes = []; for (let k = 1; k < points.length; k += 1) if (points[k].v !== points[k - 1].v && points[k].t > d0 && points[k].t <= d1) changes.push({ t: points[k].t, lasts: nextChange[k] - points[k].t });
+  const budget = Math.floor(NX / 3);
+  const kept = (changes.length > budget ? [...changes].sort((a, b) => a.lasts - b.lasts || a.t - b.t).slice(0, budget) : changes).map((change) => change.t);
+  row.omittedChanges = changes.length - kept.length;
+  const even = NX - 2 * kept.length; const tiny = (d1 - d0) * 1e-7;
+  const times = [];
+  for (let i = 0; i < even; i += 1) { const x = x0 + ((x1 - x0) * i) / Math.max(1, even - 1); times.push(F.w ? timeAtX(x) : d0 + ((d1 - d0) * i) / Math.max(1, even - 1)); }
+  for (const t of kept) times.push(Math.max(d0, t - tiny), t);
+  return times.sort((a, b) => a - b);
+}
 // Lay a curtain over the window: samples evenly across the screen, over the years the curtain spans.
 function layRow(row) {
   const p = rowAt(row); const vis = presence(row) * (opt.show.has('processes') ? 1 : 0);
@@ -755,15 +798,18 @@ function layRow(row) {
   const wallColors = row.wall.geometry.attributes.color.array; const crestColors = row.crest.geometry.attributes.color.array;
   const reading = row.measure.kind === 'cut-answer'; const scale = (row.range[1] - row.range[0]) || 1;
   const heights = new Float64Array(NX); const present = new Uint8Array(NX); const xs = new Float64Array(NX);
+  // A row of states is drawn as exact steps: a pair of vertices at each change (the old state just before it, the new
+  // one at it), so a change is vertical and a brief state stays visible; the remaining vertices are spread evenly.
+  const stepTimes = row.measure.states ? stateSampleTimes(row, d0, d1, x0, x1) : null;
   for (let i = 0; i < NX; i += 1) {
-    const x = x0 + ((x1 - x0) * i) / (NX - 1); const t = F.w ? timeAtX(x) : d0 + ((d1 - d0) * i) / (NX - 1);
+    const x = stepTimes ? X(stepTimes[i]) : x0 + ((x1 - x0) * i) / (NX - 1); const t = stepTimes ? stepTimes[i] : F.w ? timeAtX(x) : d0 + ((d1 - d0) * i) / (NX - 1);
     const hit = reading ? readingShown(row, t) : null; const v = reading ? hit?.value ?? null : rowValue(row, t);
     heights[i] = v === null ? 0 : ((v - row.range[0]) / scale) * (reading ? CUT_AMP : AMP) * amp * row.rise; present[i] = v === null ? 0 : 1;
     row.sampleT[i] = t; xs[i] = x;
     crestColors.fill(v === null ? 0 : hit?.derived ? 0.4 : 1, i * 3, i * 3 + 3); wallColors[i * 8 + 7] = row.topAlpha * (hit?.derived ? 0.4 : 1);
   }
   // The Smooth slider blends steps within each recorded stretch; gaps stay empty.
-  row.drawnH = opt.smoothing > 0 ? smoothWithinStretches(heights, present, Math.round(opt.smoothing * NX * 0.05)) : heights;
+  row.drawnH = opt.smoothing > 0 && !row.measure.states ? smoothWithinStretches(heights, present, Math.round(opt.smoothing * NX * 0.05)) : heights;
   for (let i = 0; i < NX; i += 1) {
     const h = row.drawnH[i]; positions.set([xs[i], p.y, p.z, xs[i], p.y + h, p.z], i * 6); crest.set([xs[i], p.y + h + 0.02, p.z], i * 3);
   }
@@ -1045,7 +1091,7 @@ function centeredNoteBand() {
 function floorHomes() {
   const homes = new Map(), depthOf = (at) => at.node?.depth ?? -1;
   for (const light of notes) {
-    const dated = (light.userData.moments ?? []).filter((event) => (!opt.detailProjection || opt.detailProjection.eventIds.has(event.id)) && shownByPlay(event.start, bornAt(event)))
+    const dated = (light.userData.moments ?? []).filter((event) => ((!opt.detailProjection || opt.detailProjection.eventIds.has(event.id)) && !opt.unimportant?.has(event.id)) && shownByPlay(event.start, bornAt(event)))
       .map((event) => ({ event, at: anchor(event.id, event.start) })).filter((item) => item.at);
     if (dated.length) {
       const depth = Math.max(...dated.map((item) => depthOf(item.at)));
@@ -1102,7 +1148,7 @@ function positionNote(light, occupied = null, centeredBand = null, homes = null)
     light.position.copy(light.userData.originalPosition);
     return;
   }
-  const candidates = light.userData.moments.filter((event) => (!opt.detailProjection || opt.detailProjection.eventIds.has(event.id)) && shownByPlay(event.start, bornAt(event)))
+  const candidates = light.userData.moments.filter((event) => ((!opt.detailProjection || opt.detailProjection.eventIds.has(event.id)) && !opt.unimportant?.has(event.id)) && shownByPlay(event.start, bornAt(event)))
     .sort((a, b) => a.start - b.start || a.id.localeCompare(b.id)).map((event) => ({ event, points: meet(event) })).filter((item) => item.points.length);
   const candidate = candidates[Math.floor(candidates.length / 2)];
   const order = noteOrder.get(light.userData.id) ?? 0;
@@ -1187,7 +1233,7 @@ function drawNotes() {
     light.scale.setScalar((light.userData.node.category === 'passage' ? 2.6 : 2.0) * (selected ? 1.8 : 1));
     if (light.visible && !selected && waitsForPlayhead(light.position.x)) light.visible = false;
     if (!light.visible) continue; shown.add(light.userData.id); const on = lit === light || selected; if (!opt.edges && !on) continue;
-    const anchors = on || opt.allNoteAttachments || opt.noteLayout === 'original' ? light.userData.moments.filter((event) => (!opt.detailProjection || opt.detailProjection.eventIds.has(event.id)) && shownByPlay(event.start, bornAt(event))).flatMap((event) => meet(event)) : light.userData.localAnchor ? [light.userData.localAnchor.point] : light.userData.floorHome?.kind === 'slot' ? [light.userData.floorHome.point] : [];
+    const anchors = on || opt.allNoteAttachments || opt.noteLayout === 'original' ? light.userData.moments.filter((event) => ((!opt.detailProjection || opt.detailProjection.eventIds.has(event.id)) && !opt.unimportant?.has(event.id)) && shownByPlay(event.start, bornAt(event))).flatMap((event) => meet(event)) : light.userData.localAnchor ? [light.userData.localAnchor.point] : light.userData.floorHome?.kind === 'slot' ? [light.userData.floorHome.point] : [];
     for (const point of anchors) mindLines.add(light.position.x, light.position.y, light.position.z, point.x, point.y, point.z, light.userData.color, on ? 0.95 : opt.allNoteAttachments ? 0.3 : opt.noteLayout === 'original' ? 0.13 : 0.2);
     // Inspection and All attachments include declared people/process targets, regardless of note placement.
     if (on || opt.allNoteAttachments) for (const item of light.userData.attached) {
@@ -1293,6 +1339,7 @@ function drawArcs() {
     const context = Boolean(opt.curation?.relations.size && !opt.curation.relations.has(relation.id));
     const source = linkEnd(relation.source); const target = linkEnd(relation.target);
     if (opt.detailProjection && ![source, target].every((end) => (end.reading ? readingRow(end, end.start) : opt.detailProjection.eventIds.has(end.id)))) continue;
+    if (opt.unimportant && [source, target].some((end) => opt.unimportant.has(end.id))) continue;
     if (!inView(source.start, 0.05) || !inView(target.start, 0.05) || !seen(relation, Math.max(source.start, target.start))
       || !shownByPlay(source.start, bornAt(source)) || !shownByPlay(target.start, bornAt(target))) continue;
     const a = eventPoint(source); const b = eventPoint(target); if (!a || !b) continue; const hex = KIND[relation.kind] ?? '#9a9a9a'; const c = color(hex); const lit3 = litArc?.relation === relation || pinnedTarget === relation.id;
@@ -1395,7 +1442,7 @@ function drawExtras() {
   // answer it reads within, in that answer's hue, instead of covering the act's bar with a second one.
   lensList.filter((lens) => opt.lenses.has(lens.id)).forEach((lens, row) => {
     for (const reading of lens.acts) {
-      if (opt.detailProjection && !opt.detailProjection.eventIds.has(reading.eventId)) continue;
+      if (((opt.detailProjection && !opt.detailProjection.eventIds.has(reading.eventId)) || opt.unimportant?.has(reading.eventId))) continue;
       if (!shownByPlay(reading.t, bornAt(reading))) continue;
       const place = anchor(reading.eventId, reading.t); if (!place || place.x < left || place.x > right) continue;
       const w = 3.1; const h = 0.62; const y = place.y + 0.9 + row * 0.95; let x = place.x - w / 2; const alpha = reading.earlier ? 0.4 : 1; const on = litReading === reading;
@@ -1413,10 +1460,10 @@ function drawExtras() {
   if (opt.show.has('prose')) {
     const top = mindTop(); const y = top.y - 4.5; const zz = opt.noteLayout === 'centered' ? centeredNoteBand().center : top.z + 4; const c = color('#fff0d0');
     for (const unit of prose) {
-      if (opt.detailProjection && !(unit.tells ?? []).some((tell) => opt.detailProjection.eventIds.has(tell.eventId))) continue;
+      if (opt.detailProjection && !(unit.tells ?? []).some((tell) => opt.detailProjection.eventIds.has(tell.eventId))) continue; if (opt.unimportant && (unit.tells ?? []).length && unit.tells.every((tell) => opt.unimportant.has(tell.eventId))) continue;
       if (!shownByPlay(unit.t, bornAt(unit))) continue; const x = X(unit.t); if (x < left - 1 || x > right + 1) continue; const on = litUnit === unit;
       chips.quad(x - 0.35, x + 0.35, y, y + 0.9, y, y + 0.9, zz, c, on ? 0.9 : 0.55, on ? 0.9 : 0.55);
-      if (opt.edges || on) for (const tell of unit.tells ?? []) { if (opt.detailProjection && !opt.detailProjection.eventIds.has(tell.eventId)) continue; const event = byId.get(tell.eventId); if (!event || !shownByPlay(event.start, bornAt(event))) continue; const place = anchor(tell.eventId, event.start); if (place) proseLines.add(x, y, zz, place.x, place.y, place.z, c, on ? 0.9 : 0.16, on ? 0.7 : 0.05); }
+      if (opt.edges || on) for (const tell of unit.tells ?? []) { if (((opt.detailProjection && !opt.detailProjection.eventIds.has(tell.eventId)) || opt.unimportant?.has(tell.eventId))) continue; const event = byId.get(tell.eventId); if (!event || !shownByPlay(event.start, bornAt(event))) continue; const place = anchor(tell.eventId, event.start); if (place) proseLines.add(x, y, zz, place.x, place.y, place.z, c, on ? 0.9 : 0.16, on ? 0.7 : 0.05); }
       extraTargets.push({ kind: 'prose', unit, wpt: [x, y + 0.45, zz], r: 14 });
     }
   }
@@ -1428,7 +1475,7 @@ function drawRecordedNumbers() {
   const readings = visibleRecordedCuts(numericCuts, playbackClock(), { enabled: opt.show.has('numbers'), drawnCutIds, madeAt }).sort((a, b) => a.t - b.t);
   const lanes = new Map(); const width = 2.8; const height = 0.42;
   for (const reading of readings) {
-    if (opt.detailProjection && !opt.detailProjection.eventIds.has(reading.parentEventId ?? reading.eventId)) continue;
+    if (((opt.detailProjection && !opt.detailProjection.eventIds.has(reading.parentEventId ?? reading.eventId)) || opt.unimportant?.has(reading.parentEventId ?? reading.eventId))) continue;
     const marker = recordedCutMarker(reading, F.a, F.b); if (!marker) continue;
     const x = X(marker.time); if (x < -LENGTH / 2 || x > LENGTH / 2) continue;
     const eventId = reading.parentEventId ?? reading.eventId;
@@ -1495,7 +1542,7 @@ const labels2 = (() => {
       const pri = 400 + Math.min(200, wide * 3) - node.depth * 20 + (node.event.cuts ?? 0) * 4 + (litChain.has(node.id) ? 400 : 0) + (opt.processScope === node.id ? 1000 : 0);
       wanted.push({ key: `ev:${node.id}`, cls: `event${big ? ' big' : ''}${node.event.context === 'inner' ? ' inner' : ''}`, html: esc(words(node.event.name, big ? 52 : 40)), p: [wide > 1.2 ? x0 + 0.25 : (x0 + x1) / 2, top + 0.12, p.z], ax: wide > 1.2 ? 0 : 0.5, ay: 1, pri });
     }
-    if (opt.show.has('prose')) { const top = mindTop(), z = opt.noteLayout === 'centered' ? centeredNoteBand().center : top.z + 4; for (const unit of prose) { if (opt.detailProjection && !(unit.tells ?? []).some((tell) => opt.detailProjection.eventIds.has(tell.eventId))) continue; if (!shownByPlay(unit.t, bornAt(unit))) continue; const x = X(unit.t); if (x >= left && x <= right) wanted.push({ key: `prose:${unit.id}`, cls: 'prose', html: esc(unit.title ?? ''), p: [x, top.y - 3.35, z], ax: 0.5, ay: 1, pri: 800 }); } }
+    if (opt.show.has('prose')) { const top = mindTop(), z = opt.noteLayout === 'centered' ? centeredNoteBand().center : top.z + 4; for (const unit of prose) { if (opt.detailProjection && !(unit.tells ?? []).some((tell) => opt.detailProjection.eventIds.has(tell.eventId))) continue; if (opt.unimportant && (unit.tells ?? []).length && unit.tells.every((tell) => opt.unimportant.has(tell.eventId))) continue; if (!shownByPlay(unit.t, bornAt(unit))) continue; const x = X(unit.t); if (x >= left && x <= right) wanted.push({ key: `prose:${unit.id}`, cls: 'prose', html: esc(unit.title ?? ''), p: [x, top.y - 3.35, z], ax: 0.5, ay: 1, pri: 800 }); } }
     for (const { event, point } of selectedLinks) wanted.push({ key: `selected-event:${event.id}`, cls: 'event', html: esc(words(event.label, 45)), p: [point.x, point.y + 0.4, point.z], ax: 0.5, ay: 1, pri: 1200 });
     const panels = [...document.querySelectorAll('.hud.caption, .hud.bar, .hud.legend, .hud.title, .hud.stats, #tools, .pop:not([hidden]), #details:not([hidden])')].map((el) => el.getBoundingClientRect()).filter((r) => r.width);
     const placed = [...panels.map((r) => ({ l: r.left - 6, r: r.right + 6, t: r.top - 4, b: r.bottom + 4 }))];
@@ -1947,12 +1994,12 @@ function apply() {
   for (const entry of groupLabels) syncGroupLabel(entry);
   syncBigNames();
   for (const thread of threads) {
-    const on = (!opt.detailProjection || opt.detailProjection.eventIds.has(thread.userData.event.id)) && opt.show.has('threads') && inView(thread.userData.t, 0.2) && (construction ? bornAt(thread.userData.event) <= tau : thread.userData.t <= now) && thread.userData.touched.some((row) => row.wall.visible && rowValue(row, thread.userData.t) !== null);
+    const on = ((!opt.detailProjection || opt.detailProjection.eventIds.has(thread.userData.event.id)) && !opt.unimportant?.has(thread.userData.event.id)) && opt.show.has('threads') && inView(thread.userData.t, 0.2) && (construction ? bornAt(thread.userData.event) <= tau : thread.userData.t <= now) && thread.userData.touched.some((row) => row.wall.visible && rowValue(row, thread.userData.t) !== null);
     thread.visible = on; if (thread.userData.tag) thread.userData.tag.visible = on;
   }
-  for (const gem of decisions) gem.visible = (!opt.detailProjection || opt.detailProjection.eventIds.has(gem.userData.decision.eventId)) && opt.show.has('decisions') && inView(gem.userData.t) && shownByPlay(gem.userData.t, bornAt(gem.userData.decision)) && gem.userData.placed;
+  for (const gem of decisions) gem.visible = ((!opt.detailProjection || opt.detailProjection.eventIds.has(gem.userData.decision.eventId)) && !opt.unimportant?.has(gem.userData.decision.eventId)) && opt.show.has('decisions') && inView(gem.userData.t) && shownByPlay(gem.userData.t, bornAt(gem.userData.decision)) && gem.userData.placed;
   // Across the story's years the love-or-fear chips before them wait at their start, as they always did.
-  for (const chip of lenses) chip.visible = (!opt.detailProjection || opt.detailProjection.eventIds.has(chip.userData.eventId)) && opt.show.has('lovefear') && (isStory() || inView(chip.userData.t)) && shownByPlay(chip.userData.t, bornAt(chip.userData)) && chip.userData.placed;
+  for (const chip of lenses) chip.visible = ((!opt.detailProjection || opt.detailProjection.eventIds.has(chip.userData.eventId)) && !opt.unimportant?.has(chip.userData.eventId)) && opt.show.has('lovefear') && (isStory() || inView(chip.userData.t)) && shownByPlay(chip.userData.t, bornAt(chip.userData)) && chip.userData.placed;
   mind.visible = opt.show.has('notes');
   for (const light of notes) light.visible = light.userData.id === selectedPart?.unit.id || ((!opt.curation?.notes.size || opt.curation.notes.has(light.userData.id)) && !(opt.hideUndated && undatedNote(light.userData.id)) && (!opt.detailProjection || (noteScopeEvents.get(light.userData.id) ?? []).some((id) => opt.detailProjection.eventIds.has(id))) && (construction ? bornAt(light.userData) <= tau : light.userData.t <= now));
   sweep.position.x = xOf(now); sweep.visible = playing && !construction;
@@ -2598,9 +2645,9 @@ document.getElementById('shine').addEventListener('click', () => setShine(opt.gl
 function setEdges(on) { opt.edges = on; dirty = true; extrasDirty = true; syncPanel(); syncURL(); }
 document.getElementById('edges').addEventListener('click', () => setEdges(!opt.edges));
 // Everything: every kind of record, every lens and the whole tree; pressed again, the view as the stage showed it.
-const isEverything = () => !opt.detailProjection && !opt.hideUnopened && !opt.hideFlat && !opt.onlyChanging && !opt.hideUndated && KINDS.every(([key, , , count]) => !count() || opt.show.has(key)) && opt.lenses.size === lensList.length && opt.depth >= MAX_DEPTH;
+const isEverything = () => !opt.detailProjection && !opt.unimportant && !opt.hideUnopened && !opt.hideFlat && !opt.onlyChanging && !opt.hideUndated && KINDS.every(([key, , , count]) => !count() || opt.show.has(key)) && opt.lenses.size === lensList.length && opt.depth >= MAX_DEPTH;
 function setEverything(on) {
-  opt.detailLevel = null; opt.processScope = null;
+  opt.detailLevel = null; opt.processScope = null; opt.importance = null;
   opt.hideUnopened = false;
   opt.hideFlat = false;
   opt.onlyChanging = !on;
@@ -2670,6 +2717,24 @@ async function setProcessDetail(level, { scope = opt.processScope, fit = false }
   dispatchEvent(new Event('resize'));
 }
 processFocus.addEventListener('change', () => setProcessDetail(0, { scope: processFocus.value || null, fit: true }));
+// Importance: each scale's audience, and how far down its levels to go.
+const importancePicker = document.getElementById('importance');
+const levelName = (key) => key.replaceAll('_', ' ');
+for (const scale of importanceScales) {
+  const group = document.createElement('optgroup'); group.label = clip(scale.audience, 60);
+  scale.levels.forEach((level, index) => {
+    const option = document.createElement('option'); option.value = JSON.stringify([scale.id, index + 1]);
+    option.textContent = index === 0 ? `Only ${levelName(level.key)}` : `Down to ${levelName(level.key)}`;
+    option.title = level.anchor; group.append(option);
+  });
+  importancePicker.append(group);
+}
+document.getElementById('importance-label').hidden = !importanceScales.length;
+importancePicker.addEventListener('change', () => {
+  const [scale, top] = importancePicker.value ? JSON.parse(importancePicker.value) : [null, 1];
+  opt.importance = scale; opt.importanceTop = top; explicitEverything = false;
+  computeLayout(); apply(); syncPanel(); syncURL(); extrasDirty = true;
+});
 document.getElementById('less-detail').addEventListener('click', () => setProcessDetail(Math.max(0, (opt.detailLevel ?? Math.max(1, opt.depth - 1)) - 1)));
 document.getElementById('more-detail').addEventListener('click', () => setProcessDetail((opt.detailLevel ?? Math.max(0, opt.depth - 1)) + 1));
 { const kinds = document.getElementById('kinds');
@@ -2796,6 +2861,8 @@ function syncPanel() {
   namesButton.setAttribute('aria-pressed', String(bigNamesNow)); namesButton.classList.toggle('on', bigNamesNow);
   const projected = opt.detailProjection;
   processFocus.value = opt.processScope ?? '';
+  { const scale = importanceScales.find((item) => item.id === opt.importance);
+    importancePicker.value = scale ? JSON.stringify([scale.id, Math.min(opt.importanceTop, scale.levels.length)]) : ''; }
   document.getElementById('coarse-view').setAttribute('aria-pressed', String(Boolean(projected && projected.level === 0 && !terrain.on)));
   document.getElementById('less-detail').disabled = projected?.level === 0;
   document.getElementById('more-detail').disabled = Boolean(projected && projected.level >= projected.maxLevel);
@@ -2853,6 +2920,7 @@ function syncURL(immediate = false) {
     if (opt.names === 'big') next.set('names', 'big');
     if (Number.isInteger(opt.detailLevel)) next.set('detail', String(opt.detailLevel));
     if (opt.processScope) next.set('scope', opt.processScope);
+    if (opt.importance) { next.set('importance', opt.importance); if (opt.importanceTop !== 1) next.set('importanceTop', String(opt.importanceTop)); }
     if (opt.readingOverview === 'structure') next.set('readingOverview', 'structure');
     if (explicitNoteLayout) next.set('noteLayout', opt.noteLayout);
     if (!opt.allNoteAttachments) next.set('noteLinks', 'some');
@@ -3174,7 +3242,9 @@ function curtainAt(point) {
 }
 function curtainLines({ row, t }) {
   return [['k', `${row.group.label} · ${row.measure.kind === 'cut-answer' ? 'a recorded Cut answer' : 'a named process'}`], ['v', NAMES[row.measure.id] ?? row.measure.id], ['m', momentText(t)], ...measureValueLines(row, t),
-    ['a', `Unit: ${row.measure.unit ?? 'not given'} · on its own scale, ${format(row, row.range[0])} to ${format(row, row.range[1])}`]];
+    row.measure.anchors ? ['a', `Scale anchors: ${row.measure.anchors.map((a) => `${a.at} = ${a.meaning}`).join('; ')}`]
+      : row.measure.states ? ['a', `States: ${row.measure.states.map((s) => s.key.replace(/_/g, ' ')).join(', ')}`]
+      : ['a', `Unit: ${row.measure.unit ?? 'not given'} · on its own scale, ${format(row, row.range[0])} to ${format(row, row.range[1])}`]];
 }
 function appendCurtainSources(container, { row, t }) {
   if (row.measure.kind === 'typed-scalar') {
@@ -3201,6 +3271,10 @@ function showExtraTip(target) {
     tip.append(tipLine('m', `${timeText(event.reach[0], Math.min(40, event.reach[1] - event.reach[0]))} – ${timeText(event.reach[1], Math.min(40, event.reach[1] - event.reach[0]))}`));
     if (event.reachSource && event.reachSource !== 'recorded') tip.append(tipLine('a', `No recorded interval. Display span uses ${({ descendants: 'its dated descendants', ancestor: 'its containing Event', model_extent: 'the model extent' })[event.reachSource] ?? 'layout context'}; it is not an authored date.`));
     if (event.description) tip.append(tipLine('m', clip(event.description, 360)));
+    for (const judgment of event.importance ?? []) {
+      const scale = importanceScales.find((item) => item.id === judgment.scale);
+      if (scale) tip.append(tipLine('a', `Importance for ${clip(scale.audience, 60)}: ${levelName(judgment.level)}, ${judgment.rank} of ${scale.levels.length} · ${judgment.holder}`));
+    }
     const moves = (event.processIds ?? []).map((id) => processById.get(id)).filter((process) => process?.kind === 'named').map((process) => NAMES[process.id]);
     if (moves.length) tip.append(tipLine('a', `Moves: ${moves.join(' · ')}`));
     if (holder) tip.append(tipLine('a', `Within: ${clip(holder.name, 80)}`));

@@ -57,6 +57,20 @@ test('public person-state questions omit scoped native values and accounts while
   assert.equal(privateRead.depth.processes, 2);
   assert.ok(privateRead.states[0].values.some(({ processId }) => processId === 'private.health'));
   assert.equal(privateRead.scope.completeNativeModel, true);
+  // The coverage report is a scoped reading too: the private process is empty, and only its own scope may say so.
+  // (The public reading counts only the public process, empty there because its one account is private.)
+  assert.match(publicRead.coverage.next.join('\n'), new RegExp(`Guess the state of 1 process\\(es\\) that have none, beginning with ${publicProcessId}\\.`, 'u'));
+  assert.match(privateRead.coverage.next.join('\n'), /Guess the state of 1 process\(es\) that have none, beginning with private\.health\./u);
+  // So are the reports the write tools return.
+  const valued = await call('life_values_record', { requestId: 'release-values', previousModelHash: modelHash, holder: 'release-test', reason: 'A public value.',
+    values: [{ processId: publicProcessId, points: [{ time: 5, value: 1_600_000, tag: 'sketch' }, { time: 7, value: 1_500_000, tag: 'sketch' }] }] });
+  assert.doesNotMatch(JSON.stringify(valued), /private\.health|confidential health|private-accountant|private ledger/);
+  const series = await call('life_series_record', { requestId: 'release-series', previousModelHash: valued.modelHash, subject: 'referent.ada', parentEventId: 'event.ada.state.h06',
+    series: { id: 'ada-focus', question: 'What holds Ada\'s attention?', unit: 'share of attention', answers: [{ key: 'ovens', meaning: 'The ovens.' }, { key: 'debt', meaning: 'The debt.' }] },
+    readings: [{ start: 6, end: 6.1, why: 'The first batch.', weights: { ovens: 0.7, debt: 0.3 }, tag: 'sketch' }, { start: 6.1, end: 6.25, why: 'The letter.', weights: { ovens: 0.4, debt: 0.6 }, tag: 'sketch' }],
+    reason: 'A public series.' });
+  assert.ok(series.coverage);
+  assert.doesNotMatch(JSON.stringify(series), /private\.health|confidential health|private-accountant|private ledger/);
 });
 
 test('public questions refuse to combine a graph with an unrelated supplied model', async (t) => {

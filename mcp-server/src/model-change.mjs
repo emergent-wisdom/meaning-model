@@ -4,12 +4,12 @@
 
 // Every collection whose records carry an identity, and where it lives in the definition.
 export const modelChangeCollections = Object.freeze({
-  processes: [], laws: [], initial_claims: [], decomposition: [], dependencies: [],
+  processes: [], laws: [], initial_claims: [], value_series: [], decomposition: [], dependencies: [],
   concepts: ['meaning_model'], abstract_relations: ['meaning_model'], abstract_cuts: ['meaning_model'],
   referents: ['meaning_model'], encapsulation_cuts: ['meaning_model'], events: ['meaning_model'],
   event_relations: ['meaning_model'], event_referent_bindings: ['meaning_model'], physical_cuts: ['meaning_model'],
   realizations: ['meaning_model'], normalized_cuts: ['meaning_model'], context_roots: ['meaning_model'],
-  temporal_cut_recompositions: ['meaning_model'],
+  temporal_cut_recompositions: ['meaning_model'], importance_scales: ['meaning_model'], event_importance: ['meaning_model'],
 });
 
 // A record's identity within its collection, as the service keys it: a context root by the Event it declares, a

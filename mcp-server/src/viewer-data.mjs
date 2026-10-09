@@ -93,6 +93,8 @@ export async function buildViewerData({ history, rendered = null, documentRender
   // ---- model births ---------------------------------------------------------------------------------------------------
   const born = new Map(); // record key -> { rev, at }
   const scalarClaimBorn = new Map(), scalarProcessBorn = new Map(); let previousClaims = new Map(), previousProcesses = new Map();
+  // A recorded value is born in the revision that recorded or replaced it, so a construction replay shows it from then.
+  const scalarPointBorn = new Map(); let previousPoints = new Map();
   const modelSteps = [];
   let previous = { events: new Set(), cuts: new Set(), referents: new Set(), relations: new Set(), processes: new Set() };
   let rev = 0;
@@ -111,6 +113,9 @@ export async function buildViewerData({ history, rendered = null, documentRender
     const claims = new Map((entry.definition.initial_claims ?? []).map((claim) => [claim.id, claim]));
     for (const [id, claim] of claims) if (JSON.stringify(previousClaims.get(id)) !== JSON.stringify(claim)) scalarClaimBorn.set(id, stamp);
     previousClaims = claims;
+    const points = new Map((entry.definition.value_series ?? []).flatMap((series) => (series.points ?? []).map((point) => [`${series.id}@${point.time}`, point])));
+    for (const [id, point] of points) if (JSON.stringify(previousPoints.get(id)) !== JSON.stringify(point)) scalarPointBorn.set(id, stamp);
+    previousPoints = points;
     const currentProcesses = new Map((entry.definition.processes ?? []).map((process) => [process.id, process]));
     for (const [id, process] of currentProcesses) if (JSON.stringify(previousProcesses.get(id)) !== JSON.stringify(process)) scalarProcessBorn.set(id, stamp);
     previousProcesses = currentProcesses;
@@ -224,6 +229,20 @@ export async function buildViewerData({ history, rendered = null, documentRender
   const lifeEvents = new Set(people.map((person) => person.life?.eventId).filter(Boolean));
   const periodEvents = new Set(people.flatMap((person) => person.periods.map((period) => period.eventId)));
   const arcEvents = new Set([...index.arcsOf.values()].flat().flatMap((id) => [id, ...eventDescendants(index, id)]));
+  // How much each Event matters, and to whom: each scale with its levels, the most important first, and each Event's
+  // judgments on them. The viewer keeps to the top levels of one scale.
+  const importanceScales = (mm.importance_scales ?? []).map((scale) => ({ id: scale.id, audience: clip(scale.audience, 200),
+    concept: scale.concept_id ?? null, conceptLabel: (mm.concepts ?? []).find((concept) => concept.id === scale.concept_id)?.label ?? null,
+    levels: (scale.levels ?? []).map((level, index) => ({ key: level.key, anchor: clip(level.anchor, 300), rank: index + 1 })) }))
+    // A scale for the whole audience comes before the scales for a category's followers.
+    .sort((a, b) => Number(Boolean(a.concept)) - Number(Boolean(b.concept)) || a.id.localeCompare(b.id));
+  const rankOf = new Map(importanceScales.map((scale) => [scale.id, new Map(scale.levels.map((level) => [level.key, level.rank]))]));
+  const importanceOf = new Map();
+  for (const judgment of mm.event_importance ?? []) {
+    const rank = rankOf.get(judgment.scale_id)?.get(judgment.level); if (!rank) continue;
+    importanceOf.set(judgment.event_id, [...(importanceOf.get(judgment.event_id) ?? []), { scale: judgment.scale_id, level: judgment.level, rank, holder: judgment.holder,
+      ...(judgment.reason ? { reason: clip(judgment.reason, 300) } : {}) }]);
+  }
   // Events that only carry a series' readings are drawn as its curve, not as Events.
   const events = (mm.events ?? []).filter((event) => !isSeriesReadingEvent(event)).map((event) => {
     const span = start(event) !== null && end(event) !== null ? end(event) - start(event) : null;
@@ -234,6 +253,7 @@ export async function buildViewerData({ history, rendered = null, documentRender
       span: span === null ? null : toYear(end(event)) - toYear(start(event)), parent: parentOf(event.id), region: event.region ?? null, participants, kind,
       cuts: (index.cutsByEvent.get(event.id) ?? []).length, processIds: event.process_ids ?? [], born: birthOf('events', event.id),
       context: contextOf(event.id).kind, ...(rootKinds.has(event.id) ? { root: rootKinds.get(event.id) } : {}),
+      ...(importanceOf.has(event.id) ? { importance: importanceOf.get(event.id) } : {}),
       ...(readingEvents.has(event.id) ? { reading: { about: readingEvents.get(event.id).about, holder: readingEvents.get(event.id).holder, perspective: readingEvents.get(event.id).perspective } } : {}) };
   });
   // Causal and other links between Events; containment is the tree, and about is a reading's reference to its record.
@@ -531,7 +551,7 @@ export async function buildViewerData({ history, rendered = null, documentRender
   const numerics = projectNumerics(model, { toDisplayTime: toYear });
   const typedScalarSeries = projectScalarSeries(model, { modelHash: selectedModelEntry.modelHash,
     graph: { nodes: [...nodes.values()], edges: [...edges.values()] }, toDisplayTime: toYear,
-    claimBorn: (id) => scalarClaimBorn.get(id), processBorn: (id) => scalarProcessBorn.get(id),
+    claimBorn: (id) => scalarClaimBorn.get(id), processBorn: (id) => scalarProcessBorn.get(id), pointBorn: (id) => scalarPointBorn.get(id),
     nodeBorn: (id) => scalarNodeBorn.get(id), edgeBorn: (id) => scalarEdgeBorn.get(id) });
   for (const reading of numerics.cuts) { reading.eventId = reading.parentEventId; reading.born = birthOf('cuts', reading.id); }
   const data = {
@@ -541,6 +561,7 @@ export async function buildViewerData({ history, rendered = null, documentRender
     contexts: (mm.context_roots ?? []).map((root) => ({ eventId: root.event_id, kind: root.kind, holder: rootHolder(root.event_id), label: clip(index.events.get(root.event_id)?.boundary, 160) })),
     timeUnit: unit, firstCall, lastCall: calls.at(-1)?.at ?? null, headGraphHash: history.headGraphHash ?? null, modelHash: selectedModelEntry.modelHash,
     window, extent, storyWindow, storyRoute, people, events, relations, draws, referents, processes, lenses,
+    ...(importanceScales.length ? { importance: { scales: importanceScales } } : {}),
     graph: { nodes: graphNodes, edges: graphEdges }, story, documentProjection, measures, numerics, typedScalarSeries, steps, toolCalls,
     views, chosenView: currentView(views)?.id ?? null,
     totals: { events: events.length, cuts: allCuts.length - withdrawn.size, people: people.length, lives: lives.length, thoughts: graphNodes.filter((node) => node.category === 'thought').length,
@@ -557,7 +578,7 @@ export async function buildViewerData({ history, rendered = null, documentRender
     graph: true,
     temporal: Boolean(temporalWindow(data)),
     trajectories: (calendarTime && Number.isFinite(viewStart) && Number.isFinite(viewEnd) && viewStart < viewEnd)
-      || typedScalarSeries.some((series) => series.interpolation.kind === 'linear-visual-guide'),
+      || typedScalarSeries.some((series) => ['linear-visual-guide', 'step-hold'].includes(series.interpolation.kind)),
     story: story?.units.some((item) => countProseWords(item.text) > 0) ?? false,
     construction: steps.length > 0,
   };

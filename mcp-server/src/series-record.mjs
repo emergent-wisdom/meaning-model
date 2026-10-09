@@ -1,4 +1,4 @@
-import { SERIES_EVENT_MARK } from './series-mark.mjs';
+import { SERIES_EVENT_MARK, STEADY_MARK } from './series-mark.mjs';
 import { projectNumerics } from './viewer-numerics.mjs';
 import { cutTrajectories } from '../viewer/public/cut-trajectories.js';
 
@@ -107,7 +107,7 @@ export function seriesChange(previous, input) {
     if (clash) throw new Error(`Reading ${label} partly overlaps the reading ${stamp(clash.start)} to ${stamp(clash.end)}; nest one inside the other or make them disjoint.`);
     const eventId = seriesEventId(series.id, reading);
     upsertEvents.push({ id: eventId, boundary: reading.label?.trim() || label, description: reading.why.trim(), interval: { start, end },
-      participants: { subject }, process_ids: [], observation_process_ids: [], region: null, substrate: null, provenance: [...provenance, SERIES_EVENT_MARK] });
+      participants: { subject }, process_ids: [], observation_process_ids: [], region: null, substrate: null, provenance: [...provenance, SERIES_EVENT_MARK, ...(reading.steady ? [STEADY_MARK] : [])] });
     upsertRelations.push({ id: `relation.series.${series.id}.${id}`, kind: 'contains', source_event_id: parentEventId, target_event_id: eventId,
       description: null, authority: null, uncertainty: { kind: 'unknown' }, provenance });
     // Recording an interval again replaces the whole reading, its causes included: links it no longer names go.
