@@ -52,23 +52,44 @@ accepted history. When the optional layer is present, it can record:
   normalized Cut on the source event and the answer key (remainder included) the
   target continuation realized, at most one per Cut;
 - normalized question/unit allocations with stable answer keys, explicit
-  remainder, optional component conditioning, and provenance;
+  remainder, optional component conditioning, and provenance, whose answers may
+  name the Event, referent or process they stand for (the remainder names none,
+  and no record is named by two answers of one Cut);
 - withdrawal of a normalized Cut, concept or abstract cut as a recorded status
   with a reason and optional same-kind replacements, which keeps the record and
   every anchor to it, with no current Cut conditioned on and no current abstract
   cut naming a withdrawn record;
 - optional temporal Cut contracts that check declared answer projections and
   duration mixtures against a committed parent, including partial residual feasibility;
+- importance scales for an audience, with ordered anchored levels from the most
+  important down, and one holder's judgment per Event and scale;
+- why-questions, each one holder's question why an outcome Event came about
+  rather than a stated contrast, on one measure (a probability, or a nonnegative
+  amount in a unit, optionally a process's) with the actual reading, one per
+  outcome, contrast, holder and measure; and cause assessments, each a `causes`,
+  `enables`, `prevents` or `constrains` relation ending at the question's
+  outcome, read without that cause on the same measure, at most the actual
+  reading for a cause that brings the outcome about and at least for one that
+  stands in its way, with an optional role that fits that direction, a band
+  holding the reading, and other causes of the same direction removed together
+  with it, one per question, relation and set removed with it;
 - optional typed context roots over Events, with nearest-root ancestry derived
   only from acyclic Contains relations; and
 - an optional `report` or `strict` semantic-coverage policy over declared
   events, including provenance-bearing unresolved allowances.
 
+The compact cause questions, cause assessments and Cut-answer references are optional
+Rust host extensions, not new obligations in the core grammar. Counterfactual
+readings are authored assessments under a stated contrast and measure. Their
+numerical differences rank those estimates; the records do not establish causal
+proof or automatically calibrate probabilities.
+
 The nested definition uses `life-sim-rust-meaning-model/v1` and contains
 `concepts`, `abstract_relations`, `abstract_cuts`, `referents`,
 `encapsulation_cuts`, `events`, `event_relations`, `event_referent_bindings`,
 `physical_cuts`, `realizations`, `normalized_cuts`, `temporal_cut_recompositions`,
-and `context_roots`. All thirteen collections default to empty, but
+`context_roots`, `importance_scales`, `event_importance`, `cause_questions` and
+`cause_assessments`. All seventeen collections default to empty, but
 a present layer must contain at least one concept, referent, or event; use
 omission, not an empty object, to opt out. Referent-only and event-only partial
 profiles are valid, and neither every event nor every referent is required to
@@ -83,7 +104,9 @@ omitted from canonical serialization when empty, so models with an existing
 Meaning Model that do not supply these collections retain their exact normalized
 definition and model hash. Supplying an explicit empty collection normalizes to
 the same representation as omitting it. `temporal_cut_recompositions` follows
-the same default-empty, omit-empty rule, preserving existing hashes.
+the same default-empty, omit-empty rule, preserving existing hashes, and so do
+`importance_scales`, `event_importance`, `cause_questions`, `cause_assessments`
+and a Cut answer's optional `refers_to`.
 
 The nested semantic data is part of the complete model definition. It is
 therefore covered by the ordinary model validation, canonical model identity,
@@ -228,7 +251,7 @@ registered direct-next model revision. It is accepted only when the current
 head remains at version 0 and time 0 with no lineage and equals the current
 model's reconstructed genesis. The successor must preserve the model id, time
 unit, and every existing process, decomposition edge, dependency, law, initial
-claim, and record in all thirteen Meaning Model collections exactly, subject to
+claim, and record in all seventeen Meaning Model collections exactly, subject to
 the partial temporal-contract extension below. It may add new
 records. An existing semantic-coverage policy cannot be removed, strict mode
 cannot be weakened, and existing unresolved declarations are additions-only;

@@ -11238,6 +11238,8 @@ fn validate_monotonic_genesis_refinement(
             preserve_collection!("meaning.context_roots", &old.context_roots, &new.context_roots, event_id);
             preserve_collection!("meaning.importance_scales", &old.importance_scales, &new.importance_scales);
             preserve_collection!("meaning.event_importance", &old.event_importance, &new.event_importance);
+            preserve_collection!("meaning.cause_questions", &old.cause_questions, &new.cause_questions);
+            preserve_collection!("meaning.cause_assessments", &old.cause_assessments, &new.cause_assessments);
             // A partial declaration can expose additional already-validated
             // children and become complete without changing any committed Cut
             // vector or existing projection. Complete contracts stay exact.
@@ -11295,6 +11297,8 @@ fn validate_monotonic_genesis_refinement(
             added_meaning_collection!("meaning.temporal_cut_recompositions", &new.temporal_cut_recompositions);
             added_meaning_collection!("meaning.importance_scales", &new.importance_scales);
             added_meaning_collection!("meaning.event_importance", &new.event_importance);
+            added_meaning_collection!("meaning.cause_questions", &new.cause_questions);
+            added_meaning_collection!("meaning.cause_assessments", &new.cause_assessments);
             preserved_records.insert("meaning.semantic_coverage.unresolved_events".to_owned(), 0);
             added_records.insert(
                 "meaning.semantic_coverage.unresolved_events".to_owned(),
@@ -11320,6 +11324,8 @@ fn validate_monotonic_genesis_refinement(
                 "meaning.temporal_cut_recompositions",
                 "meaning.importance_scales",
                 "meaning.event_importance",
+                "meaning.cause_questions",
+                "meaning.cause_assessments",
                 "meaning.semantic_coverage.unresolved_events",
             ] {
                 preserved_records.insert(label.to_owned(), 0);
@@ -12728,12 +12734,18 @@ pub fn machine_description() -> serde_json::Value {
                 "referents", "encapsulation_cuts", "events",
                 "event_relations", "event_referent_bindings", "physical_cuts", "realizations",
                 "normalized_cuts", "context_roots", "temporal_cut_recompositions",
-                "importance_scales", "event_importance"
+                "importance_scales", "event_importance", "cause_questions", "cause_assessments"
             ],
             "importance": {
                 "scales": "an audience (a world's inhabitants, or those who follow one category, optionally naming a concept) and 2 to 12 levels ordered from the most important down, each with an anchor",
                 "judgments": "one level per Event, scale and holder; a reassessment replaces it and the revision history keeps the earlier one",
                 "scope": "a perspective-relative judgment that chooses what a reader is shown; not containment, a Cut's shares or a process value, and never scheduled or executed"
+            },
+            "causes": {
+                "questions": "one holder's question why an outcome Event came about rather than its contrast, read on one measure (a probability from 0 to 1, or a nonnegative amount in a unit, optionally a process's) with the actual reading; one per outcome, contrast, holder and measure",
+                "assessments": "a causal relation (causes, enables, prevents, constrains) ending at the question's outcome, the outcome read without that cause everything else as it was, an optional role (enabling, trigger, sustaining, success_condition, hindering) and band, and optional relations removed together with it; one per question, relation and set removed with it",
+                "direction": "without a cause that brings the outcome about the reading is at most the actual one; without one that stands in its way, at least",
+                "scope": "a perspective-relative counterfactual judgment: differences between readings rank causes and do not sum; never scheduled or executed"
             },
             "normalized_cuts": {
                 "remainder_key": NORMALIZED_CUT_REMAINDER_KEY,
@@ -16525,7 +16537,9 @@ mod tests {
                 "context_roots",
                 "temporal_cut_recompositions",
                 "importance_scales",
-                "event_importance"
+                "event_importance",
+                "cause_questions",
+                "cause_assessments"
             ])
         );
         assert_eq!(
@@ -16750,8 +16764,8 @@ mod tests {
             question: "Which comparison share is resolved?".to_owned(),
             unit: "comparison".to_owned(),
             answers: vec![
-                NormalizedCutAnswer { key: "resolved".to_owned(), weight: 0.6, meaning: None },
-                NormalizedCutAnswer { key: "remainder".to_owned(), weight: 0.4, meaning: None },
+                NormalizedCutAnswer { key: "resolved".to_owned(), weight: 0.6, meaning: None, refers_to: None },
+                NormalizedCutAnswer { key: "remainder".to_owned(), weight: 0.4, meaning: None, refers_to: None },
             ],
             conditioning: None,
             provenance: vec!["genesis refinement fixture".to_owned()],

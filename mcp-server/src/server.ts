@@ -2,6 +2,7 @@ import { applyModelChange } from './model-change.mjs';
 import { SERIES_TAGS, seriesChange, seriesDrawing } from './series-record.mjs';
 import { STATE_PRESETS, VALUE_TAGS, coverageSummary, valuesChange, valuesReport } from './values-record.mjs';
 import { IMPORTANCE_PRESETS, importanceChange, importanceReport } from './importance-record.mjs';
+import { CAUSE_KINDS, CAUSE_ROLES, causeChange, causeReport } from './cause-record.mjs';
 import { readOpenQuestions, thinkInTheModelInstructions, VISIBLE_QUESTIONS, withOpenQuestions, flatStretches, questionModel } from './model-questions.mjs';
 import { seriesPlan } from './series-plan.mjs';
 import { scaffoldHint } from './scaffold-examples.mjs';
@@ -9,6 +10,7 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
 import { toolResult } from './tool-result.mjs';
+import { composeInstructions, resolveAgentInstructions } from './agent-instructions.mjs';
 
 import { parseEnabledAddons } from './addon-config.mjs';
 import { createEstimator, parseEstimatorConfig } from './estimator-config.mjs';
@@ -58,16 +60,21 @@ const estimator = createEstimator(parseEstimatorConfig(process.env));
 // and where the documentation lives, and each tool says only its first sentence. Nothing is withheld from an agent that
 // asks: the guides, the grammar and life_modeling_context stay available. Instructions come back only for what agents
 // repeatedly get wrong without them.
-const simple = process.env.MEANING_MODEL_SIMPLE === '1';
+// MEANING_MODEL_INSTRUCTIONS chooses the instructions the agent is given: ours in full (the default), simple, the
+// user's own file instead of ours, or ours followed by it (agent-instructions.mjs). MEANING_MODEL_SIMPLE=1 still
+// means simple.
+const agentInstructions = resolveAgentInstructions(process.env);
+const simple = agentInstructions.mode === 'simple';
 // First in the instructions, and short, because some clients show only their first two kilobytes.
 const processBreakdownHead = 'Before you build anything, in every mode: call life_modeling_context, then read the start-here guide (life-sim://guide/start-here) and the process breakdown (life-sim://guide/process-breakdown), with life_modeling_read if direct resource reads are unavailable. The process breakdown sets the least depth every model must reach. Its trees are examples: design your own with the conceptual decomposition algorithm it gives, the best method we have now, and break the world and every person, institution, machine and place down at least that deep, following every process over time. In a story, every person who matters gets a whole life: the nine slow processes, speech and processes of their own, with values across the life, and Cuts in every period for wants, outlook, what is threatened, framing and deciding, feelings, body and days.';
 const simpleInstructions = 'Whatever you are doing, build a richer model underneath it. If you are writing a story, build a richer world underneath it: a richer world makes a better story. If you want to understand something better, build a richer model underneath it. That is the loop. Never hold back because a part seems irrelevant: follow your curiosity, experiment, and let what you find change the work; the aim is richness, not finishing quickly. Build an account of how the present came to be. Model the processes and relationships that could have produced it, including those we have not observed directly. Follow their consequences to predict what else we should find. Use new evidence to revise the account. The Meaning Model\'s tools hold that account. Its documentation and theory are at https://github.com/emergent-wisdom/meaning-model.';
 const firstSentence = (text: string) => { const match = String(text ?? '').match(/^.*?[.!?](?=\s|$)/su); return (match ? match[0] : String(text ?? '')).trim(); };
+const fullInstructions = `${processBreakdownHead}\n\n${startHereText}\n\n${grammarReadingInstructions}\n\n${modelingSessionInstructions}\n\n${processDevelopmentInstructions}\n\n` + 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.\n\nIn every mode, begin modeling with life_modeling_context and follow its shared construction guidance. Agent memory and user memory are core purposes: maintain their ongoing processes, not only isolated facts, within the declared scope. Human-author feedback leaves authorship and creative decisions with the human; use life_story_feedback with the storytelling add-on for read-only feedback. All workflows use the same linked, attributed Understanding Graph for questions, hypotheses, predictions, surprises, tests and revisions. Explore recursively, following each useful question, connection and discovery; guess where you do not know, with an honest band and a tag, and record what remains uncertain. Anything that changes over time can be modeled as a process, including qualities often written as fixed descriptions, such as a voice, a style, a belief or the culture of an institution. From the first story exploration, consider how the telling itself develops across reading position: tension, pacing, disclosure or other processes that matter to this work. Follow these questions recursively, using stable passage links and authored evidence without a required dramatic formula or numerical score. Keep reading position distinct from world time and authoring history. Let the work choose its form; books need not have a protagonist, conflict, climax or resolution. Use the shared narrative graph for forms that do not fit scenes, without inventing a cast to satisfy a template. Before writing or revising prose, consider author and character voice, reader disclosure, and consequential physical placement. Use declared passage links and existing records. At meaningful milestones, use the controlled read-back guidance to compare selected output against a blind control, reporting fidelity separately from improvement over the control. Do not wait for a special user request; if independent readers are unavailable, record that limitation rather than inventing a result. These are instructions to the calling LLM, not claims that the server has assessed meaning or automatically run reviewers.';
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.9.1',
+  version: '0.10.0',
 }, {
-  instructions: simple ? simpleInstructions : `${processBreakdownHead}\n\n${startHereText}\n\n${grammarReadingInstructions}\n\n${modelingSessionInstructions}\n\n${processDevelopmentInstructions}\n\n` + 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.\n\nIn every mode, begin modeling with life_modeling_context and follow its shared construction guidance. Agent memory and user memory are core purposes: maintain their ongoing processes, not only isolated facts, within the declared scope. Human-author feedback leaves authorship and creative decisions with the human; use life_story_feedback with the storytelling add-on for read-only feedback. All workflows use the same linked, attributed Understanding Graph for questions, hypotheses, predictions, surprises, tests and revisions. Explore recursively, following each useful question, connection and discovery; guess where you do not know, with an honest band and a tag, and record what remains uncertain. Anything that changes over time can be modeled as a process, including qualities often written as fixed descriptions, such as a voice, a style, a belief or the culture of an institution. From the first story exploration, consider how the telling itself develops across reading position: tension, pacing, disclosure or other processes that matter to this work. Follow these questions recursively, using stable passage links and authored evidence without a required dramatic formula or numerical score. Keep reading position distinct from world time and authoring history. Let the work choose its form; books need not have a protagonist, conflict, climax or resolution. Use the shared narrative graph for forms that do not fit scenes, without inventing a cast to satisfy a template. Before writing or revising prose, consider author and character voice, reader disclosure, and consequential physical placement. Use declared passage links and existing records. At meaningful milestones, use the controlled read-back guidance to compare selected output against a blind control, reporting fidelity separately from improvement over the control. Do not wait for a special user request; if independent readers are unavailable, record that limitation rather than inventing a result. These are instructions to the calling LLM, not claims that the server has assessed meaning or automatically run reviewers.',
+  instructions: composeInstructions(agentInstructions, { full: fullInstructions, simple: simpleInstructions }),
 });
 if (simple) {
   const register = server.registerTool.bind(server);
@@ -147,7 +154,7 @@ server.registerTool(
     }),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
-  async (input) => toolResult(await buildModelingContext(input)),
+  async (input) => toolResult(await buildModelingContext({ ...input, instructionsMode: agentInstructions.mode })),
 );
 
 server.registerTool('life_modeling_read', {
@@ -238,7 +245,7 @@ server.registerTool(
 server.registerTool(
   'life_model_revise',
   {
-    description: 'Register an immutable successor model revision, from either its complete definition (model) or its change from the predecessor (change): {reason, provenance?, upsert: {collection: [records]}, remove: {collection: [ids]}}, where collections are processes, laws, initial_claims, decomposition, dependencies and the Meaning Model collections (concepts, abstract_relations, abstract_cuts, referents, encapsulation_cuts, events, event_relations, event_referent_bindings, physical_cuts, realizations, normalized_cuts, context_roots keyed by event_id, temporal_cut_recompositions keyed by parent_cut_id). An upserted record replaces the record with its id or is added; the server applies the change to the stored predecessor, sets the next revision number, and the engine validates the complete successor. Send the change for small edits to a large model. To retire a Cut, concept or abstract cut that notes are anchored to, upsert it with withdrawn: {reason, superseded_by?} instead of removing it. Added dimensions and laws are schema changes, never in-place patches. The result\'s worldAdoption lists changes that a world on the parent revision cannot adopt through life_world_revise: a removed process, or a changed value type, axes, unit, reference frame or scale (the scale holds the process meaning). requireWorldAdoptable refuses such a revision before registering it. descriptionCoverage lists Events that carry a Cut without a description, and requireDescribedNumbers refuses them.',
+    description: 'Register an immutable successor model revision, from either its complete definition (model) or its change from the predecessor (change): {reason, provenance?, upsert: {collection: [records]}, remove: {collection: [ids]}}, where collections are processes, laws, initial_claims, value_series, decomposition, dependencies and the Meaning Model collections (concepts, abstract_relations, abstract_cuts, referents, encapsulation_cuts, events, event_relations, event_referent_bindings, physical_cuts, realizations, normalized_cuts, context_roots keyed by event_id, temporal_cut_recompositions keyed by parent_cut_id, importance_scales, event_importance, cause_questions, cause_assessments). An upserted record replaces the record with its id or is added; the server applies the change to the stored predecessor, sets the next revision number, and the engine validates the complete successor. Send the change for small edits to a large model. To retire a Cut, concept or abstract cut that notes are anchored to, upsert it with withdrawn: {reason, superseded_by?} instead of removing it. Added dimensions and laws are schema changes, never in-place patches. The result\'s worldAdoption lists changes that a world on the parent revision cannot adopt through life_world_revise: a removed process, or a changed value type, axes, unit, reference frame or scale (the scale holds the process meaning). requireWorldAdoptable refuses such a revision before registering it. descriptionCoverage lists Events that carry a Cut without a description, and requireDescribedNumbers refuses them.',
     inputSchema: z.object({
       requestId: requestIdSchema,
       previousModelHash: z.string().length(64),
@@ -355,6 +362,51 @@ server.registerTool(
 );
 
 server.registerTool(
+  'life_cause_record',
+  {
+    description: 'Record which causes mattered most to an outcome, and how much. A question asks why an outcome Event came about rather than its contrast, the alternative it is set against (a different contrast picks out different causes), and reads the outcome on one measure, "probability" or an amount { unit, processId }, as it actually was. Each cause is an Event linked to the outcome (causes, enables, prevents or constrains; the kind follows the role when not given; or name an existing relationId), read on the same measure without it, everything else as it was, with its reason, an optional band and an optional role: enabling (made it possible), trigger (set it off, or decided when), sustaining (kept it going), success_condition (made it work rather than fail) or hindering (stood in its way). The gap between the two readings is the difference the cause made, and the result ranks the causes by it. Differences do not sum: causes act together. Where several causes would each have brought the outcome about alone, read them removed together (removedWith). The holder is whose account this is: the model you are, or a person whose own account of why can then be set beside yours. Reading a cause again replaces its reading, and the revision history keeps the earlier one. For a change in a quantity that adds up, such as years of life expectancy gained, divide the change with a Cut whose answers name the cause Events instead (life_series_record with refersTo).',
+    inputSchema: z.object({
+      requestId: requestIdSchema,
+      previousModelHash: z.string().length(64),
+      holder: z.string().trim().min(1).max(200).describe('Whose account of why this is: the model you are, or a person whose own account it is.'),
+      tag: z.enum(VALUE_TAGS).describe('What the readings rest on, for any without its own tag: source, inferred, invented, exploring or sketch.'),
+      questions: z.array(z.object({
+        outcomeEventId: z.string().trim().min(1).max(512),
+        contrast: z.string().trim().min(1).max(1_000).describe('Rather than what: the alternative the outcome is set against, such as "rather than in the hundred thousand years before".'),
+        measure: z.union([z.literal('probability'), z.object({ unit: z.string().trim().min(1).max(300), processId: z.string().trim().min(1).max(512).optional() }).strict()])
+          .describe('"probability", that the outcome rather than its contrast comes about, or an amount of the outcome { unit, processId }.'),
+        actual: z.number().describe('The outcome on the measure as it was, given everything that led up to it.'),
+        evidenceCutoff: z.number().optional().describe('The model time the evidence for this account reaches to.'),
+        tag: z.enum(VALUE_TAGS).optional(),
+        reason: z.string().trim().min(1).max(1_000).optional(),
+        causes: z.array(z.object({
+          eventId: z.string().trim().min(1).max(512).optional().describe('The cause Event; linked to the outcome if it is not yet.'),
+          relationId: z.string().trim().min(1).max(512).optional().describe('An existing causal relation into the outcome, instead of eventId.'),
+          kind: z.enum(CAUSE_KINDS as unknown as [string, ...string[]]).optional().describe('For a new link: causes, enables, prevents or constrains.'),
+          description: z.string().trim().min(1).max(1_000).optional().describe('What the new link says, when it needs saying.'),
+          role: z.enum(CAUSE_ROLES as unknown as [string, ...string[]]).optional(),
+          without: z.number().describe('The outcome on the measure without this cause (and any removed with it), everything else as it was.'),
+          band: z.tuple([z.number(), z.number()]).optional().describe('[lower, upper]: the least and the most the reading without it could honestly be.'),
+          removedWith: z.array(z.string().trim().min(1).max(512)).max(16).optional().describe('Other causes of the outcome, by Event or relation id, removed together with this one.'),
+          reason: z.string().trim().min(1).max(1_000).describe('Why the outcome would read so without it.'),
+          tag: z.enum(VALUE_TAGS).optional(),
+        }).strict().refine((cause) => Boolean(cause.eventId) !== Boolean(cause.relationId), { message: 'Give a cause as eventId or relationId, one of them.' })).min(1).max(64),
+      }).strict()).min(1).max(32),
+      reason: z.string().trim().min(1).max(4_000),
+    }).strict(),
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  async ({ requestId, previousModelHash, ...input }) => {
+    const { model: previous } = await service.inspectModel({ modelHash: previousModelHash, includeDefinition: true });
+    const { change, questionIds } = causeChange(previous, input);
+    const { successor, summary } = applyModelChange(previous, previousModelHash, change);
+    const revised = await service.reviseModel({ requestId, previousModelHash, model: successor });
+    const { model: stored } = await service.inspectModel({ modelHash: revised.modelHash, includeDefinition: true });
+    return toolResult({ ...revised, revisedByChange: true, change: summary, causes: causeReport(stored, { questionIds }) });
+  },
+);
+
+server.registerTool(
   'life_series_record',
   {
     description: 'Record a whole series of readings in one call: one question asked of one subject (a person, a company, a protocol, a market) at many dated intervals, each with its shares and its reason. Readings may nest, a long one with finer ones inside it, and must not partly overlap. Each reading becomes a dated Event inside the subject\'s life (or parentEventId), carrying its Cut, its tag as source, inferred, invented, exploring or sketch, and optional causes; the series is one model revision through the ordinary change path, with the remainder off unless series.remainder names a real unresolved share. Choose the answers first as the concept\'s mutually exclusive categories (necessary, independent, universal over the cases, complete together). To open one category into its own exclusive categories, record a second series with conditionedOn {seriesId, answerKey}: its readings divide that answer\'s share on the same Events, interval by interval. Ids follow the series and the interval, so recording an interval again replaces that reading whole, causes included; a series id holds one subject. Record a rough first series early, tagged sketch or exploring with its reasons, and revise the same intervals as the evidence changes; confidence can fall as well as rise, and the history keeps each earlier reading. Mark a reading steady when its shares truly hold across the whole stretch, with the reason in its why: the time schedule then asks for nothing finer inside it. The result says how many readings will draw as a curve in the viewer and why any will not, and carries the coverage report shared with life_values_record: how far the time schedule is filled by values and readings together, every line that keeps this pass from being done, and done when nothing does; another pass can always go deeper.',
@@ -367,7 +419,9 @@ server.registerTool(
         id: z.string().trim().min(1).max(80).describe('A stable slug for this question, such as ethereum-priorities.'),
         question: z.string().trim().min(1).max(1_000),
         unit: z.string().trim().min(1).max(300),
-        answers: z.array(z.object({ key: z.string().trim().min(1).max(64), meaning: z.string().trim().min(1).max(1_000) }).strict()).min(1).max(24),
+        answers: z.array(z.object({ key: z.string().trim().min(1).max(64), meaning: z.string().trim().min(1).max(1_000),
+          refersTo: z.object({ kind: z.enum(['event', 'referent', 'process']), id: z.string().trim().min(1).max(512) }).strict().optional()
+            .describe('The record this answer stands for: the cause Event, the Thing or the process it names. A Cut over a change that adds up, such as years of life expectancy gained, names its causes this way.') }).strict()).min(1).max(24),
         remainder: z.object({ meaning: z.string().trim().min(1).max(1_000) }).strict().optional().describe('Only for a share the answers genuinely leave unresolved.'),
         conditionedOn: z.object({ seriesId: z.string().trim().min(1).max(80), answerKey: z.string().trim().min(1).max(64) }).strict().optional()
           .describe('Open this answer of another series: each reading divides that answer on the reading of the same interval.'),

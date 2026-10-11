@@ -9,6 +9,7 @@ import { rebindNarrativeGraph, preflightNarrativeRebind } from './narrative-rebi
 
 import { retainEstimatorProposal, readEstimatorProposal, runEstimatorRequest } from './estimator-receipts.mjs';
 import { contextKindOf, displayName, indexModel, modeledPeople, personStateAt, readDraws, readPerson } from './model-questions.mjs';
+import { keepAnswerReferences } from './answer-references.mjs';
 
 const id = z.string().trim().min(1).max(256);
 const longId = z.string().trim().min(1).max(1_024);
@@ -317,7 +318,7 @@ async function executeCutShares(input, estimator, service, checkpoint = null) {
     const condition = conditions.get(proposal.id);
     const cut = { id: proposal.id, parent_event_id: proposal.parent_event_id, question: proposal.question, unit: proposal.unit, answers: proposal.answers.map(({ key, weight, meaning }) => ({ key, weight, ...(meaning == null ? {} : { meaning }) })), ...(condition ? { conditioning: condition } : {}), provenance: proposal.provenance };
     if (!cut.parent_event_id) throw new Error(`Cut ${cut.id} has no parent event; free-text situations need parentEventId to be applied.`);
-    if (existing.has(cut.id)) { if (!input.replaceExisting) throw new Error(`Cut ${cut.id} already exists in the model; set replaceExisting to supersede it in this revision.`); successor.meaning_model.normalized_cuts[existing.get(cut.id)] = cut; }
+    if (existing.has(cut.id)) { if (!input.replaceExisting) throw new Error(`Cut ${cut.id} already exists in the model; set replaceExisting to supersede it in this revision.`); successor.meaning_model.normalized_cuts[existing.get(cut.id)] = keepAnswerReferences(cut, successor.meaning_model.normalized_cuts[existing.get(cut.id)]); }
     else successor.meaning_model.normalized_cuts.push(cut);
   }
   const previousNumber = Number(definition.revision?.number ?? 0);

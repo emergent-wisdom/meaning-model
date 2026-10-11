@@ -167,6 +167,8 @@ impl OptionalModelProfile for ConceptScaffoldProfile {
                 context_roots: vec![],
                 importance_scales: vec![],
                 event_importance: vec![],
+                cause_questions: vec![],
+                cause_assessments: vec![],
                 temporal_cut_recompositions: vec![],
             }),
             ..ProfileFragment::default()

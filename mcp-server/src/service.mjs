@@ -125,6 +125,8 @@ export const meaningModelCollections = Object.freeze([
   'temporal_cut_recompositions',
   'importance_scales',
   'event_importance',
+  'cause_questions',
+  'cause_assessments',
 ]);
 
 function meaningRecordId(collection, record) {

@@ -115,7 +115,7 @@ export function coverageReport(model, { stillEmpty = [], passedOver = [], contra
   const tracks = tracksOf(model, index);
   const story = storyProfile();
   const people = story ? peopleCheck(model, index, tracks) : { people: 0, incomplete: [] };
-  const peopleNext = () => `Every person in the story needs at least what the process breakdown (life-sim://guide/process-breakdown, Part 3 and Part 7) gives a life: the nine slow processes (body, kin, partnership, work, place, means, knowledge, standing, meaning) with values across the life, one process of their own, and comparable Cuts read across the life for what they want, how they see their wants' fulfilment, what they see as threatened and what they feel. ${people.incomplete.length} of ${people.people} do not yet: ${people.incomplete.slice(0, 8).map(personGapText).join('. ')}${people.incomplete.length > 8 ? `, and ${people.incomplete.length - 8} more` : ''}. Compile person_scaffold for each person who has no slow processes (life_profile_compile), give every process values (life_values_record, with each process's subject), and record the Cuts as series about the person (life_series_record).`;
+  const peopleNext = () => `Every person in the story needs at least what the process breakdown (life-sim://guide/process-breakdown, Part 3 and Part 8) gives a life: the nine slow processes (body, kin, partnership, work, place, means, knowledge, standing, meaning) with values across the life, one process of their own, and comparable Cuts read across the life for what they want, how they see their wants' fulfilment, what they see as threatened and what they feel. ${people.incomplete.length} of ${people.people} do not yet: ${people.incomplete.slice(0, 8).map(personGapText).join('. ')}${people.incomplete.length > 8 ? `, and ${people.incomplete.length - 8} more` : ''}. Compile person_scaffold for each person who has no slow processes (life_profile_compile), give every process values (life_values_record, with each process's subject), and record the Cuts as series about the person (life_series_record).`;
   const peopleResult = () => ({ count: people.people, incomplete: people.incomplete.length, gaps: people.incomplete.slice(0, 20) });
   const holders = new Set((model?.value_series ?? []).map((series) => series.holder)).size;
   const world = worldEvents(mm);
@@ -186,7 +186,7 @@ export function coverageReport(model, { stillEmpty = [], passedOver = [], contra
     if (missing.length) { upcoming = { level, blocks, missing: count, tracks: missing.length, examples: missing.sort((x, y) => y.at.length - x.at.length || x.id.localeCompare(y.id)).slice(0, 20) }; continue; }
     reached = level;
   }
-  // In a story, every person must have at least the least a life needs (docs/PROCESS-BREAKDOWN.md, Part 7): the nine
+  // In a story, every person must have at least the least a life needs (docs/PROCESS-BREAKDOWN.md, Part 8): the nine
   // slow processes followed over time, one of their own, and Cuts for wants, outlook, threat and feelings.
   const done = reached === schedule.levels.length && !stillEmpty.length && !passedOver.length && !contradictions.length && !flat.length
     && !people.incomplete.length;

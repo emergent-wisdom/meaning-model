@@ -17,6 +17,8 @@ pub const MAX_MEANING_EVENT_DESCRIPTION_BYTES: usize = 64 * 1024;
 pub const MAX_NORMALIZED_CUT_ANSWER_MEANING_BYTES: usize = 64 * 1024;
 pub const MIN_IMPORTANCE_LEVELS: usize = 2;
 pub const MAX_IMPORTANCE_LEVELS: usize = 12;
+/// How far a cause's reading may cross the actual outcome before its direction is refused: floating-point slack only.
+pub const CAUSE_DIRECTION_TOLERANCE: f64 = 1e-9;
 
 /// An abstract schema in the optional Meaning Model layer.
 ///
@@ -401,6 +403,20 @@ pub struct NormalizedCutAnswer {
     /// Legacy records may lack it; absence does not imply a definition from the key.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub meaning: Option<String>,
+    /// The record the answer stands for, when it is one: the Event a cause Cut names, the Thing a contribution Cut
+    /// names, or a process. Omitted when absent, so existing model hashes are unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refers_to: Option<CutAnswerReference>,
+}
+
+/// The record a Cut answer stands for. The remainder never refers to one, and no record is named by two answers of
+/// one Cut, whose shares would then count it twice.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum CutAnswerReference {
+    Event { event_id: String },
+    Referent { referent_id: String },
+    Process { process_id: String },
 }
 
 /// An exact local component address within this immutable model revision.
@@ -528,6 +544,105 @@ pub struct EventImportanceDefinition {
     pub provenance: Vec<String>,
 }
 
+/// How a why-question reads its outcome, and so the difference each cause made to it.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum CauseMeasure {
+    /// The probability that the outcome, rather than its contrast, comes about: from 0 to 1.
+    Probability,
+    /// An amount of the outcome in its own unit, such as years of life expectancy gained, pounds, or points on a
+    /// process's declared scale; `process_id` names that process when there is one.
+    Amount {
+        unit: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        process_id: Option<String>,
+    },
+}
+
+/// One holder's why-question about one outcome: why the outcome came about rather than its contrast, the
+/// alternative it is set against. A different contrast picks out different causes, so each contrast is its own
+/// question. `actual` reads the outcome on the measure as it was, given everything that led up to it; each cause's
+/// assessment reads it on the same measure without that cause, so the differences can be compared and ranked. A
+/// holder asks one question per outcome, contrast and measure.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct CauseQuestionDefinition {
+    pub id: String,
+    pub outcome_event_id: String,
+    pub contrast: String,
+    pub measure: CauseMeasure,
+    pub actual: f64,
+    pub holder: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub evidence_cutoff: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    pub provenance: Vec<String>,
+}
+
+/// The part a cause played in its outcome.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "snake_case")]
+pub enum CauseRole {
+    /// Made the outcome possible: a condition it needed.
+    Enabling,
+    /// Set the outcome off, or decided when it came.
+    Trigger,
+    /// Kept the outcome going once it had begun.
+    Sustaining,
+    /// Made an attempt work rather than fail.
+    SuccessCondition,
+    /// Stood in the outcome's way.
+    Hindering,
+}
+
+impl CauseRole {
+    fn name(self) -> &'static str {
+        match self {
+            CauseRole::Enabling => "enabling",
+            CauseRole::Trigger => "trigger",
+            CauseRole::Sustaining => "sustaining",
+            CauseRole::SuccessCondition => "success_condition",
+            CauseRole::Hindering => "hindering",
+        }
+    }
+}
+
+/// The least and the most a guessed reading could honestly be.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct CauseValueBand {
+    pub lower: f64,
+    pub upper: f64,
+}
+
+/// One cause of a why-question's outcome, read on the question's measure: the outcome as it would have been without
+/// the cause, everything else as it actually was. The cause is a causal relation (causes, enables, prevents or
+/// constrains) ending at the question's outcome. Without a cause that brings the outcome about (causes, enables),
+/// the outcome reads no more than the actual one; without one that stands in its way (prevents, constrains), no
+/// less. The difference is the gap between the two readings. Differences do not sum, because causes act together.
+/// `removed_with` names other causal relations of the same outcome, of the same direction, removed together with
+/// this one: for an outcome that several causes would each have brought about alone, where removing any one of them
+/// changes nothing. One assessment per question, relation and set removed with it; a reassessment replaces it, and
+/// the revision history keeps the earlier one.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct CauseAssessmentDefinition {
+    pub id: String,
+    pub question_id: String,
+    pub relation_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<CauseRole>,
+    pub without: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub without_band: Option<CauseValueBand>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub removed_with: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    pub provenance: Vec<String>,
+}
+
 /// Optional static semantic layer over the executable Life Simulation kernel.
 /// Its collections default independently so producers can author either plane
 /// incrementally while the entire layer remains an explicit opt-in.
@@ -571,6 +686,11 @@ pub struct MeaningModelDefinition {
     pub importance_scales: Vec<ImportanceScaleDefinition>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub event_importance: Vec<EventImportanceDefinition>,
+    /// Omission preserves pre-extension canonical JSON and model hashes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cause_questions: Vec<CauseQuestionDefinition>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cause_assessments: Vec<CauseAssessmentDefinition>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -819,6 +939,11 @@ pub(super) fn normalize_meaning_model(meaning_model: &mut MeaningModelDefinition
     // A scale's levels keep their order: the most important comes first.
     meaning_model.importance_scales.sort_by(|a, b| a.id.cmp(&b.id));
     meaning_model.event_importance.sort_by(|a, b| a.id.cmp(&b.id));
+    meaning_model.cause_questions.sort_by(|a, b| a.id.cmp(&b.id));
+    meaning_model.cause_assessments.sort_by(|a, b| a.id.cmp(&b.id));
+    for assessment in &mut meaning_model.cause_assessments {
+        assessment.removed_with.sort();
+    }
     for cut in &mut meaning_model.normalized_cuts {
         cut.answers.sort_by(|a, b| a.key.cmp(&b.key));
         for answer in &mut cut.answers {
@@ -1372,6 +1497,257 @@ fn validate_importance<'a>(
     Ok(())
 }
 
+// A Cut answer that stands for a record names one the model holds; the remainder stands for none, and no record is
+// named by two answers of one Cut.
+fn validate_cut_answer_references(
+    meaning_model: &MeaningModelDefinition,
+    event_ids: &BTreeSet<&str>,
+    referent_ids: &BTreeSet<&str>,
+    processes: &BTreeMap<String, ProcessDefinition>,
+) -> EngineResult<()> {
+    for cut in &meaning_model.normalized_cuts {
+        let mut named = BTreeSet::new();
+        for answer in &cut.answers {
+            let Some(reference) = &answer.refers_to else { continue };
+            if answer.key == NORMALIZED_CUT_REMAINDER_KEY {
+                return Err(error(format!(
+                    "normalized cut {} remainder cannot refer to a record: it holds what the named answers miss",
+                    cut.id
+                )));
+            }
+            let (kind, id, known) = match reference {
+                CutAnswerReference::Event { event_id } => ("event", event_id, event_ids.contains(event_id.as_str())),
+                CutAnswerReference::Referent { referent_id } => {
+                    ("referent", referent_id, referent_ids.contains(referent_id.as_str()))
+                }
+                CutAnswerReference::Process { process_id } => ("process", process_id, processes.contains_key(process_id)),
+            };
+            if !known {
+                return Err(error(format!(
+                    "normalized cut {} answer {} refers to unknown {kind} {id}",
+                    cut.id, answer.key
+                )));
+            }
+            if !named.insert((kind, id.as_str())) {
+                return Err(error(format!(
+                    "normalized cut {} names {kind} {id} in two answers; give it one answer, or its share is counted twice",
+                    cut.id
+                )));
+            }
+        }
+    }
+    Ok(())
+}
+
+// Whether a relation kind names a cause: Some(true) for one that brings its target about (causes, enables),
+// Some(false) for one that stands in its way (prevents, constrains), None for every other kind.
+fn cause_direction(kind: &EventRelationKind) -> Option<bool> {
+    match kind {
+        EventRelationKind::Causes | EventRelationKind::Enables => Some(true),
+        EventRelationKind::Prevents | EventRelationKind::Constrains => Some(false),
+        _ => None,
+    }
+}
+
+fn relation_kind_name(kind: &EventRelationKind) -> &'static str {
+    match kind {
+        EventRelationKind::Contains => "contains",
+        EventRelationKind::Causes => "causes",
+        EventRelationKind::Enables => "enables",
+        EventRelationKind::Prevents => "prevents",
+        EventRelationKind::Constrains => "constrains",
+        EventRelationKind::RealizesForecast => "realizes_forecast",
+        EventRelationKind::About => "about",
+        EventRelationKind::Other => "other",
+    }
+}
+
+// A reading on a why-question's measure: a probability lies between 0 and 1, an amount of the outcome is nonnegative.
+fn validate_cause_reading(question: &CauseQuestionDefinition, value: f64, label: &str) -> EngineResult<()> {
+    finite(value, label)?;
+    match question.measure {
+        CauseMeasure::Probability if !(0.0..=1.0).contains(&value) => Err(error(format!(
+            "{label} is a probability on question {}'s measure and must lie between 0 and 1; got {value}",
+            question.id
+        ))),
+        CauseMeasure::Amount { .. } if value < 0.0 => Err(error(format!(
+            "{label} is an amount of question {}'s outcome and must be nonnegative; got {value}",
+            question.id
+        ))),
+        _ => Ok(()),
+    }
+}
+
+fn validate_causes(
+    meaning_model: &MeaningModelDefinition,
+    event_ids: &BTreeSet<&str>,
+    processes: &BTreeMap<String, ProcessDefinition>,
+) -> EngineResult<()> {
+    let relations: BTreeMap<&str, &EventRelationDefinition> = meaning_model
+        .event_relations
+        .iter()
+        .map(|relation| (relation.id.as_str(), relation))
+        .collect();
+    let mut questions = BTreeMap::new();
+    let mut asked = BTreeSet::new();
+    for question in &meaning_model.cause_questions {
+        validate_identifier(&question.id, "cause question id")?;
+        if questions.insert(question.id.as_str(), question).is_some() {
+            return Err(error(format!("duplicate cause question id {}", question.id)));
+        }
+        if !event_ids.contains(question.outcome_event_id.as_str()) {
+            return Err(error(format!(
+                "cause question {} names unknown outcome event {}",
+                question.id, question.outcome_event_id
+            )));
+        }
+        validate_text(&question.contrast, &format!("cause question {} contrast", question.id))?;
+        validate_text(&question.holder, &format!("cause question {} holder", question.id))?;
+        let (unit, measured_process) = match &question.measure {
+            CauseMeasure::Probability => (None, None),
+            CauseMeasure::Amount { unit, process_id } => {
+                validate_text(unit, &format!("cause question {} unit", question.id))?;
+                if let Some(process_id) = process_id {
+                    if !processes.contains_key(process_id) {
+                        return Err(error(format!(
+                            "cause question {} names unknown process {process_id}",
+                            question.id
+                        )));
+                    }
+                }
+                (Some(unit.as_str()), process_id.as_deref())
+            }
+        };
+        validate_cause_reading(question, question.actual, &format!("cause question {} actual", question.id))?;
+        if let Some(cutoff) = question.evidence_cutoff {
+            finite(cutoff, &format!("cause question {} evidence cutoff", question.id))?;
+        }
+        validate_optional_text(question.reason.as_deref(), &format!("cause question {} reason", question.id))?;
+        validate_provenance(&question.provenance, &format!("cause question {}", question.id))?;
+        if !asked.insert((question.outcome_event_id.as_str(), question.contrast.as_str(), question.holder.as_str(), unit, measured_process)) {
+            return Err(error(format!(
+                "cause question {}: {} already asks why {} came about rather than \"{}\" on this measure; add the causes to that question instead",
+                question.id, question.holder, question.outcome_event_id, question.contrast
+            )));
+        }
+    }
+
+    let mut assessment_ids = BTreeSet::new();
+    let mut judged = BTreeSet::new();
+    for assessment in &meaning_model.cause_assessments {
+        validate_identifier(&assessment.id, "cause assessment id")?;
+        if !assessment_ids.insert(assessment.id.as_str()) {
+            return Err(error(format!("duplicate cause assessment id {}", assessment.id)));
+        }
+        let question = questions.get(assessment.question_id.as_str()).ok_or_else(|| {
+            error(format!(
+                "cause assessment {} names unknown cause question {}",
+                assessment.id, assessment.question_id
+            ))
+        })?;
+        let relation = relations.get(assessment.relation_id.as_str()).ok_or_else(|| {
+            error(format!(
+                "cause assessment {} names unknown event relation {}",
+                assessment.id, assessment.relation_id
+            ))
+        })?;
+        let brings_about = cause_direction(&relation.kind).ok_or_else(|| {
+            error(format!(
+                "cause assessment {} weighs relation {} of kind {}, which names no cause; only causes, enables, prevents and constrains relations do",
+                assessment.id, relation.id, relation_kind_name(&relation.kind)
+            ))
+        })?;
+        if relation.target_event_id != question.outcome_event_id {
+            return Err(error(format!(
+                "cause assessment {}: relation {} ends at {}, not at question {}'s outcome {}",
+                assessment.id, relation.id, relation.target_event_id, question.id, question.outcome_event_id
+            )));
+        }
+        if let Some(role) = assessment.role {
+            if (role == CauseRole::Hindering) == brings_about {
+                return Err(error(format!(
+                    "cause assessment {}: role {} does not fit relation {} of kind {}; a hindering cause is a prevents or constrains relation, and every other role belongs to a causes or enables relation",
+                    assessment.id, role.name(), relation.id, relation_kind_name(&relation.kind)
+                )));
+            }
+        }
+        let label = format!("cause assessment {} without", assessment.id);
+        validate_cause_reading(question, assessment.without, &label)?;
+        if brings_about && assessment.without > question.actual + CAUSE_DIRECTION_TOLERANCE {
+            return Err(error(format!(
+                "cause assessment {}: without the cause, question {}'s outcome reads {}, above the actual {}; a cause whose absence would make the outcome likelier or larger stands in its way, so give relation {} the kind prevents or constrains",
+                assessment.id, question.id, assessment.without, question.actual, relation.id
+            )));
+        }
+        if !brings_about && assessment.without + CAUSE_DIRECTION_TOLERANCE < question.actual {
+            return Err(error(format!(
+                "cause assessment {}: without what stands in its way, question {}'s outcome reads {}, below the actual {}; a cause whose absence would make the outcome less likely or smaller brings it about, so give relation {} the kind causes or enables",
+                assessment.id, question.id, assessment.without, question.actual, relation.id
+            )));
+        }
+        if let Some(band) = &assessment.without_band {
+            validate_cause_reading(question, band.lower, &format!("cause assessment {} band lower", assessment.id))?;
+            validate_cause_reading(question, band.upper, &format!("cause assessment {} band upper", assessment.id))?;
+            if !(band.lower <= assessment.without && assessment.without <= band.upper) {
+                return Err(error(format!(
+                    "cause assessment {} band {}..{} must hold its reading {}",
+                    assessment.id, band.lower, band.upper, assessment.without
+                )));
+            }
+        }
+        let mut together = BTreeSet::new();
+        let mut removed_sources = BTreeSet::new();
+        for other_id in &assessment.removed_with {
+            if other_id == &assessment.relation_id {
+                return Err(error(format!(
+                    "cause assessment {} removes relation {} together with itself",
+                    assessment.id, other_id
+                )));
+            }
+            let other = relations.get(other_id.as_str()).ok_or_else(|| {
+                error(format!(
+                    "cause assessment {} removes unknown event relation {} with its cause",
+                    assessment.id, other_id
+                ))
+            })?;
+            if cause_direction(&other.kind) != Some(brings_about) || other.target_event_id != question.outcome_event_id {
+                return Err(error(format!(
+                    "cause assessment {} removes relation {} with its cause, but {} is not a cause of the same direction ending at the outcome {}",
+                    assessment.id, other_id, other_id, question.outcome_event_id
+                )));
+            }
+            if !together.insert(other_id.as_str()) {
+                return Err(error(format!(
+                    "cause assessment {} names relation {} twice in removed_with",
+                    assessment.id, other_id
+                )));
+            }
+            if other.source_event_id == relation.source_event_id {
+                return Err(error(format!(
+                    "cause assessment {} removes cause event {} together with itself through relation {}",
+                    assessment.id, relation.source_event_id, other_id
+                )));
+            }
+            if !removed_sources.insert(other.source_event_id.as_str()) {
+                return Err(error(format!(
+                    "cause assessment {} names cause event {} twice in removed_with through different relations",
+                    assessment.id, other.source_event_id
+                )));
+            }
+        }
+        validate_optional_text(assessment.reason.as_deref(), &format!("cause assessment {} reason", assessment.id))?;
+        validate_provenance(&assessment.provenance, &format!("cause assessment {}", assessment.id))?;
+        let key = (assessment.question_id.as_str(), assessment.relation_id.as_str(), together.into_iter().collect::<Vec<_>>());
+        if !judged.insert(key) {
+            return Err(error(format!(
+                "cause assessment {}: question {} already reads the outcome without relation {}, removed with the same causes; replace that assessment instead",
+                assessment.id, assessment.question_id, assessment.relation_id
+            )));
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn validate_meaning_model(
     meaning_model: &MeaningModelDefinition,
     processes: &BTreeMap<String, ProcessDefinition>,
@@ -1406,6 +1782,8 @@ pub(super) fn validate_meaning_model(
         meaning_model.context_roots.len(),
         meaning_model.importance_scales.len(),
         meaning_model.event_importance.len(),
+        meaning_model.cause_questions.len(),
+        meaning_model.cause_assessments.len(),
         meaning_model
             .semantic_coverage
             .as_ref()
@@ -1708,6 +2086,8 @@ pub(super) fn validate_meaning_model(
     validate_normalized_cuts(meaning_model, &event_ids, &event_contexts)?;
     validate_temporal_cut_recompositions(meaning_model, &events, &event_contexts)?;
     validate_importance(meaning_model, &event_ids, &concept_ids)?;
+    validate_cut_answer_references(meaning_model, &event_ids, &referent_ids, processes)?;
+    validate_causes(meaning_model, &event_ids, processes)?;
 
     let mut relation_ids = BTreeSet::new();
     let mut abstract_edges = Vec::new();
@@ -2604,6 +2984,8 @@ pub(super) fn test_meaning_model_fixture() -> MeaningModelDefinition {
         context_roots: vec![],
         importance_scales: vec![],
         event_importance: vec![],
+        cause_questions: vec![],
+        cause_assessments: vec![],
     }
 }
 
@@ -2811,8 +3193,8 @@ mod tests {
             question: "Where does care go next?".to_owned(),
             unit: "continuation".to_owned(),
             answers: vec![
-                NormalizedCutAnswer { key: "repair".to_owned(), weight: 0.7, meaning: None },
-                NormalizedCutAnswer { key: NORMALIZED_CUT_REMAINDER_KEY.to_owned(), weight: 0.3, meaning: None },
+                NormalizedCutAnswer { key: "repair".to_owned(), weight: 0.7, meaning: None, refers_to: None },
+                NormalizedCutAnswer { key: NORMALIZED_CUT_REMAINDER_KEY.to_owned(), weight: 0.3, meaning: None, refers_to: None },
             ],
             conditioning: None,
             provenance: vec!["unit-test".to_owned()],
@@ -2933,6 +3315,273 @@ mod tests {
         repeated.event_relations.push(realized("repair"));
         repeated.event_relations.push(realized(NORMALIZED_CUT_REMAINDER_KEY));
         assert!(failure(repeated).contains("Cut care-direction has more than one realized continuation"));
+    }
+
+    fn causal(id: &str, source: &str, target: &str, kind: EventRelationKind) -> EventRelationDefinition {
+        EventRelationDefinition {
+            id: id.to_owned(),
+            source_event_id: source.to_owned(),
+            target_event_id: target.to_owned(),
+            kind,
+            description: None,
+            uncertainty: ClaimUncertainty::Unknown,
+            provenance: vec!["unit-test".to_owned()],
+            authority: None,
+            forecast_answer: None,
+        }
+    }
+
+    fn cause(id: &str, relation_id: &str, role: Option<CauseRole>, without: f64) -> CauseAssessmentDefinition {
+        CauseAssessmentDefinition {
+            id: id.to_owned(),
+            question_id: "why.repair".to_owned(),
+            relation_id: relation_id.to_owned(),
+            role,
+            without,
+            without_band: None,
+            removed_with: vec![],
+            reason: Some("unit test".to_owned()),
+            provenance: vec!["unit-test".to_owned()],
+        }
+    }
+
+    // Why did the repair come, rather than the relationship ending? Trust made it possible, care set it off and the
+    // strain stood in its way; without trust and care together it would almost certainly not have come.
+    fn with_causes(mut meaning_model: MeaningModelDefinition) -> MeaningModelDefinition {
+        meaning_model.event_relations.push(causal("care-causes-repair", "care-event", "repair-event", EventRelationKind::Causes));
+        meaning_model.event_relations.push(causal("strain-constrains-repair", "relationship-event", "repair-event", EventRelationKind::Constrains));
+        meaning_model.cause_questions.push(CauseQuestionDefinition {
+            id: "why.repair".to_owned(),
+            outcome_event_id: "repair-event".to_owned(),
+            contrast: "rather than the relationship ending".to_owned(),
+            measure: CauseMeasure::Probability,
+            actual: 0.8,
+            holder: "modeler".to_owned(),
+            evidence_cutoff: Some(2026.0),
+            reason: Some("unit test".to_owned()),
+            provenance: vec!["unit-test".to_owned()],
+        });
+        meaning_model.cause_assessments.push(cause("cause.trust", "trust-enables-repair", Some(CauseRole::Enabling), 0.1));
+        meaning_model.cause_assessments.push(cause("cause.care", "care-causes-repair", Some(CauseRole::Trigger), 0.5));
+        meaning_model.cause_assessments.push(cause("cause.strain", "strain-constrains-repair", Some(CauseRole::Hindering), 0.95));
+        let mut joint = cause("cause.trust-and-care", "trust-enables-repair", None, 0.02);
+        joint.removed_with = vec!["care-causes-repair".to_owned()];
+        joint.without_band = Some(CauseValueBand { lower: 0.0, upper: 0.1 });
+        meaning_model.cause_assessments.push(joint);
+        meaning_model
+    }
+
+    #[test]
+    fn causes_are_read_against_a_contrast_on_one_measure_without_each_cause() {
+        let mut meaning_model = with_causes(test_meaning_model_fixture());
+        validate_meaning_model(&meaning_model, &test_processes()).unwrap();
+        normalize_meaning_model(&mut meaning_model);
+        assert_eq!(
+            meaning_model.cause_assessments.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(),
+            ["cause.care", "cause.strain", "cause.trust", "cause.trust-and-care"]
+        );
+        let json = serde_json::to_value(&meaning_model).unwrap();
+        assert_eq!(json["cause_questions"][0]["measure"]["kind"], "probability");
+        assert_eq!(json["cause_questions"][0]["contrast"], "rather than the relationship ending");
+        assert_eq!(json["cause_assessments"][0]["role"], "trigger");
+        assert_eq!(json["cause_assessments"][3]["removed_with"][0], "care-causes-repair");
+        assert!(json["cause_assessments"][0].get("removed_with").is_none(), "an assessment of one cause omits removed_with");
+        let round: MeaningModelDefinition = serde_json::from_value(json).unwrap();
+        assert_eq!(round, meaning_model);
+        // A model without causes serializes as before, so its hash is unchanged.
+        let plain = serde_json::to_value(test_meaning_model_fixture()).unwrap();
+        assert!(plain.get("cause_questions").is_none() && plain.get("cause_assessments").is_none());
+
+        // An amount of the outcome, in a process's unit; the same holder may ask on another measure.
+        let mut amount = with_causes(test_meaning_model_fixture());
+        let mut points = amount.cause_questions[0].clone();
+        points.id = "why.repair.points".to_owned();
+        points.measure = CauseMeasure::Amount { unit: "points of family pressure".to_owned(), process_id: Some("family.pressure".to_owned()) };
+        points.actual = 6.0;
+        amount.cause_questions.push(points);
+        let mut by_points = cause("cause.care.points", "care-causes-repair", Some(CauseRole::Trigger), 2.0);
+        by_points.question_id = "why.repair.points".to_owned();
+        amount.cause_assessments.push(by_points);
+        validate_meaning_model(&amount, &test_processes()).unwrap();
+        let json = serde_json::to_value(&amount.cause_questions[1]).unwrap();
+        assert_eq!(json["measure"]["kind"], "amount");
+        assert_eq!(json["measure"]["process_id"], "family.pressure");
+    }
+
+    #[test]
+    fn cause_measure_identity_includes_its_process() {
+        let mut model = with_causes(test_meaning_model_fixture());
+        model.cause_assessments.clear();
+        model.cause_questions[0].measure = CauseMeasure::Amount {
+            unit: "points".to_owned(), process_id: Some("family.pressure".to_owned())
+        };
+        let mut second = model.cause_questions[0].clone();
+        second.id = "why.repair.stress".to_owned();
+        second.measure = CauseMeasure::Amount { unit: "points".to_owned(), process_id: Some("person.stress".to_owned()) };
+        model.cause_questions.push(second.clone());
+        validate_meaning_model(&model, &test_processes()).unwrap();
+        let mut unbound = second.clone();
+        unbound.id = "why.repair.points".to_owned();
+        unbound.measure = CauseMeasure::Amount { unit: "points".to_owned(), process_id: None };
+        model.cause_questions.push(unbound);
+        validate_meaning_model(&model, &test_processes()).unwrap();
+        second.id = "why.repair.stress.twice".to_owned();
+        model.cause_questions.push(second);
+        assert!(failure(model).contains("already asks why repair-event"));
+    }
+
+    #[test]
+    fn causes_removed_together_name_each_event_once() {
+        let mut model = with_causes(test_meaning_model_fixture());
+        model.event_relations.push(causal("trust-causes-repair", "trust-event", "repair-event", EventRelationKind::Causes));
+        model.event_relations.push(causal("care-enables-repair", "care-event", "repair-event", EventRelationKind::Enables));
+        model.cause_assessments[3].removed_with = vec!["trust-causes-repair".to_owned()];
+        assert!(failure(model.clone()).contains("removes cause event trust-event together with itself"));
+        model.cause_assessments[3].removed_with = vec!["care-causes-repair".to_owned(), "care-enables-repair".to_owned()];
+        assert!(failure(model.clone()).contains("names cause event care-event twice in removed_with"));
+        model.cause_assessments[3].removed_with = vec!["care-enables-repair".to_owned()];
+        validate_meaning_model(&model, &test_processes()).unwrap();
+    }
+
+    #[test]
+    fn causes_reject_wrong_directions_unknown_records_and_second_readings() {
+        let mut unknown_outcome = with_causes(test_meaning_model_fixture());
+        unknown_outcome.cause_questions[0].outcome_event_id = "nothing".to_owned();
+        assert!(failure(unknown_outcome).contains("names unknown outcome event nothing"));
+
+        let mut not_probability = with_causes(test_meaning_model_fixture());
+        not_probability.cause_questions[0].actual = 1.5;
+        assert!(failure(not_probability).contains("must lie between 0 and 1; got 1.5"));
+
+        let mut negative_amount = with_causes(test_meaning_model_fixture());
+        negative_amount.cause_assessments.clear();
+        negative_amount.cause_questions[0].measure = CauseMeasure::Amount { unit: "years".to_owned(), process_id: None };
+        negative_amount.cause_questions[0].actual = -2.0;
+        assert!(failure(negative_amount).contains("must be nonnegative; got -2"));
+
+        let mut unknown_process = with_causes(test_meaning_model_fixture());
+        unknown_process.cause_questions[0].measure = CauseMeasure::Amount { unit: "years".to_owned(), process_id: Some("person.age".to_owned()) };
+        assert!(failure(unknown_process).contains("names unknown process person.age"));
+
+        let mut asked_twice = with_causes(test_meaning_model_fixture());
+        let mut again = asked_twice.cause_questions[0].clone();
+        again.id = "why.repair.again".to_owned();
+        asked_twice.cause_questions.push(again);
+        assert!(failure(asked_twice).contains("already asks why repair-event came about rather than \"rather than the relationship ending\""));
+
+        let mut unknown_question = with_causes(test_meaning_model_fixture());
+        unknown_question.cause_assessments[0].question_id = "why.nothing".to_owned();
+        assert!(failure(unknown_question).contains("names unknown cause question why.nothing"));
+
+        let mut unknown_relation = with_causes(test_meaning_model_fixture());
+        unknown_relation.cause_assessments[0].relation_id = "nothing-causes-repair".to_owned();
+        assert!(failure(unknown_relation).contains("names unknown event relation nothing-causes-repair"));
+
+        let mut not_a_cause = with_causes(test_meaning_model_fixture());
+        not_a_cause.event_relations.push(causal("care-about-repair", "care-event", "repair-event", EventRelationKind::About));
+        not_a_cause.cause_assessments.push(cause("cause.about", "care-about-repair", None, 0.5));
+        assert!(failure(not_a_cause).contains("of kind about, which names no cause"));
+
+        let mut elsewhere = with_causes(test_meaning_model_fixture());
+        elsewhere.event_relations.push(causal("repair-causes-care", "repair-event", "care-event", EventRelationKind::Causes));
+        elsewhere.cause_assessments.push(cause("cause.elsewhere", "repair-causes-care", None, 0.5));
+        assert!(failure(elsewhere).contains("ends at care-event, not at question why.repair's outcome repair-event"));
+
+        let mut hindering_cause = with_causes(test_meaning_model_fixture());
+        hindering_cause.cause_assessments[1].role = Some(CauseRole::Hindering);
+        assert!(failure(hindering_cause).contains("role hindering does not fit relation care-causes-repair of kind causes"));
+
+        let mut enabling_obstacle = with_causes(test_meaning_model_fixture());
+        enabling_obstacle.cause_assessments[2].role = Some(CauseRole::Enabling);
+        assert!(failure(enabling_obstacle).contains("role enabling does not fit relation strain-constrains-repair of kind constrains"));
+
+        let mut raises = with_causes(test_meaning_model_fixture());
+        raises.cause_assessments[1].without = 0.9;
+        assert!(failure(raises).contains("above the actual 0.8; a cause whose absence would make the outcome likelier or larger stands in its way"));
+
+        let mut lowers = with_causes(test_meaning_model_fixture());
+        lowers.cause_assessments[2].without = 0.5;
+        assert!(failure(lowers).contains("below the actual 0.8; a cause whose absence would make the outcome less likely or smaller brings it about"));
+
+        let mut out_of_band = with_causes(test_meaning_model_fixture());
+        out_of_band.cause_assessments[3].without_band = Some(CauseValueBand { lower: 0.05, upper: 0.1 });
+        assert!(failure(out_of_band).contains("band 0.05..0.1 must hold its reading 0.02"));
+
+        let mut with_itself = with_causes(test_meaning_model_fixture());
+        with_itself.cause_assessments[3].removed_with = vec!["trust-enables-repair".to_owned()];
+        assert!(failure(with_itself).contains("removes relation trust-enables-repair together with itself"));
+
+        let mut opposite = with_causes(test_meaning_model_fixture());
+        opposite.cause_assessments[3].removed_with = vec!["strain-constrains-repair".to_owned()];
+        assert!(failure(opposite).contains("is not a cause of the same direction ending at the outcome repair-event"));
+
+        let mut twice_removed = with_causes(test_meaning_model_fixture());
+        twice_removed.cause_assessments[3].removed_with = vec!["care-causes-repair".to_owned(), "care-causes-repair".to_owned()];
+        assert!(failure(twice_removed).contains("names relation care-causes-repair twice in removed_with"));
+
+        let mut read_twice = with_causes(test_meaning_model_fixture());
+        let mut second = read_twice.cause_assessments[1].clone();
+        second.id = "cause.care.again".to_owned();
+        read_twice.cause_assessments.push(second);
+        assert!(failure(read_twice).contains("already reads the outcome without relation care-causes-repair"));
+
+        let mut same_id = with_causes(test_meaning_model_fixture());
+        same_id.cause_assessments[1].id = "cause.trust".to_owned();
+        assert!(failure(same_id).contains("duplicate cause assessment id cause.trust"));
+    }
+
+    fn with_cause_shares(mut meaning_model: MeaningModelDefinition) -> MeaningModelDefinition {
+        let answer = |key: &str, weight: f64, refers_to: Option<CutAnswerReference>| NormalizedCutAnswer {
+            key: key.to_owned(),
+            weight,
+            meaning: Some(format!("{key} in the repair")),
+            refers_to,
+        };
+        meaning_model.normalized_cuts.push(NormalizedCutDefinition {
+            id: "repair-causes".to_owned(),
+            parent_event_id: "repair-event".to_owned(),
+            question: "Of the pressure the repair took off, how much came from each change?".to_owned(),
+            unit: "the 6 points of family pressure the repair removed".to_owned(),
+            answers: vec![
+                answer("trust", 0.5, Some(CutAnswerReference::Event { event_id: "trust-event".to_owned() })),
+                answer("care", 0.3, Some(CutAnswerReference::Event { event_id: "care-event".to_owned() })),
+                answer("bob", 0.1, Some(CutAnswerReference::Referent { referent_id: "bob".to_owned() })),
+                answer("pressure", 0.05, Some(CutAnswerReference::Process { process_id: "family.pressure".to_owned() })),
+                answer(NORMALIZED_CUT_REMAINDER_KEY, 0.05, None),
+            ],
+            conditioning: None,
+            provenance: vec!["unit-test".to_owned()],
+            withdrawn: None,
+        });
+        meaning_model
+    }
+
+    #[test]
+    fn cut_answers_refer_to_records_once_and_never_from_the_remainder() {
+        let meaning_model = with_cause_shares(test_meaning_model_fixture());
+        validate_meaning_model(&meaning_model, &test_processes()).unwrap();
+        let json = serde_json::to_value(&meaning_model.normalized_cuts[0]).unwrap();
+        assert_eq!(json["answers"][0]["refers_to"], serde_json::json!({ "kind": "event", "event_id": "trust-event" }));
+        assert_eq!(json["answers"][2]["refers_to"]["kind"], "referent");
+        assert!(json["answers"][4].get("refers_to").is_none(), "an answer without a record omits refers_to");
+        let round: NormalizedCutDefinition = serde_json::from_value(json).unwrap();
+        assert_eq!(round, meaning_model.normalized_cuts[0]);
+
+        let mut unknown = with_cause_shares(test_meaning_model_fixture());
+        unknown.normalized_cuts[0].answers[1].refers_to = Some(CutAnswerReference::Event { event_id: "nothing".to_owned() });
+        assert!(failure(unknown).contains("answer care refers to unknown event nothing"));
+
+        let mut unknown_process = with_cause_shares(test_meaning_model_fixture());
+        unknown_process.normalized_cuts[0].answers[3].refers_to = Some(CutAnswerReference::Process { process_id: "person.age".to_owned() });
+        assert!(failure(unknown_process).contains("answer pressure refers to unknown process person.age"));
+
+        let mut remainder = with_cause_shares(test_meaning_model_fixture());
+        remainder.normalized_cuts[0].answers[4].refers_to = Some(CutAnswerReference::Event { event_id: "relationship-event".to_owned() });
+        assert!(failure(remainder).contains("remainder cannot refer to a record"));
+
+        let mut twice = with_cause_shares(test_meaning_model_fixture());
+        twice.normalized_cuts[0].answers[1].refers_to = Some(CutAnswerReference::Event { event_id: "trust-event".to_owned() });
+        assert!(failure(twice).contains("names event trust-event in two answers"));
     }
 
     fn with_importance(mut meaning_model: MeaningModelDefinition) -> MeaningModelDefinition {
@@ -3056,6 +3705,8 @@ mod tests {
             context_roots: vec![],
             importance_scales: vec![],
             event_importance: vec![],
+            cause_questions: vec![],
+            cause_assessments: vec![],
         };
         validate_meaning_model(&referent_only, &test_processes()).unwrap();
     }

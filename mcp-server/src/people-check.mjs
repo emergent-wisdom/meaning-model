@@ -1,4 +1,4 @@
-// The least a story's people must have, read from ordinary model records (docs/PROCESS-BREAKDOWN.md, Part 7). Every
+// The least a story's people must have, read from ordinary model records (docs/PROCESS-BREAKDOWN.md, Part 8). Every
 // person in the accepted world needs the nine slow processes of a life, each with values over time, at least one
 // process of their own, and Cuts read over their life for what they want, how they see their wants' fulfilment, what
 // they see as threatened and what they feel. A person is a referent from the person template (`.person.` in its id)

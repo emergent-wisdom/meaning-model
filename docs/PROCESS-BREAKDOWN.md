@@ -1,9 +1,9 @@
 # Breaking reality down into processes
 
 Read this before you build. It shows how far down a Meaning Model goes. It starts with the Universe and ends with
-one second inside one person, when a taste brings back a childhood. Every tree below was built, or is taken
-directly from, a model an agent made with this tool: the world-history construction, the Ethereum model, and the
-characters of two finished novels.
+one second inside one person, when a taste brings back a childhood. The trees illustrate world history, Ethereum,
+the characters of two published novels and examples written for this guide. The number test uses sketch values to
+check the meaning of each measure. Passing it does not verify a factual value.
 
 **This is the minimum you are expected to build.** You may carve differently, rename anything, replace a
 category with a better one, and go much further: every node in every tree here can be broken down again, without
@@ -14,6 +14,11 @@ end. But the model you leave must be at least this deep:
 
 A model with one or two processes per person is not a model of those people. The previous Book of Conditions had
 194 processes and 108 Cuts for 13 people. Twelve Words had 149 processes and 788 Cuts. Build at least that.
+
+**And every number must mean something.** Each category carries values over time that a reader can understand: a
+unit, defined states, a scale whose anchors say what each value means, or a Cut whose shares divide a named pool. The
+number test below says how to check, and [the number test](NUMBER-TEST.md) applies it to every example in this
+document, with actual numbers and a verdict for each.
 
 ## Design your own trees
 
@@ -42,10 +47,12 @@ Two things are fixed:
 2. **There are two kinds of parts, and they become two kinds of record.**
    - **Dimensions that can all rise together** become separate **processes** with values of their own, recorded with
      `life_values_record`. A person's health, wealth and reputation can all be high at once, so each is its own
-     process.
-   - **Categories that compete for one unit** become a **Cut**: one day's attention, one person's motivation, one
-     unit of belief, one budget. Recorded as a series with `life_series_record`, its shares sum to one, with a
-     remainder for what the categories miss. Where a person's attention goes is a Cut.
+     process. So can their feelings, wants and loves: someone can fear more and love more at once. If you record
+     their intensities or strengths, give each its own measure; those weights are optional.
+   - **Categories that compete for one pool** become a **Cut**: the waking hours of a day, the choices of a period,
+     one unit of belief (a probability), one budget. Recorded as a series with `life_series_record`, its shares sum to
+     one, with a remainder for what the categories miss. Name the pool in the Cut's unit. Where a person's waking
+     hours go is a Cut.
 3. **Open every part that matters into its own parts**, the same way, again and again. A tree that stops at its
    first level is a list, not a model.
 4. **Follow every process over time.** Give it a value at the start, at the end, and after every Event that moves
@@ -60,7 +67,7 @@ Two things are fixed:
    - breaks from what the values around it suggest.
 
    Alternatively, name the Event that moved it in that Event's `process_ids`. Say once, for each process, what its
-   numbers mean. A value that only continues the line around it needs no note: explaining every date is noise. The
+   numbers mean: its unit, the anchors of its scale, or the pool its Cut divides. A value that only continues the line around it needs no note: explaining every date is noise. The
    values report lists the turns and jumps that still say nothing about why. For example:
    - Europe's share of the world's people, 1350: falls from 18% to 14%. The Black Death kills between a third and a
      half of Europe's people.
@@ -81,6 +88,139 @@ Lifecycle of any Thing
 
 Ask all four of everything you model: a planet, a person, a company, a machine, a marriage, a book.
 
+## The number test
+
+Every category you carve must carry numbers over time that a reader can understand. Before you record values for
+one, answer six questions. [The number test](NUMBER-TEST.md) gives the reasons, and applies the questions to every
+example in this document.
+
+1. **What form carries it?** Prefer, in this order:
+   - a value with a real unit, such as hours, money, people or doses;
+   - one of a set of defined states;
+   - a reading on a scale whose anchors say what the values mean;
+   - a share under a Cut, when categories compete for one pool;
+   - a program's output.
+
+   Use a unit whenever one exists.
+2. **What does each value mean?**
+   - A unit says it.
+   - States are defined, and no two hold at once.
+   - A 0–10 scale is anchored at least every two points, each anchor something a reader could observe, so that a
+     6 can be told from a 4. Record only the steps the anchors support.
+   - A Cut names its pool, something that can be counted or pictured: waking hours, choices, acts, money, words,
+     people or land. Every category draws on that same pool. "One unit of her motivation" names none.
+3. **What can it be compared against?** It can be compared against itself over time, against other people, against
+   the person's other states, and against the truth.
+4. **Can it be guessed?** Say from what evidence, with what band, and with which tag.
+5. **What moves it?** Name the Events that change it.
+6. **The verdict:** keep it, revise it, or carry it in words or as states. If no number can be stated, carve finer.
+
+**Composition is not intensity.** A Cut shows how a pool divides, not how much there is. Wherever things can all rise
+together, such as feelings, wants and loves, a separate value can show each one's intensity or strength beside any
+Cut over them. Those weights are optional; without them, intensity or strength remains unknown.
+
+**The anchors.** Every scale from 0 to 10 in this document uses the anchors below. A value between two anchors lies
+between what they say. For a scale of your own, write anchors the same way: at least every two points, each
+something a reader could observe.
+
+| Scale | 0 | 2 | 4 | 6 | 8 | 10 |
+|---|---|---|---|---|---|---|
+| Intensity of any feeling: fear, anger, grief, guilt, shame, pride, envy, gratitude, wonder, loneliness, resentment | not present | noticed, but changes nothing they do | colours some choices; others could notice it | shapes most decisions; hard to set aside | dominates the day; sleep or work suffer | overwhelming; nothing else can be thought |
+| Arousal | asleep | drowsy | calm and alert | keyed up | agitated | panic |
+| Health | dead or dying | bedridden for weeks | often unwell; works with difficulty | unwell at times, but working | well, with minor illnesses | robust |
+| Exhaustion | rested | tired by evening | tired most of the day | tired on waking; makes mistakes | sleep no longer restores them | collapse; cannot work |
+| Pain (the clinical scale) | none | noticed; can be ignored | distracts | hard to ignore; limits what they do | stops ordinary activity | the worst imaginable |
+| Skill in a domain | none | knows the basics; needs help | does routine work alone | handles the hard cases | among the best they know | extends the field |
+| Autonomy at work | every task set by others | chooses the order of set tasks | chooses how | chooses how, and some of what | chooses most of what and how | chooses what and how; answers to no one |
+| Belonging, to a place or group | a stranger there | known by sight | known and greeted | counted on | would be missed if gone | could not imagine leaving |
+| Closeness | strangers | greet each other | talk of daily things | confide some things | confide most things | nothing held back |
+| Trust | would rely on them for nothing | trusts them in small things, and checks | would lend them a small sum | would lend a large sum, or tell a secret | would put their livelihood in their hands | would leave them their children |
+| Standing in a group | unknown to them | known by name | known for their work | credited in conversation | credited in print or by the group's institutions | a name the group's history is told by |
+| Purpose | sees no point in anything | gets through the days | some days have a point | most days have a point | a clear purpose most days | every day serves what they live for |
+| Vocation | none: their life is what others arrange | a vague wish | a strong interest without a place | a calling pursued part of the time | a calling that orders their life | certain what they are for, and doing it |
+| Strength of a want | would not cross the street for it | would take it if offered | gives up an evening for it | gives up money or comfort for it | gives up friends or health for it | would give up anything |
+| Felt control | nothing they do changes it | almost nothing they do changes it | some things help a little | what they do matters a good deal | mostly in their hands | entirely in their hands |
+| Self-worth | worthless | worth less than others | unsure of their worth | as good as most | secure in their worth | unshakeable |
+| Felt competence | fails at everything they try | fails at most of it | manages with help | manages what is asked | does it well | the best at it they know |
+| Pressure on others | asks nothing | asks once | asks again and again | insists | makes it a condition | threatens |
+| Care, in a love | the other's good moves them to nothing | small kindnesses when easy | helps when asked | helps unasked, at some cost | puts the other's good first most of the time | would give their life for it |
+| Attachment | does not miss them | notices their absence | misses them after weeks apart | misses them after days apart | unsettled within hours apart | cannot bear to be apart |
+| Desire | none | a passing wish | seeks them out sometimes | seeks them out often | thinks of them most days | thinks of nothing else |
+| Respect | contempt | little regard | respects some of what they are | respects most of what they are | admires them | the person they most look up to |
+| Commitment | would leave tomorrow | would leave over a small disappointment | would leave over a serious wrong | would leave over one more betrayal | would stay through a betrayal | would never leave, whatever happened |
+| Tension of a passage | nothing at stake now | a want is touched | a want is at risk | a want is at risk, and soon | a want is decided in this passage | a life, or the story's central want, is decided now |
+| Condition of a machine's part | condemned | failing in service | due for overhaul | worn but sound | good | just out of the works |
+| Effort | none | idle wondering | trying | straining | shutting out everything else | the utmost they can |
+| Felt distance of what memory seeks | present | on the tip of the tongue | close | something stirs | a faint sense of something | nothing there |
+| Purism (one person's own process, from Twelve Words) | takes whatever works | prefers the right way when it is easy | prefers the right way at some cost | rarely accepts a shortcut | refuses shortcuts even at a loss | will not touch what is not done the right way |
+
+Mood and valence run from −5 to +5:
+- −5: the worst they have felt;
+- −3: a bad day, low and heavy;
+- −1: a little flat;
+- 0: neither;
+- +1: a little lifted;
+- +3: a good day;
+- +5: the best they have felt.
+
+Where a recognised instrument exists, use its anchors or imitate them. Examples are the GAD-7 for anxiety, the PHQ-9
+for low mood, the Rosenberg scale for self-worth and the UCLA scale for loneliness.
+
+## Causes: why it happened, why it became possible, why it worked
+
+For every outcome that matters, record its most important causes, and, where it can be judged, how much each mattered.
+The outcomes that
+matter include the Events at the top of an importance scale, every turn in a value the work turns on, every decision,
+and every success or failure. Ask three questions of each:
+- **Why did it happen?** What set it off, or decided when it came, and what kept it going.
+- **Why did it become possible?** The conditions it needed.
+- **Why did it work?** What made it succeed rather than fail.
+
+**Every why has a contrast: why this, rather than what?** Why farming began about 11,700 years ago, rather than in the
+hundred thousand years before, has one main cause: the stable, warm climate that began then. Why it began in
+Mesopotamia rather than in Australia has another: the wild cereals within reach. State the contrast first. Sema's
+`ContrastClass` card holds the rule: a cause present in both the outcome and its contrast does not explain why one
+happened rather than the other.
+
+Link each cause to the outcome: `causes`, `enables`, `prevents` or `constrains`. Where the difference can be judged,
+read the outcome without each cause, everything else as it was, on one measure: the probability that the outcome,
+rather than its contrast, comes about, or an amount of it in its own unit. The gap between the actual reading and the
+reading without the cause is the difference the cause made, and it ranks the causes. Record it with
+`life_cause_record`. The weights are optional: a cause linked without one still says what caused what. These values are
+sketches:
+
+| Why farming began, rather than in the 100,000 years before | What it did | Without it | Difference |
+|---|---|---|---|
+| (as it was) | | 0.95 | |
+| a stable, warm climate (the Holocene) | made it possible | 0.10 | 0.85 |
+| more carbon dioxide in the air | made it possible | 0.50 | 0.45 |
+| denser populations | pressed people toward it | 0.70 | 0.25 |
+
+A cause can be named by one of five roles:
+- **enabling:** made it possible;
+- **trigger:** set it off, or decided when;
+- **sustaining:** kept it going;
+- **success condition:** made it work rather than fail;
+- **hindering:** stood in its way.
+
+Why did the locomotive Rocket win at Rainhill in 1829, rather than a rival? On a sketched reading, its multi-tube boiler
+made a difference of 0.5 to its chance of winning, its blast pipe 0.3, and its rivals breaking down 0.3. Ask why it worked rather than broke
+down, and the rivals drop out.
+
+- **Differences do not sum.** Causes act together, so no cause's difference is its share of a total.
+- **Causes that would each have been enough alone** each make no difference when removed alone. Read them removed
+  together (`removedWith`), and say so.
+- **A change in a quantity that adds up divides into parts.** Life expectancy rose by 41.5 years from 1900 to 2025.
+  Each cause of death avoided accounts for some of those years, and the parts sum to the whole. Record that as a Cut
+  over the years gained, whose answers name the cause Events (`refersTo` in `life_series_record`). The deeper causes,
+  such as clean water or vaccines, act together again, so read each one's difference.
+- **Shares of credit among causes that act together mean nothing without a rule for splitting them.** If the blast
+  pipe only helped with that boiler, "the boiler was 60% of the win" cannot be checked.
+- **What drives a process changes over time.** Read its causes in each period. In April the night shifts drove the
+  nurse's exhaustion; by September it was money.
+- **A why is held by someone.** The modeler's account can be set beside a person's own: what Laura blames for her
+  exhaustion against what the model says drove it, with the gap between them.
+
 ## The conceptual decomposition algorithm
 
 This is Fractal Intelligence's operator, as its paper states it (*Fractal Intelligence: Conceptual Decomposition
@@ -89,23 +229,26 @@ world, a person, a want, an institution, a machine, a moment. It does not ask "w
 which gives a procedure. It asks: **what differentiated dimensions must be addressed for this to exist and function
 across every case it claims?**
 
-**Use Sema while you carve.** From Sema 0.9.2, one card, `ConceptualDecomposition`, states this whole method. When
-Sema is connected, resolve it as you carve, and cite it in the notes that record each carve and its verdicts. Its
-steps have cards of their own, for when a step needs its full contract:
+**Sema, if you choose it and it is connected.** Sema is optional: the steps below are the whole method. From Sema
+0.10.0, one card, `ConceptualDecomposition`, also states it; in that release it is `ConceptualDecomposition#f1f4`.
+When the user chooses Sema and it is connected, resolve it as you carve, and cite it in the notes that record each
+carve and its verdicts. Its steps have cards of their own, for when a step needs its full contract:
 
 | Step | Card |
 |---|---|
 | The whole method | `ConceptualDecomposition` |
 | 3. The four tests | `DecompositionGate` |
 | 5. Route real cases through the carve | `RoutingSanityCheck` |
+| 6. Write the synthesis | `Synthesis` |
 | 7. Where to go deeper | `MarginalValueRule` |
 
-In vocabularies before 0.9.2, `ConceptualDecomposition` still names the solver-bound form, now `SolverDecomposition`.
-Read it there for its steps, not for its requirement that every part be a solver.
+In vocabularies before 0.10.0, `ConceptualDecomposition` still names the solver-bound form (`#d0fc` in 0.9.1), which
+0.10.0 calls `SolverDecomposition`. Read it there for its steps, not for its requirement that every part be a
+solver.
 
-Keep searching Sema as you build, not only at the start. When a value turns or a life changes, look for the mechanism
-that drives it, use its mechanism and failure modes to check your account, and cite the pattern beside what it
-explains.
+When using Sema, keep searching it as you build, not only at the start. When a value turns or a life changes, look
+for the mechanism that drives it, use its mechanism and failure modes to check your account, and cite the pattern
+beside what it explains.
 
 ### 1. State the claim frame first
 
@@ -156,6 +299,9 @@ Generate candidate dimensions, more than you will keep. Test each against the fo
 
 A candidate that fails or stays uncertain is not deleted. Reframe it, narrow the claim, or keep it as a **labeled
 frontier alternative** with its verdict and reasons. Later evidence may promote it.
+
+In a Meaning Model, a candidate that passes the four tests must also pass the number test above. It must carry a
+number over time whose meaning a reader can state.
 
 ### 4. Search for what is missing
 
@@ -252,7 +398,7 @@ person → body → health → an illness (tuberculosis)
        → the lungs → cough, fever, weight, breath (each a process, by week)
        → each treatment tried, its cost, who paid, what it did
 
-person → knowledge → what he knows about his brother's debts
+person → knowledge → what she knows about her brother's debts
        → each debt → when she learns of it, from whom, how sure she is, what she does with it
 
 person → work → skill → each skill (reading accounts, persuading, drawing)
@@ -450,6 +596,14 @@ History: the lifecycle of the Universe (13.8 billion years ago → now)
 │                   └── Audiences
 ```
 
+Every node in this tree can carry a number over time. The number test gives each one a measure and values from
+10,000 BCE to 2025. Three do not carry a world number:
+- preparation and storage, whose meaning changes once food is bought from shops;
+- the setting of terms, which merges into their return;
+- the selection of knowledge, which warrant carries.
+
+"Gender" and "norms" are carved into measured processes rather than read as one number each.
+
 **Places open the same way, inside the whole.** A place is a Thing with a lifecycle, opened by an encapsulation
 cut: the Earth, then an M49 region, then a subregion, then a country, then smaller areas. "The people living in X"
 are a Thing too, and their history uses the same twelve dimensions and the same questions as humanity's. Readings
@@ -495,16 +649,20 @@ A bank (founding → failure, merger or today)
     ├── reserves against deposits (share)
     ├── its loans, as a Cut by borrower: trade / land / government / households
     ├── defaults (count, money), profit (money per year)
-    ├── staff (count), and a Cut: how the partners divide their attention
-    │   (lending / collecting / courting depositors / the regulator)
-    ├── reputation among other banks (scale), trust of depositors (scale)
+    ├── staff (count), and a Cut over the partners' working hours:
+    │   lending / collecting / courting depositors / the regulator
+    ├── reputation among other banks (the discount at which they take its bills, %)
+    ├── trust of depositors (deposits withdrawn a week, %)
     └── the rules it works under (state: which law, from which year)
 ```
 
-### A protocol and its community: Ethereum (from the market-mind model)
+### A protocol and its community: Ethereum
 
-The core priority is a Cut read every half-year from 2014. Each category is opened into its own Cut, and Events
-move the shares.
+The core priority is a Cut read every half-year from 2014. Each category is opened into its own Cut, and Events move
+the shares. A unit such as "share of core protocol priority" leaves the pool unclear. The number test asks for one
+that can be checked: the core developers' work
+in each half-year, read from the agenda of their calls and the changes each upgrade ships. It also adds measures in
+real units beside the Cut, which check it.
 
 ```
 Ethereum (2014 → now)
@@ -530,6 +688,8 @@ Ethereum (2014 → now)
 │       ├── wallets
 │       ├── fees
 │       └── interoperability
+├── measures beside the Cut (the number test's addition): the largest pool's share of stake (%), clients with
+│   more than a tenth of validators (count), the fee for a transfer ($), rollup transactions a day
 ├── Events that move the shares: the DAO fork, the ICO boom, CryptoKitties congestion, the rollup roadmap,
 │   the Beacon Chain, the Tornado Cash sanctions, the Merge, the FTX collapse, Dencun, the spot ETF,
 │   the Foundation reshuffle, Pectra
@@ -543,7 +703,8 @@ A machine is a Thing whose parts each have their own lifecycle and state. Openin
 ```
 A steam locomotive (designed → built → in service → rebuilt → scrapped)
 ├── Identity: the same engine, by its number, through rebuilds
-├── Composition (each a process: condition, and percent built while it is being built)
+├── Composition (each part a process: its condition, 0–10 and anchored, and percent built while it is being
+│   built)
 │   ├── the boiler and firebox
 │   ├── the cylinders and valve gear
 │   ├── the frames, wheels and running gear
@@ -551,7 +712,7 @@ A steam locomotive (designed → built → in service → rebuilt → scrapped)
 │   ├── the cab and controls
 │   └── the tender: coal and water
 └── Processes
-    ├── condition of the whole, against the condition of each part
+    ├── miles since the last heavy overhaul, and the condition of the whole against each part's
     ├── miles run (per year), failures (count), time in the works (days per year)
     ├── coal and water used (per mile)
     ├── its crews, each a person, and the shed it works from
@@ -574,8 +735,9 @@ A constitution (drafted → adopted → amended → suspended or kept)
 A housing market                    a price (GBP), a deposit saved (GBP), months to buy (count)
 A crypto asset                      a price, a wallet balance, a stake
 A hospital                          intensive care occupancy (share), staff, waiting time
-A shared house                      members (count), messages per day, belonging (Cut over members)
-A street                            households, rents, noise, who knows whom
+A shared house                      members (count), messages per day, each member's belonging (0–10, anchored)
+A street                            households, rents (£ a month), noise (complaints a month), who knows whom
+                                    (% of households knowing each other by name)
 ```
 
 ### A relationship
@@ -584,10 +746,11 @@ A relationship is a Thing between two lives, with a lifecycle of its own.
 
 ```
 The relationship between two people (met → close → strained → ended or kept)
-├── closeness (scale), trust each way (scale), dependence each way (scale)
+├── closeness (0–10, anchored), trust each way (0–10, anchored)
+├── dependence each way (the share of one's income, care or work that comes from the other)
 ├── contact (meetings per month, letters per month)
-├── what flows between them: money, care, information, obligation
-├── conflict (scale), and what it is about (Cut)
+├── what flows between them: money, care, information, obligation, each in its unit
+├── conflict (quarrels a month), and what the quarrels are about (a Cut over them)
 └── each one's reading of the other (an inner perspective: how A reads B, against how B is)
 ```
 
@@ -602,13 +765,14 @@ A PERSON (birth → death)
 │
 ├── IS: the slow processes, values across the whole life (person_scaffold gives the first nine)
 │   ├── body
-│   │   ├── health (scale), and its Cut: healthy functioning / illness burden
+│   │   ├── health (0–10, anchored; days a month unable to work), and a Cut over their ordinary
+│   │   │   capacity: healthy functioning / illness burden
 │   │   ├── energy and sleep (hours, scale)
 │   │   ├── illness, by condition: each illness a process with onset, course and treatment
-│   │   ├── injury, pain
-│   │   ├── mental health: mood, anxiety, exhaustion
-│   │   ├── substances: alcohol, tobacco, opiates
-│   │   └── age and appearance, fertility
+│   │   ├── injury, pain (0–10, the clinical scale)
+│   │   ├── mental health: mood, anxiety, exhaustion (anchored scales)
+│   │   ├── substances: alcohol, tobacco, opiates (doses a day)
+│   │   └── age, fertility (appearance in words, unless the story turns on it)
 │   ├── kin
 │   │   ├── parents (alive, closeness to each)
 │   │   ├── siblings
@@ -617,7 +781,7 @@ A PERSON (birth → death)
 │   │   └── wider family, inheritance, family name
 │   ├── partnership
 │   │   ├── status (state: single, courting, married, separated, widowed)
-│   │   ├── closeness, conflict, fidelity, dependence
+│   │   ├── closeness and trust (two processes), conflict, fidelity (states), dependence (share of means)
 │   │   └── what the law gives and takes (for example, a married woman's property under coverture)
 │   ├── work
 │   │   ├── occupation (state), employer, workplace
@@ -627,10 +791,10 @@ A PERSON (birth → death)
 │   ├── place
 │   │   ├── residence (position over time: each home is a place with dates)
 │   │   ├── region, distance from kin and work
-│   │   └── belonging to the place (scale)
+│   │   └── belonging to the place (0–10, anchored)
 │   ├── means
 │   │   ├── income, savings and assets, debt
-│   │   ├── security of means (scale)
+│   │   ├── runway: months they could live on what they have
 │   │   └── dependence on others' money
 │   ├── knowledge
 │   │   ├── education and training
@@ -644,7 +808,7 @@ A PERSON (birth → death)
 │   ├── meaning
 │   │   ├── purpose and vocation
 │   │   ├── faith and worldview
-│   │   └── identity: who "we" are for them
+│   │   └── identity: the "we" they name first, and second (states)
 │   └── speech
 │       └── Cut per episode: which register carries their speech
 │
@@ -654,6 +818,9 @@ A PERSON (birth → death)
 │     Laura: exhaustion, her spoken share in the household, trust in Kieran's money, holding silent
 │     Kieran: fear of being left behind, honesty with Laura, screen hours, sleep hours, stake (GBP),
 │             known faces, belonging to the sharehouse
+│   the number test's revisions of those: "nobody's mother" as her belief about herself (a credence);
+│   Laura's spoken share as her share of the words spoken at home; her trust as her credence in
+│   Kieran's account of their money; holding silent as the things she knows and has not said (a count)
 │   a flaw is one: the event that taught it, the situations that trigger it, what it costs, how it changes
 │
 ├── PERIODS: the life cut into stages and into the story's periods, each a child Event with readings
@@ -662,25 +829,29 @@ A PERSON (birth → death)
 │   ├── each adult stage: marriage, work, children, loss
 │   └── each period the story covers, finer: by year, by season, by chapter
 │
-│   In every period, Cuts:
-│   ├── WHAT: wants, as motivational attention over this person's own wants, carved as a concept per person
+│   In every period, Cuts, each over a named pool, and optional intensities beside them:
+│   ├── WHAT: wants, as a Cut over the choices of the period by the want each serves, over this person's own
+│   │     wants, carved as a concept per person; optionally the strength (0–10) of each want that drives them
 │   │     a shared start: autonomy / belonging / competence / understanding / well-being
 │   │     then each person's own, e.g. Twelve Words:
 │   │       what Barbara wants → credit / freedom / leaving something / verification
 │   │       what Kieran wants  → loyalty to the band / Laura / the map / mattering / no trouble / safety
 │   │       what Laura wants   → being cared for / competence / holding silent / home / …
-│   ├── outlook: how fulfilment of the active wants is anticipated (assured / threatened)
+│   ├── outlook: the share of their active wants, weighted as in the wants Cut, that they see as threatened
+│   │     (assured / threatened), and their felt chance (0–1) for each want that matters
 │   ├── threat: what is seen as threatened, conditional on the outlook's threat, opened by a carve:
 │   │     what a life has at stake → body and health / home and safety / the people they care for /
 │   │                                self and meaning / standing and belonging / what they depend on /
 │   │                                work and livelihood
 │   │     and which of their own wants is at risk
-│   ├── HOW: problem-solving attention (framing / deciding)
+│   ├── HOW: problem-solving, a Cut over the decisions of the period (framing / deciding)
 │   │   ├── framing (abstract / concrete)
 │   │   └── deciding (impartial / personal)
-│   ├── FEELS: emotional appraisal (anger / anticipation / disgust / fear / joy / sadness / surprise / neutral)
+│   ├── FEELS: a Cut over their waking hours by the feeling that colours them (anger / anticipation /
+│   │     disgust / fear / joy / sadness / surprise / neutral); optionally the intensity (0–10, anchored) of each feeling
+│   │     that drives them, since the Cut shows composition, not how much (Part 4)
 │   ├── body condition (healthy functioning / illness burden)
-│   ├── days: what occupies their waking days (work / family / illness / study / …)
+│   ├── days: a Cut over their waking hours (work / family / illness / study / …)
 │   └── outlook on their own work or project (assured / threatened)
 │
 ├── SHOCKS: each a change arc (change_arc_scaffold): anticipation → focal change → adaptation
@@ -702,10 +873,10 @@ A PERSON (birth → death)
 │   ├── exit, voice or loyalty
 │   ├── someone else's script or their own voice
 │   ├── wonder, appetite or anxiety
-│   ├── their own reason, an alibi, or recognition
-│   ├── a depleted, tired or rested body
+│   ├── the account they give of why they acted: the real reason, an excuse, or a bid to be seen
+│   ├── the body they act from: depleted, tired or rested (a state at each act)
 │   ├── gift, reciprocity or market
-│   └── wanting, bartering or standing for something
+│   └── for each request they make: pleading for it, trading for it, or claiming it as a right
 │
 ├── INNER PERSPECTIVES: how they read others and the world, which can be wrong
 │   ├── how they read another person's attention or intent
@@ -776,7 +947,214 @@ readings in every period: wants, outlook, wants at risk, framing, deciding, prob
 working life and speech register. Twelve Words added change arcs for every shock, life places for every principal,
 three relationships and nine lenses: 788 Cuts in all.
 
-## Part 4. Time inside a life
+## Part 4. The inner life, in numbers
+
+The Meaning Model's paper names its boldest idea plainly. A person's inner state can be described, at a declared
+resolution, as a set of numbers and states that change over time: their wants, feelings, beliefs, attention and
+outlook, opened into ever finer detail. "Nobody has recorded hundreds of such variables across a whole life, because
+nobody needed to; a language model can now construct them."
+
+This is where a model can do what nobody has done before. People are the most interesting things to follow over
+time. No one ever tracks how much someone fears, loves, hopes, trusts or feels ashamed, month by month, across a life.
+Put numbers on it.
+
+Every number here passes the number test above, and the scales use its anchors. [The number test](NUMBER-TEST.md)
+tried each one with actual values before it was kept. The forms it rejected are named below, so you do not reach for
+them:
+- love divided among its objects as a Cut;
+- felt debt on an eleven-point scale;
+- "the sense that life is going somewhere";
+- shares of feelings second by second.
+
+Two rules carry most of the weight:
+- **A feeling's intensity is its own scale.** A Cut over feelings shows how they divide a period, not how strongly
+  they are felt. Someone's best year could carry the same share of joy as an ordinary one. An optional intensity
+  from 0 to 10, with the anchors above, can show the difference. Omitting it leaves that question open; it does not
+  remove the need to follow the person's processes and Cut readings over time.
+- **Name the pool of every Cut over the inner life.** Use the person's waking hours, the choices of a period, or the
+  acts that a reading covers. Never use "one unit of her motivation".
+
+### A feeling, carved
+
+This is the conceptual decomposition applied to "a feeling".
+
+- **The claim frame.**
+  - The concept: an episode of feeling in one person.
+  - The purpose: to follow how a person's feelings change and what they make the person do.
+  - The range: every person, in every culture and period, at any moment.
+- **The climb:** Event → Lifecycle → a person's life → the inner life → affect → a feeling.
+- **The carve.** Every dimension carries a number:
+
+```
+A FEELING (an episode, in one person, about something)
+├── object: what it is about              a Cut over the feeling, by its objects (a person, a want, an event,
+│                                         oneself), or none, for a mood
+├── appraisal: what it says about a want  a Cut: gained / threatened / lost / blocked / violated / unexpected;
+│                                         the facet follows from it (fear = threatened loss under uncertainty)
+├── intensity                             0–10, anchored, by moment, day, month or year
+├── core affect                           valence −5 to +5 and arousal 0–10, anchored; for a mood above all,
+│                                         since a feeling with an object carries most of this in its intensity
+├── body                                  in units: heart rate, hours slept, meals skipped, tears
+├── action tendency: what it pushes to    a Cut over the urge: approach / avoid / attack / freeze / hide /
+│                                         repair / reach out, checked against what they then do
+├── expression: shown or hidden           for each person present, a state: shown / masked / hidden
+├── regulation: what they do with it      a Cut over the hours of the episode: act on it / suppress / reappraise /
+│                                         distract / share / numb
+├── course                                intensity at dated moments: onset, peak and decay; episode, mood or
+│                                         disposition
+└── history: what taught it               the Event that taught it, and how often it is relived (count a month)
+```
+
+- **The completeness test,** against an independent account: Scherer's component process model of emotion. It
+  lists appraisal, the bodily response, the action tendency, the expression and the felt experience. All five have a
+  home here: the appraisal; the body; the action tendency; the expression; and intensity with core affect. Object,
+  regulation, course and history are added because a life model follows a feeling across time, which a single
+  episode does not.
+- **The routing check.** Three cases each find exactly one home per question:
+  - a woman's dread when her husband learns of her debts;
+  - a man's shame after a lie at work;
+  - the narrator's joy at the taste of the madeleine.
+
+### The inner life, with its numbers
+
+```
+THE INNER LIFE (beneath the person's inner-process root; their own account, which can be wrong)
+├── feelings
+│   ├── mood                  valence and arousal, morning and evening, by day, week or year
+│   ├── the feelings now      a Cut over their waking hours by the feeling that colours them: joy / sadness /
+│   │                         fear / anger / disgust / surprise / trust / anticipation / neutral
+│   ├── each driving feeling  intensity 0–10 over the life, opened as below (fear, love, …)
+│   └── dispositions          how readily each feeling comes: episodes a month, by year, shaped by Events
+├── wants
+│   ├── each want             its strength 0–10, anchored; its operation (preserve / create / transform / end),
+│   │                         target, desired condition, horizon (a date) and depth (valued in itself, or for
+│   │                         another want)
+│   ├── its course            a state over time: forming / active / pursued / satisfied / frustrated /
+│   │                         abandoned / transformed
+│   └── motivational attention   a Cut over the choices of the period, by the want each one serves
+├── outlook                   the share of the active wants, weighted as in the Cut above, that they see as
+│   │                         threatened (assured / threatened)
+│   ├── felt chance           0–1 for each want that matters, as they see it
+│   ├── felt control          0–10, anchored
+│   └── what is at stake      a Cut over the threatened share: body and health / home / people they care for /
+│                             self and meaning / standing / what they depend on / work
+├── beliefs                   for each fact the story turns on: credence 0–1, from when, from whom; and whether
+│                             it is true (the world can differ)
+├── attention                 a Cut over their waking hours, by period, day or scene
+├── the self                  self-worth and felt competence, 0–10 each, anchored; how they see themselves
+│                             against how others see them (two readings of one scale, compared)
+├── relations as felt         for each person who matters: trust and closeness (0–10, anchored), resentment (an
+│                             intensity), and felt debt, a state: I owe them much / a little / even / they owe me
+│                             a little / much
+└── meaning                   purpose and vocation, 0–10 each, anchored; faith or worldview as states
+```
+
+### Fear, opened
+
+```
+FEAR (of one person, across their life)
+├── intensity                 0–10 by month; by day around the Events that move it
+├── of what                   a Cut over the fear, with the person's own words for its kinds, e.g. being found
+│                             out / being left outside / harm to someone they love / losing what they have /
+│                             making it real
+├── felt likelihood           0–1 that the feared thing happens, as they see it
+├── felt control              0–10, anchored as above
+├── avoidance                 hours a week spent avoiding it; decisions put off (count); places not gone (count)
+├── the body                  hours slept; meals skipped
+├── what it does to them      honesty (the share of what they tell that is true); strategy breadth (options they
+│                             consider, count); pressure they put on others (0–10, anchored); recovery after a
+│                             failure (days)
+├── course                    when it began, its peaks, what quiets it
+└── what taught it            the Event, and how often it is relived (count a month)
+```
+
+The worked example `life-sim://example/fearless-care` runs the last branches as numbers. Facing the same threat, a
+protector driven by fear gives high attention but narrows its strategies, is less honest and puts more pressure on
+others. One with deep care and little fear keeps its honesty and its range of strategies, and recovers better after
+failure.
+
+### Love, opened
+
+Love is not one pool. A parent can love a second child without loving the first less. If its strength is recorded,
+each love has its own measure; love is never a Cut over the people loved. Where love goes in practice is a Cut over the hours of care
+the person gives, because those hours do compete.
+
+```
+LOVE (one person's love for one person, a shared life, the truth between them, the work, or themselves)
+└── each love                 followed as processes over the life of the relationship, each 0–10 and
+                              anchored unless a unit is given:
+    ├── care                  how much the other's good moves them to act
+    ├── attachment            how much they miss the other when apart
+    ├── desire                wanting to be with, to have, to make
+    ├── respect               admiration for who the other is
+    ├── commitment            what it would take for them to leave
+    ├── sacrifice             what they give up for it, in units: money, hours a week, wants given up (count)
+    ├── trust                 readiness to rely on the other
+    └── self-expression       the share (0–1) of what they say and do in it that is their own voice, not a
+                              part they play
+```
+
+Follow all eight for the relationships the work turns on; others need closeness and trust. The paper's own example
+scores one episode against a model of love with care, attachment, desire and sacrifice. The fit Cut there is 0.70
+matched, 0.20 not matched and 0.10 unresolved, with strong fit on care and attachment and weak fit on sacrifice.
+Follow the components over time as well as scoring single episodes.
+
+### Fear or love, as the source of what someone does
+
+Every act can come from fear or from love, and what it does to the person differs. For each consequential act:
+
+- **The source,** a Cut over what drove the act: fear / love / remainder. Inside fear: being found out, being left
+  outside, harm to someone they love, losing what they have, making it real. Inside love: for a person, for a shared
+  life, for the truth between them, for the work. Read it coarsely: shares finer than a fifth are noise.
+- **Three readings, compared:** the actual source; the source the person believes; and the source others read into
+  it. The gaps between them are numbers worth following.
+- **The aftermath:** their mood's valence after the act, against before.
+- **Over a life:** the mean share of love across their consequential acts, by year. A life that moves from fear
+  toward love has changed at its root.
+
+### Other feelings, each with its numbers
+
+| Feeling | Numbers over time |
+|---|---|
+| Anger | intensity 0–10; at whom (a Cut over the anger); resentment 0–10 by month |
+| Shame or guilt | after an act, a Cut: shame (hide) / guilt (repair) / neither; how long it lasts (days) |
+| Pride | 0–10; in what (a Cut: work, family, standing, self) |
+| Hope | felt chance (0–1) and how much it is wanted (0–10), followed separately |
+| Grief | intensity 0–10 by week after a loss; waves (count a month); what returns it |
+| Loneliness | 0–10; hours alone against hours they want to be alone |
+| Envy | 0–10; of whom (a Cut); what it pushes to (a Cut: strive / spoil / withdraw) |
+| Gratitude | 0–10; to whom (a Cut) |
+| Wonder or curiosity | 0–10; toward what (a Cut); hours given to it |
+
+### One person's year, in numbers
+
+An illustration of what the model holds: a nurse on an intensive-care unit, with a partner and a shared plan to buy a
+house. Her mood runs from −5 to +5 and the scales from 0 to 10, each with its anchors. Her trust in her partner's
+money is a credence: how likely she thinks his account of their money is true.
+
+| Month | Mood | Exhaustion | Fear for the house | Closeness to partner | Credence in his account | What moved it |
+|---|---|---|---|---|---|---|
+| Jan | +1 | 5 | 2 | 8 | 0.9 | — |
+| Apr | −1 | 8 | 3 | 7 | 0.9 | the rota puts her on more nights |
+| Jul | −2 | 7 | 6 | 6 | 0.5 | a savings statement does not add up |
+| Sep | −3 | 7 | 8 | 4 | 0.1 | he admits the money is gone |
+| Dec | 0 | 6 | 5 | 6 | 0.4 | they decide together what to do |
+
+Each value is a guess, tagged; each turn has a note. The same columns can be compared with her partner's, and with
+hers the year before.
+
+### Every grain of time
+
+The same inner life is read at every grain:
+- **a life:** dispositions and the share of acts from love, by year;
+- **a period:** mood, wants and outlook, by month;
+- **a day:** morning and evening mood, and what happened between them;
+- **a scene:** the feelings at each beat, and what each person shows or hides;
+- **a moment:** seconds, as in the madeleine of Part 6.
+
+A coarse reading must agree with the finer ones inside it: a month's mood with the mean of its days.
+
+## Part 5. Time inside a life
 
 The same life is read at many grains, each inside the one above:
 
@@ -791,7 +1169,7 @@ a life                 decades       the nine slow processes, coarse values at e
 
 A long reading holds until finer readings open it. Open it wherever something happens.
 
-## Part 5. One moment, all the way down: Proust and the madeleine
+## Part 6. One moment, all the way down: Proust and the madeleine
 
 In *Swann's Way* (1913), the narrator, grown up and dispirited on a winter day, is offered tea and a small cake by
 his mother. He soaks a piece of the cake in the tea and tastes it. A joy without any cause he can name runs through
@@ -806,7 +1184,7 @@ The Meaning Model holds this moment as the finest level of a life, linked to a p
 The narrator's life (birth → death)
 ├── IS: body, kin, partnership, work, place, means, knowledge, standing, meaning, speech …
 ├── meaning
-│   └── vocation as a writer (scale): long dormant; this moment begins its return
+│   └── vocation as a writer (0–10, anchored): long dormant; this moment begins its return
 ├── PERIOD: childhood at Combray (years)
 │   ├── place: his great-aunt's house at Combray; his aunt Léonie's room
 │   ├── EPISODE: Sunday mornings, before Mass (a repeated episode, read as a series)
@@ -817,16 +1195,17 @@ The narrator's life (birth → death)
 │       each a Thing with its own life, unrecalled for decades
 │
 ├── PERIOD: adult life, years later (years)
-│   ├── meaning: low (scale), a mood of dreariness and a sense of a depressing tomorrow
+│   ├── meaning: purpose low (2 of 10), a mood of dreariness and a sense of a depressing tomorrow
 │   └── EPISODE: a winter day, coming home cold (hours)
 │       └── SCENE: his mother offers tea and a cake; he declines, then accepts (minutes)
 │           ├── position: at home; the cup, the spoon, the plump little cake
 │           └── MOMENT: the taste (seconds), opened into inner processes, each with values second by second
-│               ├── sensation (Cut over what occupies the senses: taste / warmth / the room / thought)
-│               ├── FEELS (Cut): joy / puzzlement / anxiety that it will vanish
-│               │     joy rises at once, with no cause he can name; the dreariness falls away
-│               ├── attention (Cut): the taste itself / the search for its cause / the room around him
-│               ├── memory search (a process): effort (scale), attempts (count), the felt distance of what he seeks
+│               ├── sensation: the order in which taste, warmth, the room and thought register (a state per beat)
+│               ├── FEELS: the intensity (0–10) of joy, puzzlement, and anxiety that it will vanish, per beat
+│               │     joy 8 at once, with no cause he can name; 6 at the second mouthful; 4 at the third
+│               ├── attention: the taste itself, the search for its cause, or the room (a state per beat)
+│               ├── memory search (a process): effort (0–10, anchored), attempts (count: about ten), and the
+│               │   felt distance of what he seeks (0–10, anchored)
 │               │   ├── attempt 1: a second mouthful: less
 │               │   ├── attempt 2: a third: less again
 │               │   ├── turning inward: shutting out sound and thought, clearing a space
@@ -834,7 +1213,7 @@ The narrator's life (birth → death)
 │               ├── the cause, as he reads it (inner perspective): first "in the tea", then "in me"
 │               ├── retrieval (an Event that links two periods): the taste is recognized as the madeleine
 │               │   of Sunday mornings at Combray (relation: reactivates → the childhood episode)
-│               └── expansion (a process in seconds, then minutes): what returns, each Thing again present to him
+│               └── expansion (a count, in seconds, then minutes): what returns, each Thing again present to him
 │                   ├── his aunt's room
 │                   ├── the house, and the little pavilion behind it
 │                   ├── the town: the square, the streets he ran along, the paths
@@ -849,29 +1228,30 @@ The narrator's life (birth → death)
 
 Every level here is an ordinary record:
 - **the life, periods, episodes, scene and moment** are Events, each inside the one above;
-- **joy, attention and sensation** are Cuts at the moment, read second by second;
+- **joy** is an intensity read beat by beat; **attention and sensation** are states in order, because the text
+  gives their order, not their proportions;
 - **effort and attempts** are values of the memory-search process;
 - **the retrieval** is an Event related to the childhood episode it brings back;
 - **what returns** is a set of Things, each with its own life.
 
 That is how far down the model can go: from the Universe to one second in which a life touches its childhood.
 
-## Part 6. The book itself
+## Part 7. The book itself
 
 The telling is a Thing too, read in reading order, not world time:
 
 ```
 The book (first page → last)
 ├── chapters, scenes, passages: each placed in reading order and linked to the world Events it tells
-├── tension (scale, by passage)
+├── tension (0–10 by passage, anchored)
 ├── disclosure: what the reader knows, suspects and has been misled about, by passage
 ├── pacing: world time told per page
-├── point of view: whose perspective each passage is held in
-├── the narrator's register: a process across the text, with Cuts by chapter
+├── point of view: whose perspective each passage is held in (a Cut over its words)
+├── the narrator's register: a process across the text, with Cuts over the sentences of each chapter
 └── the author: a person with a life (Part 3), and when, knowing what, they write
 ```
 
-## Part 7. The minimum: at least this
+## Part 8. The minimum: at least this
 
 You may do more, and change any category, but leave at least the following.
 
@@ -879,12 +1259,19 @@ You may do more, and change any category, but leave at least the following.
 
 | What | At least |
 |---|---|
-| Every person who appears more than in passing | A life from birth to death (or to the end of the model). The nine slow processes (`person_scaffold` gives them) plus speech, each with values across the life. At least one process of their own. Cuts read over the life, in every period, for what they want, how they see their wants' fulfilment, what they see as threatened and what they feel. The coverage report checks this for every person in a story and names what each one lacks; the pass is not done until no one lacks anything. |
+| Every person who appears more than in passing | A life from birth to death (or to the end of the model). The nine slow processes (`person_scaffold` gives them) plus speech, each with values across the life. At least one process of their own. Cuts read over the life, in every period, for what they want, how they see their wants' fulfilment, what they see as threatened and what they feel. The coverage report checks this for every person in a story and names what each one lacks; the pass is not done until no one lacks anything. Every scale is anchored and every Cut divides a named pool (the number test). |
 | Every principal | Everything above, plus in every period and every chapter: framing, deciding, body, days and speech register. A change arc for every shock. A drawn decision Cut for every consequential choice. At least two lenses on their acts. Their reading of the other principals. Their places over time. |
 | Every relationship between principals | A relationship Thing: closeness, trust each way, what flows between them, its conflicts. |
 | Every institution, machine, document or market the story turns on | A lifecycle, opened into its parts. Its processes are followed over the story's span and before it. |
+| Every Event the story turns on | Its most important causes, linked to it, against a stated contrast. How much difference each made is optional (`life_cause_record`). |
 | The world beneath | The dimensions of Part 1 that touch the lives, at the place and era of the story, with the long developments that explain them. |
-| The book | Its telling processes in reading order (Part 6). |
+| The book | Its telling processes in reading order (Part 7). |
+
+**Optional, and worth doing wherever a number can be judged:**
+- an intensity for each feeling that drives a person, and the strength of each want that drives them (Part 4);
+- how much difference each cause made (`life_cause_record`).
+
+The coverage report does not require them.
 
 The two previous books are the benchmark:
 
@@ -895,13 +1282,14 @@ The two previous books are the benchmark:
 
 A new story of similar length should land in the same range or above it.
 
-**An account of the real world.** The tree of Part 1 to the depth of its measures, for the span asked. Places are
-opened by encapsulation where the question needs them.
+**An account of the real world.** The tree of Part 1 to the depth of its measures, for the span asked, and the most
+important causes of its turning points, with the difference each made where it can be judged. Places are opened by
+encapsulation where the question needs them.
 
 **An organization, a market or a protocol.** Part 2's breakdown: its priorities as a Cut opened into
 subcategories, read at regular intervals, the Events that moved them, and the people who decide, each a life.
 
-## Part 8. Which tool makes which record
+## Part 9. Which tool makes which record
 
 | Record | Tool |
 |---|---|
@@ -909,8 +1297,10 @@ subcategories, read at regular intervals, the Events that moved them, and the pe
 | A shock with anticipation, focal change and adaptation | `life_profile_compile` with `change_arc_scaffold` |
 | A Thing (an institution, a machine) or a relationship | `life_profile_compile` with `thing_scaffold`, `relationship_scaffold` |
 | Events, concepts, carves (abstract cuts), places | `life_model_register`, `life_model_revise` |
-| Values of many processes at once | `life_values_record` |
+| Values of many processes at once, including a feeling's intensity or a want's strength | `life_values_record` |
 | A series of Cuts (wants, outlook, feelings, attention…) | `life_series_record` |
+| A Cut over a change that adds up, its answers naming the cause Events | `life_series_record` with `refersTo` |
+| The most important causes of an outcome, and the difference each made | `life_cause_record` |
 | A decision between continuations | a decision Cut, then `life_direction_draw` |
 | A lens and its answers | `life_lens_define`, `life_lens_place` |
 | How a person reads another | Cuts under that person's inner perspective root |

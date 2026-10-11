@@ -12,6 +12,16 @@ and human-author feedback workflows; `alien` adds mechanism search through inven
 `MEANING_MODEL_ADDONS=storytelling,alien`; they use the same core. Estimator and
 reading settings are independent of these add-ons.
 
+The instructions the server gives the calling agent are the user's choice. Set
+`MEANING_MODEL_INSTRUCTIONS` to `full` (the default: the Meaning Model's own), `simple` (the
+method in a few sentences and where the documentation lives; `MEANING_MODEL_SIMPLE=1` is its
+older name), the absolute path of a Markdown file whose text replaces ours, or `full+` followed
+by such a path to add the file after ours. Only what the agent is told changes: the tools,
+their checks and the guides stay the same. In simple and replacement-file modes, guides
+are offered as reference, with none required and no opening questions asked. Full and
+`full+` keep the default guides and questions. A file that cannot be read
+stops the server with the reason.
+
 Choose a **purpose** within the work: `observation`, `forecasting`,
 `counterfactual`, `creative_story`, `source_reconstruction`, `person_reflection`,
 `agent_memory`, `user_memory`, or `human_author_feedback`.

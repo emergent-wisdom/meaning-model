@@ -170,6 +170,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_candidate_reroll',
       'life_candidate_roll',
       'life_candidate_route',
+      'life_cause_record',
       'life_construction_export',
       'life_construction_import',
       'life_construction_replay',
@@ -473,6 +474,8 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'temporal_cut_recompositions',
       'importance_scales',
       'event_importance',
+      'cause_questions',
+      'cause_assessments',
     ]);
     const estimationSubmitTool = tools.find(
       ({ name }) => name === 'life_estimation_response_submit',
@@ -551,6 +554,8 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'temporal_cut_recompositions',
       'importance_scales',
       'event_importance',
+      'cause_questions',
+      'cause_assessments',
     ]);
     assert.equal(
       status.structuredContent.meaningModelLayer.schema,
@@ -578,6 +583,8 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'temporal_cut_recompositions',
       'importance_scales',
       'event_importance',
+      'cause_questions',
+      'cause_assessments',
     ]);
     assert.equal(status.structuredContent.controlPlaneUsage.retainedAndPendingReceiptBytes, 0);
     assert.equal(status.structuredContent.estimationExchange.providerNeutral, true);

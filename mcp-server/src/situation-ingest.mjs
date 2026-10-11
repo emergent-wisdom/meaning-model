@@ -8,6 +8,7 @@ import { rebindNarrativeGraph, preflightNarrativeRebind, assertCompleteNarrative
 
 import { retainEstimatorProposal, readEstimatorProposal, runEstimatorRequest } from './estimator-receipts.mjs';
 import { assertDescribedEvents, ensureHolderRoot, holderRootId, nextPlacementOrder, noteKinds } from './construction-record.mjs';
+import { keepAnswerReferences } from './answer-references.mjs';
 
 const id = z.string().trim().min(1).max(1_024);
 const shortId = z.string().trim().min(1).max(256);
@@ -207,7 +208,7 @@ async function executeIngest(input, estimator, service, checkpoint = null) {
   for (const proposal of proposals) {
     const condition = conditioning.get(proposal.id);
     const cut = { id: proposal.id, parent_event_id: proposal.parent_event_id, question: proposal.question, unit: proposal.unit, answers: proposal.answers.map(({ key, weight, meaning }) => ({ key, weight, ...(meaning == null ? {} : { meaning }) })), ...(condition ? { conditioning: condition } : {}), provenance: proposal.provenance };
-    if (cuts.has(cut.id)) { if (!input.replaceExisting) throw new Error(`Cut ${cut.id} already exists; set replaceExisting to supersede it.`); successor.meaning_model.normalized_cuts[cuts.get(cut.id)] = cut; }
+    if (cuts.has(cut.id)) { if (!input.replaceExisting) throw new Error(`Cut ${cut.id} already exists; set replaceExisting to supersede it.`); successor.meaning_model.normalized_cuts[cuts.get(cut.id)] = keepAnswerReferences(cut, successor.meaning_model.normalized_cuts[cuts.get(cut.id)]); }
     else successor.meaning_model.normalized_cuts.push(cut);
   }
   const previousNumber = Number(definition.revision?.number ?? 0);

@@ -687,6 +687,8 @@ test('Meaning Model query pages exact-id projections from the optional Rust-owne
     temporal_cut_recompositions: 0,
     importance_scales: 0,
     event_importance: 0,
+    cause_questions: 0,
+    cause_assessments: 0,
   });
   assert.equal(firstPage.meaningModel.totalRecordCount, 15);
   assert.deepEqual(firstPage.query.collections, [
@@ -705,6 +707,8 @@ test('Meaning Model query pages exact-id projections from the optional Rust-owne
     'temporal_cut_recompositions',
     'importance_scales',
     'event_importance',
+    'cause_questions',
+    'cause_assessments',
   ]);
   assert.equal(firstPage.matchedCount, 15);
   assert.equal(firstPage.returnedCount, 3);
@@ -841,6 +845,8 @@ test('Meaning Model query is explicitly disabled for legacy models', async () =>
     temporal_cut_recompositions: 0,
     importance_scales: 0,
     event_importance: 0,
+    cause_questions: 0,
+    cause_assessments: 0,
   });
   assert.equal(result.matchedCount, 0);
   assert.deepEqual(result.items, []);

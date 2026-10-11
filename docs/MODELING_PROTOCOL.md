@@ -82,6 +82,19 @@ conversational reply does not require rereading or a compliance record.
   out the few Events that matter most. Importance is not containment (what an
   Event is part of), not a Cut's share and not a process value. The viewer keeps
   to a scale's top level, then the top two, and so on.
+- **Causes:** which causes mattered most is a judgment held by a holder against a
+  contrast: why an outcome came about rather than what. With `life_cause_record`,
+  ask the question on one measure (a probability, or an amount in the outcome's
+  own unit) with the actual reading, and read the outcome without each cause,
+  everything else as it was; the gap is the difference the cause made, and the
+  result ranks the causes by it. The weights are optional: a cause can stay a plain causal link. Differences do not
+  sum: causes act together.
+  Read causes that would each have brought the outcome about alone removed
+  together. Name each cause's role: enabling (made it possible), trigger (set it
+  off, or decided when), sustaining (kept it going), success condition (made it
+  work rather than fail) or hindering (stood in its way). A change in a quantity
+  that adds up is better divided by a Cut whose answers name the cause Events
+  (`refersTo` in `life_series_record`).
 - **Perspective:** each claim or assessment belongs under its declared context
   root; a Cut inherits its parent Event's context. Participation, `about`, grounding
   and rendering links do not confer another record's authority. Conflicting

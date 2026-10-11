@@ -18,6 +18,7 @@ import { rebindNarrativeGraph } from './narrative-rebind.mjs';
 import { constructionNoteIn, eventTextSignature, proposeCutShares } from './cut-shares.mjs';
 import { readingTextEvidence } from './reading-evidence.mjs';
 import { READING_MARK, contextKindOf, cutKind, eventDescendants, indexModel, modeledPeople, readDraws, readPerson, storyProfile } from './model-questions.mjs';
+import { keepAnswerReferences } from './answer-references.mjs';
 
 const id = z.string().trim().min(1).max(256);
 const hash = z.string().regex(/^[a-f0-9]{64}$/u);
@@ -911,7 +912,8 @@ export async function rereadLenses(service, estimator, raw) {
   const common = { schema: 'meaning-model-lens-reread/v1', previousModelHash: asked.modelHash, stale: stale.length, read: report, skipped, estimatorCalls: calls };
   if (!read.length) return { ...common, modelHash: asked.modelHash, graphMutation: false, nextStep: stale.length ? 'Nothing could be read again: see skipped.' : 'Nothing is stale.' };
   const successor = structuredClone(model);
-  for (const { old, proposal } of read) { const at = successor.meaning_model.normalized_cuts.findIndex((cut) => cut.id === old.id); successor.meaning_model.normalized_cuts[at] = { ...old, question: proposal.question ?? old.question, unit: proposal.unit ?? old.unit, answers: proposal.answers, provenance: proposal.provenance }; }
+  for (const { old, proposal } of read) { const at = successor.meaning_model.normalized_cuts.findIndex((cut) => cut.id === old.id); successor.meaning_model.normalized_cuts[at] = keepAnswerReferences({ ...old, question: proposal.question ?? old.question, unit: proposal.unit ?? old.unit,
+    answers: proposal.answers, provenance: proposal.provenance }, old); }
   successor.revision = { number: Number(model.revision?.number ?? 0) + 1, previous_model_hash: asked.modelHash, provenance: ['Meaning Model lens reread v1', ...(model.revision?.provenance ?? []).slice(0, 8)],
     reason: `Read ${read.length} reading${read.length === 1 ? '' : 's'} again of records rewritten since they were read, with the same questions, answers and units.` };
   const revised = await service.reviseModel({ requestId: input.requestId, previousModelHash: asked.modelHash, model: successor });

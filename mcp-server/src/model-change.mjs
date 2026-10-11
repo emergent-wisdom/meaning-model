@@ -10,6 +10,7 @@ export const modelChangeCollections = Object.freeze({
   event_relations: ['meaning_model'], event_referent_bindings: ['meaning_model'], physical_cuts: ['meaning_model'],
   realizations: ['meaning_model'], normalized_cuts: ['meaning_model'], context_roots: ['meaning_model'],
   temporal_cut_recompositions: ['meaning_model'], importance_scales: ['meaning_model'], event_importance: ['meaning_model'],
+  cause_questions: ['meaning_model'], cause_assessments: ['meaning_model'],
 });
 
 // A record's identity within its collection, as the service keys it: a context root by the Event it declares, a

@@ -4,6 +4,30 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## 0.10.0 — 2026-10-11
+
+Install the matching 0.10.0 engine. Models without cause questions, cause assessments or answer references keep
+their content and hashes. Older engines refuse models that contain these new records.
+
+- `life_cause_record` records an outcome, a stated contrast, its actual probability or amount, and estimates with
+  named causes absent. It ranks the recorded differences and identifies causes that still lack an estimate.
+  Joint removals are recorded explicitly. These are revisable causal hypotheses, not experimentally established
+  effects or additive shares of a fixed pool.
+- Different measured processes retain distinct cause questions even when they use the same unit. One cause is
+  ranked once per question; duplicate links or readings are refused, and older duplicate records can be removed
+  through `life_model_revise` before re-reading the survivor.
+- A Cut answer can refer to the Event, Thing or process it represents. Re-estimating a Cut or re-reading a series
+  retains that reference while the answer's meaning is unchanged. Model history export and import preserve it.
+- A number-test guide checks the meaning, comparison, estimability and expected changes of proposed scales and
+  Cuts. The process breakdown includes worked examples of inner life and causes, and current conceptual
+  decomposition references. Feeling intensities, want strengths and cause differences remain optional.
+- `MEANING_MODEL_INSTRUCTIONS` chooses the default full instructions, simple instructions, an absolute path to
+  replacement Markdown, or `full+<path>` to append it. `MEANING_MODEL_SIMPLE=1` remains supported. Custom and simple
+  sessions offer guides as optional reference and omit the opening questions; tool validation remains unchanged.
+  Unreadable, empty, non-file or oversized custom files stop startup with an explanation.
+- The conformance notes and modeling guides describe the optional new host records. The character-development
+  checks and prompt-versus-tool workflow guidance released in 0.9.1 remain in place.
+
 ## 0.9.1 — 2026-10-11
 
 Install the matching 0.9.1 engine. Existing models and construction histories retain their content and hashes.

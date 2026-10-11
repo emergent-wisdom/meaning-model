@@ -593,6 +593,42 @@ upsert `importance_scales` and `event_importance` with the Events in one change.
     { "eventId": "event.world_cup_1966", "scaleId": "importance.football", "level": "legendary" } ] }
 ```
 
+## Record causes
+
+Which causes mattered most to an outcome is a judgment held by a holder against a
+contrast: why the outcome came about rather than what. `life_cause_record` asks the
+question on one measure, `"probability"` (that the outcome rather than its contrast
+comes about) or an amount of the outcome `{ unit, processId }`, with the actual
+reading, and reads the outcome without each cause, everything else as it was. A
+cause is an Event linked to the outcome by `causes`, `enables`, `prevents` or
+`constrains`; the tool links it when it is not yet linked, choosing the kind from
+its role, or weighs an existing `relationId`. The gap between the two readings is
+the difference the cause made, and the result ranks the causes by it, lists the
+causes linked to the outcome but not yet read, and asks for a joint reading where
+two causes each made almost no difference alone. Differences do not sum, because
+causes act together. Roles: `enabling` (made it possible), `trigger` (set it off,
+or decided when), `sustaining` (kept it going), `success_condition` (made it work
+rather than fail), `hindering` (stood in its way). The holder is whose account
+this is: yours, or a person's own account of why, to set beside yours. Reading a
+cause again replaces its reading. A change in a quantity that adds up, such as years
+of life expectancy gained, is better divided by a Cut over the change whose answers
+name the cause Events (`refersTo` on `life_series_record` answers).
+
+```json
+{ "requestId": "causes-1", "previousModelHash": "EXACT_CURRENT_MODEL_HASH", "holder": "modeler",
+  "tag": "sketch", "reason": "Why farming began when it did.",
+  "questions": [
+    { "outcomeEventId": "event.farming", "contrast": "rather than in the hundred thousand years before",
+      "measure": "probability", "actual": 0.95,
+      "causes": [
+        { "eventId": "event.holocene", "role": "enabling", "without": 0.1, "band": [0.02, 0.3],
+          "reason": "Without a stable, warm climate, harvests fail too often to rely on sown fields." },
+        { "eventId": "event.co2_rise", "role": "enabling", "without": 0.5,
+          "reason": "At ice-age carbon dioxide, wild cereals yield too little to repay sowing." },
+        { "eventId": "event.dense_populations", "without": 0.7,
+          "reason": "Fewer people would have felt less pressure to grow food, and farmed later." } ] } ] }
+```
+
 ## Rejected answers
 
 If initial provider answers fail validation, the builder returns `status:
@@ -627,9 +663,11 @@ plan for them before you rely on an estimate:
 
 - The weights are not calibrated. Asked which cause is the main driver, Jev often
   puts 0.95 or more on one answer even when the text holds evidence against it.
-  Ask for each cause's share of a change instead, keep your own distribution beside
-  Jev's under your own holder (`suppliedBy` on a supplied distribution), and record
-  which one the model uses.
+  Ask instead how much less likely, or how much smaller, the outcome would have
+  been without each cause, and record it with `life_cause_record`; only a change in
+  a quantity that adds up divides into shares by cause. Keep your own readings
+  beside Jev's under your own holder (`suppliedBy` on a supplied distribution), and
+  record which ones the model uses.
 - Answers follow the supplied text and Jev's prior knowledge. Removing the key
   evidence can leave an answer unchanged. A sensitivity test shows which: ask again
   unchanged, add an irrelevant sentence, then remove or reverse one piece of

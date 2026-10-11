@@ -1,6 +1,7 @@
 import { SERIES_EVENT_MARK, STEADY_MARK } from './series-mark.mjs';
 import { projectNumerics } from './viewer-numerics.mjs';
 import { cutTrajectories } from '../viewer/public/cut-trajectories.js';
+import { keepAnswerReferences } from './answer-references.mjs';
 
 // A series of readings in one call: one question, asked of one subject at many dated intervals, each reading with its
 // reason. The series becomes an ordinary model change (a dated Event per reading inside the subject's life, its Cut,
@@ -28,12 +29,25 @@ const keysOf = (cut) => (cut.answers ?? []).map((answer) => answer.key).filter((
 const sameKeys = (a, b) => a.length === b.length && a.every((key, i) => key === b[i]);
 const partlyOverlap = (a, b) => (a.start < b.start && b.start < a.end && a.end < b.end) || (b.start < a.start && a.start < b.end && b.end < a.end);
 
+// The engine's form of an answer's record: { kind, event_id | referent_id | process_id }.
+const referenceOf = ({ kind, id }) => ({ kind, [`${kind}_id`]: id });
+
 export function seriesChange(previous, input) {
   const mm = previous?.meaning_model;
   if (!mm) throw new Error('The model has no meaning_model to record a series in.');
   const { series, readings, subject } = input;
   if (!SERIES_ID.test(series.id)) throw new Error(`series.id ${series.id} must be lowercase letters, digits, - or _, starting with a letter or digit.`);
   const keys = series.answers.map((answer) => answer.key);
+  // An answer may stand for a record of the model: the cause Event, the Thing or the process it names.
+  const known = { event: new Set((mm.events ?? []).map((item) => item.id)), referent: new Set((mm.referents ?? []).map((item) => item.id)),
+    process: new Set((previous.processes ?? []).map((item) => item.id)) };
+  const named = new Set();
+  for (const answer of series.answers.filter((item) => item.refersTo)) {
+    const { kind, id } = answer.refersTo;
+    if (!known[kind]?.has(id)) throw new Error(`Answer ${answer.key} refers to ${kind} ${id}, which the model does not hold.`);
+    if (named.has(`${kind}:${id}`)) throw new Error(`Two answers refer to ${kind} ${id}; give it one answer, or its share is counted twice.`);
+    named.add(`${kind}:${id}`);
+  }
   if (keys.some((key) => !KEY.test(key) || key === REMAINDER)) throw new Error('Answer keys are lowercase identifiers; name a remainder with series.remainder, not as an answer.');
   if (new Set(keys).size !== keys.length) throw new Error('Answer keys must be distinct.');
   if (!series.conditionedOn && keys.length < 2) throw new Error('A series divides one unit among at least two exclusive answers.');
@@ -91,7 +105,8 @@ export function seriesChange(previous, input) {
     }
     // How sure the reading is, when the agent says: a first estimate low, raised as the interval is recorded again.
     const provenance = [`${reading.tag}: ${reading.why.trim()}`, ...(reading.confidence === undefined ? [] : [`confidence ${Number(reading.confidence.toFixed(3))}`])];
-    const answers = [...keys.map((key) => ({ key, weight: reading.weights[key] ?? 0, meaning: series.answers.find((answer) => answer.key === key).meaning })),
+    const answers = [...keys.map((key) => { const answer = series.answers.find((item) => item.key === key);
+      return { key, weight: reading.weights[key] ?? 0, meaning: answer.meaning, ...(answer.refersTo ? { refers_to: referenceOf(answer.refersTo) } : {}) }; }),
       ...(series.remainder ? [{ key: REMAINDER, weight: reading.weights[REMAINDER] ?? 0, meaning: series.remainder.meaning }] : [])];
     if (enclosing) {
       const parentCut = enclosing.get(id);
@@ -121,7 +136,7 @@ export function seriesChange(previous, input) {
     }
     upsertCuts.push({ id: seriesCutId(series.id, reading), parent_event_id: eventId, question: series.question, unit: series.unit, answers, provenance });
   }
-  const upsert = { normalized_cuts: upsertCuts };
+  const upsert = { normalized_cuts: upsertCuts.map((cut) => keepAnswerReferences(cut, cuts.find((old) => old.id === cut.id))) };
   if (upsertEvents.length) upsert.events = upsertEvents;
   if (upsertRelations.length) upsert.event_relations = upsertRelations;
   return { reason: input.reason, provenance: ['life_series_record'], upsert, ...(removeRelations.length ? { remove: { event_relations: removeRelations } } : {}) };

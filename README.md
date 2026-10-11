@@ -89,7 +89,7 @@ conversation itself.
 
 ## The construction record
 
-Version 0.9.1 bundles a browser viewer. Ask the connected assistant
+Version 0.10.0 bundles a browser viewer. Ask the connected assistant
 to **“Open this model”**; `life_model_viewer_open` returns a local link to the chosen
 model or graph revision. No separate viewer checkout or special run folder is
 required. While writing, ask **“Keep the viewer following as we work.”** The
@@ -167,7 +167,8 @@ require measurement, including setup and review work.
 
 Every fresh agent begins with `life-sim://guide/start-here` (what the tool is for
 and how to work in it), then reads `life-sim://protocol/grammar`, the operational
-protocol and its purpose guide. `life_modeling_read` serves these resources to
+protocol and its purpose guide, unless the user gives it other instructions with
+`MEANING_MODEL_INSTRUCTIONS` (see the MCP server guide). `life_modeling_read` serves these resources to
 clients that expose only tools. Read `life-sim://guide/general-modeling` for the
 complete workflow and limits.
 

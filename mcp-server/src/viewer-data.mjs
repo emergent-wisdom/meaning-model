@@ -1,6 +1,7 @@
 // Turn complete model/graph definitions into a browser snapshot. Acquisition and access checks belong to the caller.
 // Adapted from the Meaning Model Viewer's extract.mjs; see ../viewer/README.md.
 import { isSeriesReadingEvent } from './series-mark.mjs';
+import { causeReport } from './cause-record.mjs';
 import { indexModel, modeledPeople, readPerson, cutKind, eventDescendants } from './model-questions.mjs';
 import { readLenses } from './lenses.mjs';
 import { readPath } from '../viewer/measures.mjs';
@@ -562,6 +563,8 @@ export async function buildViewerData({ history, rendered = null, documentRender
     timeUnit: unit, firstCall, lastCall: calls.at(-1)?.at ?? null, headGraphHash: history.headGraphHash ?? null, modelHash: selectedModelEntry.modelHash,
     window, extent, storyWindow, storyRoute, people, events, relations, draws, referents, processes, lenses,
     ...(importanceScales.length ? { importance: { scales: importanceScales } } : {}),
+    // Which causes mattered most to each outcome a holder asked about, ranked by the difference each made alone.
+    ...((mm.cause_questions ?? []).length ? { causes: causeReport({ meaning_model: mm }, { limit: 500 }).questions } : {}),
     graph: { nodes: graphNodes, edges: graphEdges }, story, documentProjection, measures, numerics, typedScalarSeries, steps, toolCalls,
     views, chosenView: currentView(views)?.id ?? null,
     totals: { events: events.length, cuts: allCuts.length - withdrawn.size, people: people.length, lives: lives.length, thoughts: graphNodes.filter((node) => node.category === 'thought').length,

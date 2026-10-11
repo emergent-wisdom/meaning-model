@@ -660,12 +660,31 @@ function worldQuestions(index, lives, draws, spatial) {
     const [one, two] = items;
     reworded(`${items.length} differently worded questions share the unit "${one.cut.unit}" and the answers ${one.answers}${one.owner ? ` in ${displayName(one.owner)}'s life` : ''}, for example "${questionOf(one.cut)}" and "${questionOf(two.cut)}". If they ask the same thing, use one wording: a reworded question starts a separate series, so its readings cannot be compared or averaged with the others.`, 'life_model_revise', { cuts: items.slice(0, 6).map((item) => item.cut.id) });
   }
+  // Which causes mattered most: an outcome with several causes and nothing weighing them, or one of the most
+  // important Events with nothing to say why it came about. Never a gate: a pass can leave them open.
+  const unweighed = capped('causes-unweighed', 4);
+  const mmq = index.model?.meaning_model ?? {};
+  const askedWhy = new Set((mmq.cause_questions ?? []).map((question) => question.outcome_event_id));
+  const causesOf = new Map();
+  for (const relation of index.relations) if (['causes', 'enables', 'prevents', 'constrains'].includes(relation.kind)) push(causesOf, relation.target_event_id, relation.source_event_id);
+  const ranks = importanceRanks(mmq);
+  // A series reading carries a reading of a stretch, not something that happened, so it is not asked why.
+  const outcomes = [...index.events.values()].filter((event) => !index.readings.has(event.id) && !isSeriesReadingEvent(event) && !askedWhy.has(event.id))
+    .map((event) => ({ event, causes: causesOf.get(event.id) ?? [], rank: ranks.get(event.id) ?? Infinity }))
+    .filter((item) => item.causes.length >= 2 || item.rank === 1)
+    .sort((a, b) => a.rank - b.rank || b.causes.length - a.causes.length);
+  for (const { event, causes } of outcomes) {
+    unweighed(causes.length >= 2
+      ? `"${title(event)}" (${when(event)}) has ${causes.length} causes linked to it, such as ${causes.slice(0, 3).join(', ')}, and nothing says which mattered most. Why did it come about, and rather than what? Read the outcome without each cause (life_cause_record): the differences rank them.`
+      : `"${title(event)}" (${when(event)}) stands at the top of an importance scale, and ${causes.length ? 'only one cause is linked to it' : 'nothing in the model says why it came about'}. What were its most important causes, rather than what? Link each and read the outcome without it (life_cause_record).`,
+    'life_cause_record', { event: event.id });
+  }
   return questions;
 }
 
 const ORDER = ['author-separate', 'author-unlinked', 'life-missing', 'life-untimed', 'time-missing', 'reading-stretch-unopened', 'series-gap', 'series-split', 'processes-few', 'periods-missing', 'shocks-few', 'wants-missing', 'choices-missing', 'macro-missing', 'structure-flat', 'readings-over-processes', 'period-gap', 'stage-unexplored', 'life-after-story',
   'reading-average', 'change-unexplored', 'concept-undivided', 'question-reworded',
-  'moment-unmodeled', 'decision-undrawn', 'remainder-unopened', 'shift-uncaused', 'development-missing', 'adaptation-open', 'laws-missing', 'place-missing', 'spatial-declaration-incomplete', 'spatial-resolution', 'spatial-history-unopened', 'process-unobserved', 'wants-generic', 'why-local',
+  'moment-unmodeled', 'decision-undrawn', 'remainder-unopened', 'shift-uncaused', 'causes-unweighed', 'development-missing', 'adaptation-open', 'laws-missing', 'place-missing', 'spatial-declaration-incomplete', 'spatial-resolution', 'spatial-history-unopened', 'process-unobserved', 'wants-generic', 'why-local',
   'concepts-thin', 'recurring-question', 'period-uncut', 'process-empty', 'secondary-without-life', 'life-thin', 'event-undescribed', 'weights-unestimated'];
 // Understanding Node kinds that look forward or explore, rather than record what was done and judged.
 const FORWARD_KINDS = new Set(['question', 'hypothesis', 'prediction', 'tension', 'surprise', 'consequence', 'experiment', 'serendipity', 'randomness', 'idea']);

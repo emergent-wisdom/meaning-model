@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { askTheUserFirst, constructionRecordInstructions, grammarReadingInstructions, modelingSessionInstructions } from './construction-principles.mjs';
+import { followsOurInstructions } from './agent-instructions.mjs';
 
 export { askTheUserFirst };
 import { methodCoreInstructions, modelingWorkflows, purposeInstructions, purposeMethod, workflowForPurpose } from './workflow-guidance.mjs';
@@ -123,6 +124,15 @@ const resourceDefinitions = Object.freeze([
       'Operational modeling contract and entry procedure; the papers are optional references.',
     mimeType: 'text/markdown',
     file: new URL('../../docs/MODELING_PROTOCOL.md', import.meta.url),
+    category: 'protocol',
+  },
+  {
+    id: 'number-test',
+    uri: 'life-sim://guide/number-test',
+    title: 'The number test: does a number over time make sense here?',
+    description: 'Why the process breakdown\'s categories make sense: six questions every category must answer before it is valued (its form, what each value means, what it is compared against, whether it can be guessed, what moves it, the verdict), applied with actual numbers to every example in the breakdown, from the world since 10,000 BCE to one person\'s fear and love. Use it when a scale, a Cut or a category is in doubt.',
+    mimeType: 'text/markdown',
+    file: new URL('../../docs/NUMBER-TEST.md', import.meta.url),
     category: 'protocol',
   },
   {
@@ -323,6 +333,7 @@ function ensureMode(sessionMode) {
 export async function buildModelingContext({
   purpose,
   sessionMode,
+  instructionsMode = 'full',
 }) {
   ensurePurpose(purpose);
   ensureMode(sessionMode);
@@ -362,6 +373,7 @@ export async function buildModelingContext({
     ...(purpose === 'creative_story' ? [{ uri: 'life-sim://example/book-of-conditions-modeling', required: false,
       reason: 'Recommended alongside the representation example: how the Book connects coexisting life processes, wants, outlook, material constraints, and voice, then chooses what to open or leave sufficient.' }] : []),
     { uri: 'life-sim://example/application-categories', required: false, reason: 'Use when choosing a starter or developing and revising application-specific categories.' },
+    { uri: 'life-sim://guide/number-test', required: false, reason: 'Use when a category, a scale or a Cut is in doubt: the number test, with actual numbers and a verdict for every example in the process breakdown.' },
     {
       uri: 'life-sim://protocol/narrative-understanding-graph',
       required: false,
@@ -370,9 +382,14 @@ export async function buildModelingContext({
     { uri: meaning.uri, sha256: meaning.sha256, required: false, reason: theoryReference },
     { uri: life.uri, sha256: life.sha256, required: false, reason: theoryReference },
   ];
+  // A session on the user's own instructions, or on simple ones, is not held to ours: the guides are reference, none is
+  // required, and the opening questions are the user's to ask or not.
+  const ours = followsOurInstructions(instructionsMode);
+  if (!ours) for (const resource of orderedResources) resource.required = false;
   return {
     // First, so a client that previews only the start of a long result still shows it to an agent that works without stopping.
-    askTheUserFirst,
+    ...(ours ? { askTheUserFirst } : { instructions: { mode: instructionsMode,
+      note: 'This session follows the instructions the user configured. What follows is the Meaning Model\'s own guidance, offered as reference: where it differs from the user\'s instructions, follow the user\'s. No guide below is required.' } }),
     schema: 'life-sim-modeling-context/v2',
     startHere: startHere.text,
     method: { core: methodCoreInstructions, inThisMode: purposeMethod(purpose) },

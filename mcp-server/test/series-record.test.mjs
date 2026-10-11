@@ -49,6 +49,31 @@ const priorities = { id: 'protocol-priorities', question: 'How does the protocol
     { key: 'security', meaning: 'Resistance to attacks and failures.' }] };
 const reading = (start, end, d, e, s, extra = {}) => ({ start, end, why: `The stretch from ${start} to ${end}.`, tag: 'inferred', weights: { decentralization: d, efficiency: e, security: s }, ...extra });
 
+test('re-reading a series retains answer references only while their meaning is unchanged', async (t) => {
+  const client = new Client({ name: 'series-references-test', version: '0.1.0' });
+  const env = { ...process.env, MEANING_MODEL_ADDONS: '' }; delete env.LIFE_SIM_STATE_FILE;
+  await client.connect(new StdioClientTransport({ command: process.execPath, args: [serverPath], env }));
+  t.after(() => client.close());
+  const ok = async (name, args) => {
+    const result = await client.callTool({ name, arguments: args });
+    assert.ok(!result.isError, JSON.stringify(result.content)); return result.structuredContent;
+  };
+  let { modelHash } = await ok('life_model_register', { requestId: 'references-base', model });
+  const referenced = { ...priorities, answers: priorities.answers.map((answer) => answer.key === 'security'
+    ? { ...answer, refersTo: { kind: 'process', id: 'protocol.validators' } } : answer) };
+  const record = async (requestId, series) => {
+    ({ modelHash } = await ok('life_series_record', { requestId, previousModelHash: modelHash,
+      subject: 'referent.protocol', series, reason: 'Revise the reading.', readings: [reading(2014, 2016, 0.5, 0.2, 0.3)] }));
+    return (await ok('life_model_inspect', { modelHash, includeDefinition: true })).model.meaning_model.normalized_cuts
+      .find((cut) => cut.id === 'cut.series.protocol-priorities.2014-2016').answers.find((answer) => answer.key === 'security');
+  };
+  assert.deepEqual((await record('references-first', referenced)).refers_to, { kind: 'process', process_id: 'protocol.validators' });
+  assert.deepEqual((await record('references-omitted', priorities)).refers_to, { kind: 'process', process_id: 'protocol.validators' });
+  const changed = { ...priorities, answers: priorities.answers.map((answer) => answer.key === 'security'
+    ? { ...answer, meaning: 'A different kind of security.' } : answer) };
+  assert.equal((await record('references-meaning-changed', changed)).refers_to, undefined);
+});
+
 test('a whole series is one call: dated readings with reasons draw as a curve, nest, open a category, and refuse what could not draw', async (t) => {
   const client = new Client({ name: 'series-record-test', version: '0.1.0' });
   const env = { ...process.env, MEANING_MODEL_ADDONS: '' }; delete env.LIFE_SIM_STATE_FILE;
