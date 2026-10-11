@@ -20,6 +20,7 @@
 // Values are judged as the model's one account, whoever holds them: Cut series have no holder, so a holder-by-holder
 // schedule could not judge the two together. Contradictions are judged within each holder's own values (values-record).
 import { contextKindOf, flatStretches, indexModel, readingSeries, storyProfile } from './model-questions.mjs';
+import { peopleCheck, personGapText } from './people-check.mjs';
 import { calendar } from './series-plan.mjs';
 import { isSeriesReadingEvent, isSteadyReading } from './series-mark.mjs';
 import { worldEvents } from './world-events.mjs';
@@ -112,6 +113,10 @@ export function coverageReport(model, { stillEmpty = [], passedOver = [], contra
   const mm = model?.meaning_model ?? {};
   const index = indexModel(model);
   const tracks = tracksOf(model, index);
+  const story = storyProfile();
+  const people = story ? peopleCheck(model, index, tracks) : { people: 0, incomplete: [] };
+  const peopleNext = () => `Every person in the story needs at least what the process breakdown (life-sim://guide/process-breakdown, Part 3 and Part 7) gives a life: the nine slow processes (body, kin, partnership, work, place, means, knowledge, standing, meaning) with values across the life, one process of their own, and comparable Cuts read across the life for what they want, how they see their wants' fulfilment, what they see as threatened and what they feel. ${people.incomplete.length} of ${people.people} do not yet: ${people.incomplete.slice(0, 8).map(personGapText).join('. ')}${people.incomplete.length > 8 ? `, and ${people.incomplete.length - 8} more` : ''}. Compile person_scaffold for each person who has no slow processes (life_profile_compile), give every process values (life_values_record, with each process's subject), and record the Cuts as series about the person (life_series_record).`;
+  const peopleResult = () => ({ count: people.people, incomplete: people.incomplete.length, gaps: people.incomplete.slice(0, 20) });
   const holders = new Set((model?.value_series ?? []).map((series) => series.holder)).size;
   const world = worldEvents(mm);
   const worldIds = new Set(world.map((event) => event.id));
@@ -147,7 +152,8 @@ export function coverageReport(model, { stillEmpty = [], passedOver = [], contra
     const status = tracks.length
       ? 'Every record so far sits at one moment, so there is no span to divide into a time schedule: record values or readings at other dates, or date the life or the Events they belong to.'
       : 'Nothing is followed over time yet: give the processes dated values (life_values_record) and the shares that compete for a unit their series (life_series_record).';
-    return { done: false, tracks: tracks.length, holders, ...(schedule ? { schedule: { from: schedule.from, to: schedule.to, scale: schedule.scale, reached: 0 } } : {}), flatCount: flat.length, steadyCount: 0, status, next: [status] };
+    return { done: false, tracks: tracks.length, holders, ...(schedule ? { schedule: { from: schedule.from, to: schedule.to, scale: schedule.scale, reached: 0 } } : {}), flatCount: flat.length, steadyCount: 0,
+      ...(story ? { people: peopleResult() } : {}), status, next: [status, ...(people.incomplete.length ? [peopleNext()] : [])] };
   }
   // What a track must have at one level: the level's boundaries over the whole span; over its Thing's life, with the
   // life's ends and, at the finest level, its own moments; or over the one stretch an undeclared series reads.
@@ -180,29 +186,34 @@ export function coverageReport(model, { stillEmpty = [], passedOver = [], contra
     if (missing.length) { upcoming = { level, blocks, missing: count, tracks: missing.length, examples: missing.sort((x, y) => y.at.length - x.at.length || x.id.localeCompare(y.id)).slice(0, 20) }; continue; }
     reached = level;
   }
-  const done = reached === schedule.levels.length && !stillEmpty.length && !passedOver.length && !contradictions.length && !flat.length;
+  // In a story, every person must have at least the least a life needs (docs/PROCESS-BREAKDOWN.md, Part 7): the nine
+  // slow processes followed over time, one of their own, and Cuts for wants, outlook, threat and feelings.
+  const done = reached === schedule.levels.length && !stillEmpty.length && !passedOver.length && !contradictions.length && !flat.length
+    && !people.incomplete.length;
   const steadyCount = tracks.reduce((n, track) => n + (track.readings ?? []).filter((r) => r.steady).length, 0);
   // The pass's standing first, in plain words and one count each, so it is never read as done while it is not. For a
   // story the same measure names gaps the story may depend on; it does not hold the story to the grid.
   const left = [remaining ? `the time schedule lacks ${remaining} value(s) or reading(s) in all, counted at its finest level` : null,
     passedOver.length ? `${passedOver.length} process(es) pass over your own Events` : null, flat.length ? `${flat.length} reading(s) are left flat` : null,
-    stillEmpty.length ? `${stillEmpty.length} process(es) have no state` : null, contradictions.length ? `${contradictions.length} contradiction(s) are unresolved` : null].filter(Boolean).join('; ');
-  const story = storyProfile();
+    stillEmpty.length ? `${stillEmpty.length} process(es) have no state` : null, contradictions.length ? `${contradictions.length} contradiction(s) are unresolved` : null,
+    people.incomplete.length ? `${people.incomplete.length} of ${people.people} people lack the least a life needs` : null].filter(Boolean).join('; ');
   const status = done
     ? (story
       ? 'By the coverage report\'s measure the world beneath the story has no gaps: every record fills the time schedule, no process is empty, none passes over the Events and no reading is left flat. Bring the prose into line with it; another pass can always move through the world in more depth.'
       : 'This pass is done by the coverage report\'s measure: every record fills the time schedule, no process is empty, none passes over the Events and no reading is left flat. Deliver what the pass set out to make and say you are done for this pass; another pass can always move through the world in more depth, wherever your questions lead.')
     : (story
-      ? `By the coverage report's measure the world beneath the story still has gaps: ${left}. Fill the ones the story depends on, in the model and in the prose, and record the rest for another pass with why each can wait.`
+      ? `By the coverage report's measure the world beneath the story still has gaps: ${left}. ${people.incomplete.length ? 'Every person must have the least a life needs before this pass is done; fill those first. Fill the other gaps' : 'Fill the ones'} the story depends on, in the model and in the prose, and record the rest for another pass with why each can wait.`
       : `By the coverage report's measure this pass is not done: ${left}. Go on with the pass; if you stop sooner, say it is unfinished and what is left.`);
   const next = [status];
+  if (people.incomplete.length) next.push(peopleNext());
   if (upcoming) {
     const example = (item) => (item.kind === 'values' ? `${item.label} at ${item.at.slice(0, 6).join(', ')}` : `"${item.label}" over ${item.at.slice(0, 4).join(', ')}`);
     next.push(`${story ? 'Where the story depends on them, fill the gaps the time schedule shows, level by level' : 'Fill the time schedule level by level'}: level ${upcoming.level} of ${schedule.levels.length} divides ${schedule.from} to ${schedule.to} into ${upcoming.blocks} blocks${schedule.scale === 'log' ? ', finer toward the latest date' : ''}, and ${upcoming.tracks} record(s) still lack ${upcoming.missing} value(s) or reading(s) at this level, such as ${upcoming.examples.slice(0, 2).map(example).join('; ')}. In all, ${remaining} remain, counted at the finest level. Values go in at the dates, a series' readings over the blocks; guess each within the ones around it, and mark a reading steady, with why, where its shares truly hold across a longer stretch: it then covers the finer blocks inside it. A record about one Thing is held only to that Thing's life, its ends and its own Events: name the Thing as a process's subject, or record the series about it.`);
   }
   if (flat.length) next.push(`${flat.length} reading(s) span a stretch of a life where Events happen that no finer reading opens, first "${flat[0].question}" from ${flat[0].from} to ${flat[0].to} over ${flat[0].events} Events (${flat[0].examples.join('; ')}); open them with life_series_plan and life_series_record.`);
   return { done, tracks: tracks.length, holders, schedule: { from: schedule.from, to: schedule.to, scale: schedule.scale, levels: schedule.levels.map(({ level, blocks }) => ({ level, blocks })), reached, remaining,
-    ...(upcoming ? { next: upcoming } : {}), ...(later.length ? { later } : {}) }, flatCount: flat.length, ...(flat.length ? { flat: flat.slice(0, 10) } : {}), steadyCount, status, next };
+    ...(upcoming ? { next: upcoming } : {}), ...(later.length ? { later } : {}) }, flatCount: flat.length, ...(flat.length ? { flat: flat.slice(0, 10) } : {}), steadyCount,
+    ...(story ? { people: peopleResult() } : {}), status, next };
 }
 
 // Every Event a lifecycle contains, at any depth.

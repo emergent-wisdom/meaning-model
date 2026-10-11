@@ -19,11 +19,11 @@ Use the common recursive construction method to understand the work: read its wh
 Call life_story_feedback with the exact graph and root, or supplied text, plus the author's question. It prepares a read-only task; the calling LLM still has to read and give the feedback. Keep critique separate from accepted manuscript and model changes. When the human chooses to revise, connect the decision to the relevant process or passage, preserve earlier commitments or revise them explicitly, and reconsider affected descriptions and scenes. If a scoped project graph is available and recording has been delegated, retain the feedback and response there through the ordinary Understanding tools. Supplied text alone does not authorize creating a persistent project. No genre, plot shape, numerical assessment or prescribed depth is required.`;
 
 export const modelingWorkflows = Object.freeze([
-  { id: 'general_modeling', purposes: ['observation', 'forecasting', 'counterfactual', 'person_reflection'], entry: 'life_modeling_start', addon: null },
-  { id: 'storytelling', purposes: ['creative_story', 'source_reconstruction'], entry: 'life_story_scene_start', addon: 'storytelling' },
-  { id: 'human_author_feedback', purposes: ['human_author_feedback'], entry: 'life_story_feedback', addon: 'storytelling' },
-  { id: 'memory', purposes: ['agent_memory', 'user_memory'], entry: 'life_memory_start', addon: null },
-  { id: 'ideation', purposes: [], entry: 'life_alien_start', addon: 'alien' },
+  { id: 'general_modeling', purposes: ['observation', 'forecasting', 'counterfactual', 'person_reflection'], entry: 'life_modeling_start', entryType: 'prompt', guideUri: 'life-sim://guide/general-modeling', addon: null },
+  { id: 'storytelling', purposes: ['creative_story', 'source_reconstruction'], entry: 'life_story_scene_start', entryType: 'prompt', guideUri: 'life-sim://profile/story', addon: 'storytelling' },
+  { id: 'human_author_feedback', purposes: ['human_author_feedback'], entry: 'life_story_feedback', entryType: 'tool', addon: 'storytelling' },
+  { id: 'memory', purposes: ['agent_memory', 'user_memory'], entry: 'life_memory_start', entryType: 'tool', addon: null },
+  { id: 'ideation', purposes: [], entry: 'life_alien_start', entryType: 'prompt', guideUri: 'life-sim://addon/alien', addon: 'alien' },
 ]);
 
 export function workflowForPurpose(purpose) {

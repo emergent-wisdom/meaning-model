@@ -10,7 +10,7 @@ import { releaseStory } from '../src/storytelling-release.mjs';
 import { direct, directorPrinciples } from '../src/storytelling-director.mjs';
 import { editNarrativeGraph } from '../src/narrative-editing.mjs';
 
-// Regressions for the defects an independent review reproduced on 26 September 2026.
+// Regressions for lens revision, attributed readings and narrative editing.
 
 test('a lens revised from a stale graph hash is written at the newest head, as its next version', async () => {
   const service = new LifeSimulationService();

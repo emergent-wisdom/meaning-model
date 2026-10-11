@@ -24,9 +24,14 @@ operational guidance. Reading the papers is optional.
 
 See the [changelog](https://github.com/emergent-wisdom/meaning-model/blob/main/CHANGELOG.md) for release changes and upgrade notes.
 
-## Upgrading to 0.9.0
+## Upgrading to 0.9.1
 
-Install the matching 0.9.0 engine. This release lets a model hold the dated values
+The process breakdown guide is now required before modeling. Story coverage also
+checks each person for developed life processes and wants, outlook, threat and
+feelings. The values report asks for explanations of meaningful changes and
+checks a subject-specific process against that subject’s Events.
+
+Install the matching 0.9.1 engine. This release lets a model hold the dated values
 of its processes (`value_series`, recorded with `life_values_record`) and say how much
 its Events matter to an audience (`importance_scales` and `event_importance`,
 recorded with `life_importance_record`). Models without these records keep their
@@ -45,7 +50,7 @@ published example books. Use 0.8.0 or later to read a new export.
 
 ## Open your model
 
-Version 0.9.0 includes the browser viewer in the MCP package.
+Version 0.9.1 includes the browser viewer in the MCP package.
 
 After installing this MCP and its matching engine, connect it to your assistant as
 usual. Ask **“Open the model we are working on”** or **“Show me this story.”** The
@@ -232,7 +237,7 @@ can use the explicit source build below.
 In a directory where you want to keep the installation, run:
 
 ```sh
-npm install @emergent-wisdom/meaning-model-mcp@0.9.0
+npm install @emergent-wisdom/meaning-model-mcp@0.9.1
 npx meaning-model-mcp --install-engine
 ```
 
@@ -655,7 +660,7 @@ configuration looks like this:
   "mcpServers": {
     "meaning-model": {
       "command": "npx",
-      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.9.0"],
+      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.9.1"],
       "env": {
         "LIFE_SIM_ENGINE_BIN": "/absolute/path/to/life-sim-engine",
         "LIFE_SIM_STATE_FILE": "/absolute/private/path/meaning-model.sqlite"
@@ -685,7 +690,7 @@ starts the real Rust engine, then checks an MCP connection and engine status.
 Only passing jobs upload the version-named executable and its `.sha256` file.
 
 Once the reviewed source, workflow and matching tag are pushed, select **Build
-engine release** in the repository's Actions tab. Run it with `tag: v0.9.0` and
+engine release** in the repository's Actions tab. Run it with `tag: v0.9.1` and
 leave `create_draft` false for a build and smoke run that only uploads workflow
 artifacts. Set it true to create a draft release after all four platforms pass.
 Pushing a new `v*` tag also runs the workflow and prepares a draft release.
@@ -729,7 +734,7 @@ for release.
 Record the reviewed tarball's checksum and inspect the publication preview:
 
 ```sh
-release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.9.0.tgz"
+release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.9.1.tgz"
 shasum -a 256 "$release_tarball"
 npm publish "$release_tarball" --dry-run --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
@@ -741,7 +746,7 @@ exact tarball, authenticate with an npm account that can publish to
 ```sh
 npm whoami --registry=https://registry.npmjs.org/
 npm publish "$release_tarball" --access public --ignore-scripts --registry=https://registry.npmjs.org/
-npm view @emergent-wisdom/meaning-model-mcp@0.9.0 version dist.integrity --registry=https://registry.npmjs.org/
+npm view @emergent-wisdom/meaning-model-mcp@0.9.1 version dist.integrity --registry=https://registry.npmjs.org/
 ```
 
 A dry run does not establish registry authentication or scope access. Any change

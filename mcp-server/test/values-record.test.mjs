@@ -435,3 +435,42 @@ test('done is judged on every holder\'s values together, the same in every tool,
   const own = valuesReport(opened('alice'));
   assert.deepEqual(own.contradictions.map((c) => [c.process, c.holder, c.time]), [['pop', 'alice', 0]]);
 });
+
+// The report asks for explanations of meaningful turns, large jumps and state changes, not every value.
+test('the report names turns and jumps with no note and no Event, and leaves steady values and explained ones alone', () => {
+  let model = base();
+  model.meaning_model = { schema: 'life-sim-rust-meaning-model/v1', concepts: [], referents: [], event_relations: [], normalized_cuts: [], events: [] };
+  // A steady rise, a jump in 1910, a turn down in 1950 and a recovery by 2000.
+  const points = [[1800, 1], [1850, 1.1], [1900, 1.2], [1910, 3], [1950, 2], [2000, 2.9]].map(([time, value]) => ({ time, value, tag: 'sketch' }));
+  model = applyModelChange(model, HASH, valuesChange(model, { holder: 'claude', reason: 'r', values: [{ processId: 'pop', points }] })).successor;
+  let report = valuesReport(model);
+  assert.deepEqual(report.unexplained.map((u) => u.at).sort((a, b) => a - b), [1910, 1950, 2000], 'not the steady rise before them');
+  assert.match(report.next.join('\n'), /Explain the numbers that carry meaning\. 3 turn\(s\), jump\(s\) or change\(s\) of state say nothing about why/u);
+  // A note on the value, or an Event naming the process between it and the value before, explains it.
+  model = applyModelChange(model, HASH, valuesChange(model, { holder: 'claude', reason: 'r', values: [{ processId: 'pop', points: [{ time: 1910, value: 3, tag: 'sketch', note: 'A new census method counts the towns.' }] }] })).successor;
+  model.meaning_model.events.push({ id: 'crash', boundary: 'The crash', interval: { start: 1940, end: 1941 }, process_ids: ['pop'], observation_process_ids: [], participants: {}, substrate: null, region: null, provenance: ['x'] });
+  report = valuesReport(model);
+  assert.deepEqual(report.unexplained.map((u) => u.at), [2000], 'only the unexplained recovery is left');
+});
+
+// A subject-specific process is checked against that subject's Events and Events naming the process.
+test('a process about one person passes over only that person\'s Events, and template Events are not happenings', () => {
+  const m = { ...base(), processes: [{ id: 'mary.place', value_type: { kind: 'scalar', bounds: { minimum: 0, maximum: 10 } }, initial_value: { kind: 'scalar', value: 1 }, provenance: ['sketch'], support: ['s'], unit: 'u',
+    scale: { semantic_role: 'Mary: where she lives', label: 'Mary: where she lives', subject_referent_id: 'mary' } }] };
+  const ev = (id, start) => ({ id, boundary: id, interval: { start, end: start + 0.1 }, process_ids: [], observation_process_ids: [], participants: {}, substrate: null, region: null, provenance: ['x'] });
+  m.meaning_model = { schema: 'life-sim-rust-meaning-model/v1', concepts: [], normalized_cuts: [],
+    referents: [{ id: 'mary', lifecycle_event_id: 'mary.life', provenance: ['x'] }, { id: 'ada', lifecycle_event_id: 'ada.life', provenance: ['x'] }],
+    events: [ev('mary.life', 1780), ev('ada.life', 1815), ev('ada.a', 1843), ev('ada.b', 1844), ev('ada.c', 1845), ev('mary.is.place', 1780)],
+    event_relations: ['a', 'b', 'c'].map((k) => ({ id: `c.${k}`, kind: 'contains', source_event_id: 'ada.life', target_event_id: `ada.${k}`, provenance: ['x'] })) };
+  m.meaning_model.events[0].interval.end = 1872; m.meaning_model.events[1].interval.end = 1852;
+  m.value_series = [{ id: 'values.mary.place', process_id: 'mary.place', holder: 'claude', points: [{ time: 1838, value: 5, tag: 'sketch' }, { time: 1850, value: 5, tag: 'sketch' }] }];
+  assert.equal(valuesReport(m).passedOverCount ?? 0, 0, 'three of Ada\'s Events do not hold Mary\'s residence');
+  // Three of Mary's own Events between the values do.
+  for (const [k, t] of [['x', 1840], ['y', 1842], ['z', 1846]]) {
+    m.meaning_model.events.push(ev(`mary.${k}`, t));
+    m.meaning_model.event_relations.push({ id: `c.mary.${k}`, kind: 'contains', source_event_id: 'mary.life', target_event_id: `mary.${k}`, provenance: ['x'] });
+  }
+  const report = valuesReport(m);
+  assert.equal(report.passedOverCount, 1);
+  assert.deepEqual(report.passedOver[0].examples.every((name) => name.startsWith('mary.')), true);
+});

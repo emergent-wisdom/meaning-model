@@ -4,6 +4,26 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## 0.9.1 — 2026-10-11
+
+Install the matching 0.9.1 engine. Existing models and construction histories retain their content and hashes.
+
+- A required process breakdown guide explains conceptual decomposition and shows progressively detailed models of
+  people, institutions, machines, places and the wider world. The guide is included in the npm package and source
+  release, and a compact instruction points to it before the longer server guidance.
+- Story coverage now names each person's missing slow life processes, individual process, and comparable readings
+  of wants, outlook, threat and feelings through their life. Outlook and threat are distinguished by their answers.
+  One-off readings do not count as development over time. Other modes retain their existing coverage rules.
+- Values reports ask for explanations of significant turns, jumps and state changes, and flag processes whose
+  numerical meaning is still unspecified. These explanation prompts are advisory.
+- A process about a specific subject is checked against that subject's Events and Events explicitly naming the
+  process, rather than unrelated happenings. Person-scaffold process Events are excluded from that check.
+- Workflow entries identify MCP prompts separately from tools and provide a reading route for clients that cannot
+  retrieve prompts.
+
+The viewer's full-story action still requires prose in the narrative graph; importing chapters as document nodes
+alone does not populate that action.
+
 ## 0.9.0 — 2026-10-09
 
 Install the matching 0.9.0 engine. Models without value series or importance records keep their hashes; a model

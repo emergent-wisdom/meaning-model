@@ -78,6 +78,15 @@ const resourceDefinitions = Object.freeze([
     category: 'protocol',
   },
   {
+    id: 'process-breakdown',
+    uri: 'life-sim://guide/process-breakdown',
+    title: 'Breaking reality down into processes: the minimum depth',
+    description: 'Required before building, in every mode: the conceptual decomposition algorithm, and process trees from the Universe down to one moment of one life, for the world, people, institutions, machines and places. It sets the least depth every model is expected to reach.',
+    mimeType: 'text/markdown',
+    file: new URL('../../docs/PROCESS-BREAKDOWN.md', import.meta.url),
+    category: 'protocol',
+  },
+  {
     id: 'meaning-model-grammar',
     uri: 'life-sim://protocol/grammar',
     title: 'Meaning Model Minimized Grammar',
@@ -317,8 +326,9 @@ export async function buildModelingContext({
 }) {
   ensurePurpose(purpose);
   ensureMode(sessionMode);
-  const [startHere, grammar, meaning, life, protocol] = await Promise.all([
+  const [startHere, breakdown, grammar, meaning, life, protocol] = await Promise.all([
     readModelingResource('life-sim://guide/start-here'),
+    readModelingResource('life-sim://guide/process-breakdown'),
     readModelingResource('life-sim://protocol/grammar'),
     readModelingResource('life-sim://theory/meaning-model'),
     readModelingResource('life-sim://theory/life-simulation'),
@@ -334,6 +344,8 @@ export async function buildModelingContext({
   const orderedResources = [
     { uri: startHere.uri, sha256: startHere.sha256, required: true,
       reason: 'Read first, before the grammar: what the tool is for, how long and finer readings relate, and the working loop. Its text also opens this context as startHere. Reuse it while you retain it unchanged.' },
+    { uri: breakdown.uri, sha256: breakdown.sha256, required: true,
+      reason: 'Read second, before you build anything: the conceptual decomposition algorithm and the least depth every model must reach, with process trees from the Universe down to one moment of one life. Carve differently and go further if you like, never shallower. Reuse it while you retain it unchanged.' },
     { uri: grammar.uri, sha256: grammar.sha256, required: true,
       reason: 'Every fresh agent reads the complete grammar before modeling, including delegated agents. Reuse only while the unchanged contents are retained; refresh after changes or loss of context.' },
     {
@@ -368,6 +380,9 @@ export async function buildModelingContext({
     workflow: workflowForPurpose(purpose).id,
     availableWorkflows: modelingWorkflows,
     workflowEntry: workflowForPurpose(purpose),
+    workflowEntryInstructions: workflowForPurpose(purpose).entryType === 'prompt'
+      ? `Retrieve ${workflowForPurpose(purpose).entry} with MCP prompts/get; it is a prompt, not a callable tool. If your client cannot retrieve prompts, read ${workflowForPurpose(purpose).guideUri} and follow its workflow. For an add-on resource, enable the named add-on first.`
+      : `Call the ${workflowForPurpose(purpose).entry} tool within the agreed scope.`,
     purposeInstructions: purposeInstructions(purpose),
     sessionMode,
     sessionGuidance: modelingSessionInstructions,
@@ -460,7 +475,7 @@ export async function buildModelingPrompt({ purpose, sessionMode }) {
     context.conceptualReview,
     '',
     context.grammarInstructions,
-    'Call life_modeling_context, then read the start-here guide (its text opens this prompt), the grammar, the operational protocol, the guide or profile for your purpose, and a worked example in that order. Use life_modeling_read with nextOffset to finish each resource if direct MCP resource reads are unavailable. Reuse unchanged guidance that you retain; a new conversational reply does not require rereading it or recording that you did so. Refresh guidance when its content changes, your purpose needs an unfamiliar guide, or relevant context has been lost. The full research papers remain optional references for fuller explanations.',
+    'Call life_modeling_context, then read the start-here guide (its text opens this prompt), the process breakdown, the grammar, the operational protocol, the guide or profile for your purpose, and a worked example in that order. Use life_modeling_read with nextOffset to finish each resource if direct MCP resource reads are unavailable. Reuse unchanged guidance that you retain; a new conversational reply does not require rereading it or recording that you did so. Refresh guidance when its content changes, your purpose needs an unfamiliar guide, or relevant context has been lost. The full research papers remain optional references for fuller explanations.',
     ordered,
     '',
     'Declare purpose, interval, scope, resolution, authority, and evidence classes. Preserve alternative interpretations; use sampled trajectories where they suffice and label proposed transition functions as hypotheses to explore and test.',

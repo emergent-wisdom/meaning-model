@@ -146,7 +146,12 @@ test('official MCP client discovers and calls the local stdio server', async () 
   }));
   try {
     const startup = client.getInstructions();
-    assert.match(startup, /^# What the Meaning Model is for, and how to work in it/, 'every agent meets the point before any procedure');
+    // Some clients show only the first two kilobytes of the instructions, so a short paragraph sends every agent to the
+    // start-here guide and the process breakdown first; the point follows at once.
+    assert.match(startup, /^Before you build anything, in every mode: call life_modeling_context, then read the start-here guide/u);
+    const head = startup.slice(0, startup.indexOf('# What the Meaning Model is for, and how to work in it'));
+    assert.ok(head.length > 0 && head.length < 1_024, 'the routing paragraph stays short and the point comes right after it');
+    assert.match(head, /life-sim:\/\/guide\/process-breakdown/u);
     assert.match(startup, /You are an explorer, and the Meaning Model is your mind/);
     assert.match(startup, /the remaining four years must average 0\.1/);
     assert.match(startup, /In every mode, begin modeling with life_modeling_context/);

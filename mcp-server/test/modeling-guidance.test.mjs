@@ -22,6 +22,22 @@ import { constructionRecordInstructions } from '../src/construction-principles.m
 import { controlledReadbackInstructions } from '../src/readback-guidance.mjs';
 import { humanAuthorFeedbackInstructions, memoryWorkflowInstructions, methodCoreInstructions, purposeMethod } from '../src/workflow-guidance.mjs';
 
+test('workflow entries distinguish MCP prompts from tools and provide a tool-only reading route', async () => {
+  for (const purpose of ['creative_story', 'source_reconstruction', 'observation']) {
+    const context = await buildModelingContext({ purpose, sessionMode: 'first_use' });
+    assert.equal(context.workflowEntry.entryType, 'prompt');
+    assert.match(context.workflowEntryInstructions, /MCP prompts\/get; it is a prompt, not a callable tool/u);
+    assert.ok(context.workflowEntryInstructions.includes(context.workflowEntry.guideUri));
+    assert.ok((await readModelingResourcePage({ uri: context.workflowEntry.guideUri })).text.length > 0,
+      'a client with tools only can read the workflow guide');
+  }
+  for (const purpose of ['agent_memory', 'human_author_feedback']) {
+    const context = await buildModelingContext({ purpose, sessionMode: 'first_use' });
+    assert.equal(context.workflowEntry.entryType, 'tool');
+    assert.ok(context.workflowEntryInstructions.startsWith(`Call the ${context.workflowEntry.entry} tool`));
+  }
+});
+
 test('memory and human feedback route through the same construction method with distinct authority', async () => {
   for (const [purpose, workflow, uri, instructions] of [
     ['agent_memory', 'memory', 'life-sim://guide/memory', memoryWorkflowInstructions],
@@ -50,7 +66,8 @@ test('memory and human feedback route through the same construction method with 
 test('modeling resources lead with what the tool is for, then the complete grammar, and preserve optional papers', async () => {
   const resources = listModelingResources();
   assert.equal(resources[0].uri, 'life-sim://guide/start-here');
-  assert.equal(resources[1].uri, 'life-sim://protocol/grammar');
+  assert.equal(resources[1].uri, 'life-sim://guide/process-breakdown');
+  assert.equal(resources[2].uri, 'life-sim://protocol/grammar');
   assert.deepEqual(
     resources.slice(-2).map(({ uri }) => uri), modelingTheoryUris,
   );
@@ -116,9 +133,10 @@ test('first-use context requires the operational contract and purpose guide with
   assert.equal(context.theoryAccessGate.satisfied, true);
   assert.equal(context.theoryAccessGate.enforced, false);
   assert.deepEqual(
-    context.orderedResources.slice(0, 5).map(({ uri, required }) => ({ uri, required })),
+    context.orderedResources.slice(0, 6).map(({ uri, required }) => ({ uri, required })),
     [
       { uri: 'life-sim://guide/start-here', required: true },
+      { uri: 'life-sim://guide/process-breakdown', required: true },
       { uri: 'life-sim://protocol/grammar', required: true },
       { uri: 'life-sim://protocol/modeling', required: true },
       { uri: 'life-sim://profile/person', required: true },
@@ -185,8 +203,10 @@ test('every modeling purpose receives the common construction and application-ch
     assert.equal(context.theoryAccessGate.enforced, false);
     assert.equal(context.constructionRecord, constructionRecordInstructions);
     assert.equal(context.orderedResources[0].uri, 'life-sim://guide/start-here');
-    assert.equal(context.orderedResources[1].uri, 'life-sim://protocol/grammar');
-    assert.ok(context.orderedResources.slice(0, 2).every(({ required }) => required));
+    // The minimum depth comes before any procedure, in every mode.
+    assert.equal(context.orderedResources[1].uri, 'life-sim://guide/process-breakdown', purpose);
+    assert.equal(context.orderedResources[2].uri, 'life-sim://protocol/grammar');
+    assert.ok(context.orderedResources.slice(0, 3).every(({ required }) => required));
     assert.match(context.startHere, /You are an explorer, and the Meaning Model is your mind/u, purpose);
     assert.deepEqual(Object.keys(context).slice(0, 3), ['askTheUserFirst', 'schema', 'startHere'], 'the user\'s two choices, then the point, come before any procedure');
     // The centre of the method, for every purpose: an account of how the present came to be, whose consequences say what

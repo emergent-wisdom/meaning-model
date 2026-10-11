@@ -13,6 +13,7 @@ import { createHash } from 'node:crypto';
 import { importanceRanks } from './importance-rank.mjs';
 import { worldEvents } from './world-events.mjs';
 import { coverageReport } from './coverage.mjs';
+import { eventDescendants, indexModel } from './model-questions.mjs';
 
 export const VALUE_TAGS = Object.freeze(['source', 'inferred', 'invented', 'exploring', 'sketch']);
 const PROCESS_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/u;
@@ -269,26 +270,48 @@ function valuesAccount(model, { holder = null, focus = [] } = {}) {
     coarseness: Number(Math.log((latest - from + unit) / (latest - to + unit)).toPrecision(3)) }));
   const coarsest = gaps.sort((a, b) => b.finerElsewhere - a.finerElsewhere || b.coarseness - a.coarseness).slice(0, 10);
   // The model's own Events say where things happen. A process with no value across a stretch in which several of them
-  // happen says nothing about what they changed: the stretches passing over the most Events, one per process.
-  // Examples name the Events ranked most important first, then the shortest, so a long era does not stand for its parts.
+  // happen says nothing about what they changed: the stretches passing over the most Events, one per process. A process
+  // about one Thing is held only to the Events of that Thing (in its life or taking part in them) and to Events that name
+  // the process; a process about the world in general, to every Event. A person template's slow-process Events hold a
+  // life's processes and are not happenings. Examples name the Events ranked most important first, then the shortest,
+  // so a long era does not stand for its parts.
   const rankOf = importanceRanks(model.meaning_model);
-  const happenings = worldEvents(model.meaning_model).filter((event) => Number.isFinite(event.interval?.start))
-    .map((event) => ({ t: event.interval.start, rank: rankOf.get(event.id) ?? Infinity, span: (event.interval.end ?? event.interval.start) - event.interval.start,
-      name: String(event.boundary ?? event.id).replace(/\s+/gu, ' ').slice(0, 48) }))
+  const happenings = worldEvents(model.meaning_model).filter((event) => Number.isFinite(event.interval?.start) && !/\.is\.[a-z_-]+$/u.test(event.id))
+    .map((event) => ({ id: event.id, t: event.interval.start, rank: rankOf.get(event.id) ?? Infinity, span: (event.interval.end ?? event.interval.start) - event.interval.start,
+      name: String(event.boundary ?? event.id).replace(/\s+/gu, ' ').slice(0, 48), names: new Set([...(event.process_ids ?? []), ...(event.observation_process_ids ?? [])]) }))
     .sort((a, b) => a.rank - b.rank || a.span - b.span);
-  // How many happen strictly inside (a, b): two binary searches over the sorted times.
-  const happeningTimes = happenings.map((event) => event.t).sort((a, b) => a - b);
-  const firstAbove = (x) => { let lo = 0, hi = happeningTimes.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (happeningTimes[mid] <= x) lo = mid + 1; else hi = mid; } return lo; };
-  const firstAtOrAbove = (x) => { let lo = 0, hi = happeningTimes.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (happeningTimes[mid] < x) lo = mid + 1; else hi = mid; } return lo; };
-  const between = (a, b) => Math.max(0, firstAtOrAbove(b) - firstAbove(a));
+  const index = indexModel(model);
+  const ownOf = new Map();
+  const ownEvents = (subject) => {
+    if (!ownOf.has(subject)) {
+      const referent = index.referents.get(subject);
+      const own = new Set(index.eventsOf.get(subject) ?? []);
+      if (referent?.lifecycle_event_id) for (const id of eventDescendants(index, referent.lifecycle_event_id)) own.add(id);
+      ownOf.set(subject, own);
+    }
+    return ownOf.get(subject);
+  };
+  const concerns = (id) => {
+    const subject = byId.get(id)?.scale?.subject_referent_id;
+    if (!subject || !index.referents.has(subject)) return () => true;
+    const own = ownEvents(subject);
+    return (event) => own.has(event.id) || event.names.has(id);
+  };
+  // How many of a sorted list fall strictly inside (a, b): two binary searches.
+  const firstAbove = (times, x) => { let lo = 0, hi = times.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (times[mid] <= x) lo = mid + 1; else hi = mid; } return lo; };
+  const firstAtOrAbove = (times, x) => { let lo = 0, hi = times.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (times[mid] < x) lo = mid + 1; else hi = mid; } return lo; };
+  const between = (times, a, b) => Math.max(0, firstAtOrAbove(times, b) - firstAbove(times, a));
   const passedOver = [];
   for (const [id, times] of accountTimes) {
+    const relevant = concerns(id);
+    const own = happenings.filter(relevant);
+    const ownTimes = own.map((event) => event.t).sort((a, b) => a - b);
     const t = [...times].sort((a, b) => a - b); let widest = null;
     for (let i = 1; i < t.length; i += 1) {
-      const count = between(t[i - 1], t[i]);
+      const count = between(ownTimes, t[i - 1], t[i]);
       if (count >= 3 && (!widest || count > widest.events)) widest = { process: id, label: label(id), from: t[i - 1], to: t[i], events: count };
     }
-    if (widest) passedOver.push({ ...widest, examples: happenings.filter((event) => event.t > widest.from && event.t < widest.to).slice(0, 3).map((event) => event.name) });
+    if (widest) passedOver.push({ ...widest, examples: own.filter((event) => event.t > widest.from && event.t < widest.to).slice(0, 3).map((event) => event.name) });
   }
   passedOver.sort((a, b) => b.events - a.events || a.process.localeCompare(b.process));
   // What the values just recorded show: where a curve peaks or bottoms out, and where it changes most, measured against
@@ -312,6 +335,37 @@ function valuesAccount(model, { holder = null, focus = [] } = {}) {
       fromValue: steepest.from.value, toValue: steepest.to.value, weight: Math.abs(steepest.rise) / range });
   }
   shows.sort((a, b) => b.weight - a.weight);
+  // Numbers that carry meaning and say nothing about it: a turn, a jump of a quarter of the process's range or more, or a
+  // change of state, with no note on the value and no Event between it and the value before that names the process. A
+  // value that only continues the line around it needs no note; explaining every date would be noise.
+  const movedAt = new Map();
+  for (const event of worldEvents(model.meaning_model)) {
+    const t = event.interval?.start;
+    if (!Number.isFinite(t)) continue;
+    for (const id of new Set([...(event.process_ids ?? []), ...(event.observation_process_ids ?? [])])) movedAt.set(id, [...(movedAt.get(id) ?? []), t]);
+  }
+  const noted = (point) => typeof point?.note === 'string' && point.note.trim().length > 0;
+  const unexplained = [];
+  for (const [id, m] of valued) {
+    const kind = byId.get(id)?.value_type?.kind;
+    const points = [...m.values()].sort((a, b) => a.time - b.time);
+    const eventBetween = (a, b) => (movedAt.get(id) ?? []).some((t) => t > a && t <= b);
+    const range = kind === 'scalar' ? Math.max(...points.map((x) => x.value)) - Math.min(...points.map((x) => x.value)) : 0;
+    for (let i = 1; i < points.length; i += 1) {
+      const [before, at] = [points[i - 1], points[i]];
+      if (noted(at) || eventBetween(before.time, at.time)) continue;
+      if (kind === 'scalar' && range > 0 && Number.isFinite(at.value) && Number.isFinite(before.value)) {
+        const rise = at.value - before.value, after = i < points.length - 1 ? points[i + 1].value - at.value : 0;
+        const turn = rise * after < 0 && Math.min(Math.abs(rise), Math.abs(after)) / range >= 0.1;
+        if (turn || Math.abs(rise) / range >= 0.25) unexplained.push({ process: id, label: label(id), at: at.time, from: before.value, to: at.value, kind: turn ? 'turn' : 'jump', weight: Math.abs(rise) / range });
+      } else if ((kind === 'category' || kind === 'regime') && at.state !== undefined && at.state !== before.state) {
+        unexplained.push({ process: id, label: label(id), at: at.time, from: before.state, to: at.state, kind: 'change', weight: 1 });
+      }
+    }
+  }
+  unexplained.sort((a, b) => b.weight - a.weight || a.at - b.at);
+  // A process that never says what its numbers mean: a scale or a set of states left at the default wording.
+  const unmeant = stated.filter((process) => valued.has(process.id) && /: (?:a defined scale|one of \d+ states)$/u.test(String(process.scale?.semantic_role ?? '')));
   const describe = (item) => (item.kind === 'peak' || item.kind === 'trough'
     ? `${item.label} ${item.kind === 'peak' ? 'peaks' : 'bottoms out'} at ${item.at} (${item.value}) and turns`
     : `${item.label} ${item.kind === 'rise' ? 'rises' : 'falls'} most between ${item.from} and ${item.to} (${item.fromValue} to ${item.toValue})`);
@@ -328,6 +382,11 @@ function valuesAccount(model, { holder = null, focus = [] } = {}) {
   const passedLine = passedOver.length ? `${passedOver.length} process(es) pass over your own Events without a value, so they say nothing about what those Events changed: ${passedOver.slice(0, 3).map((g) => `${g.label} has none between ${g.from} and ${g.to}, where ${g.events} Events happen (${g.examples.join('; ')})`).join('. ')}. Give each process a value at the Events that change it, and between them where the record allows.` : null;
   const next = [coverage.status];
   if (shows.length) next.push(`What your new values show: ${shows.slice(0, 3).map(describe).join('; ')}. Ask why each happens, check it against your Events and the patterns you expect, record what you learn as a note, and let it choose where to guess next: each guess you add is another test of the rest.`);
+  if (unexplained.length || unmeant.length) {
+    const parts = [unexplained.length ? `${unexplained.length} turn(s), jump(s) or change(s) of state say nothing about why, such as ${unexplained.slice(0, 3).map((u) => `${u.label} at ${u.at} (${u.from} to ${u.to})`).join('; ')}: give each of those values a note saying why (the point's note), or name the Event that moved it in that Event's process_ids` : null,
+      unmeant.length ? `${unmeant.length} process(es) do not say what their numbers mean, such as ${unmeant.slice(0, 3).map((process) => label(process.id)).join(', ')}: say it in each one's meaning (process.meaning when you open one, its scale with life_model_revise after)` : null].filter(Boolean);
+    next.push(`Explain the numbers that carry meaning. ${parts.join('. ')}. Values that only continue the line around them need no note.`);
+  }
   if (resolveLine) next.push(resolveLine);
   if (emptyLine) next.push(emptyLine);
   if (roots.length > 3) next.push(`${roots.length} processes have nothing above them, among them ${roots.slice(0, 5).map(label).join(', ')}. Open the whole they are parts of as one process with a measure of its own, open the dimensions of your carve under it, and file each of these under the dimension it belongs to (process {parent} in life_values_record).`);
@@ -336,11 +395,12 @@ function valuesAccount(model, { holder = null, focus = [] } = {}) {
   next.push(...coverage.next.slice(1));
   if (passedLine) next.push(passedLine);
   if (coarsest.length && !coverage.schedule?.next) next.push(`Open the coarsest stretches with dates inside them: ${coarsest.slice(0, 5).map((g) => `${g.label} ${g.from} to ${g.to}`).join('; ')}.`);
-  const report = { done, processes: stated.length, valued: valued.size, points, stillEmpty: stillEmpty.slice(0, 50), stillEmptyCount: stillEmpty.length,
+  const report = { done, ...(coverage.people ? { people: coverage.people } : {}), processes: stated.length, valued: valued.size, points, stillEmpty: stillEmpty.slice(0, 50), stillEmptyCount: stillEmpty.length,
     contradictions: contradictions.slice(0, 50), contradictionCount: contradictions.length, residualCount: residuals.length, residuals: residuals.slice(0, 20),
     ...(notCompared.length ? { notCompared: notCompared.slice(0, 20) } : {}),
     ...(coverage.schedule ? { schedule: coverage.schedule } : {}), coverage: { tracks: coverage.tracks, holders: coverage.holders, flatCount: coverage.flatCount, steadyCount: coverage.steadyCount, ...(coverage.flat ? { flat: coverage.flat } : {}) },
     ...(shows.length ? { shows: shows.slice(0, 10).map(({ weight, ...item }) => item) } : {}),
+    ...(unexplained.length ? { unexplained: unexplained.slice(0, 20).map(({ weight, ...item }) => item), unexplainedCount: unexplained.length } : {}), ...(unmeant.length ? { unmeantCount: unmeant.length } : {}),
     ...(passedOver.length ? { passedOver: passedOver.slice(0, 20), passedOverCount: passedOver.length } : {}), roots: roots.slice(0, 20), rootCount: roots.length, undivided: undivided.slice(0, 20), undividedCount: undivided.length, ...(oneDate.length ? { oneDate: oneDate.slice(0, 50), oneDateCount: oneDate.length } : {}), coarsest, next };
   return { report, coverage, blocking: [resolveLine, emptyLine, passedLine].filter(Boolean) };
 }
@@ -352,5 +412,5 @@ export function coverageSummary(model) {
   return { done: report.done, ...(report.schedule ? { schedule: report.schedule } : {}), tracks: coverage.tracks, holders: coverage.holders, flatCount: coverage.flatCount, steadyCount: coverage.steadyCount,
     ...(coverage.flat ? { flat: coverage.flat } : {}), ...(report.stillEmptyCount ? { stillEmptyCount: report.stillEmptyCount } : {}),
     ...(report.passedOverCount ? { passedOverCount: report.passedOverCount } : {}), ...(report.contradictionCount ? { contradictionCount: report.contradictionCount } : {}),
-    next: [coverage.status, ...blocking, ...coverage.next.slice(1)] };
+    ...(coverage.people ? { people: coverage.people } : {}), next: [coverage.status, ...blocking, ...coverage.next.slice(1)] };
 }
