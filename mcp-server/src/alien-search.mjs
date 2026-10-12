@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { normalizeOntology, ONTOLOGY_KINDS } from './alien-ontology.mjs';
+import { UNCOMMON_BANK_ID, uncommonSeedWords } from './seed-words.mjs';
 
 // Graph I/O for the alien add-on. A search is a document root in the Meaning Model
 // narrative graph; every world, solve, compiled mechanism, ontology revision,
@@ -34,35 +35,8 @@ export function sortedScopes(scopes) {
   return [...new Set(scopes)].sort();
 }
 
-// A reviewed bank of uncommon but real words from natural history, geology, crafts,
-// law, music, signals and the body. Rare words displace ordinary premises better than
-// the storytelling bank's everyday words; a caller may still supply any seed.
-export const alienSeedWords = Object.freeze([
-  'lichen', 'mycelium', 'rhizome', 'chrysalis', 'moult', 'tendril', 'gall', 'nacre',
-  'coral', 'plankton', 'barnacle', 'lamprey', 'cuckoo', 'murmuration', 'hibernation', 'pollination',
-  'grafting', 'coppice', 'fallow', 'humus', 'compost', 'ferment', 'rennet', 'brine',
-  'amber', 'resin', 'pith', 'moraine', 'scree', 'silt', 'estuary', 'fjord',
-  'geyser', 'tundra', 'permafrost', 'monsoon', 'doldrums', 'undertow', 'riptide', 'eddy',
-  'whirlpool', 'avalanche', 'erosion', 'sediment', 'stalactite', 'geode', 'obsidian', 'lodestone',
-  'flint', 'tourmaline', 'hoarfrost', 'rime', 'mirage', 'halo', 'aurora', 'eclipse',
-  'perihelion', 'parallax', 'refraction', 'resonance', 'inertia', 'friction', 'buoyancy', 'osmosis',
-  'capillarity', 'siphon', 'viscosity', 'entropy', 'isotope', 'catalyst', 'enzyme', 'membrane',
-  'crystallization', 'magnetism', 'neap', 'loom', 'shuttle', 'bobbin', 'warp', 'weft',
-  'selvage', 'felt', 'lacquer', 'enamel', 'solder', 'anneal', 'temper', 'quench',
-  'crucible', 'kiln', 'bellows', 'anvil', 'lathe', 'mortise', 'dovetail', 'keystone',
-  'buttress', 'cistern', 'aqueduct', 'sluice', 'weir', 'caisson', 'ballast', 'keel',
-  'tether', 'tithe', 'dowry', 'ransom', 'bail', 'jubilee', 'amnesty', 'quarantine',
-  'embargo', 'tariff', 'toll', 'barter', 'potlatch', 'quorum', 'census', 'almanac',
-  'palimpsest', 'cipher', 'palindrome', 'anagram', 'acrostic', 'marginalia', 'errata', 'colophon',
-  'watermark', 'fugue', 'canon', 'cadence', 'syncopation', 'tremolo', 'overtone', 'drone',
-  'counterpoint', 'refrain', 'antiphony', 'understudy', 'masquerade', 'pantomime', 'semaphore', 'beacon',
-  'relay', 'courier', 'caravan', 'ferry', 'switchback', 'portage', 'pilgrimage', 'exile',
-  'diaspora', 'nomad', 'apiary', 'dovecote', 'aviary', 'terrarium', 'herbarium', 'reliquary',
-  'ossuary', 'labyrinth', 'mosaic', 'tessellation', 'fractal', 'lattice', 'honeycomb', 'filament',
-  'wick', 'tallow', 'soot', 'patina', 'verdigris', 'tarnish', 'reverberation', 'vertigo',
-  'insomnia', 'somnambulism', 'amnesia', 'hindsight', 'prophecy', 'chimera', 'metamorphosis', 'camouflage',
-  'mimicry', 'parasite', 'siege', 'truce', 'vigil', 'wake', 'threshold', 'antechamber',
-]);
+// The uncommon-word bank is shared with the storytelling add-on's world laws; its id is unchanged.
+export const alienSeedWords = uncommonSeedWords;
 
 // The draw depends on the search and a slot, so preparing the same task twice draws the
 // same word and each slot draws its own. A salt draws again; the world record keeps the
@@ -70,7 +44,7 @@ export const alienSeedWords = Object.freeze([
 export function drawSeed(searchRootId, drawIndex, salt = null) {
   const bytes = createHash('sha256').update(JSON.stringify(['alien-seed/v1', searchRootId, drawIndex, salt])).digest();
   const position = bytes.readUInt32BE(0) % alienSeedWords.length;
-  return { word: alienSeedWords[position], source: 'bank', bankId: 'alien-uncommon-words/v1', bankSize: alienSeedWords.length, position, drawIndex, salt };
+  return { word: alienSeedWords[position], source: 'bank', bankId: UNCOMMON_BANK_ID, bankSize: alienSeedWords.length, position, drawIndex, salt };
 }
 
 const STOPWORDS = new Set(`a about above across after again against all also am among an and any are as at be because been before being below
@@ -155,7 +129,8 @@ export async function readSearch(service, { graphHash, searchRootId, accessScope
     problem: byKind('problem')[0] ?? null, tasks: byKind('task'),
     worlds: byKind('world'), solutions: byKind('solution'), mechanisms: byKind('mechanism'),
     revisions: byKind('ontology_revision'), commissions: byKind('commission'), transfers: byKind('transfer'),
-    assessments: byKind('assessment'), selections: byKind('selection'), decisionChecks: byKind('decision_check'), heads,
+    assessments: byKind('assessment'), selections: byKind('selection'), decisionChecks: byKind('decision_check'),
+    verifications: byKind('verification'), heads,
     ontologyState: (ontology) => normalizeOntology(heads[ontology]?.data.state),
     record: (nodeId, kind) => {
       const found = records.find((record) => record.nodeId === nodeId);

@@ -13,6 +13,7 @@ import { projectScalarSeries } from './viewer-scalar-series.mjs';
 import { declaredViewerLives } from './viewer-snapshot.mjs';
 import { VIEW_SCHEMA, currentView } from '../viewer/public/view-settings.js';
 import { expandHistoryModels, HISTORY_FILE_SCHEMA_V2, planHistoryModels } from './construction-files.mjs';
+import { branchMarkerOf, premiseOf } from './model-lineage.mjs';
 
 export async function buildViewerData({ history, rendered = null, documentRendered = null, calls = [], name = null, title: requestedTitle = null,
   display = null, meaningModelVersion = null, generatedAt = new Date().toISOString() } = {}) {
@@ -74,7 +75,10 @@ export async function buildViewerData({ history, rendered = null, documentRender
   // A portable v2 file is expanded in two bounded passes: ancestry metadata first, then model births below.
   // Keeping every expanded revision here would undo the file reader's memory bound.
   const modelsByHash = new Map();
+  const forkMarkers = new Map();
   for (const entry of modelPlan ? expandHistoryModels(history, modelPlan) : history.models) {
+    const marker = branchMarkerOf(entry.definition.revision);
+    if (marker) forkMarkers.set(entry.modelHash, marker);
     modelsByHash.set(entry.modelHash, modelPlan ? { modelHash: entry.modelHash,
       definition: { revision: { previous_model_hash: entry.definition.revision?.previous_model_hash } } } : entry);
   }
@@ -555,7 +559,21 @@ export async function buildViewerData({ history, rendered = null, documentRender
     claimBorn: (id) => scalarClaimBorn.get(id), processBorn: (id) => scalarProcessBorn.get(id), pointBorn: (id) => scalarPointBorn.get(id),
     nodeBorn: (id) => scalarNodeBorn.get(id), edgeBorn: (id) => scalarEdgeBorn.get(id) });
   for (const reading of numerics.cuts) { reading.eventId = reading.parentEventId; reading.born = birthOf('cuts', reading.id); }
+  // The immutable fork revision identifies a branch and its probability as issued. Current premise text is only
+  // presentation: an edit or removal cannot erase the branch, and revising a forecast Cut cannot change issued odds.
+  // A model-only host provides bounded header ancestry; a portable graph history carries its own ancestors.
+  const carried = modelLineage.map((entry) => forkMarkers.get(entry.modelHash)).filter(Boolean).at(-1);
+  const acquired = history.branchAncestry?.modelHash === selectedModelEntry.modelHash ? history.branchAncestry.branches?.[0] : null;
+  const identity = acquired ?? carried ?? null;
+  const premise = identity ? (mm.events ?? []).find((event) => event.id === `future.${identity.stageId}.${identity.branch}.premise`
+    || (premiseOf(event)?.stageId === identity.stageId && premiseOf(event)?.branch === identity.branch)) : null;
+  const branch = identity ? { stageId: identity.stageId, key: identity.branch, kind: identity.kind, depth: identity.depth ?? 1,
+    premise: clip(premise?.boundary ?? '', 240) || null,
+    probability: identity.probability ?? null, ...(identity.joint !== undefined ? { joint: identity.joint } : {}),
+    ...(identity.windowStated === false ? { windowStated: false } : {}),
+    ...(identity.jointIncludesGuess ? { jointIncludesGuess: true } : {}) } : null;
   const data = {
+    ...(branch ? { branch } : {}),
     // The story's own title, from its document in the graph; else the chosen world's.
     schema: 'meaning-model-viewer/2', runFormat: null, meaningModel: meaningModelVersion, readingsPlaced: readingEvents.size > 0,
     generatedAt, run: runName, title: requestedTitle ?? display?.title ?? storyTitle ?? title ?? runName, display,

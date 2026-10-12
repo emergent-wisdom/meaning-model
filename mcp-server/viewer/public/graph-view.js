@@ -64,16 +64,11 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
     filter.value = kinds.includes(chosen) ? chosen : '';
   }
   fillFilter();
-  tools.append(filter); filter.addEventListener('change', () => { neighborsOnly = false; refresh(); fit(); updateSearch(); });
+  tools.append(filter); filter.addEventListener('change', () => { neighborsOnly = false; refresh(); fit(); });
   const neighborButton = button('Neighbors only', () => { if (!selected) return; neighborsOnly = !neighborsOnly; if (neighborsOnly) filter.value = ''; refresh(); fit(); });
   neighborButton.disabled = true; neighborButton.setAttribute('aria-pressed', 'false');
-  button('Show all', () => { filter.value = ''; selected = null; onSelect(null); detail.hidden = true; neighborsOnly = false; search.value = ''; searchResults.hidden = true; refresh(); fit(); });
-  const searchRow = element('form', null, 'graph-search'), search = element('input', null, 'graph-control');
-  search.type = 'search'; search.placeholder = 'Find a record…'; search.setAttribute('aria-label', 'Find a graph record'); searchRow.append(search); tools.append(searchRow);
-  const findButton = element('button', 'Find', 'tool'); findButton.type = 'submit'; searchRow.append(findButton);
-  const searchResults = element('div', null, 'graph-results'); searchResults.hidden = true; searchResults.setAttribute('aria-label', 'Matching records'); tools.append(searchResults);
-  search.addEventListener('input', updateSearch);
-  searchRow.addEventListener('submit', (event) => { event.preventDefault(); updateSearch(); searchResults.querySelector('button')?.click(); });
+  button('Show all', () => { filter.value = ''; selected = null; onSelect(null); detail.hidden = true; neighborsOnly = false; refresh(); fit(); });
+  // Finding a record is the viewer's search field, shared by every view.
 
   const summary = element('aside', null, 'graph-summary'); summary.id = 'graph-summary'; summary.setAttribute('aria-label', 'Graph overview');
   summary.dataset.modelHash = data.modelHash ?? ''; summary.dataset.graphHash = data.headGraphHash ?? '';
@@ -185,14 +180,6 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
     controls.enableDamping = false; controls.autoRotate = false; controls.update();
     fit(); controls.enableDamping = damping; controls.autoRotate = rotating; dirty = true;
   }
-  function updateSearch() {
-    const query = search.value.trim().toLocaleLowerCase(); searchResults.replaceChildren(); searchResults.hidden = !query;
-    if (!query) { resize(); fit(); return; }
-    const matches = graphs.all.nodes.filter((node) => `${node.label} ${node.nativeId}`.toLocaleLowerCase().includes(query));
-    searchResults.append(element('p', `${matches.length} matching records${matches.length > 40 ? ' · showing the first 40' : ''}`));
-    for (const node of matches.slice(0, 40)) { const choice = button(`${words(node.kind)} · ${node.label}`, () => { filter.value = ''; searchResults.hidden = true; if (!nodeById.has(node.id)) showRecords('all', false); select(node.id); }, searchResults); choice.className = 'graph-result'; }
-    resize(); fit();
-  }
   function select(id, notify = true, frame = true) {
     const node = nodeById.get(id); if (!node) return; selected = id; rotating = false; controls.autoRotate = false; spinButton.setAttribute('aria-pressed', 'false');
     if (notify) onSelect({ kind: node.kind, id: node.nativeId });
@@ -274,7 +261,7 @@ export function showGraph(data, { host, tools, detail, reader, surface, onSelect
     const blob = new Blob([storyUnits.map((unit) => unit.text).join('\n\n')], { type: 'text/markdown;charset=utf-8' }), url = URL.createObjectURL(blob), anchor = element('a');
     anchor.href = url; anchor.download = `${String(data.title ?? 'document').replace(/[^\p{L}\p{N} ._-]/gu, '_')}.md`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
-  addEventListener('keydown', (event) => { if (active && event.key === 'Escape') { reader.hidden = true; searchResults.hidden = true; if (selected || !detail.hidden) deselect(); } }, { signal: abort.signal });
+  addEventListener('keydown', (event) => { if (active && event.key === 'Escape') { reader.hidden = true; if (selected || !detail.hidden) deselect(); } }, { signal: abort.signal });
   function resize() {
     dirty = true;
     // An open inspector ends above the window's edge and scrolls, so its last connections can be reached.

@@ -21,7 +21,7 @@ process-local. Use life_saved_work_list and life_construction_replay to resume
 saved graph-backed work with the same accessScopes.
 
 Optional addons are disabled by default. Set MEANING_MODEL_ADDONS to a
-comma-separated list to enable bundled addons. Available: storytelling, alien.
+comma-separated list to enable bundled addons. Available: storytelling, alien, forecasting.
 Example: MEANING_MODEL_ADDONS=storytelling,alien meaning-model-mcp
 
 To view a saved model, ask your connected assistant to open it. The bundled

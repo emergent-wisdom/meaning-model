@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { buildViewerData } from '../src/viewer-data.mjs';
+import { expandHistoryModels } from '../src/construction-files.mjs';
 import { unopenedProcessEvents } from '../viewer/public/process-visibility.js';
 
 function snapshot() {
@@ -142,30 +143,41 @@ test('classification does not mutate or delete snapshot records and tolerates ab
   assert.equal(unopenedProcessEvents({}).size, 0);
 });
 
-test('the current Book hides unopened slots while retaining numerical and qualitative developments', async () => {
+test('the current Book retains its dated scalar series and qualitative developments when filtering unopened slots', async () => {
   const edition = JSON.parse(await readFile(new URL('../../examples/book-of-conditions/PUBLICATION-MANIFEST.json', import.meta.url), 'utf8'));
   const bundle = JSON.parse(await readFile(new URL('../../examples/book-of-conditions/the-book-of-conditions.meaning-model.json', import.meta.url), 'utf8'));
-  const model = bundle.models.find(entry => entry.modelHash === edition.modelHash).definition;
-  const data = await buildViewerData({ history: { models: [{ modelHash: 'a'.repeat(64), definition: model }], revisions: [] },
-    generatedAt: '2026-09-27T12:00:00.000Z' });
+  const model = [...expandHistoryModels(bundle)].find(entry => entry.modelHash === edition.modelHash).definition;
+  const data = await buildViewerData({ history: { models: [{ modelHash: edition.modelHash, definition: model }], revisions: [] },
+    generatedAt: '2026-10-11T12:00:00.000Z' });
   const before = JSON.stringify(data);
   const hidden = unopenedProcessEvents(data);
-  const concurrentProcesses = new Set(model.processes.filter((process) => process.scale?.semantic_role === 'person_is_process').map((process) => process.id));
-  const concurrentEvents = data.events.filter((event) => event.processIds.some((id) => concurrentProcesses.has(id)));
-  assert.ok(hidden.size > 0 && hidden.size < concurrentEvents.length, 'this edition contains both unopened and developed processes');
-  assert.ok([...hidden].every((id) => concurrentEvents.some((event) => event.id === id)), 'only declared concurrent slots are hidden');
-  const daviesPeriod = data.events.find((event) => event.id === 'event.book.davies.beginning-1788');
-  assert.equal(daviesPeriod?.role, 'period', 'Davies\'s early life is a declared life period');
-  assert.equal(hidden.has(daviesPeriod.id), false, 'the qualitative period stays visible even though its span puts it in the process inventory');
-  const developed = concurrentEvents.filter((event) => !hidden.has(event.id));
-  assert.ok(developed.length > 3, 'qualitative developments count as modeling alongside numerical bodies');
-  for (const id of ['event.profile.charles-babbage.person.charles_babbage.is.body',
-    'event.profile.charles-babbage.person.charles_babbage.is.work',
-    'event.development.07r2.charles-babbage.1833-aug-1843.work']) {
-    assert.ok(developed.some(event => event.id === id), `A developed process remains visible: ${id}`);
+  assert.equal(data.timeUnit, 'year');
+  // This edition uses authored processes and native values, rather than the older concurrent template slots.
+  // The synthetic fixtures above still exercise hiding empty slots and preserving qualitative periods.
+  assert.equal(hidden.size, 0, 'none of this edition\'s developed Events is an unopened template slot');
+  assert.equal(data.typedScalarSeries.length, edition.inventory.valueSeries);
+  const nativeSeries = new Map(model.value_series.map(series => [series.id, series]));
+  const nativeProcesses = new Map(model.processes.map(process => [process.id, process]));
+  for (const series of data.typedScalarSeries) {
+    const native = nativeSeries.get(series.source.seriesId);
+    assert.ok(native, 'each displayed scalar series comes from a native value series');
+    assert.equal(series.processId, native.process_id);
+    assert.deepEqual(series.points.map(point => [point.t, point.record]), native.points.map(point => [point.time, point]),
+      'the viewer preserves every recorded date, value, state and provenance');
+    if (native.points.every(point => Number.isFinite(point.value))) {
+      assert.deepEqual(series.points.map(point => point.v), native.points.map(point => point.value), 'scalar values remain exact');
+    } else {
+      assert.deepEqual(series.states.map(state => state.key), nativeProcesses.get(native.process_id).value_type.variants,
+        'the stateful process retains its declared ordering');
+      assert.deepEqual(series.points.map(point => point.state), native.points.map(point => point.state), 'named states remain exact');
+    }
+    if (series.home) assert.equal(hidden.has(series.home), false, 'the Event carrying dated values remains visible');
   }
-  assert.ok(hidden.has('event.profile.george-farrow.person.george_farrow.is.kin'), 'an untouched empty slot remains hideable');
-  for (const event of data.events.filter((event) => ['phase', 'arc', 'life'].includes(event.role))) assert.equal(hidden.has(event.id), false, event.id);
+  assert.ok(data.typedScalarSeries.some(series => new Set(series.points.map(point => point.v)).size > 1),
+    'the current Book contains visibly changing processes');
+  const qualitative = data.events.filter(event => ['part', 'inner', 'life'].includes(event.role));
+  assert.ok(qualitative.length > 0, 'qualitative developments and life contexts remain in the viewer');
+  for (const event of qualitative) assert.equal(hidden.has(event.id), false, event.id);
   assert.equal(JSON.stringify(data), before, 'filtering cannot modify the Book or its recorded numerical content');
 });
 

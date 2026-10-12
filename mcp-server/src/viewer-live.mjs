@@ -4,9 +4,11 @@
 // process, from passing its own descendants; a new branch from an older revision is followed once it is written last.
 export function newestWrittenDescendant(writes, anchor) {
   const children = new Map(); const order = new Map();
-  writes.forEach(({ modelHash, previousModelHash }, i) => {
+  writes.forEach(({ modelHash, previousModelHash, fork }, i) => {
     if (order.has(modelHash)) return;
     order.set(modelHash, i);
+    // A fork revision starts a branch of the model: a view stays on its own line and never follows into a branch.
+    if (fork) return;
     if (!children.has(previousModelHash)) children.set(previousModelHash, []);
     children.get(previousModelHash).push(modelHash);
   });

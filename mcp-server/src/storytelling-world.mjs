@@ -17,6 +17,15 @@ import { interestInstructions, storyInterest, storyInterestIds } from './storyte
 export const WORLD_SCHEMA = 'meaning-model-story-world/v1';
 const id = z.string().trim().min(1).max(256);
 const text = (min = 1, max = 16_000) => z.string().trim().min(min).max(max);
+
+// How far a story's world departs from ours. The level is the user's answer, never drawn.
+export const realismLevels = Object.freeze({
+  as_ours: 'our world as it is, with no departure from its laws',
+  one_departure: 'our world with exactly one departure',
+  several_departures: 'our world with several connected departures',
+  own_laws: 'an invented world with its own fundamental laws',
+});
+const realismLaws = { as_ours: [0, 0], one_departure: [1, 1], several_departures: [2, 12], own_laws: [1, 12] };
 const time = z.number().finite();
 const hash = z.string().regex(/^[a-f0-9]{64}$/u);
 const reference = z.string().trim().min(3).max(1_024).describe('A model record as kind:id (event:ev.x, process:p.x, cut:c.x, referent:r.x, concept:c.x, realization:x, binding:x and the other record kinds) or a graph node id.');
@@ -109,6 +118,20 @@ const openingStage = z.object({
     knowledgeLimit: text(4, 2_000).nullable().default(null).describe('Where your own knowledge of the era ends (training often stops before the story\'s time), and how you found out what happened since.'),
     livingPeople: text(4, 4_000).nullable().default(null).describe('The living people and real organizations the story would otherwise touch, and the invented people and companies that take their place; the real world stays in the background.'),
   }).strict().nullable().default(null).describe('Optional: the era, whether it is real, and if so what is documented and what is invented.'),
+  realism: z.object({
+    level: z.enum(Object.keys(realismLevels)).describe(Object.entries(realismLevels).map(([key, meaning]) => `${key}: ${meaning}`).join('; ')),
+    chosenBy: z.enum(['user', 'delegated', 'established']).describe('The user\'s answer, your choice where they delegated it, or established: read from what the story\'s own records already settle (its opening, era, chosen world, commitments).'),
+    basisNodeIds: z.array(id).max(16).default([]).describe('For established: the story records it is read from. They are linked, so where the level came from stays visible.'),
+    laws: z.array(z.object({
+      id,
+      law: text(10, 2_000).describe('The departure from our world, stated as a law.'),
+      seedWord: text(1, 200).nullable().default(null).describe('The word it was built from (life_story_structure_explore, targetKind world_law), if any.'),
+      explorationNodeId: id.nullable().default(null).describe('The stored exploration it came from (life_story_author_record holding the world_law task), so the draw shows in the story\'s history. Its word and level must match.'),
+      rules: z.array(text(3, 1_000)).max(12).default([]).describe('The rules that follow from it, R1, R2, ...'),
+      reach: text(10, 4_000).describe('How far it reaches: which processes, institutions and daily lives it changes, and since when.'),
+      unchanged: text(3, 2_000).describe('What stays as in our world.'),
+    }).strict()).max(12).default([]),
+  }).strict().nullable().default(null).describe('Optional: how far the world departs from ours, and the laws where it does. Recorded beside the era: a fantasy can be set in our own time.'),
 }).strict();
 export const partsWithoutChoiceQuestion = (parts, total) => `${parts.length} of ${total} parts have no recognized decision Cut (${parts.join(', ')}). Read their Events and descriptions: choices may already be recorded there. Where a choice matters, what does the person choose, between which alternatives, and why? Preserve accepted or observed outcomes and refine any missing causal account. A part may contain no choice; quiet continuity, atmosphere or consequences can be sufficient. For a still-open fictional choice with a meaningful quantitative question and delegated uncertainty, a decision Cut and recorded draw are optional ways to explore what happens next.`;
 
@@ -180,6 +203,12 @@ export function eraQuestions(opening) {
     ...(era.knowledgeLimit ? [] : [{ kind: 'era-knowledge', tool: 'life_understanding_record', question: 'Where does your own knowledge of this era end? Training often stops before the story\'s time. Find out what happened since with whatever research tools you have, record each documented fact as a report with its source (life_understanding_record, kind report) linked to the model records it grounds, and leave open what you cannot find rather than guessing it.' }]),
     ...(era.livingPeople ? [] : [{ kind: 'era-living-people', tool: 'life_story_world_record', question: 'Which living people and real organizations would this story touch? Invent the people and companies that take their place, and keep the real world in the background.' }]),
   ];
+}
+// How far the world departs from ours is the user's answer. A question, not a gate.
+export function realismQuestions(opening) {
+  if (!opening || opening.realism) return [];
+  return [{ kind: 'realism-unstated', tool: 'life_story_world_record (stage opening)',
+    question: 'How far does this world depart from ours? Read it first from what the story already establishes: the opening and its era, the chosen candidate world, the implications\' commitments and the brief. Where they settle it, record that level as the opening\'s realism with chosenBy established, the records in basisNodeIds and the world\'s existing departures as its laws; an established world keeps its premises, so draw nothing for it. Ask the user only what those records leave open, unless they delegated it: our world as it is, one departure, several departures, or a world with its own laws. Draw a word (life_story_structure_explore, targetKind world_law) only for a departure nobody has established yet.' }];
 }
 // Every element of what makes a story interesting (storytelling-interest.mjs), found where it lives in this story
 // and investigated by modeling, with each principal's flaw among them. The list is revised as the model deepens: a
@@ -344,8 +373,37 @@ async function validateStage(service, world, view, input, model, modelHash) {
     });
     const needed = requiredOpenings(data?.form.targetWords ?? 0);
     if (world.accounts.length < needed) throw new Error(`A work of about ${data?.form.targetWords ?? 'this'} words needs at least ${needed} successive openings of its world; this has ${world.accounts.length}.`);
+    if (world.realism) {
+      const [least, most] = realismLaws[world.realism.level];
+      const count = world.realism.laws.length;
+      if (count < least || count > most) throw new Error(world.realism.level === 'as_ours'
+        ? 'Our world as it is has no departures; record its laws only if the level is one_departure, several_departures or own_laws.'
+        : `The level ${world.realism.level} (${realismLevels[world.realism.level]}) needs ${least === most ? least : `${least} to ${most}`} law${most === 1 ? '' : 's'}; this has ${count}.`);
+      if (new Set(world.realism.laws.map((item) => item.id)).size !== count) throw new Error('Realism law ids must be unique.');
+      // An established world keeps its premises: the level is read from records the story already has, and cites them.
+      if (world.realism.chosenBy === 'established' && !world.realism.basisNodeIds.length) {
+        throw new Error('An established level cites the records it is read from in basisNodeIds: the opening, the chosen candidate world, the implications or the brief.');
+      }
+      for (const nodeId of world.realism.basisNodeIds) {
+        const node = view.nodes.find((candidate) => candidate.id === nodeId);
+        if (!node || node.subject !== input.storyRootId) throw new Error(`${nodeId} is not a record of this story.`);
+        if (!links.some((link) => link.relation === 'learned_from' && link.targetNodeId === nodeId)) links.push({ relation: 'learned_from', targetNodeId: nodeId });
+      }
+      // A drawn law keeps its draw: the exploration it came from, with the same word and the same level.
+      for (const item of world.realism.laws.filter((law) => law.explorationNodeId)) {
+        const node = view.nodes.find((candidate) => candidate.id === item.explorationNodeId);
+        let task = null; try { task = JSON.parse(node?.text ?? '').data ?? null; } catch { task = null; }
+        if (!node || node.subject !== input.storyRootId || task?.schema !== 'meaning-model-story-structure-task/v1' || task.target?.kind !== 'world_law') {
+          throw new Error(`${item.explorationNodeId} is not a stored world_law exploration of this story; store the task with life_story_author_record first.`);
+        }
+        if (task.target.realism !== world.realism.level) throw new Error(`Law ${item.id} was explored at ${task.target.realism} and is recorded at ${world.realism.level}; explore again at the level the user chose.`);
+        if (item.seedWord !== task.seed?.word) throw new Error(`Law ${item.id} names the seed word ${item.seedWord ?? 'none'}, but its exploration drew ${task.seed?.word}.`);
+        if (!links.some((link) => link.relation === 'learned_from' && link.targetNodeId === node.id)) links.push({ relation: 'learned_from', targetNodeId: node.id });
+      }
+    }
     extra.interestCatalog = storyInterest;
     extra.eraQuestions = eraQuestions(world);
+    extra.realismQuestions = realismQuestions(world);
   }
   if (world.stage === 'aspects') {
     extra.interestCatalog = storyInterest;
@@ -449,4 +507,4 @@ export async function storeWorldRecord(service, raw) {
     nextStep: next, semanticVerification: false };
 }
 
-export const worldInstructions = `Use the model for all of it, and let it surprise you: draw a decision's continuations (life_direction_draw), explore candidate trajectories (life_story_trajectory_explore) and let a random word seed a structure (life_story_structure_explore); keep the most interesting with a recorded reason and leave the rest addressable. Investigate who the author is, and who the book is for (stage author_reader). Investigate which worlds this author could write, and choose one by argument (candidates). Investigate the chosen world, opening it in successive accounts from its macro-processes down to the principals' lives, so that what the story shows follows from a larger structure (opening). Investigate everything that makes this story interesting, the returned catalog as a start (aspects). Investigate what each commitment implies, and ask yourself which assumptions you have not modeled yet and which of them could stretch back far in time to create a deeper story (implications). Investigate where in the model the story is (route). Ask whether the author lives in this world or a separate one; if in this one, when they write the book matters. Their life can be a model of its own or a realm of the story's, and notes can link records of any stored model, so hold what the author lived together with what it shapes. These come in any order and again whenever the model leads back to them; record each with life_story_world_record when the understanding happens, let the director (life_story_direct) hold the world and the draft to what makes a story good, and write each scene from the model's state at its moment.`;
+export const worldInstructions = `Use the model for all of it, and let it surprise you: draw a decision's continuations (life_direction_draw), explore candidate trajectories (life_story_trajectory_explore) and let a random word seed a structure (life_story_structure_explore); keep the most interesting with a recorded reason and leave the rest addressable. For fantasy or science fiction, ask the user how far the world departs from ours (our world as it is, one departure, several departures, or a world with its own laws), unless the story's records already settle it, in which case reuse them; for a departure not yet established, draw an uncommon word (life_story_structure_explore, targetKind world_law) and build the world's law from it, then trace what the law reaches. Investigate who the author is, and who the book is for (stage author_reader). Investigate which worlds this author could write, and choose one by argument (candidates). Investigate the chosen world, opening it in successive accounts from its macro-processes down to the principals' lives, so that what the story shows follows from a larger structure (opening). Investigate everything that makes this story interesting, the returned catalog as a start (aspects). Investigate what each commitment implies, and ask yourself which assumptions you have not modeled yet and which of them could stretch back far in time to create a deeper story (implications). Investigate where in the model the story is (route). Ask whether the author lives in this world or a separate one; if in this one, when they write the book matters. Their life can be a model of its own or a realm of the story's, and notes can link records of any stored model, so hold what the author lived together with what it shapes. These come in any order and again whenever the model leads back to them; record each with life_story_world_record when the understanding happens, let the director (life_story_direct) hold the world and the draft to what makes a story good, and write each scene from the model's state at its moment.`;

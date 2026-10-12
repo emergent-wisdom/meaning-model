@@ -1231,7 +1231,7 @@ function drawNotes() {
     positionNote(light, occupied, centeredBand, homes);
     const selected = noteSelected(light);
     light.scale.setScalar((light.userData.node.category === 'passage' ? 2.6 : 2.0) * (selected ? 1.8 : 1));
-    if (light.visible && !selected && waitsForPlayhead(light.position.x)) light.visible = false;
+    if (light.visible && !selected && pinnedTarget !== light && waitsForPlayhead(light.position.x)) light.visible = false;
     if (!light.visible) continue; shown.add(light.userData.id); const on = lit === light || selected; if (!opt.edges && !on) continue;
     const anchors = on || opt.allNoteAttachments || opt.noteLayout === 'original' ? light.userData.moments.filter((event) => ((!opt.detailProjection || opt.detailProjection.eventIds.has(event.id)) && !opt.unimportant?.has(event.id)) && shownByPlay(event.start, bornAt(event))).flatMap((event) => meet(event)) : light.userData.localAnchor ? [light.userData.localAnchor.point] : light.userData.floorHome?.kind === 'slot' ? [light.userData.floorHome.point] : [];
     for (const point of anchors) mindLines.add(light.position.x, light.position.y, light.position.z, point.x, point.y, point.z, light.userData.color, on ? 0.95 : opt.allNoteAttachments ? 0.3 : opt.noteLayout === 'original' ? 0.13 : 0.2);
@@ -2001,7 +2001,7 @@ function apply() {
   // Across the story's years the love-or-fear chips before them wait at their start, as they always did.
   for (const chip of lenses) chip.visible = ((!opt.detailProjection || opt.detailProjection.eventIds.has(chip.userData.eventId)) && !opt.unimportant?.has(chip.userData.eventId)) && opt.show.has('lovefear') && (isStory() || inView(chip.userData.t)) && shownByPlay(chip.userData.t, bornAt(chip.userData)) && chip.userData.placed;
   mind.visible = opt.show.has('notes');
-  for (const light of notes) light.visible = light.userData.id === selectedPart?.unit.id || ((!opt.curation?.notes.size || opt.curation.notes.has(light.userData.id)) && !(opt.hideUndated && undatedNote(light.userData.id)) && (!opt.detailProjection || (noteScopeEvents.get(light.userData.id) ?? []).some((id) => opt.detailProjection.eventIds.has(id))) && (construction ? bornAt(light.userData) <= tau : light.userData.t <= now));
+  for (const light of notes) light.visible = light.userData.id === selectedPart?.unit.id || pinnedTarget === light || ((!opt.curation?.notes.size || opt.curation.notes.has(light.userData.id)) && !(opt.hideUndated && undatedNote(light.userData.id)) && (!opt.detailProjection || (noteScopeEvents.get(light.userData.id) ?? []).some((id) => opt.detailProjection.eventIds.has(id))) && (construction ? bornAt(light.userData) <= tau : light.userData.t <= now));
   sweep.position.x = xOf(now); sweep.visible = playing && !construction;
   const fill = construction ? activeClock(tau) / activeClock.total : fracOf(F, now);
   document.getElementById('fill').style.width = `${Math.max(0, Math.min(1, fill)) * 100}%`;
@@ -3438,17 +3438,58 @@ function useSharedSelection(selection) {
   else { if (record.record?.description) body.append(tipLine('m', record.record.description)); const raw = document.createElement('details'); const summary = document.createElement('summary'); summary.textContent = 'Full native record'; const pre = document.createElement('pre'); pre.textContent = JSON.stringify(record.record, null, 2); raw.append(summary, pre); body.append(raw); }
   showDetails([...body.childNodes]); extrasDirty = true;
 }
+// A row found by search: shown even if the current choices hide it, its stretch of time brought into view, its details
+// shown as clicking its curve shows them, and the camera taken to the curve.
+function locateRow(row) {
+  if (!row.inT) setEverything(true);
+  // Playback stops, so the curve found is not swept past or hidden again.
+  if (playing) stop();
+  const [a, b] = row.domain ?? [];
+  if (Number.isFinite(a) && Number.isFinite(b) && (b < F.a || a > F.b)) {
+    const pad = Math.max((b - a) * 0.04, calendarTime ? 0.02 : 0.1); currentPreset = null; setView(a - pad, b + pad); apply(); syncPanel(); syncURL(true);
+  }
+  // The time shown is the cursor's, or the nearest recorded reading when nothing covers the cursor.
+  let t = Number.isFinite(a) && Number.isFinite(b) ? Math.max(a, Math.min(b, now)) : now;
+  const points = row.points ?? row.measure.points ?? [];
+  if (rowValue(row, t) === null && points.length) t = points.reduce((best, point) => (Math.abs(point.t - now) < Math.abs(best - now) ? point.t : best), points[0].t);
+  // The reading shown is brought into the window, which keeps its width, and in the story's years a reading the
+  // playhead has not reached moves the playhead to it, so the curve is drawn up to what is shown.
+  if (t < F.a || t > F.b) { const half = (F.b - F.a) / 2; currentPreset = null; setView(t - half, t + half); }
+  if (opt.mode === 'story' && t > now) { now = t; atEnd = false; }
+  apply(); syncPanel(); syncURL(true);
+  publishRecord(row.measure.kind === 'cut-answer' ? (row.measure.home ? { kind: 'event', id: row.measure.home } : null) : { kind: 'process', id: row.measure.processId ?? row.measure.id });
+  const body = document.createElement('div');
+  for (const [cls, text] of curtainLines({ row, t })) body.append(tipLine(cls, text));
+  appendCurtainSources(body, { row, t });
+  showDetails([...body.childNodes], row.wall);
+  const p = rowAt(row), from = Number.isFinite(a) ? Math.max(a, F.a) : F.a, to = Number.isFinite(b) ? Math.min(b, F.b) : F.b;
+  glideTo([new THREE.Vector3(X(from), p.y, p.z), new THREE.Vector3(X(to), p.y, p.z)]);
+}
 export const temporalController = {
   setDetail: setProcessDetail,
   recenter: recenterView,
   // A highlight picked in the card of the model's view: a note shows what it says, as hovering it does; a link, moment
   // or reading opens as any selection does.
+  // A search result: a row at its curve, a note or passage at its moments (with the notes layer on), any other record as
+  // a highlight is shown.
+  locate(target) {
+    const row = target.rowId ? rowOf.get(target.rowId) : null;
+    if (row) { locateRow(row); return; }
+    if (target.kind === 'row') { if (target.record) this.showHighlight({ record: `${target.record.kind}:${target.record.id}` }); return; }
+    if (target.kind === 'narrative' && noteById.has(target.id)) {
+      if (!mind.visible) showThoughts(true);
+      this.showHighlight({ nodeId: target.id }); return;
+    }
+    this.showHighlight({ record: `${target.kind === 'normalized_cut' ? 'cut' : target.kind}:${target.id}` });
+  },
   showHighlight(target) {
     const why = opt.curation?.why.get(target.record ?? `node:${target.nodeId}`) ?? target.why ?? null;
     const reason = why ? [tipLine('k', 'Why the model shows this'), tipLine('m', why)] : [];
     if (target.nodeId) {
       const light = noteById.get(target.nodeId), hover = light?.userData.hover; if (!hover) return;
       showDetails([...reason, tipLine('k', hover.kind), tipLine('v', hover.title ?? ''), tipLine('m', hover.text ?? ''), ...(hover.attached ?? []).map((line) => tipLine('a', line))], light);
+      // The note is pinned now, so it shows even where the chosen view's filters or the playhead hide it.
+      apply();
       glideTo([light.position, ...light.userData.moments.flatMap((event) => meet(event))]); drawNotes();
       return;
     }

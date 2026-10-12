@@ -49,7 +49,7 @@ test('the alien add-on is opt-in and adds only its tools, resources and prompt',
   const guide = await enabled.readResource({ uri: addonUri });
   assert.match(guide.contents[0].text, /^# Alien add-on/u);
   assert.match(guide.contents[0].text, /optional background/u);
-  assert.match(guide.contents[0].text, /compiler, explorer and world-curator tasks in fresh contexts/u);
+  assert.match(guide.contents[0].text, /compiler, explorer, world-curator and verifier tasks in fresh\s+contexts/u);
   assert.match(guide.contents[0].text, /record `same_context`/u);
   assert.doesNotMatch(guide.contents[0].text, /Paper first|write tools refuse|paper-first gate|paper has been read/u);
   assert.match(enabledResources.resources.find(({ uri }) => uri === paperUri).description, /Optional background/u);
@@ -57,7 +57,7 @@ test('the alien add-on is opt-in and adds only its tools, resources and prompt',
   assert.ok(prompts.prompts.some(({ name }) => name === 'life_alien_start'));
   const start = await enabled.getPrompt({ name: 'life_alien_start', arguments: {} });
   assert.ok(start.messages[0].content.text.includes(constructionRecordInstructions), 'ideation receives the same macro-to-micro and Understanding Graph instructions');
-  assert.match(start.messages[0].content.text, /builder, solver, compiler, explorer and world_curator tasks in fresh contexts/u);
+  assert.match(start.messages[0].content.text, /builder, solver, compiler, explorer, world_curator and verifier tasks in fresh contexts/u);
   assert.match(start.messages[0].content.text, /record same_context honestly/u);
   assert.match(start.messages[0].content.text, /life-sim:\/\/theory\/ontology-of-the-alien/u);
   assert.match(start.messages[0].content.text, /optional background/u);

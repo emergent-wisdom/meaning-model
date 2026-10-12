@@ -31,7 +31,7 @@
 \title{The Meaning Model:\\Constructing Worlds and Stories at Progressive Resolution}
 \author{Henrik Westerberg\\Emergent Wisdom\\
   \texttt{henrik.westerberg@emergentwisdom.org}}
-\ewreviseddates{September 5, 2026}{October 9, 2026}
+\ewreviseddates{September 5, 2026}{October 11, 2026}
 
 \begin{document}
 \maketitle
@@ -60,9 +60,13 @@ declared commitments or explicitly revises them, with their dependent accounts a
 passages. The medium is a candidate training language for choosing, deepening, and
 repairing representations. Life Simulation develops the construction-to-learning
 loop; this paper specifies the representation and preservation contracts. The
-completed \emph{Book of Conditions} partly demonstrates construction feasibility
-but does not validate the full method; learning gains, computational
-savings, and alignment remain untested.
+first, directed construction of \emph{The Book of Conditions} partly demonstrates
+construction feasibility. In a new construction, a language-model agent
+automatically generated and revised the world model and twelve-chapter prose
+from a human-supplied premise and historical source package, with feedback from
+language-model readers.
+Neither construction validates the full method; controlled comparative benefit,
+learning gains, computational savings, and alignment remain untested.
 \end{abstract}
 
 \keywords{Meaning Model, Recursive World Grammar, Concept Grounding,
@@ -159,7 +163,13 @@ records persist, another agent or a later session can inspect, correct, and buil
 on them. A language model that carries out the construction the tool instructs is
 meant to build coherent worlds and books this way. \emph{The Book of
 Conditions} was begun under the author's direction while the tool itself was being
-built, and its later revisions were made through the tool. Whether works built
+built, and its later revisions were made through the tool. A separate construction
+on 11 October 2026 generated a new world and manuscript through the tool, with
+Claude Opus 5.5 doing the modeling, writing, and revision. The human supplied the
+premise and historical research, requested continuation and further depth, and
+passed on model-reader feedback; no human wrote or copyedited the resulting
+literary prose. Section~\ref{sec:book-rerun} records that run and its limits.
+Whether works built
 this way are more coherent than unstructured writing is what the prospective
 evaluation tests. The method is
 designed for programs too: a code unit is a DocumentNode that could be linked to
@@ -246,13 +256,17 @@ commitments or revises them explicitly. Four representational changes carry it:
     merely because they describe one person or world.
 \end{itemize}
 
-The running example is \emph{The Book of Conditions}, a completed alternate
+The running example is the first construction of \emph{The Book of Conditions}, a completed alternate
 history in which Babbage's bounded calculating apparatus is built and put to
 work by a calculation office. Its commercial organizer, Edward Halden, accepts
 orders beyond the office's independent checking capacity, while Lovelace seeks
 a successor to sustain that checking. In 1854 an unchecked, erroneous table is
 delivered: the story concerns the human and institutional conditions of a
 computational claim, not just whether the machine works.
+The worked Events, Cuts, and numerical figures below refer to this directed
+construction. The new agent-generated construction in
+Section~\ref{sec:book-rerun} starts separately from the premise and historical
+sources; it does not inherit this manuscript or its world model.
 
 Refinement should preserve \emph{semantic continuity}. Starting from the coarse
 claim that Babbage builds an Engine, a construction may later expose the
@@ -441,7 +455,7 @@ the wider research program.
 \section{Grammar and Progressive Construction}
 \label{sec:grammar}
 
-In the Book's current model, the apparatus trial of May 1851 shows the six
+In the first Book construction, the apparatus trial of May 1851 shows the six
 forms together. Babbage, Lovelace, the apparatus, and the sealed test packet are
 Things with continuing identities. The trial is an Event, opened into a first run
 that stops and is begun again, a second complete run that agrees with the sealed
@@ -1269,7 +1283,7 @@ its predecessor if any, evidence, and material rejected alternatives. Without th
 lineage the Concept remains valid but its rationale is not preserved. Simple
 label registration and mechanical metadata changes need no ceremonial nodes.
 
-The Book supplies a concrete starting point. In E20a, Lovelace identifies two
+The first Book construction supplies a concrete starting point. In E20a, Lovelace identifies two
 checking paths that share a prior value, and Babbage narrows his design's claim
 from verification to internal comparison. Opening a concept history would
 register the successive design formulations and link the revision to their
@@ -1747,7 +1761,7 @@ the author's reason.
 
 \subsection{The unfunded successor, 1852--54}
 
-Chapter X of the completed \emph{Book of Conditions}, \emph{The Unfunded
+Chapter X of the first \emph{Book of Conditions} construction, \emph{The Unfunded
 Successor}, supplies an actual construction example. At Ockham in August
 1852, Lovelace recognizes that both her claim authority and Neale's independent
 checking depend on single people. She asks for funded training and outside
@@ -1812,7 +1826,7 @@ recover the original cross-surface authoring transactions.
   node[label,above]{discourse order: Chapter I is read before Chapter X}
   (0,-2.8) -- (chapterX.south);
 \end{tikzpicture}
-\caption{Selected records from the completed Book, mapped to world,
+\caption{Selected records from the first Book construction, mapped to world,
 understanding, and document surfaces. The top arrows show story order, not
 causal necessity. U05 belongs to construction time; the bottom arrow shows
 the different order in which the reader encounters the events. Character
@@ -1968,10 +1982,10 @@ Five questions provide the evaluation contract:
     validation, inference, and maintenance cost?
 \end{enumerate}
 
-\section{\emph{The Book of Conditions}: Completed Book, Partial Witness}
+\section{\emph{The Book of Conditions}: Directed Construction and Agent-Generated Rerun}
 \label{sec:book-construction}
 
-\emph{The Book of Conditions} is a completed twelve-chapter manuscript with
+The first construction of \emph{The Book of Conditions} is a completed twelve-chapter manuscript with
 an authored world, selected concept grounding, rooted UnderstandingNodes, and
 an ordered story route. The AI constructor built it under my direction at the beginning, while the tool
 itself was being developed; later revisions were made by language-model agents
@@ -1983,11 +1997,12 @@ This tests whether the grammar can hold
 one inspectable long story at a declared resolution; it does not demonstrate
 every permitted profile or establish comparative advantage.
 
-The Book is one continuing work. The construction history, import receipt,
-and numerical portrait below report its initial construction;
+That construction continued through later revisions. The construction history,
+import receipt, and numerical portrait below report its initial construction;
 Section~\ref{sec:story-continuations} follows its subsequent revisions and
-describes the current model. Measurements and reviews remain attributed to
-the revisions they examined.
+describes its later published model. Section~\ref{sec:book-rerun} reports the
+independent new construction now supplied as the worked example. Measurements
+and reviews remain attributed to the revisions they examined.
 
 \subsection{How the construction proceeded}
 
@@ -2293,26 +2308,27 @@ authored appraisals, not forecast probabilities or a measured recovery curve.
 
 \input{includes/book-trajectory-figures}
 
-\subsection{Revision history and current model}
+\subsection{The directed construction and its continuations}
 \label{sec:story-continuations}
 
-The current example in \texttt{examples/book-of-conditions/} supplies the
-2 October 2026 reference revision of the manuscript and its portable native
-construction. A publication manifest identifies the exact model, graph, and
-rendered text. The export retains 66 graph revisions and seven model
-definitions: six successive Book models and Nora Vale's separate fictional
-author model. Its preserved chain begins with the 29 September publication
-root; it supports replay of the subsequent construction without recovering
-earlier development history. The accompanying importer uses the public MCP
-tools and checks the recovered rendering.
+The earlier example, archived in the
+\href{https://github.com/emergent-wisdom/meaning-model/tree/v0.9.1/examples/book-of-conditions}{0.9.1 software release},
+pairs the 2 October 2026 manuscript with its 6 October model. A publication
+manifest identifies the exact model, graph, and rendered text. The 7 October
+publication supplies 334 graph revisions and 48 model definitions: 45
+successive Book definitions and three of Nora Vale's separate fictional
+author life. It retains the complete history from the first revision, with
+private material removed from the earlier history and publication mappings
+disclosing the changes. The importer uses the public MCP tools and checks the
+recovered rendering.
 
-The Book now has twelve chapters, 34 rendered passage leaves, and 13,342
-whitespace-delimited words. Its native model contains 589 Events, 257 processes,
-and 120 normalized Cuts. Every rendered leaf has declared Event anchors. Coarse location
+That edition has twelve chapters, 34 rendered passage leaves, and 13,342
+whitespace-delimited words. Its native model contains 671 Events, 257 processes,
+and 202 normalized Cuts. Every rendered leaf has declared Event anchors. Coarse location
 histories, spatial understanding, and nine qualitative telling tracks with
 63 passage-bound phases are included. Nora Vale's fictional author life is
 linked separately; it is not part of the nineteenth-century story world.
-These inventory counts describe the current artifact, not the historical
+These inventory counts describe that later edition, not the historical
 footprint in Table~\ref{tab:book-footprint}.
 
 The revised capacity account distinguishes preparation from checking final
@@ -2334,8 +2350,9 @@ background processes, and telling, and to revise passages together with their
 supporting Events. The six succession-Cut flags discussed above were resolved
 by an attributed content review; subsequent revisions extended the numerical
 account and reassessed readings affected by changed descriptions. Fifty of the
-120 current normalized Cuts have a recorded textual basis, matching the
-current descriptions; the other 70 retain untracked text freshness. These
+120 normalized Cuts in the 2 October model have a recorded textual basis;
+the other 70 retain untracked text freshness. The 6 October model adds 82
+whole-life readings that were not reviewed against the prose. These
 records support checking whether a reading's basis has changed, not calibration
 of its quantities. The latest conceptual refinements do not constitute a new
 numerical assessment.
@@ -2348,6 +2365,68 @@ household authorization missing from the closing account. Two final copyedits
 followed that check. These limited readings are neither a blind test of every
 claim in the final artifact nor the controlled evaluation proposed below, and
 they do not recertify historical claims.
+
+\subsection{A new agent-generated construction}
+\label{sec:book-rerun}
+
+On 11 October 2026, Claude Opus 5.5 constructed a new \emph{Book of Conditions}
+through the Meaning Model tools. It began with a human-supplied task and a
+researched historical source package, not the earlier book or its model. The
+task fixed a twelve-chapter novel and one counterfactual: Babbage continues
+negotiating Lovelace's 14 August 1843 offer to conduct the business
+of the Analytical Engine rather than refusing it. The agent constructed the
+subsequent world, lives, choices, scenes, and prose, then revised them
+through the tool. No human composed or copyedited its literary prose.
+
+The run had three modeling and writing turns. The second was a request to
+continue; the third requested a deeper model and revisions informed by three
+fresh Claude Sonnet 5.5 editorial readers. These readers saw only the new
+manuscript, had no tools, and supplied their own feedback. The human managed
+the run and passed on those notes. A fourth turn corrected reviewer metadata
+without changing the manuscript or model. This is automatic generation and
+revision within a commissioned task, not an uninterrupted run without human
+direction or a demonstration of autonomous concept induction.
+
+The tool began at candidate \texttt{7e4f6b7} and moved to \texttt{76f18f1} before
+the third turn, to use its corrected cause-recording behavior. Both preceded
+the 0.10.0 software release. The installed copy withheld the earlier Book's
+modeling example, the Meaning Model and Life Simulation papers, and a number-test
+guide that cited an earlier verification run. Generic Babbage and Lovelace
+scaffold examples still supplied dates and structure; they contained no earlier
+plot, wants, process readings, or prose. This specifies the input boundary
+rather than claiming that the tool carried no prior Book-related material.
+
+A limited comparison used four fresh Claude Sonnet 5.5 readers with no tools.
+Each received the new and earlier manuscripts with identifying titles and
+afterwords removed, and the order was balanced. All four preferred the new
+manuscript overall. They compared 23,448 words with 13,337 words under that
+normalization. The writer did not receive their pairwise verdicts; it received
+separate editorial notes from readers of the new manuscript alone. The readers
+were model instances, not human readers. Unequal lengths, different construction
+and feedback histories, and the absence of a direct-prompt or prose-bible control
+prevent attribution of this preference to the Meaning Model or its numerical
+records. It is not the controlled evaluation proposed below.
+
+The exported construction has 84 graph revisions and 85 model definitions.
+Its current world contains 571 Events, 202 processes, 540 Cuts, and 13 Concepts;
+six causal questions have 19 recorded assessments. Its twelve-chapter manuscript
+renders 23,441 whitespace-delimited words, including its title. These counts are inventory, not a
+quality score. All fourteen people meet the tool's basic development check,
+but the coverage report remains incomplete: it asks for 6,817 scheduled
+readings, and 141 processes pass over their own Events without a value.
+The run has no telling processes, executable laws, or Realizations. Its
+fictional narrator persona is recorded as a note, without a separate author
+life model. Thus this construction does not implement every component of the
+proposed method.
+
+The current \texttt{examples/book-of-conditions/} contains this new manuscript,
+its native construction, the task and historical sources, and a publication
+manifest identifying the retained revisions and any privacy projection. The
+example's counts and review status belong to this run; the older arithmetic,
+profile figures, and read-back results above remain evidence about the earlier
+construction. Remaining coverage gaps and authored historical interiors prevent
+the completed novel from establishing full protocol conformance, calibrated
+psychology, or historical truth.
 
 \subsection{A separate executable refinement example}
 \label{sec:reference-refinement}
@@ -2401,7 +2480,7 @@ manifest records exact file digests.
 \subsection{Prospective comparative evaluation}
 \label{sec:prospective-evaluation}
 
-The completed Book does not satisfy the still-prospective comparison.
+Neither Book construction satisfies the still-prospective controlled comparison.
 A future scored construction must preserve source-locked accepted commits,
 direction Cuts and seeds where selection is claimed, DocumentNodes linked to
 those commits, independent read-back proposals, and the final model under one
@@ -2485,7 +2564,8 @@ session, over the same knowledge held only implicitly. If discovered concepts do
 not transfer, or explicit anchors add nothing beyond what a capable model does
 implicitly, that is a negative result for the paper's central idea.
 
-A direct demonstration of autonomous construction would begin from scratch. A named model,
+The new run demonstrates agent generation from a specified premise and sources.
+A stricter demonstration of autonomous construction would begin from scratch. A named model,
 working through a frozen release of the tool, receives one open prompt, such as to
 write any story it wishes, and works in a small fixed number of rounds. The
 prompt, the model, the release, and the complete construction are published with
@@ -2899,19 +2979,49 @@ their own worlds and times; and reading order remains distinct from world time.
 \subsection{Mechanism search through invented worlds}
 
 The optional alien add-on implements the world-diversity search of Ontology of
-the Alien over the same graph~\cite{westerbergOntology2026}. A target-blind
-builder turns a seed word into an invented world; a purpose-blind solver addresses
-the problem inside that world; a compiler states the operative causal relation in
-the problem's own domain. The server writes each role's task, stores its exact
-text, and records every output against the task it answers. Curators maintain
-three revisable ontologies: mechanism families, claimed outcomes, and causal world
-regimes. Their partitions are specializations under a named lens, not expressive
-decompositions. A new family is admitted only when the recorded equivalence test
-says the primary causal operator changed; the judgment itself remains the
-curator's. Diagnosis of the ontologies, including family and outcome
-combinations that no candidate yet realizes, informs the commission of the next
-world. A transfer maps a mechanism's roles onto records of the target model and
-states where the analogy breaks; a graded fit is a fit Cut with its own remainder.
+the Alien over the same graph~\cite{westerbergOntology2026}, as a method in three
+parts: invented worlds that find kinds of solution no one has considered, a
+curated graph of kinds that shows which kinds are still empty, and verification of
+each candidate. A target-blind builder turns a seed word into an invented world; a
+purpose-blind solver addresses the problem inside that world; a compiler states the
+operative causal relation in the problem's own domain. The server writes each
+role's task, stores its exact text, and records every output against the task it
+answers. Curators maintain three revisable ontologies: mechanism families, claimed
+outcomes, and causal world regimes. Their partitions are specializations under a
+named lens, not expressive decompositions. A new family is admitted only when the
+recorded equivalence test says the primary causal operator changed; the judgment
+itself remains the curator's. A transfer maps a mechanism's roles onto records of
+the target model and states where the analogy breaks; a graded fit is a fit Cut
+with its own remainder.
+
+The ontologies also steer the search. A curator can carve kinds under a lens
+before any candidate fills them, and the diagnosis names every kind with no
+candidate anywhere in its subtree, beside the family and outcome combinations that
+no candidate yet realizes. A commission can name such kinds as its target: the next
+explorer is asked for a candidate of a named mechanism family or claimed outcome,
+and the next world for a named regime, whose description is checked for target
+terms like any other request to the builder. Whether forcing worked is read back
+from the curated ontology rather than from the answer's own claim: the diagnosis
+reports a commission as filled once a curator places an answer in a named kind or
+below it, and as missed when every answer lands elsewhere.
+
+Candidates are verified with PURE, the viability check of Fractal
+Intelligence~\cite{westerbergFractal2026}, in the form of the PURECheck card in
+Sema's vocabulary~\cite{westerbergSema2026}. Its four gates, Parsimonious, Unique,
+Realizable, and Expansive, are each judged by a separate verifier, in a context
+that sees the problem and the candidate but no other gate's verdict; no gate
+compensates for another, and each returns verified, falsified, or unknown. As in
+Fractal Intelligence, each gate is a decomposition point: the verifier opens its
+question into probes and answers each the same way, going deeper where an answer
+is uncertain and would change the verdict, and stopping where the marginal-value
+rule says another level would cost more than it yields. A probe that needs a fresh
+look becomes its own verifier task, whose status stands in for the probe. The
+probes compose by each gate's criterion: every part needed, distinct from every
+incumbent, every part realizable, and carried over to at least one domain unlike
+the problem's. A deeper finding therefore changes the gate through the same rule.
+The server computes the result from the records, and a candidate is verified only
+when all four gates are. Uniqueness is judged against known practice and the
+candidates found before the one checked, never against the candidate itself.
 
 An alternative explorer works directly from the target problem, with or without
 a random-word cue. Both routes can use no population context, an inventory of
@@ -2923,14 +3033,18 @@ population context; running that condition would extend the study rather than
 replicate a reported condition.
 
 These records organize ideation. A world is a textual thought experiment, not a
-simulation, and a transfer records an idea and its mapping, not evidence that the
-idea works. The add-on implements the world-population ontology and graph-directed
-world commissioning that Ontology of the Alien proposes. A second judge from another
-model family can answer each curator decision's comparison without seeing its
-reasons, which addresses that paper's single-coder limitation, and target-blind
-worlds can be exported as a library and imported into later searches. Whether governed world
-coverage yields more useful mechanisms than unguided generation remains that
-paper's open experiment.
+simulation; a transfer records an idea and its mapping; and a verified candidate
+has passed four separate checks, all made in text. None of them is evidence that
+the idea works. The add-on implements the world-population ontology and
+graph-directed world commissioning that Ontology of the Alien proposes, and directs
+commissions at the graph's empty kinds, for explorers as well as worlds. A second
+judge from another model family can answer each curator decision's comparison
+without seeing its reasons, which addresses that paper's single-coder limitation,
+and target-blind worlds can be exported as a library and imported into later
+searches. Whether governed world coverage yields more useful mechanisms than
+unguided generation remains that paper's open experiment; whether forcing empty
+kinds yields useful candidates, and whether a PURE verdict predicts which ideas
+survive testing, are open in the same way.
 
 The architecture is intended to reduce repetitive language-model work through
 batched judgments and automatic ingestion. An end-to-end efficiency claim must
@@ -3169,8 +3283,8 @@ implements.}
 \label{tab:predecessor-contracts}
 \end{table}
 
-The Book partially demonstrates feasibility, while
-comparative literary benefit, learning gains, and computational savings remain
+The two Book constructions partially demonstrate feasibility, while
+controlled comparative benefit, learning gains, and computational savings remain
 untested.
 
 \section{Limitations and Research Boundary}
@@ -3346,12 +3460,14 @@ observation and process histories, reusable problem-solving, and continuing
 evaluative interpretation. This paper supplies the construction contracts;
 the companion specifies how such histories could train those capabilities.
 
-The completed Book exposes both the reach and the boundary of the architecture.
-It holds one progressively resolved world, its meanings, selected understanding
+The Book constructions expose both the reach and the boundary of the architecture.
+Each holds a progressively resolved world, its meanings, selected understanding
 history, and its story in a linked artifact. In the first construction, the
 final pragmatic successor was not admitted through the complete atomic
-protocol, and the later manuscript reviews are not an independent read-back
-of the current manuscript. The prospective comparison must therefore
+protocol. The new construction demonstrates automatically generated and revised
+model and prose from a human-supplied task and historical sources. Its model-reader
+comparisons judge literary preference, not independent recovery of the model's
+records from the prose. The prospective comparison must therefore
 still test misleading Cuts, inaccessible perspective paths, failed
 recomposition, maintenance cost, and distinctions the prose does not preserve.
 The Book begins that program without establishing its predictive, transfer,
@@ -3370,7 +3486,7 @@ as better evidence and more capable models become available.
 
 \section{Book-Specific Profile Vocabulary}
 
-These vocabularies describe the non-normative preparation profile for the Book;
+These vocabularies describe the non-normative preparation profile for the first Book construction;
 the completed construction exercised only part of it. They are not a universal
 psychology. The preparation documents own their
 freeze and use. A future fixed-vocabulary comparison of this profile must freeze their identifiers and

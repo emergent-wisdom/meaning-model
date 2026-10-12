@@ -55,3 +55,28 @@ const purposeMethods = Object.freeze({
 export function purposeMethod(purpose) {
   return purposeMethods[purpose] ?? null;
 }
+
+// Forecasting as a mode any purpose can pull in. Whatever the work builds, its model can say what should happen next,
+// and saying it before it happens is how the model is tested; the forecasting purpose is this mode as the whole work.
+export const pullableModes = Object.freeze(['forecasting']);
+const forecastingCore = 'Forecasting, pulled into this work: whatever you build, its model can say what should happen next, and saying it before it happens is how the model is tested. A forecast is its own dated record, issued before the outcome under the forecaster\'s perspective: a forecast Event with a Cut whose answers are the outcomes, with a remainder, and whose weights are probabilities declared before the outcome, with its evidence cutoff, its horizon and what will settle it (section 6 of life-sim://example/minimal-model-and-graph). A prediction note in the graph (life_understanding_record, kind prediction) stays the quickest record of what you expect, judged later with validates or invalidates: keep writing them, and issue a forecast Event and Cut as well when you can name the outcomes and weigh them. Never revise an issued forecast: when the evidence changes, issue a new one beside it. When the outcome comes, link it with realizes_forecast and score each forecast as it was issued, beside a baseline scored the same way. A forecast issued from a model that already holds records from after its cutoff is hindsight, not a prediction. Forecast what the work can be checked against.';
+const forecastingInPurpose = Object.freeze({
+  creative_story: 'In a story, forecast what can be checked: what the user will have their character do next in story chat, or how blind readers will respond to a chapter. The story\'s own continuation is authored, not forecast: alternative continuations are branches the author chooses among, and the chosen one is adopted, not scored.',
+  source_reconstruction: 'Forecasting inside a text you have read is hindsight: you already know how it goes. Forecast only what the text has not reached, such as what happens after its last page, or give a reader only the passages up to a cutoff and have them forecast.',
+  person_reflection: 'With the person\'s consent, forecast with them: what they expect of a decision, a feeling or a habit, beside what the model expects, each issued before it happens and checked with them afterwards. A forecast about a person is a hypothesis about them, never knowledge of them, and is not told to others as what they will do.',
+  observation: 'Forecast observable outcomes of what you describe, preferring events anyone can check (an adoption, a vote, a measured threshold) to prices or moods, each with the source that will settle it.',
+  forecasting: 'Forecasting is the whole work here: build the model behind each forecast as an observation model, and the forecasts are its deliverable.',
+  counterfactual: 'A change to the past is a branch that is never scored: what did not happen cannot be observed. Keep forecasts for what starts at or after the cutoff.',
+  agent_memory: 'Forecast what the user will need, ask or prefer at the next interaction, issued before it and checked when it comes; a miss revises the model of them. Never act on a forecast about the user as if they had said it.',
+  user_memory: 'Forecast what the user will need, ask or prefer at the next interaction, issued before it and checked when it comes; a miss revises the model of them. Never act on a forecast about the user as if they had said it.',
+  human_author_feedback: 'Forecast how readers will respond to a passage, offered to the author as hypotheses and checked with readers where possible. Do not forecast the author\'s choices for them.',
+});
+export function forecastingMode(purpose, { branchesEnabled = false } = {}) {
+  return {
+    core: forecastingCore,
+    inThisPurpose: forecastingInPurpose[purpose] ?? null,
+    branches: branchesEnabled
+      ? 'To follow what each answer would lead to, fork the answers as sibling branches with life_future_fork (each premise spans the forecast\'s window; a narrower timing is a narrowing without probability; the remainder is not branched; where a probability no longer means what was forecast, the branches fork without it and say why), continue each with the ordinary tools, switch between them with life_future_load and set them side by side with life_future_compare. A decision forks its options with waiting or doing nothing among them; a change to the past forks as a counterfactual. Read life-sim://addon/forecasting first.'
+      : 'Branches of the model per forecast answer, decision option or assumption come with the forecasting add-on: start the server with MEANING_MODEL_ADDONS including forecasting. Forecasts themselves need no add-on.',
+  };
+}

@@ -94,8 +94,13 @@ time range. Returning to a snapshot in the same tab restores its own view, time
 and selection. Switching models loads that snapshot. Only models explicitly
 opened together appear in this selector.
 
+The search field on the toolbar (press **/**) finds any record by name, ID or
+what it says: Events, processes and rows under the names the views show,
+people, Cuts, notes with everything they store, and passages, in full. A result
+opens in the view you are in, at its moment in a time view.
+
 The alternative **Graph mode** displays each saved revision's native records.
-Filter record types, find a record by name or ID, and click it to inspect
+Filter record types, and click a record to inspect
 its declared links and full record. **Neighbors only** focuses its connections;
 **Recenter** restores an overview. Positions are a layout, not time or measured
 values. Exact snapshot links stay fixed; live graph links follow saved revisions.
@@ -134,7 +139,10 @@ One MCP server supports these workflows over the same engine and graph:
   [general-purpose modeling](#general-purpose-modeling-and-optional-jev-estimation).
 - **Narration.** The storytelling add-on writes fiction from a model, with an
   author model, whole-life character trends, scene review, alignment audits and
-  deepening passes. See the [storytelling add-on guide](https://github.com/emergent-wisdom/meaning-model/blob/main/profiles/STORYTELLING_ADDON.md).
+  deepening passes. In story chat the user plays a character in the story's
+  world while the LLM plays everyone else, from what each of them could know at
+  that moment, with or without a book. See the
+  [storytelling add-on guide](https://github.com/emergent-wisdom/meaning-model/blob/main/profiles/STORYTELLING_ADDON.md).
 - **Human authorship with feedback.** The human writes and decides; the LLM
   supplies feedback. Enable `MEANING_MODEL_ADDONS=storytelling` to use
   `life_story_feedback`, which prepares a read-only task from supplied text or
@@ -429,14 +437,20 @@ TypeSafe's Jev score the estimator tools
 (`life_estimate_cut_shares`, `life_model_ingest`, `life_narrative_alignment_audit`) instead of
 returning their questions to you, add `MEANING_MODEL_ESTIMATOR: "typesafe"` and
 `TYPESAFE_API_KEY` to the same `env`; with that setting the text given to those
-tools is sent to TypeSafe. Everything else stays local. The add-on exposes twelve tools: `life_story_structure_explore`,
+tools is sent to TypeSafe. Everything else stays local. The storytelling add-on exposes nineteen tools: `life_story_structure_explore`,
 `life_story_trajectory_explore`, `life_story_trajectory_revise`,
 `life_story_author_record`, `life_story_life_trends`,
 `life_story_model_depth_review`, `life_story_model_depth_record`,
+`life_story_world_record`, `life_story_direct`,
 `life_story_scene_prepare`, `life_story_scene_review`,
-`life_story_scene_commit`, `life_story_purpose_review`, and `life_story_deepen`, plus the
+`life_story_scene_commit`, `life_story_release`, `life_story_purpose_review`,
+`life_story_deepen`, `life_story_feedback`, and the story chat tools
+`life_story_chat_open`, `life_story_chat_prepare` and `life_story_chat_record`, plus the
 `life-sim://addon/storytelling` resource and the `life_story_scene_start`,
-`life_story_structure_explore`, `life_story_purpose_review`, and `life_story_deepen` prompts.
+`life_story_structure_explore`, `life_story_purpose_review`, `life_story_deepen`,
+`life_story_feedback` and `life_story_chat_start` prompts. In story chat the user plays one
+modeled character and the agent plays the world and everyone else, each from what they
+could know at that moment, with or without a book.
 It uses the existing engine and narrative store. No extra package is needed.
 
 The instructions the server gives the calling agent are the user's choice. Set
@@ -661,6 +675,33 @@ textual thought experiments and transfers are ideas, not evidence. See the
 
 It also adds the `life-sim://addon/alien` guide, the bundled paper as
 `life-sim://theory/ontology-of-the-alien`, and the `life_alien_start` prompt.
+
+### Optional forecasting add-on
+
+Forecasting is a mode any work can pull in. Pass `modes: ["forecasting"]` to
+`life_modeling_context` with your purpose, and the context says what forecasting
+means there: in a story, a person's life, a market or a memory of a user.
+Forecasts themselves need no add-on.
+
+Set `MEANING_MODEL_ADDONS=forecasting` for branches. `life_future_fork` forks a
+stage of sibling continuations of the model from one trunk revision and one
+information cutoff:
+
+- one per answer of a forecast, each premise spanning the forecast's window, with
+  the forecast's probability where it was declared for that window, and otherwise
+  without one and the reason;
+- one per option of a decision, with waiting or doing nothing among them;
+- one per assumption, or one from a change to the past.
+
+Each branch is its own model line with its own graph, continued with the
+ordinary tools. `life_future_load` gives a branch's digest and its open
+consequence questions, for switching between branches; `life_future_compare`
+sets siblings side by side, per process and per person, without a total.
+Branches stay hypothetical: a live view of the trunk never follows into one, and
+a graph on the trunk is not rebound into one. This builds a first part of the
+Life Simulation paper's sections on simulating implementation and following its
+effects, in its revision of September 19, 2026 (the companion copy the server serves is
+earlier). See the [forecasting add-on guide](https://github.com/emergent-wisdom/meaning-model/blob/main/profiles/FORECASTING_ADDON.md).
 
 ### Registry clients using npx
 

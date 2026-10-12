@@ -240,7 +240,7 @@ test('graph-native story, testimony, rendering, and training stay in the Rust au
         };
       }
       if (operation === 'query_narrative_graph') {
-        return { schema: 'life-sim-rust-narrative-graph-view/v1', mode: 'neighborhood' };
+        return { schema: 'life-sim-rust-narrative-graph-view/v1', mode: 'neighborhood', graph: { source: base.source } };
       }
       if (operation === 'render_narrative_graph') {
         return { schema: 'life-sim-rust-narrative-render/v1', text: 'A passage.' };

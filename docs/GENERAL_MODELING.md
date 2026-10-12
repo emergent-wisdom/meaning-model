@@ -29,7 +29,8 @@ available evidence, and decisions the user wants to retain. The purpose
 `observation` keeps each report, estimate and judgment in its own authority and
 suits explanatory or retrospective accounts built from records or recalled
 knowledge; `forecasting` adds values after the evidence cutoff that later
-observations can test; `counterfactual` holds an explicit alternative premise. Reuse instructions
+observations can test; `counterfactual` holds an explicit alternative premise. Forecasting can also be pulled into
+any other purpose with `modes: ["forecasting"]`. Reuse instructions
 already supplied. A fully delegated run may select and revise its own categories;
 it still records its evidence, assumptions, review findings, and uncertainties.
 

@@ -52,7 +52,8 @@ function convert(markdown) {
   }
   if (blocks[0]?.startsWith("Complete first-construction manuscript,")) blocks.shift();
 
-  const sections = blocks.filter((block) => block.startsWith("## ")).length;
+  const chapter = /^(ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|ELEVEN|TWELVE): .+$/u;
+  const sections = blocks.filter((block) => block.startsWith("## ") || chapter.test(block.trim())).length;
   if (sections !== 12) throw new Error(`Expected 12 sections; found ${sections}.`);
 
   const output = [];
@@ -60,8 +61,8 @@ function convert(markdown) {
 
   for (let index = 0; index < blocks.length; index += 1) {
     const block = blocks[index].trim();
-    if (block.startsWith("## ")) {
-      output.push(`\\storysection{${convertInline(block.slice(3).trim())}}`);
+    if (block.startsWith("## ") || chapter.test(block)) {
+      output.push(`\\storysection{${convertInline(block.startsWith("## ") ? block.slice(3).trim() : block)}}`);
       openingParagraph = true;
       continue;
     }

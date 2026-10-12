@@ -18,7 +18,7 @@ class Node {
   get isContentEditable(){return this.attributes.contenteditable==='true'||this.parent?.isContentEditable===true;}
   closest(selector){for(let node=this;node;node=node.parent)if(selector.split(',').some(part=>matches(node,part.trim())))return node;return null;}
   get className(){return [...this.classes].join(' ');} set className(value){this.classes=new Set(String(value).split(/\\s+/).filter(Boolean));}
-  append(...nodes){for(const node of nodes){node.parent=this;this.children.push(node);}}
+  append(...nodes){for(let node of nodes){if(typeof node==='string'){const text=new Node('#text');text.textContent=node;node=text;}node.parent=this;this.children.push(node);}}
   remove(){if(this.parent)this.parent.children=this.parent.children.filter(node=>node!==this);}
   replaceChildren(...nodes){this.children=[];this.append(...nodes);}
   all(){return this.children.flatMap(node=>[node,...node.all()]);}
@@ -39,6 +39,7 @@ const body=new Node('body'),head=new Node('head');
 globalThis.document={body,head,activeElement:body,title:'',createElement:tag=>new Node(tag),addEventListener(){},getElementById:id=>body.all().find(node=>node.id===id)??null,querySelectorAll:s=>body.querySelectorAll(s),querySelector:s=>body.querySelector(s)};
 const add=(parent,tag,id='',classes='')=>{const node=new Node(tag);node.id=id;node.className=classes;parent.append(node);return node;};
 const title=add(body,'header','','title');add(title,'p','','eyebrow');add(title,'h1','title');add(title,'p','sub');add(title,'div','repos');
+const branchBanner=add(body,'aside','branch-banner');
 for(const [id,cls]of[['scene',''],['stats',''],['caption','caption'],['strip',''],['bar','bar'],['labels2',''],['legend',''],['tip',''],['qr-panel','']])add(body,'div',id,cls);
 const side=add(body,'aside','side'),tools=add(side,'div','tools'),wrap=add(tools,'span','','tool-wrap'),show=add(wrap,'button','','tool');show.dataset.pop='pop-show';add(show,'b','t-show');
 add(side,'button','toolbar-visibility');
@@ -91,5 +92,5 @@ for(const action of input.steps??[]){
   if(action.view){if(action.button){const button=layouts.children.find(node=>node.dataset.layout===action.view);for(const handler of button.handlers.click??[])await handler({target:button});}else await window.modelViewer.switchView(action.view);}
   if(action.pagehide){for(const handler of handlers.pagehide??[])handler(action.pagehide);await Promise.resolve();}
 }
-process.stdout.write(JSON.stringify({opening:globalThis.__route.opening,actions,imports,errors,replacements,keys,toolbarStates,url:location.href,state:window.modelViewer.getState(),representation:body.dataset.representation,buttons:layouts.children.map(node=>({view:node.dataset.layout,label:node.textContent,disabled:node.disabled,pressed:node.attributes['aria-pressed']})),surfaces:body.all().filter(node=>['graph-surface','structure-surface','space-surface'].includes(node.id)).map(node=>node.id),sharedToolbarRetained:document.getElementById('t-show')===show.children[0],recenterHidden:document.getElementById('recenter-view').hidden,recenterTemporalOnly:Object.hasOwn(document.getElementById('recenter-view').dataset,'temporal'),coarseDisabled:document.getElementById('coarse-view').disabled,coarseTemporalOnly:Object.hasOwn(document.getElementById('coarse-view').dataset,'temporal')}));
+process.stdout.write(JSON.stringify({opening:globalThis.__route.opening,actions,imports,errors,replacements,keys,toolbarStates,branchBanner:{hidden:branchBanner.hidden,text:branchBanner.children.map(node=>node.textContent).join(' ')},url:location.href,state:window.modelViewer.getState(),representation:body.dataset.representation,buttons:layouts.children.map(node=>({view:node.dataset.layout,label:node.textContent,disabled:node.disabled,pressed:node.attributes['aria-pressed']})),surfaces:body.all().filter(node=>['graph-surface','structure-surface','space-surface'].includes(node.id)).map(node=>node.id),sharedToolbarRetained:document.getElementById('t-show')===show.children[0],recenterHidden:document.getElementById('recenter-view').hidden,recenterTemporalOnly:Object.hasOwn(document.getElementById('recenter-view').dataset,'temporal'),coarseDisabled:document.getElementById('coarse-view').disabled,coarseTemporalOnly:Object.hasOwn(document.getElementById('coarse-view').dataset,'temporal')}));
 `;

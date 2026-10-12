@@ -8,7 +8,8 @@ run a model by itself.
 
 General modeling, agent/user memory and the shared model, document, understanding, lens and viewer
 tools are always available. `MEANING_MODEL_ADDONS=storytelling` adds the fiction
-and human-author feedback workflows; `alien` adds mechanism search through invented worlds. Enable both with
+and human-author feedback workflows; `alien` adds mechanism search through invented worlds; `forecasting` adds
+branches per forecast answer, decision option or assumption. Enable several with
 `MEANING_MODEL_ADDONS=storytelling,alien`; they use the same core. Estimator and
 reading settings are independent of these add-ons.
 
@@ -96,8 +97,14 @@ with recorded time positions. It uses dated Events when numeric paths are absent
 process curves appear only where the model supplies them. A model without declared
 time positions remains inspectable in Graph mode without inventing a clock.
 
+The search field on the toolbar (press **/**) finds any record by name, ID or
+what it says: Events, processes and rows under the names the views show,
+people, Cuts, notes with everything they store, and passages, in full. Every word must
+match, ignoring case and accents. A result opens in the view you are in: at its
+moment in a time view, selected in Graph, Structure and Space.
+
 The alternative **Graph mode** displays the native records and links. Filter record
-types, find a record by name or ID, and select it to inspect its declared incoming
+types, and select a record to inspect its declared incoming
 and outgoing links, local answer weights, and full native record. **Neighbors only**
 focuses its connections; **Recenter** restores an overview. Positions are a graph
 layout, not time or measured values.
@@ -818,7 +825,8 @@ persist their results directly; neither accepts them as world facts.
 Start the server with `MEANING_MODEL_ADDONS=storytelling` to enable the
 bundled tools, the `life-sim://addon/storytelling` resource, and the
 `life_story_scene_start`, `life_story_structure_explore`,
-`life_story_purpose_review`, and `life_story_deepen` prompts:
+`life_story_purpose_review`, `life_story_deepen`, `life_story_feedback` and
+`life_story_chat_start` prompts:
 
 - `life_story_author_record` saves candidates, drafts, context, and scoped
   Understanding Nodes for assessments, selection, revision and disclosure,
@@ -826,7 +834,9 @@ bundled tools, the `life-sim://addon/storytelling` resource, and the
 - `life_story_structure_explore` prepares a task for the calling LLM to use an
   ordinary word's meanings and relationships to suggest alternative events,
   characters, relationships, or storylines, or its sounds and associations to
-  develop fitting names. The LLM records its seed task and alternatives with `life_story_author_record`; suggestions remain unaccepted.
+  develop fitting names. For fantasy or science fiction, `targetKind: "world_law"`
+  with the realism level the user chose draws an uncommon word and asks for
+  candidate laws of the world grown from it. The LLM records its seed task and alternatives with `life_story_author_record`; suggestions remain unaccepted.
 - `life_story_trajectory_explore` samples bounded numerical candidate points
   for events or whole lives on caller-defined axes. It preserves explicit
   fixed values and allocation totals. Randomness and candidate count are
@@ -860,6 +870,14 @@ bundled tools, the `life-sim://addon/storytelling` resource, and the
   that draft. Segmentation and each leaf's explicit `renders` Event IDs are bound
   to the review hash. Unmapped leaves remain unchecked; scene-wide Event lists
   are not copied onto every passage.
+- `life_story_chat_open`, `life_story_chat_prepare` and `life_story_chat_record`
+  run story chat: the user plays one modeled character and the LLM plays the
+  world and everyone else, in a separate chat graph bound to the story's model.
+  Prepare gives each character only what they could know at the turn's world
+  time, read by allowlist, and gives the narrator the course ahead and the open
+  choices. Record stores the user's exact words as theirs and the reply as the
+  LLM's, with the Events, draws and learned facts of the exchange; it refuses
+  time running backwards and rerolls. A book from the play is optional.
 - `life_story_scene_commit` reruns the same checks and uses Rust's narrative
   batch operation to atomically append canonical story text and nonrendered
   Understanding Node reviews. It preserves previous graph revisions and leaves the world
@@ -1169,6 +1187,33 @@ target blindness from it. Records made before tasks were stored cite a
 - target terms in target-blind tasks.
 
 Coherence, equivalence and whether an idea works remain the caller's judgments.
+
+## Opt-in forecasting add-on
+
+Forecasting is a mode any work can pull in. Pass `modes: ["forecasting"]` to
+`life_modeling_context` with your purpose, and the context says what forecasting
+means there: in a story, a person's life, a market or a memory of a user.
+Forecasts themselves need no add-on.
+
+Set `MEANING_MODEL_ADDONS=forecasting` for branches. `life_future_fork` forks a
+stage of sibling continuations of the model from one trunk revision and one
+information cutoff:
+
+- one per answer of a forecast, each premise spanning the forecast's window, with
+  the forecast's probability where it was declared for that window, and otherwise
+  without one and the reason;
+- one per option of a decision, with waiting or doing nothing among them;
+- one per assumption, or one from a change to the past.
+
+Each branch is its own model line with its own graph, continued with the
+ordinary tools. `life_future_load` gives a branch's digest and its open
+consequence questions, for switching between branches; `life_future_compare`
+sets siblings side by side, per process and per person, without a total.
+Branches stay hypothetical: a live view of the trunk never follows into one, and
+a graph on the trunk is not rebound into one. This builds a first part of the
+Life Simulation paper's sections on simulating implementation and following its
+effects, in its revision of September 19, 2026 (the companion copy the server serves is
+earlier). See the [forecasting add-on guide](../profiles/FORECASTING_ADDON.md).
 
 ## General-purpose modeling and optional Jev estimation
 

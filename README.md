@@ -43,7 +43,10 @@ One MCP server supports these workflows over the same engine and graph:
   [general-purpose modeling](#general-purpose-modeling-and-optional-jev-estimation).
 - **Narration.** The storytelling add-on writes fiction from a model, with an
   author model, whole-life character trends, scene review, alignment audits and
-  deepening passes. See the [storytelling add-on guide](profiles/STORYTELLING_ADDON.md).
+  deepening passes. In story chat the user plays a character in the story's
+  world while the LLM plays everyone else, from what each of them could know at
+  that moment, with or without a book. See the
+  [storytelling add-on guide](profiles/STORYTELLING_ADDON.md).
 - **Human authorship with feedback.** The human writes and decides; the LLM
   supplies feedback. Enable `MEANING_MODEL_ADDONS=storytelling` to use
   `life_story_feedback`, which prepares a read-only task from supplied text or
@@ -306,9 +309,36 @@ exported as Meaning Model concepts and specialization relations. Worlds are
 textual thought experiments and transfers are ideas, not evidence. See the
 [alien add-on guide](profiles/ALIEN_ADDON.md).
 
+### Optional forecasting add-on
+
+Forecasting is a mode any work can pull in. Pass `modes: ["forecasting"]` to
+`life_modeling_context` with your purpose, and the context says what forecasting
+means there: in a story, a person's life, a market or a memory of a user.
+Forecasts themselves need no add-on.
+
+Set `MEANING_MODEL_ADDONS=forecasting` for branches. `life_future_fork` forks a
+stage of sibling continuations of the model from one trunk revision and one
+information cutoff:
+
+- one per answer of a forecast, each premise spanning the forecast's window, with
+  the forecast's probability where it was declared for that window, and otherwise
+  without one and the reason;
+- one per option of a decision, with waiting or doing nothing among them;
+- one per assumption, or one from a change to the past.
+
+Each branch is its own model line with its own graph, continued with the
+ordinary tools. `life_future_load` gives a branch's digest and its open
+consequence questions, for switching between branches; `life_future_compare`
+sets siblings side by side, per process and per person, without a total.
+Branches stay hypothetical: a live view of the trunk never follows into one, and
+a graph on the trunk is not rebound into one. This builds a first part of the
+Life Simulation paper's sections on simulating implementation and following its
+effects, in its revision of September 19, 2026 (the companion copy the server serves is
+earlier). See the [forecasting add-on guide](profiles/FORECASTING_ADDON.md).
+
 ## Papers and worked example
 
-The paper and the grammar appendix were revised on October 9, 2026.
+The paper and the grammar appendix were revised on October 11, 2026.
 The [Zenodo series](https://doi.org/10.5281/zenodo.22313515) provides the
 archived versions.
 
@@ -317,8 +347,11 @@ archived versions.
 - [Grammar appendix](output/pdf/meaning-model-grammar.pdf) - a focused reference
   to the same rules, not a separate theory or additional set of requirements.
 - [The Book of Conditions](output/pdf/the-book-of-conditions.pdf)
-  - the current revised story; [Markdown, an importable model and verification](examples/book-of-conditions/README.md)
-  are included. The [story repository](https://github.com/emergent-wisdom/story#readme)
+  - a new construction whose world model and prose were automatically generated
+  and revised by Claude Opus 5.5 from a human-supplied premise and historical
+  sources, with model-reader feedback; [Markdown, the construction and verification](examples/book-of-conditions/README.md)
+  are included. The [earlier construction](https://github.com/emergent-wisdom/meaning-model/tree/v0.9.1/examples/book-of-conditions)
+  remains archived. The [story repository](https://github.com/emergent-wisdom/story#readme)
   also distributes the books; each edition has a publication manifest.
 - [World history](https://github.com/emergent-wisdom/world-history#readme) - an
   account of how the present came to be, built in the Meaning Model as processes,
@@ -430,7 +463,7 @@ truth, psychological validity, or an advantage over ordinary writing.
 | `docs/` | Operational documentation and implementation limits |
 | `examples/refinement-trial/` | Small standalone construction example |
 | `examples/progressive-authoring/` | Native temporal refinement, explicit revision, and continued world history |
-| `examples/book-of-conditions/` | Current Book, portable native model, author life, and reproducible import |
+| `examples/book-of-conditions/` | Agent-generated Book, native construction history, task, historical sources, and reproducible import |
 | `output/pdf/` | Ready-to-read paper, grammar appendix, and Book PDFs |
 
 Meaning Model owns the representation and joint construction method. The

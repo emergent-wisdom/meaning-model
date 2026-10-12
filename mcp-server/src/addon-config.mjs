@@ -1,4 +1,4 @@
-export const availableAddons = Object.freeze(['storytelling', 'alien']);
+export const availableAddons = Object.freeze(['storytelling', 'alien', 'forecasting']);
 
 export function parseEnabledAddons(value = '') {
   if (typeof value !== 'string') {

@@ -6,9 +6,10 @@ import * as z from 'zod/v4';
 import { applyOperations, equivalenceSchema, FIT_LABELS, meaningModelFragment, normalizeOntology, ONTOLOGY_KINDS, operationSchema, renderOntologyTree, validateOntology } from './alien-ontology.mjs';
 import { digest, findTargetLeaks, ISOLATION, PROVENANCE, readSearch, RECORD_SCHEMA, requireProblem, SEARCH_NODE_TYPE, sortedScopes, storeRecords, targetTerms, understandingRootId } from './alien-search.mjs';
 import { buildTask, CANDIDATE_LIMITS, mechanismLabel, POPULATION_STATES, SIGNATURE_AXES, storedTask, TASK_ROLES, verifyTaskRef, worldOperatorSchema } from './alien-tasks.mjs';
-import { diagnoseSearch, mechanismCondition } from './alien-diagnose.mjs';
+import { diagnoseSearch, mechanismCondition, ontologyGaps } from './alien-diagnose.mjs';
 import { runEstimatorRequest } from './estimator-receipts.mjs';
 import { expandTexInputs } from './modeling-guidance.mjs';
+import { PURE_AXES, PURE_STATUSES, cardsFor, checkVerification, levelOf, probeAt, pureResult } from './alien-verify.mjs';
 
 const RESOURCE_URI = 'life-sim://addon/alien';
 const RECORD_SCHEMA_URI = `${RESOURCE_URI}/record-schema/{kind}`;
@@ -29,6 +30,7 @@ const modelRef = z.string().max(1_024).regex(new RegExp(`^(${Object.keys(modelRe
 const sumsToOne = (values) => Math.abs(values.reduce((total, value) => total + value, 0) - 1) <= 1e-9;
 
 export const alienInstructions = `Every role output is a graph record; also record your own curation reasons, plans and doubts with life_understanding_record, linked to the records they concern, and replay a search with life_construction_replay before continuing it. The alien add-on runs world-diversity search from Ontology of the Alien inside Meaning Model. It builds invented worlds, solves the problem inside them, compiles the operative mechanisms back into the problem's domain, and curates what it finds in revisable ontologies that steer the next world.
+The method has three parts. (1) Invented worlds find kinds of solutions nobody has thought of. (2) The curated ontologies categorize every candidate in a graph: a curator can carve kinds under a lens before any candidate fills them, the diagnosis names the kinds no candidate realizes yet, and a commission with targetConceptIds forces the next explorer or world into one. (3) PURE with Fractal Intelligence verifies a candidate: Parsimony, Novelty, Realizable and Expansive, each judged by its own verifier task in its own context, each decomposed into probes as deep as Fractal Intelligence's marginal-value rule says, and a probe can be opened as its own verifier task. The server computes the PURE result: verified only when every axis is.
 Read ${RESOURCE_URI} and follow the returned role task instructions. ${ALIEN_PAPER_URI} is optional background for the method and its evidence boundary.
 Roles and what each may see. The server writes and stores every task with life_alien_task; the partition is in the task text itself:
 - builder: a seed word and optional departures or a commission; never the problem
@@ -38,10 +40,11 @@ Roles and what each may see. The server writes and stores every task with life_a
 - curator: owns the mechanism ontology and the claimed-outcome ontology and decides admission
 - world_curator: codes each world's causal signature and owns the regime ontology, still without the problem
 - transfer: maps a mechanism's roles onto the bound target model
-Run builder, solver, compiler, explorer and world_curator tasks in fresh contexts that see only the task and the complete unchanged Meaning Model grammar, for example separate subagents. Supply the grammar separately or provide grammar-only reader access; do not include the target, workflow guide, other role packets or population records beyond what that task permits. For compiler and explorer this preserves the selected none, tabu or map population state without prior candidates leaking through caller memory. When you cannot, do the step yourself and record same_context honestly; context isolation is then not established, and target blindness remains procedural.
-Loop: life_alien_search_start (problem and target model) -> builder task -> record world with its taskNodeId -> solver task -> record solution -> world_curator task -> life_alien_ontology_revise (worlds) -> compiler task -> record mechanism -> curator tasks (mechanisms, outcomes) -> life_alien_ontology_revise -> life_alien_search_diagnose -> record a commission for the gap you judge most useful -> the next builder task takes commissionNodeId. Transfer the mechanisms you want to develop, record assessments, and record a selection when the user wants a single idea, a diverse portfolio or a weighted set. Read the whole search with life_alien_atlas.
+- verifier: one PURE axis of one mechanism or transfer, with the problem but never another axis's verdict; with deepen it opens one probe of an earlier check as its own question
+Run builder, solver, compiler, explorer, world_curator and verifier tasks in fresh contexts that see only the task and the complete unchanged Meaning Model grammar, for example separate subagents. Supply the grammar separately or provide grammar-only reader access; do not include the target, workflow guide, other role packets or population records beyond what that task permits. For compiler and explorer this preserves the selected none, tabu or map population state without prior candidates leaking through caller memory. When you cannot, do the step yourself and record same_context honestly; context isolation is then not established, and target blindness remains procedural.
+Loop: life_alien_search_start (problem and target model) -> builder task -> record world with its taskNodeId -> solver task -> record solution -> world_curator task -> life_alien_ontology_revise (worlds) -> compiler task -> record mechanism -> curator tasks (mechanisms, outcomes) -> life_alien_ontology_revise -> life_alien_search_diagnose -> record a commission for the gap you judge most useful -> the next builder task takes commissionNodeId. Transfer the mechanisms you want to develop, verify each with four verifier tasks (parsimony, novelty, realizable, expansive), opening probes deeper where the marginal-value rule says, record assessments, and record a selection when the user wants a single idea, a diverse portfolio or a weighted set. Read the whole search with life_alien_atlas.
 Check curator decisions with life_alien_decision_check, a second judge that sees the candidate and the concepts but not the curator's reasons (Jev when MEANING_MODEL_ESTIMATOR is set). Reuse target-blind worlds from another search with life_alien_worlds_export and life_alien_worlds_import; the importing search starts at the solver.\nNumbers follow the Meaning Model rule: a graded fit is a fit Cut with a question, unit and remainder; a weighted selection is an allocation with a remainder; ontology fit is categorical, and a candidate between families may also carry a graded membership Cut.
-The server checks structure: stored task provenance, rule and role bindings, ontology references and acyclicity, the admission guard, model references, Cut sums, and target terms in target-blind tasks. It does not judge whether a world is coherent, whether two mechanisms are equivalent, or whether an idea works. Worlds are textual thought experiments, not simulations; a transfer records an idea and its mapping, not evidence. Develop an unusual branch before judging it on familiarity.`;
+The server checks structure: stored task provenance, rule and role bindings, ontology references and acyclicity, the admission guard, model references, Cut sums, and target terms in target-blind tasks. It does not judge whether a world is coherent, whether two mechanisms are equivalent, or whether an idea works; a PURE verdict is a model-judged screening of an idea, not evidence that it works. Worlds are textual thought experiments, not simulations; a transfer records an idea and its mapping, not evidence. Develop an unusual branch before judging it on familiarity.`;
 
 const searchStartSchema = z.object({
   requestId: id,
@@ -76,6 +79,9 @@ const taskSchema = z.object({
     cueWord: id.nullable().optional().describe('explorer: a cue word to use; null explicitly removes an inherited retry cue.'), drawCue: z.boolean().optional().describe('explorer: draw a new cue word from the bank, including on a retry.'),
     ontology: z.enum(['mechanisms', 'outcomes']).optional().describe('curator: which ontology the decision concerns (default mechanisms).'),
     worldNodeId: id.optional(), solutionNodeId: id.optional(), subjectNodeId: id.optional(), mechanismNodeId: id.optional(),
+    axis: z.enum(PURE_AXES).optional().describe('verifier: the PURE axis this task checks, one per task: parsimony, novelty, realizable or expansive.'),
+    deepen: z.object({ verificationNodeId: id, probePath: z.array(z.number().int().min(0).max(23)).min(1).max(12) }).strict().nullable().optional()
+      .describe('verifier: open one probe of an earlier verification of the same subject and axis as its own check, as deep as Fractal Intelligence\'s marginal-value rule says.'),
   }).strict().default({}),
 }).strict();
 
@@ -88,6 +94,10 @@ const fitCutSchema = z.object({
   matches: share, doesNotMatch: share, remainder: share,
 }).strict().refine((cut) => sumsToOne([cut.matches, cut.doesNotMatch, cut.remainder]), 'A fit Cut divides one unit: matches, doesNotMatch and remainder sum to 1.')
   .describe('matches, doesNotMatch and remainder must sum to 1 (tolerance 1e-9).');
+
+// A probe: one sub-question an axis opened, its finding and status, and the probes it opened in turn.
+const probeSchema = z.lazy(() => z.object({ probe: prose(600), finding: prose(2_000), status: z.enum(PURE_STATUSES),
+  probes: z.array(probeSchema).max(12).default([]) }).strict());
 
 const recordData = {
   world: z.object({
@@ -118,13 +128,15 @@ const recordData = {
     addressedTo: z.enum(['new_world', 'explorer']),
     relationToChange: prose(1_000).nullable().default(null), worldAsk: prose(1_000).nullable().default(null),
     operators: z.array(worldOperatorSchema).max(6).default([]), avoidConceptIds: z.array(id).max(32).default([]),
+    targetConceptIds: z.array(id).max(16).default([]).describe('Kinds to fill, usually the diagnosis\'s empty kinds: mechanism families or claimed outcomes for an explorer, world regimes for a new world.'),
     rationale: prose(4_000), diagnosis: z.object({ graphHash: hash, diagnosisHash: hash }).strict().nullable().default(null)
       .describe('Optional reference to life_alien_search_diagnose: both hashes identify the diagnosis at that graph revision; the server recomputes it.'),
   }).strict().superRefine((value, context) => {
-    if (value.addressedTo === 'new_world' && value.worldAsk === null && !value.operators.length) context.addIssue({ code: 'custom', path: ['worldAsk'], message: 'A new-world commission needs a worldAsk or operators.' });
-    if (value.addressedTo === 'explorer' && value.relationToChange === null) context.addIssue({ code: 'custom', path: ['relationToChange'], message: 'An explorer commission needs relationToChange.' });
+    // Kinds to fill are an ask of their own: a commission may name only them.
+    if (value.addressedTo === 'new_world' && value.worldAsk === null && !value.operators.length && !value.targetConceptIds.length) context.addIssue({ code: 'custom', path: ['worldAsk'], message: 'A new-world commission needs a worldAsk, operators or targetConceptIds.' });
+    if (value.addressedTo === 'explorer' && value.relationToChange === null && !value.targetConceptIds.length) context.addIssue({ code: 'custom', path: ['relationToChange'], message: 'An explorer commission needs relationToChange or targetConceptIds.' });
     if (value.addressedTo === 'explorer' && (value.worldAsk !== null || value.operators.length)) context.addIssue({ code: 'custom', path: ['worldAsk'], message: 'worldAsk and operators belong to new-world commissions.' });
-  }).describe('new_world requires worldAsk or at least one operator. explorer requires relationToChange, with worldAsk null or omitted and operators empty or omitted.'),
+  }).describe('new_world requires worldAsk, at least one operator, or targetConceptIds. explorer requires relationToChange or targetConceptIds, with worldAsk null or omitted and operators empty or omitted.'),
   transfer: z.object({
     mechanismNodeId: id,
     roleMap: z.array(z.object({ roleId: id, binding: z.discriminatedUnion('kind', [
@@ -140,6 +152,13 @@ const recordData = {
     evidenceNeeded: z.array(prose(1_000)).min(1).max(12),
   }).strict(),
   assessment: z.object({ subjectNodeIds: z.array(id).min(1).max(32), verdict: prose(120).nullable().default(null), text: prose(8_000) }).strict(),
+  // One PURE axis of one candidate, from a verifier task: its status by the axis criterion, and the probes it opened.
+  verification: z.object({
+    subjectNodeId: id, axis: z.enum(PURE_AXES), status: z.enum(PURE_STATUSES), reason: prose(4_000),
+    nearest: prose(1_000).nullable().default(null).describe('novelty: the nearest existing mechanism or practice.'),
+    probes: z.array(probeSchema).max(24).default([]),
+    isolation: z.object({ verifier: isolation }).strict(),
+  }).strict(),
   selection: z.object({
     format: z.enum(['single', 'portfolio', 'weighted']),
     items: z.array(z.object({ nodeId: id, weight: share.nullable().default(null), reason: prose(2_000) }).strict()).min(1).max(50),
@@ -423,9 +442,22 @@ export class AlienAddon {
       for (const conceptId of data.avoidConceptIds) if (!concepts.some((concept) => concept.id === conceptId && concept.status === 'active')) {
         throw new Error(`avoidConceptIds names ${conceptId}, which is not an active mechanism family${data.addressedTo === 'new_world' ? ' or world regime' : ''}.`);
       }
+      // Kinds to fill: what an explorer may see (mechanism families, claimed outcomes), or a world regime for a builder.
+      const kinds = data.addressedTo === 'new_world' ? ['worlds'] : ['mechanisms', 'outcomes'];
+      const targets = data.targetConceptIds.map((conceptId) => {
+        const found = kinds.map((ontology) => ({ ontology, concept: search.ontologyState(ontology).concepts.find((concept) => concept.id === conceptId && concept.status === 'active') }))
+          .find((item) => item.concept);
+        if (!found) throw new Error(`targetConceptIds names ${conceptId}, which is not an active ${data.addressedTo === 'new_world' ? 'world regime: a new world fills a regime' : 'mechanism family or claimed outcome: an explorer fills those'}.`);
+        return found;
+      });
+      for (const { ontology, concept } of targets) {
+        if (!ontologyGaps(search.ontologyState(ontology)).empty.includes(concept.id)) warnings.push(`${concept.id} already holds candidates; forcing works on the kinds no candidate realizes yet.`);
+      }
       data.retryOfNodeId = null; data.alternatives = [];
-      data.targetLeaks = findTargetLeaks([data.worldAsk ?? '', ...data.operators.map((item) => item.statement)].join('\n'), targetTerms(requireProblem(search)));
-      if (data.addressedTo === 'new_world' && data.targetLeaks.length) warnings.push(`The world ask uses target terms (${data.targetLeaks.join(', ')}); a world built from it will not be target-blind.`);
+      data.targetLeaks = findTargetLeaks([data.worldAsk ?? '', ...data.operators.map((item) => item.statement),
+        ...(data.addressedTo === 'new_world' ? targets.map(({ concept }) => `${concept.label} ${concept.operator} ${concept.boundary ?? ''}`) : [])].join('\n'), targetTerms(requireProblem(search)));
+      if (!data.targetConceptIds.length) delete data.targetConceptIds;
+      if (data.addressedTo === 'new_world' && data.targetLeaks.length) warnings.push(`The world ask${targets.length ? ' or the kinds to fill' : ''} uses target terms (${data.targetLeaks.join(', ')}); a world built from it will not be target-blind.`);
       if (search.heads.mechanisms) links.push({ relation: 'learned_from', targetNodeId: search.heads.mechanisms.nodeId });
       title = `Commission (${data.addressedTo})`;
     } else if (input.kind === 'transfer') {
@@ -450,6 +482,27 @@ export class AlienAddon {
     } else if (input.kind === 'assessment') {
       for (const subject of data.subjectNodeIds) links.push({ relation: 'assesses', targetNodeId: subject });
       title = data.verdict ?? 'Assessment'; epistemicStatus = 'authored_assessment';
+    } else if (input.kind === 'verification') {
+      task = await this.resolveTask(input, search, ['verifier']);
+      if (task.inputs.subjectNodeId !== data.subjectNodeId || task.inputs.axis !== data.axis) {
+        throw new Error(`The verifier task checks ${task.inputs.subjectNodeId} on ${task.inputs.axis}, not ${data.subjectNodeId} on ${data.axis}.`);
+      }
+      const subject = search.record(data.subjectNodeId);
+      if (!['mechanism', 'transfer'].includes(subject.kind)) throw new Error(`A verification checks a mechanism or a transfer; ${data.subjectNodeId} is a ${subject.kind}.`);
+      // A deeper check's probes sit below the probe it opened, which decides how Expansive composes them.
+      let level = 0;
+      if (task.inputs.deepen) {
+        const parent = search.record(task.inputs.deepen.verificationNodeId, 'verification');
+        if (!probeAt(parent.data.probes, task.inputs.deepen.probePath)) throw new Error(`${parent.nodeId} has no probe at [${task.inputs.deepen.probePath.join(', ')}].`);
+        level = levelOf(parent, new Map(search.verifications.map((item) => [item.nodeId, item]))) + task.inputs.deepen.probePath.length;
+        data.deepens = { verificationNodeId: parent.nodeId, probePath: task.inputs.deepen.probePath };
+        links.push({ relation: 'deepens', targetNodeId: parent.nodeId });
+      }
+      checkVerification(data, level);
+      data.cards = cardsFor(data);
+      links.push({ relation: 'verifies', targetNodeId: subject.nodeId });
+      title = `PURE ${data.axis}${data.deepens ? ' (deeper)' : ''}: ${data.status}`; epistemicStatus = 'authored_assessment';
+      if (data.isolation.verifier !== 'fresh_context') warnings.push('The verifier did not run in a fresh context; PURE\'s isolation between axes is procedural here.');
     } else if (input.kind === 'selection') {
       for (const item of data.items) {
         const record = search.record(item.nodeId);
@@ -475,7 +528,12 @@ export class AlienAddon {
       commission: data.addressedTo === 'new_world'
         ? `${data.targetLeaks.length ? 'This commission is target-aware. To keep the next world target-blind, record a revised commission without the listed target terms; otherwise continue as an explicitly target-aware run. ' : ''}Prepare the next builder task with commissionNodeId ${input.nodeId}.`
         : `Prepare an explorer task with commissionNodeId ${input.nodeId}.`,
-      transfer: 'Assess the transfer, or develop it further in the target model with the general modeling tools.',
+      transfer: 'Verify it with PURE: one verifier task per axis (parsimony, novelty, realizable, expansive), each for its own fresh context. Then assess it, or develop it further in the target model with the general modeling tools.',
+      verification: input.kind === 'verification' ? (() => {
+        const result = pureResult({ ...search, verifications: [...(search.verifications ?? []), { nodeId: input.nodeId, data }] }, data.subjectNodeId);
+        return result.missing.length ? `PURE so far for ${data.subjectNodeId}: ${result.status}. Still to check, each in its own context: ${result.missing.join(', ')}.`
+          : `PURE for ${data.subjectNodeId}: ${result.status}. Open a probe further with a verifier task (deepen) where its answer is uncertain and would change the verdict.`;
+      })() : null,
       assessment: 'Continue the loop, or record a selection when the user wants one.',
       selection: 'Export the search with life_alien_atlas when the user wants to read it.',
     }[input.kind];
@@ -819,8 +877,23 @@ export class AlienAddon {
     }
     if (search.commissions.length) {
       lines.push('## Commissions', '');
-      for (const commission of search.commissions) lines.push(`- ${commission.nodeId} (${commission.data.addressedTo}): ${commission.data.relationToChange ?? commission.data.worldAsk ?? commission.data.rationale}${commission.data.avoidConceptIds?.length ? ` Avoid concepts: ${commission.data.avoidConceptIds.join(', ')}.` : ''}`);
+      for (const commission of search.commissions) lines.push(`- ${commission.nodeId} (${commission.data.addressedTo}): ${commission.data.relationToChange ?? commission.data.worldAsk ?? commission.data.rationale}${commission.data.avoidConceptIds?.length ? ` Avoid concepts: ${commission.data.avoidConceptIds.join(', ')}.` : ''}${commission.data.targetConceptIds?.length ? ` Kinds to fill: ${commission.data.targetConceptIds.join(', ')}.` : ''}`);
       lines.push('');
+    }
+    if ((search.verifications ?? []).length) {
+      // PURE: four axes, each judged in its own context; the result is computed, verified only when every axis is.
+      const probeLines = (probes, depth = 0) => probes.flatMap((probe) => [`${'  '.repeat(depth + 1)}- ${probe.probe}: ${probe.status}. ${probe.finding}`, ...probeLines(probe.probes ?? [], depth + 1)]);
+      lines.push('## Verification (PURE and Fractal Intelligence)', '');
+      for (const subjectNodeId of [...new Set(search.verifications.map((item) => item.data.subjectNodeId))]) {
+        const result = pureResult(search, subjectNodeId);
+        const axes = PURE_AXES.filter((axis) => result.axes[axis]).map((axis) => `${axis} ${result.axes[axis].status}${result.axes[axis].status !== result.axes[axis].stated ? ` (stated ${result.axes[axis].stated}, changed by deeper checks)` : ''}`);
+        lines.push(`### ${label(subjectNodeId)}`, '', `PURE: ${result.status}${axes.length ? `; ${axes.join(', ')}` : ''}${result.missing.length ? ` (not yet checked: ${result.missing.join(', ')})` : ''}.`, '');
+        for (const record of search.verifications.filter((item) => item.data.subjectNodeId === subjectNodeId)) {
+          lines.push(`- ${record.data.axis}${record.data.deepens ? ` (deeper, from ${record.data.deepens.verificationNodeId} probe [${record.data.deepens.probePath.join(', ')}])` : ''}: ${record.data.status}. ${record.data.reason}${record.data.nearest ? ` Nearest: ${record.data.nearest}.` : ''} Isolation: ${record.data.isolation.verifier}. Cards: ${record.data.cards.join(', ')}.`,
+            ...probeLines(record.data.probes));
+        }
+        lines.push('');
+      }
     }
     if (search.assessments.length) {
       lines.push('## Assessments', '');
@@ -885,20 +958,20 @@ export function registerAlienAddon(server, service, { estimator = null } = {}) {
   });
   server.registerPrompt('life_alien_start', {
     title: 'Search for mechanisms through invented worlds',
-    description: 'Read the operational guide, settle the problem, the target model and the human role, then build target-blind worlds, solve and compile them, curate the mechanisms and outcomes found, commission the next world from the gaps, and transfer promising mechanisms onto the target model.',
+    description: 'Read the operational guide, settle the problem, the target model and the human role, then build target-blind worlds, solve and compile them, curate the mechanisms and outcomes found, commission the next world or explorer into the gaps, transfer promising mechanisms onto the target model, and verify them with PURE.',
     argsSchema: z.object({}),
   }, async () => ({ messages: [{ role: 'user', content: { type: 'text', text: `${thinkInTheModelInstructions}\n\n${constructionRecordInstructions}\n\nRead ${RESOURCE_URI} and follow the returned role task instructions. Then settle with the user: the problem statement and any context; the target model the ideas should land in (build it with the general modeling workflow if none exists); terms that would disclose the target; how many worlds to try; and who curates, the user or you under delegation. Record the problem with life_alien_search_start.\n\n${alienInstructions}` } }] }));
   for (const [name, method, schema, description, readOnly, idempotent] of [
     ['life_alien_search_start', 'startSearch', searchStartSchema,
       'Start an alien search: record the problem as an author-scoped record and create a search root, either in a new graph bound to the target model or in an existing graph. Returns the derived target terms that builder tasks are checked against.', false, false],
     ['life_alien_task', 'task', taskSchema,
-      'Prepare a role task written by the server with the information that role may see, and store its exact text in the graph: builder (seed word, departures and commission; never the problem), solver (world, problem statement and constraints; not the purpose), compiler (population state none, tabu or map: the paper\'s F, G, H), explorer (population state none, tabu or map: uncued target_only, A, B; with a random-word cue C, D, E), curator (mechanisms or outcomes), world_curator (target-blind) or transfer. Run builder, solver, compiler, explorer and world_curator tasks in fresh contexts that see only the task; if unavailable, record same_context honestly. A prepared builder task reserves its draw slot. Returns the task text and the taskNodeId that records of its output must cite. textHash is SHA-256 of the UTF-8 JSON.stringify({text}) wrapper; life_review_record.prompt.sha256 hashes the UTF-8 prompt text itself.', false, false],
+      'Prepare a role task written by the server with the information that role may see, and store its exact text in the graph: builder (seed word, departures and commission; never the problem), solver (world, problem statement and constraints; not the purpose), compiler (population state none, tabu or map: the paper\'s F, G, H), explorer (population state none, tabu or map: uncued target_only, A, B; with a random-word cue C, D, E), curator (mechanisms or outcomes), world_curator (target-blind), transfer, or verifier (one PURE axis of one candidate; deepen opens a probe of an earlier check as its own task). Run builder, solver, compiler, explorer, world_curator and verifier tasks in fresh contexts that see only the task; if unavailable, record same_context honestly. A prepared builder task reserves its draw slot. Returns the task text and the taskNodeId that records of its output must cite. textHash is SHA-256 of the UTF-8 JSON.stringify({text}) wrapper; life_review_record.prompt.sha256 hashes the UTF-8 prompt text itself.', false, false],
     ['life_alien_record', 'record', recordSchema,
-      `Record one output of the search as an Understanding Node in the graph, citing the stored task it answers. Kinds: world, solution, mechanism (compiled from a world or proposed by an explorer), commission (new_world or explorer), transfer (role map onto the target model, with an optional fit Cut), assessment, selection (single, portfolio, or a weighted allocation with question, unit and remainder). The server binds the world's seed and target blindness from its task and checks rule bindings, role coverage, model references, Cut sums and candidate field limits (${Object.entries(CANDIDATE_LIMITS).map(([field, limit]) => `${field} ${limit}`).join(', ')} characters).`, false, false],
+      `Record one output of the search as an Understanding Node in the graph, citing the stored task it answers. Kinds: world, solution, mechanism (compiled from a world or proposed by an explorer), commission (new_world or explorer; targetConceptIds forces kinds no candidate realizes yet), transfer (role map onto the target model, with an optional fit Cut), assessment, verification (one PURE axis of a mechanism or transfer from a verifier task, with the probes it opened; realizable holds only when every part does), selection (single, portfolio, or a weighted allocation with question, unit and remainder). The server binds the world's seed and target blindness from its task and checks rule bindings, role coverage, model references, Cut sums and candidate field limits (${Object.entries(CANDIDATE_LIMITS).map(([field, limit]) => `${field} ${limit}`).join(', ')} characters).`, false, false],
     ['life_alien_ontology_revise', 'reviseOntology', reviseSchema,
       'Record a curator decision on the mechanism, claimed-outcome or world-regime ontology as a new immutable revision: admit_new, admit_instance, equivalent (alias), reject_redirect (writes a retry or new-world commission) or restructure_only, with operations (add, revise, merge or split concepts; partitions, meaning more specific kinds under a named lens; relations; instance assignments with categorical fit). The server applies the operations, checks references, acyclicity and at least two children per partition, and admits a new concept only when the equivalence test says the primary operator changed. It does not judge equivalence itself.', false, false],
     ['life_alien_search_diagnose', 'diagnose', readSchema,
-      'Diagnose the search from its records: crowded and thin families and roots, saturation since the last new family, redirect chains, undecided mechanisms, uncombined family and claimed-outcome pairs, yield per condition and per world, isolation used, world signature coverage, regime-family combinations, fiat failures, open commissions, unused tasks and undeveloped branches. Returns a diagnosisHash to cite in a commission. Read-only.', true, true],
+      'Diagnose the search from its records: crowded, thin and empty kinds (carved but realized by no candidate yet), whether each forcing commission was filled, PURE results and unverified candidates, saturation since the last new family, redirect chains, undecided mechanisms, uncombined family and claimed-outcome pairs, yield per condition and per world, isolation used, world signature coverage, regime-family combinations, fiat failures, open commissions, unused tasks and undeveloped branches. Returns a diagnosisHash to cite in a commission. Read-only.', true, true],
     ['life_alien_decision_check', 'checkDecision', checkSchema,
       'Check a recorded curator decision with a second judge. With MEANING_MODEL_ESTIMATOR set, the estimator answers bounded questions about nearest concept, changed primary operator and fit. Without an estimator, prepare state, questions and questionHash, then provide a submission with exact answers, evaluator, declared isolation and provenance. A submission bypasses the estimator. Add record to store either kind of check for diagnosis. Send only state and questions to the judge; declared isolation is not verified independence. It never changes the ontology.', false, false],
     ['life_alien_worlds_export', 'exportWorlds', exportSchema,
@@ -906,7 +979,7 @@ export function registerAlienAddon(server, service, { estimator = null } = {}) {
     ['life_alien_worlds_import', 'importWorlds', importSchema,
       'Import worlds from a world library into this search, so it starts at the solver without building them again. The bundle hash and each world\'s text hash are checked; each world is checked against this search\'s target terms and recorded as not target-blind when it names them. With includeRegimes, an empty regime ontology receives the library\'s regimes and the worlds\' classification as an imported revision.', false, false],
     ['life_alien_atlas', 'atlas', atlasSchema,
-      'Render the search as Markdown (problem, all three ontologies, worlds with seeds and isolation, mechanisms with conditions, transfers, commissions and avoidance, assessments, second-judge checks, selections and preservation reasons) and return each ontology as Meaning Model concepts and specialization relations ready to merge into a successor model. Read-only.', true, true],
+      'Render the search as Markdown (problem, all three ontologies, worlds with seeds and isolation, mechanisms with conditions, transfers, commissions and avoidance, PURE verification, assessments, second-judge checks, selections and preservation reasons) and return each ontology as Meaning Model concepts and specialization relations ready to merge into a successor model. Read-only.', true, true],
   ]) {
     server.registerTool(name, { description, inputSchema: schema,
       annotations: { readOnlyHint: readOnly, destructiveHint: false, idempotentHint: idempotent, openWorldHint: false } },

@@ -39,5 +39,6 @@ test('the Default button is on the toolbar and stays available in every represen
   const start = readFileSync(new URL('../viewer/public/start.js', import.meta.url), 'utf8');
   assert.match(page, /<button class="tool" id="default-view"/);
   // The toolbar's other controls are marked temporal (hidden in Graph, Structure and Space) unless listed here.
-  assert.match(start, /\['story', 'default-view', 'coarse-view'/);
+  assert.match(start, /\['search-wrap', 'story', 'default-view', 'coarse-view'/);
+  assert.match(page, /<span class="tool-wrap search-wrap" id="search-wrap"><input class="tool search" id="search"/, 'the search field is on the toolbar in every representation too');
 });

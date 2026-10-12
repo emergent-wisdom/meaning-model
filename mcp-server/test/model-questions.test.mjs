@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { modelJumps, modelQuestions, personStateAt, standingQuestions, thinkInTheModelInstructions } from '../src/model-questions.mjs';
+import { expandHistoryModels } from '../src/construction-files.mjs';
 import { withLives } from './storytelling-life-fixture.mjs';
 
 // Whole lives, optional interpretive lenses and drawn open choices belong to the storytelling profile adopted here.
@@ -183,18 +184,32 @@ test('templates are suggestions: a life of the modeler\'s own processes is read 
 });
 
 test('the jumps of the Book of Conditions are where its story is', async () => {
-  // The 2 October 2026 model, before whole lives were added; the bundle keeps every revision of the history.
+  // Read the current automatically generated edition, not the older publication projection or its template IDs.
   const edition = JSON.parse(await readFile(new URL('../../examples/book-of-conditions/PUBLICATION-MANIFEST.json', import.meta.url), 'utf8'));
-  const record = JSON.parse(await readFile(new URL(`../../examples/book-of-conditions/${edition.publicationProjection.manifest}`, import.meta.url), 'utf8'));
   const bundle = JSON.parse(await readFile(new URL('../../examples/book-of-conditions/the-book-of-conditions.meaning-model.json', import.meta.url), 'utf8'));
-  const october2 = record.hashMapping.models.find(entry => entry.former === edition.priorPublicationProjection.modelHash).current;
-  const model = bundle.models.find(entry => entry.modelHash === october2).definition;
+  const model = [...expandHistoryModels(bundle)].find(entry => entry.modelHash === edition.modelHash).definition;
+  assert.equal(model.time_unit, 'year');
+  assert.equal(model.value_series.length, edition.inventory.valueSeries, 'the current construction includes its dated native values');
   const { jumps } = modelJumps(model, { limit: 6 });
-  assert.ok(jumps.some((item) => /four_jobs/u.test(item.what)), 'the four-job decision is among the largest jumps');
-  assert.ok(jumps.some((item) => /Halden/u.test(item.what) && /0\.78 to 0\.18/u.test(item.what)), 'Halden\'s collapse is among them');
+  assert.ok(jumps.some((item) => /Ada.*subscription.*shortfall/u.test(item.what)), 'Ada\'s response to the financial crisis is among the largest jumps');
+  assert.ok(jumps.some((item) => /Babbage.*redrawn type-wheel train/u.test(item.what)), 'Babbage\'s response to Ada being barred is among them');
+  const events = new Map(model.meaning_model.events.map(event => [event.id, event]));
+  for (const [index, jump] of jumps.entries()) {
+    assert.ok(index === 0 || jumps[index - 1].size >= jump.size, 'largest jumps come first');
+    assert.ok(jump.eventIds.every(id => events.has(id)), 'every jump names recorded Events');
+    if (jump.kind === 'decision') {
+      const cut = model.meaning_model.normalized_cuts.find(cut => cut.id === jump.subject);
+      assert.ok(cut, 'decision jumps come from an actual Cut');
+      assert.deepEqual(jump.eventIds, [cut.parent_event_id]);
+      const interval = events.get(cut.parent_event_id).interval;
+      assert.deepEqual(jump.at, [interval.start, interval.end], 'jump dates stay on the edition\'s year clock');
+      assert.ok(jump.what.includes(cut.question));
+    }
+  }
   const questions = modelQuestions(model, { limit: 200 });
   assert.ok(questions.questions.some((item) => item.kind === 'laws-missing'), 'even the Book is asked to climb up');
-  assert.ok(questions.questions.some((item) => item.kind === 'shocks-few' && /Ada Lovelace/u.test(item.question)));
+  assert.ok(questions.questions.some((item) => item.kind === 'change-unexplored' && /^Ada:/u.test(item.question)),
+    'Ada\'s changing readings still prompt investigation of their causes and consequences');
 });
 
 test('standing questions are asked about the focus', () => {

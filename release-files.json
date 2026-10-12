@@ -22,6 +22,10 @@
     "docs/MODELING_PROTOCOL.md",
     "docs/GENERAL_MODELING.md",
     "docs/MEMORY.md",
+    "docs/PERSON-AND-VOICE.md",
+    "docs/VOICE-MODELING.md",
+    "docs/MODELING-A-PERSON.md",
+    "docs/PIECE-IDEAS.md",
     "docs/HUMAN_AUTHOR_FEEDBACK.md",
     "docs/NARRATIVE_UNDERSTANDING_GRAPH.md",
     "docs/examples/EVEREST-MEANING-MODEL.md",
@@ -67,8 +71,8 @@
     "examples/book-of-conditions/import-rust.test.mjs",
     "examples/book-of-conditions/the-book-of-conditions.meaning-model.json",
     "examples/book-of-conditions/PUBLICATION-MANIFEST.json",
-    "examples/book-of-conditions/the-book-of-conditions-full-history-2026-10-07.json",
-    "examples/book-of-conditions/book-publication-exploration-manifest-2026-10-02.json",
-    "examples/book-of-conditions/publication-privacy-projection-2026-10-03.json"
+    "examples/book-of-conditions/the-book-of-conditions-full-history-2026-10-11.json",
+    "examples/book-of-conditions/CONSTRUCTION-TASK.md",
+    "examples/book-of-conditions/HISTORICAL-SOURCES.md"
   ]
 }

@@ -49,6 +49,7 @@ import {
   listModelingResources,
   modelingPurposes,
   modelingSessionModes,
+  pullableModes,
   readModelingResource,
   readModelingResourcePage,
   startHereText,
@@ -72,7 +73,7 @@ const firstSentence = (text: string) => { const match = String(text ?? '').match
 const fullInstructions = `${processBreakdownHead}\n\n${startHereText}\n\n${grammarReadingInstructions}\n\n${modelingSessionInstructions}\n\n${processDevelopmentInstructions}\n\n` + 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.\n\nIn every mode, begin modeling with life_modeling_context and follow its shared construction guidance. Agent memory and user memory are core purposes: maintain their ongoing processes, not only isolated facts, within the declared scope. Human-author feedback leaves authorship and creative decisions with the human; use life_story_feedback with the storytelling add-on for read-only feedback. All workflows use the same linked, attributed Understanding Graph for questions, hypotheses, predictions, surprises, tests and revisions. Explore recursively, following each useful question, connection and discovery; guess where you do not know, with an honest band and a tag, and record what remains uncertain. Anything that changes over time can be modeled as a process, including qualities often written as fixed descriptions, such as a voice, a style, a belief or the culture of an institution. From the first story exploration, consider how the telling itself develops across reading position: tension, pacing, disclosure or other processes that matter to this work. Follow these questions recursively, using stable passage links and authored evidence without a required dramatic formula or numerical score. Keep reading position distinct from world time and authoring history. Let the work choose its form; books need not have a protagonist, conflict, climax or resolution. Use the shared narrative graph for forms that do not fit scenes, without inventing a cast to satisfy a template. Before writing or revising prose, consider author and character voice, reader disclosure, and consequential physical placement. Use declared passage links and existing records. At meaningful milestones, use the controlled read-back guidance to compare selected output against a blind control, reporting fidelity separately from improvement over the control. Do not wait for a special user request; if independent readers are unavailable, record that limitation rather than inventing a result. These are instructions to the calling LLM, not claims that the server has assessed meaning or automatically run reviewers.';
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.10.0',
+  version: '0.11.0',
 }, {
   instructions: composeInstructions(agentInstructions, { full: fullInstructions, simple: simpleInstructions }),
 });
@@ -134,12 +135,13 @@ server.registerPrompt(
     argsSchema: z.object({
       purpose: z.enum(modelingPurposes).describe(`One of ${modelingPurposes.join(', ')}.`),
       sessionMode: z.enum(modelingSessionModes).default('first_use').describe('One of first_use, repeat_same_domain, new_domain, consequential or continuation. Use continuation when you continue recorded work in this server; it begins with reading the construction record.'),
+      modes: z.string().optional().describe(`Modes to pull into the purpose, comma-separated: ${pullableModes.join(', ')}.`),
     }),
   },
-  async (input) => ({
+  async ({ modes, ...input }) => ({
     messages: [{
       role: 'user' as const,
-      content: { type: 'text' as const, text: await buildModelingPrompt(input) },
+      content: { type: 'text' as const, text: await buildModelingPrompt({ ...input, modes: String(modes ?? '').split(',').map((mode) => mode.trim()).filter(Boolean), addons: enabledAddons }) },
     }],
   }),
 );
@@ -151,10 +153,11 @@ server.registerTool(
     inputSchema: z.object({
       purpose: z.enum(modelingPurposes).describe(`One of ${modelingPurposes.join(', ')}.`),
       sessionMode: z.enum(modelingSessionModes).default('first_use').describe('One of first_use, repeat_same_domain, new_domain, consequential or continuation. Use continuation when you continue recorded work in this server; it begins with reading the construction record.'),
+      modes: z.array(z.enum(pullableModes)).max(pullableModes.length).default([]).describe('Modes to pull into the purpose, whatever is being built: forecasting adds issuing and scoring forecasts and, with the forecasting add-on, branches per forecast answer, decision option or assumption.'),
     }),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
-  async (input) => toolResult(await buildModelingContext({ ...input, instructionsMode: agentInstructions.mode })),
+  async (input) => toolResult(await buildModelingContext({ ...input, instructionsMode: agentInstructions.mode, addons: enabledAddons })),
 );
 
 server.registerTool('life_modeling_read', {
@@ -168,7 +171,7 @@ server.registerTool('life_modeling_read', {
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
 }, async (input) => toolResult(await readModelingResourcePage(input)));
 
-const generalPurposeNote = 'Purpose defaulted to observation; pass purpose to change it. observation keeps each report, estimate and judgment in its own authority, and suits explanatory or retrospective accounts built from records or recalled knowledge. forecasting adds values after the evidence cutoff that later observations can test. counterfactual holds an explicit alternative premise apart from the accepted history.';
+const generalPurposeNote = 'Purpose defaulted to observation; pass purpose to change it. observation keeps each report, estimate and judgment in its own authority, and suits explanatory or retrospective accounts built from records or recalled knowledge. forecasting adds values after the evidence cutoff that later observations can test. counterfactual holds an explicit alternative premise apart from the accepted history. Forecasting can also be pulled into any purpose: life_modeling_context with modes ["forecasting"].';
 
 server.registerPrompt('life_general_modeling_start', {
   title: 'Build and revise a general-purpose world model',
@@ -1201,6 +1204,10 @@ if (enabledAddons.includes('storytelling')) {
 if (enabledAddons.includes('alien')) {
   const { registerAlienAddon } = await import('./alien-addon.mjs');
   registerAlienAddon(server, service, { estimator });
+}
+if (enabledAddons.includes('forecasting')) {
+  const { registerForecastingAddon } = await import('./futures.mjs');
+  registerForecastingAddon(server, service, { toolResult });
 }
 
 await service.initialize();

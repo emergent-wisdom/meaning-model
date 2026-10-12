@@ -263,8 +263,9 @@ carve below records where that concept sits and what it is made of.
 A forecast is issued once and kept as issued. Each one is its own dated Event under the forecaster's perspective, here
 the modeler's understanding root, with a Cut whose answers are the outcomes and whose weights are probabilities declared
 before the outcome. The question names the horizon, each answer's meaning says what settles it, and the provenance gives
-the evidence cutoff and the source that settles it. When the evidence changes the view, a new forecast is issued beside
-the old one, in the same words and unit so the issued forecasts can be read in order. The outcome is an accepted-world
+the evidence cutoff and the source that settles it. The `evidence cutoff` and `horizon` entries use numeric model time:
+`7` and `24` mean hours here because the model's `time_unit` is `hour`. When the evidence changes the view, a new forecast
+is issued beside the old one, in the same words and unit so the issued forecasts can be read in order. The outcome is an accepted-world
 Event, linked from each forecast it settles by a `realizes_forecast` relation that names the Cut and the answer that
 happened (the remainder if none of the named answers did).
 
@@ -317,7 +318,7 @@ happened are different: record them early and correct them as you learn more.
             { "key": "declines", "weight": 0.3, "meaning": "The first qualifying entry in the buyer's ordered response log before hour 24 is Ada's refusal." },
             { "key": "remainder", "weight": 0.1, "meaning": "No qualifying acceptance or refusal is recorded before hour 24." } ],
           "provenance": ["inferred: from the offer, the loan and Ada's attention at hour 6", "forecast: probabilities declared before the outcome",
-            "evidence cutoff: hour 7", "horizon: hour 24", "settled by: first unambiguous acceptance or refusal in the buyer's ordered response log after the offer arrives and before hour 24; log order breaks timestamp ties; later reversals do not change the outcome; if none, remainder at hour 24"] },
+            "evidence cutoff: 7", "horizon: 24", "settled by: first unambiguous acceptance or refusal in the buyer's ordered response log after the offer arrives and before hour 24; log order breaks timestamp ties; later reversals do not change the outcome; if none, remainder at hour 24"] },
         { "id": "cut.forecast.h12", "parent_event_id": "event.forecast.h12",
           "question": "What is Ada's first recorded acceptance or refusal of the buyer's offer before hour 24?",
           "unit": "one unit of the modeler's belief",
@@ -326,7 +327,7 @@ happened are different: record them early and correct them as you learn more.
             { "key": "declines", "weight": 0.55, "meaning": "The first qualifying entry in the buyer's ordered response log before hour 24 is Ada's refusal." },
             { "key": "remainder", "weight": 0.1, "meaning": "No qualifying acceptance or refusal is recorded before hour 24." } ],
           "provenance": ["inferred: Ada's question to the bank at hour 11 points to keeping the bakery", "forecast: probabilities declared before the outcome",
-            "evidence cutoff: hour 12", "horizon: hour 24", "settled by: first unambiguous acceptance or refusal in the buyer's ordered response log after the offer arrives and before hour 24; log order breaks timestamp ties; later reversals do not change the outcome; if none, remainder at hour 24"] }
+            "evidence cutoff: 12", "horizon: 24", "settled by: first unambiguous acceptance or refusal in the buyer's ordered response log after the offer arrives and before hour 24; log order breaks timestamp ties; later reversals do not change the outcome; if none, remainder at hour 24"] }
       ],
       "context_roots": [ { "event_id": "event.modeler", "kind": "understanding", "provenance": ["minimal-example"] } ]
     }

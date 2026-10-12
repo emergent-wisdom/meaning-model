@@ -1,5 +1,6 @@
 import { hierarchy, instanceCounts } from './alien-ontology.mjs';
 import { digest } from './alien-search.mjs';
+import { verificationSummary } from './alien-verify.mjs';
 
 // Population diagnostics for one search, computed from its stored records. They locate
 // crowded and thin branches, saturation, redirect chains, world coverage and yield;
@@ -16,6 +17,8 @@ export function ontologyGaps(state) {
     active: active.length,
     leaves: active.filter((conceptId) => (children.get(conceptId)?.size ?? 0) === 0).sort(),
     thin: active.filter((conceptId) => subtree.get(conceptId) <= 1).sort(),
+    // Kinds no candidate realizes yet: a curator carved them under a lens, and nothing has landed in them.
+    empty: active.filter((conceptId) => subtree.get(conceptId) === 0).sort(),
     crowded: active.filter((conceptId) => direct.get(conceptId).instances >= crowdedAt).sort(),
     crowdedThreshold: crowdedAt,
     roots: roots.map((conceptId) => ({ conceptId, subtree: subtree.get(conceptId) })),
@@ -67,6 +70,40 @@ export function diagnoseSearch(search) {
     ];
     return { commissionNodeId: commission.nodeId, mechanismFamilyIds, worldRegimeIds, classifiedMatches };
   }).filter((item) => item.mechanismFamilyIds.length || item.worldRegimeIds.length);
+
+  // Forcing: a commission names kinds to fill; which records answered it, and whether a curator placed them there.
+  const within = (state, conceptId) => {
+    const { children } = hierarchy(state);
+    const seen = new Set([conceptId]); const queue = [conceptId];
+    while (queue.length) for (const child of children.get(queue.pop()) ?? []) if (!seen.has(child)) { seen.add(child); queue.push(child); }
+    return seen;
+  };
+  const forcing = search.commissions.filter((commission) => (commission.data.targetConceptIds ?? []).length).map((commission) => {
+    const ontologies = commission.data.addressedTo === 'new_world' ? ['worlds'] : ['mechanisms', 'outcomes'];
+    const answers = commission.data.addressedTo === 'new_world'
+      ? search.worlds.filter((item) => item.data.commissionNodeId === commission.nodeId).map((item) => item.nodeId)
+      : search.mechanisms.filter((item) => item.data.source.commissionNodeId === commission.nodeId).map((item) => item.nodeId);
+    // An answer counts as placed only in the ontologies that hold a target: a mechanism classified as a family has not
+    // yet been judged against a claimed-outcome target.
+    const landed = []; const placed = new Map(answers.map((nodeId) => [nodeId, new Set()])); const holding = new Set();
+    for (const ontology of ontologies) {
+      const state = search.ontologyState(ontology);
+      const targets = commission.data.targetConceptIds.filter((targetId) => state.concepts.some((concept) => concept.id === targetId));
+      if (!targets.length) continue;
+      holding.add(ontology);
+      for (const item of state.instances) if (placed.has(item.subjectNodeId) && item.relation !== 'alias') placed.get(item.subjectNodeId).add(ontology);
+      for (const targetId of targets) {
+        const scope = within(state, targetId);
+        for (const item of state.instances) {
+          if (placed.has(item.subjectNodeId) && item.relation !== 'alias' && scope.has(item.conceptId)) landed.push({ subjectNodeId: item.subjectNodeId, targetConceptId: targetId, conceptId: item.conceptId });
+        }
+      }
+    }
+    const judged = holding.size > 0 && answers.every((nodeId) => [...holding].every((ontology) => placed.get(nodeId).has(ontology)));
+    const status = !answers.length ? 'open' : landed.length ? 'filled' : judged ? 'missed' : 'unclassified';
+    return { commissionNodeId: commission.nodeId, addressedTo: commission.data.addressedTo, targetConceptIds: commission.data.targetConceptIds, answers, landed, status };
+  });
+  const verification = verificationSummary(search);
 
   let sinceNew = 0; let lastNew = null;
   for (const record of mechanismDecisions) {
@@ -181,6 +218,8 @@ export function diagnoseSearch(search) {
     },
     commissions: { avoidance, open: search.commissions.filter((item) => fulfilled(item).length === 0).map((item) => ({ nodeId: item.nodeId, addressedTo: item.data.addressedTo })),
       fulfilled: search.commissions.map((item) => ({ nodeId: item.nodeId, by: fulfilled(item) })).filter((item) => item.by.length) },
+    forcing,
+    verification,
     transfers: { byMechanism: tally(search.transfers.map((item) => item.data.mechanismNodeId)),
       unfilledRoles: search.transfers.reduce((sum, item) => sum + item.data.roleMap.filter((role) => role.binding.kind === 'unfilled').length, 0),
       magicalProxies: search.transfers.reduce((sum, item) => sum + item.data.proxies.filter((proxy) => proxy.label === 'magical').length, 0) },
@@ -198,6 +237,15 @@ export function diagnoseSearch(search) {
   for (const item of avoidance) if (item.classifiedMatches.length) warnings.push(`Commission ${item.commissionNodeId} returned to avoided concepts: ${item.classifiedMatches.map((match) => `${match.subjectNodeId} in ${match.conceptId}`).join('; ')}. This reports the recorded classifications, not an independent novelty judgment.`);
   if (diagnosis.tasks.unused.length) warnings.push(`${diagnosis.tasks.unused.length} prepared tasks have no recorded output; they stay visible as attempts.`);
   if (diagnosis.mechanisms.undeveloped.length) warnings.push(`Families with instances but no transfer or assessment yet: ${diagnosis.mechanisms.undeveloped.join(', ')}. Develop an unusual branch before judging it on familiarity.`);
+  for (const [ontology, noun] of [['mechanisms', 'mechanism families'], ['outcomes', 'claimed outcomes'], ['worlds', 'world regimes']]) {
+    const empty = diagnosis[ontology].empty;
+    if (empty.length) warnings.push(`${noun[0].toUpperCase()}${noun.slice(1)} no candidate realizes yet: ${empty.join(', ')}. Force one with a commission naming targetConceptIds, ${ontology === 'worlds' ? 'for a new world' : 'for an explorer'}.`);
+  }
+  for (const item of forcing) if (item.status === 'missed') warnings.push(`Commission ${item.commissionNodeId} asked for ${item.targetConceptIds.join(', ')}; its answers were placed elsewhere. Commission again, or carve the kind more clearly.`);
+  if (verification.falsified.length) warnings.push(`PURE falsified: ${verification.falsified.join(', ')}. Every axis must hold; one that fails is not offset by the others.`);
+  if (verification.unverifiedTransfers.length) warnings.push(`Transfers without a full PURE check: ${verification.unverifiedTransfers.join(', ')}. Verify each axis with a verifier task in its own context.`);
+  if (verification.unverifiedSelections.length) warnings.push(`Selected without a full PURE check: ${verification.unverifiedSelections.join(', ')}.`);
+  for (const item of verification.changed) warnings.push(`A deeper ${item.axis} check (${item.verificationNodeId}) found ${item.deeperStatus} where ${item.deepens} said ${item.probeStatus} at probe [${item.probePath.join(', ')}]; the axis now composes from the deeper finding.`);
   diagnosis.warnings = warnings;
   return { diagnosis, diagnosisHash: digest({ graphHash: search.view.graph_hash, searchRootId: search.searchRootId, diagnosis }) };
 }

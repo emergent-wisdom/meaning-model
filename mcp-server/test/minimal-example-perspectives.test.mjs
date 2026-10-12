@@ -5,6 +5,7 @@ import test from 'node:test';
 import { LifeSimulationService } from '../src/service.mjs';
 import { applyModelChange } from '../src/model-change.mjs';
 import { modelJumps } from '../src/model-questions.mjs';
+import { forecastMetadata } from '../src/forecast-metadata.mjs';
 
 // The minimal example's forecast and misreading sections, applied to its documented model through the change patch.
 async function documented(t, requestId) {
@@ -31,9 +32,14 @@ test('an issued forecast keeps its identity beside a later one, and each is scor
   const model = await documented(t, 'minimal-example-forecasts');
   const cuts = new Map(model.meaning_model.normalized_cuts.map((cut) => [cut.id, cut]));
   const issued = ['cut.forecast.h07', 'cut.forecast.h12'].map((id) => cuts.get(id));
-  for (const cut of issued) {
+  for (const [index, cut] of issued.entries()) {
     assert.deepEqual(rootOf(model, cut.parent_event_id), ['event.modeler', 'understanding'], 'held by the modeler, not the world');
-    assert.ok(['evidence cutoff: ', 'horizon: hour 24', 'settled by: '].every((entry) => cut.provenance.some((item) => item.startsWith(entry))));
+    const metadata = forecastMetadata(cut), cutoff = [7, 12][index];
+    assert.equal(metadata.declared, true);
+    assert.equal(metadata.problem, null, 'the documented forecast binds when read by the futures tools');
+    assert.deepEqual(metadata.binding, { cutoff, window: { start: cutoff, end: 24 }, question: cut.question,
+      unit: cut.unit, answers: cut.answers, settledBy: cut.provenance.find((entry) => entry.startsWith('settled by: ')).slice('settled by: '.length),
+      source: 'provenance' });
   }
   assert.equal(issued[0].question, issued[1].question, 'the same words, so the issued forecasts read in order');
   assert.match(issued[0].question, /first recorded acceptance or refusal.*before hour 24/u);

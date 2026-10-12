@@ -89,13 +89,15 @@ Read the common modeling protocol before authoring a model. The Meaning Model
 and Life Simulation papers remain optional references. With the add-on enabled, read
 `life-sim://addon/storytelling` and use the
 `life_story_scene_start` prompt to begin the scene workflow,
-`life_story_structure_explore` to explore possible structures, or
-`life_story_purpose_review` for an advisory chapter or section review, or
-`life_story_deepen` to refine an existing work. The
+`life_story_structure_explore` to explore possible structures,
+`life_story_purpose_review` for an advisory chapter or section review,
+`life_story_deepen` to refine an existing work,
+`life_story_feedback` to give feedback while a human writes, or
+`life_story_chat_start` to let the user play a character in the story's world. The
 [Story Modeling Profile](STORY_MODELING.md) describes the broader authoring
 convention; this add-on makes life-trend modeling, numerical exploration,
 local revision, model-depth review, preparation, review, and prose commitment explicit. It exposes
-fifteen tools and the four prompts listed above.
+nineteen tools and the six prompts listed above.
 
 ## Initial settings and ongoing involvement
 
@@ -643,10 +645,11 @@ fields are:
 
 | Field | Purpose |
 | --- | --- |
-| `targetKind` | `event` (default), `character`, `relationship`, `storyline`, or `name` |
+| `targetKind` | `event` (default), `character`, `relationship`, `storyline`, `name`, or `world_law` |
 | `context` | Relevant existing material, facts, and circumstances |
 | `constraints` | An array of requirements the proposals must respect |
 | `seedWord` | A supplied inspiration word, or `null`/omitted for a random draw |
+| `realism` | For `world_law` only: `one_departure`, `several_departures` or `own_laws`, as the user chose |
 
 The same-named MCP prompt accepts `constraints` as a JSON string, such as
 `["The siblings remain unaware of the letter"]`; the tool accepts the array
@@ -692,6 +695,59 @@ reduce to one metaphor, and every scene need not use this method. Reject all
 proposals or draw again when the seed adds nothing useful. The preparation call is read-only. Save its returned task and your alternatives
 with `life_story_author_record` before continuing. Selecting a suggestion does
 not accept it as canon; use an explicit model or narrative revision for that.
+
+### A world's law for fantasy and science fiction
+
+A fantasy or science-fiction world departs from ours, and how far is the user's
+choice. For a new story, ask it with the other starting settings, unless the user
+delegated it:
+
+| Level | The world |
+| --- | --- |
+| `as_ours` | Our world as it is, with no departure from its laws |
+| `one_departure` | Our world with exactly one departure |
+| `several_departures` | Our world with several connected departures |
+| `own_laws` | An invented world with its own fundamental laws |
+
+Above `as_ours`, draw the departure: call `life_story_structure_explore` with
+`targetKind: "world_law"`, the chosen `realism` and no `seedWord`. The word
+comes from a bank of 192 uncommon words from natural history, geology, crafts,
+law, music, signals and the body, the bank the alien add-on draws its worlds
+from, because rare words displace ordinary premises better than everyday ones.
+The task asks for two or three candidate laws grown from the word's meanings
+and workings, not the word as a decoration. Each states its core principle, its
+numbered rules (R1, R2, ...), how people live, work and organize under it, what
+is easy and what is hard, and what stays as in our world. At `one_departure`
+exactly one thing differs and everything else is ours, so its consequences run
+through an otherwise ordinary society. At `own_laws` the word is to that world
+what physics is to ours.
+
+The level is never drawn, and the task keeps to it: candidates do not raise or
+lower it. Choose among the candidates as with any exploration, or draw again,
+and store the task and the alternatives with `life_story_author_record`.
+
+An existing story keeps its premises. When its opening, era, chosen candidate
+world, commitments or brief already settle how far the world departs from ours,
+read the level from them: record it with `chosenBy: "established"`, cite those
+records in `basisNodeIds` (the opening links to them), and state the world's
+existing departures as its laws. Draw nothing for an established world. Ask the
+user only what its records leave open, and draw a word only for a departure
+nobody has established yet.
+
+Record the result in the opening (`life_story_world_record`, stage `opening`)
+as `realism`: the `level`, who chose it (`user`, `delegated` or `established`),
+and each law with its id, statement, `seedWord`, rules, `reach` and what stays
+`unchanged`.
+Give a drawn law the `explorationNodeId` of the stored exploration it came
+from: the opening then links to that record, so the draw shows in the story's
+history, and refuses a law whose word or level differs from its exploration.
+The count must fit the level: none for `as_ours`, one for `one_departure`, two
+or more for `several_departures`, one or more for `own_laws`. Realism sits
+beside the era, since a fantasy can be set in our own time. Until it is
+recorded, the opening and scene preparation ask how far the world departs from
+ours, reading what the story already establishes first. Then trace each law's reach as commitments in the implications stage and
+model the processes it changes: everything the story shows has to follow from
+the law.
 
 ## Explore numerical event and whole-life trajectories
 
@@ -1303,6 +1359,71 @@ it was, the exact revision it read, with a hash of the text, and the prompt. Lin
 the changes that answer it with `answers`. Otherwise explicitly label the result
 as self-review. The server does not launch a reviewer or claim independence merely
 because a reviewer name was supplied.
+
+## Story chat: play a character in the world
+
+Story chat lets the user step into the story as one of its people while you
+play the world and everyone else. It runs on the story's model, so the people
+the user meets are the people the model holds: they know what they could know
+by then, sound like themselves, and want what the model says they want. Whether
+a book comes out of the play is the user's choice.
+
+Start with the `life_story_chat_start` prompt. Unless the user has said, ask
+who they want to be and whether they want a book. They can choose a person
+already in the story or a new one. A new character first gets a whole life in
+the model, built like any principal's: a life Event from birth, the slow
+processes, the periods, what they want and feel, and how they speak. Only the
+user decides what that character says and does. "Chat only" keeps the play
+interactive fiction. "Book" lets you write chapters from what was played, at
+any point.
+
+`life_story_chat_open` registers a separate narrative graph for the chat,
+bound to the story's model. With `fromStory`, the story's graph is only read:
+the play never writes into the book's graph. The chat records the user's
+character, the start time, the book choice and what each person already knows
+when it begins, as facts (`facts`, each holding from a time) and declarations
+of who knows them from when (`knows`).
+
+Each turn takes two calls. `life_story_chat_prepare` reads the model at the
+turn's world time and returns, for each person present, what you may use to
+play them: their age, their current period, the Events they lived through by
+name, what they want and feel by now, their own values held by now, how they
+speak, and the facts declared known to them by now. It is read by allowlist. It
+leaves out Event descriptions, values recorded later, the end of a life or a
+period, other people's accounts, and Cuts on Events they share with others,
+which may hold someone else's inner state. Names and boundaries are the
+modeler's labels and can mention later times; a character still knows only
+what they could know now. The `world` section is for you as narrator alone: the
+setting, the modeled course within the horizon (what the model or the book
+holds next, which the play may change), the open decision Cuts and the
+outcomes already drawn. `life_story_chat_record` then stores the user's exact
+words as theirs and your exact reply as yours, with the world time, who was
+present, the model Events the exchange produced, the draws it played and what
+anyone learned.
+
+Play from the packets. No character uses the world section, another person's
+packet or the model's future, and you never write the words, choices or
+feelings of the user's character. Where an outcome could go either way and the
+model holds the choice as a decision Cut, draw it with `life_direction_draw`,
+recorded in the chat graph with the chat's story root as `rootId`, and play the
+drawn answer. A drawn outcome stays drawn: the record refuses a reroll. Time
+moves forward between turns; a memory or a flashback is told inside a turn, at
+the turn's time.
+
+The world remembers the play. When an exchange changes the world (something
+happens, a feeling or a relationship moves, a cause takes effect), put the
+change in the model: add Events with `life_model_revise`, bind the chat graph
+to the new model with `life_narrative_rebind`, and list the Events in the turn
+record. When someone learns something, record it as a fact and a learned
+declaration, so that later turns know who knows it. An ordinary exchange needs
+only prepare and record. After three turns without an Event, prepare asks
+whether anything happened that a later chat should find.
+
+With a book wanted, write chapters through the scene workflow on the chat
+graph's story root, with the user's character as one viewpoint, and carry the
+chat's knowledge declarations into `scene.context` as `viewpointKnownAt`. The
+chat transcript is never rendered or used for training; the book is written
+from what was played, through the usual review and commit.
 
 ## Continue a story someone else began
 

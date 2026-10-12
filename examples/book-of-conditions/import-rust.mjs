@@ -82,6 +82,51 @@ function authorReferences(graph) {
   });
 }
 
+function authorPersonas(graph) {
+  return graph.nodes.flatMap(node => {
+    if (node.node_type !== 'storytelling.author_model') return [];
+    let record; try { record = JSON.parse(node.text); } catch { return []; }
+    if (record.schema !== 'meaning-model-story-author-record/v1'
+      || record.data?.schema !== 'meaning-model-story-author-model/v1') return [];
+    const { modeledAuthorId, mode, label } = record.data;
+    return [{ nodeId: node.id, modeledAuthorId, mode, label }];
+  });
+}
+
+function verifyReviewerCorrections(graph, expected) {
+  if (!expected) return [];
+  assert.equal(expected.correctedNodeIds.length, expected.supersededNodeIds.length);
+  const byId = new Map(graph.nodes.map(node => [node.id, node]));
+  return expected.correctedNodeIds.map((id, index) => {
+    const originalId = expected.supersededNodeIds[index];
+    const corrected = JSON.parse(byId.get(id)?.text ?? 'null');
+    const original = JSON.parse(byId.get(originalId)?.text ?? 'null');
+    assert.equal(corrected?.schema, 'meaning-model-review/v1');
+    assert.equal(original?.schema, 'meaning-model-review/v1');
+    assert.equal(original.data.reviewer.kind, 'human', 'Keep the mistaken identity as superseded history');
+    for (const [field, value] of Object.entries(expected.reviewer)) assert.equal(corrected.data.reviewer[field], value);
+    assert.equal(corrected.data.independence, 'blind');
+    assert.deepEqual(corrected.data.verdict, original.data.verdict, 'The recorded verdict must stay the same');
+    assert.equal(corrected.data.findings.length, original.data.findings.length);
+    const textChanges = [];
+    corrected.data.findings.forEach((finding, findingIndex) => {
+      const { text, ...classification } = finding;
+      const { text: originalText, ...originalClassification } = original.data.findings[findingIndex];
+      assert.deepEqual(classification, originalClassification, 'Finding categories, severities and quotations must be preserved');
+      if (text !== originalText) textChanges.push({ nodeId: id, findingIndex,
+        originalTextSha256: digest(originalText), correctedTextSha256: digest(text) });
+    });
+    assert.deepEqual(textChanges, (expected.findingTextChanges ?? []).filter(change => change.nodeId === id),
+      'Any paraphrased finding text must match the publication record exactly');
+    for (const field of ['graphHash', 'revision', 'modelHash', 'renderSha256']) assert.deepEqual(corrected.data.reviewed[field], original.data.reviewed[field], 'The correction must keep the material actually reviewed');
+    assert(graph.edges.some(edge => edge.family === 'semantic' && edge.relation === 'supersedes'
+      && edge.source.kind === 'node' && edge.source.node_id === id
+      && edge.target.kind === 'node' && edge.target.node_id === originalId), 'The corrected review must explicitly supersede its original');
+    return { nodeId: id, supersedes: originalId, reviewer: corrected.data.reviewer,
+      reviewedGraphHash: corrected.data.reviewed.graphHash, findingTextChanges: textChanges };
+  });
+}
+
 export async function runImport(outputDirectory, binary = defaultEngine) {
   const out = path.resolve(outputDirectory);
   assert(!fs.existsSync(out), 'The output directory already exists and is never overwritten; choose a fresh directory.');
@@ -128,10 +173,10 @@ export async function runImport(outputDirectory, binary = defaultEngine) {
     fs.writeFileSync(path.join(out, 'rendered.md'), rendered.text, { flag: 'wx' });
     writeJson(out, 'render.json', rendered);
     const projection = await call('life_document_project', { graphHash: manifest.graphHash, rootId: manifest.rootId, accessScopes: manifest.accessScopes });
-    for (const process of projection.processes) for (const state of process.states) assert.equal(state.status, 'current', `Telling phase needs review: ${state.label}`);
+    assert.equal(projection.processes.length, manifest.inventory.tellingProcesses, 'Verify the actual telling inventory, including its absence');
+    assert.equal(projection.processes.reduce((count, process) => count + process.states.length, 0), manifest.inventory.tellingPhases);
     writeJson(out, 'document-projection.json', projection);
     const authors = authorReferences(graph);
-    assert(authors.some(author => author.name === 'Nora Vale'), 'The edition must declare its fictional author, Nora Vale');
     const inspectedAuthors = [];
     for (const author of authors) {
       const life = await call('life_model_inspect', { modelHash: author.modelHash, includeDefinition: true });
@@ -143,6 +188,10 @@ export async function runImport(outputDirectory, binary = defaultEngine) {
       }
     }
     for (const expected of manifest.authorDependencies ?? []) assert(inspectedAuthors.some(author => author.modelHash === expected.modelHash && author.name === expected.name), 'Declared author dependency is missing');
+    assert.equal(inspectedAuthors.length, (manifest.authorDependencies ?? []).length, 'The actual external author lives must match the publication record');
+    const personas = authorPersonas(graph);
+    assert.deepEqual(personas, manifest.authorPersonas ?? [], 'Keep the actual authored persona distinct from a native author-life model');
+    const reviewerCorrections = verifyReviewerCorrections(graph, manifest.reviewerCorrection);
     // The replay returns at most 80 revisions per page; read every page so the check covers the whole history.
     const pages = [];
     for (let offset = 0; offset !== null;) {
@@ -164,7 +213,7 @@ export async function runImport(outputDirectory, binary = defaultEngine) {
     const receipt = { schema: 'meaning-model-book-example-import/v1', graphHash: manifest.graphHash,
       modelHash: manifest.modelHash, rootId: manifest.rootId, accessScopes: manifest.accessScopes,
       sourceHashes: edition.sourceHashes, proseSha256: digest(rendered.text),
-      authors: inspectedAuthors, graphRevisionCount: replay.revisionCount,
+      authors: inspectedAuthors, personas, reviewerCorrections, graphRevisionCount: replay.revisionCount,
       storedModelCount: imported.models, currentModelCount: inspectedAuthors.length + 1,
       tellingProcessCount: projection.processes.length, tellingPhaseCount: projection.processes.reduce((count, process) => count + process.states.length, 0),
       exactManuscript: true, verified: true };

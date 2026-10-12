@@ -48,6 +48,9 @@
   .process-data-hint { max-width: 420px; margin-top: 6px; padding: 8px 10px; color: var(--ink-2); font-size: 12px; line-height: 1.45; background: rgba(18, 22, 29, 0.9); border: 1px solid var(--ring); border-left: 2px solid #8cadd6; border-radius: 6px; }
   .process-data-hint strong { display: block; margin-bottom: 2px; color: var(--ink); font-weight: 600; }
   body:has(#reader:not([hidden])) .process-data-hint { display: none !important; }
+  /* A branch is hypothetical in every view, the reader's included, so its banner is not a hint that reading hides. */
+  .branch-banner { max-width: 420px; margin-top: 6px; padding: 8px 10px; color: var(--ink-2); font-size: 12px; line-height: 1.45; background: rgba(18, 22, 29, 0.9); border: 1px solid var(--ring); border-left: 2px solid #b793ff; border-radius: 6px; }
+  .branch-banner strong { display: block; margin-bottom: 2px; color: var(--ink); font-weight: 600; }
   .hud.title .model-picker { align-self: flex-start; max-width: var(--title-width); height: 26px; margin-left: -1px; padding: 0; background: none; box-shadow: none; backdrop-filter: none; pointer-events: auto; }
   .hud.title .model-picker i { display: none; }
   .hud.title .model-picker select { height: 26px; max-width: var(--title-width); padding: 0 20px 0 0; font-size: 17px; background-position: calc(100% - 10px) 11px, calc(100% - 5px) 11px; }
@@ -203,6 +206,17 @@
   .side .legend { position: static; }
   .tools { position: relative; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; width: 100%; }
   .tool-wrap { position: static; }
+  .tool.search { width: 150px; cursor: text; font-weight: 500; transition: width 0.15s ease; }
+  .tool.search:focus { width: 240px; outline: none; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35) inset; }
+  .tool.search::placeholder { color: var(--muted); }
+  .search-results { width: min(440px, calc(100vw - 2 * var(--edge))); padding: 6px; }
+  .search-head { padding: 4px 7px 6px; color: var(--muted); font-size: 12px; }
+  .search-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 9px; align-items: baseline; padding: 6px 7px; border-radius: 6px; cursor: pointer; }
+  .search-row[aria-selected="true"], .search-row:hover { background: rgba(255, 255, 255, 0.08); }
+  .search-kind { color: var(--muted); font-size: 11px; letter-spacing: 0.03em; white-space: nowrap; }
+  .search-label { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .search-snippet { grid-column: 2; color: var(--ink-2); font-size: 12px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  @media (max-width: 760px) { .search-wrap { flex: 1 1 100%; } .tool.search, .tool.search:focus { width: 100%; } }
   .tool { height: var(--control); display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 0; border-radius: var(--radius); background: var(--panel); box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); color: #fff; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
   .tool:hover, .tool.open { background: rgba(40, 40, 44, 0.9); }
   .tool i { font-style: normal; color: var(--muted); } .tool b { font-weight: 600; } .tool .caret { color: var(--muted); font-size: 11px; }
@@ -388,7 +402,7 @@
 <body>
 <div id="scene"></div>
 <!-- The HUD frames the scene: the model and its controls in one row at the top, time in one row at the bottom. -->
-<header class="hud title"><a class="brand-mark" href="https://meaningmodel.ai" target="_blank" rel="noopener" title="The Meaning Model" aria-label="The Meaning Model (opens meaningmodel.ai)"><img src="./logo.svg" alt="" width="24" height="24"></a><div class="eyebrow">The processes an agent modeled with the Meaning Model</div><h1 id="title">Processes</h1><div class="hud stats" id="stats"></div><div class="whose colour-key" id="colour-key" data-temporal aria-label="Whose colour is whose"></div><div class="process-data-hint" id="every-row-hint" data-temporal hidden><strong>Showing additional rows</strong>The row selection was empty at this level. Other rows are shown within your scope and display settings.</div><div class="process-data-hint" id="process-data-hint" data-temporal hidden><strong>No curves to show yet</strong>These bars show Event time spans. Ask your agent to check recorded values and use a compatible dated series to show how processes change over time.</div></header>
+<header class="hud title"><a class="brand-mark" href="https://meaningmodel.ai" target="_blank" rel="noopener" title="The Meaning Model" aria-label="The Meaning Model (opens meaningmodel.ai)"><img src="./logo.svg" alt="" width="24" height="24"></a><div class="eyebrow">The processes an agent modeled with the Meaning Model</div><h1 id="title">Processes</h1><div class="branch-banner" id="branch-banner" hidden></div><div class="hud stats" id="stats"></div><div class="whose colour-key" id="colour-key" data-temporal aria-label="Whose colour is whose"></div><div class="process-data-hint" id="every-row-hint" data-temporal hidden><strong>Showing additional rows</strong>The row selection was empty at this level. Other rows are shown within your scope and display settings.</div><div class="process-data-hint" id="process-data-hint" data-temporal hidden><strong>No curves to show yet</strong>These bars show Event time spans. Ask your agent to check recorded values and use a compatible dated series to show how processes change over time.</div></header>
 <!-- What is happening now and where the reading is, stacked just above the time bar. -->
 <div class="dock" id="dock">
 <div class="hud caption"><div class="kind" id="kind">The story</div><div class="text" id="text"></div></div>
@@ -407,6 +421,8 @@
 <div class="side" id="side">
   <button class="tool toolbar-visibility" id="toolbar-visibility" aria-expanded="true" aria-controls="tools" title="Hide or show the controls">Hide controls</button>
   <div class="tools" id="tools">
+    <span class="tool-wrap search-wrap" id="search-wrap"><input class="tool search" id="search" type="search" placeholder="Search" aria-label="Search the model's records, notes and passages (/)" aria-keyshortcuts="/" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-results">
+      <div class="pop wide search-results" id="search-results" role="listbox" aria-label="Search results" hidden></div></span>
     <select class="tool story" id="story" hidden aria-label="Which story"></select>
     <span class="tool-wrap"><button class="tool" data-pop="pop-show"><i>Show</i> <b id="t-show">Processes</b><span class="caret">▾</span></button>
       <div class="pop" id="pop-show" hidden><h2>Show it as</h2><div class="seg" id="layouts"><button data-layout="together">Processes</button><button data-layout="layers">Tree</button><button data-layout="terrain">Terrain</button><button data-layout="graph">Graph</button><button data-layout="structure">Structure</button><button data-layout="space">Space</button></div><div class="note" id="layout-note"></div><div class="note" id="selection-label" hidden></div><div class="whose" id="whose" data-temporal></div>
@@ -433,7 +449,7 @@
     <span class="tool-wrap"><button class="tool icon" data-pop="pop-about" aria-label="About this view, how to read it and its keys" title="About this view, how to read it and its keys">?</button>
       <div class="pop wide" id="pop-about" hidden><h2>About this view</h2><div class="sub" id="sub"></div><div class="repos" id="repos"></div>
         <div class="pop-switches"><button class="tool switch" id="legend-toggle" aria-pressed="false" aria-controls="legend" title="Show or hide how to read the view (H)">How to read it</button></div>
-        <h2>Keys</h2><section class="keys-help"><b>Home</b> recenter · <b>0</b> default · <b>W</b> <b>A</b> <b>S</b> <b>D</b> walk · <b>Q</b> <b>E</b> down and up · arrows look around · <b>Shift</b> faster · <b>1</b>–<b>4</b> the scales · <b>T</b> processes · <b>L</b> tree · <b>R</b> terrain · <b>Space</b> play · <b>C</b> the camera · <b>G</b> shining · <b>K</b> edges · <b>N</b> text · <b>H</b> how to read it · <b>X</b> everything. Locked: scroll or pinch zooms in time, drag pans, <b>Shift</b>+scroll moves a tall view up and down. Otherwise drag turns, right-drag moves, scroll comes closer, <b>Shift</b>+scroll zooms in time. Click anything to read what it is.</section>
+        <h2>Keys</h2><section class="keys-help"><b>/</b> search · <b>Home</b> recenter · <b>0</b> default · <b>W</b> <b>A</b> <b>S</b> <b>D</b> walk · <b>Q</b> <b>E</b> down and up · arrows look around · <b>Shift</b> faster · <b>1</b>–<b>4</b> the scales · <b>T</b> processes · <b>L</b> tree · <b>R</b> terrain · <b>Space</b> play · <b>C</b> the camera · <b>G</b> shining · <b>K</b> edges · <b>N</b> text · <b>H</b> how to read it · <b>X</b> everything. Locked: scroll or pinch zooms in time, drag pans, <b>Shift</b>+scroll moves a tall view up and down. Otherwise drag turns, right-drag moves, scroll comes closer, <b>Shift</b>+scroll zooms in time. Click anything to read what it is.</section>
       </div></span>
     <div id="process-detail-status" role="status" hidden></div>
     <div id="graph-controls" data-graph></div>

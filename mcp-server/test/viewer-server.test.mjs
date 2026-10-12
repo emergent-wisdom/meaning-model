@@ -293,3 +293,23 @@ test('tokens are isolated between viewer instances and close stops listening', a
   });
   assert.equal((await read(b.url)).status, 200, 'closing one viewer does not close another');
 });
+
+test('the bare address lists the open views only for the browser that opened one of them', async (t) => {
+  const f = await fixture(t);
+  const first = await f.viewer.open({ modelHash, title: 'First <model>' });
+  const second = await f.viewer.open({ modelHash: graphHash, title: 'Second model' });
+  const bare = new URL('/', first.url);
+  const stranger = await read(bare);
+  assert.equal(stranger.status, 200);
+  assert.match(stranger.text, /Open the link the assistant gave you/u);
+  for (const opened of [first, second]) assert.ok(!stranger.text.includes(new URL(opened.url).pathname), 'no link is given to a stranger');
+  const page = await read(first.url);
+  const cookie = page.headers['set-cookie']?.[0] ?? '';
+  assert.match(cookie, /HttpOnly; SameSite=Strict/u);
+  const listed = await read(bare, { headers: { cookie: cookie.split(';')[0] } });
+  assert.ok(listed.text.indexOf(new URL(second.url).pathname) < listed.text.indexOf(new URL(first.url).pathname), 'newest first');
+  assert.match(listed.text, /First &#60;model&#62;/u);
+  const forged = await read(bare, { headers: { cookie: `${cookie.split('=')[0]}=guess` } });
+  assert.ok(!forged.text.includes(new URL(first.url).pathname));
+  assert.equal((await read(bare, { headers: { host: 'example.com' } })).status, 403);
+});

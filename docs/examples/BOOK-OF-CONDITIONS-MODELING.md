@@ -8,10 +8,12 @@ Its categories are replaceable choices, not a required ontology for people.
 The characters' invented interiors are fiction, including those of historical
 people.
 
-The current example uses the revised native model and manuscript in
-`examples/book-of-conditions/`, with a publication manifest identifying the
-edition. The paper separately reports the first construction's historical
-measurements; those earlier results are not new evaluations of this revision.
+This guide uses the first, directed construction, archived in
+[version 0.9.1](https://github.com/emergent-wisdom/meaning-model/tree/v0.9.1/examples/book-of-conditions).
+The current [Book example](../../examples/book-of-conditions/README.md) is a
+separate agent-generated construction. The characters, categories, quantities,
+and scenes below describe the earlier construction, not measurements of the
+new one.
 
 ## Keep a life wider than the scene's emotional composition
 

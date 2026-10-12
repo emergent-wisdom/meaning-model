@@ -65,3 +65,65 @@ test('the implications stage asks which assumptions are unmodeled and which coul
   const { worldInstructions } = await import('../src/storytelling-world.mjs');
   assert.match(worldInstructions, /ask yourself which assumptions you have not modeled yet and which of them could stretch back far in time to create a deeper story \(implications\)/);
 });
+
+test('the opening records how far the world departs from ours, with as many laws as the level says', async (t) => {
+  const service = new LifeSimulationService();
+  t.after(() => service.close());
+  await service.initialize();
+  const addon = new StorytellingAddon(service);
+  const model = await service.registerModel({ requestId: 'model', model: {
+    schema: 'life-sim-rust-model/v1', id: 'realism-story', time_unit: 'hour', revision: { number: 0, reason: 'Realism test.', provenance },
+    processes: [{ id: 'river.level', value_type: { kind: 'scalar', bounds: { minimum: 0, maximum: 1 } }, initial_value: { kind: 'scalar', value: 0.5 },
+      uncertainty: { kind: 'exact' }, unit: 'fraction', provenance, support: ['world'], access_scopes: [] }],
+    decomposition: [], dependencies: [], laws: [], initial_claims: [],
+    meaning_model: { schema: 'life-sim-rust-meaning-model/v1', concepts: [], referents: [], event_referent_bindings: [],
+      events: [{ id: 'ev.crossing', boundary: 'Mira crosses the river.', description: 'Mira asks the river and is let across.', interval: { start: 1, end: 2 },
+        process_ids: [], observation_process_ids: [], participants: {}, substrate: null, region: null, provenance }] } } });
+  const graph = await service.registerNarrativeGraph({ requestId: 'graph', narrativeGraph: { schema: 'life-sim-rust-narrative-graph/v1', id: 'realism-graph',
+    revision: { number: 0, reason: 'Realism test.', provenance }, source: { kind: 'model', model_hash: model.modelHash }, roots: ['book'],
+    nodes: [{ id: 'book', node_type: 'story', role: 'document_root', epistemic_status: 'fictional_artifact', evidence_type: 'fictional_canon', access_scopes: [], provenance }], edges: [] } });
+  let hash = graph.graphHash;
+  const opening = (realism) => ({ stage: 'opening', closedQuestions: ['Mira lives by the river.', 'The river decides.', 'Only the ferry crosses.'],
+    accounts: [`Mira keeps the ferry in a town where the river decides who may cross. ${'The water is wide and slow. '.repeat(3)}`,
+      `Mira keeps the ferry. ${'The water is wide and slow. '.repeat(4)}\n\nThe river decides who may cross, and it has refused her brother. ${'The town waits. '.repeat(3)}`],
+    ...(realism === undefined ? {} : { realism }) });
+  const record = async (nodeId, world) => {
+    const stored = await addon.recordWorld({ graphHash: hash, requestId: nodeId, nodeId, storyRootId: 'book', authorId: 'editor', accessScopes: ['author'], summary: 'The opening.', world });
+    hash = stored.graphHash; return stored;
+  };
+  const law = (id) => ({ id, law: 'The river chooses who may cross it.', seedWord: 'ferry', rules: ['R1: A crossing is asked for aloud.'],
+    reach: 'Trade, marriage and exile all wait on the river\'s answer.', unchanged: 'Bodies, weather and money are as ours.' });
+  const unstated = await record('w.opening.1', opening());
+  assert.deepEqual(unstated.realismQuestions.map((item) => item.kind), ['realism-unstated']);
+  await assert.rejects(record('w.opening.2', opening({ level: 'as_ours', chosenBy: 'user', laws: [law('law.river')] })), /has no departures/u);
+  await assert.rejects(record('w.opening.3', opening({ level: 'one_departure', chosenBy: 'user', laws: [law('law.river'), law('law.ferry')] })), /needs 1 law; this has 2/u);
+  await assert.rejects(record('w.opening.4', opening({ level: 'several_departures', chosenBy: 'user', laws: [law('law.river')] })), /needs 2 to 12 laws/u);
+  const stated = await record('w.opening.5', opening({ level: 'own_laws', chosenBy: 'delegated', laws: [law('law.river')] }));
+  assert.deepEqual(stated.realismQuestions, []);
+  const ours = await record('w.opening.6', opening({ level: 'as_ours', chosenBy: 'user' }));
+  assert.deepEqual(ours.realismQuestions, []);
+  // A drawn law keeps its draw: the stored exploration, with the same word and level.
+  const task = await addon.prepareStructureExplore({ targetKind: 'world_law', brief: 'A ferry town.', realism: 'own_laws', seedWord: 'ferry' });
+  hash = (await addon.storeAuthorRecord({ graphHash: hash, requestId: 'w.explore', nodeId: 'w.explore', storyRootId: 'book', authorId: 'editor',
+    accessScopes: ['author'], kind: 'candidate', text: 'World-law candidates from the word ferry.', data: task })).graphHash;
+  const drawn = (extra) => opening({ level: 'own_laws', chosenBy: 'user', laws: [{ ...law('law.river'), explorationNodeId: 'w.explore', ...extra }] });
+  await assert.rejects(record('w.opening.7', drawn({ seedWord: 'river' })), /its exploration drew ferry/u);
+  await assert.rejects(record('w.opening.8', { ...drawn(), realism: { ...drawn().realism, level: 'several_departures', laws: [
+    { ...law('law.river'), explorationNodeId: 'w.explore' }, law('law.ferry')] } }), /explored at own_laws and is recorded at several_departures/u);
+  await assert.rejects(record('w.opening.9', drawn({ explorationNodeId: 'w.opening.5' })), /not a stored world_law exploration/u);
+  await record('w.opening.10', drawn());
+  const view = await service.queryNarrativeGraph({ graphHash: hash, mode: 'full', includeContent: true, accessScopes: ['author'] });
+  assert.ok(view.edges.some((edge) => edge.source.node_id === 'w.opening.10' && edge.target.node_id === 'w.explore' && edge.relation === 'learned_from'),
+    'the opening links the law to the draw it came from');
+  // An existing world keeps its premises: the level is read from its own records and cites them, with nothing drawn.
+  assert.match(unstated.realismQuestions[0].question, /Read it first from what the story already establishes/u);
+  assert.match(unstated.realismQuestions[0].question, /only for a departure nobody has established yet/u);
+  const established = (extra) => opening({ level: 'one_departure', chosenBy: 'established', laws: [law('law.river')], ...extra });
+  await assert.rejects(record('w.opening.11', established()), /cites the records it is read from/u);
+  await assert.rejects(record('w.opening.12', established({ basisNodeIds: ['nowhere'] })), /nowhere is not a record of this story/u);
+  const kept = await record('w.opening.13', established({ basisNodeIds: ['w.opening.1'] }));
+  assert.deepEqual(kept.realismQuestions, []);
+  const after = await service.queryNarrativeGraph({ graphHash: hash, mode: 'full', includeContent: true, accessScopes: ['author'] });
+  assert.ok(after.edges.some((edge) => edge.source.node_id === 'w.opening.13' && edge.target.node_id === 'w.opening.1' && edge.relation === 'learned_from'),
+    'where the level came from stays visible');
+});

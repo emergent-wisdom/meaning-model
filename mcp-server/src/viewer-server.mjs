@@ -10,6 +10,7 @@ import { exportConstructionHistory } from './construction-record.mjs';
 import { buildViewerData } from './viewer-data.mjs';
 import { declaredViewerLives, renderViewerDocument } from './viewer-snapshot.mjs';
 import { followedGraphHead } from './viewer-live.mjs';
+import { branchesOf } from './model-lineage.mjs';
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/u);
 const selectionFields = {
@@ -59,6 +60,10 @@ function requireModelScopes(value, allowed) {
 export function createModelViewer(service, { buildData = buildViewerData, publicDirectory = defaultPublicDirectory } = {}) {
   const root = resolve(publicDirectory);
   const snapshots = new Map();
+  // Opening a view's own link marks this browser as the one the views were given to; the bare address then lists
+  // them there. Anything else at the bare address learns no link.
+  const browserSecret = randomBytes(24).toString('hex');
+  const cookieName = () => `meaning_model_viewer_${new URL(origin).port}`;
   let httpServer = null;
   let starting = null;
   let origin = null;
@@ -118,9 +123,33 @@ export function createModelViewer(service, { buildData = buildViewerData, public
     });
   }
 
+  // The bare address: the views opened in this process, newest first, for the browser that opened one of them.
+  function viewsPage(request) {
+    const escape = (value) => String(value).replace(/[&<>"']/gu, (character) => `&#${character.charCodeAt(0)};`);
+    const cookies = Object.fromEntries((request.headers.cookie ?? '').split(';').map((part) => part.trim().split('='))
+      .filter(([name, value]) => name && value !== undefined));
+    const known = cookies[cookieName()] === browserSecret;
+    const groups = [...new Map([...snapshots.values()].map((snapshot) => [snapshot.group[0], snapshot.group])).values()].reverse();
+    const label = (item) => item.title ?? (item.graphHash ? `Story graph ${item.graphHash.slice(0, 12)}` : `Model ${item.modelHash.slice(0, 12)}`);
+    const list = groups.map((group) => {
+      const members = group.filter((token) => snapshots.has(token)).map((token) => {
+        const item = snapshots.get(token);
+        return `<a href="/${token}/">${escape(label(item))}</a> <span>${item.live ? 'live' : 'snapshot'} · ${escape(item.graphHash ? `graph ${item.graphHash.slice(0, 12)}` : `model ${item.modelHash.slice(0, 12)}`)}</span>`;
+      });
+      // A group opened together (a story and its declared lives) stays together under its first view.
+      return `<li>${members[0] ?? ''}${members.length > 1 ? `<ul>${members.slice(1).map((member) => `<li>${member}</li>`).join('')}</ul>` : ''}</li>`;
+    }).join('');
+    const body = known && groups.length
+      ? `<p>The views opened in this session, newest first. Each link shows one model or story.</p><ol>${list}</ol>`
+      : `<p>Each view has its own link. Open the link the assistant gave you; afterwards this address lists the views opened in this session, in that browser.</p><p>No link yet? Ask the assistant to open the model viewer.</p>`;
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Meaning Model viewer</title>
+<style>:root{color-scheme:light dark}body{font:16px/1.5 system-ui,sans-serif;max-width:44rem;margin:3rem auto;padding:0 1rem}ol,ul{padding-left:1.2rem}li{margin:.3rem 0}span{color:GrayText;font-size:.9em}</style></head>
+<body><h1>Meaning Model viewer</h1>${body}</body></html>`;
+  }
+
   async function serve(request, response) {
-    const send = (status, body = '', type = 'text/plain; charset=utf-8') => {
-      response.writeHead(status, { 'Content-Type': type, 'Cache-Control': 'no-store',
+    const send = (status, body = '', type = 'text/plain; charset=utf-8', headers = {}) => {
+      response.writeHead(status, { ...headers, 'Content-Type': type, 'Cache-Control': 'no-store',
         'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
         'Cross-Origin-Resource-Policy': 'same-origin', 'X-Frame-Options': 'DENY',
         'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'" });
@@ -130,6 +159,7 @@ export function createModelViewer(service, { buildData = buildViewerData, public
     if (!['GET', 'HEAD'].includes(request.method)) return send(405, 'Read-only viewer');
     let path;
     try { path = decodeURIComponent(new URL(request.url, origin).pathname); } catch { return send(400, 'Invalid path'); }
+    if (path === '/') return send(200, viewsPage(request), 'text/html; charset=utf-8');
     const [, token, ...segments] = path.split('/');
     const snapshot = snapshots.get(token);
     if (!snapshot) return send(404, 'This viewer link is unavailable. Ask the assistant to open the model again.');
@@ -141,7 +171,8 @@ export function createModelViewer(service, { buildData = buildViewerData, public
     const file = resolve(root, relative);
     const type = types[extname(file)];
     if (!file.startsWith(`${root}${sep}`) || !type) return send(404, 'Not found');
-    try { return send(200, await readFile(file), type); } catch { return send(404, 'Not found'); }
+    const cookie = relative === 'index.html' ? { 'Set-Cookie': `${cookieName()}=${browserSecret}; Path=/; HttpOnly; SameSite=Strict` } : {};
+    try { return send(200, await readFile(file), type, cookie); } catch { return send(404, 'Not found'); }
   }
 
   async function start() {
@@ -207,6 +238,18 @@ export function createModelViewer(service, { buildData = buildViewerData, public
       history.models.push(...(await modelChain(boundModelHash, input.followModelHash, allowed, known)).filter((entry) => !held.has(entry.modelHash)));
       history.selectedModelHash = input.followModelHash;
     }
+    // A model-only view has no carried ancestry. Read bounded immutable headers, not ancestor content, so editing
+    // or removing the premise Event cannot make a hypothetical branch look like accepted history. Complete graph
+    // histories already carry their ancestry and are resolved by buildViewerData without another store walk.
+    if (!input.graphHash) {
+      const modelHash = input.followModelHash ?? input.modelHash;
+      const model = history.models.find((entry) => entry.modelHash === modelHash)?.definition;
+      if (model?.revision) {
+        const ancestry = await branchesOf(service, modelHash, { model });
+        if (ancestry.truncated && !ancestry.branches.length) throw new Error('The model ancestry could not be checked far enough to distinguish a hypothetical branch from accepted history. Open its graph with its construction history instead.');
+        history.branchAncestry = { modelHash, ...ancestry };
+      }
+    }
     const data = await buildData({ history, rendered, documentRendered, calls: [], name: 'model', title: input.title });
     const body = JSON.stringify(input.mode === 'live' ? { ...data, viewerLive: { mode: 'live', graphHash: input.graphHash ?? null, modelHash: data.modelHash ?? null } } : data);
     if (Buffer.byteLength(body) > maximumSnapshotBytes) throw new Error('This model is too large for the local viewer snapshot (32 MiB maximum).');
@@ -262,7 +305,7 @@ export function createModelViewer(service, { buildData = buildViewerData, public
       return { schema: 'meaning-model-viewer-open/v1', url: `${origin}/${token}/`, readOnly: true, mode: input.mode,
         modelHash: primary.modelHash, graphHash: primary.graphHash,
         ...(group.length > 1 ? { views: groupViews(token) } : {}),
-        instructions: `Open this link in a browser on the same computer as the MCP server. ${input.mode === 'live' ? 'It follows saved graph revisions and their prose, and each model revision recorded through this server after the one it shows, preserving reading context through page refreshes. Updates wait while you scroll or type. A graph fork pauses following; open the intended branch explicitly. Scopes never expand. Model-only life choices remain exact snapshots.' : 'It shows the exact selected revision. Reopen after changes, or use mode live while building.'} The Model chooser groups declared author/reader lives beneath their stories, preserving each world’s own data and time. It also includes explicitly grouped revisions. Links last while this MCP process runs; the 16 most recently opened views are kept.` };
+        instructions: `Open this link in a browser on the same computer as the MCP server. ${input.mode === 'live' ? 'It follows saved graph revisions and their prose, and each model revision recorded through this server after the one it shows, preserving reading context through page refreshes. Updates wait while you scroll or type. A graph fork pauses following; open the intended branch explicitly. Scopes never expand. Model-only life choices remain exact snapshots.' : 'It shows the exact selected revision. Reopen after changes, or use mode live while building.'} The Model chooser groups declared author/reader lives beneath their stories, preserving each world’s own data and time. It also includes explicitly grouped revisions. Links last while this MCP process runs; the 16 most recently opened views are kept. Once a browser has opened one of these links, the bare address ${origin}/ lists the views opened in this session there.` };
     },
     async close() {
       closed = true;

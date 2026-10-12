@@ -20,7 +20,10 @@ function fixture(t) {
   }
   add(rootHash);
   const service = {
-    async inspectModel({ modelHash }) { return { modelHash, model: models.get(modelHash) }; },
+    async inspectModel({ modelHash }) {
+      const model = models.get(modelHash);
+      return { modelHash, model, summary: model ? { id: model.id, revision: model.revision } : null };
+    },
     async validateModel({ model }) { return { modelHash: [...models].find(([, definition]) => definition === model)?.[0] }; },
     async listNarrativeRevisions({ graphId }) {
       assert.equal(graphId, 'growing-story');

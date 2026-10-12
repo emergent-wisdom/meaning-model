@@ -21,6 +21,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const serverPath = join(here, '..', 'src', 'server.ts');
 const storytellingTools = [
   'life_story_author_record',
+  'life_story_chat_open',
+  'life_story_chat_prepare',
+  'life_story_chat_record',
   'life_story_deepen',
   'life_story_direct',
   'life_story_feedback',
@@ -38,6 +41,7 @@ const storytellingTools = [
   'life_story_world_record',
 ];
 const storytellingPrompts = [
+  'life_story_chat_start',
   'life_story_deepen',
   'life_story_feedback',
   'life_story_purpose_review',
@@ -260,6 +264,11 @@ test('storytelling opt-in adds only its tools, resource, and prompts to the live
     enabledPrompts.prompts.filter(({ name }) => !storytellingPrompts.includes(name)),
     basePrompts.prompts,
   );
+  const chatPrompt = await enabled.getPrompt({ name: 'life_story_chat_start', arguments: { character: 'a new night nurse' } });
+  const chatText = chatPrompt.messages.map(({ content }) => content.text ?? '').join('\n');
+  assert.match(chatText, /plays one character/u);
+  assert.match(chatText, /whole life in the model before play starts/u);
+  assert.match(chatText, /a new night nurse/u);
   const startPrompt = await enabled.getPrompt({ name: 'life_story_scene_start', arguments: {} });
   const startText = startPrompt.messages.map(({ content }) => content.text ?? '').join('\n');
   assert.match(startText, /life_story_life_trends/u);

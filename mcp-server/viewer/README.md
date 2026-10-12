@@ -29,6 +29,13 @@ The bundled adaptations are:
   immutable snapshots and offers explicit live following of saved graph revisions.
 - Normal reading retains the complete document in reading order when the world
   timeline moves. World dates do not establish what a reader may read.
+- `public/search.js` adds one search field for every representation. It indexes
+  the records the views can select (the model's records and the graph's notes
+  and passages, in full, with everything a note stores) and the rows the time
+  view draws, under the names the views show. In a time view a result opens at
+  its place: a row at its curve (`temporalController.locate`), a note or passage
+  at its moments; elsewhere through the shared selection. It replaces the Graph
+  view's own find box.
 
 The standalone viewer remains a separate project. When updating this snapshot,
 preserve these adaptations and the upstream license files, and verify a book

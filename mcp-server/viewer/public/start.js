@@ -6,6 +6,20 @@ import { createViewerSession } from './viewer-session.js';
 import { takeLiveContext, mountLiveViewer } from './live-viewer.js';
 import { openingView } from './view-settings.js';
 import { mountChosenView, noteAddress } from './chosen-view.js';
+import { mountSearch } from './search.js';
+
+// A branch of the model is hypothetical: say so above everything it shows, with the premise it assumes.
+function showBranch(branch) {
+  const banner = document.getElementById('branch-banner'); if (!banner) return;
+  banner.hidden = !branch; if (!branch) { banner.replaceChildren(); return; }
+  const kind = branch.kind === 'counterfactual' ? 'A changed past, not what happened' : 'A possible future, not what happened';
+  let odds = Number.isFinite(branch.probability) ? ` Probability ${branch.probability}${branch.windowStated === false ? ' is a guess; the forecast window was not stated' : ' as forecast'}.` : '';
+  if (Number.isFinite(branch.joint) && (branch.joint !== branch.probability || branch.jointIncludesGuess)) {
+    odds += ` Joint probability ${branch.joint} with the branches it lies in${branch.jointIncludesGuess ? ' includes a guess' : ''}.`;
+  }
+  const title = document.createElement('strong'); title.textContent = kind;
+  banner.replaceChildren(title, `Branch ${branch.key} of ${branch.stageId}${branch.premise ? `: it assumes that ${branch.premise.replace(/^[A-Z]/u, (letter) => letter.toLowerCase()).replace(/\.$/u, '')}.` : '.'}${odds}`);
+}
 
 const labels = { together: 'Processes', layers: 'Tree', terrain: 'Terrain', graph: 'Graph', structure: 'Structure', space: 'Space' };
 const timeViews = new Set(['together', 'layers', 'terrain']);
@@ -32,7 +46,7 @@ for (const element of document.querySelectorAll('.bar, #reader')) element.datase
 // Only a model whose graph renders prose has a story to read.
 { const read = document.getElementById('read'); if (read) read.hidden = !(data?.story?.units ?? []).some((unit) => String(unit.text ?? '').trim()); }
 for (const element of document.getElementById('tools').children) {
-  if (!element.querySelector?.('[data-pop="pop-show"]') && !['story', 'default-view', 'coarse-view', 'recenter-view', 'graph-controls', 'space-controls'].includes(element.id)) element.dataset.temporal = '';
+  if (!element.querySelector?.('[data-pop="pop-show"]') && !['search-wrap', 'story', 'default-view', 'coarse-view', 'recenter-view', 'graph-controls', 'space-controls'].includes(element.id)) element.dataset.temporal = '';
 }
 const structureHost = document.createElement('div'); structureHost.id = 'structure-surface'; document.body.append(structureHost);
 function fitPanels() {
@@ -118,6 +132,7 @@ const session = createViewerSession({
     const recenter = document.getElementById('recenter-view'); recenter.hidden = view === 'structure'; recenter.disabled = !data || view === 'structure';
     document.querySelector('.eyebrow').textContent = `Meaning Model · ${labels[view]}`;
     document.getElementById('title').textContent = data?.title ?? 'Meaning Model'; document.title = data?.title ?? 'Meaning Model';
+    showBranch(data?.branch ?? null);
     for (const button of document.querySelectorAll('#layouts button')) { button.classList.toggle('on', button.dataset.layout === view); button.setAttribute('aria-pressed', String(button.dataset.layout === view)); }
     if (!timeViews.has(view)) document.getElementById('layout-note').textContent = view === 'graph' ? 'Declared records and relationships. Position is a layout, not time or a measured distance.'
       : view === 'space' ? 'Declared coordinates, to scale, in the model\'s own reference frames. Only records with a declared position are placed.'
@@ -145,6 +160,17 @@ async function switchView(view) {
   finally { document.body.setAttribute('aria-busy', 'false'); }
 }
 window.modelViewer = { switchView, selectRecord: (record) => session.selectRecord(record), getState: () => session.snapshot(), getSnapshot: () => ({ name: dataName, data }), noteAddress };
+// A found record opens where the reader is: in a time view at its place in time (a row in Processes, where rows are
+// drawn), elsewhere selected as the record it is or is drawn from.
+mountSearch({ data, input: document.getElementById('search'), list: document.getElementById('search-results'),
+  onOpenList: () => { if (openPanel) togglePanel(openPanel); },
+  open: async (result) => {
+    const current = session.snapshot().view;
+    if (temporal && result.rowId && timeViews.has(current) && current !== 'together') await switchView('together');
+    if (temporal && timeViews.has(session.snapshot().view)) { (await import('./view.js')).temporalController.locate(result); return; }
+    const record = result.kind === 'row' ? result.record ?? null : { kind: result.kind, id: result.id };
+    if (record) await session.revealRecord(record);
+  } });
 for (const button of document.querySelectorAll('#layouts button')) {
   button.disabled = !data || (timeViews.has(button.dataset.layout) && !temporal);
   if (!temporal && timeViews.has(button.dataset.layout)) button.title = 'This snapshot has no declared time axis for this representation.';

@@ -108,3 +108,30 @@ test('invalid and oversized exploration material is rejected before service acce
     constraints: Array(50).fill('界'.repeat(2_000)),
   }), /UTF-8 bytes/);
 });
+
+test('a fantasy or science-fiction world\'s law grows from an uncommon word at the level the user chose', async () => {
+  const { uncommonSeedWords } = await import('../src/seed-words.mjs');
+  const { alienSeedWords } = await import('../src/alien-search.mjs');
+  assert.equal(alienSeedWords, uncommonSeedWords, 'one bank, shared with the alien add-on');
+  const addon = addonWithoutServiceAccess();
+  const brief = 'A ferry town where the river decides who may cross.';
+  const drawn = await addon.prepareStructureExplore({ targetKind: 'world_law', brief, realism: 'own_laws' });
+  assert.deepEqual(drawn.target, { kind: 'world_law', brief, realism: 'own_laws' });
+  assert.equal(drawn.seed.source, 'random_uncommon_word');
+  assert.equal(drawn.seed.bankId, 'alien-uncommon-words/v1');
+  assert.equal(drawn.seed.bankSize, uncommonSeedWords.length);
+  assert.ok(uncommonSeedWords.includes(drawn.seed.word));
+  assert.match(drawn.generatorInstructions, /the user chose how far: an invented world with its own fundamental laws/u);
+  assert.match(drawn.generatorInstructions, /\(R1, R2, \.\.\.\)/u);
+  assert.match(drawn.generatorInstructions, /Do not raise or lower it/u);
+  assert.match(drawn.responseGuidance, /candidate laws at the chosen level/u);
+  const one = await addon.prepareStructureExplore({ targetKind: 'world_law', brief, realism: 'one_departure', seedWord: 'ferry' });
+  assert.deepEqual(one.seed, { word: 'ferry', source: 'caller_supplied', language: null, bankId: null, bankSize: null });
+  assert.match(one.generatorInstructions, /Exactly one thing differs from our world/u);
+  await assert.rejects(addon.prepareStructureExplore({ targetKind: 'world_law', brief }), /realism level the user chose/u);
+  await assert.rejects(addon.prepareStructureExplore({ targetKind: 'event', brief, realism: 'own_laws' }), /only to targetKind world_law/u);
+  // Other kinds keep their task shape and the everyday bank.
+  const everyday = await addon.prepareStructureExplore({ targetKind: 'event', brief });
+  assert.deepEqual(everyday.target, { kind: 'event', brief });
+  assert.equal(everyday.seed.bankId, 'common-words/v1');
+});

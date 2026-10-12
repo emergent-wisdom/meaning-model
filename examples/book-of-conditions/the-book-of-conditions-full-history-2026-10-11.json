@@ -1,0 +1,112 @@
+{
+  "schema": "meaning-model-full-construction-history/v1",
+  "title": "The Book of Conditions",
+  "publicationDate": "2026-10-11",
+  "proseEditionDate": "2026-10-11",
+  "summary": "An independent agent-authored rewrite, published as its native model-bound construction. It replaces the active older example without discarding that edition from the tagged repository history.",
+  "publication": {
+    "graphId": "book-of-conditions-story",
+    "headGraphHash": "3741cf2d0555d3d2fdddc145bd5977a86889c39643044f96b97164c22198bfe9",
+    "graphRevision": 83,
+    "modelHash": "6d0837e4278145d2bc5189c54ed0eee714b5d2ff670993ac7df9f03f93764fd7",
+    "modelRevision": 84,
+    "graphRevisions": 84,
+    "storedModelDefinitions": 85,
+    "constructionContentSha256": "6f9eff9169e069bb8b5a4790870cbda2c954d794d5b2071ef9f2f38515474f46",
+    "file": "the-book-of-conditions.meaning-model.json",
+    "format": "meaning-model-construction-history/v2",
+    "fileSha256": "908a5f1ba52518a972507d96e6b58ef534dfc362e6e5ad345022681ab1211334",
+    "bytes": 3612892
+  },
+  "manuscript": {
+    "path": "BOOK-DRAFT.md",
+    "sha256": "27bc47caec75d89880e2141b58bda3abd6a563653d205324fb0fc1a85bfa8161",
+    "words": 23441
+  },
+  "generation": {
+    "writer": {
+      "kind": "model",
+      "family": "claude",
+      "model": "claude-opus-5-5"
+    },
+    "method": "Independent construction from a human-supplied premise and historical source package; agent-written model, narrative and revisions with automated editorial feedback. Human continuation and deepening instructions did not provide replacement prose.",
+    "sourceCandidates": [
+      "7e4f6b7",
+      "76f18f1"
+    ],
+    "replayToolVersion": "0.10.0",
+    "task": "CONSTRUCTION-TASK.md",
+    "historicalSources": "HISTORICAL-SOURCES.md",
+    "withheld": [
+      "The previous Book modeling example",
+      "Meaning Model paper and its Book trajectory figure",
+      "Life Simulation companion paper",
+      "Number-test guide referring to the earlier verification Book"
+    ],
+    "availableScaffolds": "Generic Babbage, Lovelace and engine dates and unopened structure remained available. They supplied no previous plot, prose, wants or values."
+  },
+  "reviewerCorrection": {
+    "correctedNodeIds": [
+      "review.reader1.v2",
+      "review.reader2.v2",
+      "review.reader3.v2"
+    ],
+    "supersededNodeIds": [
+      "review.reader1",
+      "review.reader2",
+      "review.reader3"
+    ],
+    "reviewer": {
+      "kind": "model",
+      "family": "claude",
+      "model": "claude-sonnet-5-5"
+    },
+    "scope": "Three fresh no-tool model readers reviewed graph revision 54; the original records incorrectly said human. Corrected records supersede them and retain the reviewed graph, model and rendering, verdicts, finding counts, categories, severities and quotations. Reader 3 also paraphrased two finding texts; both original and corrected texts remain in the native history. These records are not renewed approval of the latest graph.",
+    "findingTextChanges": [
+      {
+        "nodeId": "review.reader3.v2",
+        "findingIndex": 8,
+        "originalTextSha256": "762f274f4b409b557ef94b280dd03660935464e0dfcefe631fdd3b9de220d5dd",
+        "correctedTextSha256": "88790140db980c39b97d28ecea2bde0a954c23a7a8cfbded0e1f4774a10fbcf4"
+      },
+      {
+        "nodeId": "review.reader3.v2",
+        "findingIndex": 9,
+        "originalTextSha256": "4b4eccff492d5b1fb5c7062a2627d6fff08d577a1d08a2dd2f749e19dfc5c1f6",
+        "correctedTextSha256": "043cf9cd6d70b722f821d92a15ccbf9d5d96afacdbe974283b34b3dbedc69bfc"
+      }
+    ]
+  },
+  "evaluation": {
+    "kind": "bounded-model-reader-comparison",
+    "comparison": "Four fresh Claude Sonnet 5.5 readers preferred the rewritten prose to the earlier published edition overall; two received each order. Editorial feedback came from three separate readers who saw only the rewrite.",
+    "overallPreferredRewrite": 4,
+    "comparativeReaders": 4,
+    "normalizedWords": {
+      "previous": 13337,
+      "rewrite": 23448
+    },
+    "limits": "Same-family model judgments with unequal manuscript lengths, not human literary validation or a controlled evaluation of the full construction method."
+  },
+  "qualifications": {
+    "coverageDone": false,
+    "scheduledReadingsRemaining": 6817,
+    "processesPassingOverEvents": 141,
+    "peopleWithBasicDevelopment": 14,
+    "authorLife": "The fictional persona is an author_model record; no separate native author-life model is declared.",
+    "telling": "No qualitative telling-process records are present.",
+    "laws": "No executable dynamics are supplied.",
+    "numbers": "Subjective and counterfactual quantities are authored readings, not measurements of actual historical people or experimentally identified causal effects."
+  },
+  "privacy": {
+    "kind": "selected-native-construction",
+    "redactions": [],
+    "scope": "The complete selected model-bound graph chain and required model ancestry are exported. Private run databases, transcripts, harness files and coordination notes are not included. Every exported string, including embedded record JSON, was screened for local paths, credentials and private coordination, and the method and review notes were inspected. None required replacement. Public task, historical input and substantive agent reasoning/reviews are retained."
+  },
+  "previousEdition": {
+    "proseEditionDate": "2026-10-02",
+    "modelEditionDate": "2026-10-06",
+    "url": "https://github.com/emergent-wisdom/meaning-model/tree/v0.10.0/examples/book-of-conditions",
+    "graphHash": "bfb48b37f41d129ef254296893bcd198b3d0cb134d9be9cb81aa83dd922cb958"
+  }
+}

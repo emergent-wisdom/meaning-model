@@ -3,6 +3,7 @@ import { renderOntologyTree } from './alien-ontology.mjs';
 import { digest, drawSeed, findTargetLeaks, readSearch, requireProblem, targetTerms } from './alien-search.mjs';
 import { ontologyGaps, uncombinedPairs } from './alien-diagnose.mjs';
 import { grammarReadingInstructions } from './construction-principles.mjs';
+import { AXIS_TEXT, PURE_AXES, PURE_CARDS, probeAt } from './alien-verify.mjs';
 
 // Role tasks with information partitioned by construction, following Ontology of the
 // Alien: a target-blind Builder, a purpose-blind but target-aware Solver, a compiler
@@ -35,6 +36,10 @@ export const taskInputSchemas = {
   curator: z.object({ subjectNodeId: id, ontology: z.enum(['mechanisms', 'outcomes']).default('mechanisms') }).strict(),
   world_curator: z.object({ subjectNodeId: id }).strict(),
   transfer: z.object({ mechanismNodeId: id }).strict(),
+  // PURE (PURECheck#574b): one task per axis, each for its own context, so no axis sees another's verdict.
+  // deepen opens one probe of an earlier verification as its own sub-solver task, recursively (Fractal Intelligence).
+  verifier: z.object({ subjectNodeId: id, axis: z.enum(PURE_AXES),
+    deepen: z.object({ verificationNodeId: id, probePath: z.array(z.number().int().min(0).max(23)).min(1).max(12) }).strict().nullable().default(null) }).strict(),
 };
 export const TASK_ROLES = Object.freeze(Object.keys(taskInputSchemas));
 
@@ -148,6 +153,32 @@ async function modelSummary(service, modelHash) {
   ].filter(Boolean).join('\n\n') };
 }
 
+// The kinds a commission asks the next world or explorer to fill: active concepts of the named ontologies, each with
+// whether it is still empty when the task is written.
+function targetConcepts(search, commission, ontologies) {
+  const ids = new Set(commission?.data.targetConceptIds ?? []);
+  if (!ids.size) return [];
+  return ontologies.flatMap((ontology) => {
+    const state = search.ontologyState(ontology);
+    const empty = new Set(ontologyGaps(state).empty);
+    return state.concepts.filter((item) => ids.has(item.id) && item.status === 'active').map((item) => ({ ...item, ontology, empty: empty.has(item.id) }));
+  });
+}
+const kindNoun = { mechanisms: 'mechanism family', outcomes: 'claimed outcome', worlds: 'world regime' };
+const kindLine = (item, none) => `- ${item.label} (${kindNoun[item.ontology]}${item.empty ? `, ${none}` : ''}): ${item.operator}${item.boundary ? ` Boundary: ${item.boundary}` : ''}`;
+
+// A transfer as a verifier reads it: the candidate in the target domain and how its roles map onto the model.
+function transferCard(transfer) {
+  const data = transfer.data;
+  return [
+    ...data.roleMap.map((item) => `- role ${item.roleId}: ${item.binding.kind === 'model' ? `${item.binding.ref} (${item.binding.how})` : item.binding.kind === 'new_component' ? `new component: ${item.binding.description}` : `unfilled: ${item.binding.reason}`}`),
+    data.proxies?.length ? `Proxies: ${data.proxies.map((item) => `${item.element}: ${item.label}, ${item.proxy}`).join('; ')}` : null,
+    data.disanalogies?.length ? `Where the analogy breaks: ${data.disanalogies.join(' ')}` : null,
+    'Candidate:',
+    ...Object.keys(CANDIDATE_LIMITS).map((field) => `  ${field}: ${data.candidate[field]}`),
+  ].filter(Boolean).join('\n');
+}
+
 function avoidedConcepts(search, commissions, ontology) {
   const ids = new Set(commissions.flatMap((item) => item?.data.avoidConceptIds ?? []));
   return search.ontologyState(ontology).concepts.filter((item) => ids.has(item.id));
@@ -205,11 +236,13 @@ export async function buildTask(service, { role, graphHash, searchRootId, access
     const oracle = operators.some((item) => item.kind === 'oracle_premise');
     const departures = operators.length ? `\n\nAlso build these departures into the world:\n${operators.map((item) => `- ${operatorText[item.kind]}: ${item.statement}`).join('\n')}` : '';
     const ask = commission?.data.worldAsk ? `\n\nThe world should also make this relation ordinary and easy to reason about: ${commission.data.worldAsk}` : '';
+    const regimes = targetConcepts(search, commission, ['worlds']);
+    const kinds = regimes.length ? `\n\nThe world should be of one of these kinds:\n${regimes.map((item) => kindLine(item, 'no world yet')).join('\n')}` : '';
     text = `Please think deeply about this world-building task.
 
 You are a world-builder. Describe a world where this concept is the FUNDAMENTAL LAW of physics:
 
-SEED: ${seed.word}${departures}${ask}
+SEED: ${seed.word}${departures}${ask}${kinds}
 
 Describe:
 1. The core principle - how does ${seed.word} govern everything?
@@ -220,10 +253,10 @@ Describe:
 Be specific and internally consistent. Do NOT try to solve any problems yet.
 
 Begin with a title of at most twelve words, and number the rules R1, R2, ... so they can be cited.`;
-    targetLeaks = findTargetLeaks([seed.word, ...operators.map((item) => item.statement), commission?.data.worldAsk ?? ''].join('\n'), terms);
+    targetLeaks = findTargetLeaks([seed.word, ...operators.map((item) => item.statement), commission?.data.worldAsk ?? '', ...regimes.map((item) => kindLine(item, ''))].join('\n'), terms);
     targetBlind = !oracle && targetLeaks.length === 0;
     purposeBlind = true;
-    material = { seed, operators, commissionNodeId: inputs.commissionNodeId, oraclePremise: oracle };
+    material = { seed, operators, commissionNodeId: inputs.commissionNodeId, oraclePremise: oracle, ...(regimes.length ? { targetConceptIds: regimes.map((item) => item.id) } : {}) };
     recordAs = 'world';
   } else if (role === 'solver') {
     const world = search.record(inputs.worldNodeId, 'world');
@@ -305,13 +338,16 @@ ${mechanismJson(true)}`;
     const population = inputs.populationState === 'map' ? `\n\n${mapText(search)}` : inputs.populationState === 'tabu' ? `\n\n${tabuBank(search)}` : '';
     const cueText = cue ? `\n\nA random word for inspiration: ${cue.word}. Do not force a literal connection; it may become any metaphor, structure, process or principle.` : '';
     const direction = commission ? `\n\nDirection from the curator: ${commission.data.relationToChange ?? commission.data.rationale}${commission.data.alternatives?.length ? `\nAlternatives the curator named (choosing one of them shows responsiveness, not discovery): ${commission.data.alternatives.join('; ')}` : ''}${avoidConceptText(search, [commission], 'mechanisms')}` : '';
-    const aim = inputs.populationState === 'map'
+    const kinds = targetConcepts(search, commission, ['mechanisms', 'outcomes']);
+    const fill = kinds.length ? `\n\nCommissioned kinds to fill:\n${kinds.map((item) => kindLine(item, 'no candidate yet')).join('\n')}` : '';
+    const aim = kinds.length ? 'Propose one candidate of one of the commissioned kinds, and say which kind. Be genuinely novel: do not rephrase an existing family.'
+      : inputs.populationState === 'map'
       ? 'Propose one candidate aimed at a thin or unoccupied branch, or at a mechanism the map lacks. Be genuinely novel: do not rephrase an existing family. First name the structures you are avoiding and why.'
       : inputs.populationState === 'tabu' ? 'Propose one new candidate outside the approaches you listed as avoided.' : 'Propose one candidate.';
     text = `Please think deeply about this problem.
 
 PROBLEM:
-${problemText(problem)}${population}${cueText}${direction}
+${problemText(problem)}${population}${cueText}${direction}${fill}
 
 ${aim} Then state:
 - operator: the operative causal relation in one or two sentences
@@ -322,7 +358,8 @@ ${aim} Then state:
 ${mechanismJson(false)}`;
     text += '\n\nWhen recording this explorer output, use isolation.explorer (the legacy isolation.compiler key is also accepted).';
     material = { commissionNodeId: inputs.commissionNodeId, thin: gaps.thin, cue, populationState: inputs.populationState,
-      avoidConceptIds: avoidedConcepts(search, [commission], 'mechanisms').map((item) => item.id) };
+      avoidConceptIds: avoidedConcepts(search, [commission], 'mechanisms').map((item) => item.id),
+      ...(kinds.length ? { targetConceptIds: kinds.map((item) => item.id) } : {}) };
     recordAs = 'mechanism';
   } else if (role === 'curator' || role === 'world_curator') {
     const worlds = role === 'world_curator';
@@ -439,6 +476,59 @@ A transfer records an idea and its mapping, not a finding. Do not claim efficacy
 End your answer with one JSON object: roleMap (each {roleId, binding} where binding is {kind: model, ref, how}, {kind: new_component, description} or {kind: unfilled, reason}), proxies (each {element, label, proxy, asOf}), disanalogies, candidate {${candidateKeys}}, fitCut ({question, unit, matches, doesNotMatch, remainder} summing to 1, or null) and evidenceNeeded.`;
     material = { mechanismNodeId: mechanism.nodeId, modelId: model.modelId, families };
     recordAs = 'transfer';
+  } else if (role === 'verifier') {
+    const subject = search.record(inputs.subjectNodeId);
+    if (!['mechanism', 'transfer'].includes(subject.kind)) throw new Error(`A verifier checks a mechanism or a transfer; ${subject.nodeId} is a ${subject.kind}.`);
+    const axis = AXIS_TEXT[inputs.axis];
+    const card = subject.kind === 'mechanism' ? mechanismCard(subject) : transferCard(subject);
+    // Novelty's incumbents from this search: the candidates found before this one. Never the candidate itself or, for a
+    // transfer, the mechanism it carries; a later duplicate does not make the first finding unoriginal.
+    // readSearch orders records by their creation clock. A transfer is a new candidate at its own step, even when
+    // the mechanism it carries was found much earlier; compare both mechanisms and transfers already found then.
+    const candidates = search.records.filter((item) => ['mechanism', 'transfer'].includes(item.kind));
+    const at = candidates.findIndex((item) => item.nodeId === subject.nodeId);
+    const earlier = at > 0 ? candidates.slice(0, at).filter((item) => item.nodeId !== subject.data.mechanismNodeId) : [];
+    const reference = inputs.axis === 'novelty' && earlier.length
+      ? `\n\nCANDIDATES THIS SEARCH FOUND BEFORE THIS ONE:\n${earlier.map((item) => `- ${item.data.candidate.label} [${item.nodeId}]: ${item.data.operator ?? item.data.candidate.core_mechanism}`).join('\n')}` : '';
+    let opened = '';
+    let probes = axis.probes; let rule = axis.rule;
+    if (inputs.deepen) {
+      const parent = search.record(inputs.deepen.verificationNodeId, 'verification');
+      if (parent.data.subjectNodeId !== subject.nodeId || parent.data.axis !== inputs.axis) {
+        throw new Error(`${parent.nodeId} checks ${parent.data.subjectNodeId} on ${parent.data.axis}; a deeper check keeps its subject and axis.`);
+      }
+      const probe = probeAt(parent.data.probes, inputs.deepen.probePath);
+      if (!probe) throw new Error(`${parent.nodeId} has no probe at [${inputs.deepen.probePath.join(', ')}].`);
+      opened = `\n\nTHE PROBE TO OPEN, on its own: ${probe.probe}\nJudge this probe only. Your status stands in for it in the check it came from.`;
+      probes = 'the parts of the probe you are opening, each phrased so that the probe holds exactly when all of them hold: verified when the part holds, falsified when it does not.';
+      rule = 'verified when every probe is verified, falsified when any probe is falsified, unknown otherwise.';
+    }
+    const cards = [PURE_CARDS.check, PURE_CARDS.framework, PURE_CARDS[inputs.axis], PURE_CARDS.fractal, PURE_CARDS.depth];
+    text = `Please think carefully about one question only.
+
+You are checking one candidate on one axis of a viability check, ${axis.name}. Other axes are judged elsewhere: you do not see their verdicts and should not guess them, because each axis must be judged on its own and no axis can make up for another.
+
+PROBLEM:
+${problemText(problem)}
+
+CANDIDATE (${subject.nodeId}, a ${subject.kind === 'mechanism' ? 'mechanism' : 'transfer onto the target domain'}; its fields follow the nine-field proposal schema):
+${card}${reference}
+
+QUESTION: ${axis.question}
+HOW TO WORK IT: ${axis.method}
+PROBES: ${probes}
+THE STATUS FOLLOWS FROM THE PROBES: ${rule}
+CRITERION: ${axis.criterion}${opened}
+
+How deep to go is Fractal Intelligence's call, by its marginal-value rule: open the question into probes, the sub-questions it depends on, where an answer is uncertain and would change the verdict, and answer each the same way, opening a probe further when it needs it. Stop where another level would change nothing. A probe that needs a fresh look can be opened later as its own check. Write any doubt that remains as a probe, so the probes carry the verdict.
+
+Cards: ${cards.join(', ')}; the candidate follows ${PURE_CARDS.proposal}.
+
+End your answer with one JSON object: status (verified, falsified or unknown: what the probes compose to, or by the criterion when you open none), reason, nearest (the nearest existing mechanism or practice, for novelty; otherwise null), probes (each {probe, finding, status, probes}).`;
+    material = { subjectNodeId: subject.nodeId, subjectKind: subject.kind, axis: inputs.axis, cards: [PURE_CARDS.check, PURE_CARDS.framework, PURE_CARDS[inputs.axis]],
+      ...(inputs.axis === 'novelty' ? { earlierNodeIds: earlier.map((item) => item.nodeId) } : {}),
+      ...(inputs.deepen ? { deepens: inputs.deepen } : {}) };
+    recordAs = 'verification';
   }
   // Fresh role contexts may have no MCP tools. Carry the reading requirement in
   // the stored task without introducing the private context the role excludes.
@@ -450,6 +540,7 @@ End your answer with one JSON object: roleMap (each {roleId, binding} where bind
       : `This builder task is not target-blind (${targetLeaks.length ? `target terms: ${targetLeaks.join(', ')}` : 'oracle premise'}); the world record will say so. ${material.oraclePremise ? 'An oracle premise is target-aware by design; continue with that label if intentional.' : 'For a target-blind world, prepare a revised commission or operators without the listed target terms.'}`)
     : role === 'solver' ? 'Give this task to a fresh context that has not seen the builder task or the search\'s purpose. Record its answer as a solution with the returned taskNodeId.'
       : role === 'world_curator' ? 'The world curator stays target-blind: a fresh context should see only this task and the permitted neutral reading.'
+      : role === 'verifier' ? 'Give each axis its own fresh context that sees only this task: PURE judges the axes in isolation, so no verifier sees another axis\'s verdict. Record the answer as a verification with the returned taskNodeId, and state the isolation you used.'
         : 'A fresh context is preferred; record the isolation you used.';
   return { role, graphHash, searchRootId, inputs, text, material, condition, targetBlind, purposeBlind, targetLeaks, taskHash,
     taskRef: { role, graphHash, inputs, taskHash }, recordAs,

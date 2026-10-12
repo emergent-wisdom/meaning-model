@@ -25,6 +25,7 @@ import {
 } from './candidate-router.mjs';
 import { diagnoseStoryRevision } from './story-revision-diagnostic.mjs';
 import { newestWrittenDescendant } from './viewer-live.mjs';
+import { assertBranchSourceTransition, isForkRevision, rememberModelRevision } from './model-lineage.mjs';
 import {
   buildObservationMaterializationPlan,
   canonicalEstimationJson,
@@ -853,10 +854,11 @@ export class LifeSimulationService {
     this.models.set(modelHash, summary);
   }
 
-  // Revisions are content-addressed: submitting a model again writes nothing new, so it keeps its first place.
-  #noteModelWrite(modelHash, previousModelHash) {
+  // Revisions are content-addressed: submitting a model again writes nothing new, so it keeps its first place. A fork
+  // revision starts a branch, which a view of its trunk never follows into.
+  #noteModelWrite(modelHash, previousModelHash, fork = false) {
     if (this.modelWrites.some((write) => write.modelHash === modelHash)) return;
-    this.modelWrites.push({ modelHash, previousModelHash });
+    this.modelWrites.push({ modelHash, previousModelHash, ...(fork ? { fork: true } : {}) });
     if (this.modelWrites.length > MAX_FOLLOWED_MODEL_WRITES) this.modelWrites.shift();
   }
 
@@ -1168,7 +1170,8 @@ export class LifeSimulationService {
             modelHash,
             summary,
           });
-          this.#noteModelWrite(modelHash, model.revision?.previous_model_hash ?? null);
+          this.#noteModelWrite(modelHash, model.revision?.previous_model_hash ?? null, isForkRevision(model));
+          rememberModelRevision(this, modelHash, model);
           return {
             schema: SERVICE_SCHEMA,
             modelHash,
@@ -1214,7 +1217,8 @@ export class LifeSimulationService {
             modelHash,
             summary,
           });
-          this.#noteModelWrite(modelHash, previousModelHash);
+          this.#noteModelWrite(modelHash, previousModelHash, isForkRevision(model));
+          rememberModelRevision(this, modelHash, model);
           return {
             schema: SERVICE_SCHEMA,
             modelHash,
@@ -2207,6 +2211,7 @@ export class LifeSimulationService {
         const scopes = [...new Set([...narrativeGraph.nodes, ...narrativeGraph.edges].flatMap((record) => record.access_scopes ?? []))];
         const previous = await this.queryNarrativeGraph({ graphHash: previousGraphHash, mode: 'full', includeContent: true, accessScopes: scopes });
         assertPassageGrounding(narrativeGraph, { previous });
+        await assertBranchSourceTransition(this, previous.graph?.source, narrativeGraph.source);
         const result = await this.backend.call('revise_narrative_graph', {
           narrative_graph: narrativeGraph,
           ...(preserveSourceSnapshot ? { preserve_narrative_source_snapshot: true } : {}),
@@ -2249,6 +2254,7 @@ export class LifeSimulationService {
           const view = await this.queryNarrativeGraph({ graphHash: previousGraphHash, mode: 'full', includeContent: true, accessScopes: scopes });
           const previous = definitionFromCompleteView(view, 'Narrative grounding check');
           assertPassageGrounding(applyNarrativeDefinitionDelta(previous, delta), { previous });
+          if (delta.source !== undefined) await assertBranchSourceTransition(this, previous.source, delta.source);
         }
         const result = await this.backend.call('revise_narrative_graph_by_change', {
           narrative_change: {

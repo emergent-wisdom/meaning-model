@@ -4,6 +4,63 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## 0.11.0 — 2026-10-12
+
+Install the matching 0.11.0 engine. The engine and the model format are unchanged since 0.10.0: models and histories
+written by 0.10.0 open unchanged, and nothing needs migrating.
+
+- Forecasting is a mode any purpose can pull in. `life_modeling_context` and the `life_modeling_start` prompt take
+  `modes: ["forecasting"]` beside the purpose and say what forecasting means there: in a story, a person's life, a
+  market or a memory of a user. A forecast is issued before its outcome and never revised; one issued from a model
+  that already holds records dated after its cutoff is hindsight, not a prediction. Prediction notes in the graph stay
+  the quickest record of what an agent expects, beside forecasts with probabilities.
+- The opt-in forecasting add-on (`MEANING_MODEL_ADDONS=forecasting`) adds branches of a model. `life_future_fork`
+  forks siblings from one trunk revision and information cutoff: the answers of a forecast (each premise spanning the
+  forecast's whole window, a narrower timing recorded without probability, the remainder never branched), the options
+  of a decision with waiting or doing nothing among them, one or more assumptions, or a change to the past, which can
+  realize another answer of a choice already made. Each branch has its own graph and is continued with the ordinary
+  tools. `life_future_load` gives a branch's digest and its open consequence questions; `life_future_compare` sets
+  siblings side by side per process and per person, without a total. These readings honor the requested access scopes
+  without hiding public Events under a life or world that also names a private process. They include dated Cut series
+  and retain each holder's account and uncertainty.
+  A branch carries a forecast's probability for the cutoff and window it was issued for. A forecast declares its
+  probabilities in the documented words or its own; where a probability no longer means what was forecast, the
+  branches still fork without it and say why, and unknown probability mass stays unknown. A stage inside a branch is
+  conditional on it.
+- Guides for modeling a real person and their voice, served by the tool. `life-sim://guide/person-and-voice` starts
+  the set: it asks for a voice model, a person model, both, or ideas for pieces, and whether to infer the person (the
+  default: filling in the blanks is where a model's value comes from) or record only what is known.
+  `life-sim://guide/voice-modeling` follows how someone writes, per register and over time.
+  `life-sim://guide/modeling-a-person` models a real person like a principal character for any work, inferred to
+  the process breakdown's depth with every guess labeled, or recorded only as far as the material shows; nothing they
+  lived is invented. `life-sim://guide/piece-ideas` proposes what they
+  could publish next. The voice and the person share one graph and can be read apart.
+- Forecast branches keep guesses labeled in the viewer, including joint probabilities that contain a guess.
+  Changed forecast windows stay assumptions without realizing the original answer, and a timing at the excluded
+  end of a window carries no probability. Forecast dates preserve signed decimals and scientific notation;
+  ordinary apostrophes do not change a probability denial into a declaration. Conditional series comparisons retain
+  ancestor meanings, flag rewording and keep different record references separate. Decision horizons also reach
+  the decision time when no premise interval is supplied.
+- Branches stay hypothetical: a live view of the trunk never follows into one, a graph is not rebound into one, and the
+  viewer marks a branch "A possible future, not what happened" with the premise it assumes. The same source guard
+  applies to ordinary graph revisions, and editing a premise does not remove the branch's identity or change its
+  issued probability. After restarting, routine rebinds to the next revision avoid rereading the shared history.
+- Story chat (storytelling add-on): the user plays a character inside a story's world and the agent plays the world
+  and everyone else, in a chat graph of its own bound to the story's model. Each character is played from a packet
+  holding only their own state and what they know by then; drawn outcomes stay drawn and time moves forward. A book
+  can be written from the play.
+- Fantasy and science-fiction worlds: `life_story_structure_explore` can draw a world law at a declared level of
+  realism (one departure, several, or laws of its own), recorded with the exploration it came from. A story whose
+  records already settle how far its world departs keeps those premises.
+- The alien add-on works in three parts: invented worlds; a curated graph of kinds, whose empty kinds commissions can
+  force explorers and worlds into; and PURE verification, one axis per verifier task, each axis composed by its own
+  rule and opened as deep as it needs. Transfer novelty considers candidates found before the transfer, and current
+  verification warnings omit superseded findings. The paper describes the method.
+- Viewer: a search field finds every record and row by name, shown name and full text, including what structured notes
+  store. A result opens in place: a row at its nearest reading, with the time window and the playhead brought to it; a
+  note at its moments, even where the chosen view hides it; and each holder's series of a process as its own result.
+  The bare address lists the open views only to the browser they were opened in.
+
 ## 0.10.0 — 2026-10-11
 
 Install the matching 0.10.0 engine. Models without cause questions, cause assessments or answer references keep

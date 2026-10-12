@@ -24,6 +24,22 @@ record is a node in the Meaning Model narrative graph. Each ontology uses the
 model's own concept and abstract-relation vocabulary, so it can be merged into a
 model.
 
+## The method in three parts
+
+1. **Invented worlds** find kinds of solutions nobody has thought of. A builder
+   who never sees the problem makes a world from a seed word, a solver solves the
+   problem inside it, and a compiler brings the operative mechanism back.
+2. **Categorization** places every candidate in a graph of kinds: the mechanism,
+   claimed-outcome and world-regime ontologies. A curator can carve kinds under a
+   lens before any candidate fills them. The diagnosis names the kinds no candidate
+   realizes yet, and a commission with `targetConceptIds` forces the next explorer
+   or world into one of them.
+3. **Verification** checks a candidate with PURE and Fractal Intelligence, as Sema
+   defines them. Four axes, Parsimony, Novelty, Realizable and Expansive, are each
+   judged in their own context and decomposed into probes as deep as Fractal
+   Intelligence's marginal-value rule says. The server computes the result:
+   verified only when every axis is.
+
 ## Operational entry
 
 Read this guide and follow the returned role task instructions. The paper at
@@ -68,16 +84,17 @@ in the task text, not in the caller's good intentions.
 | `curator` | the problem, the mechanism or outcome ontology, and one candidate | (nothing withheld) |
 | `world_curator` | the regime ontology, the signature codes in use, and one world | the problem |
 | `transfer` | the problem, the target model's records and one mechanism | (nothing withheld) |
+| `verifier` | the problem, one mechanism or transfer, and one PURE axis's question, method and criterion; for novelty, the candidates found before it; with `deepen`, the one probe to open | every other axis's verdict and reasoning |
 
 A single MCP caller already knows the problem and earlier candidates, so
 partitioning the task text is not enough on its own. Run builder, solver,
-compiler, explorer and world-curator tasks in fresh contexts that see only the
-task, for example separate subagents. For compiler and explorer this preserves
+compiler, explorer, world-curator and verifier tasks in fresh contexts that see
+only the task, for example separate subagents. For compiler and explorer this preserves
 the selected `none`, `tabu` or `map` population state without prior candidates
 leaking through caller memory. When that is not possible, do the step yourself
 and record `same_context`. Context isolation is then not established, and target
-blindness remains procedural. Every world, solution, mechanism and curator
-decision records the isolation actually used:
+blindness remains procedural. Every world, solution, mechanism, curator decision
+and verification records the isolation actually used:
 `fresh_context`, `same_context` or `human`.
 
 The builder prompt keeps the original wording: the seed is the world's
@@ -135,7 +152,8 @@ across conditions need matched budgets, which one search does not supply.
 
 Explorer proposals skip the world. A family that only explorers reach, or only
 worlds reach, is itself a finding. Transfer the mechanisms worth developing (role
-`transfer`, record kind `transfer`), assess them, and record a `selection` when
+`transfer`, record kind `transfer`), verify them with PURE (role `verifier`, record
+kind `verification`, one task per axis), assess them, and record a `selection` when
 the user wants an answer. `life_alien_atlas` renders the whole search.
 
 Every output cites the stored task it answers. The server reads the task record
@@ -157,7 +175,8 @@ verified by recomputation.
 
 Before calling `life_alien_record`, read
 `life-sim://addon/alien/record-schema/{kind}`, replacing `{kind}` with `world`,
-`solution`, `mechanism`, `commission`, `transfer`, `assessment` or `selection`.
+`solution`, `mechanism`, `commission`, `transfer`, `assessment`, `verification` or
+`selection`.
 Each resource returns only that kind's input JSON Schema, generated from the
 runtime validator, including required fields, defaults, limits and strict object
 shapes. Schema descriptions give cross-field rules; task provenance and graph
@@ -230,7 +249,8 @@ A mechanism record holds:
 - `magicalElements` (up to 24): each with its fix, one of `invented_technology`,
   `existing_approximation`, `institutional_substitute` or `unresolved`;
 - `strangest`: the strangest element, and how the candidate keeps it;
-- `candidate`: the nine fields of the original schema;
+- `candidate`: the nine fields of the original schema, which Sema names
+  MechanisticDesignProposal#930a;
 - `selfAudit` (optional): bottleneck relief, final-outcome fiat and capability
   provenance, as coded in the paper's trace ledger;
 - `isolation.compiler`, or `isolation.explorer` for explorer outputs. The legacy
@@ -406,6 +426,8 @@ different model family.
 `life_alien_search_diagnose` reads the search at one revision and reports:
 
 - crowded and thin families and roots;
+- empty kinds: concepts of each ontology, carved by a curator, that no candidate
+  realizes yet anywhere in their subtree;
 - saturation: decisions since the last new family. This is a signal about the
   current source of proposals, not proof that the space is exhausted;
 - redirect chains: a rejection, its commission, and whether an admitted retry
@@ -424,6 +446,11 @@ different model family.
   yielded no admitted mechanism;
 - self-audit tallies and fiat failures;
 - open commissions and unused tasks;
+- forcing: for each commission that names kinds to fill, whether it is `open` (no
+  answer yet), `unclassified`, `filled` (an answer was placed in a named kind or
+  below it) or `missed` (every answer was placed elsewhere);
+- verification: each candidate's PURE result, the transfers and selections without
+  a full check, how deep each axis went, and where a deeper check changed a probe;
 - undeveloped branches: families with instances but no transfer or assessment.
 
 It returns a `diagnosisHash`. A `commission` record may cite it, and the server
@@ -450,6 +477,30 @@ is target-aware by design and can be used intentionally with that label. For an
 ordinary commission intended to stay target-blind, revise away the reported
 target terms before preparing the builder task. Context isolation is separate:
 a fresh context does not make a target-aware task target-blind.
+
+### Forcing the empty kinds
+
+A curator can carve kinds before anything fills them: a `restructure_only`
+revision adds concepts, and a partition divides a concept into more specific kinds
+under a named lens. The diagnosis lists every active kind with no candidate in its
+subtree as empty. A commission names the kinds to fill in `targetConceptIds`:
+
+- an explorer commission names mechanism families or claimed outcomes;
+- a new-world commission names world regimes.
+
+The kinds can be the whole ask, with no `relationToChange` or `worldAsk`. The
+explorer task lists them with their operators and asks for a candidate of one of
+them. The builder task asks for a world of one of the regimes, and the regime text
+is checked for target terms like any world ask. A kind that already holds
+candidates is accepted with a warning, because forcing works on the empty ones.
+Each task says which of its kinds are still empty when it is written.
+
+Whether forcing worked is read from the curated ontology, so it stays the
+curator's judgment. The diagnosis reports a commission `filled` when a curator
+placed an answer in a named kind or below it, and `missed` when every answer was
+placed elsewhere. An answer counts as placed only in the ontology that holds the
+target: a mechanism classified among the families is not yet judged against a
+claimed-outcome target.
 
 ## Transfer to the target domain
 
@@ -488,6 +539,60 @@ disanalogies are part of a good transfer, not a failure of it. An analogy relati
 in the ontology records a claim, not a finding. To test a transferred mechanism,
 model it in the target model with the general modeling tools and compare explicit
 alternatives.
+
+## Verifying candidates: PURE and Fractal Intelligence
+
+PURE is the viability check of Fractal Intelligence: four independent,
+non-compensatory gates, Parsimonious, Unique, Realizable and Expansive. Sema
+carries it as cards, and Sema's card for the U is Novelty#954f. A verifier checks
+one candidate, a mechanism or a transfer, with PURECheck#574b.
+The four axes are judged separately, each in a context that never sees another
+axis's verdict or reasoning, and no axis can make up for another (PURE#b65a). One
+`verifier` task covers one axis; give each its own fresh context.
+
+| Axis | Question | One probe is | Composition |
+|---|---|---|---|
+| Parsimony (Parsimony#4df8) | Does the simplest form still do the job? | a part, or a set of parts, removed; or the simplest alternative found | verified when every probe is, falsified when any is |
+| Novelty (Novelty#954f) | Is its operative relation structurally new? | one incumbent compared: an earlier candidate of this search or a known practice | verified when every probe is, falsified when any is |
+| Realizable (Realizable#2ed7) | Can it be built with present or near-term means, within a stated budget? | one part, in dependency order, grounded until it is available now | verified when every probe is, falsified when any is |
+| Expansive (Expansive#49a7) | Does it carry beyond its own domain? | one domain unlike the problem's, at least two | verified when any domain carries over, falsified when every one breaks; inside a domain, every part must hold |
+
+Every other combination is unknown.
+
+Each axis is a decomposition point (FractalIntelligence#27f7). The verifier opens
+the question into probes and answers each the same way. It opens a probe further
+where the answer is uncertain and would change the verdict, and stops where another
+level would change nothing. The marginal-value rule (MarginalValueRule#6611)
+decides the depth, not a fixed limit. A record states the status its probes
+compose to, at every level, and a doubt that remains is written as a probe, so the
+decomposition carries the verdict.
+
+A probe that needs a fresh look opens as its own check. A verifier task with
+`deepen: {verificationNodeId, probePath}` asks that one probe in a new context, as
+a sub-solver. Its status stands in for the probe, and the axis composes again. A
+deeper check can itself be deepened. Within one record, probes nest at most six
+levels; deeper than that, open a new check.
+
+The server computes each candidate's PURE result; nobody records it. Each axis
+reads its latest check of the whole axis, refined by the deeper checks opened from
+it. A newer check of the whole axis supersedes the older one, together with the
+deeper checks opened from the older one. The result is verified only when all four
+axes are verified, falsified when any is falsified, and unknown otherwise, with the
+missing axes listed. Every axis is checked even after one fails.
+
+Novelty compares the candidate with the candidates the search found before it,
+never with itself or, for a transfer, with the mechanism it carries. A later
+duplicate does not make the first finding unoriginal. A falsified novelty check
+names the nearest incumbent. Expansive needs at least two domains before it is
+verified or falsified. Each record keeps the cards it applied. The candidate
+follows MechanisticDesignProposal#930a, and the axes test that card's rules:
+Novelty tests `what_is_new` against the incumbents, Realizable grounds the
+conditions in `why_it_fails` among the parts, and Parsimony ablates along the
+causal chain `core_mechanism` states.
+
+A PURE result is a model-judged screening of an idea, not evidence that it works.
+A verified candidate has survived four separate attacks in text; it still has to
+be modeled and tested.
 
 ## Selection and Alien Preservation
 
@@ -543,8 +648,11 @@ fresh worlds for them.
 - worlds with seeds, departures, isolation and rules;
 - solves, and mechanisms with their conditions and curator verdicts;
 - transfers with role maps, disanalogies and any fit Cut;
-- commissions with their avoidance lists, assessments and their subjects,
-  second-judge checks with provenance, and selections with preservation reasons.
+- commissions with their avoidance lists and kinds to fill;
+- PURE verification: each candidate's result and axes, every check with its probes,
+  and the deeper checks;
+- assessments and their subjects, second-judge checks with provenance, and
+  selections with preservation reasons.
 
 `includeWorldTexts` adds the full builder and solver texts.
 
@@ -578,7 +686,11 @@ The server checks:
 - library bundle and world text hashes, and each imported world's target terms
   in its new search;
 - diagnosis hashes;
-- target terms in target-blind tasks.
+- target terms in target-blind tasks;
+- kinds to fill: active concepts of an ontology the commission's recipient fills;
+- verifications: the verifier task's candidate and axis, the status the probes
+  compose to, a nearest incumbent for a falsified novelty check, two domains for
+  a decided expansive check, and the probe a deeper check opens.
 
 It does not judge:
 
@@ -586,6 +698,7 @@ It does not judge:
 - whether a solve uses the world's rules rather than fighting them;
 - whether two mechanisms are equivalent;
 - whether a transfer's analogy holds;
+- whether a PURE verdict is right;
 - whether an idea works.
 
 Those are the caller's or the user's judgments, recorded as Understanding Nodes

@@ -166,7 +166,7 @@ function graphFixture(visibleIds = ['left', 'right']) {
   const points = new Map([['left', vector(-50, -20, 0)], ['right', vector(30, 10, 40)], ['hidden', vector(100000, 0, 0)]]);
   const context = { THREE, camera, controls, visibleNodes: visibleIds.map((id) => ({ id })),
     point: (id) => points.get(id).clone(), dirty: false, filter: { value: 'event' },
-    neighborsOnly: true, showEdges: false, selected: 'left', search: { value: 'retained query' } };
+    neighborsOnly: true, showEdges: false, selected: 'left' };
   vm.createContext(context);
   vm.runInContext(['fit', 'recenterView'].map((name) => functionSource(graphSource, name)).join('\n'), context);
   return context;
@@ -186,7 +186,6 @@ test('Graph recenter fits only visible records and retains the record filter, ne
   closeVector(context.camera.position, position, 'the fitted graph stays centered after the next frames');
   assert.equal(context.filter.value, 'event'); assert.equal(context.neighborsOnly, true);
   assert.equal(context.showEdges, false); assert.equal(context.selected, 'left');
-  assert.equal(context.search.value, 'retained query');
   assert.equal(context.dirty, true); assert.equal(context.controls.enableDamping, true);
   expectNoInertia(context.controls);
 });

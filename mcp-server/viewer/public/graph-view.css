@@ -9,11 +9,8 @@
 .graph-mode .graph-control::placeholder { color: var(--muted); }
 .graph-mode .graph-control option { background: #151517; color: var(--ink); }
 .graph-mode #graph-controls .tool[aria-pressed="true"] { background: rgba(159, 195, 255, .24); box-shadow: 0 0 0 1px rgba(159, 195, 255, .45) inset; }
-.graph-mode .graph-search { display: flex; gap: 6px; flex: 0 1 260px; min-width: 160px; }
-.graph-mode .graph-search input { flex: 1; width: 0; }
 .graph-mode .graph-filter { max-width: 190px; }
 /* Matches open under the row, as a menu does, instead of pushing the graph down. */
-.graph-mode .graph-results { position: absolute; top: calc(100% + 6px); right: 0; z-index: 6; width: min(380px, calc(100vw - 28px)); max-height: min(320px, 45vh); overflow: auto; padding: 8px 10px; color: var(--ink-2); background: #121214; border-radius: 12px; box-shadow: 0 0 0 1px var(--ring) inset, 0 12px 30px rgba(0,0,0,.55); scrollbar-width: thin; }
 .graph-result, .graph-neighbor { display: block; width: 100%; text-align: left; padding: 8px 10px; margin: 4px 0; color: var(--ink); background: rgba(255, 255, 255, .06); border: 0; border-radius: 7px; font: inherit; line-height: 1.4; cursor: pointer; overflow-wrap: anywhere; }
 .graph-neighbor small { display: block; color: var(--muted); margin-bottom: 4px; }
 .graph-result:hover, .graph-neighbor:hover { background: rgba(255, 255, 255, .12); }

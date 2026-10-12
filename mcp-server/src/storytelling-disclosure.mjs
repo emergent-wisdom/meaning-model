@@ -10,6 +10,16 @@ After splitting, merging, moving or changing a passage, inspect the affected tel
 
 const parse = (text) => { try { return JSON.parse(text); } catch { return null; } };
 
+// A character knows a fact at a moment only when it was declared known to them by then and the fact itself held by
+// then. Scenes and story chat share this rule.
+export function viewpointAvailability(assignment, node, scene) {
+  const sceneEnd = scene.worldTimeEnd ?? scene.worldTime;
+  if (scene.worldTimeEnd !== null && scene.worldTimeEnd !== undefined && scene.worldTimeEnd < scene.worldTime) throw new Error('scene.worldTimeEnd must not precede scene.worldTime.');
+  const declaredKnown = assignment.viewpointKnownAt !== null && assignment.viewpointKnownAt <= sceneEnd;
+  const cutoffSafe = Number.isFinite(node.evidence_cutoff) && node.evidence_cutoff <= sceneEnd;
+  return { sceneEnd, declaredKnown, cutoffSafe, available: declaredKnown && cutoffSafe };
+}
+
 export async function disclosureReviewContext(view, passageIds, { service, input, nativeRendered }) {
   const nodes = new Map(view.nodes.filter((node) => !node.boundary && node.content_included !== false).map((node) => [node.id, node]));
   const parents = new Map();

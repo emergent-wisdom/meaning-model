@@ -6,7 +6,9 @@ import { askTheUserFirst, constructionRecordInstructions, grammarReadingInstruct
 import { followsOurInstructions } from './agent-instructions.mjs';
 
 export { askTheUserFirst };
-import { methodCoreInstructions, modelingWorkflows, purposeInstructions, purposeMethod, workflowForPurpose } from './workflow-guidance.mjs';
+import { forecastingMode, methodCoreInstructions, modelingWorkflows, pullableModes, purposeInstructions, purposeMethod, workflowForPurpose } from './workflow-guidance.mjs';
+
+export { pullableModes };
 
 export const modelingPurposes = Object.freeze([
   'creative_story',
@@ -173,6 +175,42 @@ const resourceDefinitions = Object.freeze([
     category: 'protocol',
   },
   {
+    id: 'person-and-voice-guide',
+    uri: 'life-sim://guide/person-and-voice',
+    title: 'Modeling a person and their voice: start here',
+    description: 'Start here to model a real person so as to write in their voice: choose a voice model, a person model, both, or ideas for pieces; infer the person (the default) or record only what is known; and read the voice and the person apart in one graph.',
+    mimeType: 'text/markdown',
+    file: new URL('../../docs/PERSON-AND-VOICE.md', import.meta.url),
+    category: 'protocol',
+  },
+  {
+    id: 'voice-modeling-guide',
+    uri: 'life-sim://guide/voice-modeling',
+    title: 'Modeling a voice',
+    description: 'How someone writes or speaks, per register and over time: samples with their authorship, counts and qualities, the person\'s own account, briefs that cite the model, corrections that supersede, and forecasts of their verdict.',
+    mimeType: 'text/markdown',
+    file: new URL('../../docs/VOICE-MODELING.md', import.meta.url),
+    category: 'protocol',
+  },
+  {
+    id: 'modeling-a-person-guide',
+    uri: 'life-sim://guide/modeling-a-person',
+    title: 'Modeling a person',
+    description: 'A real person modeled like a principal character, to the process breakdown\'s depth: a life from birth in periods, the nine slow processes, their own processes, wants, outlook, threat, framing and deciding, feelings, shocks, causes, relationships and lenses, for any work that models a real person: inferred from their material with every guess labeled (the default), or recorded only as far as the material shows.',
+    mimeType: 'text/markdown',
+    file: new URL('../../docs/MODELING-A-PERSON.md', import.meta.url),
+    category: 'protocol',
+  },
+  {
+    id: 'piece-ideas-guide',
+    uri: 'life-sim://guide/piece-ideas',
+    title: 'Ideas for pieces in their voice',
+    description: 'What a person could publish next, from a model of them: each idea with its audience, its angle, why it is theirs, what it would use and what is missing, checked against what they have already published.',
+    mimeType: 'text/markdown',
+    file: new URL('../../docs/PIECE-IDEAS.md', import.meta.url),
+    category: 'protocol',
+  },
+  {
     id: 'story-profile',
     uri: 'life-sim://profile/story',
     title: 'Story Modeling Profile',
@@ -334,9 +372,14 @@ export async function buildModelingContext({
   purpose,
   sessionMode,
   instructionsMode = 'full',
+  modes = [],
+  addons = [],
 }) {
   ensurePurpose(purpose);
   ensureMode(sessionMode);
+  for (const mode of modes) if (!pullableModes.includes(mode)) throw new Error(`Unsupported mode ${mode}; modes that can be pulled into any purpose: ${pullableModes.join(', ')}.`);
+  // The forecasting purpose is the forecasting mode as the whole work, so it always carries the mode.
+  const forecasting = modes.includes('forecasting') || purpose === 'forecasting';
   const [startHere, breakdown, grammar, meaning, life, protocol] = await Promise.all([
     readModelingResource('life-sim://guide/start-here'),
     readModelingResource('life-sim://guide/process-breakdown'),
@@ -372,7 +415,11 @@ export async function buildModelingContext({
     { uri: selectedExample, required: true, reason: 'Inspect one worked representation before expanding the model; reuse that reading while it remains applicable and unchanged.' },
     ...(purpose === 'creative_story' ? [{ uri: 'life-sim://example/book-of-conditions-modeling', required: false,
       reason: 'Recommended alongside the representation example: how the Book connects coexisting life processes, wants, outlook, material constraints, and voice, then chooses what to open or leave sufficient.' }] : []),
+    ...(forecasting && addons.includes('forecasting') ? [{ uri: 'life-sim://addon/forecasting', required: true,
+      reason: 'Forecasting is pulled into this work and its add-on is enabled: how to issue forecasts, fork branches per answer, option or assumption, load and compare them. Reuse unchanged guidance that you retain.' }] : []),
     { uri: 'life-sim://example/application-categories', required: false, reason: 'Use when choosing a starter or developing and revising application-specific categories.' },
+    { uri: 'life-sim://guide/modeling-a-person', required: false, reason: 'Use when the work models a real person, for any purpose: their life to a principal character\'s depth, and the choice between inferring the person (the default) and recording only what is known.' },
+    { uri: 'life-sim://guide/person-and-voice', required: false, reason: 'Use when the work models a real person\'s voice, or models a person in order to write as them: it chooses between a voice model, a person model, both and ideas for pieces.' },
     { uri: 'life-sim://guide/number-test', required: false, reason: 'Use when a category, a scale or a Cut is in doubt: the number test, with actual numbers and a verdict for every example in the process breakdown.' },
     {
       uri: 'life-sim://protocol/narrative-understanding-graph',
@@ -392,8 +439,10 @@ export async function buildModelingContext({
       note: 'This session follows the instructions the user configured. What follows is the Meaning Model\'s own guidance, offered as reference: where it differs from the user\'s instructions, follow the user\'s. No guide below is required.' } }),
     schema: 'life-sim-modeling-context/v2',
     startHere: startHere.text,
-    method: { core: methodCoreInstructions, inThisMode: purposeMethod(purpose) },
+    method: { core: methodCoreInstructions, inThisMode: purposeMethod(purpose),
+      ...(forecasting ? { forecasting: forecastingMode(purpose, { branchesEnabled: addons.includes('forecasting') }) } : {}) },
     purpose,
+    ...(modes.length ? { modes } : {}),
     workflow: workflowForPurpose(purpose).id,
     availableWorkflows: modelingWorkflows,
     workflowEntry: workflowForPurpose(purpose),
@@ -464,10 +513,12 @@ export async function buildModelingContext({
   };
 }
 
-export async function buildModelingPrompt({ purpose, sessionMode }) {
+export async function buildModelingPrompt({ purpose, sessionMode, modes = [], addons = [] }) {
   const context = await buildModelingContext({
     purpose,
     sessionMode,
+    modes,
+    addons,
   });
   const ordered = context.orderedResources
     .map((resource, index) => `${index + 1}. ${resource.uri} (${resource.required ? 'required when new, changed or no longer retained' : 'optional reference'})`)
@@ -479,6 +530,7 @@ export async function buildModelingPrompt({ purpose, sessionMode }) {
     '',
     context.method.core,
     ...(context.method.inThisMode ? ['', `In this mode: ${context.method.inThisMode}`] : []),
+    ...(context.method.forecasting ? ['', context.method.forecasting.core, ...(context.method.forecasting.inThisPurpose ? [context.method.forecasting.inThisPurpose] : []), context.method.forecasting.branches] : []),
     '',
     ...(context.continuation ? ['You are continuing recorded work. Before any change:', ...context.continuation.steps.map((step, index) => `${index + 1}. ${step}`), context.continuation.note, ''] : []),
     context.sessionGuidance,

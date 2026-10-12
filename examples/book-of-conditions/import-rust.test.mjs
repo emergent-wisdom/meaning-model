@@ -46,7 +46,7 @@ test('the edition reader checks model ancestry in both v1 and v2 bundles', async
   await assert.rejects(readEdition(scratch), /Every native model predecessor must be included/);
 });
 
-test('a fresh public MCP import preserves the complete Book history and Nora', { timeout: 600_000 }, async t => {
+test('a fresh public MCP import preserves the complete agent-authored Book and its corrected model-reader records', { timeout: 600_000 }, async t => {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'book-public-import-'));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
   const out = path.join(scratch, 'edition');
@@ -69,6 +69,10 @@ test('a fresh public MCP import preserves the complete Book history and Nora', {
   assert.equal(model.meaning_model.events.length, manifest.inventory.events);
   assert.equal(model.processes.length, manifest.inventory.processes);
   assert.equal(model.meaning_model.normalized_cuts.length, manifest.inventory.normalizedCuts, 'Published numbers must survive import');
+  assert.equal(model.value_series.length, manifest.inventory.valueSeries, 'Dated process values must survive import');
+  assert.equal(model.meaning_model.cause_questions.length, manifest.inventory.causeQuestions);
+  assert.equal(model.meaning_model.cause_assessments.length, manifest.inventory.causeAssessments, 'Causal hypotheses must survive import');
+  for (const series of model.value_series) assert(series.points.length >= 2, `The recorded process must still develop over time: ${series.process_id}`);
   const graph = readJson(path.join(out, 'graph.json'));
   assert.equal(graph.graph.revision.number, manifest.graphRevision);
   assert.match(graph.graph.revision.previous_graph_hash, /^[a-f0-9]{64}$/);
@@ -84,18 +88,22 @@ test('a fresh public MCP import preserves the complete Book history and Nora', {
     assert(renders.every(edge => eventIds.has(edge.target.anchor_id)), `Passage points to an absent Event: ${passage.id}`);
   }
   const phases = projection.processes.flatMap(process => process.states);
-  assert(phases.every(state => state.status === 'current'));
-  for (const state of phases) for (const evidence of state.evidence) assert(byId.get(evidence.nodeId)?.text.includes(evidence.excerpt), `Telling evidence must remain in the manuscript: ${state.label}`);
-  const nora = receipt.authors.find(author => author.name === 'Nora Vale');
-  assert(nora);
-  const life = readJson(path.join(out, `author-${nora.modelHash}.json`));
-  const dependency = manifest.authorDependencies.find(author => author.name === 'Nora Vale');
-  assert.equal(nora.modelHash, dependency.modelHash);
-  assert.equal(life.revision.number, dependency.modelRevision);
-  if (dependency.modelRevision > 0) assert.match(life.revision.previous_model_hash, /^[a-f0-9]{64}$/, "Nora's earlier revisions belong to the history");
-  else assert(!life.revision.previous_model_hash);
-  assert(life.meaning_model.referents.some(person => person.id === nora.personId));
-  assert.notEqual(nora.modelHash, receipt.modelHash, 'Nora belongs to her own declared world');
+  assert.equal(phases.length, 0, 'This edition does not declare qualitative telling phases');
+  assert.deepEqual(receipt.authors, [], 'No separate native author life was declared in this independent run');
+  assert.deepEqual(manifest.authorDependencies, []);
+  assert.deepEqual(receipt.personas, manifest.authorPersonas);
+  assert.equal(receipt.personas[0].modeledAuthorId, 'persona.vane');
+  assert.equal(receipt.personas[0].mode, 'fictional_author', 'The narrative persona is explicitly invented');
+  assert.equal(receipt.reviewerCorrections.length, 3);
+  assert.equal(receipt.reviewerCorrections.reduce((count, record) => count + record.findingTextChanges.length, 0), 2,
+    'The two documented paraphrases must remain explicit rather than being called identity-only edits');
+  assert.equal(graph.nodes.filter(node => node.node_type === 'review').length, manifest.inventory.reviewRecords);
+  for (const correction of receipt.reviewerCorrections) {
+    assert.equal(correction.reviewer.kind, 'model');
+    assert.equal(correction.reviewer.family, 'claude');
+    assert.equal(correction.reviewer.model, 'claude-sonnet-5-5');
+    assert.notEqual(correction.reviewedGraphHash, receipt.graphHash, 'Historical editorial feedback is not renewed approval of the latest graph');
+  }
   const saved = readJson(path.join(out, 'saved-work.json'));
   assert.deepEqual(saved.heads.map(head => head.graphHash), [manifest.graphHash]);
   assert.equal(saved.heads[0].revision, manifest.graphRevision);

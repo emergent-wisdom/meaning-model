@@ -3,7 +3,7 @@ import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { buildViewerData } from '../src/viewer-data.mjs';
-import { encodeHistoryModels, HISTORY_FILE_SCHEMA_V2, HISTORY_SCHEMA } from '../src/construction-files.mjs';
+import { encodeHistoryModels, expandHistoryModels, HISTORY_FILE_SCHEMA_V2, HISTORY_SCHEMA } from '../src/construction-files.mjs';
 
 const MODEL = 'a'.repeat(64);
 const OTHER_MODEL = 'b'.repeat(64);
@@ -254,14 +254,15 @@ test('empty and disconnected models keep every authoritative graph record withou
 test('the Book exposes its native numerical compositions even without prose-format process paths', async () => {
   const edition = JSON.parse(await readFile(new URL('../../examples/book-of-conditions/PUBLICATION-MANIFEST.json', import.meta.url), 'utf8'));
   const bundle = JSON.parse(await readFile(new URL('../../examples/book-of-conditions/the-book-of-conditions.meaning-model.json', import.meta.url), 'utf8'));
-  const definition = bundle.models.find(entry => entry.modelHash === edition.modelHash).definition;
+  const definition = [...expandHistoryModels(bundle)].find(entry => entry.modelHash === edition.modelHash).definition;
   const data = await buildViewerData({ history: history(definition), rendered: render(), generatedAt });
   assert.equal(data.viewKind, 'graph');
-  assert.deepEqual(data.capabilities, { graph: true, temporal: true, trajectories: false, story: true, construction: false });
+  assert.deepEqual(data.capabilities, { graph: true, temporal: true, trajectories: true, story: true, construction: false });
   assert.equal(data.timeUnit, definition.time_unit);
   assert.ok(data.events.length > 0);
   assert.ok(data.inspection.model.meaning_model.normalized_cuts.length > 0);
   assert.ok(data.measures.every((measure) => measure.points.length === 0));
+  assert.ok(data.typedScalarSeries.length > 0, 'the rewritten Book supplies native dated process values');
   assert.equal(data.numerics.cuts.length, definition.meaning_model.normalized_cuts.filter((cut) => !cut.withdrawn).length);
   assert.ok(data.numerics.counts.datedCuts > 0);
   assert.ok(data.numerics.counts.scalarRecords > 0);
@@ -270,7 +271,7 @@ test('the Book exposes its native numerical compositions even without prose-form
     assert.deepEqual(reading.answers, original.answers);
     assert.deepEqual(reading.conditioning, original.conditioning ?? null);
     assert.equal(reading.eventId, original.parent_event_id);
-    if (reading.interval) assert.equal(reading.t, 1970 + reading.interval.start / 365.2425);
+    if (reading.interval) assert.equal(reading.t, reading.interval.start, 'the rewritten Book records calendar years directly');
   }
   assert.deepEqual(data.inspection.model, definition);
 });

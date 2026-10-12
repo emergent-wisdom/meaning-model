@@ -7,7 +7,7 @@ const hash = z.string().length(64);
 import { stripEdgeForRevision, stripNodeForRevision } from './narrative-fields.mjs';
 import { definitionFromCompleteView, narrativeDefinitionDelta } from './narrative-delta.mjs';
 import { anchoredModelRecord } from './construction-record.mjs';
-import { modelLineageSteps } from './model-lineage.mjs';
+import { branchesAlong, modelLineageSteps } from './model-lineage.mjs';
 export { NODE_FIELDS, EDGE_FIELDS, stripNodeForRevision, stripEdgeForRevision } from './narrative-fields.mjs';
 
 export const narrativeRebindSchema = z.object({
@@ -21,6 +21,15 @@ export const narrativeRebindSchema = z.object({
 export async function assertModelSuccessor(service, previousModelHash, modelHash) {
   const steps = await modelLineageSteps(service, previousModelHash, modelHash);
   if (steps === null) throw new Error(`Model ${modelHash} is not a successor of the graph's bound model ${previousModelHash}; rebinding to an unrelated model is refused.`);
+  // A branch is hypothetical and has its own graph: moving a graph across a fork revision would make the branch's
+  // assumed records the graph's history.
+  const transition = await branchesAlong(service, modelHash, { stopAt: previousModelHash });
+  if (transition.truncated) throw new Error('The model ancestry could not be checked completely; rebinding across an uncertain branch is refused.');
+  const entered = transition.branches;
+  if (entered.length) {
+    const branch = entered.at(-1);
+    throw new Error(`Model ${modelHash.slice(0, 12)} lies in branch ${branch.branch} of stage ${branch.stageId}, forked at ${branch.forkModelHash.slice(0, 12)}. A branch is hypothetical and keeps its own graph (future.${branch.stageId}.${branch.branch}); this graph stays on its own line. Rebind it to a revision outside the branch, or record the work in the branch's graph.`);
+  }
   return steps;
 }
 

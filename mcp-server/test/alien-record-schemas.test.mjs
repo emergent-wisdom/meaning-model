@@ -56,7 +56,7 @@ test('public metadata locates individual runtime-derived commission and selectio
   assert.equal(diagnosis.additionalProperties, false);
   assert.equal(commission.properties.worldAsk.default, null);
   assert.equal(commission.properties.worldAsk.anyOf.find(({ type }) => type === 'string').maxLength, 1_000);
-  assert.match(commission.description, /new_world requires worldAsk or at least one operator/u);
+  assert.match(commission.description, /new_world requires worldAsk, at least one operator, or targetConceptIds/u);
   assert.match(commission.description, /explorer requires relationToChange/u);
   assert.ok(!Object.hasOwn(commission.properties, 'diagnosisHash'));
 
@@ -101,7 +101,7 @@ test('public records retain accepted shapes and reject trial mistakes and cross-
   const diagnosis = await call(client, 'life_alien_search_diagnose', { graphHash, searchRootId: 'search.schema', accessScopes: ['author'] });
   const commission = { addressedTo: 'new_world', worldAsk: 'Explore effects whose sources vanish.', rationale: 'Explore a distinct causal order.' };
   await reject('commission', { ...commission, diagnosisHash: diagnosis.diagnosisHash }, /Unrecognized key.*diagnosisHash/su);
-  await reject('commission', { addressedTo: 'new_world', rationale: 'Explore.' }, /worldAsk or operators/u);
+  await reject('commission', { addressedTo: 'new_world', rationale: 'Explore.' }, /worldAsk, operators or targetConceptIds/u);
   await reject('commission', { ...commission, diagnosis: { graphHash, diagnosisHash: '0'.repeat(64) } }, /does not match the diagnosis/u);
   await record('commission.bound', 'commission', { ...commission, diagnosis: { graphHash, diagnosisHash: diagnosis.diagnosisHash } });
   await record('commission.legacy', 'commission', commission);
