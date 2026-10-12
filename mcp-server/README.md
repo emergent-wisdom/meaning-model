@@ -252,12 +252,20 @@ manuscript remains in the separate Life Simulation repository. Run
 `node scripts/verify-resources.mjs` from the Meaning Model repository root to
 check the companion snapshot, precompiled presets, and resource availability.
 
+Results do not repeat what this server already sent. A write result sends the standing
+questions, the scope note and the guidance in full once, then points to them and says how
+far back the full text was sent; the full text goes out again after four pointers and after
+a read that starts the work over, and `life_context_reset` returns it at any time. The
+importance report keeps the scales a call touched in full and the others as counts. Nothing
+else is shortened. `MEANING_MODEL_LEAN_RESULTS=off` restores complete results.
+
 Every fresh agent, including a delegated agent, begins with
 `life-sim://guide/start-here` (what the tool is for and how to work in it), then
 reads the complete grammar at `life-sim://protocol/grammar` before modeling. Then read the operational protocol, the purpose-specific guide or profile,
 and a relevant worked example. These explain the construction method and the
 contracts needed to use the tools. `life_modeling_read` serves these resources
-to clients that expose only tools; follow its pages to the end. Reuse unchanged
+to clients that expose only tools; follow its pages to the end, or read a guide by
+sections (`section: "contents"` lists its headings). Reuse unchanged
 guidance while its contents remain in context. Full research papers are optional;
 the grammar remains required guidance for profile compilation and the alien add-on. The former
 `MEANING_MODEL_READING` setting is no longer needed. Papers remain available for
@@ -324,6 +332,13 @@ The model tools expose immutable typed profiles:
   them, processes never divided, processes with no value across stretches
   where the model's own Events happen, and a time schedule dividing the span
   coarse to fine, with the boundaries each process still lacks.
+- `life_values_query` reads dated values without reading the whole model: a
+  directory of the model's measures (how many values each holds and over what
+  span), or the points of chosen processes over a stretch of time, each exactly
+  as stored (a number with its band, or a named state, with its tag and note).
+  A long series is thinned only to `maxPoints`, keeping the first and last, then
+  a number's lowest and highest or every change of a state, and the result says
+  what it left out.
 - `life_importance_record` records how much Events matter, and to whom: scales
   for an audience (a world's inhabitants, or those who follow one category,
   optionally naming its Concept), with levels from the most important down and
@@ -332,7 +347,10 @@ The model tools expose immutable typed profiles:
   earlier one. The result counts each level and points to Events without one.
   The viewer keeps to a scale's top levels (`importance`, `importanceTop`).
 - `life_meaning_query` pages authored records from an optional Meaning Model
-  layer by collection and exact id without returning the full model.
+  layer without returning the full model: by collection and exact id, by words
+  (`text`) and by time (`from`/`to`; an interval is half-open, so one that ends at
+  `from` is left out). `fields: "summary"` gives one line per record, to scan many
+  and read the ones needed in full.
 - `life_world_refine_genesis` applies an already registered direct-next
   revision to one untouched genesis world, but only when the revision preserves
   every existing model record and makes at most monotonic authored additions.
@@ -358,7 +376,16 @@ done and why where a later agent can read it.
   given, its independence, the exact revision and text hash it read, and its findings.
 - `life_model_outline` reads the present state as an outline: description coverage,
   the Event tree with descriptions and Cuts, processes, concepts and understanding
-  roots, with linked notes at a chosen depth.
+  roots, with linked notes at a chosen depth. `detail: "skeleton"` gives the whole
+  shape (ids, times, names and counts) in little room. A read narrowed to one Event
+  (`focusEventId`) starts with where it sits: the path down from the top, the Events
+  beside it and the top of the tree. An outline longer than `maxChars` (45,000 by
+  default, under the size at which clients save a result to a file) is cut, and the
+  cut names the sections it left out.
+- `life_context_reset` is for an agent whose context was compacted or summarized,
+  or that is unsure what it still holds: it returns the standing questions, the
+  scope note and the guidance in full, with what to read again to see the work
+  whole.
 - `life_construction_replay` replays the graph and model revisions from the first,
   each step with its reasons, changes and notes, at outline, reasoning or full level.
 - `life_construction_export` writes the whole construction as a portable history, and

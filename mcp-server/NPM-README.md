@@ -24,6 +24,23 @@ operational guidance. Reading the papers is optional.
 
 See the [changelog](https://github.com/emergent-wisdom/meaning-model/blob/main/CHANGELOG.md) for release changes and upgrade notes.
 
+## Upgrading to 0.12.0
+
+Install the matching 0.12.0 engine. The engine and the model format are unchanged since
+0.10.0: models and histories open unchanged, and nothing needs migrating.
+
+Results repeat less, and agents can read just what they need. A write result sends the standing
+questions, the scope note and the guidance in full once, then points to them; each pointer
+says how far back the full text was sent, the full text goes out again after four pointers
+and after a read that starts the work over, and `life_context_reset` returns it whenever
+the agent's context was compacted or it is unsure what it still holds.
+`MEANING_MODEL_LEAN_RESULTS=off` restores complete results. New reads answer what agents
+used to export whole models for: `life_values_query` for dated values, word and time
+filters and one-line summaries in `life_meaning_query`, the outline's skeleton and reads of
+one region that start from the top of the tree, and guides read by section. The outline's
+default size is now 45,000 characters, under the size at which clients save a result to a
+file instead of showing it.
+
 ## Upgrading to 0.10.0
 
 Install the matching 0.10.0 engine. The model can now record why an outcome

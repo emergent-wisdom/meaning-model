@@ -324,17 +324,51 @@ export async function readModelingResource(uri) {
 
 // Tool-only MCP hosts can read the same canonical resources without a second
 // document copy. Offsets are UTF-16 string positions in the digest-bound text.
-export async function readModelingResourcePage({ uri, offset = 0, maxCharacters = 24_000, expectedSha256 }) {
+// The headings of a Markdown guide, outside code blocks, each with where it starts and how long its section runs (up to
+// the next heading at the same or a higher level).
+export function guideHeadings(text) {
+  const headings = [];
+  let fenced = false, at = 0;
+  for (const line of text.split('\n')) {
+    if (/^\s*(```|~~~)/u.test(line)) fenced = !fenced;
+    const match = !fenced && /^(#{1,6})\s+(.+?)\s*#*\s*$/u.exec(line);
+    if (match) headings.push({ level: match[1].length, title: match[2], offset: at });
+    at += line.length + 1;
+  }
+  for (const [index, heading] of headings.entries()) {
+    const next = headings.slice(index + 1).find((later) => later.level <= heading.level);
+    heading.characters = (next ? next.offset : text.length) - heading.offset;
+  }
+  return headings;
+}
+
+export async function readModelingResourcePage({ uri, offset = 0, maxCharacters = 24_000, expectedSha256, section }) {
   if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(maxCharacters)
     || maxCharacters < 1 || maxCharacters > 64_000) throw new Error('Invalid resource page range.');
   const resource = await readModelingResource(uri);
   if (expectedSha256 && expectedSha256 !== resource.sha256) throw new Error('The resource changed; restart reading from offset 0.');
-  if (offset > resource.text.length) throw new Error('Resource page offset is past the end.');
-  let end = Math.min(resource.text.length, offset + maxCharacters);
+  // A guide can be read a section at a time: its contents first, then the sections the work needs.
+  let text = resource.text, sectionTitle = null;
+  if (section !== undefined) {
+    const headings = guideHeadings(resource.text);
+    if (section === 'contents') {
+      const { text: _whole, ...meta } = resource;
+      return { ...meta, contents: headings.map(({ level, title, offset: at, characters }) => ({ level, title, offset: at, characters })),
+        totalCharacters: resource.text.length, next: 'Read a section with section set to its title.', readingVerified: false };
+    }
+    const wanted = section.trim().toLowerCase();
+    const heading = headings.find((item) => item.title.toLowerCase() === wanted) ?? headings.find((item) => item.title.toLowerCase().startsWith(wanted));
+    if (!heading) throw new Error(`${uri} has no section "${section}"; read section "contents" for its headings.`);
+    text = resource.text.slice(heading.offset, heading.offset + heading.characters);
+    sectionTitle = heading.title;
+  }
+  if (offset > text.length) throw new Error('Resource page offset is past the end.');
+  let end = Math.min(text.length, offset + maxCharacters);
   // Keep surrogate pairs intact when pages are concatenated by clients.
-  if (end < resource.text.length && /[\uDC00-\uDFFF]/u.test(resource.text[end]) && /[\uD800-\uDBFF]/u.test(resource.text[end - 1])) end += 1;
-  return { ...resource, text: resource.text.slice(offset, end), offset,
-    nextOffset: end < resource.text.length ? end : null, totalCharacters: resource.text.length,
+  if (end < text.length && /[\uDC00-\uDFFF]/u.test(text[end]) && /[\uD800-\uDBFF]/u.test(text[end - 1])) end += 1;
+  return { ...resource, text: text.slice(offset, end), offset,
+    ...(sectionTitle !== null ? { section: sectionTitle } : {}),
+    nextOffset: end < text.length ? end : null, totalCharacters: text.length,
     readingVerified: false };
 }
 

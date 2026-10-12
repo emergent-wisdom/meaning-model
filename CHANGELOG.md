@@ -4,6 +4,37 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## 0.12.0 — 2026-10-12
+
+Install the matching 0.12.0 engine. The engine and the model format are unchanged since
+0.10.0: models and histories open unchanged, and nothing needs migrating.
+
+Agents spent most of their tokens reading their own context again: every step re-reads everything before it. This
+release lets them read what they need without exporting whole models, and stops results from repeating what they
+already sent, without withholding anything: each shortened part says where the whole is, and the agent can ask for it
+again at any time.
+
+- `life_values_query` reads dated values without reading the model: a directory of its measures, or the points of
+  chosen processes over a stretch of time, each exactly as stored (a number with its band, or a named state, with its
+  tag and note). A long series is thinned only to `maxPoints`, keeping the first and last, then a number's lowest and
+  highest or every change of a state, and the result says what it left out.
+- `life_meaning_query` filters records by words (`text`) and by time (`from`/`to`; an interval is half-open, so one that
+  ends at `from` is left out). `fields: "summary"` returns one line per record. Without the new options a query returns
+  what it did before.
+- `life_model_outline` reads the whole shape in little room with `detail: "skeleton"`. A read narrowed to one Event
+  starts with where it sits: the path down from the top, the Events beside it and the top of the tree. A cut outline
+  names the sections it left out. The default `maxChars` is 45,000 (was 60,000), under the size at which clients save a
+  result to a file instead of showing it; outlines longer than about 50,000 characters already went to a file.
+- `life_modeling_read` reads a guide by section: `section: "contents"` lists its headings.
+- Write results send the standing questions, the scope note and the guidance in full once, then point to them; each
+  pointer says how far back the full text was sent, in results and characters. The full text goes out again after four
+  pointers, after a read that starts the work over (the method context, saved work, replay, import or the whole
+  outline), and after a result that could not be delivered with its text. The importance report keeps the scales a call
+  touched in full and the others as counts. `MEANING_MODEL_LEAN_RESULTS=off` restores complete results.
+- `life_context_reset`, read-only, is for an agent whose context was compacted or summarized, or that is unsure what it
+  still holds: it returns the most recent standing questions, scope note and guidance in full, with the models they
+  came with, and lists what to read again to see the work whole.
+
 ## 0.11.0 — 2026-10-12
 
 Install the matching 0.11.0 engine. The engine and the model format are unchanged since 0.10.0: models and histories

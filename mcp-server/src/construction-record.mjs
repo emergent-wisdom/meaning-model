@@ -448,6 +448,9 @@ function cutAnswers(cut) {
 // ---------------------------------------------------------------------------------------------
 // Outline: the present state at a chosen depth.
 
+// The outline's section headings and the sections value that reads each.
+const OUTLINE_SECTION_OF_HEADING = { Descriptions: 'coverage', Things: 'things', Events: 'events', Processes: 'processes', Concepts: 'concepts',
+  Understanding: 'understanding', Documents: 'documents' };
 export const outlineSchema = z.object({
   graphHash: hash.optional(), modelHash: hash.optional(),
   accessScopes: z.array(id).max(64).default([]),
@@ -456,7 +459,10 @@ export const outlineSchema = z.object({
     .default(['coverage', 'things', 'events', 'processes', 'concepts', 'understanding', 'documents']),
   focusEventId: longId.optional(),
   textLimit: z.number().int().min(40).max(4_000).default(240),
-  maxChars: z.number().int().min(2_000).max(400_000).default(60_000),
+  // Under the size at which clients save a result to a file instead of showing it (about 50,000 characters, with
+  // the result's other fields and escaping on top of the outline).
+  maxChars: z.number().int().min(2_000).max(400_000).default(45_000),
+  detail: z.enum(['full', 'skeleton']).default('full'),
 }).strict().refine((input) => Boolean(input.graphHash || input.modelHash), 'Supply graphHash (the graph and its bound model, with notes) or modelHash (a model alone); both only when the graph is bound to that model.');
 
 function anchoredNotes(view) {
@@ -554,6 +560,8 @@ export async function outlineModel(service, raw) {
   const layer = model.meaning_model ?? {};
   const want = new Set(input.sections);
   const lines = [];
+  // The skeleton is the same tree with ids, times, names and counts only: the whole shape in little room.
+  const skeleton = input.detail === 'skeleton';
   const notes = view && input.understanding !== 'none' ? anchoredNotes(view) : new Map();
   const responses = responsesTo(view);
   // A note linked to several records is shown once; the later records name it.
@@ -573,6 +581,7 @@ export async function outlineModel(service, raw) {
   const attach = (anchorKind, recordId, indent) => {
     const list = notes.get(`${anchorKind}:${recordId}`) ?? [];
     if (!list.length) return;
+    if (skeleton) return;
     if (input.understanding === 'count') { lines.push(`${indent}  (${list.length} note${list.length === 1 ? '' : 's'})`); return; }
     noteLines(list, `${indent}  `);
   };
@@ -586,7 +595,7 @@ export async function outlineModel(service, raw) {
   }
   if (want.has('things') && (layer.referents ?? []).length) {
     lines.push('', '## Things');
-    for (const referent of layer.referents) { lines.push(`- ${referent.id}: ${clip(oneLine(referent.boundary), input.textLimit)}`); attach('referent', referent.id, ''); }
+    for (const referent of layer.referents) { lines.push(`- ${referent.id}: ${clip(oneLine(referent.boundary), skeleton ? 80 : input.textLimit)}`); attach('referent', referent.id, ''); }
   }
   if (want.has('events') && (layer.events ?? []).length) {
     lines.push('', '## Events');
@@ -606,6 +615,13 @@ export async function outlineModel(service, raw) {
       if (seen.has(eventId)) { lines.push(`${indent}- ${eventId} (shown above)`); return; }
       seen.add(eventId);
       const interval = event.interval ? ` [${event.interval.start}, ${event.interval.end}]` : '';
+      if (skeleton) {
+        const cuts = (cutsByEvent.get(eventId) ?? []).length;
+        const noted = (notes.get(`event:${eventId}`) ?? []).length;
+        lines.push(`${indent}- ${eventId}${interval}: ${clip(oneLine(event.boundary), 80)}${cuts ? ` · ${cuts} Cut${cuts === 1 ? '' : 's'}` : ''}${noted ? ` · ${noted} note${noted === 1 ? '' : 's'}` : ''}`);
+        for (const child of children.get(eventId) ?? []) walk(child, depth + 1);
+        return;
+      }
       lines.push(`${indent}- ${eventId}${interval}: ${clip(oneLine(event.boundary), input.textLimit)}`);
       if (nonblank(event.description)) lines.push(`${indent}  ${clip(oneLine(event.description), input.textLimit * 3)}`);
       else if (cutsByEvent.has(eventId)) lines.push(`${indent}  (no description, although this Event carries numbers)`);
@@ -618,13 +634,63 @@ export async function outlineModel(service, raw) {
       attach('event', eventId, indent);
       for (const child of children.get(eventId) ?? []) walk(child, depth + 1);
     };
-    const starts = input.focusEventId ? [input.focusEventId]
-      : [...(layer.context_roots ?? []).map((root) => root.event_id), ...layer.events.map((event) => event.id).filter((eventId) => !parents.has(eventId))];
-    for (const eventId of [...new Set(starts)]) walk(eventId, 0);
+    const roots = [...new Set([...(layer.context_roots ?? []).map((root) => root.event_id), ...layer.events.map((event) => event.id).filter((eventId) => !parents.has(eventId))])];
+    if (input.focusEventId) {
+      // A region is read with the bird's-eye view first: the path down from the top, what sits beside it and the top of
+      // the whole tree, so no reader works inside one part without seeing where it sits. It comes with every region, so
+      // it is kept compact: long lists give ids and times, and detail "skeleton" names every Event.
+      const inside = (eventId) => {
+        const found = new Set();
+        const pending = [...(children.get(eventId) ?? [])];
+        while (pending.length) {
+          const next = pending.pop();
+          if (next === eventId || found.has(next)) continue;
+          found.add(next);
+          pending.push(...(children.get(next) ?? []));
+        }
+        return found.size;
+      };
+      const span = (eventId) => { const interval = events.get(eventId)?.interval; return interval ? ` [${interval.start}, ${interval.end}]` : ''; };
+      const brief = (eventId) => { const count = inside(eventId); return `${eventId}${span(eventId)}${count ? ` (${count} inside)` : ''}`; };
+      const named = (eventId) => `${brief(eventId)}: ${clip(oneLine(events.get(eventId)?.boundary ?? ''), 80)}`;
+      const listed = (ids, indent) => {
+        if (ids.length <= 24) return ids.map((eventId) => `${indent}- ${named(eventId)}`);
+        const packed = [];
+        for (let i = 0; i < ids.length; i += 6) packed.push(`${indent}${ids.slice(i, i + 6).map(brief).join(' · ')}`);
+        return packed;
+      };
+      const focus = input.focusEventId;
+      lines.push('### Where this sits');
+      if (!events.has(focus)) lines.push(`(no Event ${focus} in this model; the top of the tree is below)`);
+      else {
+        const path = [];
+        for (let at = focus; at && !path.includes(at); at = parents.get(at)) path.unshift(at);
+        path.forEach((eventId, depth) => lines.push(`${'  '.repeat(depth)}- ${eventId === focus ? `${eventId}${span(eventId)} (read below)` : named(eventId)}`));
+        const parent = parents.get(focus);
+        const beside = parent && !roots.includes(parent) ? (children.get(parent) ?? []).filter((eventId) => eventId !== focus) : [];
+        if (beside.length) lines.push(`Beside it under ${parent}:`, ...listed(beside.slice(0, 48), '  '), ...(beside.length > 48 ? [`  … and ${beside.length - 48} more`] : []));
+      }
+      lines.push('Top of the tree:');
+      let room = 150;
+      for (const [index, root] of roots.entries()) {
+        if (room <= 0) { lines.push(`… and ${roots.length - index} more top-level Events; detail "skeleton" shows every Event`); break; }
+        room -= 1;
+        if (root === focus) { lines.push(`- ${root}${span(root)} (read below)`); continue; }
+        lines.push(`- ${named(root)}`);
+        const all = children.get(root) ?? [];
+        const kids = all.slice(0, room);
+        room -= kids.length;
+        lines.push(...listed(kids, '  '), ...(kids.length < all.length ? [`  … and ${all.length - kids.length} more; detail "skeleton" shows every Event`] : []));
+      }
+      lines.push('', `### ${focus}`);
+    }
+    const starts = input.focusEventId ? [input.focusEventId] : roots;
+    for (const eventId of starts) walk(eventId, 0);
   }
   if (want.has('processes') && (model.processes ?? []).length) {
     lines.push('', '## Processes');
     for (const process of model.processes) {
+      if (skeleton) { lines.push(`- ${process.id} (${process.unit ?? 'no unit'})${process.scale?.label ? `: ${clip(oneLine(process.scale.label), 80)}` : ''}`); continue; }
       const value = process.initial_value?.value;
       lines.push(`- ${process.id} (${process.unit ?? 'no unit'}, ${process.update_mode ?? 'unspecified'}): ${clip(oneLine(process.scale?.semantic_role ?? ''), input.textLimit)}${value === undefined ? '' : `; initial ${Array.isArray(value) ? JSON.stringify(value) : value}`}`);
       attach('process', process.id, '');
@@ -632,7 +698,7 @@ export async function outlineModel(service, raw) {
   }
   if (want.has('concepts') && ((layer.concepts ?? []).length || (layer.abstract_cuts ?? []).length)) {
     lines.push('', '## Concepts');
-    for (const concept of layer.concepts ?? []) { lines.push(`- ${concept.id}${concept.label ? ` (${concept.label})` : ''}${withdrawnMark(concept, input.textLimit)}: ${clip(oneLine(concept.boundary ?? ''), input.textLimit)}`); attach('concept', concept.id, ''); }
+    for (const concept of layer.concepts ?? []) { lines.push(`- ${concept.id}${concept.label ? ` (${concept.label})` : ''}${withdrawnMark(concept, input.textLimit)}${skeleton ? '' : `: ${clip(oneLine(concept.boundary ?? ''), input.textLimit)}`}`); attach('concept', concept.id, ''); }
     for (const cut of layer.abstract_cuts ?? []) lines.push(`- opening ${cut.id}${withdrawnMark(cut, input.textLimit)}: ${cut.parent_concept_id} → ${(cut.child_concept_ids ?? []).join(', ')} (${clip(oneLine(cut.lens ?? ''), input.textLimit)})`);
   }
   if (view && want.has('understanding')) {
@@ -649,7 +715,7 @@ export async function outlineModel(service, raw) {
       while (pending.length) { const next = pending.shift(); const node = nodes.get(next); if (!node || members.includes(node)) continue; members.push(node); pending.push(...(contains.get(next) ?? [])); }
       const reflections = members.filter((node) => node.role === 'externalized_reflection' && node.boundary !== true && node.content_included !== false);
       lines.push(`- ${root.id} (${root.holder ?? root.subject ?? 'unattributed'}): ${reflections.length} reflection${reflections.length === 1 ? '' : 's'}, ${members.length} record${members.length === 1 ? '' : 's'}`);
-      if (input.understanding !== 'none' && input.understanding !== 'count') {
+      if (!skeleton && input.understanding !== 'none' && input.understanding !== 'count') {
         const recent = [...reflections].sort((a, b) => (b.value_time ?? 0) - (a.value_time ?? 0)).slice(0, input.understanding === 'full' ? reflections.length : 5);
         noteLines(recent, '  ');
       }
@@ -663,8 +729,19 @@ export async function outlineModel(service, raw) {
   }
   let text = lines.join('\n');
   const truncated = text.length > input.maxChars;
-  if (truncated) text = `${text.slice(0, input.maxChars)}\n… (outline truncated at ${input.maxChars} characters; narrow it with sections or focusEventId)`;
-  return { schema: 'meaning-model-outline/v1', modelHash, graphHash: view?.graph_hash ?? null, coverage, understanding: input.understanding, noteModelBases, truncated, text };
+  let truncatedIn = null; let notShown = [];
+  if (truncated) {
+    // Name what the cut left out, as the sections to ask for, so a reader knows what it has not seen.
+    const headings = [...text.matchAll(/^## (\S+)/gmu)].map((match) => ({ section: OUTLINE_SECTION_OF_HEADING[match[1]], at: match.index }))
+      .filter((heading) => heading.section);
+    truncatedIn = headings.filter((heading) => heading.at < input.maxChars).at(-1)?.section ?? null;
+    notShown = headings.filter((heading) => heading.at >= input.maxChars).map((heading) => heading.section);
+    text = `${text.slice(0, input.maxChars)}\n… (outline truncated at ${input.maxChars} characters${truncatedIn ? `, part way through ${truncatedIn}` : ''}`
+      + `${notShown.length ? `; not shown: ${notShown.join(', ')}. Read those with sections ${JSON.stringify(notShown)}` : ''}`
+      + `; narrow it with sections or focusEventId, or read the whole shape with detail "skeleton")`;
+  }
+  return { schema: 'meaning-model-outline/v1', modelHash, graphHash: view?.graph_hash ?? null, coverage, understanding: input.understanding,
+    ...(skeleton ? { detail: 'skeleton' } : {}), noteModelBases, truncated, ...(truncated ? { truncatedIn, notShown } : {}), text };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1166,7 +1243,7 @@ export function registerConstructionRecordTools(server, service, { toolResult })
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await readNotes(service, input)));
   server.registerTool('life_model_outline', {
-    description: 'Read the present state as a readable outline: description coverage (which Events carry numbers without a description), Things, the Event tree with descriptions and the Cuts under each Event, processes, concepts, understanding roots and documents. With a graphHash it overlays the Understanding Nodes linked to each record, at the chosen depth: none, count, first_line or full. Shown notes mark different or unknown model bases, with parsed writtenAgainstModel/currentModel in noteModelBases; these marks do not establish ancestry or invalidity. Use life_revision_check with exact models to identify affected records and notes. Narrow it with sections or focusEventId.',
+    description: 'Read the present state as a readable outline: description coverage (which Events carry numbers without a description), Things, the Event tree with descriptions and the Cuts under each Event, processes, concepts, understanding roots and documents. With a graphHash it overlays the Understanding Nodes linked to each record, at the chosen depth: none, count, first_line or full. Shown notes mark different or unknown model bases, with parsed writtenAgainstModel/currentModel in noteModelBases; these marks do not establish ancestry or invalidity. Use life_revision_check with exact models to identify affected records and notes. Narrow it with sections or focusEventId; detail "skeleton" gives the whole shape (ids, times, names and counts) in little room, to choose what to read in full. A read narrowed to one Event starts with where it sits: the path down from the top and the top two levels of the tree.',
     inputSchema: outlineSchema,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await outlineModel(service, input)));

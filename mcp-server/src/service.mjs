@@ -611,6 +611,60 @@ function meaningCollectionRecords(block, collection, label = 'model.meaning_mode
   return records;
 }
 
+function validateMeaningFilters({ text, from, to, fields }) {
+  if (text !== undefined && (typeof text !== 'string' || !text.trim() || text.length > 200)) {
+    throw new Error('text must be a non-empty string of at most 200 characters.');
+  }
+  for (const [name, value] of [['from', from], ['to', to]]) {
+    if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value))) throw new Error(`${name} must be a finite model time.`);
+  }
+  if (fields !== 'full' && fields !== 'summary') throw new Error('fields must be full or summary.');
+}
+
+// The words a record says about itself: every string it holds except hashes, lower-cased, in one string.
+function recordWords(definition) {
+  const parts = [];
+  const walk = (value) => {
+    if (typeof value === 'string') { if (!/^[a-f0-9]{64}$/u.test(value)) parts.push(value); return; }
+    if (Array.isArray(value)) { for (const item of value) walk(item); return; }
+    if (value && typeof value === 'object') for (const item of Object.values(value)) walk(item);
+  };
+  walk(definition);
+  return parts.join(' ').toLowerCase();
+}
+
+// Whether a record falls in the times from..to (both included). An interval is half-open, [start, end), as in the
+// grammar, so it falls in them when it starts by `to` and ends after `from`; a moment (start equal to end) when it lies
+// between them.
+function recordInTime(definition, from, to) {
+  const low = from ?? -Infinity, high = to ?? Infinity;
+  const interval = definition?.interval;
+  if (interval && Number.isFinite(interval.start) && Number.isFinite(interval.end)) {
+    return interval.end > interval.start ? interval.start <= high && interval.end > low : interval.start >= low && interval.start <= high;
+  }
+  for (const key of ['t', 'time', 'value_time']) {
+    if (Number.isFinite(definition?.[key])) return definition[key] >= low && definition[key] <= high;
+  }
+  return false;
+}
+
+// One line per record: what it is called, when and where, and the start of what it says.
+function recordSummary(collection, definition) {
+  const first = (...values) => values.find((value) => typeof value === 'string' && value.trim());
+  const name = first(definition.boundary, definition.label, definition.question, definition.title, definition.audience);
+  const said = first(definition.description, definition.meaning, definition.contrast, definition.reason, definition.differentia?.[0]);
+  const snippet = said && said !== name ? (said.length > 160 ? `${said.slice(0, 159)}…` : said) : undefined;
+  return {
+    collection,
+    id: meaningRecordId(collection, definition),
+    ...(name ? { name: name.length > 200 ? `${name.slice(0, 199)}…` : name } : {}),
+    ...(definition.interval ? { interval: definition.interval } : {}),
+    ...(Number.isFinite(definition.t) ? { t: definition.t } : {}),
+    ...(typeof definition.region === 'string' && definition.region ? { region: definition.region } : {}),
+    ...(snippet ? { snippet } : {}),
+  };
+}
+
 function validateMeaningQuery({ collections, ids, offset, limit }) {
   if (
     !Array.isArray(collections) ||
@@ -1286,9 +1340,18 @@ export class LifeSimulationService {
     ids = [],
     offset = 0,
     limit = 100,
+    text = undefined,
+    from = undefined,
+    to = undefined,
+    fields = 'full',
   }) {
     ensureHash(modelHash, 'modelHash');
     validateMeaningQuery({ collections, ids, offset, limit });
+    validateMeaningFilters({ text, from, to, fields });
+    // Optional filters narrow the records before paging: every word of text in the record's own words, and a time
+    // range that the record's interval or moment falls in. A record without a time is left out when a range is given.
+    const wanted = typeof text === 'string' ? text.toLowerCase().split(/\s+/u).filter(Boolean) : [];
+    const timed = from !== undefined || to !== undefined;
     const result = await this.backend.call('get_model', { model_hash: modelHash });
     if (!isRecord(result?.model)) {
       throw new Error('Rust model response did not contain a complete model definition.');
@@ -1322,6 +1385,11 @@ export class LifeSimulationService {
           `stored model.meaning_model.${collection} id`,
         );
         if (requestedIds.size > 0 && !requestedIds.has(id)) continue;
+        if (wanted.length) {
+          const words = recordWords(definition);
+          if (!wanted.every((word) => words.includes(word))) continue;
+        }
+        if (timed && !recordInTime(definition, from, to)) continue;
         matches.push({ collection, definition });
       }
     }
@@ -1329,7 +1397,7 @@ export class LifeSimulationService {
     const items = [];
     let definitionBytes = 0;
     for (const match of matches.slice(offset, offset + limit)) {
-      const item = structuredClone(match);
+      const item = fields === 'summary' ? recordSummary(match.collection, match.definition) : structuredClone(match);
       const itemBytes = Buffer.byteLength(JSON.stringify(item));
       if (itemBytes > MAX_MEANING_QUERY_DEFINITION_BYTES && items.length === 0) {
         throw new Error(
@@ -1358,6 +1426,10 @@ export class LifeSimulationService {
         ids: [...ids],
         offset,
         limit,
+        ...(text !== undefined ? { text } : {}),
+        ...(from !== undefined ? { from } : {}),
+        ...(to !== undefined ? { to } : {}),
+        ...(fields !== 'full' ? { fields } : {}),
       },
       matchedCount: matches.length,
       returnedCount: items.length,
