@@ -3,6 +3,7 @@
 // head is the only one descending from it. A retry of a request that already succeeded resolves to the revision the
 // first attempt wrote against, so it rebuilds the same batch and receives the same receipt. Edits, revisions and
 // scene preparation keep exact hashes: they depend on what was read.
+import { pushAll } from './arrays.mjs';
 
 export async function resolveAppendHead(service, graphHash, requestId, exact = false) {
   if (exact) return { graphHash, advancedFrom: null };
@@ -21,7 +22,7 @@ export async function resolveAppendHead(service, graphHash, requestId, exact = f
     const revision = revisions.get(hash);
     if (!revision) continue;
     if (revision.is_head) heads.push(hash);
-    queue.push(...(revision.child_hashes ?? []));
+    pushAll(queue, revision.child_hashes ?? []);
   }
   if (heads.length === 1) return { graphHash: heads[0], advancedFrom: graphHash };
   throw new Error(`Graph ${self.graph_id} has branched after ${graphHash.slice(0, 12)}: its heads are ${heads.map((hash) => hash.slice(0, 12)).join(', ')}. Pass the head to add to.`);

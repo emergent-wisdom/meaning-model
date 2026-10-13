@@ -1,5 +1,6 @@
 import * as z from 'zod/v4';
 import { phasesNeedingReview, projectDocumentProcesses } from './document-processes.mjs';
+import { minOf, maxOf, pushAll } from './arrays.mjs';
 
 const id = z.string().trim().min(1).max(1024);
 const boundary = z.object({ nodeId: id, boundary: z.enum(['start', 'end']) }).strict();
@@ -58,7 +59,7 @@ export function projectDocument({ rendered, nodes, edges, rootId }) {
     const current = pending[i];
     if (!visibleNodes.has(current) || eligible.has(current)) continue;
     eligible.add(current);
-    pending.push(...(children.get(current) ?? next.get(current) ?? []));
+    pushAll(pending, children.get(current) ?? next.get(current) ?? []);
   }
   // A split retains its original container. Its boundaries follow its currently rendered
   // descendants; this does not infer that every child inherits every semantic attachment.
@@ -73,9 +74,9 @@ export function projectDocument({ rendered, nodes, edges, rootId }) {
       if (seen.has(current)) continue;
       seen.add(current);
       if (positions.has(current)) spans.push(positions.get(current));
-      pending.push(...(children.get(current) ?? []));
+      pushAll(pending, children.get(current) ?? []);
     }
-    return spans.length ? { start: Math.min(...spans.map((span) => span.start)), end: Math.max(...spans.map((span) => span.end)) } : null;
+    return spans.length ? { start: minOf(spans.map((span) => span.start)), end: maxOf(spans.map((span) => span.end)) } : null;
   };
   const spans = [];
   for (const node of visibleNodes.values()) {

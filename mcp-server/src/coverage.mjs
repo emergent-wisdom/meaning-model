@@ -24,6 +24,7 @@ import { peopleCheck, personGapText } from './people-check.mjs';
 import { calendar } from './series-plan.mjs';
 import { isSeriesReadingEvent, isSteadyReading } from './series-mark.mjs';
 import { worldEvents } from './world-events.mjs';
+import { minOf, maxOf } from './arrays.mjs';
 
 export const SCHEDULE_BLOCKS = Object.freeze([1, 6, 18, 54]);
 // How many years one unit of the model's clock is: the calendars the viewer and series plan know (years, and civil
@@ -144,7 +145,7 @@ export function coverageReport(model, { stillEmpty = [], passedOver = [], contra
   const times = [...world.flatMap((event) => [start(event), end(event)]), ...acceptedRoots.flatMap((event) => [start(event), end(event)]),
     ...tracks.flatMap((track) => (track.kind === 'values' ? track.times : track.readings.flatMap((r) => [r.start, r.end]))),
     ...tracks.flatMap((track) => { const own = life(track.subject); return own ? [own.start, own.end] : []; })].filter(Number.isFinite);
-  const schedule = times.length ? timeSchedule(Math.min(...times), Math.max(...times), model?.time_unit) : null;
+  const schedule = times.length ? timeSchedule(minOf(times), maxOf(times), model?.time_unit) : null;
   // Only readings in the accepted world, passing over the accepted world's Events, keep this pass from being done; a
   // character's inner view stays a question of its own (stillFlat in life_series_record).
   const flat = flatStretches(model, null, 1_000, { world: true });

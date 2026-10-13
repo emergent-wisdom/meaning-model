@@ -209,6 +209,25 @@ test('a guide reads a section at a time, each exactly as it stands in the whole 
   assert.equal(plain.text, whole.text.slice(0, 24_000), 'without a section, pages are as before');
 });
 
+test('the grammar and the papers, written in LaTeX, read a section at a time too', async () => {
+  for (const uri of ['life-sim://protocol/grammar', 'life-sim://theory/meaning-model', 'life-sim://theory/life-simulation']) {
+    const whole = await readModelingResource(uri);
+    const contents = await readModelingResourcePage({ uri, section: 'contents' });
+    assert.ok(contents.contents.length >= 10, `${uri} lists its sections`);
+    assert.ok(contents.contents.some((heading) => heading.level === 1), `${uri} has top-level sections`);
+    for (const heading of contents.contents.slice(0, 4)) {
+      assert.ok(!/[\\{}]/u.test(heading.title), `${heading.title}: a title is plain words`);
+      const page = await readModelingResourcePage({ uri, section: heading.title, maxCharacters: 64_000 });
+      assert.equal(page.text, whole.text.slice(heading.offset, heading.offset + Math.min(heading.characters, 64_000)), heading.title);
+      assert.match(page.text, /^\s*\\(section|subsection|subsubsection|paragraph)/u, `${heading.title} starts at its heading`);
+    }
+  }
+  const text = 'Text\n\\begin{verbatim}\n\\section{Not a heading}\n\\end{verbatim}\n% \\section{Commented}\n\\section*{The \\texttt{life\\_model} part}\nBody';
+  const offset = text.indexOf('\\section*');
+  assert.deepEqual(guideHeadings(text), [{ level: 1, title: 'The life_model part', offset, characters: text.length - offset }],
+    'not in verbatim, not in a comment, and the title as plain words');
+});
+
 test('write results send fixed guidance once, then point to it; everything else is untouched', () => {
   forgetSentRepeats();
   const result = (alwaysAsk) => ({ modelHash: 'a'.repeat(64), change: { events: 2 }, warnings: ['keep me'], worldAdoption: { blockingChanges: ['b'] },

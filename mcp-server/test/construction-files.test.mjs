@@ -42,7 +42,7 @@ test('file writes refuse collisions and absent directories; reads refuse symlink
   }
   await assert.rejects(readHistoryFile(directory), /regular JSON file/);
   const large = join(directory,'too-large.json'); await writeFile(large,''); await truncate(large,MAX_HISTORY_FILE_BYTES+1);
-  await assert.rejects(readHistoryFile(large), /256 MiB/);
+  await assert.rejects(readHistoryFile(large), /480 MiB/);
 });
 
 test('tampered, unchecked and malformed files are rejected before any service mutation', async (t) => {

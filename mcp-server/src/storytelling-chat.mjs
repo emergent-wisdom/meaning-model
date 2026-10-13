@@ -6,6 +6,7 @@ import * as z from 'zod/v4';
 import { resolveAppendHead } from './graph-head.mjs';
 import { cutKind, displayName, eventDescendants, indexModel, modeledPeople, processValuesAt, readPerson } from './model-questions.mjs';
 import { viewpointAvailability } from './storytelling-disclosure.mjs';
+import { minOf, maxOf } from './arrays.mjs';
 
 const id = z.string().trim().min(1).max(256);
 const hash = z.string().regex(/^[a-f0-9]{64}$/u);
@@ -146,7 +147,7 @@ function chatDraws(view) {
 // packet, a number that could be a later time in this model is hidden.
 function modelSpan(index) {
   const times = [...index.events.values()].flatMap((event) => [start(event), end(event)]).filter(Number.isFinite);
-  return times.length ? { from: Math.min(...times), to: Math.max(...times) } : null;
+  return times.length ? { from: minOf(times), to: maxOf(times) } : null;
 }
 export function hideLaterTimes(label, t, span) {
   if (typeof label !== 'string' || !span) return label;

@@ -6,18 +6,19 @@ import * as z from 'zod/v4';
 import { stringifyJson } from './exact-json.mjs';
 import { applyModelDelta, computeModelDelta, MODEL_DELTA_SCHEMA } from './model-delta.mjs';
 
-export const MAX_HISTORY_FILE_BYTES = 256 * 1024 * 1024;
+// Under the longest string Node holds (about 512 MiB), since a history file is read and parsed as one string.
+export const MAX_HISTORY_FILE_BYTES = 480 * 1024 * 1024;
 export const HISTORY_SCHEMA = 'meaning-model-construction-history/v1';
 // A v2 file writes each model revision whose previous revision it also holds as its changes from that one. Reading
 // expands them, so the history a reader sees, and its bundleSha256, do not depend on how the file was written.
 export const HISTORY_FILE_SCHEMA_V2 = 'meaning-model-construction-history/v2';
 
-// The engine holds at most 512 model revisions in a session, each at most 8 MiB.
-export const MAX_HISTORY_MODELS = 512;
-export const MAX_HISTORY_MODEL_BYTES = 8 * 1024 * 1024;
+// The engine holds at most 4,096 model revisions in a session, each at most 128 MiB.
+export const MAX_HISTORY_MODELS = 4_096;
+export const MAX_HISTORY_MODEL_BYTES = 128 * 1024 * 1024;
 // A reader expanding a file in order keeps a model expanded until the last entry written as changes from it, and never
 // more than eight of the largest models' worth at once, however small the file. A file written here never needs more.
-export const MAX_HISTORY_KEPT_BYTES = 64 * 1024 * 1024;
+export const MAX_HISTORY_KEPT_BYTES = 8 * MAX_HISTORY_MODEL_BYTES;
 const MODEL_HASH = /^[a-f0-9]{64}$/u;
 
 /// Writes each model revision as its changes from its previous revision when the file holds that one earlier, the
@@ -178,31 +179,37 @@ export function historyDigest(value, maximumBytes = MAX_HISTORY_FILE_BYTES) {
   const digest = createHash('sha256'); let bytes = 0;
   for (const chunk of historyJsonChunks(value)) {
     bytes += Buffer.byteLength(chunk);
-    if (bytes > maximumBytes) throw new Error(`Construction history exceeds ${maximumBytes} UTF-8 bytes. ${maximumBytes <= MAX_INLINE_HISTORY_BYTES ? 'Use destinationPath to export it to a local JSON file instead of an inline MCP response.' : 'The portable-file limit is 256 MiB.'}`);
+    if (bytes > maximumBytes) throw new Error(`Construction history exceeds ${maximumBytes} UTF-8 bytes. ${maximumBytes <= MAX_INLINE_HISTORY_BYTES ? 'Use destinationPath to export it to a local JSON file instead of an inline MCP response.' : 'The portable-file limit is 480 MiB.'}`);
     digest.update(chunk);
   }
   return { bytes, sha256: digest.digest('hex') };
 }
 
-export async function writeHistoryFile(destinationPath, history) {
+// A local JSON file, read without following links, and written new (never over an existing file), owner-only, removed
+// again if writing fails. Construction histories and whole models moved by file both use it, each with its own limit.
+export async function writeLocalJsonFile(destinationPath, value, options) {
+  return writeLocalJsonChunks(destinationPath, historyJsonChunks(value), options);
+}
+
+async function writeLocalJsonChunks(destinationPath, chunks, { maximumBytes, tooLarge, exists, unfinished }) {
   const path = resolve(absoluteHistoryPath.parse(destinationPath));
   if (path.endsWith(sep)) throw new Error('destinationPath must name a new JSON file.');
   let file;
   try { file = await open(path, 'wx', 0o600); }
   catch (error) {
-    if (error.code === 'EEXIST') throw new Error('destinationPath already exists; construction exports never overwrite a file.');
+    if (error.code === 'EEXIST') throw new Error(exists);
     if (error.code === 'ENOENT') throw new Error('destinationPath parent directory must already exist.');
     throw error;
   }
   const identity = await file.stat(), digest = createHash('sha256'); let bytes = 0;
   try {
-    for (const chunk of historyJsonChunks(history)) {
-      const buffer = Buffer.from(chunk); bytes += buffer.length;
-      if (bytes > MAX_HISTORY_FILE_BYTES) throw new Error('Construction history exceeds the 256 MiB portable-file limit.');
+    for (const chunk of chunks) {
+      const buffer = typeof chunk === 'string' ? Buffer.from(chunk) : chunk; bytes += buffer.length;
+      if (bytes > maximumBytes) throw new Error(tooLarge);
       digest.update(buffer); let offset = 0;
       while (offset < buffer.length) {
         const { bytesWritten } = await file.write(buffer, offset, buffer.length - offset);
-        if (!bytesWritten) throw new Error('Construction export could not finish writing its file.');
+        if (!bytesWritten) throw new Error(unfinished);
         offset += bytesWritten;
       }
     }
@@ -216,25 +223,57 @@ export async function writeHistoryFile(destinationPath, history) {
   }
 }
 
-export async function readHistoryFile(sourcePath) {
+export async function readLocalJsonFile(sourcePath, { maximumBytes, tooLarge }) {
   const path = resolve(absoluteHistoryPath.parse(sourcePath)), before = await lstat(path);
   if (!before.isFile()) throw new Error('sourcePath must be a regular JSON file, not a directory or symbolic link.');
-  if (before.size > MAX_HISTORY_FILE_BYTES) throw new Error('Construction history exceeds the 256 MiB portable-file limit.');
+  if (before.size > maximumBytes) throw new Error(tooLarge);
   const file = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
   try {
     const identity = await file.stat();
     if (!identity.isFile() || identity.dev !== before.dev || identity.ino !== before.ino) throw new Error('sourcePath changed while opening; retry with the intended regular file.');
     const chunks = []; let bytes = 0;
     while (true) {
-      const chunk = Buffer.allocUnsafe(Math.min(64 * 1024, MAX_HISTORY_FILE_BYTES - bytes + 1));
+      const chunk = Buffer.allocUnsafe(Math.min(64 * 1024, maximumBytes - bytes + 1));
       const { bytesRead } = await file.read(chunk, 0, chunk.length, null);
       if (!bytesRead) break;
       bytes += bytesRead;
-      if (bytes > MAX_HISTORY_FILE_BYTES) throw new Error('Construction history exceeds the 256 MiB portable-file limit.');
+      if (bytes > maximumBytes) throw new Error(tooLarge);
       chunks.push(chunk.subarray(0, bytesRead));
     }
     const buffer = Buffer.concat(chunks, bytes);
-    const history = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(buffer));
-    return { history, path, bytes, fileSha256: createHash('sha256').update(buffer).digest('hex') };
+    const value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(buffer));
+    return { value, path, bytes, fileSha256: createHash('sha256').update(buffer).digest('hex') };
   } finally { await file.close(); }
+}
+
+const HISTORY_TOO_LARGE = 'Construction history exceeds the 480 MiB portable-file limit.';
+export const writeHistoryFile = (destinationPath, history) => writeLocalJsonFile(destinationPath, history, { maximumBytes: MAX_HISTORY_FILE_BYTES,
+  tooLarge: HISTORY_TOO_LARGE, exists: 'destinationPath already exists; construction exports never overwrite a file.',
+  unfinished: 'Construction export could not finish writing its file.' });
+export async function readHistoryFile(sourcePath) {
+  const { value, ...file } = await readLocalJsonFile(sourcePath, { maximumBytes: MAX_HISTORY_FILE_BYTES, tooLarge: HISTORY_TOO_LARGE });
+  return { history: value, ...file };
+}
+
+// A whole model moved by file instead of inside one message, which clients cap at about 10 MiB. A model is at most
+// 128 MiB written compactly; the file may hold it with whitespace.
+export const MAX_MODEL_FILE_BYTES = 256 * 1024 * 1024;
+const MODEL_FILE_TOO_LARGE = 'The model file exceeds the 256 MiB limit for a model moved by file.';
+// The text a model file holds. life_model_export checks what reading it back gives before it writes a byte, since
+// JavaScript cannot keep every number the engine can (an integer above 2^53, or 1.0 against 1 in a parameter).
+export function modelFileText(model) {
+  const text = [...historyJsonChunks(model)].join('');
+  if (Buffer.byteLength(text) > MAX_MODEL_FILE_BYTES) throw new Error(MODEL_FILE_TOO_LARGE);
+  return text;
+}
+export function writeModelFile(destinationPath, text) {
+  const buffer = Buffer.from(text, 'utf8');
+  const chunks = function* () { for (let offset = 0; offset < buffer.length; offset += 64 * 1024) yield buffer.subarray(offset, offset + 64 * 1024); };
+  return writeLocalJsonChunks(destinationPath, chunks(), { maximumBytes: MAX_MODEL_FILE_BYTES,
+    tooLarge: MODEL_FILE_TOO_LARGE, exists: 'destinationPath already exists; model files are never overwritten.',
+    unfinished: 'The model file could not be written completely.' });
+}
+export async function readModelFile(sourcePath) {
+  const { value, ...file } = await readLocalJsonFile(sourcePath, { maximumBytes: MAX_MODEL_FILE_BYTES, tooLarge: MODEL_FILE_TOO_LARGE });
+  return { model: value, ...file };
 }

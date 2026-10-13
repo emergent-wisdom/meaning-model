@@ -324,15 +324,35 @@ export async function readModelingResource(uri) {
 
 // Tool-only MCP hosts can read the same canonical resources without a second
 // document copy. Offsets are UTF-16 string positions in the digest-bound text.
-// The headings of a Markdown guide, outside code blocks, each with where it starts and how long its section runs (up to
-// the next heading at the same or a higher level).
+// The headings of a guide, outside code blocks, each with where it starts and how long its section runs (up to the next
+// heading at the same or a higher level). The guides are Markdown; the grammar and the two papers are LaTeX, so their
+// \section, \subsection, \subsubsection and \paragraph lines are headings too, outside verbatim and listings.
+const LATEX_LEVELS = { section: 1, subsection: 2, subsubsection: 3, paragraph: 4 };
+// A LaTeX title as plain words: escaped characters kept, commands such as \texttt{...} reduced to their text.
+const plainLatex = (title) => title.replace(/\\([_&%$#])/gu, '$1').replace(/\\[A-Za-z]+\*?\{([^{}]*)\}/gu, '$1')
+  .replace(/\\[A-Za-z]+\*?/gu, '').replace(/[{}]/gu, '').replace(/~/gu, ' ').replace(/\s+/gu, ' ').trim();
+function latexHeading(line) {
+  const match = /^\s*\\(section|subsection|subsubsection|paragraph)\*?(?:\[[^\]]*\])?\{/u.exec(line);
+  if (!match) return null;
+  let depth = 1, title = '';
+  for (const character of line.slice(match[0].length)) {
+    if (character === '{') depth += 1; else if (character === '}') depth -= 1;
+    if (depth === 0) return { level: LATEX_LEVELS[match[1]], title: plainLatex(title) };
+    title += character;
+  }
+  return null;
+}
 export function guideHeadings(text) {
   const headings = [];
-  let fenced = false, at = 0;
+  let fenced = false, verbatim = false, at = 0;
   for (const line of text.split('\n')) {
     if (/^\s*(```|~~~)/u.test(line)) fenced = !fenced;
-    const match = !fenced && /^(#{1,6})\s+(.+?)\s*#*\s*$/u.exec(line);
+    if (/\\begin\{(verbatim|lstlisting|minted)\}/u.test(line)) verbatim = true;
+    const match = !fenced && !verbatim && /^(#{1,6})\s+(.+?)\s*#*\s*$/u.exec(line);
+    const latex = !fenced && !verbatim && !match ? latexHeading(line) : null;
     if (match) headings.push({ level: match[1].length, title: match[2], offset: at });
+    else if (latex?.title) headings.push({ ...latex, offset: at });
+    if (/\\end\{(verbatim|lstlisting|minted)\}/u.test(line)) verbatim = false;
     at += line.length + 1;
   }
   for (const [index, heading] of headings.entries()) {

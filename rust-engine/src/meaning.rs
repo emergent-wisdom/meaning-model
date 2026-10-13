@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 pub const MEANING_MODEL_SCHEMA: &str = "life-sim-rust-meaning-model/v1";
-pub const MAX_MEANING_MODEL_RECORDS: usize = 50_000;
+pub const MAX_MEANING_MODEL_RECORDS: usize = 2_000_000;
 pub const MAX_MEANING_CUT_CHILDREN: usize = 2_048;
 pub const MAX_MEANING_EVENT_PROCESSES: usize = 2_048;
 pub const MAX_MEANING_REALIZATION_BINDINGS: usize = 2_048;

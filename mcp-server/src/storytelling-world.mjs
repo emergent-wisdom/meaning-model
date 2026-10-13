@@ -13,6 +13,7 @@ import { anchoredModelRecord, recordKinds } from './construction-record.mjs';
 import { readAuthorModel } from './storytelling-author-model.mjs';
 import { cutKind, eventDescendants, indexModel, modeledPeople, modelJumps, modelQuestions, readOpenQuestions, readPerson, VISIBLE_QUESTIONS } from './model-questions.mjs';
 import { interestInstructions, storyInterest, storyInterestIds } from './storytelling-interest.mjs';
+import { minOf, maxOf } from './arrays.mjs';
 
 export const WORLD_SCHEMA = 'meaning-model-story-world/v1';
 const id = z.string().trim().min(1).max(256);
@@ -158,8 +159,8 @@ export function routeQuestions(model, route, { openAspects = [] } = {}) {
   const intervals = route.parts.map((part) => part.eventIds.filter((eventId) => !backstory.has(eventId)).map((eventId) => index.events.get(eventId)?.interval)
     .filter((interval) => typeof interval?.start === 'number').sort((a, b) => ((a.end ?? a.start) - a.start) - ((b.end ?? b.start) - b.start))[0]).filter(Boolean);
   if (intervals.length) {
-    const first = Math.min(...intervals.map((interval) => interval.start));
-    const last = Math.max(...intervals.map((interval) => interval.end ?? interval.start));
+    const first = minOf(intervals.map((interval) => interval.start));
+    const last = maxOf(intervals.map((interval) => interval.end ?? interval.start));
     const unshocked = modeledPeople(index).filter((person) => person.principal && !readPerson(index, person.id).arcs.some((item) => {
       const at = (item.focal ?? item.arc)?.interval?.start;
       return typeof at === 'number' && at >= first && at <= last;

@@ -14,6 +14,7 @@ import { declaredViewerLives } from './viewer-snapshot.mjs';
 import { VIEW_SCHEMA, currentView } from '../viewer/public/view-settings.js';
 import { expandHistoryModels, HISTORY_FILE_SCHEMA_V2, planHistoryModels } from './construction-files.mjs';
 import { branchMarkerOf, premiseOf } from './model-lineage.mjs';
+import { minOf, maxOf, pushAll } from './arrays.mjs';
 
 export async function buildViewerData({ history, rendered = null, documentRendered = null, calls = [], name = null, title: requestedTitle = null,
   display = null, meaningModelVersion = null, generatedAt = new Date().toISOString() } = {}) {
@@ -346,7 +347,7 @@ export async function buildViewerData({ history, rendered = null, documentRender
       const route = JSON.parse(routeNode.text).data; const byId = new Map(events.map((event) => [event.id, event]));
       const moments = route.parts.map((part) => part.eventIds.map((id) => byId.get(id)).filter((event) => event && event.start !== null && !arcEvents.has(event.id))
         .sort((a, b) => ((a.end ?? a.start) - a.start) - ((b.end ?? b.start) - b.start))[0]).filter(Boolean);
-      if (moments.length) window = { start: Math.min(...moments.map((event) => event.start)), end: Math.max(...moments.map((event) => event.end ?? event.start)) };
+      if (moments.length) window = { start: minOf(moments.map((event) => event.start)), end: maxOf(moments.map((event) => event.end ?? event.start)) };
     } catch { window = null; }
   }
   // The author's route: the story's parts in reading order, each with the Events it tells, as the author planned them.
@@ -354,7 +355,7 @@ export async function buildViewerData({ history, rendered = null, documentRender
   if (routeNode) { try { const route = JSON.parse(routeNode.text).data; storyRoute = (route.parts ?? []).map((part, i) => ({ n: i + 1, ...Object.fromEntries(Object.entries(part).filter(([key, value]) => key !== 'eventIds' && (typeof value === 'string' || typeof value === 'number'))), eventIds: (part.eventIds ?? []).filter((id) => events.some((event) => event.id === id)) })); } catch { storyRoute = null; } }
   if (!window && storyTimes.length >= 2) window = { start: storyTimes[Math.floor(storyTimes.length * 0.05)], end: storyTimes[Math.ceil(storyTimes.length * 0.95) - 1] };
   const allStarts = events.map((event) => event.start).filter((t) => t !== null);
-  const extent = allStarts.length ? { start: Math.min(...allStarts), end: Math.max(...events.map((event) => event.end ?? event.start).filter((t) => t !== null)) } : null;
+  const extent = allStarts.length ? { start: minOf(allStarts), end: maxOf(events.map((event) => event.end ?? event.start).filter((t) => t !== null)) } : null;
 
   const titled = [...nodes.values()].find((node) => node.node_type === 'storytelling.world' && /candidates/.test(String(node.text)));
   let title = requestedTitle;
@@ -540,14 +541,14 @@ export async function buildViewerData({ history, rendered = null, documentRender
   if (story?.hierarchy.status === 'available') {
     const pending = [...story.hierarchy.roots];
     while (pending.length) {
-      const part = pending.pop(); pending.push(...part.children);
+      const part = pending.pop(); pushAll(pending, part.children);
       if (!part.children.length || nodes.get(part.unit.id)?.render !== 'exclude') continue;
       const displayNode = graphNodes.find((node) => node.id === part.unit.id);
       if (displayNode) { displayNode.text = `Document container with ${part.renderedUnitIds.length} current rendered passages. Its retained original text is excluded from the current render.`; displayNode.words = part.words; }
     }
   }
   const proseTimes = story?.units.flatMap((unit) => [unit.t, unit.end]).filter(Number.isFinite) ?? [];
-  const storyWindow = proseTimes.length >= 2 ? { start: Math.min(...proseTimes), end: Math.max(...proseTimes) } : window;
+  const storyWindow = proseTimes.length >= 2 ? { start: minOf(proseTimes), end: maxOf(proseTimes) } : window;
   const storyTitle = story?.units.map((unit) => unit.text.match(/^#\s+(.+)$/m)?.[1]?.trim()).find(Boolean) ?? story?.source?.title ?? null;
   const storyWords = story ? story.units.reduce((sum, unit) => sum + countProseWords(unit.text), 0) : null;
   const documentRender = documentRendered ?? rendered;
@@ -593,7 +594,7 @@ export async function buildViewerData({ history, rendered = null, documentRender
   // data; a manuscript is independent of numeric paths and construction time.
   const plottedTimes = measures.filter((measure) => measure.points.length >= 2).flatMap((measure) => measure.points.map((point) => point.t));
   const first = Number.isFinite(display?.from) ? display.from : Number.isFinite(storyWindow?.start) ? storyWindow.start - 0.4 : -Infinity;
-  const viewStart = Math.max(Math.min(...plottedTimes), first); const viewEnd = Math.max(...plottedTimes) + 0.12;
+  const viewStart = Math.max(minOf(plottedTimes), first); const viewEnd = maxOf(plottedTimes) + 0.12;
   data.viewKind = 'graph';
   data.capabilities = {
     graph: true,

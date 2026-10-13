@@ -197,6 +197,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_memory_transcript_capture',
       'life_memory_transcript_configure',
       'life_memory_transcript_query',
+      'life_model_export',
       'life_model_ingest',
       'life_model_inspect',
       'life_model_outline',
@@ -525,7 +526,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
     assert.equal(status.structuredContent.limits.maxReceiptBytesGlobal, 67_108_864);
     assert.equal(status.structuredContent.limits.maxWriterContractInputBytes, 98_304);
     assert.equal(status.structuredContent.limits.maxWriterPlanInputBytes, 98_304);
-    assert.equal(status.structuredContent.limits.maxModelMeaningRecords, 50_000);
+    assert.equal(status.structuredContent.limits.maxModelMeaningRecords, 2_000_000);
     assert.equal(status.structuredContent.limits.maxProfileSpecs, 256);
     assert.equal(status.structuredContent.limits.maxMeaningQueryItems, 250);
     assert.equal(status.structuredContent.limits.maxMeaningQueryDefinitionBytes, 524_288);

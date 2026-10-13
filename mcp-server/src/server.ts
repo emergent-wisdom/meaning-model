@@ -10,6 +10,8 @@ import { McpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
 import { toolResult } from './tool-result.mjs';
+import { absoluteHistoryPath, modelFileText, readModelFile, writeModelFile } from './construction-files.mjs';
+import { boundLists } from './bounded-lists.mjs';
 import { composeInstructions, resolveAgentInstructions } from './agent-instructions.mjs';
 
 import { parseEnabledAddons } from './addon-config.mjs';
@@ -35,6 +37,7 @@ import { documentProjectSchema, projectNarrativeDocument } from './document-proj
 import { registerDocumentImportTools } from './document-import.mjs';
 import {
   LifeSimulationService,
+  compactModelMutationSummary,
   meaningModelCollections,
   serviceLimits,
 } from './service.mjs';
@@ -75,7 +78,7 @@ const firstSentence = (text: string) => { const match = String(text ?? '').match
 const fullInstructions = `${processBreakdownHead}\n\n${startHereText}\n\n${grammarReadingInstructions}\n\n${modelingSessionInstructions}\n\n${processDevelopmentInstructions}\n\n` + 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.\n\nIn every mode, begin modeling with life_modeling_context and follow its shared construction guidance. Agent memory and user memory are core purposes: maintain their ongoing processes, not only isolated facts, within the declared scope. Human-author feedback leaves authorship and creative decisions with the human; use life_story_feedback with the storytelling add-on for read-only feedback. All workflows use the same linked, attributed Understanding Graph for questions, hypotheses, predictions, surprises, tests and revisions. Explore recursively, following each useful question, connection and discovery; guess where you do not know, with an honest band and a tag, and record what remains uncertain. Anything that changes over time can be modeled as a process, including qualities often written as fixed descriptions, such as a voice, a style, a belief or the culture of an institution. From the first story exploration, consider how the telling itself develops across reading position: tension, pacing, disclosure or other processes that matter to this work. Follow these questions recursively, using stable passage links and authored evidence without a required dramatic formula or numerical score. Keep reading position distinct from world time and authoring history. Let the work choose its form; books need not have a protagonist, conflict, climax or resolution. Use the shared narrative graph for forms that do not fit scenes, without inventing a cast to satisfy a template. Before writing or revising prose, consider author and character voice, reader disclosure, and consequential physical placement. Use declared passage links and existing records. At meaningful milestones, use the controlled read-back guidance to compare selected output against a blind control, reporting fidelity separately from improvement over the control. Do not wait for a special user request; if independent readers are unavailable, record that limitation rather than inventing a result. These are instructions to the calling LLM, not claims that the server has assessed meaning or automatically run reviewers.';
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.12.0',
+  version: '0.12.1',
 }, {
   instructions: composeInstructions(agentInstructions, { full: fullInstructions, simple: simpleInstructions }),
 });
@@ -90,6 +93,23 @@ if (simple) {
     name in REORIENTING_TOOLS ? (...args: any[]) => { afterReorienting(name, args[0]); return handler(...args); } : handler);
 }
 const service = new LifeSimulationService();
+// The largest model definition life_model_inspect returns inline: what one result can carry.
+const INLINE_DEFINITION_BYTES = 8 * 1024 * 1024;
+// A large model's summary lists more ids than one result holds; then inspect shows each list's first ids, in at most
+// this much, and says where the rest are read.
+const BOUNDED_SUMMARY_BYTES = 1024 * 1024;
+const BOUNDED_SUMMARY_NOTE = 'This model\'s summary lists more ids than one result holds, so each list shows its first ids, and listsCut gives how many it has in all. life_meaning_query pages through every record collection (offset, limit); life_values_query finds processes by text; life_model_export writes the whole definition, every id included, to a file.';
+// A model write has happened by the time its result is built, so a result too large for one message must not fail:
+// whatever fits comes back whole, as before; otherwise its long lists (the open questions can list every process) show
+// their first entries, with listsCut counting them all.
+const BOUNDED_WRITE_RESULT_BYTES = 1024 * 1024;
+const LISTS_CUT_NOTE = 'This result lists more than one message holds, so each long list shows its first entries, and listsCut names each list cut with how many it has in all. Act on the entries shown; later results list what remains. life_model_export writes the whole model to a file.';
+function fittedResult(value, note) {
+  const result = toolResult(value);
+  return result.isError ? toolResult(boundLists(value, BOUNDED_WRITE_RESULT_BYTES, note)) : result;
+}
+const writeResult = (value) => fittedResult(value, `The write was stored whole. ${LISTS_CUT_NOTE}`);
+const DEFINITION_NOT_INLINE = 'The definition does not fit in one result with its summary. life_model_export writes it to a file; life_values_query, life_meaning_query and life_model_outline read parts of it.';
 const requestIdSchema = z.string().min(1).max(256);
 const handleSchema = z.string().min(1).max(256);
 const processIdSchema = z.string().min(1).max(1_024);
@@ -100,6 +120,7 @@ const refusalHints: Array<[RegExp, string]> = [
   [/expected struct ChangeArcPhaseProfile/u, 'Each change-arc phase (anticipation, focal_change, adaptation) is an object: { "description": "...", "interval": { "start": ..., "end": ... } }, with the interval optional.'],
   [/interval must lie within the parent interval/u, 'Give the change arc an interval that contains each phase interval, or leave the phase intervals out.'],
   [/names unknown referent/u, 'A referent must exist in the same request or model. person_scaffold names its person referent.profile.<profile id>.person.<subject_id>, so a change arc about that person uses that id.'],
+  [/register_model requires revision 0/u, 'life_model_register stores only a first revision (revision 0). A later revision is stored with life_model_revise once its predecessor is stored; a model\'s history, with its graph, moves through life_construction_export and life_construction_import.'],
   [/model must contain at least one process/u, 'A model needs at least one process. A first model can hold one for the story\'s clock or setting and grow as the world opens.'],
 ];
 function withRefusalHint(error: unknown, extra: string | null = null): Error {
@@ -247,12 +268,20 @@ server.registerTool(
     description: 'Validate, hash, and store one complete immutable revision-0 typed model in the Rust machine. The result\'s descriptionCoverage lists Events that carry a Cut without a description; give each one, so its numbers mean something, and describe most other Events. requireDescribedNumbers refuses such a model. A complete valid request, model and graph are shown in life-sim://example/minimal-model-and-graph.',
     inputSchema: z.object({
       requestId: requestIdSchema,
-      model: z.record(z.string(), z.unknown()),
+      model: z.record(z.string(), z.unknown()).optional().describe('The complete revision-0 definition, inline.'),
+      sourcePath: absoluteHistoryPath.optional().describe('Instead of model: an absolute path to a local JSON file holding the revision-0 definition, read by this server, for a model too large to send in one message (clients cap a message at about 10 MiB). At most 256 MiB; the result names the file with its bytes and sha256.'),
       requireDescribedNumbers: z.boolean().default(false),
-    }),
+    }).refine((input) => (input.model === undefined) !== (input.sourcePath === undefined), 'Give the model inline (model) or in a file (sourcePath), one of the two.'),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
-  async (input) => { try { return toolResult(await withOpenQuestions(service, await service.registerModel(input))); } catch (error) { throw withRefusalHint(error); } },
+  async (input) => {
+    try {
+      const { sourcePath, ...request } = input;
+      const file = sourcePath === undefined ? null : await readModelFile(sourcePath);
+      const registered = await withOpenQuestions(service, await service.registerModel({ ...request, model: file ? file.model : request.model }));
+      return writeResult({ ...registered, ...(file ? { sourceFile: { path: file.path, bytes: file.bytes, fileSha256: file.fileSha256 } } : {}) });
+    } catch (error) { throw withRefusalHint(error); }
+  },
 );
 
 server.registerTool(
@@ -275,10 +304,10 @@ server.registerTool(
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   async ({ change, ...input }) => {
-    if (!change) return toolResult(await withOpenQuestions(service, await service.reviseModel(input)));
+    if (!change) return writeResult(await withOpenQuestions(service, await service.reviseModel(input)));
     const { model: previous } = await service.inspectModel({ modelHash: input.previousModelHash, includeDefinition: true });
     const { successor, summary } = applyModelChange(previous, input.previousModelHash, change);
-    return toolResult(await withOpenQuestions(service, { ...(await service.reviseModel({ ...input, model: successor })), revisedByChange: true, change: summary }));
+    return writeResult(await withOpenQuestions(service, { ...(await service.reviseModel({ ...input, model: successor })), revisedByChange: true, change: summary }));
   },
 );
 
@@ -340,7 +369,7 @@ server.registerTool(
     const { successor, summary } = applyModelChange(previous, previousModelHash, change);
     const revised = await service.reviseModel({ requestId, previousModelHash, model: successor });
     const { model: stored } = await service.inspectModel({ modelHash: revised.modelHash, includeDefinition: true });
-    return toolResult({ ...revised, revisedByChange: true, change: summary, values: valuesReport(questionModel(stored, []), { holder: input.holder, focus: input.values.map((entry) => entry.processId) }) });
+    return writeResult({ ...revised, revisedByChange: true, change: summary, values: valuesReport(questionModel(stored, []), { holder: input.holder, focus: input.values.map((entry) => entry.processId) }) });
   },
 );
 
@@ -381,7 +410,7 @@ server.registerTool(
     const revised = await service.reviseModel({ requestId, previousModelHash, model: successor });
     const { model: stored } = await service.inspectModel({ modelHash: revised.modelHash, includeDefinition: true });
     const touched = [...(input.scales ?? []).map((scale) => scale.id), ...(input.judgments ?? []).map((judgment) => judgment.scaleId)];
-    return toolResult({ ...revised, revisedByChange: true, change: summary, importance: leanImportanceReport(importanceReport(stored, { holder: input.holder }), touched) });
+    return writeResult({ ...revised, revisedByChange: true, change: summary, importance: leanImportanceReport(importanceReport(stored, { holder: input.holder }), touched) });
   },
 );
 
@@ -426,7 +455,7 @@ server.registerTool(
     const { successor, summary } = applyModelChange(previous, previousModelHash, change);
     const revised = await service.reviseModel({ requestId, previousModelHash, model: successor });
     const { model: stored } = await service.inspectModel({ modelHash: revised.modelHash, includeDefinition: true });
-    return toolResult({ ...revised, revisedByChange: true, change: summary, causes: causeReport(stored, { questionIds }) });
+    return writeResult({ ...revised, revisedByChange: true, change: summary, causes: causeReport(stored, { questionIds }) });
   },
 );
 
@@ -473,7 +502,7 @@ server.registerTool(
     const { model: stored } = await service.inspectModel({ modelHash: revised.modelHash, includeDefinition: true });
     // What is still read once in this life, where most happens first: the next stretches to open.
     const stillFlat = flatStretches(stored, input.subject);
-    return toolResult(await withOpenQuestions(service, { ...revised, revisedByChange: true, change: summary, series: { id: input.series.id, ...seriesDrawing(stored, input.series.id) },
+    return writeResult(await withOpenQuestions(service, { ...revised, revisedByChange: true, change: summary, series: { id: input.series.id, ...seriesDrawing(stored, input.series.id) },
       ...(stillFlat.length ? { stillFlat } : {}), coverage: coverageSummary(questionModel(stored, [])) }));
   },
 );
@@ -542,21 +571,62 @@ server.registerTool(
   },
   async (input) => {
     const { model } = await service.inspectModel({ modelHash: input.modelHash, includeDefinition: true });
-    return toolResult({ ...(await readOpenQuestions(service, { ...input, model })), coverage: coverageSummary(questionModel(model, input.accessScopes)) });
+    return fittedResult({ ...(await readOpenQuestions(service, { ...input, model })), coverage: coverageSummary(questionModel(model, input.accessScopes)) }, LISTS_CUT_NOTE);
   },
 );
 
 server.registerTool(
   'life_model_inspect',
   {
-    description: 'Inspect a Rust-stored typed model summary. includeDefinition is an administrative operation: it returns the bounded complete definition, including process initial values, and must be protected by authentication/authorization outside this local MCP service.',
+    description: 'Inspect a Rust-stored typed model summary. includeDefinition is an administrative operation: it returns the bounded complete definition, including process initial values, and must be protected by authentication/authorization outside this local MCP service. A result too large for one message comes back without the definition (its size and where to read it), and a summary too large on its own lists the first ids of each list, with listsCut counting them all.',
     inputSchema: z.object({
       modelHash: z.string().length(64),
       includeDefinition: z.boolean().default(false),
     }),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
-  async (input) => toolResult(await service.inspectModel(input)),
+  async (input) => {
+    // Whatever fits in one result comes back whole, as in 0.12.0. Only what would not fit changes: first the definition
+    // gives way to a pointer to the file route, then the summary's id lists to their first ids.
+    const inspected = await service.inspectModel(input);
+    let value = inspected;
+    if (input.includeDefinition) {
+      const { model, ...rest } = inspected;
+      const bytes = Buffer.byteLength(JSON.stringify(model));
+      if (bytes <= INLINE_DEFINITION_BYTES) {
+        const whole = toolResult(inspected);
+        if (!whole.isError) return whole;
+      }
+      value = { ...rest, definitionBytes: bytes, definitionNotInline: DEFINITION_NOT_INLINE };
+    }
+    const result = toolResult(value);
+    return result.isError ? toolResult(boundLists(value, BOUNDED_SUMMARY_BYTES, BOUNDED_SUMMARY_NOTE)) : result;
+  },
+);
+
+server.registerTool(
+  'life_model_export',
+  {
+    description: 'Write a snapshot of one stored model revision, its complete definition, to a new local JSON file, for a model larger than one result holds (clients cap a message at about 10 MiB). destinationPath is an absolute path whose directory exists; a file is never overwritten. Before writing, it checks that the file\'s text validates to this model\'s hash, and writes nothing if not. Returns the model\'s counts and the file with its bytes and sha256. life_model_register reads the file of a revision-0 model back with sourcePath; it refuses a later revision. A model\'s history, with its graph, moves through life_construction_export and life_construction_import.',
+    inputSchema: z.object({
+      modelHash: z.string().length(64),
+      destinationPath: absoluteHistoryPath,
+    }).strict(),
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  },
+  async (input) => {
+    const { schema, modelHash, summary, model } = await service.inspectModel({ modelHash: input.modelHash, includeDefinition: true });
+    // The file must hold this very model: its text must validate to the stored hash. Check before creating it, so a refusal
+    // leaves no file behind to block a retry.
+    const text = modelFileText(model);
+    const { modelHash: readBack } = await service.validateModel({ model: JSON.parse(text) });
+    if (readBack !== modelHash) {
+      throw new Error(`Model ${modelHash} cannot be written to a file exactly: JavaScript cannot keep all of its numbers (an integer above 2^53, or 1.0 against 1 in a parameter), and the file would validate as ${readBack}. No file was written. The model stays whole in the store and its session file.`);
+    }
+    const file = await writeModelFile(input.destinationPath, text);
+    // A compact receipt, so it fits whatever the model's size: the counts, not the id lists.
+    return toolResult({ schema, modelHash, summary: compactModelMutationSummary(summary), definitionFile: { path: file.path, bytes: file.bytes, fileSha256: file.fileSha256 } });
+  },
 );
 
 server.registerTool(

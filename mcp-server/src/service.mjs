@@ -1,6 +1,7 @@
 import { withDefaultRemainders } from './default-remainder.mjs';
 import { stripEdgeForRevision, stripNodeForRevision, withoutProjectionFields } from './narrative-fields.mjs';
 import { descriptionCoverage } from './description-coverage.mjs';
+import { boundLists } from './bounded-lists.mjs';
 import { validateNarrativeDelta, applyNarrativeDefinitionDelta, definitionFromCompleteView } from './narrative-delta.mjs';
 import { assertPassageGrounding, NARRATIVE_HISTORY_REPLAY } from './narrative-grounding.mjs';
 import { createHash, randomUUID } from 'node:crypto';
@@ -90,12 +91,13 @@ const MAX_NARRATIVE_GRAPH_BYTES = 8 * 1024 * 1024;
 const MAX_NARRATIVE_ROOTS = 1_024;
 const MAX_NARRATIVE_NODES = 50_000;
 const MAX_NARRATIVE_EDGES = 200_000;
-const MAX_MODEL_BYTES = 8 * 1024 * 1024;
-const MAX_MODEL_PROCESSES = 10_000;
+// The engine's own bounds (0.12.1): a model up to 128 MiB, whose processes and edges its size alone bounds.
+const MAX_MODEL_BYTES = 128 * 1024 * 1024;
+const MAX_MODEL_PROCESSES = 200_000;
 const MAX_MODEL_LAWS = 50_000;
-const MAX_MODEL_EDGES = 50_000;
+const MAX_MODEL_EDGES = 2_000_000;
 const MAX_MODEL_CLAIMS = 10_000;
-const MAX_MODEL_MEANING_RECORDS = 50_000;
+const MAX_MODEL_MEANING_RECORDS = 2_000_000;
 const MAX_PROFILE_SPECS = 256;
 const MAX_MEANING_QUERY_IDS = 256;
 const MAX_MEANING_QUERY_ITEMS = 250;
@@ -512,7 +514,15 @@ function receiptResultAllowance(operation) {
     : MAX_STANDARD_RECEIPT_RESULT_BYTES;
 }
 
-function compactModelMutationSummary(summary) {
+// A model write's receipt lists the Events still undescribed and, for a revision, what a world could not adopt. For a
+// large model those lists can outgrow what a receipt keeps, and the write has already happened, so the receipt shows
+// each list's first entries instead of failing. A receipt that fits is unchanged. The room left covers the request
+// hash the service adds when it keeps the receipt.
+function fitModelReceipt(receipt) {
+  return boundLists(receipt, MAX_MODEL_RECEIPT_RESULT_BYTES - 1_024, 'The model was stored whole. This receipt lists more than a receipt keeps, so each long list shows its first entries, and listsCut names each list cut with how many it has in all. Act on the entries shown; the next revision\'s receipt lists what remains. life_meaning_query reads any record by id.');
+}
+
+export function compactModelMutationSummary(summary) {
   const meaningSummary = summary?.meaning_model;
   return {
     model_hash: summary?.model_hash ?? null,
@@ -1226,14 +1236,14 @@ export class LifeSimulationService {
           });
           this.#noteModelWrite(modelHash, model.revision?.previous_model_hash ?? null, isForkRevision(model));
           rememberModelRevision(this, modelHash, model);
-          return {
+          return fitModelReceipt({
             schema: SERVICE_SCHEMA,
             modelHash,
             stored: true,
             immutableRevision: true,
             summary,
             descriptionCoverage: coverage,
-          };
+          });
         } finally {
           this.pendingModels -= 1;
         }
@@ -1273,7 +1283,7 @@ export class LifeSimulationService {
           });
           this.#noteModelWrite(modelHash, previousModelHash, isForkRevision(model));
           rememberModelRevision(this, modelHash, model);
-          return {
+          return fitModelReceipt({
             schema: SERVICE_SCHEMA,
             modelHash,
             previousModelHash,
@@ -1283,7 +1293,7 @@ export class LifeSimulationService {
             summary,
             worldAdoption,
             descriptionCoverage: coverage,
-          };
+          });
         } finally {
           this.pendingModels -= 1;
         }

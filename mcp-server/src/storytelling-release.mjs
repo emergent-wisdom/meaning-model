@@ -10,6 +10,7 @@ import { prepareAuthorRecord } from './storytelling-authoring.mjs';
 import { assertPassageGrounding, passageGrounding, isEventRenderEdge } from './narrative-grounding.mjs';
 import { projectDocument } from './document-projection.mjs';
 import { phasesNeedingReview } from './document-processes.mjs';
+import { pushAll } from './arrays.mjs';
 
 const id = z.string().trim().min(1).max(256);
 export const storyReleaseSchema = z.object({
@@ -109,8 +110,8 @@ export async function releaseStory(service, raw) {
     data: { release: { storyRootId: input.storyRootId, releaseTo: input.releaseTo.length ? input.releaseTo : 'everyone', nodeIds: releasedNodeIds.sort(), edgeIds: releasedEdgeIds.sort(), clearedHiddenTextNodeIds: clearedHiddenTextNodeIds.sort(), intentionallyUnlinked, ...tellingRecord } },
     links: scenes.slice(0, 64).map((nodeId) => ({ relation: 'about', targetNodeId: nodeId })) });
   graph.roots = [...graph.roots, ...record.narrativeBatch.add_roots];
-  graph.nodes.push(...record.narrativeBatch.add_nodes);
-  graph.edges.push(...record.narrativeBatch.add_edges);
+  pushAll(graph.nodes, record.narrativeBatch.add_nodes);
+  pushAll(graph.edges, record.narrativeBatch.add_edges);
   graph.revision = { number: before.revision.number + 1, previous_graph_hash: input.graphHash,
     reason: `Release the prose of ${input.storyRootId} to ${input.releaseTo.length ? input.releaseTo.join(', ') : 'every reader'}: ${input.reason}`,
     provenance: ['Meaning Model storytelling add-on v1', `release:${input.authorId}`] };

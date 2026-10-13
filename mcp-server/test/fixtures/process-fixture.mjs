@@ -78,6 +78,7 @@ input.on('line', (line) => {
     schema: 'life-sim-rust-response/v1',
     request_id: command.request_id,
     ok: true,
-    result: { operation: command.operation, echoed: command.value ?? null },
+    // repeat: a response much larger than its command, to test reading large responses.
+    result: { operation: command.operation, echoed: typeof command.repeat === 'number' ? String(command.value).repeat(command.repeat) : command.value ?? null },
   });
 });

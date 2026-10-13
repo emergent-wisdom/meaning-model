@@ -22,6 +22,7 @@ import { spatialDiagnostics } from './spatial-diagnostics.mjs';
 import { isSeriesReadingEvent } from './series-mark.mjs';
 import { projectNumerics } from './viewer-numerics.mjs';
 import { cutTrajectories } from '../viewer/public/cut-trajectories.js';
+import { minOf, maxOf, pushAll } from './arrays.mjs';
 
 export const SLOW_PROCESSES = Object.freeze(['body', 'kin', 'partnership', 'work', 'place', 'means', 'knowledge', 'standing', 'meaning']);
 // The shared first-run comparison vocabulary of the Book; a person's own wants replace it.
@@ -480,9 +481,9 @@ function worldQuestions(index, lives, draws, spatial) {
   const timed = [...index.events.values()].filter((event) => span(event) !== null);
   if (index.events.size && !timed.length) ask('time-missing', 'No explicit Event interval was found. Does this model need to answer temporal questions? Inspect any ordering, descriptions and declared clock first; add intervals at the supported resolution where needed. A timeless conceptual model need not acquire invented dates.', 'life_meaning_query or life_model_revise');
   if (timed.length) {
-    const first = Math.min(...timed.map(start));
-    const last = Math.max(...timed.map(end));
-    const longest = Math.max(...timed.map(span));
+    const first = minOf(timed.map(start));
+    const last = maxOf(timed.map(end));
+    const longest = maxOf(timed.map(span));
     const longestLife = Math.max(0, ...lives.map((item) => item.read.lifeLength ?? 0));
     // A containing world need not be dated, nor extend beyond the declared scope of its contents.
     const enclosureTargets = lives.length ? lives.map((item) => item.read.life?.id).filter(Boolean) : timed.map((event) => event.id);
@@ -1064,7 +1065,7 @@ function visibleStoryRoots(view) {
       const nodeId = pending[index]; if (seen.has(nodeId) || (nodeId !== root && rootIds.has(nodeId))) continue;
       seen.add(nodeId);
       if (nodes.get(nodeId)?.role === 'story_passage') { stories.add(root); break; }
-      pending.push(...(children.get(nodeId) ?? []));
+      pushAll(pending, children.get(nodeId) ?? []);
     }
   }
   return stories;

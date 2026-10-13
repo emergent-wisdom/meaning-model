@@ -4,6 +4,57 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## 0.12.1 — 2026-10-13
+
+Install the matching 0.12.1 engine. The model format is unchanged: models and histories written by 0.12.0 open
+unchanged. A model grown past 0.12.0's limits does not open in 0.12.0 or earlier; keep a copy if you may need to go back.
+
+- Large models are read and revised much faster. The server read each response from the engine in time that grew with
+  the square of its size, and now reads it in time that grows with it. Measured on the world history: at its current
+  2.8 MB a revision by change takes 0.44 s instead of 1.0 s and a read 0.05 s instead of 0.13 s; grown to 41 MB, a
+  revision takes 5.8 s instead of 41 s and a read 0.4 s instead of 9.3 s.
+- Larger models, with limits set from measurement on the world history grown to 81 MB (a revision by change about
+  0.15 s per megabyte of model, peak memory about 60 MB per megabyte): a model of up to 128 MiB (was 8 MiB), 4 million
+  dated values (was 100,000), 2 million records (was 50,000), 200,000 processes (was 10,000) and 2 million
+  decomposition edges (was 50,000). A store keeps up to 4,096 model revisions (was 512); reopening it rebuilds each one,
+  about 0.01 s per megabyte of model each. History files and project exports may be 480 MiB (were 256 and 64 MiB).
+  The limits on Understanding Graphs, children per Cut and processes per Event are unchanged.
+- Whole models by file, for models larger than one message holds (clients cap a message at about 10 MiB).
+  `life_model_register` reads a revision-0 model from a local JSON file (`sourcePath`), and the new `life_model_export`
+  writes a snapshot of one stored revision to a new file, never over an existing one. A later revision's file does not
+  register on its own; a model's history, with its graph, moves through `life_construction_export` and
+  `life_construction_import`. Before writing, the export checks that the file's text validates to the model's hash;
+  JavaScript cannot keep every number the engine can (an integer above 2^53, or 1.0 against 1 in a parameter), and
+  such a model is refused with no file left behind. Its result gives the model's counts, not its id lists, so it fits
+  for any model.
+- Results that fit in one message are unchanged; those that do not now come back shortened instead of failing.
+  `life_model_inspect` leaves out a definition that does not fit with its summary and gives its size and where to
+  read it, and a summary too large on its own lists the first ids of each list, with `listsCut` counting them all.
+  Model writes do the same for their receipts (undescribed Events, changes a world could not adopt) and for the open
+  questions they return, which can list every process, and so does `life_model_questions`. Such a write used to store
+  the model and then fail: at 65,000 undescribed Events, for example, or 50,000 processes with long ids and no values.
+- Long series of dated values: 150,000 values no longer overflow the stack in the values directory, in the report
+  after `life_values_record`, or in the coverage summary. That report also no longer takes time growing with the
+  square of the number of values: 0.6 s at 150,000 values, from 12 s.
+- `life_construction_replay` and `life_construction_export` reach revision 0 of a history as long as a store keeps
+  (4,096 revisions; they stopped at 1,024), and a replay that cannot reach it says so. The walk holds only each
+  revision's record in memory, but it still reads every revision's whole model from the engine.
+- Opening a store rebuilds every stored model revision before the engine answers, about 0.01 s per megabyte of each:
+  30 s is about 3,000 revision-megabytes, such as 1,000 revisions of the world history at its current 2.8 MB, or 75
+  revisions of a 40 MB model. Each engine call was limited to 30 s, so a store that took longer could not be opened at
+  all. Starting the engine now has its own limit of 10 minutes, about 60,000 revision-megabytes; every other call keeps
+  30 s. The server still waits for the rebuild before a client can connect, so the client's own limit on server
+  start-up applies too: Claude Code waits 30 s by default, and `MCP_TIMEOUT` (in milliseconds) raises it.
+- `life_modeling_read` reads the grammar and the two papers a section at a time, as it does the guides. Only Markdown
+  headings were recognized, so their `section: "contents"` came back empty; it now lists their LaTeX sections (13 in
+  the grammar, 51 and 67 in the papers). The Markdown guides read as before.
+- A read-cost test on the frozen Book of Conditions checks, through the real server, that each targeted read agrees
+  with the full read and costs a bounded share of its characters (characters, not billed tokens, which are not
+  measured): one process's values, exactly as stored, 0.12% of the whole model; one guide section, exactly as in the
+  guide, 2.2% of it; 100 Events as one-line summaries, the same records in the same order, 40% of their full records;
+  the outline's skeleton, the same Events in the same order, 23% of the full outline; six revisions with shorter
+  results 85% of complete ones.
+
 ## 0.12.0 — 2026-10-12
 
 Install the matching 0.12.0 engine. The engine and the model format are unchanged since

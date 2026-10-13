@@ -8,9 +8,14 @@ import { stringifyJson } from './exact-json.mjs';
 const COMMAND_SCHEMA = 'life-sim-rust-command/v1';
 const RESPONSE_SCHEMA = 'life-sim-rust-response/v1';
 const DEFAULT_TIMEOUT_MS = 30_000;
-const DEFAULT_MAX_COMMAND_BYTES = 16 * 1024 * 1024;
-const DEFAULT_MAX_PENDING_COMMAND_BYTES = 32 * 1024 * 1024;
-const DEFAULT_MAX_RESPONSE_BYTES = 64 * 1024 * 1024;
+// Starting the engine opens its store, which rebuilds every stored model revision before the engine answers: about
+// 0.01 s per megabyte of each revision, measured on the world history. Ten minutes covers about 60,000 revision-megabytes,
+// such as 600 revisions of a 100 MB model. Every later call keeps the 30-second limit.
+const DEFAULT_STARTUP_TIMEOUT_MS = 600_000;
+// A command or response carries at most a whole model (128 MiB) and its envelope.
+const DEFAULT_MAX_COMMAND_BYTES = 256 * 1024 * 1024;
+const DEFAULT_MAX_PENDING_COMMAND_BYTES = 512 * 1024 * 1024;
+const DEFAULT_MAX_RESPONSE_BYTES = 256 * 1024 * 1024;
 const DEFAULT_MAX_STDERR_BYTES = 64 * 1024;
 const DEFAULT_MAX_PENDING_CALLS = 32;
 const MUTATING_OPERATIONS = new Set([
@@ -121,6 +126,7 @@ export class RustEngineProcess {
   constructor({
     binaryPath = resolveEngineBinary(),
     timeoutMs = DEFAULT_TIMEOUT_MS,
+    startupTimeoutMs = DEFAULT_STARTUP_TIMEOUT_MS,
     maxCommandBytes = DEFAULT_MAX_COMMAND_BYTES,
     maxPendingCommandBytes = DEFAULT_MAX_PENDING_COMMAND_BYTES,
     maxResponseBytes = DEFAULT_MAX_RESPONSE_BYTES,
@@ -139,6 +145,7 @@ export class RustEngineProcess {
       : process.env;
     this.testFixture = testFixture !== null;
     this.timeoutMs = timeoutMs;
+    this.startupTimeoutMs = startupTimeoutMs;
     this.maxCommandBytes = maxCommandBytes;
     this.maxPendingCommandBytes = maxPendingCommandBytes;
     this.maxResponseBytes = maxResponseBytes;
@@ -149,7 +156,8 @@ export class RustEngineProcess {
     this.pendingCommandBytes = 0;
     this.writeQueue = [];
     this.writePromise = null;
-    this.stdoutBuffer = '';
+    this.stdoutChunks = [];
+    this.stdoutPendingBytes = 0;
     this.stderrBuffer = '';
     this.initializePromise = null;
     this.description = null;
@@ -213,7 +221,7 @@ export class RustEngineProcess {
       ));
     });
 
-    const description = await this.#dispatch('describe', {});
+    const description = await this.#dispatch('describe', {}, this.startupTimeoutMs);
     if (
       description?.engine !== 'life-sim-engine' ||
       !Array.isArray(description?.operations) ||
@@ -238,7 +246,7 @@ export class RustEngineProcess {
     return this.#dispatch(operation, payload);
   }
 
-  #dispatch(operation, payload) {
+  #dispatch(operation, payload, timeoutMs = this.timeoutMs) {
     if (this.failure) return Promise.reject(this.failure);
     if (!this.child || this.closed) {
       return Promise.reject(new Error('Life Simulation Rust process is not running.'));
@@ -285,10 +293,11 @@ export class RustEngineProcess {
     return new Promise((resolveCall, rejectCall) => {
       const timer = setTimeout(() => {
         const cause = new Error(
-          `Life Simulation Rust operation ${operation} timed out after ${this.timeoutMs} ms.`,
+          `Life Simulation Rust operation ${operation} timed out after ${timeoutMs} ms.` +
+          (operation === 'describe' ? ' Starting the engine opens its store and first rebuilds every stored model revision, about 0.01 s per megabyte of each.' : ''),
         );
         this.#fail(cause);
-      }, this.timeoutMs);
+      }, timeoutMs);
       timer.unref?.();
       this.pending.set(requestId, {
         operation,
@@ -378,22 +387,36 @@ export class RustEngineProcess {
     });
   }
 
+  // A response arrives in many chunks. They are kept as they come and joined once its line is complete, and only the
+  // new chunk is searched for the line's end, so a large response costs time in proportion to its size; re-measuring
+  // and re-searching the whole buffer for every chunk made it grow with the square of the size.
   #consumeStdout(chunk) {
-    this.stdoutBuffer += chunk;
-    if (Buffer.byteLength(this.stdoutBuffer) > this.maxResponseBytes) {
+    const text = String(chunk);
+    let start = 0;
+    let newlineIndex = text.indexOf('\n');
+    while (newlineIndex !== -1) {
+      if (!this.#keepStdout(text.slice(start, newlineIndex))) return;
+      const line = this.stdoutChunks.join('');
+      this.stdoutChunks = [];
+      this.stdoutPendingBytes = 0;
+      if (line.trim()) this.#consumeResponseLine(line);
+      if (this.failure) return;
+      start = newlineIndex + 1;
+      newlineIndex = text.indexOf('\n', start);
+    }
+    if (start < text.length) this.#keepStdout(text.slice(start));
+  }
+
+  #keepStdout(piece) {
+    this.stdoutPendingBytes += Buffer.byteLength(piece);
+    if (this.stdoutPendingBytes > this.maxResponseBytes) {
       this.#fail(new Error(
         `Life Simulation Rust response exceeded ${this.maxResponseBytes} bytes.`,
       ));
-      return;
+      return false;
     }
-    let newlineIndex = this.stdoutBuffer.indexOf('\n');
-    while (newlineIndex !== -1) {
-      const line = this.stdoutBuffer.slice(0, newlineIndex);
-      this.stdoutBuffer = this.stdoutBuffer.slice(newlineIndex + 1);
-      if (line.trim()) this.#consumeResponseLine(line);
-      if (this.failure) return;
-      newlineIndex = this.stdoutBuffer.indexOf('\n');
-    }
+    this.stdoutChunks.push(piece);
+    return true;
   }
 
   #consumeResponseLine(line) {
@@ -520,6 +543,7 @@ export class RustEngineProcess {
       fixture: this.testFixture,
       limits: {
         timeoutMs: this.timeoutMs,
+        startupTimeoutMs: this.startupTimeoutMs,
         maxCommandBytes: this.maxCommandBytes,
         maxPendingCommandBytes: this.maxPendingCommandBytes,
         pendingCommandBytes: this.pendingCommandBytes,
@@ -532,6 +556,7 @@ export class RustEngineProcess {
 
 export const rustProcessDefaults = Object.freeze({
   timeoutMs: DEFAULT_TIMEOUT_MS,
+  startupTimeoutMs: DEFAULT_STARTUP_TIMEOUT_MS,
   maxCommandBytes: DEFAULT_MAX_COMMAND_BYTES,
   maxPendingCommandBytes: DEFAULT_MAX_PENDING_COMMAND_BYTES,
   maxResponseBytes: DEFAULT_MAX_RESPONSE_BYTES,

@@ -14,6 +14,7 @@ import { importanceRanks } from './importance-rank.mjs';
 import { worldEvents } from './world-events.mjs';
 import { coverageReport } from './coverage.mjs';
 import { eventDescendants, indexModel } from './model-questions.mjs';
+import { minOf, maxOf } from './arrays.mjs';
 
 export const VALUE_TAGS = Object.freeze(['source', 'inferred', 'invented', 'exploring', 'sketch']);
 const PROCESS_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/u;
@@ -68,7 +69,7 @@ function newProcess(entry, holder) {
   if (!spec.unit) throw new Error(`${processId}: give a unit for an empirical value, a scale with anchors, or states or a preset for a set of states.`);
   if (points.some((p) => p.value === undefined)) throw new Error(`${processId} is a number; every point needs a value.`);
   const values = points.flatMap((p) => [p.value, p.lower ?? p.value, p.upper ?? p.value]);
-  const lo = Math.min(...values), hi = Math.max(...values);
+  const lo = minOf(values), hi = maxOf(values);
   const span = Math.max(hi - lo, Math.abs(hi), Math.abs(lo), 1);
   const bounds = spec.bounds ?? { minimum: lo >= 0 ? 0 : lo - 10 * span, maximum: hi + 10 * span };
   const near = [...points].sort((a, b) => Math.abs(a.time) - Math.abs(b.time))[0];
@@ -265,7 +266,10 @@ function valuesAccount(model, { holder = null, focus = [] } = {}) {
   for (const [id, m] of valued) { const t = [...m.keys()].sort((a, b) => a - b); for (let i = 1; i < t.length; i++) spans.push([id, t[i - 1], t[i]]); }
   const sortedGaps = spans.map(([, a, b]) => b - a).sort((a, b) => a - b);
   const unit = Math.max(sortedGaps[Math.floor(sortedGaps.length / 2)] ?? 1, 1e-9);
-  const inside = (a, b) => { let n = 0; for (const t of allTimes) if (t > a && t < b) n += 1; return n; };
+  // How many of the model's dates lie strictly between a and b. allTimes is sorted, so two binary searches find it;
+  // counting them one by one for every gap took time growing with the square of the number of values.
+  const firstWhere = (holds) => { let low = 0, high = allTimes.length; while (low < high) { const middle = (low + high) >> 1; if (holds(allTimes[middle])) high = middle; else low = middle + 1; } return low; };
+  const inside = (a, b) => Math.max(0, firstWhere((t) => t >= b) - firstWhere((t) => t > a));
   const gaps = spans.map(([id, from, to]) => ({ process: id, label: label(id), from, to, finerElsewhere: inside(from, to),
     coarseness: Number(Math.log((latest - from + unit) / (latest - to + unit)).toPrecision(3)) }));
   const coarsest = gaps.sort((a, b) => b.finerElsewhere - a.finerElsewhere || b.coarseness - a.coarseness).slice(0, 10);
@@ -320,7 +324,7 @@ function valuesAccount(model, { holder = null, focus = [] } = {}) {
   for (const id of new Set(focus)) {
     const points = [...(valued.get(id)?.values() ?? [])].filter((p) => Number.isFinite(p.value)).sort((a, b) => a.time - b.time);
     if (points.length < 3 || byId.get(id)?.value_type?.kind !== 'scalar') continue;
-    const values = points.map((p) => p.value), range = Math.max(...values) - Math.min(...values);
+    const values = points.map((p) => p.value), range = maxOf(values) - minOf(values);
     if (!(range > 0)) continue;
     let steepest = null;
     for (let i = 1; i < points.length; i += 1) {
@@ -350,7 +354,7 @@ function valuesAccount(model, { holder = null, focus = [] } = {}) {
     const kind = byId.get(id)?.value_type?.kind;
     const points = [...m.values()].sort((a, b) => a.time - b.time);
     const eventBetween = (a, b) => (movedAt.get(id) ?? []).some((t) => t > a && t <= b);
-    const range = kind === 'scalar' ? Math.max(...points.map((x) => x.value)) - Math.min(...points.map((x) => x.value)) : 0;
+    const range = kind === 'scalar' ? maxOf(points.map((x) => x.value)) - minOf(points.map((x) => x.value)) : 0;
     for (let i = 1; i < points.length; i += 1) {
       const [before, at] = [points[i - 1], points[i]];
       if (noted(at) || eventBetween(before.time, at.time)) continue;

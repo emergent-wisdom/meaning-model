@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { importConstructionHistory } from '../src/construction-record.mjs';
 import { decodeHistoryModels, encodeHistoryModels, expandedHistoryDigest, expandHistoryModels, historyDigest, HISTORY_FILE_SCHEMA_V2,
-  HISTORY_SCHEMA, planHistoryModels } from '../src/construction-files.mjs';
+  HISTORY_SCHEMA, MAX_HISTORY_MODELS, planHistoryModels } from '../src/construction-files.mjs';
 import { MODEL_DELTA_SCHEMA } from '../src/model-delta.mjs';
 
 const hash = (n) => n.toString(16).padStart(64, '0');
@@ -104,9 +104,9 @@ test('randomized lineages written within any limit always read back within it, e
 });
 
 test('a history holding more models than a session can is refused before expanding them', async (t) => {
-  const models = Array.from({ length: 513 }, (_, i) => ({ modelHash: hash(i + 1), definition: { ...big(), id: `m${i}` } }));
+  const models = Array.from({ length: MAX_HISTORY_MODELS + 1 }, (_, i) => ({ modelHash: hash(i + 1), definition: { id: `m${i}` } }));
   const path = await file(t, { schema: HISTORY_SCHEMA, graphId: 'g', headGraphHash: hash(9), revisionCount: 0, models: models.map((entry) => ({ ...entry, definition: { id: entry.definition.id } })), revisions: [], bundleSha256: hash(7) });
-  await assert.rejects(importConstructionHistory(unreachable, { requestId: 'bounds.count', sourcePath: path }), /at most 512 models/);
+  await assert.rejects(importConstructionHistory(unreachable, { requestId: 'bounds.count', sourcePath: path }), new RegExp(`at most ${MAX_HISTORY_MODELS} models`, 'u'));
 });
 
 test('a history whose structure is wrong is refused before expanding it', () => {

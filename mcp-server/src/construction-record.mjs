@@ -11,8 +11,9 @@ import { assertDescribedEvents, descriptionCoverage } from './description-covera
 import { constructionRecordInstructions } from './construction-principles.mjs';
 import { additiveNarrativeBatch, applyNarrativeDefinitionDelta, definitionFromCompleteView, narrativeDefinitionDelta } from './narrative-delta.mjs';
 import { recordsQuoting, removedFragments, textRecords } from './prose-drift.mjs';
-import { absoluteHistoryPath, encodeHistoryModels, expandedHistoryDigest, expandHistoryModels, HISTORY_FILE_SCHEMA_V2, HISTORY_SCHEMA, historyDigest, MAX_HISTORY_FILE_BYTES, MAX_INLINE_HISTORY_BYTES, planHistoryModels, readHistoryFile, writeHistoryFile } from './construction-files.mjs';
+import { absoluteHistoryPath, encodeHistoryModels, expandedHistoryDigest, expandHistoryModels, HISTORY_FILE_SCHEMA_V2, HISTORY_SCHEMA, historyDigest, MAX_HISTORY_FILE_BYTES, MAX_HISTORY_MODELS, MAX_INLINE_HISTORY_BYTES, planHistoryModels, readHistoryFile, writeHistoryFile } from './construction-files.mjs';
 import { requireCompleteModelScopes } from './construction-scope.mjs';
+import { maxOf, pushAll } from './arrays.mjs';
 
 const id = z.string().trim().min(1).max(256);
 const longId = z.string().trim().min(1).max(1_024);
@@ -130,7 +131,7 @@ async function boundModel(service, view) {
 function nextOrder(view, parentId) {
   const orders = view.edges.filter((edge) => edge.relation === 'contains' && edge.source?.node_id === parentId).map((edge) => edge.order);
   const valid = orders.filter((order) => Number.isSafeInteger(order) && order >= 0);
-  return valid.length ? Math.max(...valid) + 1 : 0;
+  return valid.length ? maxOf(valid) + 1 : 0;
 }
 function bounded(value, label) {
   if (Buffer.byteLength(JSON.stringify(value)) > 512 * 1024) throw new Error(`${label} exceeds 512 KiB; split it into several records.`);
@@ -646,7 +647,7 @@ export async function outlineModel(service, raw) {
           const next = pending.pop();
           if (next === eventId || found.has(next)) continue;
           found.add(next);
-          pending.push(...(children.get(next) ?? []));
+          pushAll(pending, children.get(next) ?? []);
         }
         return found.size;
       };
@@ -770,15 +771,27 @@ async function cachedGraph(service, graphHash, accessScopes) {
   return view;
 }
 const modelCaches = new WeakMap();
+// Recently read definitions: at most 48, and at most 256 MiB of JSON in all, since one model may now be 128 MiB (held
+// in memory, a definition takes a few times its JSON). Measuring a definition costs a fraction of reading it.
+const MODEL_CACHE_BYTES = 256 * 1024 * 1024;
 async function cachedModel(service, modelHash) {
   if (!modelHash) return null;
   if (!modelCaches.has(service)) modelCaches.set(service, new Map());
   const cache = modelCaches.get(service);
   if (!cache.has(modelHash)) {
-    cache.set(modelHash, (await service.inspectModel({ modelHash, includeDefinition: true })).model);
-    while (cache.size > 48) cache.delete(cache.keys().next().value);
+    const model = (await service.inspectModel({ modelHash, includeDefinition: true })).model;
+    const bytes = JSON.stringify(model).length;
+    cache.set(modelHash, { model, bytes });
+    let total = 0;
+    for (const entry of cache.values()) total += entry.bytes;
+    while (cache.size > 1 && (cache.size > 48 || total > MODEL_CACHE_BYTES)) {
+      const [oldest, entry] = cache.entries().next().value;
+      if (oldest === modelHash) break;
+      cache.delete(oldest);
+      total -= entry.bytes;
+    }
   }
-  return cache.get(modelHash);
+  return cache.get(modelHash).model;
 }
 
 const modelCollections = [
@@ -836,12 +849,15 @@ async function graphLineage(service, head) {
   return { path, branchPoints: path.filter((revision) => revision.is_branch_point).map((revision) => ({ revision: revision.revision_number, graphHash: revision.graph_hash, children: revision.child_count })),
     otherHeads: history.heads.filter((headHash) => headHash !== head.graph_hash && !onPath.has(headHash)), revisionCount: history.revision_count };
 }
+// The chain of model revisions back from fromHash, each as its hash and its revision record (number, reason,
+// provenance, previous hash). Definitions are not kept: a long history of a large model need not fit in memory, and a
+// step that needs a whole definition reads it with cachedModel.
 async function modelChain(service, fromHash, untilHash, limit = 64) {
   const chain = []; let cursor = fromHash;
   while (cursor && cursor !== untilHash && chain.length < limit) {
-    const model = await cachedModel(service, cursor);
-    chain.unshift({ hash: cursor, model });
-    cursor = model.revision?.previous_model_hash ?? null;
+    const revision = modelCaches.get(service)?.get(cursor)?.model?.revision ?? (await service.inspectModel({ modelHash: cursor })).summary?.revision ?? null;
+    chain.unshift({ hash: cursor, model: { revision } });
+    cursor = revision?.previous_model_hash ?? null;
   }
   return chain;
 }
@@ -865,7 +881,7 @@ export async function checkProseDrift(service, raw) {
   const { path } = await graphLineage(service, head);
   const prose = (view) => view.nodes.filter((node) => node.role === 'story_passage' && node.render !== 'exclude').map((node) => node.text ?? '');
   const earlier = [];
-  for (const revision of path.slice(0, -1)) earlier.push(...prose(await cachedGraph(service, revision.graph_hash, input.accessScopes)));
+  for (const revision of path.slice(0, -1)) pushAll(earlier, prose(await cachedGraph(service, revision.graph_hash, input.accessScopes)));
   const removed = removedFragments([...new Set(earlier)], prose(head));
   const model = await cachedModel(service, boundModelHash(head));
   const records = recordsQuoting(textRecords(head, model), removed, { limit: 80 });
@@ -880,14 +896,17 @@ export async function replayConstruction(service, raw) {
   const out = []; let used = 0; let truncated = false;
   const emit = (line) => { if (truncated) return false; if (used + line.length + 1 > input.maxChars) { truncated = true; return false; } out.push(line); used += line.length + 1; return true; };
   if (input.modelHash) {
-    const chain = await modelChain(service, input.modelHash, null, 1_024);
+    // As far back as a store keeps revisions, so the replay reaches revision 0; if it ever cannot, it says so.
+    const chain = await modelChain(service, input.modelHash, null, MAX_HISTORY_MODELS);
+    const fromStart = !chain[0]?.model?.revision?.previous_model_hash;
     const page = chain.slice(input.offset, input.offset + input.limit);
     const steps = [];
     for (const [index, entry] of page.entries()) {
-      const previous = input.offset + index > 0 ? chain[input.offset + index - 1].model : null;
-      const changes = modelDiff(previous, entry.model);
+      const model = await cachedModel(service, entry.hash);
+      const previous = input.offset + index > 0 ? await cachedModel(service, chain[input.offset + index - 1].hash) : null;
+      const changes = modelDiff(previous, model);
       const recordKeys = new Set(changes.flatMap((change) => [...change.added, ...change.changed.map((item) => item.id)]));
-      const step = { modelRevision: entry.model.revision?.number, modelHash: entry.hash, reason: entry.model.revision?.reason ?? null, provenance: entry.model.revision?.provenance ?? [], changes, recordKeys: new Set([...recordKeys].flatMap((key) => Object.keys(recordKinds).map((kind) => `${kind}:${key}`))), nodeIds: new Set() };
+      const step = { modelRevision: model.revision?.number, modelHash: entry.hash, reason: model.revision?.reason ?? null, provenance: model.revision?.provenance ?? [], changes, recordKeys: new Set([...recordKeys].flatMap((key) => Object.keys(recordKinds).map((kind) => `${kind}:${key}`))), nodeIds: new Set() };
       if (!touches(step, input.focus)) continue;
       steps.push(step);
       emit(`- model r${step.modelRevision} (${entry.hash.slice(0, 12)}): ${clip(oneLine(step.reason ?? ''), limits)}`);
@@ -896,7 +915,8 @@ export async function replayConstruction(service, raw) {
     }
     const nextOffset = input.offset + page.length < chain.length ? input.offset + page.length : null;
     return { schema: 'meaning-model-construction-replay/v1', kind: 'model', level: input.level, headModelHash: input.modelHash, revisionCount: chain.length,
-      window: { offset: input.offset, limit: input.limit, nextOffset }, truncated,
+      window: { offset: input.offset, limit: input.limit, nextOffset }, truncated: truncated || !fromStart,
+      ...(fromStart ? {} : { startsAfterRevisionZero: true, earliestRevision: chain[0]?.model?.revision?.number ?? null }),
       ...(input.format === 'json' ? { steps: steps.map(({ recordKeys, nodeIds, ...step }) => step) } : { text: out.join('\n') }) };
   }
   const head = await readGraph(service, input.graphHash, input.accessScopes);
@@ -1022,12 +1042,12 @@ export async function replayConstruction(service, raw) {
 // and replayed on another engine with the same hashes.
 
 export const historyExportSchema = z.object({ graphHash: hash, accessScopes: z.array(id).max(64).default([]),
-  destinationPath: absoluteHistoryPath.optional().describe('Write a portable JSON file at this explicit absolute path instead of returning the bundle inline. Parent directory must exist; existing files are never overwritten. File limit: 256 MiB.'),
+  destinationPath: absoluteHistoryPath.optional().describe('Write a portable JSON file at this explicit absolute path instead of returning the bundle inline. Parent directory must exist; existing files are never overwritten. File limit: 480 MiB.'),
 }).strict();
 export const historyImportSchema = z.object({
   requestId: id,
   history: z.object({ schema: z.literal('meaning-model-construction-history/v1') }).passthrough().optional(),
-  sourcePath: absoluteHistoryPath.optional().describe('Read a regular local JSON bundle, at most 256 MiB, instead of echoing history through MCP. Its bundle hash is checked before any model or graph mutation.'),
+  sourcePath: absoluteHistoryPath.optional().describe('Read a regular local JSON bundle, at most 480 MiB, instead of echoing history through MCP. Its bundle hash is checked before any model or graph mutation.'),
 }).strict().refine((input) => Boolean(input.history) !== Boolean(input.sourcePath), 'Supply exactly one of history or sourcePath.');
 
 async function definitionAt(service, graphHash, accessScopes) {
@@ -1083,7 +1103,7 @@ export async function exportConstructionHistory(service, raw, { maximumBytes = M
   let retainedBytes = 0;
   const retain = (record) => {
     retainedBytes += historyDigest(record, budget).bytes;
-    if (retainedBytes > budget) throw new Error(`Construction history exceeds ${budget} UTF-8 bytes. ${budget <= MAX_INLINE_HISTORY_BYTES ? 'Use destinationPath to export it to a local JSON file instead of an inline MCP response.' : 'The portable-file limit is 256 MiB.'}`);
+    if (retainedBytes > budget) throw new Error(`Construction history exceeds ${budget} UTF-8 bytes. ${budget <= MAX_INLINE_HISTORY_BYTES ? 'Use destinationPath to export it to a local JSON file instead of an inline MCP response.' : 'The portable-file limit is 480 MiB.'}`);
   };
   const head = await readGraph(service, input.graphHash, input.accessScopes);
   const lineage = await graphLineage(service, head);
@@ -1103,7 +1123,7 @@ export async function exportConstructionHistory(service, raw, { maximumBytes = M
   for (const modelHash of [...new Set([...bound, ...declared.keys()])]) {
     const pending = []; let cursor = modelHash;
     while (cursor && !models.has(cursor)) {
-      if (pending.length >= 1_024) throw new Error('Construction export exceeds the supported model ancestry depth.');
+      if (pending.length >= MAX_HISTORY_MODELS) throw new Error(`Construction export exceeds the supported model ancestry depth of ${MAX_HISTORY_MODELS} revisions.`);
       let model;
       try {
         model = await cachedModel(service, cursor);
@@ -1248,12 +1268,12 @@ export function registerConstructionRecordTools(server, service, { toolResult })
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await outlineModel(service, input)));
   server.registerTool('life_construction_export', {
-    description: 'Export a model-bound graph lineage as portable history: every bound model revision, explicitly declared external model_reference targets and author_reader life models with all their ancestors, the first graph revision in full, and later graph changes, with a bundle hash. Missing declared dependencies refuse export with repair guidance. Prefer destinationPath for a local JSON file: explicit absolute path, existing parent directory, no overwrite, maximum 256 MiB, compact receipt only. Without a path, inline output is capped at 1 MiB. Import rebuilds the same hashes. Needs accessScopes revealing every graph and model record, including external lives; arbitrary hashes quoted in prose do not introduce dependencies.',
+    description: 'Export a model-bound graph lineage as portable history: every bound model revision, explicitly declared external model_reference targets and author_reader life models with all their ancestors, the first graph revision in full, and later graph changes, with a bundle hash. Missing declared dependencies refuse export with repair guidance. Prefer destinationPath for a local JSON file: explicit absolute path, existing parent directory, no overwrite, maximum 480 MiB, compact receipt only. Without a path, inline output is capped at 1 MiB. Import rebuilds the same hashes. Needs accessScopes revealing every graph and model record, including external lives; arbitrary hashes quoted in prose do not introduce dependencies.',
     inputSchema: historyExportSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await exportConstructionHistory(service, input, { maximumBytes: MAX_INLINE_HISTORY_BYTES })));
   server.registerTool('life_construction_import', {
-    description: 'Rebuild exported construction history on this engine. Supply exactly one of inline history or an explicit absolute sourcePath to a regular local JSON file of at most 256 MiB. File imports check the bundle checksum before any mutation. Register model and graph revisions in order, verifying each rebuilt hash, then replay with life_construction_replay. Source files are never modified; importing is a sequence of immutable registrations, not one all-or-nothing database transaction.',
+    description: 'Rebuild exported construction history on this engine. Supply exactly one of inline history or an explicit absolute sourcePath to a regular local JSON file of at most 480 MiB. File imports check the bundle checksum before any mutation. Register model and graph revisions in order, verifying each rebuilt hash, then replay with life_construction_replay. Source files are never modified; importing is a sequence of immutable registrations, not one all-or-nothing database transaction.',
     inputSchema: historyImportSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await importConstructionHistory(service, input)));

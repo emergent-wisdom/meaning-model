@@ -8,6 +8,7 @@ import { constructionRecordInstructions } from './construction-principles.mjs';
 import { disclosureInstructions } from './storytelling-disclosure.mjs';
 import { prepareDocumentProcess } from './document-processes.mjs';
 import { projectNarrativeDocument } from './document-projection.mjs';
+import { minOf } from './arrays.mjs';
 
 const id = z.string().trim().min(1).max(256);
 const prose = z.string().min(1).max(64_000).refine((text) => text.trim().length > 0, 'Authored text must not be blank.');
@@ -214,7 +215,7 @@ export async function exploreStoredTrajectory(service, raw) {
     text: 'Numerical trajectory alternatives, unaccepted and awaiting authored assessment.', data: task });
   // A life-trends dossier later requires numerical points from lifeBeginning; say so now, before the
   // candidates are assessed, repaired and adopted.
-  const earliest = Math.min(...task.baseline.points.map((point) => point.at));
+  const earliest = minOf(task.baseline.points.map((point) => point.at));
   const warnings = task.definition.targetKind === 'life' && earliest > 0
     ? [`The earliest life point is at ${earliest} (${task.definition.timeUnit}). A life-trends dossier requires numerical points from its lifeBeginning: that may be this point only if it is the earliest established phase of an unknown origin; if the dossier starts at birth, life_story_life_trends will reject this candidate. In that case add a point at lifeBeginning now, fixing any axis that does not yet apply at a stated conventional value. Points are sampled independently, so re-exploring with the same seed and one added point leaves every other point's values unchanged.`]
     : [];

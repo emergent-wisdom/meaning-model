@@ -25,7 +25,7 @@ test('bounded NDJSON backend starts, multiplexes calls, and closes cleanly', asy
   assert.equal(description.operations.includes('refine_genesis_world'), true);
   assert.equal(backend.status().ready, true);
   assert.equal(backend.status().fixture, true);
-  assert.equal(backend.status().limits.maxPendingCommandBytes, 32 * 1_024 * 1_024);
+  assert.equal(backend.status().limits.maxPendingCommandBytes, 512 * 1_024 * 1_024);
   assert.equal(backend.status().limits.pendingCommandBytes, 0);
 
   const [first, second, profiles] = await Promise.all([
@@ -36,6 +36,29 @@ test('bounded NDJSON backend starts, multiplexes calls, and closes cleanly', asy
   assert.deepEqual(first, { operation: 'compile_registry', echoed: 'first' });
   assert.deepEqual(second, { operation: 'roll', echoed: 'second' });
   assert.deepEqual(profiles, { operation: 'compile_profiles', echoed: 'profiles' });
+});
+
+test('a large response arriving in many chunks is read whole, in time that grows with its size', async (t) => {
+  const backend = fixture();
+  t.after(() => backend.close());
+  await backend.initialize();
+  // About 32 MB, with characters of two, three and four bytes that chunks will split.
+  const unit = 'aé€😀b';
+  const repeat = 2_500_000;
+  const started = performance.now();
+  const response = await backend.call('roll', { value: unit, repeat });
+  const elapsed = performance.now() - started;
+  assert.equal(response.echoed.length, unit.length * repeat);
+  assert.equal(response.echoed, unit.repeat(repeat));
+  // Re-reading the whole buffer for every chunk took about five seconds at this size; reading it once takes about a third of one.
+  assert.ok(elapsed < 2_000, `read in ${Math.round(elapsed)} ms`);
+});
+
+test('a response over the byte limit fails the backend with the limit named', async (t) => {
+  const backend = fixture({ maxResponseBytes: 10_000 });
+  t.after(() => backend.close());
+  await backend.initialize();
+  await assert.rejects(backend.call('roll', { value: 'x', repeat: 50_000 }), /response exceeded 10000 bytes/u);
 });
 
 test('typed command validation errors stay correlated and do not kill Rust', async (t) => {
@@ -232,6 +255,7 @@ test('operation timeout rejects outstanding work and tears down the child', asyn
   const backend = fixture({
     env: { LIFE_SIM_PROCESS_FIXTURE_MODE: 'hang' },
     timeoutMs: 25,
+    startupTimeoutMs: 25,
   });
   await assert.rejects(backend.initialize(), /timed out after 25 ms/);
   assert.equal(backend.status().ready, false);

@@ -4,6 +4,7 @@
 // how to get it.
 import * as z from 'zod/v4';
 import { questionModel } from './model-questions.mjs';
+import { extent } from './arrays.mjs';
 
 const id = z.string().trim().min(1).max(512);
 export const valuesQuerySchema = z.object({
@@ -65,15 +66,18 @@ export async function queryValues(service, raw) {
   if (!input.processIds.length) {
     // A directory of the measures: enough to choose which to read.
     const wanted = words(input.text);
+    // Each process's series found once, not by scanning every series for every process.
+    const seriesOf = new Map();
+    for (const item of series) { if (!seriesOf.has(item.process_id)) seriesOf.set(item.process_id, []); seriesOf.get(item.process_id).push(item); }
     const listed = [...processes.values()].filter((process) => {
       if (!wanted.length) return true;
       const haystack = `${process.id} ${label(process) ?? ''} ${process.scale?.semantic_role ?? ''}`.toLowerCase();
       return wanted.every((word) => haystack.includes(word));
     }).map((process) => {
-      const own = series.filter((item) => item.process_id === process.id);
+      const own = seriesOf.get(process.id) ?? [];
       const times = own.flatMap((item) => (item.points ?? []).filter(within).map((p) => p.time));
       return { processId: process.id, label: label(process), unit: process.unit ?? null, series: own.length, values: times.length,
-        ...(times.length ? { span: [Math.min(...times), Math.max(...times)] } : {}) };
+        ...(times.length ? { span: extent(times) } : {}) };
     });
     return { schema: 'meaning-model-values/v1', modelHash: input.modelHash, ...(range ? { range } : {}),
       processes: listed.slice(0, 200), ...(listed.length > 200 ? { moreProcesses: listed.length - 200 } : {}),

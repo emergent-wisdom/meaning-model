@@ -70,10 +70,14 @@ const MAX_QUERY_OBSERVABLES: usize = 2_048;
 const MAX_QUERY_ACCESS_SCOPES: usize = 64;
 const MAX_QUERY_STRING_BYTES: usize = 1_024;
 const MAX_MODEL_IDENTIFIER_BYTES: usize = 1_024;
-const MAX_MODEL_DEFINITION_BYTES: usize = 8 * 1024 * 1024;
+// Set from measurement (0.12.1): a revision of a model this size takes about 15 s and needs about 8 GB at its peak; a
+// model of 2.8 MB takes under half a second. Larger models need changes applied in the engine instead of whole
+// definitions passing through the server.
+const MAX_MODEL_DEFINITION_BYTES: usize = 128 * 1024 * 1024;
 // Every model revision is kept, since a construction replays through each one, and a story model is revised often
-// (every applied estimate is a revision). The byte bound below limits memory; the count bounds restart validation.
-const MAX_SESSION_MODELS: usize = 512;
+// (every applied estimate is a revision). The byte bound below limits memory; the count bounds restart validation,
+// which rebuilds every revision: about 0.01 s per megabyte of model for each one.
+const MAX_SESSION_MODELS: usize = 4_096;
 const MAX_SESSION_WORLDS: usize = 64;
 const MAX_SESSION_CANDIDATES: usize = 2_048;
 const MAX_SESSION_WORLD_REVISIONS: usize = 2_048;
@@ -81,7 +85,7 @@ const MAX_SESSION_WORLD_REVISION_BYTES: usize = 64 * 1024 * 1024;
 // Revisions are kept materialized with every unchanged record shared with the
 // parent, so this count bounds restart validation, which is linear in it.
 const MAX_SESSION_NARRATIVE_GRAPHS: usize = 4_096;
-const MAX_SESSION_MODEL_BYTES: usize = 256 * 1024 * 1024;
+const MAX_SESSION_MODEL_BYTES: usize = 2 * 1024 * 1024 * 1024;
 const MAX_SESSION_WORLD_BYTES: usize = 64 * 1024 * 1024;
 const MAX_SESSION_CANDIDATE_BYTES: usize = 128 * 1024 * 1024;
 // Narrative history is stored as shared source snapshots plus append-only
@@ -90,8 +94,8 @@ const MAX_SESSION_CANDIDATE_BYTES: usize = 128 * 1024 * 1024;
 const MAX_SESSION_NARRATIVE_BYTES: usize = 64 * 1024 * 1024;
 const MAX_PROJECT_CHECKPOINTS: usize = 1_024;
 const MAX_PROJECT_DOCUMENT_BYTES: usize = 16 * 1024 * 1024;
-const MAX_PROJECT_STORAGE_BYTES: usize = 256 * 1024 * 1024;
-const MAX_PROJECT_EXPORT_BYTES: usize = 64 * 1024 * 1024;
+const MAX_PROJECT_STORAGE_BYTES: usize = 2 * 1024 * 1024 * 1024;
+const MAX_PROJECT_EXPORT_BYTES: usize = 480 * 1024 * 1024;
 const MAX_SESSION_REPLAY_WORK: usize = 250_000_000;
 const MAX_TRAJECTORY_SUMMARY_WORK: usize = 10_000_000;
 const MAX_GRAPH_NEIGHBORHOOD_DEPTH: usize = 16;
@@ -395,7 +399,7 @@ pub struct Claim {
 
 /// The tags a value carries: what kind of claim it is. A guess is a value too; it is tagged, not withheld.
 pub const VALUE_TAGS: [&str; 5] = ["source", "inferred", "invented", "exploring", "sketch"];
-const MAX_VALUE_POINTS: usize = 100_000;
+const MAX_VALUE_POINTS: usize = 4_000_000;
 const MAX_VALUE_TEXT_BYTES: usize = 4_000;
 
 /// One process's states over time, held by one holder: numbers for a scalar process, defined states for a category

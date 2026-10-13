@@ -313,9 +313,22 @@ The model tools expose immutable typed profiles:
   domain requires it.
 - `life_model_validate` validates and hashes a complete model without storing
   it.
-- `life_model_register` validates and stores a complete revision-0 model.
+- `life_model_register` validates and stores a complete revision-0 model, given
+  inline (`model`) or in a local JSON file (`sourcePath`) for a model larger than
+  one message holds (clients cap a message at about 10 MiB).
 - `life_model_inspect` returns a model summary and, when requested, its bounded
-  complete definition.
+  complete definition. Whatever fits in one result comes back whole. A
+  definition that does not fit with its summary comes back as its size and a
+  pointer to `life_model_export` and the targeted reads, and a summary too large
+  on its own lists the first ids of each list, with `listsCut` counting them all.
+- `life_model_export` writes a snapshot of one stored model revision, its
+  complete definition, to a new local JSON file (never over an existing one). It
+  first checks that the file's text validates to the model's hash, and writes
+  nothing if not. `life_model_register` reads the file of a revision-0 model back
+  with `sourcePath` and refuses a later revision; a model's history, with its
+  graph, moves through `life_construction_export` and `life_construction_import`.
+  A model may be up to 128 MiB; a revision of one that large takes about 15 s,
+  and a model of a few megabytes under a second.
 - `life_model_revise` stores a complete hash-linked successor revision. Adding
   a dimension or law is an atomic schema revision, never an in-place patch. Its
   `worldAdoption` names changes a world on the parent revision cannot adopt,
@@ -1314,14 +1327,16 @@ LIFE_SIM_ENGINE_BIN=/absolute/path/to/life-sim-engine LIFE_SIM_STATE_FILE=/absol
 ```
 
 An unavailable, malformed, oversized, timed-out, or unexpectedly terminated
-Rust process fails explicitly. The adapter bounds each command to 16 MiB, each
-response line to 64 MiB, aggregate pending command bytes to 32 MiB, pending
-calls to 32, and a call to 30 seconds. Node caches only 32 recent model summaries
+Rust process fails explicitly. The adapter bounds each command to 256 MiB, each
+response line to 256 MiB, aggregate pending command bytes to 512 MiB, pending
+calls to 32, and a call to 30 seconds. Starting the engine has its own limit of
+10 minutes, because opening a store first rebuilds every stored model revision,
+about 0.01 s per megabyte of each. Node caches only 32 recent model summaries
 and permits up to 32 concurrent model writes; cache eviction leaves immutable
 revisions in Rust available for inspection and continuation. The Rust engine
-currently allows 512 model revisions and 256 MiB of stored model data per
+currently allows 4,096 model revisions and 2 GiB of stored model data per
 session, including loaded history. Revisions are stored as changes when smaller
-than a whole definition; each expanded model is limited to 8 MiB. Read the live native storage limits from
+than a whole definition; each expanded model is limited to 128 MiB. Read the live native storage limits from
 `life_engine_status.engine.nativeLimits`.
 
 The adapter also caps world/candidate handles, receipts and retained receipt
