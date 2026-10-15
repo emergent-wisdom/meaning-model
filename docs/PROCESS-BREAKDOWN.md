@@ -28,7 +28,8 @@ change it, extend it or replace it where your world is understood better another
 
 Design them with the conceptual decomposition algorithm below. It is the best method we have now for finding the
 parts a whole is made of. Climb before you carve, test every candidate part, search for what is missing, route real
-cases through the result, and record each carve and its verdicts in the model, so it can be inspected and revised.
+cases through the result, and record each carve and its verdicts in the model with `life_carve_record`, so it can be
+inspected and revised.
 
 Two things are fixed:
 - **The depth.** Whatever categories you choose, the model must reach at least the depth shown here.
@@ -214,6 +215,19 @@ down, and the rivals drop out.
   Each cause of death avoided accounts for some of those years, and the parts sum to the whole. Record that as a Cut
   over the years gained, whose answers name the cause Events (`refersTo` in `life_series_record`). The deeper causes,
   such as clean water or vaccines, act together again, so read each one's difference.
+- **A cause that stood in the way is read like any other, as what it held back.** Link it with `prevents` or
+  `constrains` and read the outcome without it, everything else as it was: the difference is how much it held back, a
+  positive amount. A city's daily bicycle trips rose by 210,000 over a decade (sketch values); without a road widening
+  that drew riders back to cars, they would have risen by 218,000. The widening held back 8,000 trips.
+- **What pulled against a change does not go into the remainder.** A Cut's shares cannot be negative, so a Cut over a
+  net change has no place for what pulled against it, and the remainder is what is not yet explained, never a place to
+  net it out. If the quantity adds up, record the gross gain and the gross loss as amounts of their own, each from
+  evidence or tagged as an estimate, counting each unit once over the interval, as a gain or as a loss. Divide each
+  with a Cut of its own; the net is their difference. The 210,000 more daily trips were 246,000 gained (120,000 by
+  people who switched from cars, 86,000 by new residents and 40,000 by people who switched from buses) and 36,000 lost
+  (24,000 when riders moved away and 12,000 when riders went back to cars). A net alone cannot be divided into its
+  gross parts: they need evidence or estimates of their own. Where the causes act together rather than adding up, read
+  each one's difference instead, and a cause that stood in the way keeps the amount it held back.
 - **Shares of credit among causes that act together mean nothing without a rule for splitting them.** If the blast
   pipe only helped with that boiler, "the boiler was 60% of the win" cannot be checked.
 - **What drives a process changes over time.** Read its causes in each period. In April the night shifts drove the
@@ -336,6 +350,14 @@ concentrate on high uncertainty, brittle dependencies and large impact ("hard se
 minimum of this document always holds: the rule decides **where to go deeper than the minimum, never whether to
 stop short of it**.
 
+Ask it often, not once. After every write, the values report runs a **deepen check** over the processes that have
+values and no parts. It names the one most worth examining first, with its reasons: the Events that move it and how
+important they are, its turns and jumps that nothing explains, how rough its values are, how high it sits in the tree,
+and whether it was ever examined. Answer it either way with `life_carve_record`. If parts hold, carve it. If none
+does, record why it stays whole (`keepWhole`), as a kind of the next broader concept on its climb. The check then
+leaves it out until the Events that move it, or its unexplained moves, grow by half. Neither answer is required
+before you go on; the check is there so the question gets asked.
+
 ### Two different links, never to be confused
 
 - **Specialization** (*is a kind of*): a madeleine is a kind of cake; a chiefdom is a kind of polity. It is
@@ -357,6 +379,18 @@ The ascent climbs by specialization. The carve goes down by composition.
   thing as a view over several dimensions, not as one more node.
 
 ### How the carve is recorded in the model
+
+`life_carve_record` records one carve in one call: the claim frame, the climb, every candidate with its verdicts and
+reasons, completeness, the routing sample and the synthesis. It adds the concepts, the *kind of* relations and the
+abstract cut to the model, and, given the graph, the frame, the tests and the synthesis as Understanding Nodes linked to
+them. It does not open the parts: it returns each as a `life_values_record` entry still needing its measure and values.
+Carving the same concept again under the same id revises the carve and supersedes its notes. The values report names
+every process divided without a recorded carve. With `keepWhole`, the same call records instead that a process stays whole and
+why, as a *kept whole* relation from its concept to the next broader kind. The result also warns, without refusing,
+when the routing sample and the verdicts disagree: a case with no home among the parts while completeness passes, or
+a case that belongs to two parts whose independence passed. It also warns when there is no routing sample or no
+climb, when every candidate became a part, and when the concept is a part of an earlier carve whose frame this one
+must serve.
 
 | Step | Record |
 |---|---|
@@ -1296,7 +1330,8 @@ subcategories, read at regular intervals, the Events that moved them, and the pe
 | A person's life Event and nine slow processes | `life_profile_compile` with `person_scaffold` |
 | A shock with anticipation, focal change and adaptation | `life_profile_compile` with `change_arc_scaffold` |
 | A Thing (an institution, a machine) or a relationship | `life_profile_compile` with `thing_scaffold`, `relationship_scaffold` |
-| Events, concepts, carves (abstract cuts), places | `life_model_register`, `life_model_revise` |
+| A carve: its frame, climb, verdicts, abstract cut and synthesis | `life_carve_record` |
+| Events, concepts, places | `life_model_register`, `life_model_revise` |
 | Values of many processes at once, including a feeling's intensity or a want's strength | `life_values_record` |
 | A series of Cuts (wants, outlook, feelings, attention…) | `life_series_record` |
 | A Cut over a change that adds up, its answers naming the cause Events | `life_series_record` with `refersTo` |

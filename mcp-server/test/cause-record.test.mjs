@@ -386,3 +386,15 @@ test('a re-estimate keeps what each answer names, and causes survive a history e
   assert.deepEqual(loanOf(back).refers_to, { kind: 'event', event_id: 'event.offer' });
   assert.deepEqual(causeReport(back).questions[0].ranked.map((cause) => [cause.cause, cause.difference]), [['event.offer', 0.5], ['event.bakery.life', 0.2]]);
 });
+
+test('a cause that stood in the way is read as the amount it held back, a positive number (number test: the road widening)', () => {
+  const model = base();
+  model.meaning_model.events.push(event('event.bike_trips_rise', 2014, 2024), event('event.road_widening', 2016, 2017));
+  const { model: read, questionIds } = record(model, { questions: [{ outcomeEventId: 'event.bike_trips_rise', contrast: 'rather than rising by more',
+    measure: { unit: 'daily bicycle trips gained' }, actual: 210_000,
+    causes: [{ eventId: 'event.road_widening', role: 'hindering', without: 218_000, reason: 'The wider road drew some riders back to cars.' }] }] });
+  assert.deepEqual(read.meaning_model.event_relations.map((relation) => [relation.source_event_id, relation.kind]), [['event.road_widening', 'prevents']],
+    'what stood in the way prevents the outcome');
+  const [question] = causeReport(read, { questionIds }).questions;
+  assert.deepEqual(question.ranked.map((cause) => [cause.cause, cause.difference]), [['event.road_widening', 8_000]], 'it held back 8,000 trips, a positive amount');
+});

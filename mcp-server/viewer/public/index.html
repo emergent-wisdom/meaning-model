@@ -6,13 +6,15 @@
 <title>Meaning Model Viewer</title>
 <link rel="icon" href="./logo.svg" type="image/svg+xml">
 <link rel="stylesheet" href="./document-processes.css">
+<link rel="stylesheet" href="./chart-view.css">
 <script src="live-transition.js"></script>
 <style>
   [hidden] { display: none !important; }
-  body[data-representation="graph"] [data-temporal], body[data-representation="structure"] [data-temporal], body[data-representation="space"] [data-temporal] { display: none !important; }
+  body[data-representation="graph"] [data-temporal], body[data-representation="structure"] [data-temporal], body[data-representation="chart"] [data-temporal], body[data-representation="space"] [data-temporal] { display: none !important; }
+  body:not([data-representation="chart"]) [data-chart] { display: none !important; }
   body:not([data-representation="space"]) [data-space] { display: none !important; }
   body:not([data-representation="graph"]) [data-graph], body:not([data-representation="structure"]) #structure-surface { display: none !important; }
-  body[data-representation="graph"] [data-playback], body[data-representation="structure"] [data-playback] { display: none !important; }
+  body[data-representation="graph"] [data-playback], body[data-representation="structure"] [data-playback], body[data-representation="chart"] [data-playback] { display: none !important; }
   /* The Graph's and Space's own controls join the one row of controls instead of stacking below it. */
   #graph-controls, #space-controls { display: contents; }
   #structure-surface { position: fixed; inset: 160px 0 0; overflow: auto; background: #090a0c; }
@@ -20,6 +22,7 @@
   /* Embedded, Structure is named by the row above it; the standalone inspector keeps its own heading. */
   #structure-surface .inspection-content > h1, #structure-surface .inspection-eyebrow { display: none; }
   body[data-representation="structure"] .side { z-index: 12; }
+  body[data-representation="chart"] .side { z-index: 12; }
   #selection-label { overflow-wrap: anywhere; }
   body[aria-busy="true"], body[aria-busy="true"] * { cursor: progress !important; }
   body.no-text .scene-labels, body.no-text #labels2 { display: none; }
@@ -425,7 +428,7 @@
       <div class="pop wide search-results" id="search-results" role="listbox" aria-label="Search results" hidden></div></span>
     <select class="tool story" id="story" hidden aria-label="Which story"></select>
     <span class="tool-wrap"><button class="tool" data-pop="pop-show"><i>Show</i> <b id="t-show">Processes</b><span class="caret">▾</span></button>
-      <div class="pop" id="pop-show" hidden><h2>Show it as</h2><div class="seg" id="layouts"><button data-layout="together">Processes</button><button data-layout="layers">Tree</button><button data-layout="terrain">Terrain</button><button data-layout="graph">Graph</button><button data-layout="structure">Structure</button><button data-layout="space">Space</button></div><div class="note" id="layout-note"></div><div class="note" id="selection-label" hidden></div><div class="whose" id="whose" data-temporal></div>
+      <div class="pop" id="pop-show" hidden><h2>Show it as</h2><div class="seg" id="layouts"><button data-layout="together">Processes</button><button data-layout="layers">Tree</button><button data-layout="terrain">Terrain</button><button data-layout="chart">Chart</button><button data-layout="graph">Graph</button><button data-layout="structure">Structure</button><button data-layout="space">Space</button></div><div class="note" id="layout-note"></div><div class="note" id="selection-label" hidden></div><div class="whose" id="whose" data-temporal></div>
         <section id="event-layout-section" data-temporal><h2>Event layout</h2><div class="seg" id="event-layouts" role="group" aria-label="Event layout"><button type="button" data-event-layout="traditional" aria-pressed="true">Side by side</button><button type="button" data-event-layout="nested" aria-pressed="false">Nested</button></div><div class="note" id="event-layout-note"></div></section>
         <section id="world-band-section" data-temporal hidden><h2>The world</h2><div class="seg" id="world-bands" role="group" aria-label="Where the world stands"><button type="button" data-world="below" aria-pressed="true">Beneath the characters</button><button type="button" data-world="above" aria-pressed="false">Above them</button></div><div class="note">Characters are the subjects the model gives a mind; everything else is the world.</div></section>
         <section id="note-layout-section" data-temporal><h2>Documents &amp; notes layout</h2><div class="seg" id="note-layouts" role="group" aria-label="Documents and notes layout"><button type="button" data-note-layout="floors" aria-pressed="false">On floors</button><button type="button" data-note-layout="original" aria-pressed="true">Original</button><button type="button" data-note-layout="nearby" aria-pressed="false">Nearby</button><button type="button" data-note-layout="overhead" aria-pressed="false">Overhead</button><button type="button" data-note-layout="centered" aria-pressed="false">Centered above</button></div><div class="note" id="note-layout-note"></div><div class="seg"><button type="button" id="note-links-all" aria-pressed="false" title="Show every thought's connections to visible Events, people, processes and notes without hovering">All attachments</button></div><div class="note" id="note-links-note"></div></section>
@@ -453,6 +456,7 @@
       </div></span>
     <div id="process-detail-status" role="status" hidden></div>
     <div id="graph-controls" data-graph></div>
+    <div id="chart-controls" data-chart></div>
     <div id="space-controls" data-space></div>
   </div>
   <div class="hud legend" id="legend" hidden></div>

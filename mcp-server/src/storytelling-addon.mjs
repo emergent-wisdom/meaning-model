@@ -35,7 +35,7 @@ const citation = z.object({
 }).strict();
 const MAX_INPUT_BYTES = 256 * 1024;
 const MAX_PACKET_BYTES = 256 * 1024;
-import { servedText } from './modeling-guidance.mjs';
+import { serveReadableResource, servedText } from './modeling-guidance.mjs';
 
 const RESOURCE_URI = 'life-sim://addon/storytelling';
 const passageInstructions = 'Choose independently revisable prose units when drafting: a beat, exchange, image, turn, paragraph, or coherent cluster may be a passage. Keep material together when one revision would naturally change it together; do not split to meet a paragraph or node quota. Supply optional passages [{id,text,renders?,noLinkReason?}] to scene review and commit when a scene contains several such units. Their ordered texts joined with one blank line must exactly equal the stored draft. Passages default to the selected route part plus scene.renders Event IDs; review this declared scene association, override renders for a more precise mapping, or supply a real noLinkReason for a passage intentionally depicting no Event. An empty renders list requires that reason. Every rendered passage needs one of these declarations. Links declare depiction/dependency, not what a reader or viewpoint knows. The reviewed scene becomes a nonrendered container and the passages become addressable prose leaves. Re-review whenever passage identities, boundaries, Event mappings or no-link reasons change.';
@@ -1046,12 +1046,16 @@ export function registerStorytellingAddon(server, service) {
   const result = (value) => ({
     content: [{ type: 'text', text: JSON.stringify(value, null, 2) }], structuredContent: value,
   });
-  server.registerResource('storytelling-addon', RESOURCE_URI, {
-    title: 'Optional storytelling workflows',
+  // Also readable with life_modeling_read, which clients without resource reads use.
+  const storytellingGuide = { uri: RESOURCE_URI, id: 'storytelling-addon', title: 'Optional storytelling workflows', category: 'addon',
     description: 'Opt-in storytelling: human-author feedback, initial settings and involvement, author outlook, process-grounded character voices and lifetime models, numerical exploration, scene workflow, automatic editorial Understanding Nodes, and a separate deepen-existing-work mode.',
+    load: async () => servedText(RESOURCE_URI, await readFile(new URL('../../profiles/STORYTELLING_ADDON.md', import.meta.url), 'utf8')) };
+  serveReadableResource(storytellingGuide);
+  server.registerResource('storytelling-addon', RESOURCE_URI, {
+    title: storytellingGuide.title,
+    description: storytellingGuide.description,
     mimeType: 'text/markdown',
-  }, async () => ({ contents: [{ uri: RESOURCE_URI, mimeType: 'text/markdown',
-    text: servedText(RESOURCE_URI, await readFile(new URL('../../profiles/STORYTELLING_ADDON.md', import.meta.url), 'utf8')) }] }));
+  }, async () => ({ contents: [{ uri: RESOURCE_URI, mimeType: 'text/markdown', text: await storytellingGuide.load() }] }));
   server.registerPrompt('life_story_scene_start', {
     title: 'Develop a scene with the optional storytelling add-on',
     description: 'Establish initial story settings and human involvement separately, reuse explicit delegation, then model the world first (candidate worlds, their opening, implications and a route), then author outlook and character life trends, and prepare, review, and commit scenes within the agreed role.',

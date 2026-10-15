@@ -14,12 +14,12 @@ The bundled adaptations are:
 
 - `src/viewer-data.mjs`, in the parent MCP source directory, accepts complete
   definitions supplied by the service instead of opening a run directory.
-- `public/start.js` holds one page with six representations of the same
-  snapshot: Processes, Tree and Terrain (`public/view.js`), Graph
-  (`public/graph-view.js`), Structure (`public/inspector.js`) and Space
-  (`public/space-view.js`). Each is built the first time it is shown and keeps
-  the shared selection and time; noncalendar clocks and initial values keep
-  their declared meanings.
+- `public/start.js` holds one page with seven representations of the same
+  snapshot: Processes, Tree and Terrain (`public/view.js`), Chart
+  (`public/chart-view.js`), Graph (`public/graph-view.js`), Structure
+  (`public/inspector.js`) and Space (`public/space-view.js`). Each is built the
+  first time it is shown and keeps the shared selection and time; noncalendar
+  clocks and initial values keep their declared meanings.
 - Lens readings are grouped into acts by `public/lens-readings.js`, so a deeper
   reading is drawn inside the answer it divides; the Graph's overview and its
   layout come from `public/model-graph.js`, and Space reads only declared
@@ -41,6 +41,52 @@ The standalone viewer remains a separate project. When updating this snapshot,
 preserve these adaptations and the upstream license files, and verify a book
 scene, a general model inspector and each representation; `test/viewer-renderers.test.mjs`
 runs the Space and Graph renderers on the real scene graph.
+
+## What the Chart draws
+
+The Chart puts a whole model on one time axis, read row by row; `public/chart-model.js` derives everything it draws
+from declared records, so it is tested without a browser.
+
+- **The axis** is even unless the records crowd toward its end (half of them in the last thirtieth of the span); then
+  it is a log scale of time before the end, and the footer says so. Opening a part, or dragging across the chart,
+  widens that stretch to most of the axis and draws it evenly.
+- **Across the top** are the parts of one Event, exactly as the model contains them, each across its own time; parts
+  that overlap share lanes, and nothing is picked out or renamed. Which Event is the view's `focus` setting, chosen
+  under **Parts of** or by the model's recorded view (`life_model_viewer_view`); without one the top is empty. A choice
+  under **Parts of** is written to the address and, on the model's view, marks it adjusted, so reopening the address
+  keeps it.
+  Opening a part lays out its own parts beneath it and widens it; opening any Event widens the part that contains it.
+- **Events** sit in rows by the levels of one importance scale (the one that ranks the most Events, or the one picked
+  under **Ranked for**), with the Events it does not rank in their own row; without a scale they share one row, in up
+  to three lanes. Events inside a person's inner process have rows of their own; readings and other non-world
+  contexts are not drawn. A filled mark has weighed causes; opening an Event draws its declared causal links, thicker
+  for the causes that made more difference, and widens the part across the top that contains it.
+- **Rows** follow the process decomposition, each process under the one it refines, with its values as the time
+  views project them (`typedScalarTrajectories`): one row per series, named by its holder and, where one holder has
+  several, by the mode, source or scope that tells them apart. A line runs only between the first and last samples,
+  `~` marks a reading between samples, and the line style follows the value's tag. Folding a process hides every row
+  of its parts. Parts declared as an `observational_partition` of a process are stacked as recorded, never rescaled
+  to fill the whole, only when each part has exactly one series, all held by one holder in one unit; otherwise no
+  total is implied and each part keeps its own row, named by whose it is. Processes outside the
+  decomposition sit under the Event that holds them (a life, a development) when there is more than one such Event.
+  Cut series (`cutTrajectories`) are stacked readings, drawn as the reading column reads them (`readingAt`, at one
+  resolution for the current zoom): each reading across the interval it averages, with the remainder shown. Where a
+  longer reading has finer ones open, the time they leave uncovered shows, dimmer, the level it must average, and
+  nothing where no level can hold; a moment's reading is a narrow bar.
+- **Events** in the controls shows the parts and Events above the time axis. It is off at first, so the rows take the
+  whole height; the axis, the reading at the pointer and an opened Event's time stay. Choosing a whole under **Parts
+  of** turns it on. When on, the parts and Events scroll away as the rows scroll and the axis stays at the top;
+  **Pin** keeps them fixed above the rows, for a tall screen. **Whole span** returns from an opened part.
+- **The panel** says how to read the chart (what its marks and lines mean, with the model's counts). The tour is the
+  model's own: the highlights of its recorded view, in its order and with its reason for each; without a recorded view
+  there is no tour. It shows an opened Event (its causes ranked by the difference each made alone, its Cuts,
+  realized concepts, links and the processes it moves), a process row (its values and its place in the tree) or a
+  group of Events too close to draw apart.
+- **Shared with the other views**: opening an Event or a process shares the selection; a selection cleared in another
+  view, or one the Chart cannot show (a Cut, a relation, a note), returns the panel to the guide. The moment the rows
+  are read at is the session's time (`time.now`, in the time views' units): a moment set in a time view is where the
+  Chart reads its rows, and a moment pinned in the Chart is where the time views open, as story time (a time view in
+  construction mode turns to story mode to take it).
 
 ## Recorded process values
 

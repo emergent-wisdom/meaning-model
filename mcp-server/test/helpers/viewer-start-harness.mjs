@@ -47,7 +47,7 @@ const panel=add(wrap,'div','pop-show','pop');panel.hidden=true;const layouts=add
 const html=readFileSync(new URL('./index.html',startUrl),'utf8'),menu=html.match(/id="layouts">([\\s\\S]*?)<\\/div>/)?.[1];
 if(!menu)throw Error('Show menu absent');for(const match of menu.matchAll(/<button data-layout="([^"]+)">([^<]+)<\\/button>/g)){const button=add(layouts,'button');button.dataset.layout=match[1];button.textContent=match[2];}
 for(const id of ['layout-note','selection-label','graph-controls'])add(panel,'div',id);
-add(tools,'div','space-controls');
+add(tools,'div','space-controls');add(tools,'div','chart-controls');
 add(tools,'button','story');add(tools,'button','legacy-camera-tool');
 for(const id of ['coarse-view','less-detail','more-detail','recenter-view'])add(tools,'button',id);
 add(tools,'select','process-focus');add(tools,'div','process-detail-status');
@@ -66,6 +66,7 @@ const sources={
   './model-picker.js':'export async function mountModelPicker(){globalThis.__route.actions.push({kind:"picker"});}',
   './graph-view.js':'export function showGraph(data,options){if(globalThis.__route.input.graphError)throw Error("WebGL absent");return globalThis.__route.surface("graph",data,null,options);}',
   './space-view.js':'export function showSpace(data,options){return globalThis.__route.surface("space",data,null,options);}',
+  './chart-view.js':'export function showChart(data,options){return globalThis.__route.surface("chart",data,null,options);}',
   './view.js':'if(globalThis.__route.input.trajectoryError)throw Error("trajectory unavailable");export const temporalController=globalThis.__route.surface("temporal",globalThis.__route.input.data);'
 };
 if(input.chosenViewHarness)Object.assign(sources,{
@@ -92,5 +93,5 @@ for(const action of input.steps??[]){
   if(action.view){if(action.button){const button=layouts.children.find(node=>node.dataset.layout===action.view);for(const handler of button.handlers.click??[])await handler({target:button});}else await window.modelViewer.switchView(action.view);}
   if(action.pagehide){for(const handler of handlers.pagehide??[])handler(action.pagehide);await Promise.resolve();}
 }
-process.stdout.write(JSON.stringify({opening:globalThis.__route.opening,actions,imports,errors,replacements,keys,toolbarStates,branchBanner:{hidden:branchBanner.hidden,text:branchBanner.children.map(node=>node.textContent).join(' ')},url:location.href,state:window.modelViewer.getState(),representation:body.dataset.representation,buttons:layouts.children.map(node=>({view:node.dataset.layout,label:node.textContent,disabled:node.disabled,pressed:node.attributes['aria-pressed']})),surfaces:body.all().filter(node=>['graph-surface','structure-surface','space-surface'].includes(node.id)).map(node=>node.id),sharedToolbarRetained:document.getElementById('t-show')===show.children[0],recenterHidden:document.getElementById('recenter-view').hidden,recenterTemporalOnly:Object.hasOwn(document.getElementById('recenter-view').dataset,'temporal'),coarseDisabled:document.getElementById('coarse-view').disabled,coarseTemporalOnly:Object.hasOwn(document.getElementById('coarse-view').dataset,'temporal')}));
+process.stdout.write(JSON.stringify({opening:globalThis.__route.opening,actions,imports,errors,replacements,keys,toolbarStates,branchBanner:{hidden:branchBanner.hidden,text:branchBanner.children.map(node=>node.textContent).join(' ')},url:location.href,state:window.modelViewer.getState(),representation:body.dataset.representation,buttons:layouts.children.map(node=>({view:node.dataset.layout,label:node.textContent,disabled:node.disabled,pressed:node.attributes['aria-pressed']})),surfaces:body.all().filter(node=>['graph-surface','structure-surface','space-surface','chart-surface'].includes(node.id)).map(node=>node.id),sharedToolbarRetained:document.getElementById('t-show')===show.children[0],recenterHidden:document.getElementById('recenter-view').hidden,recenterTemporalOnly:Object.hasOwn(document.getElementById('recenter-view').dataset,'temporal'),coarseDisabled:document.getElementById('coarse-view').disabled,coarseTemporalOnly:Object.hasOwn(document.getElementById('coarse-view').dataset,'temporal')}));
 `;

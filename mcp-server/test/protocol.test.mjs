@@ -150,7 +150,9 @@ test('official MCP client discovers and calls the local stdio server', async () 
     // start-here guide and the process breakdown first; the point follows at once.
     assert.match(startup, /^Before you build anything, in every mode: call life_modeling_context, then read the start-here guide/u);
     const head = startup.slice(0, startup.indexOf('# What the Meaning Model is for, and how to work in it'));
-    assert.ok(head.length > 0 && head.length < 1_024, 'the routing paragraph stays short and the point comes right after it');
+    // The paragraph also carries the reading route (0.12.2); what must arrive in a client's first 2,048 characters is
+    // held by delivery.test.mjs.
+    assert.ok(head.length > 0 && head.length < 1_100, 'the routing paragraph stays short and the point comes right after it');
     assert.match(head, /life-sim:\/\/guide\/process-breakdown/u);
     assert.match(startup, /You are an explorer, and the Meaning Model is your mind/);
     assert.match(startup, /the remaining four years must average 0\.1/);
@@ -170,6 +172,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
       'life_candidate_reroll',
       'life_candidate_roll',
       'life_candidate_route',
+      'life_carve_record',
       'life_cause_record',
       'life_construction_export',
       'life_construction_import',

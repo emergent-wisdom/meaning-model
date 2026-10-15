@@ -9,6 +9,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { lifeConnections, lifeTrendsDossier } from './storytelling-life-fixture.mjs';
 import { authorApplication, fictionalAuthorModel } from './storytelling-author-model-fixture.mjs';
 import { recordWorldProcess } from './world-process-fixture.mjs';
+import { toolsWithGuides } from '../src/tool-guides.mjs';
 
 // The add-on's loop over MCP: the same records the fixture writes through the add-on, through its tools.
 const overMcp = (client) => ({
@@ -227,11 +228,19 @@ test('storytelling opt-in adds only its tools, resource, and prompts to the live
     enabledTools.tools.filter(({ name }) => !baseToolNames.has(name)).map(({ name }) => name).sort(),
     storytellingTools,
   );
+  // life_modeling_read can also open the add-on's guide and the complete instructions of its long-described tools;
+  // every other existing tool is unchanged.
+  const readerUris = (tools) => tools.find(({ name }) => name === 'life_modeling_read').inputSchema.properties.uri.enum;
+  const notReader = ({ name }) => name !== 'life_modeling_read';
   assert.deepEqual(
-    enabledTools.tools.filter(({ name }) => !storytellingTools.includes(name)),
-    baseTools.tools,
+    enabledTools.tools.filter(({ name }) => !storytellingTools.includes(name)).filter(notReader),
+    baseTools.tools.filter(notReader),
     'all existing tool definitions remain unchanged',
   );
+  const storyGuideUris = toolsWithGuides.filter((name) => name.startsWith('life_story_')).map((name) => `life-sim://tool/${name}`).sort();
+  assert.equal(storyGuideUris.length, 11);
+  assert.deepEqual(readerUris(enabledTools.tools).filter((uri) => !readerUris(baseTools.tools).includes(uri)).sort(),
+    ['life-sim://addon/storytelling', ...storyGuideUris].sort(), 'the reader also opens the storytelling guides');
   const explorer = enabledTools.tools.find(({ name }) => name === 'life_story_structure_explore');
   assert.equal(explorer.annotations.readOnlyHint, true);
   assert.equal(explorer.annotations.idempotentHint, false,
@@ -249,9 +258,11 @@ test('storytelling opt-in adds only its tools, resource, and prompts to the live
   const addonUri = 'life-sim://addon/storytelling';
   assert.ok(!baseResources.resources.some(({ uri }) => uri === addonUri));
   assert.deepEqual(
-    enabledResources.resources.filter(({ uri }) => uri !== addonUri),
+    enabledResources.resources.filter(({ uri }) => uri !== addonUri && !storyGuideUris.includes(uri)),
     baseResources.resources,
   );
+  assert.deepEqual(enabledResources.resources.filter(({ uri }) => storyGuideUris.includes(uri)).map(({ uri }) => uri).sort(), storyGuideUris,
+    'each long-described storytelling tool has its complete instructions as a resource');
   assert.equal(enabledResources.resources.filter(({ uri }) => uri === addonUri).length, 1);
   const addonResource = await enabled.readResource({ uri: addonUri });
   assert.ok(addonResource.contents[0].text.length > 0);

@@ -446,3 +446,13 @@ test('the route is asked where its choices, its present shocks, its largest jump
   assert.match(later.find((item) => item.kind === 'story-shock-missing')?.question ?? '', /^Leo has no shock inside the story's time \(20 to 22\); the model's shocks for them are all earlier/);
   assert.ok(!later.some((item) => item.kind === 'parts-without-choice'), 'both parts hold a decision');
 });
+
+test('a reading of a process over a stretch is not asked where it happens; a happening still is', () => {
+  const model = lived({ decisions: 0 });
+  const mm = model.meaning_model;
+  // As life_series_record makes one: a reading Event marked as a series reading, carrying the Cut it reads.
+  mm.events.push(event('event.series.share-rise.0-10', 0, 10, { provenance: ['Meaning Model series reading v1'] }));
+  mm.normalized_cuts.push(cut('cut.series.share-rise.0-10', 'event.series.share-rise.0-10', 'Of the rise, how much came from each cause?', 'share of the rise', { infrastructure: 0.6, remainder: 0.4 }));
+  const unplaced = unplacedEvents(indexModel(model), ['event.series.share-rise.0-10', 'ev.early']).map((item) => item.id);
+  assert.deepEqual(unplaced, ['ev.early'], 'the happening is asked where; the reading is not');
+});

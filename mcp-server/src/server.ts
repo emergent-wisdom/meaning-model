@@ -12,7 +12,8 @@ import * as z from 'zod/v4';
 import { toolResult } from './tool-result.mjs';
 import { absoluteHistoryPath, modelFileText, readModelFile, writeModelFile } from './construction-files.mjs';
 import { boundLists } from './bounded-lists.mjs';
-import { composeInstructions, resolveAgentInstructions } from './agent-instructions.mjs';
+import { describeTool } from './tool-guides.mjs';
+import { CONFIGURED_INSTRUCTIONS_URI, INSTRUCTIONS_URI, composeInstructions, configuredMustBeRead, configuredReadFirst, followsOurInstructions, resolveAgentInstructions } from './agent-instructions.mjs';
 
 import { parseEnabledAddons } from './addon-config.mjs';
 import { createEstimator, parseEstimatorConfig } from './estimator-config.mjs';
@@ -21,6 +22,7 @@ import { directionDrawSchema, drawDirection } from './direction-draw.mjs';
 import { registerJevProcessEstimationTools } from './jev-process-estimation.mjs';
 import { registerGeneralModelingTools } from './general-modeling.mjs';
 import { registerConstructionRecordTools } from './construction-record.mjs';
+import { registerCarveTools } from './carve-record.mjs';
 import { grammarReadingInstructions, modelingSessionInstructions, processDevelopmentInstructions } from './construction-principles.mjs';
 import { registerLensTools } from './lenses.mjs';
 import { registerRevisionCheckTools } from './revision-check.mjs';
@@ -52,11 +54,15 @@ import {
   buildModelingContext,
   buildModelingPrompt,
   listModelingResources,
+  listReadableResources,
   modelingPurposes,
+  purposeChoice,
   modelingSessionModes,
   pullableModes,
   readModelingResource,
   readModelingResourcePage,
+  MAX_PAGE_CHARACTERS,
+  serveReadableResource,
   startHereText,
 } from './modeling-guidance.mjs';
 
@@ -72,19 +78,62 @@ const estimator = createEstimator(parseEstimatorConfig(process.env));
 const agentInstructions = resolveAgentInstructions(process.env);
 const simple = agentInstructions.mode === 'simple';
 // First in the instructions, and short, because some clients show only their first two kilobytes.
-const processBreakdownHead = 'Before you build anything, in every mode: call life_modeling_context, then read the start-here guide (life-sim://guide/start-here) and the process breakdown (life-sim://guide/process-breakdown), with life_modeling_read if direct resource reads are unavailable. The process breakdown sets the least depth every model must reach. Its trees are examples: design your own with the conceptual decomposition algorithm it gives, the best method we have now, and break the world and every person, institution, machine and place down at least that deep, following every process over time. In a story, every person who matters gets a whole life: the nine slow processes, speech and processes of their own, with values across the life, and Cuts in every period for wants, outlook, what is threatened, framing and deciding, feelings, body and days.';
+// The reading route: the other required guides, reuse of what the agent still holds, and where the whole of these
+// instructions is, with the user's own when they were added (agent-instructions.mjs).
+const readingRoute = ' Then read the other required guides in the context\'s order, reusing any you still hold unchanged. '
+  + `All of these instructions are at ${INSTRUCTIONS_URI}.`;
+const headCore = 'Before you build anything, in every mode: call life_modeling_context, then read the start-here guide (life-sim://guide/start-here) and the process breakdown (life-sim://guide/process-breakdown), with life_modeling_read if direct resource reads are unavailable.' + readingRoute + ' The process breakdown sets the least depth every model must reach. Its trees are examples: design your own with the conceptual decomposition algorithm it gives, the best method we have now, recording each carve with life_carve_record, and break the world and every person, institution, machine and place down at least that deep, following every process over time.';
+const storyDepth = 'In a story, every person who matters gets a whole life: the nine slow processes, speech and processes of their own, with values across the life, and Cuts in every period for wants, outlook, what is threatened, framing and deciding, feelings, body and days.';
+// With the user's instructions added, they are read first; the story sentence then follows the start-here guide, so the
+// opening questions and continuation still fall inside the part a client keeps.
+const userFirst = agentInstructions.mode === 'full+custom';
+const processBreakdownHead = userFirst ? `${configuredReadFirst} ${headCore}` : `${headCore} ${storyDepth}`;
 const simpleInstructions = 'Whatever you are doing, build a richer model underneath it. If you are writing a story, build a richer world underneath it: a richer world makes a better story. If you want to understand something better, build a richer model underneath it. That is the loop. Never hold back because a part seems irrelevant: follow your curiosity, experiment, and let what you find change the work; the aim is richness, not finishing quickly. Build an account of how the present came to be. Model the processes and relationships that could have produced it, including those we have not observed directly. Follow their consequences to predict what else we should find. Use new evidence to revise the account. The Meaning Model\'s tools hold that account. Its documentation and theory are at https://github.com/emergent-wisdom/meaning-model.';
 const firstSentence = (text: string) => { const match = String(text ?? '').match(/^.*?[.!?](?=\s|$)/su); return (match ? match[0] : String(text ?? '')).trim(); };
-const fullInstructions = `${processBreakdownHead}\n\n${startHereText}\n\n${grammarReadingInstructions}\n\n${modelingSessionInstructions}\n\n${processDevelopmentInstructions}\n\n` + 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.\n\nIn every mode, begin modeling with life_modeling_context and follow its shared construction guidance. Agent memory and user memory are core purposes: maintain their ongoing processes, not only isolated facts, within the declared scope. Human-author feedback leaves authorship and creative decisions with the human; use life_story_feedback with the storytelling add-on for read-only feedback. All workflows use the same linked, attributed Understanding Graph for questions, hypotheses, predictions, surprises, tests and revisions. Explore recursively, following each useful question, connection and discovery; guess where you do not know, with an honest band and a tag, and record what remains uncertain. Anything that changes over time can be modeled as a process, including qualities often written as fixed descriptions, such as a voice, a style, a belief or the culture of an institution. From the first story exploration, consider how the telling itself develops across reading position: tension, pacing, disclosure or other processes that matter to this work. Follow these questions recursively, using stable passage links and authored evidence without a required dramatic formula or numerical score. Keep reading position distinct from world time and authoring history. Let the work choose its form; books need not have a protagonist, conflict, climax or resolution. Use the shared narrative graph for forms that do not fit scenes, without inventing a cast to satisfy a template. Before writing or revising prose, consider author and character voice, reader disclosure, and consequential physical placement. Use declared passage links and existing records. At meaningful milestones, use the controlled read-back guidance to compare selected output against a blind control, reporting fidelity separately from improvement over the control. Do not wait for a special user request; if independent readers are unavailable, record that limitation rather than inventing a result. These are instructions to the calling LLM, not claims that the server has assessed meaning or automatically run reviewers.';
+const fullInstructions = `${processBreakdownHead}\n\n${startHereText}\n\n${userFirst ? `${storyDepth}\n\n` : ''}${grammarReadingInstructions}\n\n${modelingSessionInstructions}\n\n${processDevelopmentInstructions}\n\n` + 'Before substantial work, call life_engine_status and check persistence.rustAuthority. In process-memory mode, model and graph records disappear when this MCP process stops; do not describe them as saved across restart. For continuation, call life_saved_work_list with the known accessScopes to discover visible graph heads. An empty scoped result does not prove there is no saved work. Finish paging, choose the intended branch explicitly, then read life_construction_replay and life_model_outline before changing it. Do not silently pick the newest branch.\n\nIn every mode, begin modeling with life_modeling_context and follow its shared construction guidance. Agent memory and user memory are core purposes: maintain their ongoing processes, not only isolated facts, within the declared scope. Human-author feedback leaves authorship and creative decisions with the human; use life_story_feedback with the storytelling add-on for read-only feedback. All workflows use the same linked, attributed Understanding Graph for questions, hypotheses, predictions, surprises, tests and revisions. Explore recursively, following each useful question, connection and discovery; guess where you do not know, with an honest band and a tag, and record what remains uncertain. Anything that changes over time can be modeled as a process, including qualities often written as fixed descriptions, such as a voice, a style, a belief or the culture of an institution. From the first story exploration, consider how the telling itself develops across reading position: tension, pacing, disclosure or other processes that matter to this work. Follow these questions recursively, using stable passage links and authored evidence without a required dramatic formula or numerical score. Keep reading position distinct from world time and authoring history. Let the work choose its form; books need not have a protagonist, conflict, climax or resolution. Use the shared narrative graph for forms that do not fit scenes, without inventing a cast to satisfy a template. Before writing or revising prose, consider author and character voice, reader disclosure, and consequential physical placement. Use declared passage links and existing records. At meaningful milestones, use the controlled read-back guidance to compare selected output against a blind control, reporting fidelity separately from improvement over the control. Do not wait for a special user request; if independent readers are unavailable, record that limitation rather than inventing a result. These are instructions to the calling LLM, not claims that the server has assessed meaning or automatically run reviewers.';
+const serverInstructions = composeInstructions(agentInstructions, { full: fullInstructions, simple: simpleInstructions });
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.12.1',
+  version: '0.13.0',
 }, {
-  instructions: composeInstructions(agentInstructions, { full: fullInstructions, simple: simpleInstructions }),
+  instructions: serverInstructions,
 });
 if (simple) {
   const register = server.registerTool.bind(server);
   (server as any).registerTool = (name: string, config: any, handler: any) => register(name, { ...config, description: firstSentence(config.description) }, handler);
+}
+// Tools whose results are long text an agent asked for. Claude Code saves a tool result over 50,000 characters (or 25,000
+// tokens) to a file the agent may not open, unless the tool declares a larger size for its results. The reads declare
+// 100,000, which holds the context and a guide page whole; the story tasks, packets meant to be read whole that grow
+// with the model, declare 200,000 (a fresh agent's depth review, scene preparation and profile compilation came to
+// 65,000-92,000 characters). Other clients ignore the setting. A result can still be larger, so the reads keep paging.
+const RESULT_CHARACTERS: Record<string, number> = Object.freeze({
+  life_modeling_context: 100_000, life_modeling_read: 100_000, life_model_outline: 100_000, life_meaning_query: 100_000,
+  life_model_inspect: 100_000, life_model_questions: 100_000, life_construction_replay: 100_000, life_narrative_query: 100_000,
+  life_profile_compile: 200_000, life_story_model_depth_review: 200_000, life_story_scene_prepare: 200_000, life_story_deepen: 200_000,
+  life_story_purpose_review: 200_000, life_story_feedback: 200_000, life_story_chat_prepare: 200_000,
+  // A carve's result grows with its candidates and parts (32 parts came to 55,000 characters), and a failed note write
+  // returns every note to retry with it: the most a client allows.
+  life_carve_record: 500_000,
+});
+{
+  const register = server.registerTool.bind(server);
+  (server as any).registerTool = (name: string, config: any, handler: any) => register(name, name in RESULT_CHARACTERS
+    ? { ...config, _meta: { ...(config._meta ?? {}), 'anthropic/maxResultSizeChars': RESULT_CHARACTERS[name] } } : config, handler);
+}
+{
+  // A description longer than clients keep (2,048 characters in Claude Code) is given in short, with where its complete
+  // text is: served unchanged as a guide that life_modeling_read opens, and as a resource (tool-guides.mjs).
+  const register = server.registerTool.bind(server);
+  (server as any).registerTool = (name: string, config: any, handler: any) => {
+    const { description, guide } = describeTool(name, config.description, { ours: followsOurInstructions(agentInstructions.mode) });
+    if (guide) {
+      serveReadableResource(guide);
+      server.registerResource(guide.id, guide.uri, { title: guide.title, description: guide.description, mimeType: 'text/markdown' },
+        async () => ({ contents: [{ uri: guide.uri, mimeType: 'text/markdown', text: await guide.load() }] }));
+    }
+    return register(name, { ...config, description }, handler);
+  };
 }
 {
   // A read that starts the work over makes the next write send its fixed guidance in full (lean-results.mjs).
@@ -162,7 +211,7 @@ server.registerPrompt(
     title: 'Start Meaning Model modeling',
     description: 'Read the grammar first, then the operational protocol, a purpose-specific guide or profile, and an example; full research papers are optional references.',
     argsSchema: z.object({
-      purpose: z.enum(modelingPurposes).describe(`One of ${modelingPurposes.join(', ')}.`),
+      purpose: z.enum(modelingPurposes).describe(purposeChoice),
       sessionMode: z.enum(modelingSessionModes).default('first_use').describe('One of first_use, repeat_same_domain, new_domain, consequential or continuation. Use continuation when you continue recorded work in this server; it begins with reading the construction record.'),
       modes: z.string().optional().describe(`Modes to pull into the purpose, comma-separated: ${pullableModes.join(', ')}.`),
     }),
@@ -180,27 +229,16 @@ server.registerTool(
   {
     description: 'Opens with two questions to ask the user before you build (askTheUserFirst). Return the reading order and operational contract for every mode: start-here, process breakdown, complete grammar, protocol, guide or profile, and an example, with full research papers as optional references for fuller explanations. Every fresh agent reads the grammar; use life_modeling_read when direct resource reads are unavailable. Workflow entries identify prompts separately from callable tools. Reading is instructed, not tracked or verified. Resource digests identify bytes, not comprehension.',
     inputSchema: z.object({
-      purpose: z.enum(modelingPurposes).describe(`One of ${modelingPurposes.join(', ')}.`),
+      purpose: z.enum(modelingPurposes).describe(purposeChoice),
       sessionMode: z.enum(modelingSessionModes).default('first_use').describe('One of first_use, repeat_same_domain, new_domain, consequential or continuation. Use continuation when you continue recorded work in this server; it begins with reading the construction record.'),
       modes: z.array(z.enum(pullableModes)).max(pullableModes.length).default([]).describe('Modes to pull into the purpose, whatever is being built: forecasting adds issuing and scoring forecasts and, with the forecasting add-on, branches per forecast answer, decision option or assumption.'),
     }),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
-  async (input) => toolResult(await buildModelingContext({ ...input, instructionsMode: agentInstructions.mode, addons: enabledAddons })),
+  async (input) => toolResult(await buildModelingContext({ ...input, instructionsMode: agentInstructions.mode, addons: enabledAddons,
+    configured: configuredMustBeRead(agentInstructions) ? { uri: CONFIGURED_INSTRUCTIONS_URI, sha256: agentInstructions.sha256 } : null })),
 );
 
-server.registerTool('life_modeling_read', {
-  description: 'Read canonical grammar or guidance through a tool, including in clients that do not expose MCP resources. Begin with life-sim://guide/start-here, which says what the Meaning Model is for and how to work in it, then read life-sim://protocol/grammar before first modeling, then the required resources listed by life_modeling_context. Follow nextOffset until null to read the complete resource, or read section "contents" and then the sections you need; pass expectedSha256 on later pages to detect changes. This tool does not attest comprehension or unlock mutations.',
-  inputSchema: z.object({
-    uri: z.enum(listModelingResources().map((resource) => resource.uri)),
-    offset: z.number().int().nonnegative().default(0),
-    maxCharacters: z.number().int().min(1).max(64_000).default(24_000),
-    expectedSha256: z.string().regex(/^[a-f0-9]{64}$/u).optional(),
-    section: z.string().trim().min(1).max(200).optional()
-      .describe('"contents" lists the guide\'s headings with their sizes; a heading reads that section alone (paged the same way).'),
-  }).strict(),
-  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-}, async (input) => toolResult(await readModelingResourcePage(input)));
 
 const generalPurposeNote = 'Purpose defaulted to observation; pass purpose to change it. observation keeps each report, estimate and judgment in its own authority, and suits explanatory or retrospective accounts built from records or recalled knowledge. forecasting adds values after the evidence cutoff that later observations can test. counterfactual holds an explicit alternative premise apart from the accepted history. Forecasting can also be pulled into any purpose: life_modeling_context with modes ["forecasting"].';
 
@@ -1308,6 +1346,8 @@ server.registerTool(
 registerJevProcessEstimationTools(server, service, estimator, { toolResult });
 registerGeneralModelingTools(server, service, estimator, { toolResult });
 registerConstructionRecordTools(server, service, { toolResult });
+// A carve writes a model revision first, so its result, like every model write's, must fit rather than fail.
+registerCarveTools(server, service, { toolResult: writeResult });
 registerSavedWorkTools(server, service, { toolResult });
 registerMemoryTools(server, service, { toolResult });
 registerLensTools(server, service, { toolResult, estimator });
@@ -1329,6 +1369,37 @@ if (enabledAddons.includes('forecasting')) {
   const { registerForecastingAddon } = await import('./futures.mjs');
   registerForecastingAddon(server, service, { toolResult });
 }
+
+// This server's instructions as configured, readable whole: clients that keep only the start of them can read the rest.
+const SERVER_INSTRUCTIONS_URI = INSTRUCTIONS_URI;
+const instructionsResource = { uri: SERVER_INSTRUCTIONS_URI, id: 'server-instructions', title: 'This server\'s instructions',
+  description: 'The complete instructions this server gives agents, as configured. Some clients show only their first 2,048 characters.',
+  category: 'server', load: async () => serverInstructions };
+serveReadableResource(instructionsResource);
+if (agentInstructions.mode === 'full+custom' || agentInstructions.mode === 'custom') {
+  const configured = { uri: CONFIGURED_INSTRUCTIONS_URI, id: 'configured-instructions', title: 'The instructions this server\'s user configured',
+    description: 'The instructions this server\'s user configured, as written: read them whole before acting.', category: 'server', load: async () => agentInstructions.text };
+  serveReadableResource(configured);
+  server.registerResource(configured.id, configured.uri, { title: configured.title, description: configured.description, mimeType: 'text/markdown' },
+    async () => ({ contents: [{ uri: configured.uri, mimeType: 'text/markdown', text: agentInstructions.text }] }));
+}
+server.registerResource('server-instructions', SERVER_INSTRUCTIONS_URI, { title: instructionsResource.title, description: instructionsResource.description, mimeType: 'text/markdown' },
+  async () => ({ contents: [{ uri: SERVER_INSTRUCTIONS_URI, mimeType: 'text/markdown', text: serverInstructions }] }));
+
+// Registered last, so it can open everything served above: the guides, the enabled add-ons' guides, the complete
+// instructions of tools whose descriptions are long, and this server's instructions.
+server.registerTool('life_modeling_read', {
+  description: 'Read canonical grammar or guidance through a tool, including in clients that do not expose MCP resources. Begin with life-sim://guide/start-here, which says what the Meaning Model is for and how to work in it, then read life-sim://protocol/grammar before first modeling, then the required resources listed by life_modeling_context. Follow nextOffset until null to read the complete resource, or read section "contents" and then the sections you need; pass expectedSha256 on later pages to detect changes. This tool does not attest comprehension or unlock mutations.',
+  inputSchema: z.object({
+    uri: z.enum(listReadableResources().map((resource) => resource.uri) as [string, ...string[]]),
+    offset: z.number().int().nonnegative().default(0),
+    maxCharacters: z.number().int().min(1).max(MAX_PAGE_CHARACTERS).default(24_000),
+    expectedSha256: z.string().regex(/^[a-f0-9]{64}$/u).optional(),
+    section: z.string().trim().min(1).max(200).optional()
+      .describe('"contents" lists the guide\'s headings with their sizes; a heading reads that section alone (paged the same way).'),
+  }).strict(),
+  annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+}, async (input) => toolResult(await readModelingResourcePage(input)));
 
 await service.initialize();
 const transport = new StdioServerTransport();

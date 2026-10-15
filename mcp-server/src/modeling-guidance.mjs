@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { askTheUserFirst, constructionRecordInstructions, grammarReadingInstructions, modelingSessionInstructions } from './construction-principles.mjs';
 import { followsOurInstructions } from './agent-instructions.mjs';
+import { toolGuideUri, toolsWithGuides } from './tool-guides.mjs';
 
 export { askTheUserFirst };
 import { forecastingMode, methodCoreInstructions, modelingWorkflows, pullableModes, purposeInstructions, purposeMethod, workflowForPurpose } from './workflow-guidance.mjs';
@@ -21,6 +22,20 @@ export const modelingPurposes = Object.freeze([
   'user_memory',
   'human_author_feedback',
 ]);
+// What each purpose is for, said where an agent chooses one: fresh agents asked about history took
+// source_reconstruction, which models the world of an existing text, for research from sources.
+export const purposeMeanings = Object.freeze({
+  creative_story: 'a new story or other creative work, written from a model of its world',
+  source_reconstruction: 'the world of an existing text, such as a novel or a play, rebuilt from the text; history or research from sources is observation',
+  person_reflection: 'a real person\'s life, with them: their own account beside the model\'s',
+  observation: 'an account of what happened or what is the case, from evidence, sources or recalled knowledge: history, research, a situation',
+  forecasting: 'what may happen, as forecasts issued before the outcome and scored after it',
+  counterfactual: 'what would have happened had something gone differently',
+  agent_memory: 'your own memory of the work across sessions',
+  user_memory: 'a memory of the user: what they said, prefer and committed to',
+  human_author_feedback: 'feedback on a human author\'s own work, which they write and direct',
+});
+export const purposeChoice = `Choose by what the work is. ${modelingPurposes.map((purpose) => `${purpose}: ${purposeMeanings[purpose]}`).join('. ')}.`;
 
 export const modelingSessionModes = Object.freeze([
   'first_use',
@@ -280,6 +295,18 @@ const resourceDefinitions = Object.freeze([
 ]);
 
 const byUri = new Map(resourceDefinitions.map((definition) => [definition.uri, definition]));
+// Texts served at run time, read with life_modeling_read like the guides above: an enabled add-on's guide, the complete
+// instructions of a tool whose description is longer than clients keep, and this server's own instructions. Each is
+// loaded when read; registering a URI again replaces it.
+const servedDefinitions = new Map();
+export function serveReadableResource({ uri, id, title, description, mimeType = 'text/markdown', category, load }) {
+  if (byUri.has(uri)) throw new Error(`${uri} is a fixed guide and cannot be served again.`);
+  servedDefinitions.set(uri, { uri, id, title, description, mimeType, category, load });
+}
+// Every text life_modeling_read can open: the fixed guides, then what this server serves.
+export function listReadableResources() {
+  return [...listModelingResources(), ...[...servedDefinitions.values()].map(({ load: _load, ...definition }) => definition)];
+}
 
 function sha256(text) {
   return createHash('sha256').update(text).digest('hex');
@@ -295,8 +322,8 @@ export async function expandTexInputs(text, file) {
 }
 
 async function loadDefinition(definition) {
-  const raw = await readFile(definition.file, 'utf8');
-  const text = definition.mimeType === 'text/x-tex' ? await expandTexInputs(raw, definition.file) : raw;
+  const raw = definition.load ? await definition.load() : await readFile(definition.file, 'utf8');
+  const text = definition.mimeType === 'text/x-tex' && definition.file ? await expandTexInputs(raw, definition.file) : raw;
   return {
     id: definition.id,
     uri: definition.uri,
@@ -317,7 +344,7 @@ export function listModelingResources() {
 }
 
 export async function readModelingResource(uri) {
-  const definition = byUri.get(uri);
+  const definition = byUri.get(uri) ?? servedDefinitions.get(uri);
   if (!definition) throw new Error(`Unknown modeling resource ${uri}.`);
   return loadDefinition(definition);
 }
@@ -362,9 +389,12 @@ export function guideHeadings(text) {
   return headings;
 }
 
+// The largest page: enough for the 81,000-character process breakdown in one read, and with its JSON escaping still
+// under the 100,000 characters life_modeling_read declares for its results.
+export const MAX_PAGE_CHARACTERS = 90_000;
 export async function readModelingResourcePage({ uri, offset = 0, maxCharacters = 24_000, expectedSha256, section }) {
   if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(maxCharacters)
-    || maxCharacters < 1 || maxCharacters > 64_000) throw new Error('Invalid resource page range.');
+    || maxCharacters < 1 || maxCharacters > MAX_PAGE_CHARACTERS) throw new Error('Invalid resource page range.');
   const resource = await readModelingResource(uri);
   if (expectedSha256 && expectedSha256 !== resource.sha256) throw new Error('The resource changed; restart reading from offset 0.');
   // A guide can be read a section at a time: its contents first, then the sections the work needs.
@@ -389,6 +419,8 @@ export async function readModelingResourcePage({ uri, offset = 0, maxCharacters 
   return { ...resource, text: text.slice(offset, end), offset,
     ...(sectionTitle !== null ? { section: sectionTitle } : {}),
     nextOffset: end < text.length ? end : null, totalCharacters: text.length,
+    // Agents read a first page and stopped; a page that is not the last says so in words.
+    ...(end < text.length ? { continues: `This page ends at character ${end} of ${text.length}${sectionTitle !== null ? ' of this section' : ''}: read on with offset ${end}.` } : {}),
     readingVerified: false };
 }
 
@@ -428,6 +460,7 @@ export async function buildModelingContext({
   instructionsMode = 'full',
   modes = [],
   addons = [],
+  configured = null,
 }) {
   ensurePurpose(purpose);
   ensureMode(sessionMode);
@@ -487,10 +520,14 @@ export async function buildModelingContext({
   // required, and the opening questions are the user's to ask or not.
   const ours = followsOurInstructions(instructionsMode);
   if (!ours) for (const resource of orderedResources) resource.required = false;
+  // The instructions this server's user configured are read first, and whole, in every mode that has them: they are the
+  // user's, not ours, so even a session free of our guides is held to them.
+  if (configured) orderedResources.unshift({ uri: configured.uri, sha256: configured.sha256, required: true,
+    reason: 'Read first, whole, before anything else: the instructions this server\'s user configured. Where they differ from the Meaning Model\'s guidance, follow them.' });
   return {
     // First, so a client that previews only the start of a long result still shows it to an agent that works without stopping.
     ...(ours ? { askTheUserFirst } : { instructions: { mode: instructionsMode,
-      note: 'This session follows the instructions the user configured. What follows is the Meaning Model\'s own guidance, offered as reference: where it differs from the user\'s instructions, follow the user\'s. No guide below is required.' } }),
+      note: 'This session follows the instructions the user configured. What follows is the Meaning Model\'s own guidance, offered as reference: where it differs from the user\'s instructions, follow the user\'s. None of our guides below is required; the user\'s own instructions, listed first, are.' } }),
     schema: 'life-sim-modeling-context/v2',
     startHere: startHere.text,
     method: { core: methodCoreInstructions, inThisMode: purposeMethod(purpose),
@@ -524,6 +561,13 @@ export async function buildModelingContext({
       enforced: false,
       durableAcrossServerRestart: false,
     },
+    // A tool whose description is longer than clients keep is described in short, and its complete instructions are a
+    // guide. Under our instructions it is read before the tool's first call, not before the work starts.
+    toolGuides: toolsWithGuides.filter((name) => !name.startsWith('life_story_') || addons.includes('storytelling'))
+      .map((name) => ({ tool: name, uri: toolGuideUri(name) })),
+    toolGuideRule: ours
+      ? 'Read a tool\'s guide (toolGuides) before your first call to that tool, and reuse it while it stays unchanged. Its description holds only what fits in 2,048 characters.'
+      : 'Each guide in toolGuides holds the complete instructions of a tool whose description is short; read one when you want it.',
     comprehensionBoundary: 'The grammar and operational guides are required reading; the full research papers are optional references. Required resources need reading on first use, when changed or when their relevant guidance is no longer retained, not before every reply. The server does not track reading and cannot verify comprehension. Resource digests identify exact bytes, not reading or understanding.',
     orderedResources,
     minimumChecklist: [

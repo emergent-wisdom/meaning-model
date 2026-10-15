@@ -578,6 +578,9 @@ is the difference the cause made in that account. Every number in this table is 
 | The same, as shares of the credit, with no rule for splitting them | shares adding to 1 | — | — | boiler 0.6, blast pipe 0.4 | **No.** The blast pipe only helped with that boiler, so each was necessary and "0.6 of the win" cannot be checked. A declared rule for splitting, such as averaging each cause's difference over every order in which the causes could be added, would make it a number; the differences above say more. |
 | What drove the nurse's exhaustion (0–10) each month | points of exhaustion | April 8; September 7 | April: without the night shifts 5. September: without the money worry 5, without the night shifts 6 | April 3; September 2 and 1 | **Yes.** The main driver moves from her shifts to money. |
 | Two causes that would each have been enough alone | the question's measure | 0.95 | without either one 0.94; without both 0.05 | 0.01 each; 0.90 together | **Yes,** once the joint reading is recorded. Alone, each looks as if it did nothing. |
+| What a road widening did to the rise in a city's daily bicycle trips | daily trips gained | 210,000 | without the widening 218,000 | 8,000 held back | **Yes.** A cause that stood in the way (`prevents`) is read like any other: the difference is the amount it held back, a positive number. |
+| The same rise of 210,000, divided into what was gained and what was lost | daily trips, gross | 246,000 gained; 36,000 lost | — | gained: from cars 120,000, new residents 86,000, from buses 40,000; lost: moved away 24,000, back to cars 12,000 | **Yes,** as two Cuts over the gross amounts, each from evidence or tagged as an estimate, each trip counted once as a gain or a loss. The net is their difference. |
+| The same rise as shares of the net, with the losses folded into "other" | shares of the 210,000 | — | — | from cars 0.57, new residents 0.41, from buses 0.19, other −0.17 | **No.** A share cannot be negative, and the remainder is not a place to net out what pulled the other way. Record the gross amounts. |
 
 The roles pass as defined states: made it possible (enabling), set it off or decided when (trigger), kept it going
 (sustaining), made it work rather than fail (success condition), stood in its way (hindering).
@@ -603,7 +606,8 @@ Most categories pass in the forms the breakdown gives them. Those that did not, 
 - muscle tension on a 0–10 scale;
 - love divided among its objects, as a Cut;
 - shares per second in the madeleine;
-- shares of credit among causes that act together, with no rule for splitting them.
+- shares of credit among causes that act together, with no rule for splitting them;
+- a net change divided into shares, with what pulled against it folded into the remainder.
 
 **Revised:**
 - every Cut names its pool;

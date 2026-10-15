@@ -1,6 +1,7 @@
 import { isPlaybackVisible } from './playback-time.js';
 
 const PALETTE = ['#ffb057', '#58b4ff', '#5fd39a', '#c69bff', '#ff7aa8', '#e8e27a', '#7fe0e6'];
+export const ANSWER_PALETTE = PALETTE;
 export const readingNeedsReview = (cut) => ['needs_review', 'unresolved'].includes(cut.evidence?.status);
 export function answerColor(key) {
   if (key === 'remainder') return '#77746c';

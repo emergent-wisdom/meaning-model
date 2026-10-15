@@ -36,7 +36,12 @@ test('the alien add-on is opt-in and adds only its tools, resources and prompt',
   const [baseTools, enabledTools, bothTools] = await Promise.all([base.listTools(), enabled.listTools(), both.listTools()]);
   const baseNames = new Set(baseTools.tools.map(({ name }) => name));
   assert.deepEqual(enabledTools.tools.filter(({ name }) => !baseNames.has(name)).map(({ name }) => name).sort(), alienTools);
-  assert.deepEqual(enabledTools.tools.filter(({ name }) => !alienTools.includes(name)), baseTools.tools, 'existing tool definitions are unchanged');
+  // life_modeling_read can also open the add-on's guide and paper; every other existing tool is unchanged.
+  const readerUris = (tools) => tools.find(({ name }) => name === 'life_modeling_read').inputSchema.properties.uri.enum;
+  const notReader = ({ name }) => name !== 'life_modeling_read';
+  assert.deepEqual(enabledTools.tools.filter(({ name }) => !alienTools.includes(name)).filter(notReader), baseTools.tools.filter(notReader), 'existing tool definitions are unchanged');
+  assert.deepEqual(readerUris(enabledTools.tools).filter((uri) => !readerUris(baseTools.tools).includes(uri)).sort(), [addonUri, paperUri].sort(),
+    'the reader also opens the alien guide and paper');
   const bothNames = bothTools.tools.map(({ name }) => name);
   assert.ok(alienTools.every((name) => bothNames.includes(name)) && bothNames.includes('life_story_scene_prepare'), 'the add-ons combine');
   const readOnly = Object.fromEntries(enabledTools.tools.filter(({ name }) => alienTools.includes(name)).map(({ name, annotations }) => [name, annotations.readOnlyHint]));

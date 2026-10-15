@@ -11,7 +11,7 @@ const whole = (value) => /^\d+$/u.test(value) || 'a whole number';
 const named = (value) => value.trim().length > 0 || 'not empty';
 const layers = (value) => value === '' || value.split(',').every((key) => LAYER_KEYS.includes(key)) || `a comma list of ${LAYER_KEYS.join(', ')}`;
 export const VIEW_SETTINGS = Object.freeze({
-  view: oneOf('together', 'layers', 'terrain', 'graph', 'structure', 'space'), timeView: oneOf('together', 'layers', 'terrain'),
+  view: oneOf('together', 'layers', 'terrain', 'chart', 'graph', 'structure', 'space'), timeView: oneOf('together', 'layers', 'terrain'),
   camera: oneOf('spin', 'free', 'locked'), glare: oneOf('full', 'soft'), edges: oneOf('on', 'off'), reading: oneOf('on', 'off'),
   text: oneOf('on', 'off'), legend: oneOf(''), world: oneOf('above', 'below'), smooth: between(0, 1),
   show: layers, everything: oneOf(''), nothoughts: oneOf(''), lenses: named, depth: whole, detail: whole, scope: named, focus: named,

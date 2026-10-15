@@ -26,6 +26,7 @@ import { cutKind, displayName, indexModel, personStateAt, questionModel, readSuf
 import { declaredForecast, forecastMetadata } from './forecast-metadata.mjs';
 import { projectNumerics } from './viewer-numerics.mjs';
 import { isSeriesReadingEvent } from './series-mark.mjs';
+import { serveReadableResource } from './modeling-guidance.mjs';
 
 export { BRANCH_MARK, branchMarkerOf, branchesAlong, isForkRevision };
 export { PREMISE_MARK };
@@ -839,14 +840,16 @@ export const futuresInstructions = 'Futures: follow what may happen under each a
 export const FORECASTING_GUIDE_URI = 'life-sim://addon/forecasting';
 export function registerForecastingAddon(server, service, { toolResult }) {
   const guideUri = FORECASTING_GUIDE_URI;
-  server.registerResource('forecasting-addon', guideUri, {
-    title: 'Optional forecasting mode',
+  // Also readable with life_modeling_read, which clients without resource reads use.
+  const forecastingGuide = { uri: guideUri, id: 'forecasting-addon', title: 'Optional forecasting mode', category: 'addon',
     description: 'Forecasting pulled into any work: frozen forecasts and their scoring, and branches of a model for forecasts, decisions, assumptions and changes to the past, with their consequence questions, loaded quickly and compared without a total.',
+    load: async () => { const { readFile } = await import('node:fs/promises'); return readFile(new URL('../../profiles/FORECASTING_ADDON.md', import.meta.url), 'utf8'); } };
+  serveReadableResource(forecastingGuide);
+  server.registerResource('forecasting-addon', guideUri, {
+    title: forecastingGuide.title,
+    description: forecastingGuide.description,
     mimeType: 'text/markdown',
-  }, async () => {
-    const { readFile } = await import('node:fs/promises');
-    return { contents: [{ uri: guideUri, mimeType: 'text/markdown', text: await readFile(new URL('../../profiles/FORECASTING_ADDON.md', import.meta.url), 'utf8') }] };
-  });
+  }, async () => ({ contents: [{ uri: guideUri, mimeType: 'text/markdown', text: await forecastingGuide.load() }] }));
   const tools = [
     ['life_future_fork', forkSchema, forkStage, false, true,
       'Fork one stage of sibling branches from one trunk revision and information cutoff: the answers of a forecast Cut (each premise spanning the forecast window, the probabilities carried where the Cut declares them for that window and cutoff and otherwise withheld with the reason, the remainder never branched), the options of a decision (with a waiting or no-action option unless noBaseline says why not; without either, the result asks), one or more assumptions, or a change to the past. Each branch is a model revision whose premise Event, narrowings and assumed realization carry a premise mark, with the accepted world extended to the horizon, and its own narrative graph. Every sibling is validated before any is written; a retry with the same requestId completes a partial stage. Forecasting is a mode any purpose can pull in: read life-sim://addon/forecasting and call life_modeling_context with modes ["forecasting"] beside your purpose.'],

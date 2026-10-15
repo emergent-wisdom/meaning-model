@@ -24,6 +24,21 @@ operational guidance. Reading the papers is optional.
 
 See the [changelog](https://github.com/emergent-wisdom/meaning-model/blob/main/CHANGELOG.md) for release changes and upgrade notes.
 
+## Upgrading to 0.13.0
+
+Install the matching 0.13.0 engine. The engine and the model format are unchanged since 0.12.1: models and histories
+open unchanged, and nothing needs migrating.
+
+The viewer has a seventh representation, **Chart**: the whole model on one time axis, with the parts of one Event
+across the top, its Events in rows by importance with their causal links, and a row for every process read at the
+moment under the pointer. `life_carve_record` records a conceptual decomposition, a carve, in one call, or that a
+process stays whole (`keepWhole`). After every write the values report now runs a deepen check: it names the process
+with values and no parts most worth a carve, with its reasons, and the next two. A cause linked with `prevents` or
+`constrains` is read as what it held back, a positive amount, and is never netted into the remainder. What the server
+asks an agent to read now reaches it: every tool description fits the 2,048 characters a client keeps, with complete
+instructions in guides that `life_modeling_read` opens, and long-text results declare a size that lets Claude Code show
+them whole. More of the guidance arrives, so sessions use more input tokens.
+
 ## Upgrading to 0.12.1
 
 Install the matching 0.12.1 engine. Models and histories written by 0.12.0 open unchanged; a model grown past 0.12.0's
@@ -134,7 +149,10 @@ When prose is present, **Read full document** opens the complete manuscript.
 **Read this passage** opens it at a selected passage; **Close the story** returns to
 exploration. Selecting a record keeps the reader closed. **Structure** offers an
 expandable record view. **Show it as** switches among Processes, Tree, Terrain,
-Graph, Structure and Space on the same page, retaining the record selection and time.
+Chart, Graph, Structure and Space on the same page, retaining the record selection and time.
+**Chart** puts the whole model on one time axis: the declared parts of one Event, its Events in rows by
+importance with their causal links, and a row for every process it follows, each
+read at the moment under the pointer.
 **Coarse view** returns to a broad overview; more detail opens subprocesses.
 **Recenter** (or Home outside text fields) fits the current representation.
 **Documents & notes** sits with the top controls. **Hide controls** clears that
@@ -285,7 +303,7 @@ can use the explicit source build below.
 In a directory where you want to keep the installation, run:
 
 ```sh
-npm install @emergent-wisdom/meaning-model-mcp@0.12.1
+npm install @emergent-wisdom/meaning-model-mcp@0.13.0
 npx meaning-model-mcp --install-engine
 ```
 
@@ -485,7 +503,9 @@ older name), the absolute path of a Markdown file whose text replaces ours, or `
 by such a path to add the file after ours. Only what the agent is told changes: the tools,
 their checks and the guides stay the same. In simple and replacement-file modes, guides
 are offered as reference, with none required and no opening questions asked. Full and
-`full+` keep the default guides and questions. A file that cannot be read
+`full+` keep the default guides and questions. The user's own file is required reading:
+with `full+`, the instructions open by saying to read it whole first; a replacement file
+longer than 2,048 characters opens with one line saying so. A file that cannot be read
 stops the server with the reason. For example, add
 `"MEANING_MODEL_INSTRUCTIONS": "/absolute/path/to/our-instructions.md"` to the same `env`.
 
@@ -752,7 +772,7 @@ configuration looks like this:
   "mcpServers": {
     "meaning-model": {
       "command": "npx",
-      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.12.1"],
+      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.13.0"],
       "env": {
         "LIFE_SIM_ENGINE_BIN": "/absolute/path/to/life-sim-engine",
         "LIFE_SIM_STATE_FILE": "/absolute/private/path/meaning-model.sqlite"
@@ -826,7 +846,7 @@ for release.
 Record the reviewed tarball's checksum and inspect the publication preview:
 
 ```sh
-release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.12.1.tgz"
+release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.13.0.tgz"
 shasum -a 256 "$release_tarball"
 npm publish "$release_tarball" --dry-run --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
@@ -838,7 +858,7 @@ exact tarball, authenticate with an npm account that can publish to
 ```sh
 npm whoami --registry=https://registry.npmjs.org/
 npm publish "$release_tarball" --access public --ignore-scripts --registry=https://registry.npmjs.org/
-npm view @emergent-wisdom/meaning-model-mcp@0.12.1 version dist.integrity --registry=https://registry.npmjs.org/
+npm view @emergent-wisdom/meaning-model-mcp@0.13.0 version dist.integrity --registry=https://registry.npmjs.org/
 ```
 
 A dry run does not establish registry authentication or scope access. Any change

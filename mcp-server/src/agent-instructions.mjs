@@ -41,13 +41,33 @@ export function resolveAgentInstructions(environment = process.env) {
   return { mode: appended ? 'full+custom' : 'custom', path, text, sha256: createHash('sha256').update(text).digest('hex') };
 }
 
-// The server instructions for a resolved choice, from the full and simple texts the server defines.
+// Some clients keep only the first 2,048 characters of the instructions (Claude Code does). The whole text is readable
+// at this address with life_modeling_read; a user's file added to ours ends it, under its own heading, and is also
+// readable alone at the second address.
+export const INSTRUCTIONS_URI = 'life-sim://server/instructions';
+export const CONFIGURED_INSTRUCTIONS_URI = 'life-sim://server/configured-instructions';
+export const CONFIGURED_SECTION = 'Configured instructions';
+export const CLIENT_KEEPS = 2_048;
+// The user's instructions come first in a session that has them. Where ours are added before them, the opening of ours
+// says to read the user's whole before anything else (server.ts); where the user's replace ours and are longer than such
+// a client keeps, a one-line preface says so (composeInstructions).
+export const configuredReadFirst = `Before anything else, read the instructions this server's user configured, whole, at ${CONFIGURED_INSTRUCTIONS_URI} with life_modeling_read. They are the user's: where they differ from the Meaning Model's guidance, follow them.`;
+// A user's file that replaces ours and is longer than such a client keeps opens with one short line before it, outside
+// the user's Markdown (so it can never land inside a code example), saying to read the whole before acting.
+const customPreface = `[Read these instructions whole before you act, at ${CONFIGURED_INSTRUCTIONS_URI} with life_modeling_read: your client may keep only their first ${CLIENT_KEEPS.toLocaleString('en')} characters.]`;
+
+// The server instructions for a resolved choice, from the full and simple texts the server defines. A user's own file
+// is given as written, after a one-line preface saying to read it whole only when it is longer than such a client keeps.
 export function composeInstructions(resolved, { full, simple }) {
   if (resolved.mode === 'simple') return simple;
-  if (resolved.mode === 'custom') return resolved.text;
-  if (resolved.mode === 'full+custom') return `${full}\n\n${resolved.text}`;
+  if (resolved.mode === 'custom') return resolved.text.length > CLIENT_KEEPS ? `${customPreface}\n\n${resolved.text}` : resolved.text;
+  if (resolved.mode === 'full+custom') return `${full}\n\n# ${CONFIGURED_SECTION}\n\n${resolved.text}`;
   return full;
 }
+
+// Whether the user's configured instructions must be read whole before acting: always when they follow ours, which a
+// client cuts long before them; when they replace ours, only when they are longer than such a client keeps.
+export const configuredMustBeRead = (resolved) => resolved.mode === 'full+custom' || (resolved.mode === 'custom' && resolved.text.length > CLIENT_KEEPS);
 
 // Whether the session follows the Meaning Model's own instructions, which require the guides and ask the opening
 // questions. Simple and custom sessions are told only what their instructions say.

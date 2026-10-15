@@ -21,7 +21,7 @@ function showBranch(branch) {
   banner.replaceChildren(title, `Branch ${branch.key} of ${branch.stageId}${branch.premise ? `: it assumes that ${branch.premise.replace(/^[A-Z]/u, (letter) => letter.toLowerCase()).replace(/\.$/u, '')}.` : '.'}${odds}`);
 }
 
-const labels = { together: 'Processes', layers: 'Tree', terrain: 'Terrain', graph: 'Graph', structure: 'Structure', space: 'Space' };
+const labels = { together: 'Processes', layers: 'Tree', terrain: 'Terrain', chart: 'Chart', graph: 'Graph', structure: 'Structure', space: 'Space' };
 const timeViews = new Set(['together', 'layers', 'terrain']);
 const params = new URLSearchParams(location.search);
 let notice = null, data = null, dataName = null;
@@ -46,15 +46,21 @@ for (const element of document.querySelectorAll('.bar, #reader')) element.datase
 // Only a model whose graph renders prose has a story to read.
 { const read = document.getElementById('read'); if (read) read.hidden = !(data?.story?.units ?? []).some((unit) => String(unit.text ?? '').trim()); }
 for (const element of document.getElementById('tools').children) {
-  if (!element.querySelector?.('[data-pop="pop-show"]') && !['search-wrap', 'story', 'default-view', 'coarse-view', 'recenter-view', 'graph-controls', 'space-controls'].includes(element.id)) element.dataset.temporal = '';
+  if (!element.querySelector?.('[data-pop="pop-show"]') && !['search-wrap', 'story', 'default-view', 'coarse-view', 'recenter-view', 'graph-controls', 'space-controls', 'chart-controls'].includes(element.id)) element.dataset.temporal = '';
 }
 const structureHost = document.createElement('div'); structureHost.id = 'structure-surface'; document.body.append(structureHost);
+// The Chart has its own surface, below the row of controls, with its reading panel inside it.
+const chartHost = document.createElement('div'); chartHost.id = 'chart-surface'; chartHost.dataset.chart = ''; document.body.append(chartHost);
 function fitPanels() {
   // A panel that opens from the top row ends above the time bar, when there is one; a menu opening up from the bar keeps its height.
   const bar = document.querySelector('.hud.bar')?.getBoundingClientRect(), floor = bar?.height ? bar.top - 8 : innerHeight - 12;
   for (const panel of document.querySelectorAll('.pop:not([hidden]), .details:not([hidden])')) if (!panel.closest('.bar')) panel.style.maxHeight = `${Math.max(0, floor - panel.getBoundingClientRect().top)}px`;
   const title = document.querySelector('.title').getBoundingClientRect(), tools = document.getElementById('tools').getBoundingClientRect(), visibility = document.getElementById('toolbar-visibility').getBoundingClientRect();
   structureHost.style.top = `${Math.max(title.bottom, tools.bottom, visibility.bottom) + 12}px`;
+  chartHost.style.top = structureHost.style.top;
+  // The model's view card sits over the top of the Chart's reading panel: the panel starts below it.
+  const card = document.getElementById('chosen-view')?.getBoundingClientRect();
+  chartHost.style.setProperty?.('--cv-card', `${card?.height ? Math.max(0, card.bottom - Math.max(title.bottom, tools.bottom, visibility.bottom) - 12) : 0}px`);
 }
 // Default: forget this tab's saved view of the model and open it as it first opens (the same model, nothing chosen).
 function backToDefault() {
@@ -117,6 +123,10 @@ const session = createViewerSession({
       catch (error) { parts.surface.remove(); parts.detail.remove(); parts.reader.remove(); parts.tools.replaceChildren(); throw error; }
     },
     structure: async () => showInspector(data, notice, { host: structureHost, onSelect: (record) => session.selectRecord(record) }),
+    chart: async () => {
+      const { showChart } = await import('./chart-view.js');
+      return showChart(data, { host: chartHost, tools: document.getElementById('chart-controls'), onSelect: (record) => session.selectRecord(record), noteAddress });
+    },
     space: async () => {
       const { showSpace } = await import('./space-view.js'), parts = spaceParts();
       try { return showSpace(data, { ...parts, onSelect: (record) => session.selectRecord(record) }); }
@@ -128,13 +138,14 @@ const session = createViewerSession({
     document.body.classList.toggle('graph-mode', view === 'graph'); document.body.classList.toggle('space-mode', view === 'space'); document.body.classList.remove('graph-selection');
     document.body.classList.toggle('details-open', timeViews.has(view) && !document.getElementById('details').hidden);
     document.getElementById('t-show').textContent = labels[view];
-    document.getElementById('coarse-view').disabled = view === 'space' ? !data : !temporal;
+    document.getElementById('coarse-view').disabled = view === 'space' ? !data : view === 'chart' || !temporal;
     const recenter = document.getElementById('recenter-view'); recenter.hidden = view === 'structure'; recenter.disabled = !data || view === 'structure';
     document.querySelector('.eyebrow').textContent = `Meaning Model · ${labels[view]}`;
     document.getElementById('title').textContent = data?.title ?? 'Meaning Model'; document.title = data?.title ?? 'Meaning Model';
     showBranch(data?.branch ?? null);
     for (const button of document.querySelectorAll('#layouts button')) { button.classList.toggle('on', button.dataset.layout === view); button.setAttribute('aria-pressed', String(button.dataset.layout === view)); }
-    if (!timeViews.has(view)) document.getElementById('layout-note').textContent = view === 'graph' ? 'Declared records and relationships. Position is a layout, not time or a measured distance.'
+    if (!timeViews.has(view)) document.getElementById('layout-note').textContent = view === 'chart' ? 'The whole model on one time axis: periods, Events in rows by importance, and one row per process, read at the moment under the pointer.'
+      : view === 'graph' ? 'Declared records and relationships. Position is a layout, not time or a measured distance.'
       : view === 'space' ? 'Declared coordinates, to scale, in the model\'s own reference frames. Only records with a declared position are placed.'
       : 'Declared Event containment, process decomposition and Cuts. The same snapshot, selection and time position are retained.';
     fitPanels();
@@ -148,6 +159,8 @@ const session = createViewerSession({
   },
 });
 const opened = new Set();
+// The Chart has its own reading panel on the right, where the model's view card would cover it: the card folds to its title.
+let chosenCard = null;
 async function switchView(view) {
   const key = timeViews.has(view) ? 'temporal' : view;
   if (data && !opened.has(key)) {
@@ -155,7 +168,7 @@ async function switchView(view) {
     document.getElementById('t-show').textContent = `Opening ${labels[view] ?? view}…`; document.body.setAttribute('aria-busy', 'true');
     await new Promise((done) => { const timer = setTimeout(done, 60); globalThis.requestAnimationFrame?.(() => setTimeout(() => { clearTimeout(timer); done(); }, 0)); });
   }
-  try { const state = await session.setView(view); opened.add(key); return state; }
+  try { const state = await session.setView(view); opened.add(key); if (state.view === 'chart') chosenCard?.fold(true); return state; }
   catch (error) { console.error(error); notice = 'The 3D view is unavailable in this browser. The recorded model is available below.'; return session.setView('structure'); }
   finally { document.body.setAttribute('aria-busy', 'false'); }
 }
@@ -172,8 +185,9 @@ mountSearch({ data, input: document.getElementById('search'), list: document.get
     if (record) await session.revealRecord(record);
   } });
 for (const button of document.querySelectorAll('#layouts button')) {
-  button.disabled = !data || (timeViews.has(button.dataset.layout) && !temporal);
-  if (!temporal && timeViews.has(button.dataset.layout)) button.title = 'This snapshot has no declared time axis for this representation.';
+  const needsTime = timeViews.has(button.dataset.layout) || button.dataset.layout === 'chart';
+  button.disabled = !data || (needsTime && !temporal);
+  if (!temporal && needsTime) button.title = 'This snapshot has no declared time axis for this representation.';
   button.addEventListener('click', () => switchView(button.dataset.layout));
 }
 const coarseButton = document.getElementById('coarse-view');
@@ -198,7 +212,7 @@ addEventListener('pagehide', (event) => { if (!event.persisted) session.destroy(
 await mountModelPicker();
 await switchView(initialView);
 // A highlight opens in the time view when there is a clock, otherwise as a native record in Graph (or its fallback).
-const chosenCard = mountChosenView({ data, opening, onHighlight: async (target) => {
+chosenCard = mountChosenView({ data, opening, onHighlight: async (target) => {
   if (!temporal) {
     await switchView('graph');
     const [kind, ...id] = String(target.record).split(':');
@@ -209,6 +223,8 @@ const chosenCard = mountChosenView({ data, opening, onHighlight: async (target) 
   if (!timeViews.has(session.snapshot().view)) await switchView('together');
   if (timeViews.has(session.snapshot().view)) { chosenCard?.fold(true); (await import('./view.js')).temporalController.showHighlight(target); }
 } });
+if (session.snapshot().view === 'chart') chosenCard?.fold(true);
+fitPanels();
 const stopLive = mountLiveViewer({ data, getState: () => session.snapshot(), restored: liveContext });
 document.documentElement?.removeAttribute('data-live-reader-refresh');
 addEventListener('pagehide', (event) => { if (!event.persisted) stopLive(); });

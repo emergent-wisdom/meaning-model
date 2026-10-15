@@ -8,7 +8,7 @@ import { digest, findTargetLeaks, ISOLATION, PROVENANCE, readSearch, RECORD_SCHE
 import { buildTask, CANDIDATE_LIMITS, mechanismLabel, POPULATION_STATES, SIGNATURE_AXES, storedTask, TASK_ROLES, verifyTaskRef, worldOperatorSchema } from './alien-tasks.mjs';
 import { diagnoseSearch, mechanismCondition, ontologyGaps } from './alien-diagnose.mjs';
 import { runEstimatorRequest } from './estimator-receipts.mjs';
-import { expandTexInputs } from './modeling-guidance.mjs';
+import { expandTexInputs, serveReadableResource } from './modeling-guidance.mjs';
 import { PURE_AXES, PURE_STATUSES, cardsFor, checkVerification, levelOf, probeAt, pureResult } from './alien-verify.mjs';
 
 const RESOURCE_URI = 'life-sim://addon/alien';
@@ -932,12 +932,16 @@ export class AlienAddon {
 export function registerAlienAddon(server, service, { estimator = null } = {}) {
   const addon = new AlienAddon(service, { estimator });
   const result = (value) => ({ content: [{ type: 'text', text: JSON.stringify(value, null, 2) }], structuredContent: value });
-  server.registerResource('alien-addon', RESOURCE_URI, {
-    title: 'Optional Ontology of the Alien workflows',
+  // The guide and the paper are also readable with life_modeling_read, which clients without resource reads use.
+  const alienGuide = { uri: RESOURCE_URI, id: 'alien-addon', title: 'Optional Ontology of the Alien workflows', category: 'addon',
     description: 'Opt-in world-diversity ideation: target-blind world building, in-world solving, mechanism compilation under the paper\'s conditions, curated mechanism, outcome and world-regime ontologies, diagnostic commissioning, and transfer onto a target model.',
+    load: () => readFile(new URL('../../profiles/ALIEN_ADDON.md', import.meta.url), 'utf8') };
+  serveReadableResource(alienGuide);
+  server.registerResource('alien-addon', RESOURCE_URI, {
+    title: alienGuide.title,
+    description: alienGuide.description,
     mimeType: 'text/markdown',
-  }, async () => ({ contents: [{ uri: RESOURCE_URI, mimeType: 'text/markdown',
-    text: await readFile(new URL('../../profiles/ALIEN_ADDON.md', import.meta.url), 'utf8') }] }));
+  }, async () => ({ contents: [{ uri: RESOURCE_URI, mimeType: 'text/markdown', text: await alienGuide.load() }] }));
   server.registerResource('alien-record-schema', new ResourceTemplate(RECORD_SCHEMA_URI, { list: undefined }), {
     title: 'Alien record payload schema by kind',
     description: `Input JSON Schema for life_alien_record.data, generated from its runtime validator. Kinds: ${RECORD_KINDS.join(', ')}. Cross-field refinements are described in the schema; task and graph-reference checks still apply.`,
@@ -947,15 +951,15 @@ export function registerAlienAddon(server, service, { estimator = null } = {}) {
     return { contents: [{ uri: uri.href, mimeType: 'application/schema+json',
       text: JSON.stringify(z.toJSONSchema(recordData[kind], { io: 'input' }), null, 2) }] };
   });
-  server.registerResource('ontology-of-the-alien', ALIEN_PAPER_URI, {
-    title: 'Ontology of the Alien (paper)',
+  const alienPaper = { uri: ALIEN_PAPER_URI, id: 'ontology-of-the-alien', title: 'Ontology of the Alien (paper)', category: 'addon', mimeType: 'text/x-tex',
     description: 'Optional background: the complete Ontology of the Alien manuscript on world-diversity search, ontology-governed intervention search, the study, its evidence boundary and the proposals this add-on implements. Its decision trees are expanded inline, and source digests are recorded in docs/companions/ontology-of-the-alien/SOURCE.json.',
+    load: async () => { const file = new URL('../../docs/companions/ontology-of-the-alien/ontology_of_the_alien.tex', import.meta.url); return expandTexInputs(await readFile(file, 'utf8'), file); } };
+  serveReadableResource(alienPaper);
+  server.registerResource('ontology-of-the-alien', ALIEN_PAPER_URI, {
+    title: alienPaper.title,
+    description: alienPaper.description,
     mimeType: 'text/x-tex',
-  }, async () => {
-    const file = new URL('../../docs/companions/ontology-of-the-alien/ontology_of_the_alien.tex', import.meta.url);
-    const text = await expandTexInputs(await readFile(file, 'utf8'), file);
-    return { contents: [{ uri: ALIEN_PAPER_URI, mimeType: 'text/x-tex', text }] };
-  });
+  }, async () => ({ contents: [{ uri: ALIEN_PAPER_URI, mimeType: 'text/x-tex', text: await alienPaper.load() }] }));
   server.registerPrompt('life_alien_start', {
     title: 'Search for mechanisms through invented worlds',
     description: 'Read the operational guide, settle the problem, the target model and the human role, then build target-blind worlds, solve and compile them, curate the mechanisms and outcomes found, commission the next world or explorer into the gaps, transfer promising mechanisms onto the target model, and verify them with PURE.',

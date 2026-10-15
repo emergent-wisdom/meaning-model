@@ -29,7 +29,7 @@ export function cutFamily(cut) {
 
 const words = (text) => String(text ?? '').toLowerCase().split(/[^a-z0-9]+/u).filter(Boolean);
 // The slow process a process stands for: one of its id's last segments, or its label's words.
-function slowKeyOf(process) {
+export function slowKeyOf(process) {
   const segments = String(process.id).toLowerCase().split('.');
   const fromId = SLOW_PROCESSES.find((key) => segments.slice(-2).includes(key));
   if (fromId) return fromId;

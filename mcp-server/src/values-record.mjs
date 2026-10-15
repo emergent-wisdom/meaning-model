@@ -15,9 +15,11 @@ import { worldEvents } from './world-events.mjs';
 import { coverageReport } from './coverage.mjs';
 import { eventDescendants, indexModel } from './model-questions.mjs';
 import { minOf, maxOf } from './arrays.mjs';
+import { carveLine, carveReport } from './carve-index.mjs';
+import { deepenCheck, deepenLine } from './deepen.mjs';
 
 export const VALUE_TAGS = Object.freeze(['source', 'inferred', 'invented', 'exploring', 'sketch']);
-const PROCESS_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/u;
+export const PROCESS_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/u;
 const AGGREGATES = Object.freeze(['sum', 'mean']);
 
 // A series is found by its process and holder, never by its id. A new id keeps the process readable and replaces the
@@ -186,6 +188,11 @@ export { SCHEDULE_BLOCKS, timeSchedule } from './coverage.mjs';
 // What the surface still lacks and where it contradicts itself. Never a refusal.
 export function valuesReport(model, options = {}) {
   return valuesAccount(model, options).report;
+}
+
+// The whole deepen check (deepen.mjs) of a model: every process with values and no parts, with its signals.
+export function deepenOf(model) {
+  return valuesAccount(model).deepen;
 }
 
 // The report, with the lines that keep this pass from being done and the coverage report they were judged with.
@@ -377,6 +384,12 @@ function valuesAccount(model, { holder = null, focus = [] } = {}) {
   const oneDate = [...valued].filter(([, m]) => m.size === 1).map(([id]) => id);
   // A world opens from one top. Many processes with nothing above them are a list, not a tree.
   const roots = stated.filter((p) => !parentOf.has(p.id)).map((p) => p.id);
+  // The deepen check (deepen.mjs): of the processes with values and no parts, the one most worth examining for a carve,
+  // by the Events that move it, its unexplained moves, how rough its values are and how high it sits; never blocking.
+  const deepen = deepenCheck(model, { candidates: undivided, happenings, unexplained, valued });
+  // Every division of a process into parts should rest on a recorded carve (carve-index.mjs): one line, never blocking.
+  const carves = carveReport(model);
+  const carveText = carveLine(carves);
   // Coverage in time, and done, are judged with the series of Cuts in one report.
   const coverage = coverageReport(model, { stillEmpty, passedOver, contradictions });
   const { done } = coverage;
@@ -394,7 +407,9 @@ function valuesAccount(model, { holder = null, focus = [] } = {}) {
   if (resolveLine) next.push(resolveLine);
   if (emptyLine) next.push(emptyLine);
   if (roots.length > 3) next.push(`${roots.length} processes have nothing above them, among them ${roots.slice(0, 5).map(label).join(', ')}. Open the whole they are parts of as one process with a measure of its own, open the dimensions of your carve under it, and file each of these under the dimension it belongs to (process {parent} in life_values_record).`);
-  if (undivided.length) next.push(`Open the processes never divided, highest first: ${undivided.slice(0, 5).map((u) => u.label).join(', ')}. Ask what must change for each to change, open its parts and guess their states at once.`);
+  const deepenText = deepenLine(deepen);
+  if (deepenText) next.push(deepenText);
+  if (carveText) next.push(carveText);
   if (oneDate.length) next.push(`Give a second date to ${oneDate.length} process(es) that have only one, so each shows as a line over time: ${oneDate.slice(0, 5).map(label).join(', ')}.`);
   next.push(...coverage.next.slice(1));
   if (passedLine) next.push(passedLine);
@@ -405,8 +420,12 @@ function valuesAccount(model, { holder = null, focus = [] } = {}) {
     ...(coverage.schedule ? { schedule: coverage.schedule } : {}), coverage: { tracks: coverage.tracks, holders: coverage.holders, flatCount: coverage.flatCount, steadyCount: coverage.steadyCount, ...(coverage.flat ? { flat: coverage.flat } : {}) },
     ...(shows.length ? { shows: shows.slice(0, 10).map(({ weight, ...item }) => item) } : {}),
     ...(unexplained.length ? { unexplained: unexplained.slice(0, 20).map(({ weight, ...item }) => item), unexplainedCount: unexplained.length } : {}), ...(unmeant.length ? { unmeantCount: unmeant.length } : {}),
-    ...(passedOver.length ? { passedOver: passedOver.slice(0, 20), passedOverCount: passedOver.length } : {}), roots: roots.slice(0, 20), rootCount: roots.length, undivided: undivided.slice(0, 20), undividedCount: undivided.length, ...(oneDate.length ? { oneDate: oneDate.slice(0, 50), oneDateCount: oneDate.length } : {}), coarsest, next };
-  return { report, coverage, blocking: [resolveLine, emptyLine, passedLine].filter(Boolean) };
+    ...(passedOver.length ? { passedOver: passedOver.slice(0, 20), passedOverCount: passedOver.length } : {}), roots: roots.slice(0, 20), rootCount: roots.length, undivided: undivided.slice(0, 20), undividedCount: undivided.length,
+    ...(deepen.ranked.length ? { deepen: deepen.ranked.slice(0, 10).map(({ depth: _depth, ...item }) => item) } : {}), ...(deepen.keptWhole.length ? { keptWhole: deepen.keptWhole.slice(0, 20), keptWholeCount: deepen.keptWhole.length } : {}),
+    ...(carves.uncarved.length ? { uncarved: carves.uncarved.slice(0, 20).map(({ depth: _depth, ...item }) => item), uncarvedCount: carves.uncarved.length } : {}),
+    ...(carves.unopened.length ? { unopenedParts: carves.unopened.slice(0, 20), unopenedPartCount: carves.unopened.length } : {}),
+    ...(carves.outside.length ? { untestedParts: carves.outside.slice(0, 20), untestedPartCount: carves.outside.length } : {}), ...(oneDate.length ? { oneDate: oneDate.slice(0, 50), oneDateCount: oneDate.length } : {}), coarsest, next };
+  return { report, coverage, deepen, blocking: [resolveLine, emptyLine, passedLine].filter(Boolean) };
 }
 
 // The coverage part of the report alone, for the series tool and the model's questions: whether this pass is done, how

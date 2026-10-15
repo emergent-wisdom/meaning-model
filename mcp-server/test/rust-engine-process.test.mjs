@@ -42,16 +42,31 @@ test('a large response arriving in many chunks is read whole, in time that grows
   const backend = fixture();
   t.after(() => backend.close());
   await backend.initialize();
-  // About 32 MB, with characters of two, three and four bytes that chunks will split.
+  // Characters of two, three and four bytes that chunks will split.
   const unit = 'aé€😀b';
-  const repeat = 2_500_000;
-  const started = performance.now();
-  const response = await backend.call('roll', { value: unit, repeat });
-  const elapsed = performance.now() - started;
-  assert.equal(response.echoed.length, unit.length * repeat);
-  assert.equal(response.echoed, unit.repeat(repeat));
-  // Re-reading the whole buffer for every chunk took about five seconds at this size; reading it once takes about a third of one.
-  assert.ok(elapsed < 2_000, `read in ${Math.round(elapsed)} ms`);
+  // This process's own CPU time, in milliseconds: the reading happens here, and other work on a busy machine does not
+  // count against it as it does against the clock.
+  const cpu = () => { const { user, system } = process.cpuUsage(); return (user + system) / 1_000; };
+  const read = async (repeat) => {
+    const started = cpu(), clock = performance.now();
+    const response = await backend.call('roll', { value: unit, repeat });
+    const elapsed = cpu() - started;
+    wall = performance.now() - clock;
+    assert.equal(response.echoed.length, unit.length * repeat);
+    assert.equal(response.echoed, unit.repeat(repeat));
+    return elapsed;
+  };
+  let wall = 0;
+  await read(80_000);
+  const small = Math.min(await read(625_000), await read(625_000));
+  const large = await read(5_000_000);
+  // Eight times the size (8 MB to 65 MB) takes about eight times as long when each chunk is read once, and about
+  // seventy times when the whole buffer is re-read for every chunk (measured: 37 ms to 290 ms, against 99 ms to 7.1 s).
+  // A ratio holds on a loaded machine, where a fixed bound did not: the full suite once read 32 MB in 2.2 s that alone
+  // takes 0.25 s. It is a ratio of CPU time, since the clock ratio still passed 20 at a load average of 30 to 55. A
+  // warm-up read comes first, and the faster of two small reads, so start-up costs do not shrink it.
+  assert.ok(large / Math.max(small, 1) < 20, `65 MB in ${Math.round(large)} ms of CPU, 8 MB in ${Math.round(small)} ms`);
+  assert.ok(wall < 30_000, `read in ${Math.round(wall)} ms`);
 });
 
 test('a response over the byte limit fails the backend with the limit named', async (t) => {

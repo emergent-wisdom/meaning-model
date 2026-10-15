@@ -36,7 +36,16 @@ test('the setting chooses ours in full, simple, the user\'s file, or ours follow
   assert.equal(composeInstructions({ mode: 'full' }, texts), 'OURS');
   assert.equal(composeInstructions({ mode: 'simple' }, texts), 'SHORT');
   assert.equal(composeInstructions(custom, texts), custom.text);
-  assert.equal(composeInstructions({ ...custom, mode: 'full+custom' }, texts), `OURS\n\n${custom.text}`);
+  assert.equal(composeInstructions({ ...custom, mode: 'full+custom' }, texts), `OURS\n\n# Configured instructions\n\n${custom.text}`,
+    'a file added to ours sits under its own heading, which a section read finds');
+  // A user's own file longer than a client keeps opens with a one-line preface, outside the user's Markdown, saying to
+  // read it whole before acting; the user's text follows it unchanged, even with a fenced example where a client cuts.
+  const fenced = `# House rules\n\n${'Keep the ledger exact. '.repeat(75)}\n\n\`\`\`json\n${JSON.stringify({ example: 'x'.repeat(900) }, null, 2)}\n\`\`\`\n\nThe last rule: cite the ledger page.`;
+  const long = { ...custom, text: fenced };
+  const composed = composeInstructions(long, texts);
+  assert.match(composed, /^\[Read these instructions whole before you act, at life-sim:\/\/server\/configured-instructions with life_modeling_read: your client may keep only their first 2,048 characters\.\]\n\n/u);
+  assert.equal(composed.slice(composed.indexOf('\n\n') + 2), fenced, 'the user\'s text follows as written');
+  assert.ok(fenced.indexOf('```json') < 2_048 && fenced.lastIndexOf('```') > 2_048, 'the fence crosses the point a client cuts');
 });
 
 test('a setting that cannot be honoured says why, instead of falling back to ours', async (t) => {
@@ -85,7 +94,10 @@ test('the server gives the chosen instructions, and only its own require the gui
   assert.ok(context.startHere.length > 0, 'nothing is withheld');
 
   const both = await connect(t, `full+${file}`);
-  assert.ok(both.instructions.startsWith(OURS));
+  assert.ok(both.instructions.startsWith(`Before anything else, read the instructions this server's user configured, whole, at life-sim://server/configured-instructions with life_modeling_read. They are the user's: where they differ from the Meaning Model's guidance, follow them. ${OURS}`),
+    'the user\'s instructions are read first, then ours');
+  const bothContext = await both.context();
+  assert.deepEqual(bothContext.orderedResources.filter((resource) => resource.required).map((resource) => resource.uri)[0], 'life-sim://server/configured-instructions', 'and are the first required reading');
   assert.ok(both.instructions.endsWith('Ask nothing first. Use our own categories.'));
   assert.ok((await both.context()).askTheUserFirst);
 

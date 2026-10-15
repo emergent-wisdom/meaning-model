@@ -4,6 +4,105 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## 0.13.0 — 2026-10-15
+
+The engine and the model format are unchanged: models and histories open as before.
+
+What the Meaning Model asks an agent to read now reaches it. Claude Code keeps 2,048 characters of each tool
+description and of the server's instructions, and saves a tool result over 50,000 characters to a file the agent may
+not open. A fresh agent on 0.12.1 got only previews of `life_modeling_context`, the process breakdown and the grammar,
+and any agent with the storytelling add-on got only the first 2,048 characters of eleven story tools' descriptions,
+where most of the story workflow is written. This release changes how the guidance is delivered, not what it asks:
+long descriptions moved into guides, not removed, and nothing is relaxed. Because more of it now arrives, sessions use
+more input tokens, not fewer.
+
+- Tools whose results are long text declare a larger result size (`_meta["anthropic/maxResultSizeChars"]`), so Claude
+  Code shows their results whole: 100,000 characters for `life_modeling_context` (77-83 KB), `life_modeling_read`,
+  `life_model_outline`, `life_meaning_query`, `life_model_inspect`, `life_model_questions`, `life_construction_replay`
+  and `life_narrative_query`, and 200,000 for the story tasks, which grow with the model (`life_profile_compile`,
+  `life_story_model_depth_review`, `life_story_scene_prepare`, `life_story_deepen`, `life_story_purpose_review`,
+  `life_story_feedback`, `life_story_chat_prepare`; a fresh agent's came to 65,000-92,000 characters). Other clients
+  ignore the setting, and no result changes. A result larger still is saved to a file, so the reads keep paging.
+- Every tool description fits in 2,048 characters. Sixteen were longer (5 base tools, and 11 of the storytelling
+  add-on's): each now says in short what the tool does, what it requires and refuses, and where its complete
+  instructions are. The complete text is unchanged at `life-sim://tool/<name>`, and for `life_understanding_record` at
+  `life-sim://guide/construction-record`. `life_modeling_context` names each of these guides (`toolGuides`). Under our
+  instructions the description and the context both say to read a tool's guide before your first call to that tool
+  and to reuse it while it stays unchanged; in simple and custom modes they are reference. Clients that showed the
+  whole descriptions now read those guides for the rest.
+- The first 2,048 characters of the instructions say how to read the rest: read the other required guides in the
+  context's order, reusing any you still hold unchanged; and all of the instructions are at
+  `life-sim://server/instructions`. With `MEANING_MODEL_INSTRUCTIONS=full+<file>`, the user's file, which came after 44
+  KB, now ends the instructions under the heading Configured instructions and is readable alone at
+  `life-sim://server/configured-instructions`. The instructions now open by saying to read it whole before anything
+  else, and that where it differs from the Meaning Model's guidance it holds; `life_modeling_context` lists it as the
+  first required reading. In that mode the opening sentence on a story's people follows the start-here guide, so the
+  opening questions still fall inside the 2,048 characters a client keeps.
+- A user's file that replaces ours is given as written. When it is longer than 2,048 characters, one line before it,
+  outside the user's Markdown, says to read it whole before acting, at `life-sim://server/configured-instructions`.
+  The context then lists it as the one required reading. Simple and custom modes still require none of our guides and
+  ask no questions.
+- A scoped values report never names a process its reader cannot see. A carve's link to a hidden process, or a
+  decision to keep a hidden process whole, is left out of the scoped reading, so a hidden part is not reported as a
+  part still to open.
+- An exact retry of `life_carve_record` returns its first result, even after later carves moved the graph on: the
+  rebind and the notes it supersedes are recovered from what the first attempt was written against. Note ids name the attempt as well as the revision, so a second attempt that
+  changes nothing in the model records notes of its own. Notes left by an attempt that recorded no cut are superseded
+  like a cut's.
+- The forecasting purpose is described as "what may happen".
+- `life_carve_record` declares a result size of 500,000 characters, so Claude Code shows a large carve's result whole
+  (32 parts came to 55,000 characters). A climb whose text is longer than one note holds (64,000 characters) is
+  recorded across as many frame notes as it needs, and a carve's notes too large for one write (512 KiB) are written in
+  batches. The notes' data names the climb's steps without repeating their text. When the notes fail to write, the
+  result says to replay the same call unchanged, which returns the stored revision and writes what is missing; it also
+  carries the notes to send by hand only while they fit in the declared size.
+- A `life_modeling_read` page may be 90,000 characters (was 64,000), which holds the 81,000-character process
+  breakdown whole, and a page that is not the last says in words where to read on: fresh agents read a first page and
+  stopped.
+- The purpose parameter of `life_modeling_context` says what each purpose is for. Fresh agents asked about history took
+  `source_reconstruction`, which models the world of an existing text, for research from sources; that is
+  `observation`.
+- The open questions no longer ask where a series reading happens: a reading of a process over a stretch has no place
+  of its own.
+- `life_modeling_read` opens every guide the server names: the enabled add-ons' guides (storytelling, forecasting and
+  alien, with the alien paper), the tools' complete instructions and the server's own instructions. Before, it could
+  not open the forecasting guide that the context lists as required, nor the storytelling guide the story tools name.
+- The viewer has a seventh representation, **Chart**: the whole model on one time axis. Across the top, the parts of
+  one Event as the model contains them (the view's focus, chosen under **Parts of** or by the model's recorded view);
+  under them its Events, in rows by an importance scale, with their causal links; then a row for every process in the
+  decomposition, read at the moment under the pointer with how each value is known. Opening a part, or dragging
+  across the chart, widens that stretch. Its reading card says how to read the chart, follows the tour the model
+  recorded with `life_model_viewer_view`, and shows an Event's weighed causes. It draws only declared records.
+- `life_carve_record` records one carve, a conceptual decomposition, in one call: the claim frame, the climb to the
+  root, every candidate part with its verdicts and reasons, completeness, the routing sample and the synthesis. It
+  adds the concepts, the *kind of* relations and the abstract cut to the model and, given the graph, the frame, the
+  tests and the synthesis as Understanding Nodes linked to them. It never edits an existing concept or process, and it
+  does not open the parts: it returns each as a `life_values_record` entry still needing its measure and values.
+  Carving the same concept again under the same id revises the carve and supersedes its notes. Once the model
+  revision is stored it does not fail: a failed rebind or note comes back as partial, with the next call to make. The
+  values report names, in one line that never blocks, every process divided without a recorded carve.
+- **A deepen check after every write.** The values report used to list the processes never divided, highest in the tree
+  first. It now ranks the processes that have values and no parts by what makes a carve worth examining: the Events
+  that move each one, weighted by their importance; turns and jumps nothing explains; values sketched, exploring or
+  wider than themselves; height in the tree; and whether it was ever examined. It names the first, with its reasons,
+  and the next two. The report's data gains `deepen` (the top ten, with their signals) and `keptWhole`; `undivided`
+  stays.
+- **`life_carve_record` can record that a process stays whole** (`keepWhole`, with `concept.process` and at least one
+  step of the climb). This adds a *kept whole* relation from the concept to the next broader kind, never an edit. The
+  deepen check leaves the process out until the Events that move it, or its unexplained moves, grow by half (the
+  relation keeps the counts it was taken with). `keepWhole` is refused when two or more candidates pass, since that
+  makes a carve.
+- **The carve's checks warn where the record disagrees with itself.** None of these refuses.
+  - Routing is counted against the accepted parts: a case whose only home was set aside has no home.
+  - The result warns when a case has no home while completeness passes, or belongs to two parts whose independence
+    passed. It also names a carve with no routing sample, one where every candidate became a part, the frame of the
+    carve the concept is a part of, and a climb step that adds a concept the model already holds under another id.
+  - The cut records `no-climb` and its routing counts. Without a graph, it also keeps the synthesis in the model.
+- Causes that stood in the way. A cause linked with `prevents` or `constrains` is read as what it held back, a
+  positive amount, as `life_cause_record` computes it. What pulled against a change does not go into the remainder:
+  for a quantity that adds up, record the gross gain and the gross loss as amounts of their own, each divided by its
+  own Cut, with the net their difference. The process breakdown and the number test gain these cases.
+
 ## 0.12.1 — 2026-10-13
 
 Install the matching 0.12.1 engine. The model format is unchanged: models and histories written by 0.12.0 open

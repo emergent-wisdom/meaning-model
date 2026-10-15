@@ -30,20 +30,21 @@ test('startup selects Processes with paths, Tree with dated Events, and Graph wi
   }
 });
 
-test('all six Show choices stay on one page and reuse renderers with the exact loaded snapshot', () => {
+test('all seven Show choices stay on one page and reuse renderers with the exact loaded snapshot', () => {
   const result = run({ view: 'layers', data: snapshot(true), query: { noteLayout: 'overhead', noteLinks: 'all' }, steps: [
     { view: 'graph', button: true }, { view: 'structure', button: true }, { view: 'together', button: true },
-    { view: 'terrain', button: true }, { view: 'layers', button: true }, { view: 'space', button: true }, { view: 'graph' }, { view: 'space' }, { view: 'structure' },
+    { view: 'terrain', button: true }, { view: 'layers', button: true }, { view: 'space', button: true }, { view: 'chart', button: true }, { view: 'graph' }, { view: 'space' },
+    { view: 'chart' }, { view: 'structure' },
   ] });
   assert.deepEqual(result.buttons.map(({ view, label }) => ({ view, label })), [
-    { view: 'together', label: 'Processes' }, { view: 'layers', label: 'Tree' }, { view: 'terrain', label: 'Terrain' },
+    { view: 'together', label: 'Processes' }, { view: 'layers', label: 'Tree' }, { view: 'terrain', label: 'Terrain' }, { view: 'chart', label: 'Chart' },
     { view: 'graph', label: 'Graph' }, { view: 'structure', label: 'Structure' }, { view: 'space', label: 'Space' },
   ]);
-  assert.deepEqual(activations(result).map(({ view }) => view), ['layers', 'graph', 'structure', 'together', 'terrain', 'layers', 'space', 'graph', 'space', 'structure']);
-  assert.deepEqual(mounts(result).map(({ surface }) => surface).sort(), ['graph', 'space', 'structure', 'temporal']);
+  assert.deepEqual(activations(result).map(({ view }) => view), ['layers', 'graph', 'structure', 'together', 'terrain', 'layers', 'space', 'chart', 'graph', 'space', 'chart', 'structure']);
+  assert.deepEqual(mounts(result).map(({ surface }) => surface).sort(), ['chart', 'graph', 'space', 'structure', 'temporal']);
   assert.ok(mounts(result).every((mount) => mount.exactSnapshot));
   for (const kind of ['load', 'picker']) assert.equal(result.actions.filter((action) => action.kind === kind).length, 1);
-  for (const name of ['./view.js', './graph-view.js', './space-view.js']) assert.equal(result.imports.filter((item) => item === name).length, 1);
+  for (const name of ['./view.js', './graph-view.js', './space-view.js', './chart-view.js']) assert.equal(result.imports.filter((item) => item === name).length, 1);
   assert.deepEqual(result.errors, []); assert.equal(result.sharedToolbarRetained, true); assert.equal(result.representation, 'structure');
   for (const address of result.replacements) {
     const url = new URL(address); assert.equal(url.pathname, '/token/');
@@ -52,9 +53,21 @@ test('all six Show choices stay on one page and reuse renderers with the exact l
   const graph = mounts(result).find((mount) => mount.surface === 'graph');
   assert.deepEqual([graph.host, graph.tools, graph.detail, graph.reader], ['graph-scene', 'graph-controls', 'graph-details', 'graph-reader']);
   assert.deepEqual(graph.readerData, {graph: ''}, 'Graph reader must not inherit flags that hide it in Graph');
-  assert.deepEqual(result.surfaces.sort(), ['graph-surface', 'space-surface', 'structure-surface']);
+  assert.deepEqual(result.surfaces.sort(), ['chart-surface', 'graph-surface', 'space-surface', 'structure-surface']);
   const space = mounts(result).find((mount) => mount.surface === 'space');
   assert.deepEqual([space.host, space.tools, space.detail], ['space-scene', 'space-controls', 'space-details']);
+  const chart = mounts(result).find((mount) => mount.surface === 'chart');
+  assert.deepEqual([chart.host, chart.tools], ['chart-surface', 'chart-controls']);
+});
+
+test('Chart needs a time axis: without one its button is disabled and its address opens Graph', () => {
+  const result = run({ view: 'chart', data: snapshot() });
+  assert.equal(activations(result)[0].view, 'graph');
+  assert.equal(result.buttons.find((button) => button.view === 'chart').disabled, true);
+  assert.equal(mounts(result).some((mount) => mount.surface === 'chart'), false);
+  const dated = snapshot(); dated.capabilities.temporal = true;
+  const timed = run({ view: 'chart', data: dated });
+  assert.equal(activations(timed)[0].view, 'chart'); assert.equal(timed.buttons.find((button) => button.view === 'chart').disabled, false);
 });
 
 test('native selection and time transfer through Graph and Structure and explicit selection clearing', () => {

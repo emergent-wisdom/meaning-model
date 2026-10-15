@@ -23,6 +23,7 @@ import { isSeriesReadingEvent } from './series-mark.mjs';
 import { projectNumerics } from './viewer-numerics.mjs';
 import { cutTrajectories } from '../viewer/public/cut-trajectories.js';
 import { minOf, maxOf, pushAll } from './arrays.mjs';
+import { processOfLine } from './carve-lines.mjs';
 
 export const SLOW_PROCESSES = Object.freeze(['body', 'kin', 'partnership', 'work', 'place', 'means', 'knowledge', 'standing', 'meaning']);
 // The shared first-run comparison vocabulary of the Book; a person's own wants replace it.
@@ -72,6 +73,11 @@ export function questionModel(model, accessScopes) {
         process_ids: (event.process_ids ?? []).filter((id) => processIds.has(id)),
         observation_process_ids: (event.observation_process_ids ?? []).filter((id) => processIds.has(id)) })),
       event_referent_bindings: (mm.event_referent_bindings ?? []).filter((binding) => binding.target?.kind !== 'process' || !hidden.has(binding.target.process_id)),
+      // A carve's links to a hidden process, and a decision to keep a hidden process whole, are not read in this scope:
+      // the carve keeps its other parts, and nothing reports the hidden one as missing.
+      ...(hidden.size ? { abstract_cuts: (mm.abstract_cuts ?? []).map((cut) => (cut.provenance ?? []).some((line) => hidden.has(processOfLine(line)))
+        ? { ...cut, provenance: cut.provenance.filter((line) => !hidden.has(processOfLine(line))) } : cut),
+      abstract_relations: (mm.abstract_relations ?? []).filter((relation) => !(relation.provenance ?? []).some((line) => hidden.has(processOfLine(line)))) } : {}),
     } } : {}),
   };
 }
@@ -176,8 +182,10 @@ export function unplacedEvents(index, eventIds) {
     return (host && hasPlace(host, seen))
       || [...(index.parents.get(eventId) ?? [])].some((parentId) => hasPlace(parentId, seen));
   };
+  // A reading of a process over a stretch (life_series_record) is not a happening and has no place of its own: it is
+  // where the process's subject is. Asking where it happens sent a fresh agent after places for attribution readings.
   return eventIds.map((eventId) => index.events.get(eventId))
-    .filter((event) => event && !index.readings?.has(event.id) && !hasPlace(event.id));
+    .filter((event) => event && !index.readings?.has(event.id) && !isSeriesReadingEvent(event) && !hasPlace(event.id));
 }
 
 export function modeledPeople(index) {

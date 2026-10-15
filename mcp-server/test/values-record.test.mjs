@@ -105,7 +105,8 @@ test('the report says where to go next, down the tree of processes and the tree 
   assert.deepEqual(report.undivided.map((u) => u.process), ['pop.asia']);
   // Asia has no date inside 1800 to 2000 although the whole has 1900: the thinnest stretch compared with the rest.
   assert.deepEqual([report.coarsest[0].process, report.coarsest[0].from], ['pop.asia', 1800]);
-  assert.ok(report.next.some((line) => /Open the processes never divided/.test(line)));
+  assert.ok(report.next.some((line) => /^Deepen check: is Asia made of parts/.test(line)));
+  assert.equal(report.deepen[0].process, 'pop.asia');
   // While a level of the time schedule is unfilled, the schedule says where to go in time; the coarsest stretches stay in the data.
   assert.ok(report.next.some((line) => /Fill the time schedule level by level/.test(line)));
   assert.ok(!report.next.some((line) => /coarsest stretches/.test(line)));

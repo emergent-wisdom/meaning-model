@@ -20,7 +20,9 @@ older name), the absolute path of a Markdown file whose text replaces ours, or `
 by such a path to add the file after ours. Only what the agent is told changes: the tools,
 their checks and the guides stay the same. In simple and replacement-file modes, guides
 are offered as reference, with none required and no opening questions asked. Full and
-`full+` keep the default guides and questions. A file that cannot be read
+`full+` keep the default guides and questions. The user's own file is required reading:
+with `full+`, the instructions open by saying to read it whole first; a replacement file
+longer than 2,048 characters opens with one line saying so. A file that cannot be read
 stops the server with the reason.
 
 Choose a **purpose** within the work: `observation`, `forecasting`,
@@ -116,7 +118,9 @@ record. Selecting a graph record does not open the reader automatically.
 The optional **Structure** view expands declared Event containment, process
 decomposition and conditional Cut answers. Shared nodes remain references and
 answer weights remain local to each question. Use **Show it as** to switch among
-Processes, Tree, Terrain, Graph, Structure and Space on the same page. The selected
+Processes, Tree, Terrain, Chart, Graph, Structure and Space on the same page. **Chart** puts the whole
+model on one time axis: the declared parts of one Event, its Events in rows by importance with their causal links, and a row for every
+process it follows, each read at the moment under the pointer. The selected
 record and time position remain available across these representations. **Coarse view**
 returns to the broadest process overview; expose subprocesses with more detail.
 **Recenter** (or Home outside text fields) fits the current representation.
