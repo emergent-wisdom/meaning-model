@@ -3,7 +3,7 @@
 // column names each row and reads it at the moment under the pointer. The panel beside it says how to read the chart
 // and shows whatever is opened. Opening a record shares it with the other views through the viewer session.
 import { chartModel, axisFraction, axisTicks, timeLabel, lengthLabel, readSeries, tagWord, tagStyle, tagOf, weaker, TAGS } from './chart-model.js';
-import { readingAt } from './interval-readings.js';
+import { prepareReadings } from './interval-readings.js';
 import { answerColor, ANSWER_PALETTE } from './recorded-numbers.js';
 import { currentView } from './view-settings.js';
 
@@ -652,7 +652,7 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
   // reading that has finer ones open, the time they leave uncovered shows the derived level it must average (dimmer),
   // and nothing where no level can hold. A moment's reading is a narrow bar.
   function drawCutSeries(parts, row, h) {
-    const top = 4, bottom = h - 4, resolution = cutResolution();
+    const top = 4, bottom = h - 4, readers = cutReaders(row);
     const stackAt = (x0, x1, levels) => {
       let acc = 0;
       row.members.forEach((m, k) => {
@@ -668,7 +668,7 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
     const flush = () => { if (run) stackAt(along(run.from), along(run.to), run.levels); run = null; };
     for (let i = 1; i < bounds.length; i += 1) {
       const from = bounds[i - 1], to = bounds[i];
-      const levels = row.members.map((m) => readingAt(m.points, (from + to) / 2, resolution));
+      const levels = readers.map((read) => read((from + to) / 2));
       const key = JSON.stringify(levels.map((level) => [level?.value ?? null, Boolean(level?.derived)]));
       if (run && run.key === key) { run.to = to; continue; }
       flush(); run = { from, to, levels, key };
@@ -685,6 +685,20 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
   // A Cut reading wide enough to see at the current zoom, as the time views judge it: the drawing and the reading column
   // read Cut series at this one resolution, so they agree.
   const cutResolution = () => ({ minSpan: visibleSpan() * 0.015 });
+  // Each Cut series' answers prepared for reading at that resolution, kept until the zoom changes: the nesting of its
+  // readings is worked out once, shared by its answers (they read the same intervals), and used by every stretch drawn
+  // and by the reading column.
+  const preparedCuts = new Map();
+  function cutReaders(row) {
+    const resolution = cutResolution();
+    let kept = preparedCuts.get(row);
+    if (kept?.minSpan !== resolution.minSpan) {
+      const readers = [];
+      for (const m of row.members) readers.push(prepareReadings(m.points, resolution, readers[0]));
+      kept = { minSpan: resolution.minSpan, readers }; preparedCuts.set(row, kept);
+    }
+    return kept.readers;
+  }
   function readAt(t) {
     const when = t ?? C.readAt;
     const yearNode = headLabels.get('ticks')?.querySelector('.cv-hs-year-value'); if (yearNode) yearNode.textContent = at(when, visibleSpan());
@@ -698,7 +712,8 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
       } else if (row.kind === 'stack') {
         view.values.querySelectorAll('.cv-share-val').forEach((node, i) => { const r = readSeries(row.members[i].series, when); node.textContent = r ? `${r.between ? '~\u2009' : ''}${figure(r.v, row.unit)}` : '—'; });
       } else if (row.kind === 'cut-series') {
-        view.values.querySelectorAll('.cv-share-val').forEach((node, i) => { const r = readingAt(row.members[i].points, when, cutResolution()); node.textContent = r && Number.isFinite(r.value) ? share(r.value) : '—'; });
+        const readers = cutReaders(row);
+        view.values.querySelectorAll('.cv-share-val').forEach((node, i) => { const r = readers[i](when); node.textContent = r && Number.isFinite(r.value) ? share(r.value) : '—'; });
       }
     }
   }

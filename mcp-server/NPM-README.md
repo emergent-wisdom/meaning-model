@@ -24,6 +24,17 @@ operational guidance. Reading the papers is optional.
 
 See the [changelog](https://github.com/emergent-wisdom/meaning-model/blob/main/CHANGELOG.md) for release changes and upgrade notes.
 
+## Upgrading to 0.13.1
+
+Install the matching 0.13.1 engine. The engine and the model format are unchanged since 0.13.0: models and histories
+open unchanged, and nothing needs migrating.
+
+A `life_carve_record` result stays within the size the tool declares on a large model: one that would be larger gives
+up the notes to send by hand first, keeping the instruction to replay the call, then shows the first entries of each
+long list, with how many it has in all. A carve's routing sample is recorded in notes of its own, so a long sample
+writes; the synthesis note gives the number of cases routed (`routingCases`). The Chart draws nested Cut readings
+quickly, and shows the same.
+
 ## Upgrading to 0.13.0
 
 Install the matching 0.13.0 engine. The engine and the model format are unchanged since 0.12.1: models and histories
@@ -303,7 +314,7 @@ can use the explicit source build below.
 In a directory where you want to keep the installation, run:
 
 ```sh
-npm install @emergent-wisdom/meaning-model-mcp@0.13.0
+npm install @emergent-wisdom/meaning-model-mcp@0.13.1
 npx meaning-model-mcp --install-engine
 ```
 
@@ -772,7 +783,7 @@ configuration looks like this:
   "mcpServers": {
     "meaning-model": {
       "command": "npx",
-      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.13.0"],
+      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.13.1"],
       "env": {
         "LIFE_SIM_ENGINE_BIN": "/absolute/path/to/life-sim-engine",
         "LIFE_SIM_STATE_FILE": "/absolute/private/path/meaning-model.sqlite"
@@ -846,7 +857,7 @@ for release.
 Record the reviewed tarball's checksum and inspect the publication preview:
 
 ```sh
-release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.13.0.tgz"
+release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.13.1.tgz"
 shasum -a 256 "$release_tarball"
 npm publish "$release_tarball" --dry-run --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
@@ -858,7 +869,7 @@ exact tarball, authenticate with an npm account that can publish to
 ```sh
 npm whoami --registry=https://registry.npmjs.org/
 npm publish "$release_tarball" --access public --ignore-scripts --registry=https://registry.npmjs.org/
-npm view @emergent-wisdom/meaning-model-mcp@0.13.0 version dist.integrity --registry=https://registry.npmjs.org/
+npm view @emergent-wisdom/meaning-model-mcp@0.13.1 version dist.integrity --registry=https://registry.npmjs.org/
 ```
 
 A dry run does not establish registry authentication or scope access. Any change

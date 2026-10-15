@@ -16,6 +16,8 @@ import { applyModelChange } from './model-change.mjs';
 import { readGraph, recordUnderstanding } from './construction-record.mjs';
 import { rebindNarrativeGraph } from './narrative-rebind.mjs';
 import { resolveAppendHead } from './graph-head.mjs';
+import { boundLists } from './bounded-lists.mjs';
+import { stringifyJson } from './exact-json.mjs';
 import { PROCESS_ID, VALUE_TAGS, deepenOf } from './values-record.mjs';
 import { CARVE_MARK, DIVIDES_LINE, PART_LINE, KEPT_WHOLE_LINE, KEPT_SIGNALS_LINE } from './carve-index.mjs';
 
@@ -382,6 +384,26 @@ export function carveNotes(plan, input, { prefix, previous = {} }) {
   });
   const routing = input.routing ?? [];
   const { noHome, twoHomes } = plan;
+  // The routing sample in notes of its own, as many as it needs: a note holds 64,000 characters, and one write 512 KiB,
+  // which 200 long cases can pass. Each line names a case and its homes; the data holds the homes, line by line.
+  const routeLine = (item, index) => `${index + 1}. ${item.case}: ${item.homes.length ? item.homes.join(', ') : 'no home'}`;
+  const routeChunks = [];
+  for (const [index, item] of routing.entries()) {
+    const line = routeLine(item, index);
+    const last = routeChunks.at(-1);
+    if (!last || last.characters + line.length > 50_000 || last.bytes + Buffer.byteLength(line) > 160 * 1024) routeChunks.push({ indexes: [], characters: 0, bytes: 0 });
+    const chunk = routeChunks.at(-1); chunk.indexes.push(index); chunk.characters += line.length + 1; chunk.bytes += Buffer.byteLength(line) + 1;
+  }
+  const routingNotes = routeChunks.map(({ indexes }, chunk) => ({
+    nodeId: chunk ? `${prefix}.routing-${chunk + 1}` : `${prefix}.routing`, kind: 'assessment',
+    title: clipBytes(`The routing sample for the carve of ${plan.label}${routeChunks.length > 1 ? `, ${chunk + 1} of ${routeChunks.length}` : ''}`, 300),
+    text: lines([`Real cases sent through the carve, with the candidates each belongs to${routeChunks.length > 1 ? ` (cases ${indexes[0] + 1} to ${indexes.at(-1) + 1} of ${routing.length})` : ''}:`,
+      ...indexes.map((index) => routeLine(routing[index], index))]),
+    about: bounded(cutTarget),
+    links: [{ relation: 'shaped_by', targetNodeId: frame.nodeId }, ...(chunk === 0 ? (previous.routing ?? []).map((targetNodeId) => ({ relation: 'supersedes', targetNodeId })) : [])],
+    data: { schema: CARVE_SCHEMA, part: 'routing', cutId: plan.cutId, conceptId: plan.conceptId, ...(routeChunks.length > 1 ? { chunk: chunk + 1, of: routeChunks.length } : {}),
+      first: indexes[0] + 1, homes: indexes.map((index) => routing[index].homes) },
+  }));
   const named = (items) => items.map((item) => item.label).join(', ');
   const synthesis = {
     nodeId: `${prefix}.synthesis`, kind: 'decision', title: clipBytes(`The carve of ${plan.label}: its parts and how they make it work`, 300),
@@ -401,13 +423,15 @@ export function carveNotes(plan, input, { prefix, previous = {} }) {
       ...(routing.length ? ['', `Routing sample: ${routing.length} case(s); ${noHome.length} with no home among the parts${noHome.length ? ` (${noHome.slice(0, 5).map((item) => item.case).join('; ')})` : ''}; ${twoHomes.length} with two or more parts as homes${twoHomes.length ? ` (${twoHomes.slice(0, 5).map((item) => `${item.case}: ${item.partHomes.join(', ')}`).join('; ')})` : ''}.`] : []),
     ]),
     about: bounded([...cutTarget, record('concept', plan.conceptId)]),
-    links: [{ relation: 'shaped_by', targetNodeId: frame.nodeId }, ...testNotes.map((note) => ({ relation: 'shaped_by', targetNodeId: note.nodeId })),
-      ...(previous.synthesis ?? []).map((targetNodeId) => ({ relation: 'supersedes', targetNodeId }))],
+    links: [{ relation: 'shaped_by', targetNodeId: frame.nodeId }, ...[...testNotes, ...routingNotes].map((note) => ({ relation: 'shaped_by', targetNodeId: note.nodeId })),
+      ...(previous.synthesis ?? []).map((targetNodeId) => ({ relation: 'supersedes', targetNodeId })),
+      // A carve revised without a routing sample: the old sample's notes are superseded by this synthesis.
+      ...(routingNotes.length ? [] : (previous.routing ?? []).map((targetNodeId) => ({ relation: 'supersedes', targetNodeId })))],
     data: { schema: CARVE_SCHEMA, part: 'synthesis', cutId: plan.cutId, conceptId: plan.conceptId, form: input.form, cutRecorded: plan.cutRecorded,
       parts: plan.parts.map((part) => ({ key: part.key, conceptId: part.conceptId, ...(part.processId ? { processId: part.processId } : {}) })),
-      ...(plan.wholeProcess ? { process: plan.wholeProcess } : {}), ...(routing.length ? { routing } : {}) },
+      ...(plan.wholeProcess ? { process: plan.wholeProcess } : {}), ...(routing.length ? { routingCases: routing.length } : {}) },
   };
-  return [...frameNotes, ...testNotes, synthesis];
+  return [...frameNotes, ...testNotes, ...routingNotes, synthesis];
 }
 
 // The notes of the latest earlier carve under the same id (or the one superseded), by part, so the new notes supersede
@@ -418,7 +442,7 @@ function previousNotes(view, cutIds) {
     let payload = null;
     try { payload = JSON.parse(node.text); } catch { continue; }
     const data = payload?.data;
-    if (data?.schema !== CARVE_SCHEMA || !cutIds.includes(data.cutId) || !['frame', 'tests', 'synthesis'].includes(data.part)) continue;
+    if (data?.schema !== CARVE_SCHEMA || !cutIds.includes(data.cutId) || !['frame', 'tests', 'routing', 'synthesis'].includes(data.part)) continue;
     const step = Number(node.value_time ?? 0);
     const current = found[data.part];
     if (!current || step > current.step) found[data.part] = { step, ids: [node.id] };
@@ -427,7 +451,31 @@ function previousNotes(view, cutIds) {
   return Object.fromEntries(Object.entries(found).map(([part, item]) => [part, item.ids.sort()]));
 }
 
+// What a carve's result may hold: the tool declares 500,000 characters (server.ts), and the result is delivered as
+// indented JSON text (tool-result.mjs), so that is what is measured, with room to spare. A result over it gives up the
+// notes to send by hand first, keeping the replay; then the long lists it took from the model's receipt keep their first
+// entries, with how many each has in all.
+const RESULT_CHARACTERS = 470_000;
+const RESULT_CUT_NOTE = 'This result lists more than its declared size holds, so each long list shows its first entries, and listsCut names each list cut with how many it has in all. life_model_questions and life_meaning_query page through the model; life_model_export writes it whole.';
+const delivered = (value) => stringifyJson(value, null, 2).length;
+export function fitCarveResult(result) {
+  if (delivered(result) <= RESULT_CHARACTERS) return result;
+  const { retry: _retry, ...rest } = result;
+  let fitted = rest;
+  // boundLists counts compact bytes; the budget shrinks until the indented text fits.
+  let budget = Buffer.byteLength(JSON.stringify(rest), 'utf8');
+  for (let attempt = 0; attempt < 12 && delivered(fitted) > RESULT_CHARACTERS; attempt += 1) {
+    budget = Math.floor(budget * (RESULT_CHARACTERS / delivered(fitted)) * 0.95);
+    fitted = boundLists(rest, budget, RESULT_CUT_NOTE);
+  }
+  return fitted;
+}
+
 export async function recordCarve(service, raw) {
+  return fitCarveResult(await recordWholeCarve(service, raw));
+}
+
+async function recordWholeCarve(service, raw) {
   const input = carveRecordSchema.parse(raw);
   const { model: stored } = await service.inspectModel({ modelHash: input.previousModelHash, includeDefinition: true });
   const previous = stored.meaning_model ? stored : { ...stored, meaning_model: { schema: MEANING_SCHEMA } };
@@ -519,14 +567,12 @@ export async function recordCarve(service, raw) {
       next: [`The model revision is registered and the graph rebound, but ${noteIds.length ? 'not all of the notes were recorded' : 'the notes were not recorded'}: call life_carve_record again with exactly the same input, requestId ${input.requestId} included. It returns the stored revision and records what is missing.`, ...next] };
     // The notes to send by hand as well, while they fit in the result the tool declares; otherwise the replay alone.
     const withRetry = notes && !noteIds.length ? { ...failed, retry: { tool: 'life_understanding_record', arguments: { graphHash, requestId: `${input.requestId}:notes-retry`, accessScopes: scopes, holder: input.holder, notes } } } : null;
-    return withRetry && JSON.stringify(withRetry).length <= RETRY_RESULT_CHARACTERS && Buffer.byteLength(JSON.stringify(withRetry.retry.arguments)) <= NOTE_BATCH_BYTES ? withRetry : failed;
+    return withRetry && Buffer.byteLength(JSON.stringify(withRetry.retry.arguments)) <= NOTE_BATCH_BYTES ? withRetry : failed;
   }
 }
 
-// What one note write may hold, under the 512 KiB an understanding record allows, and the most a failed carve's result
-// carries with the notes to send by hand (the tool declares 500,000 characters).
+// What one note write may hold, under the 512 KiB an understanding record allows.
 const NOTE_BATCH_BYTES = 400 * 1024;
-const RETRY_RESULT_CHARACTERS = 450_000;
 function noteBatches(notes) {
   const batches = [[]]; let size = 0;
   for (const note of notes) {

@@ -195,6 +195,46 @@ test('a Cut series is drawn as the reading column reads it: the derived level ou
   assert.deepEqual(firstAnswer(other.host, 5), [90]);
 });
 
+// A Cut series of many readings with the same shares (30% drive): one long reading holding n disjoint finer ones, too
+// short to see at full zoom, or a chain of n readings each inside the last, every one wide enough to open.
+function manyReadings(n, shape = 'disjoint') {
+  const event = (id, extra = {}) => ({ id, boundary: id, participants: {}, process_ids: [], ...extra });
+  const contains = (source_event_id, target_event_id) => ({ kind: 'contains', source_event_id, target_event_id });
+  const cut = (id, parent_event_id) => ({ id, parent_event_id, question: 'How is effort spent?', unit: 'effort',
+    answers: [{ key: 'drive', weight: 0.3 }, { key: 'idle', weight: 0.7 }, { key: 'remainder', weight: 0 }], provenance: ['inferred: fixture'] });
+  const end = shape === 'disjoint' ? n : 3 * n;
+  const events = [event('world'), event('life'), event('r', { interval: { start: 0, end } })], relations = [contains('world', 'life'), contains('life', 'r')], cuts = [cut('c.r', 'r')];
+  for (let i = 1; i <= n; i += 1) {
+    const interval = shape === 'disjoint' ? { start: i - 0.75, end: i - 0.25 } : { start: i, end: 3 * n - i };
+    events.push(event(`r${i}`, { interval })); relations.push(contains(shape === 'disjoint' || i === 1 ? 'r' : `r${i - 1}`, `r${i}`)); cuts.push(cut(`c.r${i}`, `r${i}`));
+  }
+  const model = { id: 'm', time_unit: 'cycles', processes: [], decomposition: [], meaning_model: {
+    referents: [{ id: 'device', boundary: 'A device', lifecycle_event_id: 'life' }], context_roots: [{ event_id: 'world', kind: 'accepted_world' }],
+    events, event_relations: relations, normalized_cuts: cuts } };
+  return { timeUnit: 'cycles', inspection: { model }, numerics: projectNumerics(model), events: [{ id: 'r', label: 'Long', start: 0, end, context: 'accepted_world' }] };
+}
+
+test('a Cut series of hundreds of nested readings mounts and draws quickly, its drawing growing about in step with the readings', () => {
+  // This process's own CPU time, in milliseconds, so other work on a busy machine does not count; the best of three runs.
+  // Mounting builds the rows; activating lays them out, prepares and draws the Cut series, and reads the reading column.
+  const cpu = () => { const { user, system } = globalThis.process.cpuUsage(); return (user + system) / 1_000; };
+  const timed = (snapshot) => {
+    const runs = [0, 1, 2].map(() => {
+      const started = cpu(); const { host, chart } = mount(snapshot, () => {}); const mounted = cpu(); chart.activate('chart'); const done = cpu();
+      clickAt(host, snapshot, 0.5);
+      assert.equal(host.querySelector('.cv-row-cut-series').querySelector('.cv-share-val').textContent, '30%');
+      return { whole: done - started, drawing: done - mounted };
+    });
+    return { whole: Math.min(...runs.map((run) => run.whole)), drawing: Math.min(...runs.map((run) => run.drawing)) };
+  };
+  const small = manyReadings(160);
+  timed(small);
+  const [few, eight, many, chain] = [timed(small), timed(manyReadings(800)), timed(manyReadings(1600)), timed(manyReadings(800, 'chain'))];
+  assert.ok(eight.whole < 1000, `801 readings took ${eight.whole.toFixed(0)} ms`);
+  assert.ok(chain.whole < 1000, `a chain of 801 readings took ${chain.whole.toFixed(0)} ms`);
+  assert.ok(many.drawing < 10 * Math.max(few.drawing, 2), `drawing 1,601 readings took ${many.drawing.toFixed(1)} ms, 161 took ${few.drawing.toFixed(1)} ms`);
+});
+
 test('each row of several same-holder series opens its own values, and folding a process hides all its rows', () => {
   const claim = (id, t, v, mode, scope) => ({ id, subject: 'p', value: { kind: 'scalar', value: v }, value_time: t, evidence_cutoff: 0, mode,
     evidence_type: mode === 'observed' ? 'report' : 'estimate', holder: 'alice', authority: { source: 'alice', weight: 1 }, uncertainty: { kind: 'unknown' }, access_scopes: [scope] });

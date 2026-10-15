@@ -72,7 +72,8 @@ from declared records, so it is tested without a browser.
   Cut series (`cutTrajectories`) are stacked readings, drawn as the reading column reads them (`readingAt`, at one
   resolution for the current zoom): each reading across the interval it averages, with the remainder shown. Where a
   longer reading has finer ones open, the time they leave uncovered shows, dimmer, the level it must average, and
-  nothing where no level can hold; a moment's reading is a narrow bar.
+  nothing where no level can hold; a moment's reading is a narrow bar. Each series is read through
+  `prepareReadings`, which works out the nesting once per zoom and reads exactly as `readingAt` does.
 - **Events** in the controls shows the parts and Events above the time axis. It is off at first, so the rows take the
   whole height; the axis, the reading at the pointer and an opened Event's time stay. Choosing a whole under **Parts
   of** turns it on. When on, the parts and Events scroll away as the rows scroll and the axis stays at the top;

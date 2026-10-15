@@ -128,8 +128,16 @@ export function cutTrajectories(data) {
     // interval, or two that partly overlap with neither inside the other, are a conflict, not resolved by averaging or
     // by choosing one: both remain in the independent Cut view.
     const intervals = new Set(records.map((record) => `${record.t}:${record.end}`));
-    const spans = records.filter((record) => record.end > record.t);
-    const partlyOverlapping = spans.some((a) => spans.some((b) => a.t < b.t && b.t < a.end && a.end < b.end));
+    // Records are sorted by start, longest first: each reading either lies inside the open one on top of the stack, or
+    // starts after it ends; one that starts inside it and ends after it partly overlaps it.
+    let partlyOverlapping = false;
+    const open = [];
+    for (const record of records) {
+      if (!(record.end > record.t)) continue;
+      while (open.length && open.at(-1).end <= record.t) open.pop();
+      if (open.length && open.at(-1).end < record.end) { partlyOverlapping = true; break; }
+      open.push(record);
+    }
     if (records.length < 2 || intervals.size < records.length || partlyOverlapping) continue;
     const referent = referents.get(schema.owner), home = commonHome(records, schema.owner);
     // A row is named by its answer; the question names the series once, above its first row. The remainder, what the

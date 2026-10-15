@@ -73,6 +73,115 @@ export function readingAt(points, t, { minSpan = 0, momentHalfWidth = 0 } = {}) 
   }
 }
 
+// readingAt prepared for reading one series many times at one resolution: read(t) returns what
+// readingAt(points, t, options) returns. The nesting is worked out once, by sorting the readings by start, longest first,
+// and keeping a stack, and so is what governs each stretch between reading boundaries, which reads alike throughout.
+// Readings whose intervals match another reader's, in the same order, share its work: pass that reader as `like` (the
+// answers of one Cut series), and only the values are read anew. Readings that partly overlap, or repeat an interval,
+// are read by readingAt itself, once per stretch.
+export function prepareReadings(points, { minSpan = 0, momentHalfWidth = 0 } = {}, like = null) {
+  const shared = like?.shape;
+  const shape = shared && shared.nested && Object.is(shared.minSpan, minSpan) && Object.is(shared.momentHalfWidth, momentHalfWidth)
+    && shared.points.length === points.length && shared.points.every((p, i) => Object.is(p.t, points[i].t) && Object.is(spanOf(p), spanOf(points[i])))
+    ? shared : readingShape(points, minSpan, momentHalfWidth);
+  const spanned = shape.nested ? null : points.filter((point) => spanOf(point) > 0);
+  const kept = new Map(), rests = new Map();
+  const rest = (node) => {
+    if (!rests.has(node)) rests.set(node, uncoveredAverage(points[node], shape.children[node].map((child) => points[child])));
+    return rests.get(node);
+  };
+  const read = (t) => {
+    const moment = shape.momentAt(t);
+    if (moment >= 0) return { point: points[moment], value: points[moment].v, finer: 0, derived: null };
+    const i = shape.stretchAt(t);
+    if (i < 0) return null;
+    if (!shape.nested) {
+      if (!kept.has(i)) kept.set(i, readingAt(spanned, shape.bounds[i], { minSpan }));
+      const found = kept.get(i);
+      return found && { ...found, derived: found.derived && { ...found.derived } };
+    }
+    const governs = shape.governs[i];
+    if (!governs) return null;
+    if (governs.derived) {
+      const { coverage, value } = rest(governs.node);
+      return { point: null, value, finer: 0, derived: { parent: points[governs.node], coverage, feasible: value !== null } };
+    }
+    return { point: points[governs.node], value: points[governs.node].v, finer: governs.finer, derived: null };
+  };
+  read.shape = shape;
+  return read;
+}
+
+// The value-free part of prepareReadings: the moments in time order, the stretches between reading boundaries, the
+// nesting, and for each stretch the reading (with how many finer ones it stands for) or derived level that governs it.
+function readingShape(points, minSpan, momentHalfWidth) {
+  const index = points.map((_, i) => i);
+  const span = points.map(spanOf), end = points.map((point, i) => point.t + span[i]);
+  const moments = index.filter((i) => span[i] === 0 && Number.isFinite(points[i].t)).sort((a, b) => points[a].t - points[b].t || a - b);
+  const order = index.filter((i) => span[i] > 0 && Number.isFinite(points[i].t)).sort((a, b) => points[a].t - points[b].t || span[b] - span[a] || a - b);
+  const bounds = [...new Set(order.flatMap((i) => [points[i].t, end[i]]))].sort((a, b) => a - b);
+  const firstAtLeast = (list, key, t) => { let lo = 0, hi = list.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (key(list[mid]) < t) lo = mid + 1; else hi = mid; } return lo; };
+  const momentAt = (t) => {
+    if (!moments.length || Number.isNaN(t)) return -1;
+    const k = firstAtLeast(moments, (i) => points[i].t, t), away = (j) => Math.abs(t - points[moments[j]].t);
+    const best = Math.min(k > 0 ? away(k - 1) : Infinity, k < moments.length ? away(k) : Infinity);
+    if (!(best <= momentHalfWidth)) return -1;
+    // The nearest moment, the first in the readings' order among equally near ones, as readingAt chooses.
+    let found = Infinity;
+    for (let j = k - 1; j >= 0 && away(j) === best; j -= 1) found = Math.min(found, moments[j]);
+    for (let j = k; j < moments.length && away(j) === best; j += 1) found = Math.min(found, moments[j]);
+    return found;
+  };
+  // The stretch [bounds[k], bounds[k + 1]) holding t, or -1 outside every reading.
+  const stretchAt = (t) => {
+    if (!(t >= bounds[0] && t < bounds.at(-1))) return -1;
+    const k = firstAtLeast(bounds, (b) => b, t);
+    return bounds[k] === t ? k : k - 1;
+  };
+
+  // Sorted by start and then longest first, each reading is either inside the reading on top of the stack, or after it.
+  // Anything else (a partial overlap, or one interval read twice) is not a nesting, and readingAt reads it directly.
+  const children = points.map(() => []), depth = new Array(points.length).fill(0), roots = [], stack = [];
+  let nested = true;
+  for (const i of order) {
+    while (stack.length && end[stack.at(-1)] <= points[i].t) stack.pop();
+    const top = stack.at(-1);
+    if (top !== undefined) {
+      if (!(end[i] <= end[top] && span[i] < span[top])) { nested = false; break; }
+      children[top].push(i); depth[i] = depth[top] + 1;
+    } else roots.push(i);
+    stack.push(i);
+  }
+  const shape = { points, minSpan, momentHalfWidth, nested, bounds, momentAt, stretchAt, children: null, governs: null };
+  if (!nested) return shape;
+
+  // Children were found in start order, which marks out the gaps between them; readingAt takes them in the readings'
+  // order.
+  const inOrder = children.map((list) => [...list].sort((a, b) => a - b));
+  // Reading i covers the stretches lo[i] to hi[i] - 1.
+  const lo = [], hi = [];
+  for (const i of order) { lo[i] = firstAtLeast(bounds, (b) => b, points[i].t); hi[i] = firstAtLeast(bounds, (b) => b, end[i]); }
+  const gaps = (i, paint) => {
+    let from = lo[i];
+    for (const child of children[i]) { for (let k = from; k < lo[child]; k += 1) paint(k); from = Math.max(from, hi[child]); }
+    for (let k = from; k < hi[i]; k += 1) paint(k);
+  };
+  const deepest = new Array(Math.max(0, bounds.length - 1)).fill(-1);
+  for (const i of order) gaps(i, (k) => { deepest[k] = depth[i]; });
+  const governs = new Array(deepest.length).fill(null), reached = new Set(roots);
+  for (const i of order) {
+    if (!reached.has(i)) continue;
+    if (!children[i].some((child) => span[child] >= minSpan)) {
+      for (let k = lo[i]; k < hi[i]; k += 1) governs[k] = { node: i, finer: deepest[k] - depth[i] };
+      continue;
+    }
+    for (const child of children[i]) reached.add(child);
+    const full = !uncoveredAverage(points[i], inOrder[i].map((child) => points[child]));
+    gaps(i, (k) => { governs[k] = full ? { node: i, finer: 0 } : { node: i, derived: true }; });
+  }
+  return Object.assign(shape, { children: inOrder, governs });
+}
+
 // Why a reading has its shares: its own tagged reason in its provenance ("inferred: …", the form life_series_record
 // writes), else the description of the Event it sits on. Shown first when the pointer rests on the reading.
 const TAGGED = /^(source|inferred|invented|exploring|sketch):\s*([\s\S]+)$/u;

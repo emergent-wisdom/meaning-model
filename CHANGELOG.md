@@ -4,6 +4,23 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## 0.13.1 — 2026-10-15
+
+The engine and the model format are unchanged: models and histories open as before.
+
+- A `life_carve_record` result stays within the 500,000 characters the tool declares, measured as the text the client
+  is sent, also on a large model whose revision receipt lists thousands of records. A result over that size first gives up the notes to send by hand,
+  keeping the instruction to replay the call, then shows the first entries of each long list it carries, with how
+  many each has in all.
+- A carve's routing sample is recorded in notes of its own, as many as it needs, so a long sample no longer makes one
+  note too large to write. The synthesis note gives the number of cases routed (`routingCases`) in place of the cases
+  themselves, which are in the routing notes.
+- A carve revised without a routing sample supersedes the notes of the sample it had before, so they no longer read as
+  current.
+- The Chart draws nested Cut readings quickly. Each Cut series works out how its readings nest once per zoom, shared
+  by its answers, in place of again for every stretch drawn; a long reading holding 800 finer ones took seconds to
+  draw. What the Chart shows, and the reading at the pointer, are unchanged.
+
 ## 0.13.0 — 2026-10-15
 
 The engine and the model format are unchanged: models and histories open as before.

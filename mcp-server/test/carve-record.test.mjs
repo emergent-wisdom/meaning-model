@@ -13,6 +13,10 @@ import { applyModelChange } from '../src/model-change.mjs';
 import { carveChange, carveRecordSchema, clipBytes, openTemplates, outcomeOf, recordCarve } from '../src/carve-record.mjs';
 import { carveReport, carvesOf } from '../src/carve-index.mjs';
 import { valuesChange, valuesReport } from '../src/values-record.mjs';
+import { toolResult } from '../src/tool-result.mjs';
+
+// The text an MCP client is given for a result: indented JSON, as the server sends it.
+const deliveredText = (result) => toolResult(result).content[0].text.length;
 
 const HASH = 'a'.repeat(64);
 const pass = (reason = 'It holds.') => ({ verdict: 'pass', reason });
@@ -207,7 +211,7 @@ test('on the engine: one call revises the model, rebinds the graph and records t
   // The notes: held by the modeler, about the concept, the cut and the climb, with every reason whole.
   const attempt = (requestId) => createHash('sha256').update(requestId).digest('hex').slice(0, 10);
   const prefix = `note.carve.concept.bakery-survival.r${model.revision.number}.${attempt('carve-1')}`;
-  assert.deepEqual(result.graph.noteIds, [`${prefix}.frame`, `${prefix}.tests`, `${prefix}.synthesis`]);
+  assert.deepEqual(result.graph.noteIds, [`${prefix}.frame`, `${prefix}.tests`, `${prefix}.routing`, `${prefix}.synthesis`]);
   const view = await service.queryNarrativeGraph({ graphHash: result.graph.graphHash, mode: 'full', includeContent: true, accessScopes: ['author'] });
   assert.equal(view.graph.source.model_hash, result.modelHash, 'the graph is rebound to the revision');
   const anchors = (nodeId) => view.edges.filter((edge) => edge.source?.node_id === nodeId && edge.target?.kind === 'anchor').map((edge) => `${edge.target.anchor_kind}:${edge.target.anchor_id}`);
@@ -466,7 +470,7 @@ test('on the engine: an exact retry made after later carves moved the graph on r
   assert.equal((await service.listNarrativeRevisions({})).revisions.length, before, 'no new graph revision');
 });
 
-// A large carve: 32 candidates with 2,000-character reasons and a long climb with many sibling kinds.
+// A very large carve: 32 candidates with 2,000-character reasons and a long climb with many sibling kinds.
 const largeCarve = (requestId, steps, count = 32) => carveInput({ requestId,
   candidates: Array.from({ length: count }, (_, n) => candidate(`part-${n}`, `Part ${n}`, { necessity: pass('n'.repeat(2_000)), independence: pass('i'.repeat(2_000)), universality: pass('u'.repeat(2_000)) })),
   ascent: Array.from({ length: steps }, (_, step) => ({ label: `Broader kind ${step + 1}`, differentia: 'd'.repeat(1_000),
@@ -482,10 +486,10 @@ const failingOnce = (service, suffix) => {
 
 test('on the engine: a large carve whose notes fail to write returns a result within its declared size, and replaying the call records them', async (t) => {
   const { service, modelHash, graphHash } = await setup(t);
-  // Fourteen steps and 32 candidates fit with the notes to send by hand; the largest carve the schema allows does not.
-  const sample = await recordCarve(failingOnce(service, ':notes'), { ...largeCarve('sample', 14), previousModelHash: modelHash, graph: { graphHash, accessScopes: ['author'] } });
-  assert.equal(sample.failure.stage, 'notes');
-  assert.ok(JSON.stringify(sample).length < 500_000, `${JSON.stringify(sample).length}`);
+  // The 14-step, 32-candidate carve now fits with the notes to send by hand; the largest carve the schema allows does not.
+  const fourteen = await recordCarve(failingOnce(service, ':notes'), { ...largeCarve('fourteen', 14), previousModelHash: modelHash, graph: { graphHash, accessScopes: ['author'] } });
+  assert.equal(fourteen.failure.stage, 'notes');
+  assert.ok(JSON.stringify(fourteen).length < 500_000, `${JSON.stringify(fourteen).length}`);
   const fresh = await setup(t);
   const input = { ...largeCarve('large', 16, 48), previousModelHash: fresh.modelHash, graph: { graphHash: fresh.graphHash, accessScopes: ['author'] } };
   const failed = await recordCarve(failingOnce(fresh.service, ':notes'), structuredClone(input));
@@ -528,5 +532,92 @@ test('on the engine: a small carve whose notes fail still carries them to send b
   const failed = await recordCarve(failingOnce(service, ':notes'), { ...carveInput({ requestId: 'small' }), previousModelHash: modelHash, graph: { graphHash, accessScopes: ['author'] } });
   assert.equal(failed.failure.stage, 'notes');
   assert.equal(failed.retry.tool, 'life_understanding_record');
-  assert.equal(failed.retry.arguments.notes.length, 3);
+  assert.equal(failed.retry.arguments.notes.length, 4, 'the frame, the tests, the routing sample and the synthesis');
+});
+
+test('a carve result over its declared size gives up the notes to send by hand first, then cuts the receipt\'s long lists', async () => {
+  const { fitCarveResult } = await import('../src/carve-record.mjs');
+  const big = { schema: 'meaning-model-carve-record/v1', modelHash: 'b'.repeat(64), partial: true, failure: { stage: 'notes', message: 'm' }, next: ['call life_carve_record again'],
+    descriptionCoverage: { undescribedProcessEvents: Array.from({ length: 3_000 }, (_, n) => `event.${'x'.repeat(190)}.${n}`) },
+    retry: { tool: 'life_understanding_record', arguments: { notes: [{ text: 'n'.repeat(1_000) }] } } };
+  const fitted = fitCarveResult(big);
+  assert.ok(deliveredText(fitted) <= 500_000, `${deliveredText(fitted)}`);
+  assert.equal(fitted.retry, undefined);
+  assert.deepEqual([fitted.modelHash, fitted.failure, fitted.next], [big.modelHash, big.failure, big.next], 'what to do next stays whole');
+  assert.equal(fitted.listsCut['descriptionCoverage.undescribedProcessEvents'].of, 3_000);
+  const small = { ...big, descriptionCoverage: { undescribedProcessEvents: ['e'] } };
+  assert.deepEqual(fitCarveResult(small), small, 'a result that fits is unchanged, its notes to send included');
+});
+
+test('on the engine: a carve on a model with thousands of undescribed Events fails its notes within its declared size, and replaying it records them', async (t) => {
+  const { service, modelHash, graphHash } = await setup(t);
+  const { model } = await service.inspectModel({ modelHash, includeDefinition: true });
+  const events = Array.from({ length: 3_000 }, (_, n) => ({ id: `event.${'long-id-'.repeat(24)}${n}`, boundary: `Event ${n}`, interval: null, participants: {},
+    process_ids: ['bakery.debt_nok'], observation_process_ids: [], region: null, substrate: null, provenance: ['test'] }));
+  const event_relations = events.map((event, n) => ({ id: `world.contains.many.${n}`, kind: 'contains', source_event_id: 'event.world', target_event_id: event.id,
+    description: null, authority: null, uncertainty: { kind: 'unknown' }, provenance: ['test'] }));
+  const { successor } = applyModelChange(model, modelHash, { reason: 'Many Events.', provenance: ['test'], upsert: { events, event_relations } });
+  const busy = await service.reviseModel({ requestId: 'many-events', previousModelHash: modelHash, model: successor });
+  const input = { ...carveInput({ requestId: 'busy', candidates: [candidate('cash', 'Cash on hand'), candidate('customers', 'Customers')] }), previousModelHash: busy.modelHash, graph: { graphHash, accessScopes: ['author'] } };
+  const failed = await recordCarve(failingOnce(service, ':notes'), structuredClone(input));
+  assert.equal(failed.failure.stage, 'notes');
+  assert.ok(deliveredText(failed) <= 500_000, `${deliveredText(failed)}`);
+  assert.match(failed.next[0], /call life_carve_record again with exactly the same input, requestId busy included/u);
+  const replayed = await recordCarve(service, structuredClone(input));
+  assert.ok(!replayed.partial, JSON.stringify(replayed.failure));
+  assert.ok(deliveredText(replayed) <= 500_000, `${deliveredText(replayed)}`);
+  assert.ok(replayed.graph.noteIds.some((id) => id.endsWith('.synthesis')));
+});
+
+test('on the engine: a routing sample too long for one note or one write is recorded in notes of its own', async (t) => {
+  const { service, modelHash, graphHash } = await setup(t);
+  const routing = Array.from({ length: 200 }, (_, n) => ({ case: `事例${n}${'東京の小さなパン屋'.repeat(110)}`.slice(0, 1_000), homes: [n % 2 ? 'cash' : 'customers'] }));
+  const result = await recordCarve(service, { ...carveInput({ requestId: 'routing', routing }), previousModelHash: modelHash, graph: { graphHash, accessScopes: ['author'] } });
+  assert.ok(!result.partial, JSON.stringify(result.failure));
+  const routed = result.graph.noteIds.filter((id) => /\.routing(-\d+)?$/u.test(id));
+  assert.ok(routed.length > 1, routed.join(', '));
+  const view = await service.queryNarrativeGraph({ graphHash: result.graph.graphHash, mode: 'full', includeContent: true, accessScopes: ['author'] });
+  const notes = routed.map((id) => JSON.parse(view.nodes.find((node) => node.id === id).text));
+  assert.equal(notes.reduce((n, note) => n + note.data.homes.length, 0), 200, 'every case, once');
+  assert.ok(notes.every((note) => note.text.length <= 64_000));
+});
+
+test('on the engine: on a model of 20,000 Events, a failed carve and its replay are delivered within the declared size', async (t) => {
+  const { service, modelHash, graphHash } = await setup(t);
+  const { model } = await service.inspectModel({ modelHash, includeDefinition: true });
+  const events = Array.from({ length: 20_000 }, (_, n) => ({ id: `event.n${String(n).padStart(12, '0')}`, boundary: `Event ${n}`, interval: null, participants: {},
+    process_ids: ['bakery.debt_nok'], observation_process_ids: [], region: null, substrate: null, provenance: ['test'] }));
+  const event_relations = events.map((event, n) => ({ id: `world.contains.n${n}`, kind: 'contains', source_event_id: 'event.world', target_event_id: event.id,
+    description: null, authority: null, uncertainty: { kind: 'unknown' }, provenance: ['test'] }));
+  const { successor } = applyModelChange(model, modelHash, { reason: 'Many short Events.', provenance: ['test'], upsert: { events, event_relations } });
+  const busy = await service.reviseModel({ requestId: 'twenty-thousand', previousModelHash: modelHash, model: successor });
+  const input = { ...carveInput({ requestId: 'twenty', candidates: [candidate('cash', 'Cash on hand'), candidate('customers', 'Customers')] }), previousModelHash: busy.modelHash, graph: { graphHash, accessScopes: ['author'] } };
+  const failed = await recordCarve(failingOnce(service, ':notes'), structuredClone(input));
+  assert.equal(failed.failure.stage, 'notes');
+  assert.ok(deliveredText(failed) <= 500_000, `${deliveredText(failed)}`);
+  const replayed = await recordCarve(service, structuredClone(input));
+  assert.ok(!replayed.partial, JSON.stringify(replayed.failure));
+  assert.ok(deliveredText(replayed) <= 500_000, `${deliveredText(replayed)}`);
+});
+
+test('on the engine: a carve revised without a routing sample supersedes the old sample\'s notes', async (t) => {
+  for (const without of [{ routing: [] }, {}]) {
+    const { service, modelHash, graphHash } = await setup(t);
+    const first = await recordCarve(service, { ...carveInput({ requestId: 'with-routing' }), previousModelHash: modelHash, graph: { graphHash, accessScopes: ['author'] } });
+    const routed = first.graph.noteIds.filter((id) => /\.routing(-\d+)?$/u.test(id));
+    assert.equal(routed.length, 1);
+    const base = carveInput({ requestId: 'without-routing', candidates: [...carveInput().candidates.slice(0, 4)] });
+    delete base.routing;
+    const input = { ...base, ...without, previousModelHash: first.modelHash, graph: { graphHash: first.graph.graphHash, accessScopes: ['author'] } };
+    const second = await recordCarve(service, structuredClone(input));
+    assert.ok(!second.partial, JSON.stringify(second.failure));
+    assert.ok(!second.graph.noteIds.some((id) => /\.routing(-\d+)?$/u.test(id)), 'no new sample');
+    const view = await service.queryNarrativeGraph({ graphHash: second.graph.graphHash, mode: 'full', includeContent: true, accessScopes: ['author'] });
+    const superseded = view.edges.filter((edge) => edge.relation === 'supersedes').map((edge) => [edge.source.node_id, edge.target.node_id]);
+    const synthesis = second.graph.noteIds.find((id) => id.endsWith('.synthesis'));
+    assert.ok(superseded.some(([from, to]) => from === synthesis && to === routed[0]), `${JSON.stringify(without)}: ${JSON.stringify(superseded)}`);
+    // An exact replay returns the same notes.
+    const replayed = await recordCarve(service, structuredClone(input));
+    assert.deepEqual([replayed.graph.graphHash, replayed.graph.noteIds], [second.graph.graphHash, second.graph.noteIds]);
+  }
 });
