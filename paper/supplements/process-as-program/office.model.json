@@ -1,0 +1,281 @@
+{
+  "schema": "life-sim-rust-model/v1",
+  "id": "calculation-office-checking",
+  "time_unit": "month",
+  "revision": {
+    "number": 0,
+    "reason": "A process given by a program: the checking backlog of a calculation office, computed by laws instead of recorded values. Illustrative; the capacity figures are the first Book of Conditions construction's (40 checker-hours a job, 80 protected checker-hours), the rule and its threshold are invented to show the form. Month 0 is January 1852.",
+    "provenance": [
+      "Meaning Model paper, appendix example: a process given by a program"
+    ]
+  },
+  "processes": [
+    {
+      "id": "office.ordered_hours",
+      "unit": "checker-hours ordered per month",
+      "value_type": {
+        "kind": "scalar",
+        "bounds": {
+          "minimum": 0.0,
+          "maximum": 1000.0
+        }
+      },
+      "initial_value": {
+        "kind": "scalar",
+        "value": 160.0
+      },
+      "provenance": [
+        "four jobs a month at 40 checker-hours each (the run script sets 80 for two jobs)"
+      ],
+      "support": [
+        "declared input"
+      ],
+      "update_mode": "static"
+    },
+    {
+      "id": "office.check_capacity",
+      "unit": "protected checker-hours per month",
+      "value_type": {
+        "kind": "scalar",
+        "bounds": {
+          "minimum": 0.0,
+          "maximum": 1000.0
+        }
+      },
+      "initial_value": {
+        "kind": "scalar",
+        "value": 80.0
+      },
+      "provenance": [
+        "one independent checker's protected hours"
+      ],
+      "support": [
+        "declared input; a funded successor raises it to 160"
+      ]
+    },
+    {
+      "id": "office.backlog",
+      "unit": "checker-hours of work awaiting an independent check",
+      "value_type": {
+        "kind": "scalar",
+        "bounds": {
+          "minimum": 0.0,
+          "maximum": 100000.0
+        }
+      },
+      "initial_value": {
+        "kind": "scalar",
+        "value": 0.0
+      },
+      "provenance": [
+        "computed by the law backlog-flow"
+      ],
+      "support": [
+        "program output"
+      ]
+    },
+    {
+      "id": "office.queue_months",
+      "unit": "months of checking already queued",
+      "value_type": {
+        "kind": "scalar",
+        "bounds": {
+          "minimum": 0.0,
+          "maximum": 1000.0
+        }
+      },
+      "initial_value": {
+        "kind": "scalar",
+        "value": 0.0
+      },
+      "provenance": [
+        "computed by the law queue: backlog divided by capacity"
+      ],
+      "support": [
+        "program output"
+      ]
+    },
+    {
+      "id": "office.demand_ratio",
+      "unit": "ordered hours per checked hour",
+      "value_type": {
+        "kind": "scalar",
+        "bounds": {
+          "minimum": 0.0,
+          "maximum": 100.0
+        }
+      },
+      "initial_value": {
+        "kind": "scalar",
+        "value": 2.0
+      },
+      "provenance": [
+        "computed by the law demand"
+      ],
+      "support": [
+        "program output"
+      ]
+    },
+    {
+      "id": "office.unchecked_jobs",
+      "unit": "jobs delivered without an independent check",
+      "value_type": {
+        "kind": "scalar",
+        "bounds": {
+          "minimum": 0.0,
+          "maximum": 10000.0
+        }
+      },
+      "initial_value": {
+        "kind": "scalar",
+        "value": 0.0
+      },
+      "provenance": [
+        "counted by the law delivery-rule"
+      ],
+      "support": [
+        "program output"
+      ]
+    }
+  ],
+  "laws": [
+    {
+      "id": "backlog-flow",
+      "operator": {
+        "role": "evolution",
+        "target": "office.backlog",
+        "derivative": {
+          "op": "subtract",
+          "left": {
+            "op": "process",
+            "process": "office.ordered_hours"
+          },
+          "right": {
+            "op": "process",
+            "process": "office.check_capacity"
+          }
+        }
+      },
+      "provenance": [
+        "work arrives as ordered and leaves as checked"
+      ]
+    },
+    {
+      "id": "queue",
+      "operator": {
+        "role": "relation",
+        "target": "office.queue_months",
+        "value": {
+          "op": "divide",
+          "numerator": {
+            "op": "process",
+            "process": "office.backlog"
+          },
+          "denominator": {
+            "op": "process",
+            "process": "office.check_capacity"
+          }
+        }
+      },
+      "provenance": [
+        "how many months of checking are already waiting"
+      ]
+    },
+    {
+      "id": "demand",
+      "operator": {
+        "role": "relation",
+        "target": "office.demand_ratio",
+        "value": {
+          "op": "divide",
+          "numerator": {
+            "op": "process",
+            "process": "office.ordered_hours"
+          },
+          "denominator": {
+            "op": "process",
+            "process": "office.check_capacity"
+          }
+        }
+      },
+      "provenance": [
+        "the demand-to-capacity ratio"
+      ]
+    },
+    {
+      "id": "delivery-rule",
+      "operator": {
+        "role": "occurrence",
+        "trigger": {
+          "kind": "threshold",
+          "expression": {
+            "op": "process",
+            "process": "office.queue_months"
+          },
+          "comparison": "greater_or_equal",
+          "threshold": 3.0,
+          "firing": "while_true"
+        },
+        "effects": [
+          {
+            "target": "office.unchecked_jobs",
+            "mode": "add",
+            "value": {
+              "op": "constant",
+              "value": 1.0
+            }
+          },
+          {
+            "target": "office.backlog",
+            "mode": "add",
+            "value": {
+              "op": "constant",
+              "value": -40.0
+            }
+          }
+        ]
+      },
+      "provenance": [
+        "the commercial organizer's rule: while more than three months of checking are queued, the oldest job goes out unchecked"
+      ]
+    },
+    {
+      "id": "successor-funded",
+      "enabled": false,
+      "operator": {
+        "role": "occurrence",
+        "trigger": {
+          "kind": "threshold",
+          "expression": {
+            "op": "time"
+          },
+          "comparison": "greater_or_equal",
+          "threshold": 7.0,
+          "firing": "on_enter"
+        },
+        "effects": [],
+        "activates": [
+          "second-checker"
+        ]
+      },
+      "provenance": [
+        "the successor is funded in August 1852 (enabled only in the third run)"
+      ]
+    },
+    {
+      "id": "second-checker",
+      "activation": "gated",
+      "operator": {
+        "role": "relation",
+        "target": "office.check_capacity",
+        "value": {
+          "op": "constant",
+          "value": 160.0
+        }
+      },
+      "provenance": [
+        "a second independent checker doubles the protected hours"
+      ]
+    }
+  ]
+}

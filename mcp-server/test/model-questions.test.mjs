@@ -259,7 +259,13 @@ test('a model that keeps changing while its record holds few thoughts is asked w
   const service = { inspectModel: async () => ({ model }), queryNarrativeGraph: async () => ({ graph: { source: { kind: 'model', model_hash: 'f'.repeat(64) } }, nodes: [{ id: 'n', role: 'externalized_reflection' }], edges: [] }) };
   const open = await readOpenQuestions(service, { modelHash: 'f'.repeat(64), graphHash: 'a'.repeat(64), limit: 5 });
   assert.equal(open.questions[0].kind, 'understanding-outside');
-  assert.match(open.questions[0].question, /changed 4 times and its record holds 1 thought\. Where is your understanding\? Use the model as your mind/);
+  // Read with no access scopes, the question says notes under a scope are not counted.
+  assert.match(open.questions[0].question, /changed 4 times and its record holds 1 thought visible without access scopes: if your notes were recorded under a scope, read the questions with that accessScopes\. Where is your understanding\? Use the model as your mind/);
+  const scoped = await readOpenQuestions(service, { modelHash: 'f'.repeat(64), graphHash: 'a'.repeat(64), accessScopes: ['mine'], limit: 5 });
+  assert.match(scoped.questions[0].question, /record holds 1 thought\. Where is your understanding\?/);
+  // Two notes for each revision are enough: eight notes on four revisions are not asked about.
+  const notes = { ...service, queryNarrativeGraph: async () => ({ graph: { source: { kind: 'model', model_hash: 'f'.repeat(64) } }, nodes: [...'abcdefgh'].map((id) => ({ id, role: 'externalized_reflection' })), edges: [] }) };
+  assert.ok(!(await readOpenQuestions(notes, { modelHash: 'f'.repeat(64), graphHash: 'a'.repeat(64), limit: 5 })).questions.some((item) => item.kind === 'understanding-outside'));
   assert.match(open.questions[0].question, /consequential ideas, findings, decisions and their reasons, predictions and open questions/);
   assert.match(open.questions[0].question, /not a semantic test or a quota for notes/);
   assert.doesNotMatch(open.questions[0].question, /put each thought into it as you have it/);
@@ -413,4 +419,29 @@ test('the state at a moment reads the values recorded for it: the one held then 
   assert.match(between.atThisTime, /^not recorded: held and next are the recorded values around it/u);
   assert.equal(at(25).recorded[0].atThisTime, undefined, 'a recorded time says nothing more');
   assert.deepEqual([at(10).recorded[0].held, at(10).recorded[0].next.at], [null, 20], 'before the first value only the next is known');
+});
+
+test('questions that do not go away: regularities as relations answer laws-missing, a tagged reading is an estimate, and the place question says how to decline', () => {
+  const model = lived();
+  const mm = model.meaning_model;
+  for (let i = 0; i < 8; i += 1) mm.events.push(event(`ev.more.${i}`, 30 + i, 31 + i));
+  const kinds = (m) => new Set(modelQuestions(m, { people: [{ id: 'leo', name: 'Leo' }], limit: 200 }).questions.map((item) => item.kind));
+  assert.ok(kinds(model).has('laws-missing'));
+  const laws = modelQuestions(model, { people: [{ id: 'leo', name: 'Leo' }], limit: 200 }).questions.find((item) => item.kind === 'laws-missing');
+  assert.match(laws.question, /If the work needs none, say why once, in a note about the document root with data \{ schema: "meaning-model-sufficient\/v1", kind: "laws-missing", reason \} \(sufficientHow\), and it is not asked again\./u);
+  // A kind-of relation and a decision to keep a process whole are not regularities; a constrains relation is.
+  mm.concepts = [{ id: 'c.a', provenance: ['x'] }, { id: 'c.b', provenance: ['x'] }];
+  mm.abstract_relations = [{ id: 'r.kind', source_concept_id: 'c.a', target_concept_id: 'c.b', kind: 'specialization', provenance: ['x'] },
+    { id: 'kept-whole.p', source_concept_id: 'c.a', target_concept_id: 'c.b', kind: 'other', provenance: ['x', 'kept-whole-process:p'] }];
+  assert.ok(kinds(model).has('laws-missing'));
+  mm.abstract_relations.push({ id: 'r.limits', source_concept_id: 'c.a', target_concept_id: 'c.b', kind: 'constrains', provenance: ['x'] });
+  assert.ok(!kinds(model).has('laws-missing'));
+  // Weights recorded with a tag and why, as life_series_record writes them, are the recorder's estimate.
+  const unestimated = modelQuestions(model, { people: [{ id: 'leo', name: 'Leo' }], limit: 200 }).questions.find((item) => item.kind === 'weights-unestimated');
+  assert.match(unestimated.question, /record whose distribution they are: begin each Cut's provenance with estimator:, supplied: or a tag and why \(sketch: …\), as life_series_record does\./u);
+  // A tag with no why says nothing about whose estimate it is.
+  for (const item of mm.normalized_cuts) item.provenance = ['sketch:'];
+  assert.ok(kinds(model).has('weights-unestimated'));
+  for (const item of mm.normalized_cuts) item.provenance = ['sketch: how Leo sees it then'];
+  assert.ok(!kinds(model).has('weights-unestimated'));
 });

@@ -151,7 +151,7 @@ test('first-use context requires the operational contract and purpose guide with
   assert.deepEqual(context.personalModelViews, [
     'external event history',
     'alternative AI-inferred actor-local models',
-    "the person's reported self-model",
+    "the person's own account",
   ]);
   assert.match(context.comprehensionBoundary, /cannot verify comprehension/);
   assert.match(context.comprehensionBoundary, /exact bytes, not reading or understanding/);
@@ -373,6 +373,7 @@ test('every mode carries the method: categories first, series over time, open wh
   assert.match(methodCoreInstructions, /Fractal Intelligence's conceptual decomposition/);
   assert.match(methodCoreInstructions, /life_series_record/);
   assert.match(purposeMethod('person_reflection'), /do not invent their history/);
+  assert.match(purposeMethod('person_reflection'), /let its gaps decide what to ask next/);
   assert.match(purposeMethod('source_reconstruction'), /tagged source or inferred/);
   assert.match(purposeMethod('forecasting'), /Issue each forecast as its own record and never record it again/);
   assert.match(purposeMethod('human_author_feedback'), /Do not invent the author's biography/);
@@ -387,7 +388,7 @@ test('every agent-facing text asks the opening questions and keeps going until t
     'mcp-server/src/construction-principles.mjs', 'mcp-server/src/modeling-guidance.mjs', 'mcp-server/src/server.ts', 'mcp-server/src/model-questions.mjs']
     .map((path) => readFile(new URL(path, root), 'utf8')));
   for (const stale of [/offer once to open the viewer/iu, /hold up modeling/iu, /sufficient for the (delegated )?purpose/iu, /without forcing extra detail/iu, /instead of adding arbitrary depth/iu, /useful stopping point/iu,
-    /values report says done/iu, /reported stillFlat/iu, /until the agreed work is delivered;/iu, /the work is done when/iu, /a story is never done/iu, /finished first pass/iu, /filled or stated/iu, /then take the next pass/iu]) {
+    /values report says done/iu, /pass is done when the coverage report says done/iu, /narrow task's pass/iu, /reported stillFlat/iu, /until the agreed work is delivered;/iu, /the work is done when/iu, /a story is never done/iu, /finished first pass/iu, /filled or stated/iu, /then take the next pass/iu]) {
     for (const text of texts) assert.doesNotMatch(text, stale);
   }
   assert.match(modelingSessionInstructions, /Ask the two opening questions of start-here, about the live viewer and Sema, and wait for the answer/u);
@@ -397,7 +398,10 @@ test('every agent-facing text asks the opening questions and keeps going until t
   assert.ok(startHere.includes(whenToStop), 'start-here states the definition of done word for word');
   assert.ok(texts[1].replace(/\s+/gu, ' ').includes(whenToStop), 'so does the protocol');
   assert.match(whenToStop, /Nothing here is ever finished: the model can always learn more and grow its understanding/u);
-  assert.match(whenToStop, /A pass is done when the coverage report says done/u);
+  // A pass is done when its aim is met: a pass that builds the world aims at the coverage report's measure; a narrower
+  // aim is not held back by it, and what the report still names goes in the closing note.
+  assert.match(whenToStop, /What ends is a pass, and a pass is done when its aim is met\. A pass that builds or extends a world aims at what the coverage report measures/u);
+  assert.match(whenToStop, /A pass with a narrower aim, such as one task, one region or what an earlier pass left, is done when that aim has what it needs; the coverage report does not hold it back, and what the report still names goes in the closing note/u);
   assert.match(whenToStop, /stating a gap does not fill it/u);
   assert.match(whenToStop, /say the pass is unfinished and what is left undone; budget not yet spent is no reason to end it/u);
   assert.match(whenToStop, /say you are done for this pass, report what changed, and record what you leave for another pass, each with why it can wait: another pass can always move through the world in more depth/u);

@@ -14,10 +14,8 @@
 //
 // A change in a quantity that adds up, such as years of life expectancy gained, is better divided by a Cut over the
 // change, whose answers name the cause Events (life_series_record with refersTo); this records everything else.
-import { VALUE_TAGS } from './values-record.mjs';
 import { createHash } from 'node:crypto';
 
-export const CAUSE_TAGS = VALUE_TAGS;
 export const CAUSE_KINDS = Object.freeze(['causes', 'enables', 'prevents', 'constrains']);
 export const CAUSE_ROLES = Object.freeze(['enabling', 'trigger', 'sustaining', 'success_condition', 'hindering']);
 const BRINGS_ABOUT = new Set(['causes', 'enables']);

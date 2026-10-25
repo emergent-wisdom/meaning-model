@@ -2,7 +2,8 @@ import { thinkInTheModelInstructions } from './model-questions.mjs';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { askTheUserFirst, constructionRecordInstructions, grammarReadingInstructions, modelingSessionInstructions } from './construction-principles.mjs';
+import { askTheUserFirst, constructionRecordInstructions, modelingSessionInstructions, readingTiming, sessionReadingInstructions } from './construction-principles.mjs';
+import { firstWrite } from './first-write.mjs';
 import { followsOurInstructions } from './agent-instructions.mjs';
 import { toolGuideUri, toolsWithGuides } from './tool-guides.mjs';
 
@@ -27,7 +28,7 @@ export const modelingPurposes = Object.freeze([
 export const purposeMeanings = Object.freeze({
   creative_story: 'a new story or other creative work, written from a model of its world',
   source_reconstruction: 'the world of an existing text, such as a novel or a play, rebuilt from the text; history or research from sources is observation',
-  person_reflection: 'a real person\'s life, with them: their own account beside the model\'s',
+  person_reflection: 'a self model: a real person\'s life, modeled with them, their own account beside the model\'s',
   observation: 'an account of what happened or what is the case, from evidence, sources or recalled knowledge: history, research, a situation',
   forecasting: 'what may happen, as forecasts issued before the outcome and scored after it',
   counterfactual: 'what would have happened had something gone differently',
@@ -108,7 +109,7 @@ const resourceDefinitions = Object.freeze([
     id: 'meaning-model-grammar',
     uri: 'life-sim://protocol/grammar',
     title: 'Meaning Model Minimized Grammar',
-    description: 'Complete current grammar appendix, with included definitions expanded. Read before modeling; the operational guides map this target contract to the current Rust host.',
+    description: 'Complete current grammar appendix, with included definitions expanded. Read before writing records by hand, assessing a model or beginning a deeper pass; the operational guides map this target contract to the current Rust host.',
     mimeType: 'text/x-tex',
     file: new URL('../../paper/meaning-model-grammar.tex', import.meta.url),
     category: 'protocol',
@@ -237,8 +238,8 @@ const resourceDefinitions = Object.freeze([
   {
     id: 'person-profile',
     uri: 'life-sim://profile/person',
-    title: 'Person Modeling Profile',
-    description: 'Consent-bounded three-view instructions for reflective modeling of a life interval.',
+    title: 'Self Model Profile',
+    description: 'Consent-bounded three-view instructions for a self model: reflective modeling of a life interval.',
     mimeType: 'text/markdown',
     file: new URL('../../profiles/PERSON_MODELING.md', import.meta.url),
     category: 'profile',
@@ -483,23 +484,24 @@ export async function buildModelingContext({
   const selectedProfile = profileUri(purpose);
   const selectedExample = exampleUri(purpose);
   const orderedResources = [
-    { uri: startHere.uri, sha256: startHere.sha256, required: true,
+    { uri: startHere.uri, sha256: startHere.sha256, required: true, due: 'start',
       reason: 'Read first, before the grammar: what the tool is for, how long and finer readings relate, and the working loop. Its text also opens this context as startHere. Reuse it while you retain it unchanged.' },
-    { uri: breakdown.uri, sha256: breakdown.sha256, required: true,
+    { uri: breakdown.uri, sha256: breakdown.sha256, required: true, due: 'start',
       reason: 'Read second, before you build anything: the conceptual decomposition algorithm and the least depth every model must reach, with process trees from the Universe down to one moment of one life. Carve differently and go further if you like, never shallower. Reuse it while you retain it unchanged.' },
-    { uri: grammar.uri, sha256: grammar.sha256, required: true,
-      reason: 'Every fresh agent reads the complete grammar before modeling, including delegated agents. Reuse only while the unchanged contents are retained; refresh after changes or loss of context.' },
+    { uri: grammar.uri, sha256: grammar.sha256, required: true, due: 'before-depth',
+      reason: 'Every fresh agent reads the complete grammar, including delegated agents: before writing records by hand, assessing a model or beginning a deeper pass. Reuse only while the unchanged contents are retained; refresh after changes or loss of context.' },
     {
       uri: protocol.uri,
       sha256: protocol.sha256,
       required: true,
-      reason: 'The operational modeling contract and entry procedure. Read on first use or when changed; reuse unchanged guidance that you retain.',
+      due: 'before-depth',
+      reason: 'The operational modeling contract and entry procedure. Read with the grammar, and again when changed; reuse unchanged guidance that you retain.',
     },
-    ...(!selectedProfile ? [{ uri: 'life-sim://guide/general-modeling', required: true, reason: 'General modeling workflow, compact construction, optional Jev estimation and exact review/record boundaries. Reuse unchanged guidance that you retain.' }] : []),
+    ...(!selectedProfile ? [{ uri: 'life-sim://guide/general-modeling', required: true, due: 'before-depth', reason: 'General modeling workflow, compact construction, optional Jev estimation and exact review/record boundaries. Reuse unchanged guidance that you retain.' }] : []),
     ...(selectedProfile
-      ? [{ uri: selectedProfile, required: true, reason: 'Purpose-specific modeling and output contract. Reuse unchanged guidance that you retain.' }]
+      ? [{ uri: selectedProfile, required: true, due: 'before-depth', reason: 'Purpose-specific modeling and output contract: read with the grammar, and before writing what the purpose delivers. Reuse unchanged guidance that you retain.' }]
       : []),
-    { uri: selectedExample, required: true, reason: 'Inspect one worked representation before expanding the model; reuse that reading while it remains applicable and unchanged.' },
+    { uri: selectedExample, required: true, due: 'before-depth', reason: 'Inspect one worked representation before writing records by hand or expanding the model past its rough first account; reuse that reading while it remains applicable and unchanged.' },
     ...(purpose === 'creative_story' ? [{ uri: 'life-sim://example/book-of-conditions-modeling', required: false,
       reason: 'Recommended alongside the representation example: how the Book connects coexisting life processes, wants, outlook, material constraints, and voice, then chooses what to open or leave sufficient.' }] : []),
     ...(forecasting && addons.includes('forecasting') ? [{ uri: 'life-sim://addon/forecasting', required: true,
@@ -530,6 +532,8 @@ export async function buildModelingContext({
       note: 'This session follows the instructions the user configured. What follows is the Meaning Model\'s own guidance, offered as reference: where it differs from the user\'s instructions, follow the user\'s. None of our guides below is required; the user\'s own instructions, listed first, are.' } }),
     schema: 'life-sim-modeling-context/v2',
     startHere: startHere.text,
+    // Something on the page early: a seed to register before the rest of the reading (first-write.mjs).
+    ...(sessionMode !== 'continuation' ? { firstWrite: firstWrite() } : {}),
     method: { core: methodCoreInstructions, inThisMode: purposeMethod(purpose),
       ...(forecasting ? { forecasting: forecastingMode(purpose, { branchesEnabled: addons.includes('forecasting') }) } : {}) },
     purpose,
@@ -543,7 +547,7 @@ export async function buildModelingContext({
     purposeInstructions: purposeInstructions(purpose),
     sessionMode,
     sessionGuidance: modelingSessionInstructions,
-    grammarInstructions: grammarReadingInstructions,
+    grammarInstructions: sessionReadingInstructions,
     modelingFreedom,
     starterSelection,
     scaleReview,
@@ -568,7 +572,8 @@ export async function buildModelingContext({
     toolGuideRule: ours
       ? 'Read a tool\'s guide (toolGuides) before your first call to that tool, and reuse it while it stays unchanged. Its description holds only what fits in 2,048 characters.'
       : 'Each guide in toolGuides holds the complete instructions of a tool whose description is short; read one when you want it.',
-    comprehensionBoundary: 'The grammar and operational guides are required reading; the full research papers are optional references. Required resources need reading on first use, when changed or when their relevant guidance is no longer retained, not before every reply. The server does not track reading and cannot verify comprehension. Resource digests identify exact bytes, not reading or understanding.',
+    readingTiming,
+    comprehensionBoundary: 'The grammar and operational guides are required reading, each when it is due (readingTiming; due: start or before-depth); the full research papers are optional references. Required resources need reading on first use, when changed or when their relevant guidance is no longer retained, not before every reply. The server does not track reading and cannot verify comprehension. Resource digests identify exact bytes, not reading or understanding.',
     orderedResources,
     minimumChecklist: [
       'declare purpose, interval, scope, resolution, and authority',
@@ -601,7 +606,7 @@ export async function buildModelingContext({
         ? [
             'external event history',
             'alternative AI-inferred actor-local models',
-            'the person\'s reported self-model',
+            'the person\'s own account',
           ]
         : [],
     safetyBoundary:

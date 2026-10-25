@@ -7,9 +7,17 @@ export const PART_LINE = 'part:';
 export const KEPT_WHOLE_LINE = 'kept-whole-process:';
 export const KEPT_SIGNALS_LINE = 'kept-whole-signals:';
 
-// The process a carve or kept-whole line names, or null for any other line.
+// An answer to the breadth check (life_breadth_record, breadth.mjs): the candidate it answers, the signals it was given
+// with, the answer, and the process that now follows it.
+export const BREADTH_CANDIDATE_LINE = 'breadth-candidate:';
+export const BREADTH_SIGNALS_LINE = 'breadth-signals:';
+export const BREADTH_ANSWER_LINE = 'breadth-answer:';
+export const FOLLOWED_LINE = 'followed-by:';
+
+// The process a carve, kept-whole or breadth line names, or null for any other line.
 export function processOfLine(line) {
   if (typeof line !== 'string') return null;
+  if (line.startsWith(FOLLOWED_LINE)) return line.slice(FOLLOWED_LINE.length).trim() || null;
   if (line.startsWith(DIVIDES_LINE)) return line.slice(DIVIDES_LINE.length).trim() || null;
   if (line.startsWith(KEPT_WHOLE_LINE)) return line.slice(KEPT_WHOLE_LINE.length).trim() || null;
   if (line.startsWith(PART_LINE)) { const body = line.slice(PART_LINE.length); const at = body.lastIndexOf('='); return at > 0 ? body.slice(at + 1).trim() || null : null; }

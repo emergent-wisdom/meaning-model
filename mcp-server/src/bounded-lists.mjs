@@ -46,3 +46,20 @@ export function boundLists(value, maxBytes, note) {
   }
   return { ...root, listsCut: { ...earlier, ...listsCut }, listsCutNote: note };
 }
+
+// The last resort before a result is given up: every list longer than `keep`, a short list of records included, keeps
+// its first `keep` entries and says how many it had, so a list of a few very long records can still be fitted.
+export function cutLists(value, keep, note) {
+  const earlier = value.listsCut ?? {};
+  const listsCut = {};
+  const walk = (item, path) => {
+    if (Array.isArray(item)) {
+      const kept = item.slice(0, keep).map((entry, index) => walk(entry, [...path, String(index)]));
+      if (item.length > keep) listsCut[path.join('.')] = { shown: kept.length, of: earlier[path.join('.')]?.of ?? item.length };
+      return kept;
+    }
+    if (item && typeof item === 'object') return Object.fromEntries(Object.entries(item).filter(([key]) => key !== 'listsCut' && key !== 'listsCutNote').map(([key, entry]) => [key, walk(entry, [...path, key])]));
+    return item;
+  };
+  return { ...walk(value, []), listsCut: { ...earlier, ...listsCut }, listsCutNote: note };
+}

@@ -9,7 +9,6 @@ import { anchoredModelRecord, ensureHolderRoot, externalRecordNode, holderRootId
 import { requireCompleteModelScopes } from './construction-scope.mjs';
 import { resolveAppendHead } from './graph-head.mjs';
 
-export const memoryInstructions = memoryWorkflowInstructions;
 const id = z.string().trim().min(1).max(256);
 const hash = z.string().regex(/^[a-f0-9]{64}$/u);
 const scopes = z.array(id).min(1).max(64);

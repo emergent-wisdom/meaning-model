@@ -305,10 +305,11 @@ test('the report says which level of the schedule the processes have reached and
   assert.deepEqual([report.schedule.scale, report.schedule.reached, report.schedule.next.level, report.schedule.next.missing], ['even', 1, 2, 5]);
   assert.deepEqual(report.schedule.next.examples[0].at, [1848, 1852, 1857, 1862, 1866]);
   assert.deepEqual(report.schedule.later, [{ level: 3, missing: 17 }, { level: 4, missing: 53 }]);
-  // The standing comes first, with one count of all that remains, taken at the finest level so it is never summed.
+  // The standing comes first, with one count of all that remains, taken at the finest level so it is never summed, and
+  // the guide's rule for a pass with a narrower aim.
   assert.equal(report.schedule.remaining, 53);
-  assert.match(report.next[0], /^By the coverage report's measure this pass is not done: the time schedule lacks 53 value\(s\) or reading\(s\) in all, counted at its finest level\. Go on with the pass/u);
-  assert.match(report.next.join('\n'), /level 2 of 4 divides 1843 to 1871 into 6 blocks, and 1 record\(s\) still lack 5 value\(s\) or reading\(s\) at this level, such as pop at 1848, 1852, 1857, 1862, 1866\. In all, 53 remain, counted at the finest level\./u);
+  assert.match(report.next[0], /^By the coverage report's measure this pass is not done: the time schedule lacks 53 value\(s\) or reading\(s\) in all, counted at its finest level\. Go on with the pass; if you stop sooner, say it is unfinished and what is left\. A pass with a narrower aim is done when that aim is met, with what is left in its closing note\.$/u);
+  assert.match(report.next.join('\n'), /level 2 of 4 divides 1843 to 1871 into 6 blocks, at the rounded dates in schedule\.next\.boundaries rather than exact fractions of the span, and 1 record\(s\) still lack 5 value\(s\) or reading\(s\) at this level, such as pop at 1848, 1852, 1857, 1862, 1866\. In all, 53 remain, counted at the finest level\./u);
   assert.doesNotMatch(report.next.join('\n'), /level 3 needs|level 4 needs/u);
   // A value near a boundary counts for it, and filling a level moves the report to the next.
   model = applyModelChange(model, HASH, valuesChange(model, { holder: 'c', reason: 'r', values: [{ processId: 'pop', points: [1848, 1852.3, 1857, 1862, 1866].map((time) => ({ time, value: 1.1, tag: 'sketch' })) }] })).successor;
@@ -474,4 +475,50 @@ test('a process about one person passes over only that person\'s Events, and tem
   const report = valuesReport(m);
   assert.equal(report.passedOverCount, 1);
   assert.deepEqual(report.passedOver[0].examples.every((name) => name.startsWith('mary.')), true);
+});
+
+test('one process named twice in a call has its points and its specs merged; two values for one field are refused by name', () => {
+  const change = valuesChange(base(), { holder: 'claude', reason: 'r', values: [
+    { processId: 'pop', points: [{ time: 1800, value: 1, tag: 'inferred' }] },
+    { processId: 'pop', points: [{ time: 1900, value: 1.6, tag: 'inferred' }], reason: 'later' },
+  ] });
+  assert.equal(change.upsert.value_series.length, 1);
+  assert.deepEqual(change.upsert.value_series[0].points.map((p) => p.time), [1800, 1900]);
+  assert.throws(() => valuesChange(base(), { holder: 'claude', reason: 'r', values: [
+    { processId: 'urban', process: { label: 'Urban share', unit: '%' }, points: [{ time: 1900, value: 10, tag: 'inferred' }] },
+    { processId: 'urban', process: { label: 'Urban', unit: 'share' }, points: [{ time: 2000, value: 40, tag: 'inferred' }] },
+  ] }), /urban is named twice in this call with two values for process\.label; give it one\./);
+  // One entry opens it and another files it under a parent: they do not contradict, as in 0.13.1.
+  const filed = valuesChange(base(), { holder: 'claude', reason: 'r', values: [
+    { processId: 'urban', process: { label: 'Urban share', unit: '%' }, points: [{ time: 1900, value: 10, tag: 'inferred' }, { time: 2000, value: 40, tag: 'inferred' }] },
+    { processId: 'urban', process: { parent: 'pop' } },
+  ] });
+  assert.deepEqual([filed.upsert.processes.map((p) => p.id), filed.upsert.decomposition.map((edge) => [edge.parent, edge.child])], [['urban'], [['pop', 'urban']]]);
+  assert.throws(() => valuesChange(base(), { holder: 'claude', reason: 'r', values: [
+    { processId: 'pop', points: [{ time: 1800, value: 1, tag: 'inferred' }] }, { processId: 'pop', points: [{ time: 1800, value: 1.1, tag: 'inferred' }] },
+  ] }), /two values at the same time in one call/);
+});
+
+test('a new meaning for an existing process replaces its description, with or without points', () => {
+  const change = valuesChange(base(), { holder: 'claude', reason: 'r', values: [{ processId: 'pop', process: { meaning: 'people alive at mid-year, in billions' } }] });
+  assert.equal(change.upsert.processes[0].scale.semantic_role, 'Population: people alive at mid-year, in billions');
+  assert.equal(change.upsert.value_series.length, 0);
+});
+
+test('the deepen line is shown when what it names changes, and every third revision; the series summary carries it too', async () => {
+  const { deepenTop } = await import('../src/values-record.mjs');
+  let model = base();
+  model = applyModelChange(model, HASH, valuesChange(model, { holder: 'claude', reason: 'r', values: [
+    { processId: 'pop', points: [{ time: 1800, value: 1, tag: 'inferred' }, { time: 1900, value: 1.6, tag: 'inferred' }] }] })).successor;
+  const at = (number) => ({ ...model, revision: { ...model.revision, number } });
+  const top = deepenTop(model);
+  assert.equal(top, 'pop');
+  const line = (report) => report.next.some((item) => /^Deepen check/u.test(item));
+  assert.equal(line(valuesReport(at(4), { previousTop: top })), false, 'unchanged, and not a third revision: not repeated');
+  assert.equal(line(valuesReport(at(4), { previousTop: 'other' })), true, 'a new name is shown');
+  assert.equal(line(valuesReport(at(6), { previousTop: top })), true, 'every third revision it is shown again');
+  assert.equal(line(valuesReport(at(4))), true, 'without a previous model it is shown');
+  assert.equal(valuesReport(at(4), { previousTop: top }).deepen[0].process, 'pop', 'the data keeps the ranking either way');
+  assert.ok(coverageSummary(at(4)).next.some((item) => /^Deepen check/u.test(item)), 'the summary that series and questions return carries it');
+  assert.ok(!coverageSummary(at(4), { previousTop: top }).next.some((item) => /^Deepen check/u.test(item)));
 });

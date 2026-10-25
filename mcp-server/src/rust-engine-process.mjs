@@ -553,12 +553,3 @@ export class RustEngineProcess {
     };
   }
 }
-
-export const rustProcessDefaults = Object.freeze({
-  timeoutMs: DEFAULT_TIMEOUT_MS,
-  startupTimeoutMs: DEFAULT_STARTUP_TIMEOUT_MS,
-  maxCommandBytes: DEFAULT_MAX_COMMAND_BYTES,
-  maxPendingCommandBytes: DEFAULT_MAX_PENDING_COMMAND_BYTES,
-  maxResponseBytes: DEFAULT_MAX_RESPONSE_BYTES,
-  maxPendingCalls: DEFAULT_MAX_PENDING_CALLS,
-});

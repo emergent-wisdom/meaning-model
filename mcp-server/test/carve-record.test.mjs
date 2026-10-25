@@ -621,3 +621,106 @@ test('on the engine: a carve revised without a routing sample supersedes the old
     assert.deepEqual([replayed.graph.graphHash, replayed.graph.noteIds], [second.graph.graphHash, second.graph.noteIds]);
   }
 });
+
+// ---- Re-carving, loops and kinds (0.14.0) ---------------------------------------------------------------------------------------
+test('on the engine: carving again with a different climb withdraws the earlier climb and keeps it as history', async (t) => {
+  const { service, modelHash } = await setup(t);
+  const first = await recordCarve(service, { ...carveInput({ requestId: 'climb-1' }), previousModelHash: modelHash });
+  assert.ok(!first.partial, JSON.stringify(first.failure));
+  const again = await recordCarve(service, { ...carveInput({ requestId: 'climb-2', ascent: [{ label: 'A shop\'s survival', differentia: 'it sells what it makes on the premises' }] }), previousModelHash: first.modelHash });
+  assert.ok(!again.partial, JSON.stringify(again.failure));
+  assert.deepEqual([...again.carve.relationsWithdrawn].sort(), ['spec.concept.organisations-survival.concept.small-firms-survival', 'spec.concept.small-firms-survival.concept.bakery-survival'], 'the kind it still uses stays');
+  assert.ok(again.next.some((line) => /kind-of relation\(s\) that this climb does not repeat are withdrawn/u.test(line)));
+  const { model } = await service.inspectModel({ modelHash: again.modelHash, includeDefinition: true });
+  const relations = new Map(model.meaning_model.abstract_relations.map((relation) => [relation.id, relation]));
+  assert.ok(relations.get('spec.concept.small-firms-survival.concept.bakery-survival').withdrawn, 'kept, withdrawn');
+  assert.ok(!relations.get('spec.concept.shops-survival.concept.bakery-survival').withdrawn, 'the new climb is current');
+  // Carving with no climb leaves the current one alone.
+  const bare = await recordCarve(service, { ...carveInput({ requestId: 'climb-3', ascent: [] }), previousModelHash: again.modelHash });
+  assert.equal(bare.carve.relationsWithdrawn, undefined);
+});
+
+test('a climb that would make the concept graph a loop is named before the engine refuses it', () => {
+  const first = applyModelChange(baseModel(), HASH, carveChange(baseModel(), carveInput()).change).successor;
+  // Carve the broader kind now, climbing to the bakery's survival: a loop through the first climb.
+  const input = carveInput({ concept: { id: 'concept.small-firms-survival', process: 'firm.standing' }, cutId: 'carve.firms',
+    ascent: [{ id: 'concept.bakery-survival', label: 'A bakery\'s survival' }] });
+  assert.throws(() => carveChange(first, input), /would put concept\.bakery-survival above concept\.small-firms-survival, but the model already has concept\.small-firms-survival above concept\.bakery-survival/u);
+});
+
+test('keeping a process whole because its candidates are kinds points to following the kinds as shares', async () => {
+  const kinds = [candidate('orthodox', 'Orthodox', { universality: fail('Not every adherent is Orthodox.') }), candidate('reform', 'Reform', { universality: fail('Found only since the nineteenth century.') })];
+  const result = await recordCarve(fakeService(baseModel()), carveInput({ requestId: 'kinds', concept: { id: 'concept.bakery-debt', label: 'The bakery\'s debt', process: 'bakery.debt_nok' },
+    candidates: kinds, completeness: { verdict: 'uncertain', reason: 'Kinds, not parts.' }, keepWhole: { reason: 'Its divisions are kinds.' } }));
+  assert.ok(result.next.some((line) => /Its candidates Orthodox, Reform are kinds, not parts: .* life_series_record/u.test(line)), JSON.stringify(result.next));
+});
+
+test('a withdrawn decision to keep a process whole no longer keeps it out of the deepen check', async () => {
+  const { deepenCheck } = await import('../src/deepen.mjs');
+  const valued = new Map([['a', new Map([[0, { time: 0, value: 1, tag: 'inferred' }], [1, { time: 1, value: 2, tag: 'inferred' }]])]]);
+  const inputs = { candidates: [{ process: 'a', label: 'A', depth: 2 }], happenings: [], unexplained: [], valued };
+  const relation = { id: 'kept-whole.a', provenance: ['x', 'kept-whole-process:a', 'kept-whole-signals:events=0;unexplained=0'] };
+  assert.deepEqual(deepenCheck({ meaning_model: { abstract_relations: [relation] } }, inputs).keptWhole, ['a']);
+  assert.deepEqual(deepenCheck({ meaning_model: { abstract_relations: [{ ...relation, withdrawn: { reason: 'Reopened.' } }] } }, inputs).keptWhole, []);
+});
+
+test('through the real server: an unknown composition kind says where composition lives', async (t) => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const client = new Client({ name: 'carve-test', version: '0.1.0' });
+  const env = { ...process.env, MEANING_MODEL_ADDONS: '' };
+  delete env.LIFE_SIM_STATE_FILE;
+  await client.connect(new StdioClientTransport({ command: process.execPath, args: [join(here, '..', 'src', 'server.ts')], env }));
+  t.after(() => client.close());
+  const markdown = await readFile(new URL('../../docs/examples/MINIMAL-MODEL-AND-GRAPH.md', import.meta.url), 'utf8');
+  const [, registerRequest] = [...markdown.matchAll(/```json\n([\s\S]*?)```/g)].map((match) => JSON.parse(match[1]));
+  const registered = await client.callTool({ name: 'life_model_register', arguments: { requestId: 'model', model: registerRequest.model } });
+  const concepts = registerRequest.model.meaning_model.concepts.slice(0, 2).map((concept) => concept.id);
+  const refused = await client.callTool({ name: 'life_model_revise', arguments: { requestId: 'composition', previousModelHash: registered.structuredContent.modelHash,
+    change: { reason: 'Try a composition relation.', provenance: ['test'], upsert: { abstract_relations: [{ id: 'comp.a.b', source_concept_id: concepts[0], target_concept_id: concepts[1], kind: 'composition', provenance: ['test'] }] } } } });
+  assert.ok(refused.isError);
+  assert.match(JSON.stringify(refused.content), /Composition is not a relation kind: the parts of a concept are an abstract cut/u);
+});
+
+test('carving again under a new climb withdraws only the earlier climb above the concept, never a kind found below its parts', () => {
+  const first = applyModelChange(baseModel(), HASH, carveChange(baseModel(), carveInput()).change).successor;
+  const kindRelation = first.meaning_model.abstract_relations.find((relation) => relation.target_concept_id.endsWith('.bank-loan'));
+  assert.ok(kindRelation && kindRelation.provenance.includes('a kind found while carving concept.bakery-survival'));
+  const without = carveInput({ requestId: 'carve-2', ascent: [{ label: 'A shop\'s survival', differentia: 'it sells what it makes on the premises' }],
+    candidates: carveInput().candidates.filter((item) => item.key !== 'bank-loan') });
+  const { plan } = carveChange(first, without);
+  assert.deepEqual([...plan.retiredClimb].sort(), ['spec.concept.organisations-survival.concept.small-firms-survival', 'spec.concept.small-firms-survival.concept.bakery-survival']);
+  // A kind recorded by 0.13.x carried the climb's line; it is still not on the chain above the concept.
+  const legacy = structuredClone(first);
+  legacy.meaning_model.abstract_relations.find((relation) => relation.id === kindRelation.id).provenance = [kindRelation.provenance[0], 'the climb before carving concept.bakery-survival'];
+  assert.ok(!carveChange(legacy, without).plan.retiredClimb.includes(kindRelation.id));
+});
+
+test('the loop check counts the carve\'s own earlier cut while this change leaves it standing', () => {
+  const first = applyModelChange(baseModel(), HASH, carveChange(baseModel(), carveInput()).change).successor;
+  // One candidate passes, so the earlier cut (with cash among its parts) stands; a climb putting cash above the bakery
+  // would then close a loop.
+  const input = carveInput({ requestId: 'carve-3', ascent: [{ id: 'concept.bakery-survival.cash', label: 'Cash on hand' }],
+    candidates: [candidate('cash', 'Cash on hand'), candidate('luck', 'Luck', { necessity: fail('A bakery can stay open without it.') })] });
+  assert.throws(() => carveChange(first, input), /would make the concept graph a loop/u);
+});
+
+test('the climb is followed through a kind-of relation the model held before, which is reused and never retired', () => {
+  const concept = (id) => ({ id, label: id, differentia: [], boundary: null, state_schema: {}, direction_families: [], observation_methods: [], provenance: ['p'] });
+  const base = baseModel();
+  base.meaning_model.concepts.push(concept('c.upper'), concept('c.middle'), concept('c.top'));
+  base.meaning_model.abstract_relations = [{ id: 'held.upper.middle', source_concept_id: 'c.upper', target_concept_id: 'c.middle', kind: 'specialization', provenance: ['p'] }];
+  const first = applyModelChange(base, HASH, carveChange(base, carveInput({ ascent: [{ id: 'c.middle', label: 'c.middle' }, { id: 'c.upper', label: 'c.upper' }, { id: 'c.top', label: 'c.top' }] })).change).successor;
+  // Climbing to the top first and the upper kind above it retires the earlier climb on both sides of the relation the
+  // model held, so the reversed step is no loop.
+  const { plan } = carveChange(first, carveInput({ requestId: 'carve-2', ascent: [{ id: 'c.top', label: 'c.top' }, { id: 'c.upper', label: 'c.upper' }] }));
+  assert.deepEqual([...plan.retiredClimb].sort(), ['spec.c.middle.concept.bakery-survival', 'spec.c.top.c.upper']);
+  assert.ok(!plan.retiredClimb.includes('held.upper.middle'));
+});
+
+test('a changed climb with fewer than two passing candidates still says that no carve was recorded', async () => {
+  const first = applyModelChange(baseModel(), HASH, carveChange(baseModel(), carveInput()).change).successor;
+  const result = await recordCarve(fakeService(first), carveInput({ requestId: 'carve-4', ascent: [{ label: 'A shop\'s survival', differentia: 'it sells what it makes' }],
+    candidates: [candidate('cash', 'Cash on hand'), candidate('luck', 'Luck', { necessity: fail('Not needed.') })] }));
+  assert.ok(result.next.some((line) => /kind-of relation\(s\) that this climb does not repeat are withdrawn/u.test(line)));
+  assert.ok(result.next.some((line) => /^Fewer than two candidates passed the tests, so no carve was recorded and the earlier carve under .* stands unchanged/u.test(line)), JSON.stringify(result.next));
+});

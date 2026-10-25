@@ -2309,7 +2309,7 @@ impl OptionalModelProfile for PersonScaffoldProfile {
 /// A deliberately sparse authoring profile for one bounded person interval.
 /// It emits one evidence-bearing event and three non-interchangeable families
 /// of view: external description, alternative candidate actor models, and the
-/// person's reported self-model. It never claims access to the latent
+/// person's own account. It never claims access to the latent
 /// operative model and does not prescribe a personality ontology.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]

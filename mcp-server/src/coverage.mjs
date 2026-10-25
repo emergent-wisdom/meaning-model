@@ -42,8 +42,9 @@ export function timeSchedule(from, to, unit = 'year') {
   if (!(span > 0)) return null;
   const log = span * yearsPerUnit(unit) > 10_000, c = span / 10_000;
   const place = (fraction) => (log ? to - (Math.exp(Math.log(span + c) + fraction * (Math.log(c) - Math.log(span + c))) - c) : from + fraction * span);
-  const finest = SCHEDULE_BLOCKS.at(-1), times = new Map();
+  const finest = SCHEDULE_BLOCKS.at(-1), times = new Map(), exact = new Map();
   for (let j = 0; j <= finest; j += 1) {
+    exact.set(j, j === 0 ? from : j === finest ? to : place(j / finest));
     if (j === 0 || j === finest) { times.set(j, j ? to : from); continue; }
     // Rounded to a quarter of the block width at the coarsest level holding this boundary, to a power of ten.
     const level = SCHEDULE_BLOCKS.find((blocks) => (j * blocks) % finest === 0);
@@ -52,14 +53,26 @@ export function timeSchedule(from, to, unit = 'year') {
     const power = Math.floor(Math.log10(Math.max(width / 4, 1e-9)));
     times.set(j, Number((Math.round(t / 10 ** power) * 10 ** power).toFixed(Math.max(0, -power))));
   }
-  return { from, to, scale: log ? 'log' : 'even', levels: SCHEDULE_BLOCKS.map((blocks, i) => ({ level: i + 1, blocks,
-    boundaries: [...new Set([...Array(blocks + 1).keys()].map((k) => times.get(k * (finest / blocks))))] })) };
+  // Each boundary also keeps the exact point it was rounded from, in the same order: an agent who divides the span
+  // evenly lands there, one who reads the printed dates lands on the rounded one, and both have met the boundary.
+  return { from, to, scale: log ? 'log' : 'even', levels: SCHEDULE_BLOCKS.map((blocks, i) => {
+    const points = [...Array(blocks + 1).keys()].map((k) => k * (finest / blocks)).filter((j, n, all) => all.findIndex((other) => times.get(other) === times.get(j)) === n);
+    return { level: i + 1, blocks, boundaries: points.map((j) => times.get(j)), exact: points.map((j) => exact.get(j)) };
+  }) };
+}
+
+// Where each schedule boundary may be met: anywhere from its exact point to its printed date.
+function boundaryBands(schedule) {
+  const bands = new Map();
+  for (const { boundaries, exact } of schedule.levels) boundaries.forEach((b, i) => bands.set(b, [Math.min(b, exact[i]), Math.max(b, exact[i])]));
+  return bands;
 }
 
 const start = (event) => event?.interval?.start ?? null;
 const end = (event) => event?.interval?.end ?? null;
 const unique = (times) => [...new Set(times)].sort((a, b) => a - b);
-// A required time is met by a value within a quarter of the distance to its nearest required neighbour.
+// A required time is met by a value within a quarter of the distance to its nearest required neighbour (of the time,
+// or of the stretch a schedule boundary may be met in).
 const nearOf = (times, i) => Math.min(...[times[i - 1], times[i + 1]].filter((t) => t !== undefined).map((t) => Math.abs(t - times[i])), Infinity) / 4;
 
 // The share of a block that may stay uncovered: authored boundaries are rounded differently from the schedule's, and a
@@ -156,6 +169,13 @@ export function coverageReport(model, { stillEmpty = [], passedOver = [], contra
     return { done: false, tracks: tracks.length, holders, ...(schedule ? { schedule: { from: schedule.from, to: schedule.to, scale: schedule.scale, reached: 0 } } : {}), flatCount: flat.length, steadyCount: 0,
       ...(story ? { people: peopleResult() } : {}), status, next: [status, ...(people.incomplete.length ? [peopleNext()] : [])] };
   }
+  // A schedule boundary is met anywhere between its exact point and its printed date, give or take what is forgiven
+  // there; a life's ends and its own Events are met only where they are.
+  const bands = boundaryBands(schedule);
+  const bandOf = (track, t) => {
+    const own = track.extent ?? life(track.subject);
+    return own && (t === own.start || t === own.end || own.moments?.includes(t)) ? [t, t] : (bands.get(t) ?? [t, t]);
+  };
   // What a track must have at one level: the level's boundaries over the whole span; over its Thing's life, with the
   // life's ends and, at the finest level, its own moments; or over the one stretch an undeclared series reads.
   const required = (track, level) => {
@@ -170,11 +190,21 @@ export function coverageReport(model, { stillEmpty = [], passedOver = [], contra
   };
   const lacking = (track, level) => {
     const need = required(track, level);
-    if (track.kind === 'values') return need.filter((x, i) => !track.times.some((t) => Math.abs(t - x) <= nearOf(need, i)));
+    if (track.kind === 'values') return need.filter((x, i) => { const [lo, hi] = bandOf(track, x), near = nearOf(need, i); return !track.times.some((t) => t >= lo - near && t <= hi + near); });
     // A series reads a block when its readings no longer than half again as long as the block, or declared steady across
-    // a longer stretch, cover all of it together; touching the block, or a sliver inside it, is not reading it.
-    return need.slice(1).map((b, i) => [need[i], b])
-      .filter(([a, b]) => coveredLength(track.readings.filter((r) => r.steady || r.end - r.start <= 1.5 * (b - a) * (1 + 1e-9)), a, b) < (1 - ROUNDING) * (b - a))
+    // a longer stretch, cover all of it together; touching the block, or a sliver inside it, is not reading it. The
+    // block is measured at its widest, from the earlier to the later form of each boundary. The stretch between a
+    // boundary's exact point and its printed date belongs to the blocks on both sides, so a reading fitting either of
+    // them reads it; a longer, coarser reading does not.
+    const widest = need.slice(1).map((b, i) => bandOf(track, b)[1] - bandOf(track, need[i])[0]);
+    const fitting = (length) => track.readings.filter((r) => r.steady || r.end - r.start <= 1.5 * length * (1 + 1e-9));
+    return need.slice(1).map((b, i) => [need[i], b, i])
+      .filter(([a, b, i]) => {
+        const [, aHi] = bandOf(track, a), [bLo] = bandOf(track, b);
+        const s = Math.min(Math.max(aHi, a), b), e = Math.max(Math.min(bLo, b), s);
+        const around = (j) => Math.max(widest[j - 1] ?? 0, widest[j] ?? 0);
+        return coveredLength(fitting(around(i)), a, s) + coveredLength(fitting(widest[i]), s, e) + coveredLength(fitting(around(i + 1)), e, b) < (1 - ROUNDING) * (b - a);
+      })
       .map(([a, b]) => `${a}–${b}`);
   };
   let reached = 0, upcoming = null, remaining = 0; const later = [];
@@ -184,7 +214,7 @@ export function coverageReport(model, { stillEmpty = [], passedOver = [], contra
     // All that the schedule still lacks, counted once at its finest level, whose dates and blocks hold every coarser one.
     if (level === schedule.levels.length) remaining = count;
     if (upcoming) { if (count) later.push({ level, missing: count }); continue; }
-    if (missing.length) { upcoming = { level, blocks, missing: count, tracks: missing.length, examples: missing.sort((x, y) => y.at.length - x.at.length || x.id.localeCompare(y.id)).slice(0, 20) }; continue; }
+    if (missing.length) { upcoming = { level, blocks, boundaries: schedule.levels[level - 1].boundaries, missing: count, tracks: missing.length, examples: missing.sort((x, y) => y.at.length - x.at.length || x.id.localeCompare(y.id)).slice(0, 20) }; continue; }
     reached = level;
   }
   // In a story, every person must have at least the least a life needs (docs/PROCESS-BREAKDOWN.md, Part 8): the nine
@@ -204,12 +234,13 @@ export function coverageReport(model, { stillEmpty = [], passedOver = [], contra
       : 'This pass is done by the coverage report\'s measure: every record fills the time schedule, no process is empty, none passes over the Events and no reading is left flat. Deliver what the pass set out to make and say you are done for this pass; another pass can always move through the world in more depth, wherever your questions lead.')
     : (story
       ? `By the coverage report's measure the world beneath the story still has gaps: ${left}. ${people.incomplete.length ? 'Every person must have the least a life needs before this pass is done; fill those first. Fill the other gaps' : 'Fill the ones'} the story depends on, in the model and in the prose, and record the rest for another pass with why each can wait.`
-      : `By the coverage report's measure this pass is not done: ${left}. Go on with the pass; if you stop sooner, say it is unfinished and what is left.`);
+      // A pass with a narrower aim than the world is done when that aim is met (whenToStop in construction-principles.mjs).
+      : `By the coverage report's measure this pass is not done: ${left}. Go on with the pass; if you stop sooner, say it is unfinished and what is left. A pass with a narrower aim is done when that aim is met, with what is left in its closing note.`);
   const next = [status];
   if (people.incomplete.length) next.push(peopleNext());
   if (upcoming) {
     const example = (item) => (item.kind === 'values' ? `${item.label} at ${item.at.slice(0, 6).join(', ')}` : `"${item.label}" over ${item.at.slice(0, 4).join(', ')}`);
-    next.push(`${story ? 'Where the story depends on them, fill the gaps the time schedule shows, level by level' : 'Fill the time schedule level by level'}: level ${upcoming.level} of ${schedule.levels.length} divides ${schedule.from} to ${schedule.to} into ${upcoming.blocks} blocks${schedule.scale === 'log' ? ', finer toward the latest date' : ''}, and ${upcoming.tracks} record(s) still lack ${upcoming.missing} value(s) or reading(s) at this level, such as ${upcoming.examples.slice(0, 2).map(example).join('; ')}. In all, ${remaining} remain, counted at the finest level. Values go in at the dates, a series' readings over the blocks; guess each within the ones around it, and mark a reading steady, with why, where its shares truly hold across a longer stretch: it then covers the finer blocks inside it. A record about one Thing is held only to that Thing's life, its ends and its own Events: name the Thing as a process's subject, or record the series about it.`);
+    next.push(`${story ? 'Where the story depends on them, fill the gaps the time schedule shows, level by level' : 'Fill the time schedule level by level'}: level ${upcoming.level} of ${schedule.levels.length} divides ${schedule.from} to ${schedule.to} into ${upcoming.blocks} blocks${schedule.scale === 'log' ? ', finer toward the latest date' : ''}, at the rounded dates in schedule.next.boundaries rather than exact fractions of the span, and ${upcoming.tracks} record(s) still lack ${upcoming.missing} value(s) or reading(s) at this level, such as ${upcoming.examples.slice(0, 2).map(example).join('; ')}. In all, ${remaining} remain, counted at the finest level. Values go in at the dates as printed, a series' readings start and end at them; guess each within the ones around it, and mark a reading steady, with why, where its shares truly hold across a longer stretch: it then covers the finer blocks inside it. A record about one Thing is held only to that Thing's life, its ends and its own Events: name the Thing as a process's subject, or record the series about it.`);
   }
   if (flat.length) next.push(`${flat.length} reading(s) span a stretch of a life where Events happen that no finer reading opens, first "${flat[0].question}" from ${flat[0].from} to ${flat[0].to} over ${flat[0].events} Events (${flat[0].examples.join('; ')}); open them with life_series_plan and life_series_record.`);
   return { done, tracks: tracks.length, holders, schedule: { from: schedule.from, to: schedule.to, scale: schedule.scale, levels: schedule.levels.map(({ level, blocks }) => ({ level, blocks })), reached, remaining,

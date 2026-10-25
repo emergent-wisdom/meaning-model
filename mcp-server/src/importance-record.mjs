@@ -9,11 +9,9 @@
 //
 // The result reports what to do next rather than refusing: Events with no level on a scale for the whole audience, and
 // a top level so full that it no longer picks anything out.
-import { VALUE_TAGS } from './values-record.mjs';
 import { createHash } from 'node:crypto';
 import { worldEvents } from './world-events.mjs';
 
-export const IMPORTANCE_TAGS = VALUE_TAGS;
 const LEVEL_KEY = /^[a-z][a-z0-9_]{0,63}$/u;
 const MIN_LEVELS = 2, MAX_LEVELS = 12;
 

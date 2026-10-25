@@ -21,6 +21,7 @@ const ROUGH_TAGS = new Set(['sketch', 'exploring']);
 export function keptWhole(model) {
   const kept = new Map();
   for (const relation of model?.meaning_model?.abstract_relations ?? []) {
+    if (relation.withdrawn) continue;
     const lines = (relation.provenance ?? []).filter((line) => typeof line === 'string');
     const process = lines.find((line) => line.startsWith(KEPT_WHOLE_LINE))?.slice(KEPT_WHOLE_LINE.length).trim();
     if (!process) continue;

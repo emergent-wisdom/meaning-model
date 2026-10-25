@@ -155,14 +155,17 @@ export function carveChange(previous, input) {
       state_schema: {}, direction_families: [], observation_methods: [], provenance: [holderLine, ...extra.map((line) => clipBytes(line))] };
     concepts.set(conceptId, record); upsertConcepts.push(record); createdConcepts.push(conceptId);
   };
-  // A kind-of relation, general to specific, unless the model already holds it.
-  const specialize = (general, specific) => {
-    const existing = [...relations, ...upsertRelations].find((relation) => relation.kind === 'specialization' && relation.source_concept_id === general && relation.target_concept_id === specific);
-    if (existing) return existing.id;
+  // A kind-of relation, general to specific, unless the model already holds it. Every relation this carve uses is noted,
+  // so a re-carve withdraws only what it no longer uses.
+  const usedRelations = new Set();
+  const specialize = (general, specific, line = `the climb before carving ${wholeId}`) => {
+    const existing = [...relations, ...upsertRelations].find((relation) => !relation.withdrawn && relation.kind === 'specialization' && relation.source_concept_id === general && relation.target_concept_id === specific);
+    if (existing) { usedRelations.add(existing.id); return existing.id; }
     let relationId = `spec.${general}.${specific}`;
     for (let n = 2; relationIds.has(relationId); n += 1) relationId = `spec.${general}.${specific}.${n}`;
     relationIds.add(relationId);
-    upsertRelations.push({ id: relationId, source_concept_id: general, target_concept_id: specific, kind: 'specialization', provenance: [holderLine, clipBytes(`the climb before carving ${wholeId}`)] });
+    upsertRelations.push({ id: relationId, source_concept_id: general, target_concept_id: specific, kind: 'specialization', provenance: [holderLine, clipBytes(line)] });
+    usedRelations.add(relationId);
     return relationId;
   };
 
@@ -206,7 +209,7 @@ export function carveChange(previous, input) {
     if (!concepts.has(general)) throw new Error(`${candidate.key} is a kind of ${candidate.kindOf}, which is neither a candidate key nor a concept of the model.`);
     const conceptId = candidate.conceptId ?? `${general}.${candidate.key}`;
     ensureConcept(conceptId, candidate.label, candidate.meaning, [`a kind found while carving ${wholeId}`]);
-    specialize(general, conceptId);
+    specialize(general, conceptId, `a kind found while carving ${wholeId}`);
     return { key: candidate.key, label: candidate.label, conceptId, kindOf: general };
   });
   // The answer that a process stays whole: a relation from the concept to its next broader kind, never an edit.
@@ -257,6 +260,45 @@ export function carveChange(previous, input) {
       upsertCuts.push(old);
     }
   }
+  // Re-carving under a changed climb withdraws the kind-of relations that this concept's earlier climb added and the new
+  // one does not repeat: they stay as history, and the current hierarchy follows the new climb. Without a new climb the
+  // earlier one stands.
+  // Only the chain above the concept is its climb: every current kind-of relation above it is followed, also one the
+  // model held before (which is never retired), and those this concept's earlier climbs added are the ones to retire.
+  // Kinds found while carving it (tagged as the climb before 0.14.0) hang below its parts and are never on that chain.
+  const climbLine = clipBytes(`the climb before carving ${wholeId}`);
+  const earlierClimb = []; const reached = new Set([wholeId]); const frontier = [wholeId];
+  while (frontier.length) {
+    const at = frontier.shift();
+    for (const relation of relations) {
+      if (relation.kind !== 'specialization' || relation.withdrawn || relation.target_concept_id !== at) continue;
+      if ((relation.provenance ?? []).includes(climbLine) && !earlierClimb.includes(relation)) earlierClimb.push(relation);
+      if (!reached.has(relation.source_concept_id)) { reached.add(relation.source_concept_id); frontier.push(relation.source_concept_id); }
+    }
+  }
+  const retiredClimb = input.ascent.length ? earlierClimb.filter((relation) => !usedRelations.has(relation.id)) : [];
+  for (const relation of retiredClimb) upsertRelations.push({ ...structuredClone(relation), withdrawn: { reason: clipBytes(`The climb before carving ${wholeId} was carved again: ${input.reason}`) } });
+  // The concept graph must stay without loops: current kind-of relations and current cuts, with what this carve adds. A
+  // loop is named here, with the step that closes it, rather than left to the engine's refusal.
+  const retiredIds = new Set(retiredClimb.map((relation) => relation.id));
+  const edges = new Map(); const addEdge = (from, to) => edges.set(from, [...(edges.get(from) ?? []), to]);
+  for (const relation of relations) if (relation.kind === 'specialization' && !relation.withdrawn && !retiredIds.has(relation.id)) addEdge(relation.source_concept_id, relation.target_concept_id);
+  // The carve's own earlier cut is left out only when this change replaces it.
+  for (const cut of cuts.values()) if (!cut.withdrawn && (cut.id !== cutId || !cutRecorded) && (cut.id !== input.supersedes || !cutRecorded)) for (const child of cut.child_concept_ids ?? []) addEdge(cut.parent_concept_id, child);
+  const added = [...upsertRelations.filter((relation) => relation.kind === 'specialization' && !relation.withdrawn).map((relation) => [relation.source_concept_id, relation.target_concept_id]),
+    ...upsertCuts.filter((cut) => !cut.withdrawn).flatMap((cut) => cut.child_concept_ids.map((child) => [cut.parent_concept_id, child]))];
+  const pathFrom = (start, goal) => {
+    const back = new Map([[start, null]]); const queue = [start];
+    while (queue.length) { const at = queue.shift(); if (at === goal) { const path = []; for (let n = at; n !== null; n = back.get(n)) path.unshift(n); return path; }
+      for (const next of edges.get(at) ?? []) if (!back.has(next)) { back.set(next, at); queue.push(next); } }
+    return null;
+  };
+  for (const [from, to] of added) {
+    const loop = pathFrom(to, from);
+    if (loop) throw new Error(`This carve would put ${from} above ${to}, but the model already has ${loop.join(' above ')}, which would make the concept graph a loop. Use another broader kind in the climb, or withdraw the relation that no longer holds (life_model_revise with withdrawn on it) and carve again.`);
+    addEdge(from, to);
+  }
+
   // Other current carves of the same concept stay beside this one, as carves under other lenses.
   const besides = [...cuts.values()].filter((cut) => cut.parent_concept_id === wholeId && cut.id !== cutId && cut.id !== input.supersedes && !cut.withdrawn).map((cut) => cut.id);
 
@@ -275,7 +317,7 @@ export function carveChange(previous, input) {
   });
   return { change, plan: { cutId, conceptId: wholeId, label, cutRecorded, previousCut, besides, ascent, climb, parts: placed, kinds,
     frontier: others('frontier'), merged: others('merged'), routed: others('routed'), dropped: others('dropped'), judged,
-    createdConcepts, reusedConcepts, relations: upsertRelations.map((relation) => relation.id), wholeProcess: input.concept.process ?? null,
+    createdConcepts, reusedConcepts, relations: upsertRelations.filter((relation) => !relation.withdrawn).map((relation) => relation.id), retiredClimb: retiredClimb.map((relation) => relation.id), wholeProcess: input.concept.process ?? null,
     wholeProcessExists: input.concept.process ? processes.has(input.concept.process) : null, hadMeaningModel: Boolean(previous.meaning_model),
     kept, noHome, twoHomes, parentCarve, sameLabel } };
 }
@@ -491,7 +533,11 @@ async function recordWholeCarve(service, raw) {
   const open = openTemplates(plan, input);
   const next = [];
   if (plan.kept) next.push(`${plan.label} is kept whole${plan.kept.replaced ? ' (the earlier decision is replaced)' : ''}: the deepen check leaves ${plan.kept.process} out until the Events that move it (${plan.kept.events} now) or its unexplained moves (${plan.kept.unexplained}) grow by half.`);
-  else if (!plan.cutRecorded) next.push(`Fewer than two candidates passed the tests, so no carve was recorded${plan.previousCut ? ` and the earlier carve under ${plan.cutId} stands unchanged` : ''}: reframe the claim, look for the parts still missing, and carve again.${plan.parts.length ? ` ${plan.parts.map((part) => part.label).join(', ')} passed.` : ''}`);
+  // Kinds are not parts, but they still divide what the process measures among them: following them as shares opens
+  // the process another way, with values of their own.
+  if (plan.kept && plan.kinds.length) next.push(`Its candidates ${plan.kinds.map((kind) => kind.label).join(', ')} are kinds, not parts: they still divide what ${plan.kept.process} measures among them. Follow them as shares over time with life_series_record: a series whose answers are the kinds, conditioned on the answer this process is where it is one answer of a Cut (conditionedOn), so each kind gets values of its own.`);
+  if (plan.retiredClimb.length) next.push(`The earlier climb's ${plan.retiredClimb.length} kind-of relation(s) that this climb does not repeat are withdrawn and kept as history: ${plan.retiredClimb.join(', ')}.`);
+  if (!plan.kept && !plan.cutRecorded) next.push(`Fewer than two candidates passed the tests, so no carve was recorded${plan.previousCut ? ` and the earlier carve under ${plan.cutId} stands unchanged` : ''}: reframe the claim, look for the parts still missing, and carve again.${plan.parts.length ? ` ${plan.parts.map((part) => part.label).join(', ')} passed.` : ''}`);
   if (input.completeness.verdict !== 'pass') next.push(`Completeness ${input.completeness.verdict === 'fail' ? 'fails' : 'is not yet shown'}: search for what is missing, best against an outside list made by someone else for another purpose, then carve again under the same id.`);
   // What the verdicts and the routing sample say against each other: warnings, never refusals.
   if (plan.noHome.length && input.completeness.verdict === 'pass') next.push(`Completeness is recorded as pass, but ${plan.noHome.length} routed case(s) have no home among the parts, such as ${plan.noHome.slice(0, 2).map((item) => item.case).join('; ')}: find the part they belong to, or reframe the claim, and carve again under the same id.`);
@@ -514,7 +560,8 @@ async function recordWholeCarve(service, raw) {
   const result = { ...(revised ?? {}), schema: 'meaning-model-carve-record/v1', previousModelHash: input.previousModelHash, modelHash, revisedByChange: Boolean(revised), ...(summary ? { change: summary } : {}),
     carve: { cutId: plan.cutId, conceptId: plan.conceptId, recorded: plan.cutRecorded, ...(input.supersedes && plan.cutRecorded ? { withdrew: input.supersedes } : {}), revised: Boolean(plan.previousCut),
       parts: plan.parts.map(({ candidate, ...part }) => part), kinds: plan.kinds, frontier: plan.frontier, merged: plan.merged, routed: plan.routed, dropped: plan.dropped,
-      completeness: input.completeness.verdict, conceptsAdded: plan.createdConcepts, ...(plan.reusedConcepts.length ? { conceptsReused: plan.reusedConcepts } : {}), relationsAdded: plan.relations },
+      completeness: input.completeness.verdict, conceptsAdded: plan.createdConcepts, ...(plan.reusedConcepts.length ? { conceptsReused: plan.reusedConcepts } : {}), relationsAdded: plan.relations,
+      ...(plan.retiredClimb.length ? { relationsWithdrawn: plan.retiredClimb } : {}) },
     open, graph: null, next };
   if (!input.graph) {
     next.unshift('No graph was given, so the reasons for each verdict, the frame and the synthesis are not recorded; the cut keeps one short line per verdict. Give graph {graphHash, accessScopes} to record them as notes.');

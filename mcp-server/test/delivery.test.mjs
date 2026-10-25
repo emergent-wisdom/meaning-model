@@ -145,7 +145,7 @@ test('the first 2,048 characters of the instructions carry what an agent needs f
       // With the user's instructions added, reading them whole comes first; then ours begin.
       if (mode === 'full+custom') assert.match(kept, /^Before anything else, read the instructions this server's user configured, whole, at life-sim:\/\/server\/configured-instructions with life_modeling_read\. They are the user's: where they differ from the Meaning Model's guidance, follow them\. /u, `${where}: the user's own instructions first`);
       assert.match(mode === 'full' ? kept : kept.slice(kept.indexOf('Before you build')), /^Before you build anything, in every mode: call life_modeling_context, then read the start-here guide \(life-sim:\/\/guide\/start-here\) and the process breakdown \(life-sim:\/\/guide\/process-breakdown\)/u, where);
-      assert.match(kept, /read the other required guides in the context's order/u, `${where}: the reading order`);
+      assert.match(kept, /Then make a rough model of the whole \(firstWrite is a seed\), and read the other required guides when due/u, `${where}: something on the page first, then the reading when due`);
       assert.match(kept, /reusing any you still hold unchanged/u, `${where}: reuse of what is still held`);
       assert.match(kept, /watch the model fill in the live viewer, and do they want you to use Sema/u, `${where}: the opening questions`);
       assert.match(kept, /Continue existing work without restarting intake for edits or reviews/u, `${where}: continuation`);
@@ -234,4 +234,76 @@ test('a page of the largest size fits the declared result size for every text th
   }
   assert.ok(uris.length > 40, `all the readable texts (${uris.length})`);
   assert.deepEqual(over, [], 'LaTeX papers escape densely in JSON; even their largest page stays under 100,000 characters');
+});
+
+// The context arrives whole only while its delivered text fits the size the tool declares; the seed for the first write
+// (0.14.0) made it larger, so every purpose is measured with every add-on on.
+test('life_modeling_context fits the result size it declares, for every purpose, with the seed for the first write', async (t) => {
+  const { modelingPurposes } = await import('../src/modeling-guidance.mjs');
+  const client = await connect(t, { MEANING_MODEL_ADDONS: 'storytelling,forecasting,alien' });
+  const { tools } = await client.listTools();
+  const declared = tools.find((tool) => tool.name === 'life_modeling_context')._meta['anthropic/maxResultSizeChars'];
+  for (const purpose of modelingPurposes) {
+    const result = await client.callTool({ name: 'life_modeling_context', arguments: { purpose, sessionMode: 'first_use' } });
+    const sent = result.content.map((item) => item.text ?? '').join('');
+    assert.ok(sent.length <= declared, `${purpose}: ${sent.length} characters against ${declared}`);
+    assert.match(sent, /"firstWrite"/u, `${purpose}: the seed arrives`);
+  }
+});
+
+// The values report grows with the model it reads; the result of a write stays within the size its tool declares, as
+// the client is sent it, its long lists keeping their first entries.
+test('a values write on a large model returns within the result size its tool declares', async (t) => {
+  const markdown = await readFile(join(here, '..', '..', 'docs', 'examples', 'MINIMAL-MODEL-AND-GRAPH.md'), 'utf8');
+  const [, registerRequest] = [...markdown.matchAll(/```json\n([\s\S]*?)```/g)].map((match) => JSON.parse(match[1]));
+  const model = structuredClone(registerRequest.model);
+  const template = model.processes[0];
+  for (let i = 0; i < 544; i += 1) model.processes.push({ ...structuredClone(template), id: `market.process-${String(i).padStart(3, '0')}-with-a-long-identifier`, scale: { semantic_role: `A measure of part ${i} of the market, described at some length so the report carries real text`, label: `Part ${i} of the market` } });
+  const mm = model.meaning_model;
+  mm.importance_scales = Array.from({ length: 12 }, (_, s) => ({ id: `importance.scale-${s}`, audience: `Those who follow area ${s} of the market: its people, its money and its rules`, levels: [{ key: 'top', anchor: 'Changed the market' }, { key: 'high', anchor: 'Changed much of it' }, { key: 'some', anchor: 'Changed some of it' }], provenance: ['test'] }));
+  mm.event_importance = [];
+  for (let i = 0; i < 1_200; i += 1) {
+    const id = `event.happening-${i}`;
+    mm.events.push({ id, boundary: `Happening number ${i} in the market, which states 1,500 users and 12% of the trade, and goes on for a while`, interval: { start: 6 + (i % 18) / 10, end: 6.1 + (i % 18) / 10 }, participants: {}, process_ids: [], observation_process_ids: [], region: null, substrate: null, provenance: ['test'] });
+    mm.event_relations.push({ id: `world.contains.${id}`, kind: 'contains', source_event_id: 'event.world', target_event_id: id, description: 'Accepted-world containment.', authority: null, uncertainty: { kind: 'unknown' }, provenance: ['test'] });
+    mm.event_importance.push({ id: `judged.${i}`, event_id: id, scale_id: `importance.scale-${i % 12}`, level: ['top', 'high', 'some'][i % 3], holder: 'test', provenance: ['test'] });
+  }
+  const client = await connect(t);
+  const { tools } = await client.listTools();
+  const declared = tools.find((tool) => tool.name === 'life_values_record')._meta['anthropic/maxResultSizeChars'];
+  const registered = await client.callTool({ name: 'life_model_register', arguments: { requestId: 'large', model } });
+  assert.ok(!registered.isError, JSON.stringify(registered.content).slice(0, 300));
+  const written = await client.callTool({ name: 'life_values_record', arguments: { requestId: 'values', previousModelHash: registered.structuredContent.modelHash, holder: 'test', reason: 'One value each.',
+    values: model.processes.slice(1, 301).map((process) => ({ processId: process.id, points: [{ time: 6, value: 1, tag: 'sketch' }, { time: 7.8, value: 2, tag: 'sketch' }] })) } });
+  assert.ok(!written.isError, JSON.stringify(written.content).slice(0, 300));
+  const sent = written.content.map((item) => item.text ?? '').join('');
+  assert.ok(sent.length <= declared, `${sent.length} characters against ${declared}`);
+  assert.ok(written.structuredContent.values.breadth.length >= 1);
+});
+
+// A few records with very long text: cutting long lists is not enough, so every list keeps fewer entries, and the
+// result still fits the size its tool declares.
+test('a values write whose records carry very long labels still returns within the declared size', async (t) => {
+  const markdown = await readFile(join(here, '..', '..', 'docs', 'examples', 'MINIMAL-MODEL-AND-GRAPH.md'), 'utf8');
+  const [, registerRequest] = [...markdown.matchAll(/```json\n([\s\S]*?)```/g)].map((match) => JSON.parse(match[1]));
+  const model = structuredClone(registerRequest.model);
+  const template = model.processes[0];
+  const long = (i) => `Part ${i}: ${'a measure described at great length, '.repeat(28)}`.slice(0, 1_000);
+  for (let i = 0; i < 65; i += 1) model.processes.push({ ...structuredClone(template), id: `long.process-${i}`, scale: { semantic_role: long(i), label: long(i) } });
+  for (const [i, start] of [6.3, 6.6, 6.9].entries()) {
+    const id = `event.between-${i}`;
+    model.meaning_model.events.push({ id, boundary: `Something happens at ${start}`, interval: { start, end: start + 0.05 }, participants: {}, process_ids: [], observation_process_ids: [], region: null, substrate: null, provenance: ['test'] });
+    model.meaning_model.event_relations.push({ id: `world.contains.${id}`, kind: 'contains', source_event_id: 'event.world', target_event_id: id, description: 'Accepted-world containment.', authority: null, uncertainty: { kind: 'unknown' }, provenance: ['test'] });
+  }
+  const client = await connect(t);
+  const { tools } = await client.listTools();
+  const declared = tools.find((tool) => tool.name === 'life_values_record')._meta['anthropic/maxResultSizeChars'];
+  const registered = await client.callTool({ name: 'life_model_register', arguments: { requestId: 'long', model } });
+  assert.ok(!registered.isError, JSON.stringify(registered.content).slice(0, 300));
+  const written = await client.callTool({ name: 'life_values_record', arguments: { requestId: 'values', previousModelHash: registered.structuredContent.modelHash, holder: 'test', reason: 'Turns at each date.',
+    values: model.processes.slice(1).map((process, i) => ({ processId: process.id, points: [6, 6.5, 7, 7.5, 8].map((time, j) => ({ time, value: Math.abs((i + j * (j % 2 ? -3 : 5)) % 11), tag: 'sketch' })) })) } });
+  assert.ok(!written.isError, JSON.stringify(written.content).slice(0, 300));
+  const sent = written.content.map((item) => item.text ?? '').join('');
+  assert.ok(sent.length <= declared, `${sent.length} characters against ${declared}`);
+  assert.ok(written.structuredContent.modelHash, 'the write still says which revision it made');
 });

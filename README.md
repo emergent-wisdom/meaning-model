@@ -169,8 +169,10 @@ handles repetitive record construction. Reduced end-to-end cost and latency
 require measurement, including setup and review work.
 
 Every fresh agent begins with `life-sim://guide/start-here` (what the tool is for
-and how to work in it), then reads `life-sim://protocol/grammar`, the operational
-protocol and its purpose guide, unless the user gives it other instructions with
+and how to work in it) and the process breakdown, puts a rough model of the whole
+on the page, and reads `life-sim://protocol/grammar`, the operational protocol and
+its purpose guide before it writes records by hand or goes deeper, unless the user
+gives it other instructions with
 `MEANING_MODEL_INSTRUCTIONS` (see the MCP server guide). `life_modeling_read` serves these resources to
 clients that expose only tools. Read `life-sim://guide/general-modeling` for the
 complete workflow and limits.
@@ -333,12 +335,12 @@ sets siblings side by side, per process and per person, without a total.
 Branches stay hypothetical: a live view of the trunk never follows into one, and
 a graph on the trunk is not rebound into one. This builds a first part of the
 Life Simulation paper's sections on simulating implementation and following its
-effects, in its revision of September 19, 2026 (the companion copy the server serves is
-earlier). See the [forecasting add-on guide](profiles/FORECASTING_ADDON.md).
+effects, in its revision of October 25, 2026, which is the companion copy the server
+serves. See the [forecasting add-on guide](profiles/FORECASTING_ADDON.md).
 
 ## Papers and worked example
 
-The paper and the grammar appendix were revised on October 11, 2026.
+The paper was revised on October 25, 2026, and the grammar appendix on October 17, 2026.
 The [Zenodo series](https://doi.org/10.5281/zenodo.22313515) provides the
 archived versions.
 
@@ -355,8 +357,12 @@ archived versions.
   also distributes the books; each edition has a publication manifest.
 - [World history](https://github.com/emergent-wisdom/world-history#readme) - an
   account of how the present came to be, built in the Meaning Model as processes,
-  Events and concepts with the reasoning behind each choice; its construction
-  record imports and replays.
+  Events and concepts with the reasoning behind each choice. It is available at
+  [emergent-wisdom/world-history](https://github.com/emergent-wisdom/world-history)
+  under CC BY 4.0, and its README says how to load the construction record into
+  an empty store with `life_construction_import` and replay it. The repository
+  holds the state of October 18, 2026, and in its history that of October 15;
+  the passes of October 19 and 20 that the paper reports are not yet published.
 
 The six world-record forms are Concept, Thing, Event, Binding, Cut, and
 Realization. A Cut divides one declared unit among exclusive sibling answers

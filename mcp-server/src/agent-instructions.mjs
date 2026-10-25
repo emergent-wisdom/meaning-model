@@ -11,7 +11,6 @@ import { createHash } from 'node:crypto';
 import { readFileSync, statSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 
-export const INSTRUCTION_MODES = Object.freeze(['full', 'simple', 'custom', 'full+custom']);
 export const MAX_INSTRUCTIONS_BYTES = 64 * 1024;
 
 function readInstructionsFile(path, setting) {

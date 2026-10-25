@@ -319,3 +319,47 @@ test('a finer reading opens an Event only if the Event begins inside it, and com
   assert.deepEqual(life54(20000, [19900, 19920, 19950], tiles(20000)), [true, 0]);
   assert.deepEqual(life54(20000, [19900, 19920, 19950], [steady(20000), ...tiles(20000)]), [true, 0]);
 });
+
+test('a schedule boundary is met at its printed date or at the exact point it was rounded from, and a true gap still shows', () => {
+  // A span like 1982 to 2026.786 rounds its boundaries to tenths, and to whole years at level 2 (2011.857 is printed
+  // 2012, 2019.322 is printed 2019). A life starting just before a boundary, and an own Event, make cells too short for
+  // the neighbouring reading to count, so a gap between the exact point and the printed date could never be filled.
+  const [from, to, born, own] = [1982, 2026.786, 2011.76, 2020.781];
+  const schedule = timeSchedule(from, to);
+  assert.deepEqual([schedule.levels[1].boundaries[4], Number(schedule.levels[1].exact[4].toFixed(3))], [2012, 2011.857]);
+  const grid = (kind, level) => (kind === 'printed' ? schedule.levels[level - 1].boundaries : schedule.levels[level - 1].exact.map((t) => Number(t.toFixed(3))));
+  const readingsOn = (kind) => {
+    const found = [];
+    for (const level of [1, 2, 3, 4]) {
+      const inside = level === 1 ? [] : grid(kind, level).filter((t) => t > born && t < to);
+      const cuts = [...new Set([born, ...inside, ...(level === 4 ? [own] : []), to])].sort((a, b) => a - b);
+      for (let i = 1; i < cuts.length; i += 1) if (!found.some((r) => r.start === cuts[i - 1] && r.end === cuts[i])) found.push(reading(cuts[i - 1], cuts[i], 0.5));
+    }
+    return found;
+  };
+  const world = (readings, valueTimes) => {
+    const meaning = life('chain', born, to);
+    meaning.events.push(event('span', from, to), event('chain.upgrade', own, own + 0.01));
+    meaning.event_relations = [{ id: 'c.upgrade', kind: 'contains', source_event_id: 'chain.life', target_event_id: 'chain.upgrade', provenance: ['x'] }];
+    let m = model(meaning, [scalar('p')], [values('p', valueTimes)]);
+    m = applyModelChange(m, HASH, seriesChange(m, { subject: 'chain', series: SERIES, readings, reason: 'r' })).successor;
+    return coverageSummary(m).schedule;
+  };
+  for (const kind of ['printed', 'exact']) {
+    const filled = world(readingsOn(kind), grid(kind, 4));
+    assert.deepEqual([filled.reached, filled.remaining], [4, 0], kind);
+  }
+  // The printed boundaries are given with the level that lacks something.
+  const sparse = world(readingsOn('exact').filter((r) => r.end - r.start > 1), grid('exact', 4));
+  assert.equal(sparse.next.boundaries.length, sparse.next.blocks + 1);
+  // A finest block left unread, or a reading stopping well short of a boundary, is still lacking; the unread stretch
+  // also reaches back past the printed 2023.5 (or on past 2022.6) into the block beside it.
+  const unread = world(readingsOn('exact').filter((r) => !(r.start === 2023.469 && r.end === 2024.298)), grid('exact', 4));
+  assert.deepEqual([unread.remaining, unread.next.examples[0].at], [2, ['2022.6–2023.5', '2023.5–2024.3']]);
+  const short = world(readingsOn('exact').map((r) => (r.start === 2021.81 && r.end === 2022.639 ? { ...r, end: 2022.5 } : r)), grid('exact', 4));
+  assert.deepEqual([short.remaining, short.next.examples[0].at], [2, ['2021.8–2022.6', '2022.6–2023.5']]);
+  // Nor is the stretch between a boundary's printed date and its exact point read by a coarser reading alone: here
+  // nothing finer than the level-3 reading covers 2019 to 2019.32.
+  const hole = world(readingsOn('printed').map((r) => (r.start === 2019 && r.end === 2020.2 ? { ...r, start: 2019.32 } : r)), grid('printed', 4));
+  assert.deepEqual([hole.remaining, hole.next.examples[0].at], [1, ['2019–2020.2']]);
+});

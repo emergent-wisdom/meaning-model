@@ -24,6 +24,23 @@ operational guidance. Reading the papers is optional.
 
 See the [changelog](https://github.com/emergent-wisdom/meaning-model/blob/main/CHANGELOG.md) for release changes and upgrade notes.
 
+## Upgrading to 0.15.0
+
+0.14.0 was prepared but never published, so 0.15.0 is the first release with its changes. Install the matching 0.15.0
+engine. It gains one optional field: a relation between concepts can be withdrawn. Models and histories from 0.13.x
+open with the same hashes, and nothing needs migrating; a model that withdraws a relation, as carving again under a new
+climb does, needs the 0.15.0 engine.
+
+`life_model_outline` shows the processes as their tree, and the values report asks for a review of the whole tree as it
+grows. The `person_reflection` purpose is described as the self model: the agent builds a person's model with them,
+coarse first, and lets its gaps choose the next question.
+
+Agents put a model on the page sooner and keep breaking it down. `life_modeling_context` gives a seed for the first
+write (`firstWrite`) and says when each required text is due, and a pass is done when its aim is met. Beside the
+deepen check, a breadth check asks what is changing that no process follows; `life_breadth_record`
+answers it. `life_values_record` and `life_series_record` declare a result of 100,000 characters. The changelog has
+the rest.
+
 ## Upgrading to 0.13.1
 
 Install the matching 0.13.1 engine. The engine and the model format are unchanged since 0.13.0: models and histories
@@ -300,8 +317,9 @@ handles repetitive record construction. Reduced end-to-end cost and latency
 require measurement, including setup and review work.
 
 Every fresh agent begins with `life-sim://guide/start-here` (what the tool is for
-and how to work in it), then reads `life-sim://protocol/grammar`, the operational
-protocol and its purpose guide. `life_modeling_read` serves these resources to
+and how to work in it) and the process breakdown, puts a rough model of the whole
+on the page, and reads `life-sim://protocol/grammar`, the operational protocol and
+its purpose guide before it writes records by hand or goes deeper. `life_modeling_read` serves these resources to
 clients that expose only tools. Read `life-sim://guide/general-modeling` for the
 complete workflow and limits.
 
@@ -314,7 +332,7 @@ can use the explicit source build below.
 In a directory where you want to keep the installation, run:
 
 ```sh
-npm install @emergent-wisdom/meaning-model-mcp@0.13.1
+npm install @emergent-wisdom/meaning-model-mcp@0.15.0
 npx meaning-model-mcp --install-engine
 ```
 
@@ -756,8 +774,8 @@ sets siblings side by side, per process and per person, without a total.
 Branches stay hypothetical: a live view of the trunk never follows into one, and
 a graph on the trunk is not rebound into one. This builds a first part of the
 Life Simulation paper's sections on simulating implementation and following its
-effects, in its revision of September 19, 2026 (the companion copy the server serves is
-earlier). See the [forecasting add-on guide](https://github.com/emergent-wisdom/meaning-model/blob/main/profiles/FORECASTING_ADDON.md).
+effects, in its revision of October 25, 2026, which is the companion copy the server
+serves. See the [forecasting add-on guide](https://github.com/emergent-wisdom/meaning-model/blob/main/profiles/FORECASTING_ADDON.md).
 
 ### Registry clients using npx
 
@@ -783,7 +801,7 @@ configuration looks like this:
   "mcpServers": {
     "meaning-model": {
       "command": "npx",
-      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.13.1"],
+      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.15.0"],
       "env": {
         "LIFE_SIM_ENGINE_BIN": "/absolute/path/to/life-sim-engine",
         "LIFE_SIM_STATE_FILE": "/absolute/private/path/meaning-model.sqlite"
@@ -857,7 +875,7 @@ for release.
 Record the reviewed tarball's checksum and inspect the publication preview:
 
 ```sh
-release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.13.1.tgz"
+release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.15.0.tgz"
 shasum -a 256 "$release_tarball"
 npm publish "$release_tarball" --dry-run --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
@@ -869,7 +887,7 @@ exact tarball, authenticate with an npm account that can publish to
 ```sh
 npm whoami --registry=https://registry.npmjs.org/
 npm publish "$release_tarball" --access public --ignore-scripts --registry=https://registry.npmjs.org/
-npm view @emergent-wisdom/meaning-model-mcp@0.13.1 version dist.integrity --registry=https://registry.npmjs.org/
+npm view @emergent-wisdom/meaning-model-mcp@0.15.0 version dist.integrity --registry=https://registry.npmjs.org/
 ```
 
 A dry run does not establish registry authentication or scope access. Any change

@@ -264,9 +264,13 @@ importance report keeps the scales a call touched in full and the others as coun
 else is shortened. `MEANING_MODEL_LEAN_RESULTS=off` restores complete results.
 
 Every fresh agent, including a delegated agent, begins with
-`life-sim://guide/start-here` (what the tool is for and how to work in it), then
-reads the complete grammar at `life-sim://protocol/grammar` before modeling. Then read the operational protocol, the purpose-specific guide or profile,
-and a relevant worked example. These explain the construction method and the
+`life-sim://guide/start-here` (what the tool is for and how to work in it) and the
+process breakdown. Its first writes can be the seed in `life_modeling_context`'s
+`firstWrite` and a rough model of the whole through `life_values_record`,
+`life_series_record` and `life_carve_record`. Before it writes records by hand,
+assesses a model or goes deeper, it reads the complete grammar at
+`life-sim://protocol/grammar`, the operational protocol, the purpose-specific guide
+or profile, and a relevant worked example. These explain the construction method and the
 contracts needed to use the tools. `life_modeling_read` serves these resources
 to clients that expose only tools; follow its pages to the end, or read a guide by
 sections (`section: "contents"` lists its headings). Reuse unchanged
@@ -1256,8 +1260,8 @@ sets siblings side by side, per process and per person, without a total.
 Branches stay hypothetical: a live view of the trunk never follows into one, and
 a graph on the trunk is not rebound into one. This builds a first part of the
 Life Simulation paper's sections on simulating implementation and following its
-effects, in its revision of September 19, 2026 (the companion copy the server serves is
-earlier). See the [forecasting add-on guide](../profiles/FORECASTING_ADDON.md).
+effects, in its revision of October 25, 2026, which is the companion copy the server
+serves. See the [forecasting add-on guide](../profiles/FORECASTING_ADDON.md).
 
 ## General-purpose modeling and optional Jev estimation
 

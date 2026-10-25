@@ -14,6 +14,8 @@ import { recordsQuoting, removedFragments, textRecords } from './prose-drift.mjs
 import { absoluteHistoryPath, encodeHistoryModels, expandedHistoryDigest, expandHistoryModels, HISTORY_FILE_SCHEMA_V2, HISTORY_SCHEMA, historyDigest, MAX_HISTORY_FILE_BYTES, MAX_HISTORY_MODELS, MAX_INLINE_HISTORY_BYTES, planHistoryModels, readHistoryFile, writeHistoryFile } from './construction-files.mjs';
 import { requireCompleteModelScopes } from './construction-scope.mjs';
 import { maxOf, pushAll } from './arrays.mjs';
+import { keptWholeLeaves, processTree, treeHeadline, valueReach } from './process-tree.mjs';
+import { keptWhole } from './deepen.mjs';
 
 const id = z.string().trim().min(1).max(256);
 const longId = z.string().trim().min(1).max(1_024);
@@ -102,7 +104,7 @@ export function anchoredModelRecord(model, anchorKind, anchorId, modelHash = nul
 }
 function recordEndpoint(model, target, label, modelHash = null) {
   const { kind, recordId } = splitRecord(target.record);
-  if (!findRecord(model, kind, recordId, modelHash)) throw new Error(`${label} names ${target.record}, which is not a record of the bound model.`);
+  if (!findRecord(model, kind, recordId, modelHash)) throw new Error(`${label} names ${target.record}, which is not a record of the bound model.${kind === 'process' ? ' If it is a part you have just carved, open it first (life_values_record), rebind the graph to that revision, then record the note.' : ''}`);
   return { kind: 'anchor', anchor_kind: recordKinds[kind], anchor_id: recordId, ...(target.path ? { path: target.path } : {}) };
 }
 // The Understanding Graph paper's epistemic relations, with the construction record's own. validates and invalidates
@@ -689,12 +691,45 @@ export async function outlineModel(service, raw) {
     for (const eventId of starts) walk(eventId, 0);
   }
   if (want.has('processes') && (model.processes ?? []).length) {
+    // The processes as their tree: each under the one it was carved from, with how far its values reach, so the whole
+    // can be read at once and a reader can ask where more could be added.
     lines.push('', '## Processes');
-    for (const process of model.processes) {
-      if (skeleton) { lines.push(`- ${process.id} (${process.unit ?? 'no unit'})${process.scale?.label ? `: ${clip(oneLine(process.scale.label), 80)}` : ''}`); continue; }
+    const tree = processTree(model);
+    const kept = keptWhole(model);
+    const reach = valueReach(model);
+    const byId = new Map(model.processes.map((process) => [process.id, process]));
+    lines.push(treeHeadline(tree, keptWholeLeaves(tree, kept)));
+    const reached = (processId) => { const item = reach.get(processId); return item?.values ? ` · ${item.values} value${item.values === 1 ? '' : 's'}${Number.isFinite(item.from) ? `, ${item.from} to ${item.to}` : ''}` : ' · no values'; };
+    const line = (processId, depth) => {
+      const process = byId.get(processId);
+      const indent = '  '.repeat(depth);
+      const parts = (tree.parts.get(processId) ?? []).length;
+      const shape = parts ? ` · ${parts} part${parts === 1 ? '' : 's'}` : kept.has(processId) ? ' · kept whole' : '';
+      if (skeleton) { lines.push(`${indent}- ${process.id} (${process.unit ?? 'no unit'})${process.scale?.label ? `: ${clip(oneLine(process.scale.label), 80)}` : ''}${shape}`); return; }
       const value = process.initial_value?.value;
-      lines.push(`- ${process.id} (${process.unit ?? 'no unit'}, ${process.update_mode ?? 'unspecified'}): ${clip(oneLine(process.scale?.semantic_role ?? ''), input.textLimit)}${value === undefined ? '' : `; initial ${Array.isArray(value) ? JSON.stringify(value) : value}`}`);
-      attach('process', process.id, '');
+      lines.push(`${indent}- ${process.id} (${process.unit ?? 'no unit'}, ${process.update_mode ?? 'unspecified'}): ${clip(oneLine(process.scale?.semantic_role ?? ''), input.textLimit)}${value === undefined ? '' : `; initial ${Array.isArray(value) ? JSON.stringify(value) : value}`}${reached(processId)}${shape}`);
+      attach('process', process.id, indent);
+    };
+    // Each process with its parts in the order they were filed: a part expanded here is listed with its own parts, and a
+    // part expanded elsewhere (one with an earlier parent) is named where it falls, so every process shows all its parts
+    // in order. The walk keeps its own stack and adds one line at a time, so any depth and any number of parts is read.
+    const stack = [...tree.roots].reverse().map((id) => ({ id, depth: 0 }));
+    const listed = new Set();
+    while (stack.length) {
+      const entry = stack.pop();
+      if (entry.shared) {
+        lines.push(`${'  '.repeat(entry.depth)}- ${entry.id}: shared part, shown ${tree.depth.get(entry.id) === 0 ? 'at the top level' : `under ${tree.parentOf.get(entry.id)}`}`);
+        continue;
+      }
+      if (listed.has(entry.id)) continue;
+      listed.add(entry.id);
+      line(entry.id, entry.depth);
+      const parts = tree.parts.get(entry.id) ?? [];
+      for (let index = parts.length - 1; index >= 0; index -= 1) {
+        const child = parts[index];
+        const here = tree.parentOf.get(child) === entry.id && tree.depth.get(child) === entry.depth + 1 && !listed.has(child);
+        stack.push(here ? { id: child, depth: entry.depth + 1 } : { id: child, depth: entry.depth + 1, shared: true });
+      }
     }
   }
   if (want.has('concepts') && ((layer.concepts ?? []).length || (layer.abstract_cuts ?? []).length)) {
@@ -1263,7 +1298,7 @@ export function registerConstructionRecordTools(server, service, { toolResult })
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await readNotes(service, input)));
   server.registerTool('life_model_outline', {
-    description: 'Read the present state as a readable outline: description coverage (which Events carry numbers without a description), Things, the Event tree with descriptions and the Cuts under each Event, processes, concepts, understanding roots and documents. With a graphHash it overlays the Understanding Nodes linked to each record, at the chosen depth: none, count, first_line or full. Shown notes mark different or unknown model bases, with parsed writtenAgainstModel/currentModel in noteModelBases; these marks do not establish ancestry or invalidity. Use life_revision_check with exact models to identify affected records and notes. Narrow it with sections or focusEventId; detail "skeleton" gives the whole shape (ids, times, names and counts) in little room, to choose what to read in full. A read narrowed to one Event starts with where it sits: the path down from the top and the top two levels of the tree.',
+    description: 'Read the present state as a readable outline: description coverage (which Events carry numbers without a description), Things, the Event tree with descriptions and the Cuts under each Event, the tree of processes (each under the one it was carved from, with its measure and how far its values reach, headed by its size level by level), concepts, understanding roots and documents. With a graphHash it overlays the Understanding Nodes linked to each record, at the chosen depth: none, count, first_line or full. Shown notes mark different or unknown model bases, with parsed writtenAgainstModel/currentModel in noteModelBases; these marks do not establish ancestry or invalidity. Use life_revision_check with exact models to identify affected records and notes. Narrow it with sections or focusEventId; detail "skeleton" gives the whole shape (ids, times, names and counts) in little room, to choose what to read in full. A read narrowed to one Event starts with where it sits: the path down from the top and the top two levels of the tree.',
     inputSchema: outlineSchema,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await outlineModel(service, input)));

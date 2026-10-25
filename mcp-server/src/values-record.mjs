@@ -17,6 +17,8 @@ import { eventDescendants, indexModel } from './model-questions.mjs';
 import { minOf, maxOf } from './arrays.mjs';
 import { carveLine, carveReport } from './carve-index.mjs';
 import { deepenCheck, deepenLine } from './deepen.mjs';
+import { breadthCheck, breadthLine, breadthTop } from './breadth.mjs';
+import { treeReview, treeReviewLine } from './process-tree.mjs';
 
 export const VALUE_TAGS = Object.freeze(['source', 'inferred', 'invented', 'exploring', 'sketch']);
 export const PROCESS_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/u;
@@ -115,7 +117,25 @@ export function valuesChange(previous, input) {
   const referents = new Set((previous.meaning_model?.referents ?? []).map((referent) => referent.id));
   // A process about one Thing names it, and is then held only to that Thing's life in the time schedule.
   const checkSubject = (processId, subject) => { if (subject && !referents.has(subject)) throw new Error(`${processId}: ${subject} is not a referent of the model; register the Thing first, or leave subject out.`); };
+  // One process named in several entries of one call: their points are merged, and so are their process specs, field by
+  // field, as when one entry opens it and another files it under a parent; only two values for one field are refused.
+  const byProcess = new Map();
   for (const entry of input.values) {
+    const prior = byProcess.get(entry.processId);
+    if (!prior) { byProcess.set(entry.processId, { ...entry, ...(entry.process ? { process: { ...entry.process } } : {}), points: [...(entry.points ?? [])] }); continue; }
+    if (entry.process) {
+      prior.process ??= {};
+      for (const [field, value] of Object.entries(entry.process)) {
+        if (prior.process[field] !== undefined && JSON.stringify(prior.process[field]) !== JSON.stringify(value)) {
+          throw new Error(`${entry.processId} is named twice in this call with two values for process.${field}; give it one.`);
+        }
+        prior.process[field] = value;
+      }
+    }
+    prior.points.push(...(entry.points ?? []));
+    if (entry.reason) prior.reason = prior.reason ? `${prior.reason} ${entry.reason}` : entry.reason;
+  }
+  for (const entry of byProcess.values()) {
     if (!PROCESS_ID.test(entry.processId)) throw new Error(`${entry.processId} is not a usable process id.`);
     if (entry.reason && Buffer.byteLength(entry.reason, 'utf8') > 4_000) throw new Error(`${entry.processId}: the reason is ${Buffer.byteLength(entry.reason, 'utf8')} bytes; keep it under 4,000 bytes.`);
     const points = entry.points ?? [];
@@ -141,6 +161,14 @@ export function valuesChange(previous, input) {
         if (current && current !== entry.process.parent) throw new Error(`${entry.processId} is already part of ${current}; change its decomposition edge with life_model_revise to move it.`);
         if (!current) fileUnder(entry.processId, entry.process);
       }
+      // A new meaning for a process that has one already: it says what its numbers mean from now on.
+      if (entry.process?.meaning) {
+        const existing = processes.get(entry.processId);
+        const label = existing.scale?.label ?? String(existing.scale?.semantic_role ?? entry.processId).split(': ')[0];
+        const updated = { ...structuredClone(existing), scale: { ...(existing.scale ?? {}), semantic_role: `${label}: ${entry.process.meaning}` } };
+        upsert.processes = [...(upsert.processes ?? []).filter((item) => item.id !== updated.id), updated];
+        processes.set(updated.id, updated);
+      }
       if (entry.process?.subject) {
         checkSubject(entry.processId, entry.process.subject);
         const existing = processes.get(entry.processId), current = existing.scale?.subject_referent_id;
@@ -153,7 +181,7 @@ export function valuesChange(previous, input) {
       }
     }
     if (!points.length) {
-      if (!entry.process?.parent && !entry.process?.subject) throw new Error(`${entry.processId}: give points to record, or process {parent} or {subject} to file it.`);
+      if (!entry.process?.parent && !entry.process?.subject && !entry.process?.meaning) throw new Error(`${entry.processId}: give points to record, process {parent} or {subject} to file it, or process {meaning} to say what its numbers mean.`);
       continue;
     }
     const target = processes.get(entry.processId);
@@ -190,13 +218,24 @@ export function valuesReport(model, options = {}) {
   return valuesAccount(model, options).report;
 }
 
+// What the deepen check names first, for comparing one revision with the next.
+export function deepenTop(model) {
+  return valuesAccount(model).deepen.ranked[0]?.process ?? null;
+}
+
+// What the deepen and breadth checks name first, from one reading of the model, for comparing one revision with the next.
+export function reportTops(model) {
+  const { deepen, breadth } = valuesAccount(model);
+  return { deepen: deepen.ranked[0]?.process ?? null, breadth: breadthTop(breadth) };
+}
+
 // The whole deepen check (deepen.mjs) of a model: every process with values and no parts, with its signals.
 export function deepenOf(model) {
   return valuesAccount(model).deepen;
 }
 
 // The report, with the lines that keep this pass from being done and the coverage report they were judged with.
-function valuesAccount(model, { holder = null, focus = [] } = {}) {
+function valuesAccount(model, { holder = null, focus = [], previousTop, previousBreadth } = {}) {
   // Each holder's own values, process by process and time by time.
   const byHolder = new Map();
   for (const s of model.value_series ?? []) {
@@ -407,8 +446,24 @@ function valuesAccount(model, { holder = null, focus = [] } = {}) {
   if (resolveLine) next.push(resolveLine);
   if (emptyLine) next.push(emptyLine);
   if (roots.length > 3) next.push(`${roots.length} processes have nothing above them, among them ${roots.slice(0, 5).map(label).join(', ')}. Open the whole they are parts of as one process with a measure of its own, open the dimensions of your carve under it, and file each of these under the dimension it belongs to (process {parent} in life_values_record).`);
-  const deepenText = deepenLine(deepen);
+  // The deepen line is shown when what it names changes, and every third revision, so a question the agent is not
+  // answering yet is not repeated with every write. Without a previous model to compare with, it is shown.
+  const top = deepen.ranked[0]?.process ?? null;
+  const deepenShown = previousTop === undefined || top !== previousTop || (model.revision?.number ?? 0) % 3 === 0;
+  const deepenText = deepenShown ? deepenLine(deepen) : null;
   if (deepenText) next.push(deepenText);
+  // The breadth check (breadth.mjs) asks the same of the whole model: is something changing that no process follows?
+  // Shown on the same rule as the deepen line.
+  const breadth = breadthCheck(model, { label });
+  const breadthShown = previousBreadth === undefined || breadthTop(breadth) !== previousBreadth || (model.revision?.number ?? 0) % 3 === 0;
+  const breadthText = breadthShown ? breadthLine(breadth) : null;
+  if (breadthText) next.push(breadthText);
+  // The whole-tree review (process-tree.mjs) asks for the tree to be read whole once it is large enough, and again when it
+  // has grown by a quarter or fifty revisions have passed. Shown without a previous report to compare with and on every
+  // third revision, so it is not repeated on every write.
+  const review = treeReview(model);
+  const treeText = review.due && (previousTop === undefined || (model.revision?.number ?? 0) % 3 === 0) ? treeReviewLine(review) : null;
+  if (treeText) next.push(treeText);
   if (carveText) next.push(carveText);
   if (oneDate.length) next.push(`Give a second date to ${oneDate.length} process(es) that have only one, so each shows as a line over time: ${oneDate.slice(0, 5).map(label).join(', ')}.`);
   next.push(...coverage.next.slice(1));
@@ -421,19 +476,22 @@ function valuesAccount(model, { holder = null, focus = [] } = {}) {
     ...(shows.length ? { shows: shows.slice(0, 10).map(({ weight, ...item }) => item) } : {}),
     ...(unexplained.length ? { unexplained: unexplained.slice(0, 20).map(({ weight, ...item }) => item), unexplainedCount: unexplained.length } : {}), ...(unmeant.length ? { unmeantCount: unmeant.length } : {}),
     ...(passedOver.length ? { passedOver: passedOver.slice(0, 20), passedOverCount: passedOver.length } : {}), roots: roots.slice(0, 20), rootCount: roots.length, undivided: undivided.slice(0, 20), undividedCount: undivided.length,
-    ...(deepen.ranked.length ? { deepen: deepen.ranked.slice(0, 10).map(({ depth: _depth, ...item }) => item) } : {}), ...(deepen.keptWhole.length ? { keptWhole: deepen.keptWhole.slice(0, 20), keptWholeCount: deepen.keptWhole.length } : {}),
+    ...(deepen.ranked.length ? { deepen: deepen.ranked.slice(0, 10).map(({ depth: _depth, ...item }) => item) } : {}),
+    ...(breadth.ranked.length ? { breadth: breadth.ranked.slice(0, 5), breadthCount: breadth.ranked.length } : {}),
+    ...(breadth.considered.length ? { considered: breadth.considered.slice(0, 10), consideredCount: breadth.considered.length } : {}),
+    tree: { processes: review.processes, levels: review.levels, due: review.due, ...(review.why ? { why: review.why } : {}), ...(review.last ? { lastRead: { processes: review.last.processes, revision: review.last.revision } } : {}) }, ...(deepen.keptWhole.length ? { keptWhole: deepen.keptWhole.slice(0, 20), keptWholeCount: deepen.keptWhole.length } : {}),
     ...(carves.uncarved.length ? { uncarved: carves.uncarved.slice(0, 20).map(({ depth: _depth, ...item }) => item), uncarvedCount: carves.uncarved.length } : {}),
     ...(carves.unopened.length ? { unopenedParts: carves.unopened.slice(0, 20), unopenedPartCount: carves.unopened.length } : {}),
     ...(carves.outside.length ? { untestedParts: carves.outside.slice(0, 20), untestedPartCount: carves.outside.length } : {}), ...(oneDate.length ? { oneDate: oneDate.slice(0, 50), oneDateCount: oneDate.length } : {}), coarsest, next };
-  return { report, coverage, deepen, blocking: [resolveLine, emptyLine, passedLine].filter(Boolean) };
+  return { report, coverage, deepen, deepenText, breadth, breadthText, treeText, blocking: [resolveLine, emptyLine, passedLine].filter(Boolean) };
 }
 
 // The coverage part of the report alone, for the series tool and the model's questions: whether this pass is done, how
 // far the time schedule is filled, and every line that keeps it from being done, so done:false always says why.
-export function coverageSummary(model) {
-  const { report, coverage, blocking } = valuesAccount(model);
+export function coverageSummary(model, { previousTop, previousBreadth } = {}) {
+  const { report, coverage, blocking, deepenText, breadthText, treeText } = valuesAccount(model, { previousTop, previousBreadth });
   return { done: report.done, ...(report.schedule ? { schedule: report.schedule } : {}), tracks: coverage.tracks, holders: coverage.holders, flatCount: coverage.flatCount, steadyCount: coverage.steadyCount,
     ...(coverage.flat ? { flat: coverage.flat } : {}), ...(report.stillEmptyCount ? { stillEmptyCount: report.stillEmptyCount } : {}),
     ...(report.passedOverCount ? { passedOverCount: report.passedOverCount } : {}), ...(report.contradictionCount ? { contradictionCount: report.contradictionCount } : {}),
-    ...(coverage.people ? { people: coverage.people } : {}), next: [coverage.status, ...blocking, ...coverage.next.slice(1)] };
+    ...(coverage.people ? { people: coverage.people } : {}), next: [coverage.status, ...blocking, ...(deepenText ? [deepenText] : []), ...(breadthText ? [breadthText] : []), ...(treeText ? [treeText] : []), ...coverage.next.slice(1)] };
 }

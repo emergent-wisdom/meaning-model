@@ -23,7 +23,7 @@ import { isSeriesReadingEvent } from './series-mark.mjs';
 import { projectNumerics } from './viewer-numerics.mjs';
 import { cutTrajectories } from '../viewer/public/cut-trajectories.js';
 import { minOf, maxOf, pushAll } from './arrays.mjs';
-import { processOfLine } from './carve-lines.mjs';
+import { BREADTH_ANSWER_LINE, BREADTH_CANDIDATE_LINE, BREADTH_SIGNALS_LINE, KEPT_WHOLE_LINE, processOfLine } from './carve-lines.mjs';
 
 export const SLOW_PROCESSES = Object.freeze(['body', 'kin', 'partnership', 'work', 'place', 'means', 'knowledge', 'standing', 'meaning']);
 // The shared first-run comparison vocabulary of the Book; a person's own wants replace it.
@@ -47,7 +47,9 @@ export const cutKind = (cut) => {
 };
 const questionOf = (cut) => String(cut.question ?? cut.id ?? '');
 const answersOf = (cut) => cut.answers ?? [];
-const estimated = (cut) => (cut.provenance ?? []).some((item) => /^(estimator|supplied):/u.test(String(item)));
+// A Cut's weights are someone's estimate when its provenance says whose: the estimator's, supplied by someone, or the
+// recorder's own, tagged with why (as life_series_record writes every reading).
+const estimated = (cut) => (cut.provenance ?? []).some((item) => /^(?:estimator|supplied):|^(?:source|inferred|invented|exploring|sketch):\s*\S/u.test(String(item)));
 
 // Administrative model inspection returns every native process and claim. Questions are a scoped reading:
 // remove inaccessible records and their typed process links before deriving counts, hints or person values. The
@@ -77,7 +79,13 @@ export function questionModel(model, accessScopes) {
       // the carve keeps its other parts, and nothing reports the hidden one as missing.
       ...(hidden.size ? { abstract_cuts: (mm.abstract_cuts ?? []).map((cut) => (cut.provenance ?? []).some((line) => hidden.has(processOfLine(line)))
         ? { ...cut, provenance: cut.provenance.filter((line) => !hidden.has(processOfLine(line))) } : cut),
-      abstract_relations: (mm.abstract_relations ?? []).filter((relation) => !(relation.provenance ?? []).some((line) => hidden.has(processOfLine(line)))) } : {}),
+      abstract_relations: (mm.abstract_relations ?? []).filter((relation) => !(relation.provenance ?? []).some((line) => hidden.has(processOfLine(line)))),
+      // An answer to the breadth check followed by a hidden process stays answered, but says nothing else: its name,
+      // boundary and reason are the answerer's own words and may name the process.
+      concepts: (mm.concepts ?? []).map((concept) => ((concept.provenance ?? []).some((line) => hidden.has(processOfLine(line)))
+        ? { ...concept, label: 'An answer to the breadth check', boundary: null, differentia: [],
+          provenance: concept.provenance.filter((line, index) => index === 0 || [BREADTH_CANDIDATE_LINE, BREADTH_SIGNALS_LINE, BREADTH_ANSWER_LINE].some((head) => String(line).startsWith(head))) }
+        : concept)) } : {}),
     } } : {}),
   };
 }
@@ -132,7 +140,11 @@ export function indexModel(model) {
     if (binding.binding_type === 'change_arc_subject' && binding.target?.event_id) push(arcsOf, binding.referent_id, binding.target.event_id);
   }
   const relations = mm.event_relations ?? [];
-  const abstractions = { concepts: (mm.concepts ?? []).length, abstractRelations: (mm.abstract_relations ?? []).length, abstractCuts: (mm.abstract_cuts ?? []).length,
+  // A regularity is a current relation between concepts other than a kind-of, such as constrains or opposition; a
+  // decision to keep a process whole is a relation too, and not a regularity.
+  const regularities = (mm.abstract_relations ?? []).filter((relation) => !relation.withdrawn && relation.kind !== 'specialization'
+    && !(relation.provenance ?? []).some((line) => String(line).startsWith(KEPT_WHOLE_LINE))).length;
+  const abstractions = { concepts: (mm.concepts ?? []).length, abstractRelations: (mm.abstract_relations ?? []).length, regularities, abstractCuts: (mm.abstract_cuts ?? []).length,
     laws: (model?.laws ?? []).length, claims: (model?.initial_claims ?? []).length, realizations: (mm.realizations ?? []).length,
     dependencies: (model?.dependencies ?? []).length, decompositions: (model?.decomposition ?? model?.decompositions ?? []).length };
   // Readings are held apart from the world, and what is a reading is decided by where an Event sits, not by what it
@@ -519,12 +531,13 @@ function worldQuestions(index, lives, draws, spatial) {
     if (!ancestors(index, cut.parent_event_id).size) ask('why-local', `Why does "${cut.question}" arise? No contains ancestor was found for its Event. Causes or context may be expressed through other relations or descriptions; inspect them before adding anything. Which relevant circumstances explain the choice, and is that account sufficient?`, 'life_meaning_query or life_model_revise', { cuts: [cut.id] });
   }
   // Up the ladder: the model's Events should instantiate concepts, and regularities should link them.
-  const { concepts, abstractRelations, laws, claims } = index.abstractions;
+  const { concepts, abstractRelations, laws, claims, regularities } = index.abstractions;
   if (index.events.size >= 8 && concepts < Math.max(3, Math.floor(index.events.size / 20))) {
     ask('concepts-thin', `The model has ${index.events.size} Events and ${concepts} concept${concepts === 1 ? '' : 's'}. What are these Events instances of? Climb up: name the concepts they realize, how the concepts specialize, oppose or express one another, and which one explains several of them at once.`, 'life_model_revise');
   }
-  if (index.events.size >= 8 && laws + claims === 0) {
-    ask('laws-missing', 'What regularities hold across these Events: when one thing happens, what tends to follow, for whom, and why? State them as laws, claims or abstract relations, and test them against what the model shows.', 'life_model_revise');
+  // Regularities stated as laws, claims or relations between concepts all answer it.
+  if (index.events.size >= 8 && laws + claims + regularities === 0) {
+    ask('laws-missing', `What regularities hold across these Events: when one thing happens, what tends to follow, for whom, and why? State them as laws, claims or abstract relations (constrains, opposition, analogy or other), and test them against what the model shows. If the work needs none, say why once, in ${sufficientNote('laws-missing')}.`, 'life_model_revise');
   }
   const byQuestion = new Map();
   for (const cut of index.cuts) if (!index.readings?.has(cut.parent_event_id)) push(byQuestion, questionOf(cut).toLowerCase().trim(), cut);
@@ -535,7 +548,7 @@ function worldQuestions(index, lives, draws, spatial) {
   const unplaced = unplacedEvents(index, [...index.cutsByEvent.keys()]);
   if (unplaced.length) ask('place-missing', `${unplaced.length} moment${unplaced.length === 1 ? '' : 's'} carrying Cuts ${unplaced.length === 1 ? 'has' : 'have'} no place (for example ${unplaced.slice(0, 3).map((event) => event.id).join(', ')}). Where does each happen, where is each person and Thing in it, and in what physical state? Give each its region, or contain it in an Event that has one, and model the physical processes of the Things taking part. Where reach, movement, sightlines or access matter, describe those relations. Use numerical coordinates with a declared reference frame and units only when they help answer the question; a named region alone does not establish those relations.`, 'life_model_revise');
   if (spatial.incompletePositionProcesses) ask('spatial-declaration-incomplete', `${spatial.incompletePositionProcesses} declared position processes lack a recognized valid value, frame, units, subject binding or native spatial_entity support, or provenance. Inspect depth.spatial for the specific gaps and the original records for other conventions before changing anything. Complete declarations needed for the intended physical reasoning or view; do not invent measurements or call the presence of a number complete geometry.`, 'life_model_inspect, then life_model_revise if needed');
-  else if (spatial.status === 'qualitative_locations_only') ask('spatial-resolution', 'Named regions or setting bindings are present, but no usable native numerical positions were recognized. Does the intended physical view or reasoning need distances, drawable placement or motion? If so, declare useful positions with frame, axes, units, stable subjects, evidence and precision. Sourced geographical representative points and explicitly authored fictional local layouts are both valid; distinguish them. Otherwise keep the qualitative account and record why it is sufficient. Do not report qualitative placement as coordinates, or infer geography from names.', 'life_model_inspect, life_understanding_record; life_model_revise when useful');
+  else if (spatial.status === 'qualitative_locations_only') ask('spatial-resolution', `Named regions or setting bindings are present, but no usable native numerical positions were recognized. Does the intended physical view or reasoning need distances, drawable placement or motion? If so, declare useful positions with frame, axes, units, stable subjects, evidence and precision. Sourced geographical representative points and explicitly authored fictional local layouts are both valid; distinguish them. Otherwise keep the qualitative account and say why it is sufficient once, in ${sufficientNote('spatial-resolution')}. Do not report qualitative placement as coordinates, or infer geography from names.`, 'life_model_inspect, life_understanding_record; life_model_revise when useful');
   if (spatial.placeHistory.withoutCoarseHistory) ask('spatial-history-unopened', `${spatial.placeHistory.withoutCoarseHistory} declared place-process indexes are empty and have no recognized coarse location episodes. Town markers and isolated room positions do not establish a subject's location history. Inspect linked Events and other conventions first. When movement through a life or process matters, connect dated home bases, workplaces, visits and transitions to that same subject; keep unknown periods visible and use one compatible frame for a drawable sequence. Distinguish a base from continuous bodily presence. Explore how access, privacy, distance or material conditions affect the subject's actions and understanding, linking the relevant thoughts to the actual places and Events. Do not manufacture journeys, memories, numerical precision or extra thought nodes merely to satisfy this question; record when the current resolution is sufficient.`, 'life_model_inspect, life_model_revise, life_understanding_record');
   // Draws are recorded in the story graph, not the model. Without the graph the tool cannot tell which decisions are
   // drawn, so it names them together rather than claiming each is undrawn. A draw constructs fiction, so draws are
@@ -565,7 +578,7 @@ function worldQuestions(index, lives, draws, spatial) {
     && !(index.children.get(referent.lifecycle_event_id) ?? []).length && !(index.cutsByEvent.get(referent.lifecycle_event_id) ?? []).length);
   if (thin.length) ask('life-thin', `${thin.length} li${thin.length === 1 ? 'fe is' : 'ves are'} one Event with nothing inside (${thin.slice(0, 8).map((referent) => displayName(referent.id)).join(', ')}${thin.length > 8 ? ', and more' : ''}). For a person: a want, a shock and the periods their part in the world needs. For a Thing (a machine, a document, an institution): its parts, capacities, limits and failure modes, and its history.`, 'life_profile_compile (person_scaffold or thing_scaffold) or life_model_revise', { referents: thin.map((referent) => referent.id) });
   const unestimated = index.cuts.filter((cut) => !estimated(cut) && cutKind(cut) !== 'other');
-  if (unestimated.length) ask('weights-unestimated', `${unestimated.length} Cut${unestimated.length === 1 ? '' : 's'} carry weights nobody estimated (for example ${unestimated.slice(0, 3).map((cut) => cut.id).join(', ')}). Estimate them from their described situations, or record whose distribution they are.`, 'life_estimate_cut_shares or life_process_estimate', { cuts: unestimated.slice(0, 12).map((cut) => cut.id) });
+  if (unestimated.length) ask('weights-unestimated', `${unestimated.length} Cut${unestimated.length === 1 ? '' : 's'} carry weights nobody estimated (for example ${unestimated.slice(0, 3).map((cut) => cut.id).join(', ')}). Estimate them from their described situations, or record whose distribution they are: begin each Cut\'s provenance with estimator:, supplied: or a tag and why (sketch: …), as life_series_record does.`, 'life_estimate_cut_shares or life_process_estimate', { cuts: unestimated.slice(0, 12).map((cut) => cut.id) });
   const undescribed = [...index.cutsByEvent.keys()].map((eventId) => index.events.get(eventId)).filter((event) => event && !index.readings?.has(event.id) && !String(event.description ?? '').trim());
   if (undescribed.length) ask('event-undescribed', `${undescribed.length} Event${undescribed.length === 1 ? '' : 's'} carrying Cuts ${undescribed.length === 1 ? 'has' : 'have'} no description (for example ${undescribed.slice(0, 3).map((event) => event.id).join(', ')}). What happens in each? Describe it, so its numbers mean something.`, 'life_model_revise');
   if (lives.length) {
@@ -1022,6 +1035,8 @@ export function readDraws(view) {
 // A question answered "sufficient here": an Understanding Node with data { schema: meaning-model-sufficient/v1, kind,
 // reason, reopenIf }, about the records the question concerns, or about a document root for every question of the kind.
 export const SUFFICIENT_SCHEMA = 'meaning-model-sufficient/v1';
+// How a question that needs no more is answered, named in the questions an agent most often answers that way.
+const sufficientNote = (kind) => `a note about the document root with data { schema: "${SUFFICIENT_SCHEMA}", kind: "${kind}", reason } (sufficientHow), and it is not asked again`;
 export function readSufficientHere(view) {
   // A note covers every question of its kind only when it says so, by being about a document root. A note about records
   // covers questions about those records, and lapses when they are gone rather than spreading to the whole kind.
@@ -1208,7 +1223,7 @@ export async function readOpenQuestions(service, { modelHash, model: read = null
     const revisions = model?.revision?.number ?? 0;
     if (revisions >= 1 && thoughts < revisions * 2) {
       questions.questions.unshift({ kind: 'understanding-outside', subject: null, principal: false, tool: 'life_understanding_record, life_story_author_record, life_understanding_read',
-        question: `The model has changed ${revisions} time${revisions === 1 ? '' : 's'} and its record holds ${thoughts} thought${thoughts === 1 ? '' : 's'}. Where is your understanding? Use the model as your mind: inspect whether consequential ideas, findings, decisions and their reasons, predictions and open questions are recorded and linked to what they concern, then build on that understanding. Batch related durable findings rather than writing a separate note for each thought or reply. The count is a prompt to inspect, not a semantic test or a quota for notes.` });
+        question: `The model has changed ${revisions} time${revisions === 1 ? '' : 's'} and its record holds ${thoughts} thought${thoughts === 1 ? '' : 's'}${accessScopes.length ? '' : ' visible without access scopes: if your notes were recorded under a scope, read the questions with that accessScopes'}. Where is your understanding? Use the model as your mind: inspect whether consequential ideas, findings, decisions and their reasons, predictions and open questions are recorded and linked to what they concern, then build on that understanding. Batch related durable findings rather than writing a separate note for each thought or reply. The count is a prompt to inspect, not a semantic test or a quota for notes.` });
       questions.total += 1;
       questions.counts['understanding-outside'] = 1;
       questions.questions.length = Math.min(questions.questions.length, limit);

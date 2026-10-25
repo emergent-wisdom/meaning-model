@@ -102,6 +102,10 @@ pub struct AbstractRelationDefinition {
     #[serde(default)]
     pub label: Option<String>,
     pub provenance: Vec<String>,
+    /// A withdrawn relation stays as history; a withdrawn specialization is no longer part of the current hierarchy,
+    /// so a re-carve can change its climb. Absent, it stays out of the record, so existing model hashes are unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub withdrawn: Option<RecordWithdrawal>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -2130,11 +2134,17 @@ pub(super) fn validate_meaning_model(
             &relation.provenance,
             &format!("abstract relation {}", relation.id),
         )?;
-        if relation.kind == AbstractRelationKind::Specialization {
+        // Like a withdrawn cut, a withdrawn specialization keeps its checks but leaves the current hierarchy.
+        if relation.kind == AbstractRelationKind::Specialization && relation.withdrawn.is_none() {
             abstract_edges.push((
                 relation.source_concept_id.as_str(),
                 relation.target_concept_id.as_str(),
             ));
+        }
+    }
+    for relation in &meaning_model.abstract_relations {
+        if let Some(withdrawal) = &relation.withdrawn {
+            withdrawal.validate(&format!("abstract relation {}", relation.id), &relation.id, &relation_ids)?;
         }
     }
 
@@ -2785,6 +2795,7 @@ pub(super) fn test_meaning_model_fixture() -> MeaningModelDefinition {
             kind: AbstractRelationKind::Specialization,
             label: None,
             provenance: vec!["unit-test".to_owned()],
+            withdrawn: None,
         }],
         abstract_cuts: vec![AbstractCutDefinition {
             id: "love-components".to_owned(),
@@ -3910,8 +3921,23 @@ mod tests {
                 kind: AbstractRelationKind::Specialization,
                 label: None,
                 provenance: vec!["unit-test".to_owned()],
+                withdrawn: None,
             });
-        assert!(failure(abstract_cycle).contains("abstract structural graph must be acyclic"));
+        assert!(failure(abstract_cycle.clone()).contains("abstract structural graph must be acyclic"));
+        // A withdrawn specialization stays as history but leaves the current hierarchy, so the climb it closed is open
+        // again; it serializes its withdrawal, and an absent one stays out of the record.
+        let mut reversed = abstract_cycle;
+        reversed.abstract_relations[0].withdrawn = Some(RecordWithdrawal {
+            reason: "The climb was re-carved: social process is not a kind of love.".to_owned(),
+            superseded_by: vec!["care-specializes-to-social-process".to_owned()],
+        });
+        validate_meaning_model(&reversed, &test_processes()).expect("a withdrawn specialization does not close a cycle");
+        let json = serde_json::to_value(&reversed.abstract_relations).unwrap();
+        assert_eq!(json[0]["withdrawn"]["superseded_by"][0], "care-specializes-to-social-process");
+        assert!(json[1].get("withdrawn").is_none(), "absent withdrawals stay out of existing model hashes");
+        let mut unknown = reversed.clone();
+        unknown.abstract_relations[0].withdrawn.as_mut().unwrap().superseded_by = vec!["nope".to_owned()];
+        assert!(failure(unknown).contains("abstract relation social-process-specializes-to-love withdrawal names invalid replacement nope"));
 
         let mut physical_cycle = test_meaning_model_fixture();
         physical_cycle.physical_cuts.push(PhysicalCutDefinition {

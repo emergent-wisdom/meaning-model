@@ -17,6 +17,11 @@ import { keepAnswerReferences } from './answer-references.mjs';
 export const SERIES_TAGS = Object.freeze(['source', 'inferred', 'invented', 'exploring', 'sketch']);
 const REMAINDER = 'remainder';
 const SUM_TOLERANCE = 1e-6;
+// Shares written to two or three decimals can miss one by a rounding step: within this, the difference goes to the
+// largest share and the result says so; anything further off is still refused.
+const ROUNDING = 0.005;
+// What was rounded in a change, read by the caller for its result.
+export const seriesRounding = new WeakMap();
 const SERIES_ID = /^[a-z0-9][a-z0-9_-]{0,79}$/u;
 const KEY = /^[a-z][a-z0-9_]{0,63}$/u;
 
@@ -88,6 +93,7 @@ export function seriesChange(previous, input) {
   const intervals = existing.map((cut) => events.get(cut.parent_event_id)?.interval).filter(Boolean);
   const upsertEvents = []; const upsertRelations = []; const upsertCuts = []; const removeRelations = []; const seen = new Set();
   const relationIds = new Set((mm.event_relations ?? []).map((relation) => relation.id));
+  const rounded = [];
   for (const reading of readings) {
     const { start, end } = reading;
     const label = `${series.id} ${stamp(start)} to ${stamp(end)}`;
@@ -99,15 +105,21 @@ export function seriesChange(previous, input) {
     seen.add(id);
     const unknown = Object.keys(reading.weights).filter((key) => !allowed.has(key));
     if (unknown.length) throw new Error(`Reading ${label} weighs ${unknown.join(', ')}, which ${unknown.length === 1 ? 'is not an answer' : 'are not answers'} of this series${unknown.includes(REMAINDER) ? '; declare series.remainder to name a remainder' : ''}.`);
-    const total = Object.values(reading.weights).reduce((sum, weight) => sum + weight, 0);
-    if (Object.values(reading.weights).some((weight) => !Number.isFinite(weight) || weight < 0) || Math.abs(total - 1) > SUM_TOLERANCE) {
+    const weights = { ...reading.weights };
+    const total = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
+    const valid = Object.values(weights).every((weight) => Number.isFinite(weight) && weight >= 0);
+    if (valid && Math.abs(total - 1) > SUM_TOLERANCE && Math.abs(total - 1) <= ROUNDING + SUM_TOLERANCE) {
+      const largest = Object.keys(weights).reduce((best, key) => (weights[key] > weights[best] ? key : best));
+      weights[largest] = Number((weights[largest] + (1 - total)).toFixed(12));
+      rounded.push({ reading: label, sum: Number(total.toPrecision(12)), adjusted: largest });
+    } else if (!valid || Math.abs(total - 1) > SUM_TOLERANCE) {
       throw new Error(`Reading ${label}: the shares must be nonnegative and sum to 1; they sum to ${Number(total.toPrecision(12))}.`);
     }
     // How sure the reading is, when the agent says: a first estimate low, raised as the interval is recorded again.
     const provenance = [`${reading.tag}: ${reading.why.trim()}`, ...(reading.confidence === undefined ? [] : [`confidence ${Number(reading.confidence.toFixed(3))}`])];
     const answers = [...keys.map((key) => { const answer = series.answers.find((item) => item.key === key);
-      return { key, weight: reading.weights[key] ?? 0, meaning: answer.meaning, ...(answer.refersTo ? { refers_to: referenceOf(answer.refersTo) } : {}) }; }),
-      ...(series.remainder ? [{ key: REMAINDER, weight: reading.weights[REMAINDER] ?? 0, meaning: series.remainder.meaning }] : [])];
+      return { key, weight: weights[key] ?? 0, meaning: answer.meaning, ...(answer.refersTo ? { refers_to: referenceOf(answer.refersTo) } : {}) }; }),
+      ...(series.remainder ? [{ key: REMAINDER, weight: weights[REMAINDER] ?? 0, meaning: series.remainder.meaning }] : [])];
     if (enclosing) {
       const parentCut = enclosing.get(id);
       if (!parentCut) throw new Error(`Reading ${label} opens ${series.conditionedOn.seriesId}, which has no reading of exactly that interval to divide.`);
@@ -139,7 +151,9 @@ export function seriesChange(previous, input) {
   const upsert = { normalized_cuts: upsertCuts.map((cut) => keepAnswerReferences(cut, cuts.find((old) => old.id === cut.id))) };
   if (upsertEvents.length) upsert.events = upsertEvents;
   if (upsertRelations.length) upsert.event_relations = upsertRelations;
-  return { reason: input.reason, provenance: ['life_series_record'], upsert, ...(removeRelations.length ? { remove: { event_relations: removeRelations } } : {}) };
+  const change = { reason: input.reason, provenance: ['life_series_record'], upsert, ...(removeRelations.length ? { remove: { event_relations: removeRelations } } : {}) };
+  if (rounded.length) seriesRounding.set(change, rounded);
+  return change;
 }
 
 // How a recorded series will draw in the viewer: how many of its readings join a curve, and if none do, why. This is

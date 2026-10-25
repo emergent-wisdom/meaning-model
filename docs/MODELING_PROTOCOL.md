@@ -1,9 +1,12 @@
 # Meaning Model Modeling Protocol
 
 Begin with `life-sim://guide/start-here`: what the Meaning Model is for and how
-to work in it. Then read the complete current *Meaning Model: Minimized Grammar*
-before first modeling, then this operational protocol. Every fresh agent, including a
-delegated agent, needs that reading; another agent's reading does not cover it.
+to work in it, and the process breakdown. Put a rough model of the whole on the
+page first: the seed in `life_modeling_context`'s `firstWrite`, then its top
+processes with guessed values. Then read the complete current *Meaning Model:
+Minimized Grammar* and this operational protocol before you write records by hand,
+assess a model or begin a deeper pass. Every fresh agent, including a delegated
+agent, needs that reading; another agent's reading does not cover it.
 The grammar is served at `life-sim://protocol/grammar`. If the host exposes only
 tools, call `life_modeling_read` with that URI and follow `nextOffset` until it
 is null. The same tool serves the guides. Reuse an unchanged grammar while its
@@ -44,8 +47,11 @@ playback to see newly saved revisions.
 For a model without time positions, show Graph or Structure and explain what is
 still missing.
 
-Call `life_modeling_context`, read the grammar, this protocol and the guide or profile for the
-purpose, and inspect its worked example before expanding a model. A profile's
+Call `life_modeling_context` and read start-here and the process breakdown. Your first write can be
+the seed in the context's `firstWrite`, and your next few a rough model of the whole through
+`life_values_record`, `life_series_record` and `life_carve_record`. Read the grammar, this protocol and
+the guide or profile for the purpose, and inspect its worked example, before you write records by hand,
+assess a model or expand it past its rough first account. A profile's
 categories and compiler remain optional. Open a relevant paper section when a
 distinction needs its reason or a difficult case exceeds this guidance; complete
 research-paper reading is not a prerequisite beyond the required grammar. Resource digests identify versions, not
@@ -324,24 +330,27 @@ states or phases and links to related processes. A starter or list of names is
 only a beginning. Make the model inspectable in the viewer, including clearly
 labeled hypothetical trajectories, so the user can follow several processes
 through time. A current value plus prose about past change does not represent
-that course. Refine an existing process when that is more informative than adding
-another; avoid duplicate labels and activity added solely for display. When you
-pause to report, state what was modeled, its assumptions and what remains to
-explore, then go on. Pausing to report is not stopping. Nothing here is ever
-finished: the model can always learn more and grow its understanding, and a
-story can always gain backstory and be revised by it. What ends is a pass. A
-pass is done when the coverage report says done: every level of its time
-schedule filled, by values and series readings, no process empty, none passing
-over your own Events and no reading left flat. life_values_record,
-life_series_record and life_model_questions each return it. A story's pass is
-done when the agreed prose is delivered and every gap in the world the story
-depends on, such as those the coverage report names, is filled in the model and
-reflected in the prose: stating a gap does not fill it. A narrow task's pass is
-done when the task has what it needs. If the user, time or budget ends a pass
-sooner, say the pass is unfinished and what is left undone; budget not yet spent
-is no reason to end it. When a pass is done, say you are done for this pass,
-report what changed, and record what you leave for another pass, each with why
-it can wait: another pass can always move through the world in more depth.
+that course. Refine an existing process when that is more informative than
+adding another; avoid duplicate labels and activity added solely for display.
+When you pause to report, state what was modeled, its assumptions and what
+remains to explore, then go on. Pausing to report is not stopping. Nothing here
+is ever finished: the model can always learn more and grow its understanding,
+and a story can always gain backstory and be revised by it. What ends is a pass,
+and a pass is done when its aim is met. A pass that builds or extends a world
+aims at what the coverage report measures: every level of its time schedule
+filled, by values and series readings, no process empty, none passing over your
+own Events and no reading left flat. life_values_record, life_series_record and
+life_model_questions each return it. A story's pass is done when the agreed
+prose is delivered and every gap in the world the story depends on, such as
+those the coverage report names, is filled in the model and reflected in the
+prose: stating a gap does not fill it. A pass with a narrower aim, such as one
+task, one region or what an earlier pass left, is done when that aim has what it
+needs; the coverage report does not hold it back, and what the report still
+names goes in the closing note. If the user, time or budget ends a pass sooner,
+say the pass is unfinished and what is left undone; budget not yet spent is no
+reason to end it. When a pass is done, say you are done for this pass, report
+what changed, and record what you leave for another pass, each with why it can
+wait: another pass can always move through the world in more depth.
 
 Candidate actor processes may include wants, fears, concern, attachment, beliefs,
 strategies, decisions, emotions, relationships, bodily state, and perceived options. These are
@@ -365,7 +374,7 @@ they are recorded; do not invent missing views merely to complete a template:
 1. **External event model:** what appears to happen to and through the actor.
 2. **Candidate actor-local models:** alternative hypotheses about what the
    actor notices, means, wants, fears, believes, and considers possible.
-3. **Reported self-model:** how the actor describes themselves.
+3. **Own account:** how the actor describes themselves.
 
 The operative actor-local model is whatever organization actually conditions
 the modeled action. Neither an external estimate nor a self-description is

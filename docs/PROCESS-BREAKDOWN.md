@@ -358,6 +358,26 @@ does, record why it stays whole (`keepWhole`), as a kind of the next broader con
 leaves it out until the Events that move it, or its unexplained moves, grow by half. Neither answer is required
 before you go on; the check is there so the question gets asked.
 
+Ask the same of the whole model. Beside the deepen check, a **breadth check** asks whether something is changing
+that no process follows. It groups the Events that name no process by the importance scale they are judged on, or by
+the Event that holds them, and names the group that weighs most, with any Events that state a quantity. It also asks
+what is in a remainder share of 15% or more, and what a carve whose completeness did not pass left without a home.
+Where other Events of the group already name processes, link first: name in each Event's `process_ids` the process it
+changes. Otherwise open what they change as a new process with a measure and rough values over time. If it is not
+worth following for what the model is for, record why with `life_breadth_record`; the check then leaves it out until
+its evidence grows by half, and by at least two Events. Each line shows when what it names changes, and every third revision, so a question you are
+not answering yet is not repeated on every write.
+
+Now and then, read the whole tree. `life_model_outline` with `sections: ["processes"]` and `detail: "skeleton"` shows
+every process under the one it was carved from, with its measure, and the line above it gives the tree's size level
+by level. Read it as one account and ask, from the whole, where more could be added: a part one branch has that its
+siblings lack, a place, group or period the rest of the tree covers that one branch leaves out, a measure the whole
+implies that no process follows. The deepen check looks at one process and the breadth check at the Events; this is
+the question only the whole tree answers. The values report asks for this **whole-tree review** once the tree has
+eight processes, and again when it has grown by a quarter or fifty revisions have passed. Open what is worth
+following, then record the review with `life_breadth_record` under the candidate `tree:whole`: `modeled`, naming a
+process you opened, or `not_modeled`, with why nothing more is worth following now.
+
 ### Two different links, never to be confused
 
 - **Specialization** (*is a kind of*): a madeleine is a kind of cake; a chiefdom is a kind of polity. It is
@@ -1331,6 +1351,8 @@ subcategories, read at regular intervals, the Events that moved them, and the pe
 | A shock with anticipation, focal change and adaptation | `life_profile_compile` with `change_arc_scaffold` |
 | A Thing (an institution, a machine) or a relationship | `life_profile_compile` with `thing_scaffold`, `relationship_scaffold` |
 | A carve: its frame, climb, verdicts, abstract cut and synthesis | `life_carve_record` |
+| An answer to the breadth check: linked, followed by a process, or not followed and why | `life_breadth_record` |
+| A whole-tree review: the tree read whole, and what it opened or why nothing more | `life_breadth_record` with candidate `tree:whole` |
 | Events, concepts, places | `life_model_register`, `life_model_revise` |
 | Values of many processes at once, including a feeling's intensity or a want's strength | `life_values_record` |
 | A series of Cuts (wants, outlook, feelings, attention…) | `life_series_record` |

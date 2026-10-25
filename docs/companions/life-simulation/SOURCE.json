@@ -5,12 +5,12 @@
   "release_provenance_status": "content_verified",
   "artifact": "life-simulation.tex",
   "source_path": "paper/life-simulation.tex",
-  "sha256": "319344dcb1f656698c149d3ccd4ac55e2d28f2a9d04ea6232874c2527ae961bb",
+  "sha256": "d41d46a7ea501fc595ed95a3c3a85376195b5101340536c01938bda224330020",
   "dependencies": [
     {
       "artifact": "references.bib",
       "source_path": "paper/references.bib",
-      "sha256": "e5183edd35889658354f7bf380ac35f7772f68fcf4c68465dd87317ebba683e8"
+      "sha256": "c07e6b25ce486f4113b51390eecf9de9eff9ba52517ade9db4fdc4852be2538f"
     },
     {
       "artifact": "emergentwisdom-longform.sty",

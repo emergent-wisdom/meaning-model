@@ -1,4 +1,4 @@
-# Person Modeling Profile
+# Self Model Profile
 
 Use this profile only after reading the current *Meaning Model* and *Life
 Simulation* papers and the common modeling protocol. For a real person, obtain
@@ -12,8 +12,8 @@ Using the general model tools does not require compiling the Person profile.
 
 ## Purpose
 
-Help a person inspect one bounded period of life as a transparent chronological
-model. The result is a revisable aid to reflection, not a diagnosis or a claim
+A self model helps a person inspect one bounded period of life as a transparent
+chronological model. The result is a revisable aid to reflection, not a diagnosis or a claim
 to reveal the person's true inner state.
 
 ## Three linked views
@@ -25,7 +25,7 @@ Build one shared evidence history and three viewpoint-indexed interpretations:
 2. **Candidate internal models:** several AI hypotheses about what may have
    been salient, meaningful, wanted, feared, believed, or strategically
    available.
-3. **Reported self-model:** the person's own present account, including
+3. **The person's own account:** their present account of themselves, including
    uncertainty and later reinterpretation.
 
 Do not merge these views. The person's report has authority as a report; it is

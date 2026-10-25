@@ -93,24 +93,6 @@ export async function branchesAlong(service, modelHash, { stopAt = null, floor =
 // revision.
 export const BRANCH_GRAPH_PREFIX = 'future.';
 
-// Every fork revision in the store, with its model id and revision number. A graph's source is read without its
-// content, so no access scope hides a fork.
-export async function forkRevisions(service) {
-  // A store that keeps no narrative graphs (a stand-in in a test, a model-only host) holds no branches.
-  if (typeof service.listNarrativeRevisions !== 'function') return new Map();
-  const listing = await service.listNarrativeRevisions({});
-  const forks = new Map();
-  for (const revision of (listing?.revisions ?? []).filter((item) => item.is_root && String(item.graph_id).startsWith(BRANCH_GRAPH_PREFIX))) {
-    const view = await service.queryNarrativeGraph({ graphHash: revision.graph_hash, mode: 'skeleton', accessScopes: [] });
-    const fork = view.graph?.source?.kind === 'model' ? view.graph.source.model_hash : null;
-    if (fork && !forks.has(fork)) {
-      const header = await revisionHeader(service, fork);
-      if (header && branchMarkerOf(header)) forks.set(fork, { modelId: header.modelId, number: header.number });
-    }
-  }
-  return forks;
-}
-
 // Branch identity belongs to the model's immutable ancestry, not the presence or name of a graph in this store.
 // A model-only host and a store with imported models must make the same decision. An incomplete bounded walk is
 // reported, never interpreted as proof that the revision is a trunk.

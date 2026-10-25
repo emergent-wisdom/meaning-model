@@ -164,6 +164,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
     const { tools } = await client.listTools();
     const names = tools.map(({ name }) => name).sort();
     assert.deepEqual(names, [
+      'life_breadth_record',
       'life_candidate_accept',
       'life_candidate_annotate',
       'life_candidate_compare',
@@ -356,7 +357,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
     assert.deepEqual(modelingContext.structuredContent.personalModelViews, [
       'external event history',
       'alternative AI-inferred actor-local models',
-      "the person's reported self-model",
+      "the person's own account",
     ]);
     const profileTool = tools.find(({ name }) => name === 'life_profile_compile');
     assert.match(profileTool.description, /read-only/);

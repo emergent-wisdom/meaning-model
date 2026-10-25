@@ -208,6 +208,7 @@ test('spatial diagnostics distinguish named settings from numbers that are not p
   assert.equal(result.depth.spatial.settingBindings, 1);
   const question = result.questions.find((item) => item.kind === 'spatial-resolution');
   assert.match(question.question, /Otherwise keep the qualitative account/);
+  assert.match(question.question, /say why it is sufficient once, in a note about the document root with data \{ schema: "meaning-model-sufficient\/v1", kind: "spatial-resolution", reason \}/u);
   assert.match(question.question, /explicitly authored fictional local layouts/);
   model.meaning_model.event_referent_bindings[1].binding_type = 'spatial_setting';
   assert.equal(spatialDiagnostics(model).settingBindings, 1, 'existing vocabulary remains readable');

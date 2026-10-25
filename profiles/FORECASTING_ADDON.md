@@ -10,8 +10,8 @@ continuations of the model under each answer of a forecast, each option of a dec
 to the past, which you can move between quickly and compare. Forecasts themselves need no add-on.
 
 This is a first part of what the Life Simulation paper describes in "Simulating implementation and following its
-effects" and "Perspective-limited rehearsal", sections of its revision of September 19, 2026; the companion copy this
-server serves (`life-sim://theory/life-simulation`) is an earlier revision without them. Nothing here learns or runs
+effects" and "Perspective-limited rehearsal", sections of its revision of October 25, 2026, which is the companion copy
+this server serves (`life-sim://theory/life-simulation`). Nothing here learns or runs
 dynamics: you continue each branch with the
 ordinary tools, and the add-on keeps branches apart, records what each assumes and with what probability, asks what
 each premise may change, and sets siblings side by side.

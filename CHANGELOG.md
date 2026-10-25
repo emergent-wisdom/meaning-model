@@ -4,6 +4,145 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## 0.15.0 — 2026-10-25
+
+0.14.0 was prepared but never published. 0.15.0 is the first release with its changes, listed after this release's own.
+
+**The self model**
+- The `person_reflection` purpose is described as the self model: a real person's life, modeled with them. Its method
+  asks the agent to build the model with the person coarse first and let the model's gaps decide what to ask next,
+  looking for what kinds of gaps there are and asking about the one that matters most to them, one question at a time;
+  to understand the person through the model, holding hypotheses about them as its own notes, offering them as
+  questions and testing them by prediction; and to treat the person as the authority on their own life, where a gap
+  can stay open. What the person reports is source, what the agent infers is inferred, and a guess stays the agent's
+  until the person confirms it.
+- The third view of a person, beside the external history and the AI's candidate models, is now called the person's
+  own account. The purpose id `person_reflection` and every field name are unchanged.
+
+**The tree of processes, read whole**
+- `life_model_outline` shows the processes as their tree: each under the one it was carved from, with its measure, how
+  many values it holds and the first and last date they reach, how many parts it has or whether it is kept whole by a
+  recorded decision. A line above the tree gives its size level by level from the top. With detail `"skeleton"` the
+  whole tree of a large model fits one result: 239 processes in about 21,000 characters.
+- A whole-tree review: once the tree has eight processes, the values report asks the modeler to read the whole tree and
+  ask where more could be added (a part one branch has that its siblings lack, a place, group or period the rest of
+  the tree covers that one branch leaves out, a measure the whole implies that no process follows). The review is
+  recorded with `life_breadth_record` under the candidate `tree:whole`, answered `modeled` with a process it opened or
+  `not_modeled` with why, and it comes back when the tree has grown by a quarter (and by at least three processes) or
+  fifty revisions have passed. Its line is shown when there is no earlier report to compare with and on every third
+  revision, so it is not repeated on every write; the report's `tree` gives the size of the tree and when it was last
+  read.
+- The outline shows a process filed under two parents in full under the first and names it as a shared part under each
+  other, so every process shows all its parts and the count of processes without parts is right.
+
+**Trying a mechanism in our world**
+- The alien add-on's guide suggests, as one option, trying a found mechanism against our world: bind a model of it as
+  the transfer's target (an existing world history, that history opened deeper where the mechanism would act, or a new
+  model built for the purpose) and follow the mechanism there with fit Cuts over time. The paper's mechanism-search
+  section says the same, and that this tests a candidate against the account, not yet the world.
+
+**The paper, the grammar and the companion**
+- The paper reports a third construction: a world history from about 300,000 years ago to 2025, carved before any
+  values were recorded and then built and extended in passes, most of them by a fresh agent. It is counted at three
+  states, 15, 18 and 20 October, with a figure of its growth along 843 model revisions, and its latest state is
+  tested without changing it. The states of 15 and 18 October are published in its own repository; the passes of 19
+  and 20 October are not.
+- The paper says why the method asks the model to guess: a guess makes implicit knowledge explicit, as a best
+  estimate with an honest band and a tag saying what it rests on, and stays addressable, so later evidence can revise
+  it. The paper and the grammar replace the stopping rule with an order of opening whose aim is the totality over
+  time: detail not yet opened is postponed, not excluded, as a distant city may first exist only as its coarse
+  processes.
+- The paper describes how a carve is chosen as well as how it is kept: candidate parts tested for necessity, the
+  accepted set tested for completeness, best against an independent list, and a number test for each part. The
+  grammar states cause assessments: one holder, one outcome Event and a stated contrast, with the difference each
+  cause made on one declared measure; differences do not sum and are not Cut shares. The ranking of processes never
+  divided is called the construction heuristic; learning when opening detail pays is left to Life Simulation.
+- Two tests are published with the paper, each in an appendix with its records under `paper/supplements`. The first
+  asks whether every concept can be followed as a process: seventeen concepts, most chosen because they seemed unable
+  to be processes (a prime number, negation, a square circle, a moment), were predicted, attempted in the grammar and
+  attempted again by a second model that saw neither the predictions nor the first attempt. Every concept could be
+  followed once something was attached to it; only some are processes themselves. The second gives a process by a
+  program instead of numbers: the Book's calculation office as engine laws, rolled forward in three runs (two jobs a
+  month, four, and four with a second checker), with a rule and threshold invented to show the form.
+- A section on patterns over time records fit Cuts for eight Dynamics patterns and for long-cycle theorists, so how well
+  a mechanism fits a place and period is itself a value that changes over time.
+- The proposed evaluation begins with the elicitation's reliability: scored Cuts are elicited again by the model that
+  wrote them and by models of other families, each in a fresh context, and their spread sets the finest grid a weight
+  may claim.
+- A shorter abstract leads with the method and the tool. The method and the tool come before the constructions, and
+  the Book and the world history form one section, Constructions, closed by the evaluation. A reader's map in the
+  introduction and a glossary of the coined terms are added. Provenance and implementation detail moved word for word
+  from the main text to the appendices, and repeated disclaimers were cut where the limit is stated in its own place.
+- Related work relates the method to POMDPs and active inference, and learning and self modeling are named among the
+  uses. Storytelling names the realism levels a story's world may take, from our world as it is to an invented world
+  with its own laws. Mechanism search reaches near worlds as well as far ones, including branches of our own world's
+  history under its laws, which suggest hypotheses rather than give evidence.
+- Corrections: the world history's sum check says why wholes and parts agree, since they were recorded to agree, so it
+  shows agreement, not that either is right; the Book's model readers are named as from the writer's own model
+  family; and the Brier score cites Brier (1950). The paper's revised date is the date it is built, in UTC. The paper
+  states that a recorded carve does not show whether its routing sample was chosen first or its verdicts reached
+  independently, and that agents on releases before 0.13.0 may not have read all the guidance the tool sent them.
+- The Life Simulation companion the server serves is its revision of October 25, 2026, bound to its file digests, in
+  place of the September 5 copy bundled since the first release. The READMEs and the forecasting add-on guide name
+  that revision.
+
+### Prepared as 0.14.0, first released in 0.15.0
+
+The engine gains one optional field: a relation between concepts can be withdrawn (`withdrawn`, as Events, Cuts and
+concepts already can). Models and histories open as before, with the same hashes.
+
+This release is about getting agents to fill the model with data and keep breaking it down, instead of reading,
+bookkeeping or stalling on what the reports ask.
+
+**A model on the page early**
+- `life_modeling_context` gives a seed for the first write (`firstWrite`): a `life_model_register` call with one root
+  process and the world it happens in, to rename and register. Each required text now says when it is due (`due`,
+  and `readingTiming`): start-here and the process breakdown at the start; the grammar, the operational protocol,
+  the guide or profile for the purpose and its example before writing records by hand, before assessing or reviewing
+  a model, and when a deeper pass begins. Until then an agent's first writes are the seed and a rough model of the
+  whole through `life_values_record`, `life_series_record` and `life_carve_record`, which check what they are given.
+  Delegated roles still read the grammar before they construct, revise or assess.
+- A pass is done when its aim is met. A pass that builds or extends a world still aims at what the coverage report
+  measures. A pass with a narrower aim, such as one region or what an earlier pass left, is not held back by the
+  report, and what the report still names goes in its closing note. The coverage report says so after its count of
+  what is left.
+- A schedule boundary is met at its printed date or at the exact point it was rounded from, and a reading is counted
+  for a block beside a rounded boundary only when it fits that block. On one 544-process model, what the
+  schedule asked for fell from 1,334 values and readings to 917.
+
+**Breaking it down further**
+- A breadth check beside the deepen check: is something changing that no process follows? It groups the Events that
+  name no process by the importance scale they are judged on, or by the Event that holds them, and names the group
+  that weighs most, with any that state a quantity. It also asks what is in a remainder share of 15% or more, and what
+  a carve whose completeness did not pass left without a home. Where other Events of the group name processes, it asks
+  to link them first. The values report carries its line and its top five (`breadth`); it never blocks.
+- `life_breadth_record` answers it: linked (every Event of the group now names a process), modeled (naming the process
+  that now follows it) or not modeled, with why. The answer is one concept in the model, so the check leaves the
+  candidate out until its evidence grows by half, and by at least two Events or quantities; given the graph, it is
+  also a decision note. A reading in a scope that hides the process following an answer sees only that the candidate
+  was answered, not the answer's words.
+- The deepen and breadth lines show when what they name changes, and every third revision, not on every write.
+- A kind-of relation can be withdrawn. Carving again under a new climb withdraws the earlier climb's relations it no
+  longer uses, and a climb that would close a loop among the concepts is refused with the relation that closes it.
+- A carve whose candidates are kinds, kept whole, points to following them as shares over time with
+  `life_series_record`.
+
+**Fewer refusals and repeats**
+- `life_series_record` takes shares that miss one by a rounding step (at most 0.005): the difference goes to the
+  largest share, and the result names each reading it adjusted (`rounded`).
+- A process named twice in one `life_values_record` call has its points and its specs merged, as when one entry opens
+  it and another files it under a parent; only two values for the same field are refused, by name.
+- `life_values_record` and `life_series_record` declare a result of 100,000 characters, as the other reports do, and a
+  larger one keeps the first entries of its long lists.
+- A `meaning` given for a process that exists replaces the description it has.
+- `composition` given as a relation kind is answered with where a concept's parts belong (an abstract cut).
+- Questions that came back after they were answered now clear:
+  - `laws-missing` counts regularities stated as relations between concepts;
+  - a Cut whose provenance starts with a tag and a why, as every series reading does, counts as estimated;
+  - the question on recorded understanding says when notes recorded under an access scope were not counted, because
+    the questions were read without it;
+  - `laws-missing` and `spatial-resolution` say how to decline them once, with a sufficiency note.
+
 ## 0.13.1 — 2026-10-15
 
 The engine and the model format are unchanged: models and histories open as before.

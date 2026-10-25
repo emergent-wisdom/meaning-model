@@ -159,3 +159,26 @@ test('a whole series is one call: dated readings with reasons draw as a curve, n
     answers: [{ key: 'validation', meaning: 'v' }, { key: 'block_building', meaning: 'b' }, { key: 'verification', meaning: 'c' }] },
   readings: [{ start: 2016.5, end: 2017, why: 'No parent reading of this interval.', tag: 'exploring', weights: { validation: 1 } }] }, /no reading of exactly that interval to divide/);
 });
+
+test('shares that miss one by a rounding step are taken, with the difference on the largest share and the result saying so', async (t) => {
+  const client = new Client({ name: 'series-rounding-test', version: '0.1.0' });
+  const env = { ...process.env, MEANING_MODEL_ADDONS: '' }; delete env.LIFE_SIM_STATE_FILE;
+  await client.connect(new StdioClientTransport({ command: process.execPath, args: [serverPath], env }));
+  t.after(() => client.close());
+  const base = (await client.callTool({ name: 'life_model_register', arguments: { requestId: 'base', model } })).structuredContent;
+  const result = await client.callTool({ name: 'life_series_record', arguments: { requestId: 'rounded', previousModelHash: base.modelHash, subject: 'referent.protocol', series: priorities,
+    reason: 'Shares written to three decimals.', readings: [reading(2014, 2018, 0.333, 0.333, 0.333), reading(2018, 2022, 0.5, 0.3, 0.2)] } });
+  assert.ok(!result.isError, JSON.stringify(result.content));
+  assert.deepEqual(result.structuredContent.rounded.readings, [{ reading: 'protocol-priorities 2014 to 2018', sum: 0.999, adjusted: 'decentralization' }]);
+  const stored = (await client.callTool({ name: 'life_model_inspect', arguments: { modelHash: result.structuredContent.modelHash, includeDefinition: true } })).structuredContent.model.meaning_model;
+  const cut = stored.normalized_cuts.find((item) => item.id === 'cut.series.protocol-priorities.2014-2018');
+  assert.deepEqual(Object.fromEntries(cut.answers.map(({ key, weight }) => [key, weight])), { decentralization: 0.334, efficiency: 0.333, security: 0.333, remainder: 0 });
+  // Further off than a rounding step is still refused.
+  const refused = await client.callTool({ name: 'life_series_record', arguments: { requestId: 'off', previousModelHash: base.modelHash, subject: 'referent.protocol', series: priorities,
+    reason: 'Off by more than rounding.', readings: [reading(2014, 2018, 0.33, 0.33, 0.33)] } });
+  assert.ok(refused.isError); assert.match(JSON.stringify(refused.content), /they sum to 0\.99/);
+  // Exactly one rounding step off, where floating point puts the difference a hair over 0.005, is taken.
+  const edge = await client.callTool({ name: 'life_series_record', arguments: { requestId: 'edge', previousModelHash: base.modelHash, subject: 'referent.protocol', series: priorities,
+    reason: 'Exactly a rounding step off.', readings: [reading(2014, 2018, 0.495, 0.5, 0)] } });
+  assert.ok(!edge.isError, JSON.stringify(edge.content));
+});

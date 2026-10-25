@@ -1,8 +1,8 @@
 // Futures: branches of a model, each continued from one premise, so that an agent can follow what may happen under
 // each answer of a forecast, each option of a decision or each assumption, or after a change to the past, and move
 // between them quickly. Life Simulation's sections "Simulating implementation and following its effects" and
-// "Perspective-limited rehearsal" (in the paper's revision of September 19, 2026; the companion copy this server serves
-// is earlier) describe the target; none of it is implemented, and this add-on builds a first part
+// "Perspective-limited rehearsal" (in the paper's revision of October 25, 2026, the companion copy this server serves)
+// describe the target; none of it is implemented, and this add-on builds a first part
 // inside the Meaning Model tool. Nothing here learns or runs dynamics: the agent continues each branch with the
 // ordinary tools. The add-on keeps branches apart from the trunk, records what each assumes and with what
 // probability, asks what each premise may change, and lays siblings side by side without totaling them.
@@ -834,8 +834,6 @@ export async function compareFutures(service, raw) {
     reading: 'Predictions only: each branch is assumed from its premise and continued by its author, so a consequence that recurs across branches written on one model is not independent confirmation. No total is computed and none should replace these rows: who gains and who bears the costs stays visible per person. A judgment between branches is yours to record, with the rows it rests on.',
   };
 }
-
-export const futuresInstructions = 'Futures: follow what may happen under each answer of a forecast, each option of a decision (with waiting or doing nothing among them where that is meaningful), several assumptions, or a change to the past, as sibling branches of the model forked together with life_future_fork from one trunk revision and information cutoff. A forecast answer\'s premise spans the forecast\'s whole window: a narrower timing or severity is a narrowing with no probability. The remainder is not branched. Continue each branch with the ordinary tools from its own modelHash, rebind its graph with life_narrative_rebind, and record your reasoning in its graph. life_future_load gives a branch\'s digest and its open consequence questions (untraced consequences, analogues and their weighed drivers, processes not yet followed, what siblings follow and this branch does not, the horizon). life_future_compare sets siblings side by side, per process and per person, without a total. Branches are hypothetical: never copy a branch\'s records into the trunk as what happened, and score forecasts only against what the trunk observed. Develop every sibling as far as the others.';
 
 export const FORECASTING_GUIDE_URI = 'life-sim://addon/forecasting';
 export function registerForecastingAddon(server, service, { toolResult }) {
