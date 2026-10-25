@@ -3584,8 +3584,11 @@ export const temporalController = {
       setAbout(target.id);
       const reaches = [...opt.about.bound].map((id) => treeById.get(id)?.reach).filter(Array.isArray);
       if (reaches.length && !reaches.some(([a, b]) => b >= F.a && a <= F.b)) showSpan(Math.min(...reaches.map((reach) => reach[0])), Math.max(...reaches.map((reach) => reach[1])));
-      // It is selected where it is: the camera follows the field as it narrows, as it does for any filter.
-      const selection = { kind: 'referent', id: target.id }; useSharedSelection(selection); publishRecord(selection); return;
+      // It is selected where it is, and the camera frames what is left once the narrowed field and the opened card have
+      // settled: following the field as it narrows would keep the old framing's offset and push it aside.
+      const selection = { kind: 'referent', id: target.id }; useSharedSelection(selection); publishRecord(selection);
+      setTimeout(() => { if (temporalActive && opt.about?.id === target.id) recenterView(); }, 400);
+      return;
     }
     if (target.kind === 'row') { if (target.record) this.showHighlight({ record: `${target.record.kind}:${target.record.id}` }); return; }
     if (target.kind === 'narrative' && noteById.has(target.id)) {
