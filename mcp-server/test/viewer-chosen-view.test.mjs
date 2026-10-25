@@ -80,7 +80,7 @@ test('the time view narrows to the model\'s choice, ends links on the readings t
   assert.match(source, /\(!opt\.curation\?\.notes\.size \|\| opt\.curation\.notes\.has\(light\.userData\.id\)\)/u);
   assert.match(source, /globalThis\.modelViewer\?\.noteAddress\?\.\(\);/u, 'each address the time view writes is checked against the model\'s view');
   assert.match(source, /const linkEnd = \(id\) => byId\.get\(id\) \?\? readingEnds\.get\(id\);/u);
-  assert.match(source, /for \(const key of \['record', 'timeView', 'chosen', 'level', 'adjusted'\]\)/u);
+  assert.match(source, /for \(const key of \['record', 'timeView', 'chosen', 'level', 'adjusted', 'within'\]\)/u);
   assert.match(source, /document\.getElementById\('chosen-view'\)\]\.filter\(Boolean\)/u, 'the scene makes room for the card');
   assert.match(start, /const opening = openingView\(location\.href, data\?\.views \?\? \[\]\);/u, 'the address is the model\'s view before any view reads it');
 });

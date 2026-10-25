@@ -3034,7 +3034,8 @@ function syncURL(immediate = false) {
     const madeText = () => (constructionByClock ? new Date(tau).toISOString() : `step:${tau.toFixed(3)}`);
     if (!atEnd && !playing) next.set('at', opt.mode === 'construction' ? madeText() : now.toFixed(4)); else if (!atEnd && opt.mode === 'construction') next.set('at', madeText());
     if (!document.getElementById('reader').hidden) next.set('read', document.getElementById('reader').classList.contains('full') ? 'full' : ''); if (!qrPanel.hidden) next.set('qr', '');
-    const retained = new URLSearchParams(location.search); for (const key of ['record', 'timeView', 'chosen', 'level', 'adjusted']) if (retained.has(key)) next.set(key, retained.get(key));
+    // The Chart's opened process is the Chart's own setting; the time views keep it for when the Chart is shown again.
+    const retained = new URLSearchParams(location.search); for (const key of ['record', 'timeView', 'chosen', 'level', 'adjusted', 'within']) if (retained.has(key)) next.set(key, retained.get(key));
     const keptQuery = next.toString().replace(/%2C/g, ',').replace(/%3A/g, ':').replace(/\+/g, '%20').replace(/=(&|$)/g, '$1');
     history.replaceState(null, '', `${location.pathname}${keptQuery ? `?${keptQuery}` : ''}`); globalThis.modelViewer?.noteAddress?.();
   };
