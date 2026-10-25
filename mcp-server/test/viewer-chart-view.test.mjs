@@ -442,8 +442,8 @@ test('a stacked row stands on zero in a straight scale, and lists the parts it d
 // A model whose own view is the Chart: a reader who opens a process has changed what it chose, so reopening the address keeps
 // the process. That needs `within` among the settings view-settings.js lists as the viewer's own, which is where the Chart's
 // other choices are recorded.
-test('reopening the address where the model\'s own view is followed keeps the process the reader opened', { todo: 'needs within in VIEW_SETTINGS (view-settings.js)' }, async () => {
-  const { noteAddress: fresh } = await import('../viewer/public/chosen-view.js?within-todo');
+test('reopening the address where the model\'s own view is followed keeps the process the reader opened', async () => {
+  const { noteAddress: fresh } = await import('../viewer/public/chosen-view.js?within-followed');
   const views = [{ id: 'v1', title: 'The tree', settings: { view: 'chart' } }];
   const opening = openingView(viewAddress('https://example.test/?data=m', views[0]), views);
   withAddress(opening.href, () => {

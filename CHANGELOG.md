@@ -21,6 +21,17 @@ unpublished work stays under Unreleased. This is not a development transcript.
 - The caption under the time views names only an Event the filters show; before, it could name one the importance
   filter hid.
 
+**The Chart: zooming down the tree of processes, and parts that add up**
+- A process with parts can be opened as the top of the rows (**Open** on its row or in its reading card): only it and
+  what it holds through the decomposition are drawn, with the path from the top of its branch above them; each step
+  opens that level and **All processes** draws the whole tree again. The address keeps it as `within`, and a view the
+  model chooses can set it. Without a decomposition nothing can be opened.
+- A process whose record declares `scale.aggregate: "sum"` shows its parts as layers beneath its curve, in its own
+  unit, on a straight scale from zero. What the whole holds beyond its parts is a plain remainder layer; where the parts
+  add up to more than the whole, the excess is hatched, flagged at each date and listed in the reading card. Parts that
+  cannot be stacked (another unit, another holder, values below zero) are listed with why. Means and other aggregates
+  are never stacked, and nothing is inferred from shared units.
+
 ## 0.17.0 — 2026-10-29
 
 The engine is reorganized into smaller modules for models, sessions, persistence and the numerical registry.

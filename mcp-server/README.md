@@ -128,7 +128,10 @@ decomposition and conditional Cut answers. Shared nodes remain references and
 answer weights remain local to each question. Use **Show it as** to switch among
 Processes, Tree, Terrain, Chart, Graph, Structure and Space on the same page. **Chart** puts the whole
 model on one time axis: the declared parts of one Event, its Events in rows by importance with their causal links, and a row for every
-process it follows, each read at the moment under the pointer. The selected
+process it follows, each read at the moment under the pointer. **Open** on a row
+makes that process the top of the rows, with the path to it above them (address
+setting `within`), and a process that declares its parts add up to it
+(`scale.aggregate: "sum"`) shows them stacked beneath its curve. The selected
 record and time position remain available across these representations. **Coarse view**
 returns to the broadest process overview; expose subprocesses with more detail.
 **Recenter** (or Home outside text fields) fits the current representation.

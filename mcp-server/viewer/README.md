@@ -83,10 +83,8 @@ from declared records, so it is tested without a browser.
   search that the opened top does not draw opens at the nearest level above it that does. The choice is the view's
   `within` setting, the id of the process, written to the address as the focus is and checked against the model's chosen
   view the same way (`noteAddress`), so a reload or a shared link reopens it; one that names a process the chart does
-  not draw, or one the decomposition leaves out, is ignored. Where the address follows the model's own recorded view,
-  the setting is kept only once `within` is among the settings `public/view-settings.js` lists as the viewer's own; until
-  then such an address opens the view's own settings and drops it. Without a decomposition no process can be opened, so
-  neither Open nor the path appears.
+  not draw, or one the decomposition leaves out, is ignored. A view the model chooses can set it too. Without a
+  decomposition no process can be opened, so neither Open nor the path appears.
 - **Parts that add up** are stacked only where the model says so: `scale.aggregate: "sum"` on the process record. A
   mean, or any other aggregate, is never stacked, and nothing is inferred from parts that merely share a unit. Such a
   process shows its parts as layers beneath its own curve, in its own unit, adding up to it, with each part's value
