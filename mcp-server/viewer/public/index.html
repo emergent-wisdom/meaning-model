@@ -223,6 +223,8 @@
   .search-label { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .search-snippet { grid-column: 2; color: var(--ink-2); font-size: 12px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   @media (max-width: 760px) { .search-wrap { flex: 1 1 100%; } .tool.search, .tool.search:focus { width: 100%; } }
+  .about-chip { max-width: 240px; } .about-chip #about-name { overflow: hidden; text-overflow: ellipsis; } .about-chip .about-clear { color: var(--muted); font-size: 11px; }
+  body.capture .about-chip .about-clear { display: none; }
   .tool { height: var(--control); display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 0; border-radius: var(--radius); background: var(--panel); box-shadow: 0 0 0 1px var(--ring) inset; backdrop-filter: blur(8px); color: #fff; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
   .tool:hover, .tool.open { background: rgba(40, 40, 44, 0.9); }
   .tool i { font-style: normal; color: var(--muted); } .tool b { font-weight: 600; } .tool .caret { color: var(--muted); font-size: 11px; }
@@ -430,6 +432,7 @@
   <div class="tools" id="tools">
     <span class="tool-wrap search-wrap" id="search-wrap"><input class="tool search" id="search" type="search" placeholder="Search" aria-label="Search the model's records, notes and passages (/)" aria-keyshortcuts="/" autocomplete="off" spellcheck="false" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-results">
       <div class="pop wide search-results" id="search-results" role="listbox" aria-label="Search results" hidden></div></span>
+    <button class="tool switch about-chip" id="about-chip" type="button" data-temporal aria-pressed="true" hidden><span id="about-name"></span><span class="about-clear" aria-hidden="true">✕</span></button>
     <select class="tool story" id="story" hidden aria-label="Which story"></select>
     <span class="tool-wrap"><button class="tool" data-pop="pop-show"><i>Show</i> <b id="t-show">Processes</b><span class="caret">▾</span></button>
       <div class="pop" id="pop-show" hidden><h2>Show it as</h2><div class="seg" id="layouts"><button data-layout="together">Processes</button><button data-layout="layers">Tree</button><button data-layout="terrain">Terrain</button><button data-layout="chart">Chart</button><button data-layout="graph">Graph</button><button data-layout="structure">Structure</button><button data-layout="space">Space</button></div><div class="note" id="layout-note"></div><div class="note" id="selection-label" hidden></div><div class="whose" id="whose" data-temporal></div>

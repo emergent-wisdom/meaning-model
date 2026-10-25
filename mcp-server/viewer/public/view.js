@@ -509,6 +509,15 @@ function unimportantEventIds() {
   return new Set(data.events.filter((event) => !UNRANKED.has(event.role) && !event.reading
     && !(event.importance ?? []).some((judgment) => judgment.scale === scale.id && judgment.rank <= top)).map((event) => event.id));
 }
+// The Events the reader's filters hide: those below the importance kept, and those not about the referent shown. A
+// reading stays with its row, which the referent filter keeps or hides on its own.
+function hiddenEventIds() {
+  const hidden = opt.importance ? unimportantEventIds() : null;
+  if (!opt.about) return hidden;
+  const out = new Set(hidden ?? []);
+  for (const event of data.events) if (!event.reading && event.role !== 'reading' && !opt.about.events.has(event.id)) out.add(event.id);
+  return out;
+}
 // A row's place in the tree: its process's depth (one below the Event it belongs to) and its home.
 const processById = new Map((data.processes ?? []).map((process) => [process.id, process]));
 for (const row of rows) {
@@ -545,6 +554,57 @@ const prose = (data.story?.units ?? []).filter((unit) => Number.isFinite(unit.t)
 const numericCuts = data.numerics?.cuts ?? [];
 const numericCutById = new Map(numericCuts.map((cut) => [cut.id, cut]));
 const bornAt = (item) => { const made = madeAt(item?.born); return Number.isFinite(made) ? made : -Infinity; };
+
+// ---- about one referent ------------------------------------------------------------------------------------------------
+// A referent picked in search (a place, a person, any thing the model bounds) narrows the time view to what the model
+// declares about it: the Events bound to it or to any referent it contains through its encapsulation Cuts, with the
+// Events that contain those, and the processes it or its parts own. Nothing is read from a name or from a region's words.
+const declaredMeaning = data.inspection?.model?.meaning_model ?? {};
+const referentIds = new Set([...(data.referents ?? []), ...(declaredMeaning.referents ?? [])].map((referent) => referent.id));
+const partsOfReferent = new Map(); const eventsOfReferent = new Map(); const processesOfReferent = new Map();
+for (const cut of declaredMeaning.encapsulation_cuts ?? []) for (const child of cut.children ?? []) if (cut.parent_referent_id && child.referent_id) push(partsOfReferent, cut.parent_referent_id, child.referent_id);
+for (const binding of declaredMeaning.event_referent_bindings ?? []) {
+  if (!binding.referent_id) continue;
+  const eventId = binding.target?.event_id ?? binding.event_id, processId = binding.target?.process_id;
+  if (eventId) push(eventsOfReferent, binding.referent_id, eventId);
+  if (processId) push(processesOfReferent, binding.referent_id, processId);
+}
+for (const event of data.events) for (const referent of new Set([event.owner, event.region, ...(event.participants ?? [])])) if (referentIds.has(referent)) push(eventsOfReferent, referent, event.id);
+for (const process of data.processes ?? []) if (process.owner) push(processesOfReferent, process.owner, process.id);
+const referentName = (id) => (data.referents ?? []).find((referent) => referent.id === id)?.name?.split(':')[0]
+  ?? String((declaredMeaning.referents ?? []).find((referent) => referent.id === id)?.boundary ?? id).split(/[,:;]/u)[0];
+function aboutSets(id) {
+  const within = new Set(); const walk = (referent) => { if (within.has(referent)) return; within.add(referent); for (const part of partsOfReferent.get(referent) ?? []) walk(part); }; walk(id);
+  const events = new Set(); const processes = new Set();
+  for (const referent of within) { for (const eventId of eventsOfReferent.get(referent) ?? []) events.add(eventId); for (const processId of processesOfReferent.get(referent) ?? []) processes.add(processId); }
+  const bound = new Set(events);
+  // The Events containing them stay, so the tree they sit in still reads.
+  const eventById = new Map(data.events.map((event) => [event.id, event]));
+  for (const eventId of bound) { let at = eventById.get(eventId)?.parent; for (let hops = 0; at && !events.has(at) && hops < 64; hops += 1) { events.add(at); at = eventById.get(at)?.parent; } }
+  return { id, name: referentName(id), within, bound, events, processes };
+}
+const rowProcess = (row) => row.measure?.processId ?? row.measure?.id;
+// A row is about the referent when its process is, when the referent or a part owns it, or when it answers a Cut on one of its Events.
+const aboutRow = (row, about) => about.processes.has(rowProcess(row)) || about.within.has(row.measure?.owner)
+  || (row.measure?.kind === 'cut-answer' && about.events.has(row.measure.home));
+function showAboutChip() {
+  const chip = document.getElementById('about-chip'); if (!chip) return;
+  chip.hidden = !opt.about;
+  if (!opt.about) return;
+  document.getElementById('about-name').textContent = `Showing ${opt.about.name}`;
+  chip.title = `Only what the model binds to ${opt.about.name} or its parts, and the processes they own. Click to show everything again.`;
+  chip.setAttribute('aria-label', `Showing only ${opt.about.name}. Show everything again`);
+}
+function setAbout(id, { quiet = false } = {}) {
+  opt.about = id && referentIds.has(id) ? aboutSets(id) : null;
+  // Rows narrow only when some are about the referent: otherwise its Events stand against the whole model's processes.
+  if (opt.about) opt.about.rowsNarrowed = rows.some((row) => aboutRow(row, opt.about));
+  showAboutChip();
+  if (quiet) return;
+  computeLayout(); apply(); syncPanel(); syncURL(true); extrasDirty = true;
+}
+document.getElementById('about-chip')?.addEventListener('click', () => setAbout(null));
+if (params.has('about')) setAbout(params.get('about'), { quiet: true });
 
 // ---- layout: Together is the processes view's field; Layers stacks the tree level by level ----------------------------------
 // Together keeps the rows where they always were; Events the panel adds get lanes in front of their group's rows. Layers are
@@ -584,6 +644,7 @@ function tracesChange(row) {
 }
 function eligibleRow(row) {
   if (!opt.show.has('processes')) return false;
+  if (opt.about?.rowsNarrowed && !aboutRow(row, opt.about)) return false;
   if (opt.detailProjection && !opt.detailProjection.rowIds.has(row.measure.id)) return false;
   const points = row.points ?? row.measure.points;
   if (boundedMeasure(row.measure) && (!points || points.length < 2)) return false;
@@ -665,7 +726,7 @@ function computeNestedLayout() {
   for (const node of nodes) node.displayGroup = tree.groupById.get(node.id) ?? together.groupById.get(node.id) ?? node.group;
 }
 function computeLayout() {
-  opt.unimportant = opt.importance ? unimportantEventIds() : null;
+  opt.unimportant = opt.importance || opt.about ? hiddenEventIds() : null;
   opt.detailProjection = Number.isInteger(opt.detailLevel) ? processDetail.project({ scope: opt.processScope, level: opt.detailLevel }) : null;
   if (opt.detailProjection) { opt.detailLevel = opt.detailProjection.level; opt.processScope = opt.detailProjection.scope; }
   for (const node of nodes) { node.inT = visibleNode(node, false); node.inL = visibleNode(node, true); node.shown = node.inT || node.inL; }
@@ -2001,7 +2062,7 @@ function apply() {
   // Across the story's years the love-or-fear chips before them wait at their start, as they always did.
   for (const chip of lenses) chip.visible = ((!opt.detailProjection || opt.detailProjection.eventIds.has(chip.userData.eventId)) && !opt.unimportant?.has(chip.userData.eventId)) && opt.show.has('lovefear') && (isStory() || inView(chip.userData.t)) && shownByPlay(chip.userData.t, bornAt(chip.userData)) && chip.userData.placed;
   mind.visible = opt.show.has('notes');
-  for (const light of notes) light.visible = light.userData.id === selectedPart?.unit.id || pinnedTarget === light || ((!opt.curation?.notes.size || opt.curation.notes.has(light.userData.id)) && !(opt.hideUndated && undatedNote(light.userData.id)) && (!opt.detailProjection || (noteScopeEvents.get(light.userData.id) ?? []).some((id) => opt.detailProjection.eventIds.has(id))) && (construction ? bornAt(light.userData) <= tau : light.userData.t <= now));
+  for (const light of notes) light.visible = light.userData.id === selectedPart?.unit.id || pinnedTarget === light || ((!opt.curation?.notes.size || opt.curation.notes.has(light.userData.id)) && !(opt.hideUndated && undatedNote(light.userData.id)) && (!opt.detailProjection || (noteScopeEvents.get(light.userData.id) ?? []).some((id) => opt.detailProjection.eventIds.has(id))) && (!opt.about || (noteScopeEvents.get(light.userData.id) ?? []).some((id) => opt.about.bound.has(id))) && (construction ? bornAt(light.userData) <= tau : light.userData.t <= now));
   sweep.position.x = xOf(now); sweep.visible = playing && !construction;
   const fill = construction ? activeClock(tau) / activeClock.total : fracOf(F, now);
   document.getElementById('fill').style.width = `${Math.max(0, Math.min(1, fill)) * 100}%`;
@@ -2021,7 +2082,7 @@ function apply() {
     const clockInset = calendarTime ? 0.01 : 0;
     setText('clock', isStory() ? month(Math.min(now, T1 - clockInset)) : momentText(Math.min(now, F.b - clockInset)));
     const drawn = (thread) => Math.max(thread.userData.t, F.a);
-    const latest = threads.filter((thread) => thread.userData.t <= now && inView(thread.userData.t, 0.2)).sort((a, b) => drawn(b) - drawn(a))[0];
+    const latest = threads.filter((thread) => thread.userData.t <= now && inView(thread.userData.t, 0.2) && !opt.unimportant?.has(thread.userData.event.id)).sort((a, b) => drawn(b) - drawn(a))[0];
     const currentParts = partsNow().map((i) => storyParts[i]);
     const partCaption = currentParts.length === 1 ? `Part ${currentParts[0].n}: ${currentParts[0].title}`
       : currentParts.length ? `Parts ${currentParts.map((part) => part.n).join(', ')}` : '';
@@ -2131,6 +2192,8 @@ function reframe() {
   const k = now2.size / framed.size; const dz = now2.cz - framed.cz; const dy = now2.cy - framed.cy; framed = now2;
   if (Math.abs(k - 1) < 1e-9 && Math.abs(dz) < 1e-9 && Math.abs(dy) < 1e-9) return;
   const offset = camera.position.clone().sub(controls.target).multiplyScalar(k); controls.target.z += dz; controls.target.y += dy; camera.position.copy(controls.target).add(offset);
+  // The address keeps the pose the camera ends on, not the one it had before the field changed.
+  if (opt.camera === 'free') syncURL();
 }
 function setCamera(mode, first = false) {
   const was = opt.camera; opt.camera = mode; controls.autoRotate = mode === 'spin'; controls.enabled = mode !== 'locked';
@@ -2196,7 +2259,10 @@ function boundsNow() {
   if (opt.show.has('numbers')) for (const target of extraTargets) if (target.kind === 'number') { ys.push(target.wpt[1] + 0.5); zs.push(target.wpt[2] + 0.5); }
   if (opt.show.has('notes')) {
     if (opt.noteLayout === 'original') { const top = mindTop(); const layer = Math.max(0, ...graphNodes.map(noteLayer)); ys.push(top.y + layer * 1.6 + 3); zs.push(top.z - layer * 2.2 - 1); }
-    else for (const light of notes) { xs.push(light.position.x - 1, light.position.x + 1); ys.push(light.position.y + 2); zs.push(light.position.z - 1, light.position.z + 1); }
+    else for (const light of notes) {
+      if (opt.about && !(noteScopeEvents.get(light.userData.id) ?? []).some((id) => opt.about.bound.has(id))) continue;
+      xs.push(light.position.x - 1, light.position.x + 1); ys.push(light.position.y + 2); zs.push(light.position.z - 1, light.position.z + 1);
+    }
   }
   return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys) - 1, y1: Math.max(...ys) + 1, z0: Math.min(...zs) - 2, z1: Math.max(...zs) + 3 };
 }
@@ -2943,6 +3009,7 @@ function syncURL(immediate = false) {
     if (opt.names === 'big') next.set('names', 'big');
     if (Number.isInteger(opt.detailLevel)) next.set('detail', String(opt.detailLevel));
     if (opt.processScope) next.set('scope', opt.processScope);
+    if (opt.about) next.set('about', opt.about.id);
     if (opt.importance) { next.set('importance', opt.importance); if (opt.importanceTop !== 1) next.set('importanceTop', String(opt.importanceTop)); }
     if (opt.readingOverview === 'structure') next.set('readingOverview', 'structure');
     if (explicitNoteLayout) next.set('noteLayout', opt.noteLayout);
@@ -3499,11 +3566,22 @@ export const temporalController = {
   zoomTo(start, end) { return showSpan(start, end); },
   locate(target) {
     const row = target.rowId ? rowOf.get(target.rowId) : null;
+    // A record the referent filter hides is shown with everything else again.
+    if (row && opt.about?.rowsNarrowed && !aboutRow(row, opt.about)) setAbout(null);
     if (row) { locateRow(row); return; }
     // An Event is shown across its own interval before it is highlighted.
     if (target.kind === 'event') {
+      if (opt.about && !opt.about.events.has(target.id)) setAbout(null);
       const event = data.events.find((item) => item.id === target.id);
       if (event) { const [a, b] = reachOf(event); showSpan(a, b); }
+    }
+    // A referent narrows the view to what the model says about it; the window moves only when none of that is in it.
+    if (target.kind === 'referent' && referentIds.has(target.id)) {
+      setAbout(target.id);
+      const reaches = [...opt.about.bound].map((id) => treeById.get(id)?.reach).filter(Array.isArray);
+      if (reaches.length && !reaches.some(([a, b]) => b >= F.a && a <= F.b)) showSpan(Math.min(...reaches.map((reach) => reach[0])), Math.max(...reaches.map((reach) => reach[1])));
+      // It is selected where it is: the camera follows the field as it narrows, as it does for any filter.
+      const selection = { kind: 'referent', id: target.id }; useSharedSelection(selection); publishRecord(selection); return;
     }
     if (target.kind === 'row') { if (target.record) this.showHighlight({ record: `${target.record.kind}:${target.record.id}` }); return; }
     if (target.kind === 'narrative' && noteById.has(target.id)) {

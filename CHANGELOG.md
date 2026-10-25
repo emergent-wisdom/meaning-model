@@ -4,6 +4,20 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## Unreleased
+
+**The viewer: going to a time, an Event, a place or a person**
+- The time views have **−** and **+** beside **Time**, which zoom out and in around the playhead.
+- Search takes a time in the model's own clock and opens the time view across it: a year, a range, a decade, a century
+  or a millennium, or "years ago" counted back from the model's present, in a calendar; plain numbers in any other
+  unit, never called years. An Event found by search opens across its own interval, and a whole-name match ranks first.
+- A referent found by search, such as a place or a person, keeps the time views to what the model declares about it:
+  the Events bound to it or to the referents its encapsulation Cuts contain, those whose owner, region or participants
+  name one of them, the Events containing those, and the processes they own. Nothing is read from names or words. The
+  address keeps it as `about`, a view the model chooses can set it, and **Showing … ✕** shows everything again.
+- The caption under the time views names only an Event the filters show; before, it could name one the importance
+  filter hid.
+
 ## 0.17.0 — 2026-10-29
 
 The engine is reorganized into smaller modules for models, sessions, persistence and the numerical registry.
