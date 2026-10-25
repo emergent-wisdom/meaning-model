@@ -514,8 +514,10 @@ const isPassage = (node) => node?.role === 'story_passage' || /(^|[._])(passage|
 
 /** The Events a frame can show where they happen, as the model declares it, and what is attached to them. An Event is
  * placed where a position it moves stands (its `process_ids`), else at a place it is declared to be located in whose
- * position the frame holds. Nothing is placed by containment, participants or the words of a region. Notes and
- * passages come from the narrative graph's own edges to the Event; causal links join two placed Events. */
+ * position the frame holds: of several such places, the most specific, one no other of them lies within by the
+ * encapsulation cuts (a country before its region), and otherwise the first declared. Nothing is placed by containment
+ * alone, participants or the words of a region. Notes and passages come from the narrative graph's own edges to the
+ * Event; causal links join two placed Events. */
 export function placedEvents(model = {}, graph = {}, frames = []) {
   const meaning = model.meaning_model ?? {}, events = array(meaning.events);
   const byProcess = new Map(), byPlace = new Map();
@@ -524,8 +526,28 @@ export function placedEvents(model = {}, graph = {}, frames = []) {
     if (own) for (const id of object.processIds) if (!byProcess.has(id)) byProcess.set(id, { index, object });
     const ref = own ? object.referentId : object.placeId; if (ref && !byPlace.has(ref)) byPlace.set(ref, { index, object });
   } });
+  // The places each place lies within, by the encapsulation cuts, so an Event declared in a region and in a country
+  // inside it stands at the country.
+  const containers = new Map();
+  for (const cut of array(meaning.encapsulation_cuts)) for (const child of array(cut?.children)) {
+    if (!cut.parent_referent_id || !child?.referent_id) continue;
+    if (!containers.has(child.referent_id)) containers.set(child.referent_id, []);
+    containers.get(child.referent_id).push(cut.parent_referent_id);
+  }
+  const liesWithin = (inner, outer) => {
+    const seen = new Set(), stack = [...(containers.get(inner) ?? [])];
+    while (stack.length) { const at = stack.pop(); if (at === outer) return true; if (seen.has(at)) continue; seen.add(at); stack.push(...(containers.get(at) ?? [])); }
+    return false;
+  };
+  const declared = new Map();
+  for (const binding of array(meaning.event_referent_bindings)) if (binding?.target?.kind === 'event' && LOCATED.has(binding.binding_type) && byPlace.has(binding.referent_id)) {
+    const list = declared.get(binding.target.event_id) ?? []; if (!list.includes(binding.referent_id)) list.push(binding.referent_id); declared.set(binding.target.event_id, list);
+  }
   const located = new Map();
-  for (const binding of array(meaning.event_referent_bindings)) if (binding?.target?.kind === 'event' && LOCATED.has(binding.binding_type) && byPlace.has(binding.referent_id) && !located.has(binding.target.event_id)) located.set(binding.target.event_id, { ...byPlace.get(binding.referent_id), placeId: binding.referent_id });
+  for (const [eventId, places] of declared) {
+    const placeId = places.find((place) => !places.some((other) => other !== place && liesWithin(other, place))) ?? places[0];
+    located.set(eventId, { ...byPlace.get(placeId), placeId });
+  }
   const nodes = new Map(array(graph.nodes).map((node) => [node.id, node]));
   const attached = new Map();
   for (const edge of array(graph.edges)) {

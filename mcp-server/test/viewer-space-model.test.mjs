@@ -282,6 +282,29 @@ test('Events are placed only where the model says they happen, with their notes,
   assert.equal(placement.unplaced, model.meaning_model.events.length - 2);
 });
 
+test('an Event placed in a region and in a country inside it stands at the country, the most specific place it is declared in', () => {
+  const point = (id, latitude, longitude) => ({ id: `position.${id}`, value_type: { kind: 'vector', dimensions: 2, bounds: { minimum: -180, maximum: 180 } },
+    initial_value: { kind: 'vector', value: [latitude, longitude] }, unit: 'degree', reference_frame: 'WGS84', axes: [{ id: 'latitude', unit: 'degree' }, { id: 'longitude', unit: 'degree' }],
+    scale: { semantic_role: 'position' }, uncertainty: { kind: 'exact' }, provenance, support: [`referent:${id}`], access_scopes: [], update_mode: 'static' });
+  const places = { africa: [2, 20], 'eastern-africa': [-5, 35], kenya: [0.5, 37.9], tanzania: [-6.3, 34.8] };
+  const bind = (id, referent, target, type = 'located_in', role = 'setting') => ({ id, referent_id: referent, binding_type: type, role, target, provenance });
+  const at = (event) => ({ kind: 'event', event_id: event });
+  const model = { time_unit: 'year', processes: Object.entries(places).map(([id, [latitude, longitude]]) => point(id, latitude, longitude)), meaning_model: {
+    referents: Object.keys(places).map((id) => ({ id, boundary: id, provenance })),
+    encapsulation_cuts: [{ id: 'enc.africa', parent_referent_id: 'africa', children: [{ referent_id: 'eastern-africa' }] },
+      { id: 'enc.eastern-africa', parent_referent_id: 'eastern-africa', children: [{ referent_id: 'kenya' }, { referent_id: 'tanzania' }] }],
+    events: ['in-kenya', 'across-the-border', 'continent-wide'].map((id) => ({ id, boundary: id, interval: { start: 1900, end: 1901 }, provenance })),
+    event_referent_bindings: [
+      ...Object.keys(places).map((id) => bind(`pos.${id}`, id, { kind: 'process', process_id: `position.${id}` }, 'coordinate', 'position')),
+      bind('a1', 'africa', at('in-kenya')), bind('a2', 'eastern-africa', at('in-kenya')), bind('a3', 'kenya', at('in-kenya')),
+      bind('b1', 'eastern-africa', at('across-the-border')), bind('b2', 'tanzania', at('across-the-border')), bind('b3', 'kenya', at('across-the-border')),
+      bind('c1', 'africa', at('continent-wide'))] } };
+  const space = spaceModel(model), placement = placedEvents(model, {}, space.frames);
+  assert.deepEqual(Object.fromEntries(placement.events.map((item) => [item.id, item.placeId])),
+    { 'in-kenya': 'kenya', 'across-the-border': 'tanzania', 'continent-wide': 'africa' },
+    'the country before the regions that contain it; of two countries, the first declared; a region alone stays at the region');
+});
+
 
 // ---- The Earth as a globe ---------------------------------------------------------------------------------------------------
 // Places on the Earth, each in the unit its own process declares. The ids sort as a canonical model's do, so that an altitude in
