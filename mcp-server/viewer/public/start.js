@@ -113,7 +113,7 @@ function spaceParts() {
   detail.querySelector('#space-details-body').classList.add('details-body'); document.getElementById('side').append(detail);
   return { surface, host, detail, tools: document.getElementById('space-controls') };
 }
-let selection = null;
+let selection = null, chartView = null;
 try { const value = JSON.parse(params.get('record') ?? 'null'); if (value && typeof value.kind === 'string' && typeof value.id === 'string') selection = value; } catch { /* An invalid UI selection does not change the snapshot. */ }
 const session = createViewerSession({
   temporal, initialView, state: { selection, timeView: params.get('timeView'), ...restoredState },
@@ -127,7 +127,7 @@ const session = createViewerSession({
     structure: async () => showInspector(data, notice, { host: structureHost, onSelect: (record) => session.selectRecord(record) }),
     chart: async () => {
       const { showChart } = await import('./chart-view.js');
-      return showChart(data, { host: chartHost, tools: document.getElementById('chart-controls'), onSelect: (record) => session.selectRecord(record), noteAddress });
+      return (chartView = showChart(data, { host: chartHost, tools: document.getElementById('chart-controls'), onSelect: (record) => session.selectRecord(record), noteAddress }));
     },
     space: async () => {
       const { showSpace } = await import('./space-view.js'), parts = spaceParts();
@@ -185,16 +185,18 @@ mountSearch({ data, input: document.getElementById('search'), list: document.get
   timeQuery: temporal ? (query) => parseTimeQuery(query, { unit: data?.timeUnit, present }) : null,
   onOpenList: () => { if (openPanel) togglePanel(openPanel); },
   open: async (result) => {
-    // A time opens in a time view, across its stretch.
+    // A time opens across its stretch: in the Chart on its own axis, otherwise in a time view.
     if (result.kind === 'time') {
+      if (session.snapshot().view === 'chart' && chartView?.zoomTo?.(result.start, result.end)) return;
       if (!timeViews.has(session.snapshot().view)) await switchView('together');
       if (timeViews.has(session.snapshot().view)) (await import('./view.js')).temporalController.zoomTo(result.start, result.end);
       return;
     }
     const current = session.snapshot().view;
     if (temporal && result.rowId && timeViews.has(current) && current !== 'together') await switchView('together');
-    // Terrain draws every Event whatever is chosen, so a place or a person opens in the Tree, where it narrows the view.
-    if (temporal && result.kind === 'referent' && current === 'terrain') await switchView('layers');
+    // Terrain and the Chart draw every Event whatever is chosen, so a place or a person opens in the Tree, where it
+    // narrows the view.
+    if (temporal && result.kind === 'referent' && (current === 'terrain' || current === 'chart')) await switchView('layers');
     if (temporal && timeViews.has(session.snapshot().view)) { (await import('./view.js')).temporalController.locate(result); return; }
     const record = result.kind === 'row' ? result.record ?? null : { kind: result.kind, id: result.id };
     if (record) await session.revealRecord(record);

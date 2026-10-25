@@ -1191,6 +1191,14 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
       return { chart: { scale: scaleId, links: showAllLinks, reading: !panel.hidden, top: showTop, pin: pinTop }, ...(time ? { time } : {}) };
     },
     recenter() { setFocus(null); scroller.scrollTo({ top: 0 }); },
+    // A stretch of time found by search takes most of the axis, as a dragged stretch does, and the rows are read just
+    // inside its end.
+    zoomTo(start, end) {
+      const a = Math.max(C.axis.start, Math.min(start, end)), b = Math.min(C.axis.end, Math.max(start, end));
+      if (!(b > a)) return false;
+      pinT = b - (b - a) * 0.001; pinnedHere = true; setFocus({ id: null, start: a, end: b }); placeOverlays();
+      return true;
+    },
     destroy() { active = false; resizeObserver.disconnect(); io.disconnect(); removeEventListener('keydown', keys); removeEventListener('pointermove', onDragMove); removeEventListener('pointerup', onDragEnd); cancelAnimationFrame(animation); for (const node of controls) node.remove(); surface.replaceChildren(); },
   };
 }

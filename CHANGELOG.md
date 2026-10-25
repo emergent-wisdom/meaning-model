@@ -17,7 +17,8 @@ unpublished work stays under Unreleased. This is not a development transcript.
   the Events bound to it or to the referents its encapsulation Cuts contain, those whose owner, region or participants
   name one of them, the Events containing those, and the processes they own. Nothing is read from names or words. The
   address keeps it as `about`, a view the model chooses can set it, and **Showing … ✕** shows everything again.
-  Terrain keeps its landscape of every Event, so a referent picked there opens in Tree.
+  Terrain and the Chart draw every Event, so a referent picked there opens in Tree; a time typed in the Chart opens
+  that stretch on the Chart's own axis.
 - The caption under the time views names only an Event the filters show; before, it could name one the importance
   filter hid.
 

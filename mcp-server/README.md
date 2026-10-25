@@ -110,8 +110,8 @@ ago` in a calendar, plain numbers in any other unit. A referent, such as a place
 or a person, keeps Processes and Tree to what the model binds to it or to the
 referents its encapsulation Cuts contain, the Events containing those, and the
 processes they own (address setting `about`); **Showing … ✕** shows everything
-again. Terrain keeps its landscape of every Event, so a referent picked there
-opens in Tree. The **−** and **+** beside **Time** zoom out and in around the playhead.
+again. Terrain and the Chart draw every Event, so a referent picked there opens
+in Tree; a time typed in the Chart opens that stretch on its own axis. The **−** and **+** beside **Time** zoom out and in around the playhead.
 
 The alternative **Graph mode** displays the native records and links. Filter record
 types, and select a record to inspect its declared incoming
