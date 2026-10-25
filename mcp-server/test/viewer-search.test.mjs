@@ -128,3 +128,23 @@ test('a record whose name is the query outranks shorter labels that only contain
   assert.equal(searchRecords(index, 'the second world war').results[0].id, 'ev.ww2');
   assert.equal(searchRecords(index, 'second world war in africa').results[0].id, 'ev.ww2.africa');
 });
+
+test('a place or a person named by the whole query comes first, above a process or Events that carry its name', () => {
+  const places = { model: { id: 'places', time_unit: 'year', processes: [{ id: 'h.region.africa', unit: 'share', scale: { semantic_role: 'people living in Africa' } }],
+    meaning_model: {
+      referents: [{ id: 'referent.place.africa', boundary: 'Africa (UN M49 002): the continent and its islands, and the people living there at any time.' },
+        { id: 'referent.ada', boundary: 'Ada Lovelace as one historical person, with an explicit counterfactual history after 14 August 1843.' }],
+      events: [event('ev.africa.growth', 'Africa\'s growth and cities after 2000'), event('ev.ada.work', 'Ada Lovelace · work · 1842--Aug 1843'),
+        event('ev.ada.body', 'Ada Lovelace · body · 1843')],
+      event_referent_bindings: [], normalized_cuts: [], event_relations: [], context_roots: [] } }, graph: { nodes: [], edges: [] } };
+  const data = { inspection: places, display: { names: { 'h.region.africa': 'Africa' } },
+    referents: [{ id: 'referent.place.africa', name: 'Africa' }, { id: 'referent.ada', name: 'Ada Lovelace' }] };
+  const index = buildSearchIndex(data);
+  const first = (query) => searchRecords(index, query).results[0];
+  assert.deepEqual([first('Africa').kind, first('Africa').id], ['referent', 'referent.place.africa'], 'above the process shown as Africa');
+  assert.equal(searchRecords(index, 'Africa').results[1].id, 'h.region.africa');
+  assert.equal(first('ada lovelace').id, 'referent.ada', 'above shorter Event labels that start with the name');
+  assert.equal(first('ada lovelace work').id, 'ev.ada.work', 'a query that is more than the name finds what it says');
+  // Without the viewer's names, a referent ranks by its label as before.
+  assert.equal(searchRecords(buildSearchIndex({ inspection: places, display: data.display }), 'Africa').results[0].id, 'h.region.africa');
+});

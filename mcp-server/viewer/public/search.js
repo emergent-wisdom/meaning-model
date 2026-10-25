@@ -84,6 +84,8 @@ export function buildSearchIndex(data, graph = null) {
   }
   const rowOfProcess = new Map([...rowsOfProcess].filter(([, list]) => list.length === 1).map(([key, list]) => [key, list[0]]));
   const nameOf = new Map((data?.people ?? []).map((person) => [person.id, person.name]));
+  // A referent is also found under the name the views give it, up to a colon: "Earth: the planet" is Earth.
+  const referentName = new Map((data?.referents ?? []).map((referent) => [referent.id, String(referent.name ?? '').split(':')[0].trim()]).filter(([, name]) => name));
   const entries = nodes.filter((node) => !node.unresolved && !SKIP.has(node.kind)).map((node) => {
     if (node.kind === 'narrative') {
       const { summary, text } = narrative(node.record);
@@ -94,7 +96,8 @@ export function buildSearchIndex(data, graph = null) {
       const shown = row?.label ?? processLabel(data ?? {}, node.nativeId);
       return entry('process', node.nativeId, shown, [node.label, textOf(node)].join(' · '), { ...(row ? { rowId: row.id } : {}) });
     }
-    return entry(node.kind, node.nativeId, node.label, textOf(node), { withdrawn: Boolean(node.withdrawn) });
+    const named = node.kind === 'referent' && referentName.has(node.nativeId) ? { foldedName: fold(referentName.get(node.nativeId)) } : {};
+    return entry(node.kind, node.nativeId, node.label, textOf(node), { withdrawn: Boolean(node.withdrawn), ...named });
   });
   const processIds = new Set(nodes.filter((node) => node.kind === 'process').map((node) => node.nativeId));
   for (const row of rows) {
@@ -122,8 +125,9 @@ function snippet(entry, terms) {
 // September 1939 to September 1945" is named "second world war".
 const nameOfLabel = (folded) => folded.split(/,|\(| — /u)[0].replace(/^the /u, '').replace(/[.:;]$/u, '').trim();
 
-// Every word of the query must appear in the record's label, id or text. A whole-label or id match ranks first, then a
-// label whose name is the query, then a label that starts with the query, then words found in the label, then words
+// Every word of the query must appear in the record's label, id or text. A place, a person or any referent named by the
+// whole query ranks first: showing it keeps the processes and Events that carry its name. Then a whole-label or id
+// match, a label whose name is the query, a label that starts with the query, words found in the label, and words
 // found only in the text.
 export function searchRecords(index, query, limit = 30) {
   const whole = fold(query).trim();
@@ -131,13 +135,14 @@ export function searchRecords(index, query, limit = 30) {
   if (!terms.length) return { total: 0, results: [] };
   const matched = [];
   for (const entry of index) {
-    const haystack = `${entry.foldedLabel} ${entry.foldedId} ${entry.foldedText}`;
+    const haystack = `${entry.foldedLabel} ${entry.foldedId} ${entry.foldedText} ${entry.foldedName ?? ''}`;
     if (!terms.every((term) => haystack.includes(term))) continue;
     const inLabel = terms.filter((term) => entry.foldedLabel.includes(term) || entry.foldedId.includes(term)).length;
     // A row's own name (a feeling, a process) counts as its whole label, without whose it is.
     const name = entry.foldedName ?? entry.foldedLabel;
     const named = nameOfLabel(entry.foldedLabel) === whole.replace(/^the /u, '') ? 500 : 0;
-    const score = (entry.foldedLabel === whole || name === whole || entry.foldedId === whole ? 1_000 : 0) + named + (entry.foldedLabel.startsWith(whole) || name.startsWith(whole) ? 200 : 0)
+    const referent = entry.kind === 'referent' && entry.foldedName?.replace(/^the /u, '') === whole.replace(/^the /u, '') ? 2_000 : 0;
+    const score = referent + (entry.foldedLabel === whole || name === whole || entry.foldedId === whole ? 1_000 : 0) + named + (entry.foldedLabel.startsWith(whole) || name.startsWith(whole) ? 200 : 0)
       + inLabel * 40 + (terms.length - inLabel) * 8 + (PRIORITY[entry.kind] ?? 1) - (entry.withdrawn ? 50 : 0);
     matched.push({ entry, score, inLabel });
   }

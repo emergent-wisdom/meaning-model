@@ -11,6 +11,8 @@ unpublished work stays under Unreleased. This is not a development transcript.
 - Search takes a time in the model's own clock and opens the time view across it: a year, a range, a decade, a century
   or a millennium, or "years ago" counted back from the model's present, in a calendar; plain numbers in any other
   unit, never called years. An Event found by search opens across its own interval, and a whole-name match ranks first.
+  A referent whose name is the whole query comes before anything else, so typing a place or a person and pressing Enter
+  shows it.
 - A referent found by search, such as a place or a person, keeps the time views to what the model declares about it:
   the Events bound to it or to the referents its encapsulation Cuts contain, those whose owner, region or participants
   name one of them, the Events containing those, and the processes they own. Nothing is read from names or words. The

@@ -2321,7 +2321,8 @@ function showSpan(start, end) {
   if (b - a < MIN_SPAN) [a, b] = windowAt((a + b) / 2, 0.5, MIN_SPAN);
   if (playing) stop();
   animation = null; currentPreset = null; setView(a, b);
-  if (!building()) { now = Math.max(a, Math.min(b, hi)); atEnd = false; }
+  // The playhead stands just inside the stretch's end, which is exclusive: 1914 to 1945 ends where 1946 begins.
+  if (!building()) { now = Math.max(a, Math.min(b, hi - (hi - lo) * 0.001)); atEnd = false; }
   apply(); syncPanel(); syncURL(true);
   return true;
 }
