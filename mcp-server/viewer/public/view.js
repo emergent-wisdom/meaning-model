@@ -587,9 +587,10 @@ const rowProcess = (row) => row.measure?.processId ?? row.measure?.id;
 // A row is about the referent when its process is, when the referent or a part owns it, or when it answers a Cut on one of its Events.
 const aboutRow = (row, about) => about.processes.has(rowProcess(row)) || about.within.has(row.measure?.owner)
   || (row.measure?.kind === 'cut-answer' && about.events.has(row.measure.home));
+// Terrain keeps its own landscape of every Event, as it does under the other filters, so the chip does not claim it there.
 function showAboutChip() {
   const chip = document.getElementById('about-chip'); if (!chip) return;
-  chip.hidden = !opt.about;
+  chip.hidden = !opt.about || opt.layout === 'terrain';
   if (!opt.about) return;
   document.getElementById('about-name').textContent = `Showing ${opt.about.name}`;
   chip.title = `Only what the model binds to ${opt.about.name} or its parts, and the processes they own. Click to show everything again.`;
@@ -2913,6 +2914,7 @@ document.getElementById('lenses-all').addEventListener('click', () => { opt.lens
 function syncPanel() {
   if (!ready) return;
   syncProcessDataHint();
+  showAboutChip();
   const on = (selector, attr, value) => { for (const button of document.querySelectorAll(selector)) button.classList.toggle('on', button.dataset[attr] === String(value)); };
   document.getElementById('play').setAttribute('aria-label', building() ? 'Play the construction' : `Play ${playLabel.toLowerCase()}`);
   document.getElementById('layout-note').textContent = { together: 'Every process on its own scale in one field.', layers: "The model's tree level by level: the world, what it holds and the parts of each, every process at the level of what holds it.", terrain: data.people.length ? 'Every function of the model as one terrain: the lives and their shocks, the processes they run through, what they want, feel and expect, and the world behind them.' : 'Every function of the model as one terrain, with the Events that happen in them and the world behind them.' }[opt.layout];

@@ -13,10 +13,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
   unit, never called years. An Event found by search opens across its own interval, and a whole-name match ranks first.
   A referent whose name is the whole query comes before anything else, so typing a place or a person and pressing Enter
   shows it.
-- A referent found by search, such as a place or a person, keeps the time views to what the model declares about it:
+- A referent found by search, such as a place or a person, keeps Processes and Tree to what the model declares about it:
   the Events bound to it or to the referents its encapsulation Cuts contain, those whose owner, region or participants
   name one of them, the Events containing those, and the processes they own. Nothing is read from names or words. The
   address keeps it as `about`, a view the model chooses can set it, and **Showing … ✕** shows everything again.
+  Terrain keeps its landscape of every Event, so a referent picked there opens in Tree.
 - The caption under the time views names only an Event the filters show; before, it could name one the importance
   filter hid.
 

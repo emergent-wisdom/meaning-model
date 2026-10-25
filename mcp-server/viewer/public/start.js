@@ -193,6 +193,8 @@ mountSearch({ data, input: document.getElementById('search'), list: document.get
     }
     const current = session.snapshot().view;
     if (temporal && result.rowId && timeViews.has(current) && current !== 'together') await switchView('together');
+    // Terrain draws every Event whatever is chosen, so a place or a person opens in the Tree, where it narrows the view.
+    if (temporal && result.kind === 'referent' && current === 'terrain') await switchView('layers');
     if (temporal && timeViews.has(session.snapshot().view)) { (await import('./view.js')).temporalController.locate(result); return; }
     const record = result.kind === 'row' ? result.record ?? null : { kind: result.kind, id: result.id };
     if (record) await session.revealRecord(record);
