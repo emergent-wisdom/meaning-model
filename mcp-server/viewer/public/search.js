@@ -118,8 +118,13 @@ function snippet(entry, terms) {
   return `${from ? '…' : ''}${entry.text.slice(from, to).replace(/\s+/gu, ' ').trim()}${to < entry.text.length ? '…' : ''}`;
 }
 
-// Every word of the query must appear in the record's label, id or text. A whole-label or id match ranks first, then
-// a label that starts with the query, then words found in the label, then words found only in the text.
+// A label's name: what comes before its first comma or bracket, without a leading "the", so "The Second World War,
+// September 1939 to September 1945" is named "second world war".
+const nameOfLabel = (folded) => folded.split(/,|\(| — /u)[0].replace(/^the /u, '').replace(/[.:;]$/u, '').trim();
+
+// Every word of the query must appear in the record's label, id or text. A whole-label or id match ranks first, then a
+// label whose name is the query, then a label that starts with the query, then words found in the label, then words
+// found only in the text.
 export function searchRecords(index, query, limit = 30) {
   const whole = fold(query).trim();
   const terms = whole.split(/\s+/u).filter(Boolean);
@@ -131,7 +136,8 @@ export function searchRecords(index, query, limit = 30) {
     const inLabel = terms.filter((term) => entry.foldedLabel.includes(term) || entry.foldedId.includes(term)).length;
     // A row's own name (a feeling, a process) counts as its whole label, without whose it is.
     const name = entry.foldedName ?? entry.foldedLabel;
-    const score = (entry.foldedLabel === whole || name === whole || entry.foldedId === whole ? 1_000 : 0) + (entry.foldedLabel.startsWith(whole) || name.startsWith(whole) ? 200 : 0)
+    const named = nameOfLabel(entry.foldedLabel) === whole.replace(/^the /u, '') ? 500 : 0;
+    const score = (entry.foldedLabel === whole || name === whole || entry.foldedId === whole ? 1_000 : 0) + named + (entry.foldedLabel.startsWith(whole) || name.startsWith(whole) ? 200 : 0)
       + inLabel * 40 + (terms.length - inLabel) * 8 + (PRIORITY[entry.kind] ?? 1) - (entry.withdrawn ? 50 : 0);
     matched.push({ entry, score, inLabel });
   }
@@ -142,8 +148,10 @@ export function searchRecords(index, query, limit = 30) {
     ...(inLabel < terms.length ? { snippet: snippet(entry, terms) } : {}) })) };
 }
 
-// The field and its list. `open` receives the chosen result ({ kind, id, rowId?, record? }) and shows it.
-export function mountSearch({ data, input, list, open, onOpenList = () => {} }) {
+// The field and its list. `open` receives the chosen result ({ kind, id, rowId?, record? }) and shows it. `timeQuery`, when
+// the model has a clock, reads the query as a stretch of time; a time read that way comes first, as { kind: 'time',
+// start, end }, above the records that match the same words.
+export function mountSearch({ data, input, list, open, onOpenList = () => {}, timeQuery = null }) {
   if (!input || !list) return null;
   if (!data) { input.disabled = true; return null; }
   let index = null, results = [], active = -1;
@@ -164,9 +172,11 @@ export function mountSearch({ data, input, list, open, onOpenList = () => {} }) 
     const query = input.value;
     if (!query.trim()) { results = []; close(); return; }
     const found = searchRecords(ensure(), query);
-    results = found.results;
+    const time = timeQuery?.(query) ?? null;
+    results = [...(time ? [{ kind: 'time', id: 'time', label: `Go to ${time.label}`, kindLabel: 'Time', start: time.start, end: time.end }] : []), ...found.results];
     const head = document.createElement('div'); head.className = 'search-head';
-    head.textContent = found.total ? `${found.total} match${found.total === 1 ? '' : 'es'}${found.total > results.length ? `, the first ${results.length} shown` : ''}` : 'No record matches every word.';
+    head.textContent = found.total ? `${found.total} match${found.total === 1 ? '' : 'es'}${found.total > found.results.length ? `, the first ${found.results.length} shown` : ''}`
+      : time ? 'A time; no record matches every word.' : 'No record matches every word.';
     const rows = results.map((result, i) => {
       const row = document.createElement('div'); row.className = 'search-row'; row.id = `search-result-${i}`; row.setAttribute('role', 'option'); row.setAttribute('aria-selected', 'false');
       const kind = document.createElement('span'); kind.className = 'search-kind'; kind.textContent = result.withdrawn ? `${result.kindLabel}, withdrawn` : result.kindLabel;

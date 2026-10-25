@@ -2221,7 +2221,7 @@ let currentPreset = ['story', 'life', ...(calendarTime ? ['centuries'] : []), 'w
 function setView(a, b) { F = frameOf(a, b); tabulate(); relayout = true; dirty = true; }
 function animateTo(a, b, ms = 1400) {
   const fromG = [G(F.a), G(F.b)]; const toG = [G(a), G(b)]; const t0 = performance.now();
-  animation = (clock) => { const k = smooth(Math.min(1, (clock - t0) / ms)); setView(Ginv(fromG[0] + (toG[0] - fromG[0]) * k), Math.min(BOUNDS[1], Ginv(fromG[1] + (toG[1] - fromG[1]) * k))); if (k >= 1) { animation = null; setView(a, b); syncURL(); } };
+  animation = (clock) => { const k = smooth(Math.min(1, (clock - t0) / ms)); setView(Ginv(fromG[0] + (toG[0] - fromG[0]) * k), Math.min(BOUNDS[1], Ginv(fromG[1] + (toG[1] - fromG[1]) * k))); if (k >= 1) { animation = null; setView(a, b); syncPanel(); syncURL(); } };
 }
 function preset(name, animate = true) {
   if (name === 'centuries' && !calendarTime) return;
@@ -2236,6 +2236,29 @@ function pointerTime(clientX, clientY) {
   const u = hit.x / LENGTH + 0.5; return { u, t: timeAt(F, u) };
 }
 function zoomAt(clientX, clientY, factor) { animation = null; clearPreset(); const { u, t } = pointerTime(clientX, clientY); const [a, b] = windowAt(t, u, F.s / factor); setView(a, b); syncURL(); }
+// The bar's − and + halve or double the stretch of time shown, around the playhead, or around the middle of the window
+// when the playhead is outside it.
+function zoomTime(factor) {
+  if (!temporalActive) return;
+  const t = now >= F.a && now <= F.b ? now : (F.a + F.b) / 2;
+  const [a, b] = windowAt(t, fracOf(F, t), F.s * factor); clearPreset(); animateTo(a, b, 450);
+}
+for (const [id, factor] of [['zoom-in', 0.5], ['zoom-out', 2]]) document.getElementById(id)?.addEventListener('click', () => zoomTime(factor));
+// A stretch of time found by search, a period typed or an Event's own interval: shown whole, with room on both sides,
+// at once, so the camera can then be taken to what was found. The playhead moves to its end, so the curves are drawn
+// through it and what is read is the state at its close.
+function showSpan(start, end) {
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return false;
+  const lo = Math.min(start, end), hi = Math.max(start, end);
+  const pad = Math.max((hi - lo) * 0.06, calendarTime ? 0.5 : (BOUNDS[1] - BOUNDS[0]) * 0.002);
+  let [a, b] = [Math.max(BOUNDS[0], lo - pad), Math.min(BOUNDS[1], hi + pad)];
+  if (b - a < MIN_SPAN) [a, b] = windowAt((a + b) / 2, 0.5, MIN_SPAN);
+  if (playing) stop();
+  animation = null; currentPreset = null; setView(a, b);
+  if (!building()) { now = Math.max(a, Math.min(b, hi)); atEnd = false; }
+  apply(); syncPanel(); syncURL(true);
+  return true;
+}
 { const canvas = renderer.domElement; let drag = null; const touches = new Map(); let pinch = null;
   canvas.addEventListener('wheel', (event) => {
     if (opt.camera !== 'locked' && !event.shiftKey) return;
@@ -3472,9 +3495,16 @@ export const temporalController = {
   // or reading opens as any selection does.
   // A search result: a row at its curve, a note or passage at its moments (with the notes layer on), any other record as
   // a highlight is shown.
+  // A stretch of time found by search, in the model's own time.
+  zoomTo(start, end) { return showSpan(start, end); },
   locate(target) {
     const row = target.rowId ? rowOf.get(target.rowId) : null;
     if (row) { locateRow(row); return; }
+    // An Event is shown across its own interval before it is highlighted.
+    if (target.kind === 'event') {
+      const event = data.events.find((item) => item.id === target.id);
+      if (event) { const [a, b] = reachOf(event); showSpan(a, b); }
+    }
     if (target.kind === 'row') { if (target.record) this.showHighlight({ record: `${target.record.kind}:${target.record.id}` }); return; }
     if (target.kind === 'narrative' && noteById.has(target.id)) {
       if (!mind.visible) showThoughts(true);

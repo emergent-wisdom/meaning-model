@@ -141,6 +141,9 @@
   .bar > .play { flex: none; width: 32px; height: 32px; border: 0; border-radius: 50%; background: #3987e5; color: #fff; font-size: 12px; cursor: pointer; }
   .bar > .play:hover { background: #4b95ea; } .bar > .play:focus-visible { outline: 2px solid #ffe6ae; outline-offset: 2px; }
   .bar .tool-wrap { position: relative; flex: none; }
+  .bar .zoom-time { flex: none; display: inline-flex; gap: 2px; }
+  .bar .zoom-time .zoom { width: var(--control); padding: 0; justify-content: center; font-size: 16px; font-weight: 600; }
+  body.capture .bar .zoom-time { display: none; }
   .bar .pop { top: auto; bottom: calc(100% + 8px); left: 0; right: auto; max-width: calc(100vw - 2 * var(--edge)); }
   .track { flex: 1; min-width: 80px; height: 18px; position: relative; cursor: pointer; }
   .track::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.12); }
@@ -414,6 +417,7 @@
 <div class="hud bar"><button id="play" class="play" aria-label="Play the story's years">▶</button>
   <span class="tool-wrap" data-temporal><button class="tool" data-pop="pop-time"><i>Time</i> <b id="t-time">Story</b><span class="caret">▾</span></button>
     <div class="pop" id="pop-time" hidden><h2>Time</h2><div class="seg" id="presets"><button data-preset="story">Story</button><button data-preset="life">A life</button><button data-preset="centuries">Centuries</button><button data-preset="world">World history</button></div><div class="note" id="span"></div><label class="smooth-control" for="smoothing"><span>Smooth</span><input type="range" id="smoothing" min="0" max="100" step="1" value="20" aria-describedby="smoothing-note"></label><div class="note" id="smoothing-note">Blends the steps between readings for reading the shape at a glance. It changes only the drawing: gaps stay empty and pointing still shows each recorded reading.</div></div></span>
+  <span class="zoom-time" data-temporal role="group" aria-label="Zoom time"><button class="tool zoom" id="zoom-out" type="button" aria-label="Zoom out: a longer stretch of time" title="Zoom out: a longer stretch of time. Shift and scroll over the scene also zooms.">−</button><button class="tool zoom" id="zoom-in" type="button" aria-label="Zoom in: a shorter stretch of time" title="Zoom in around the playhead. Shift and scroll over the scene also zooms.">+</button></span>
   <span class="tool-wrap" data-temporal><button class="tool" data-pop="pop-play"><i>Play</i> <b id="t-play">The story's years</b><span class="caret">▾</span></button>
     <div class="pop" id="pop-play" hidden><h2>What plays</h2><div class="seg" id="modes"><button data-mode="story">The story's years</button><button data-mode="construction">The construction</button></div><div class="note" id="mode-note"></div>
       <h2>Speed</h2><div class="seg" id="speeds"><button data-speed="0.25">¼×</button><button data-speed="0.5">½×</button><button data-speed="1">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button></div></div></span>

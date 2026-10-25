@@ -7,6 +7,8 @@ import { takeLiveContext, mountLiveViewer } from './live-viewer.js';
 import { openingView } from './view-settings.js';
 import { mountChosenView, noteAddress } from './chosen-view.js';
 import { mountSearch } from './search.js';
+import { parseTimeQuery } from './time-query.js';
+import { isCalendarTime } from './temporal-layout.js';
 
 // A branch of the model is hypothetical: say so above everything it shows, with the premise it assumes.
 function showBranch(branch) {
@@ -175,9 +177,20 @@ async function switchView(view) {
 window.modelViewer = { switchView, selectRecord: (record) => session.selectRecord(record), getState: () => session.snapshot(), getSnapshot: () => ({ name: dataName, data }), noteAddress };
 // A found record opens where the reader is: in a time view at its place in time (a row in Processes, where rows are
 // drawn), elsewhere selected as the record it is or is drawn from.
+// A time typed into search is read in the model's own clock, counting "years ago" back from the latest time the model
+// declares, as the time view's labels do.
+const present = Math.max(...[data?.extent?.end, ...(data?.events ?? []).map((event) => (Array.isArray(event.reach) ? event.reach[1] : event.end ?? event.start))].filter(Number.isFinite));
+if (temporal) document.getElementById('search')?.setAttribute('placeholder', isCalendarTime(data?.timeUnit) ? 'Search, or a time: 1914–1945' : 'Search, or a time');
 mountSearch({ data, input: document.getElementById('search'), list: document.getElementById('search-results'),
+  timeQuery: temporal ? (query) => parseTimeQuery(query, { unit: data?.timeUnit, present }) : null,
   onOpenList: () => { if (openPanel) togglePanel(openPanel); },
   open: async (result) => {
+    // A time opens in a time view, across its stretch.
+    if (result.kind === 'time') {
+      if (!timeViews.has(session.snapshot().view)) await switchView('together');
+      if (timeViews.has(session.snapshot().view)) (await import('./view.js')).temporalController.zoomTo(result.start, result.end);
+      return;
+    }
     const current = session.snapshot().view;
     if (temporal && result.rowId && timeViews.has(current) && current !== 'together') await switchView('together');
     if (temporal && timeViews.has(session.snapshot().view)) { (await import('./view.js')).temporalController.locate(result); return; }

@@ -118,3 +118,13 @@ test('a process drawn as several series keeps one result per series, named by wh
   const process = results.find((item) => item.kind === 'process');
   assert.equal(process.rowId, undefined, 'the process itself names no single series');
 });
+
+test('a record whose name is the query outranks shorter labels that only contain it', () => {
+  const named = { model: { id: 'named', time_unit: 'year', processes: [], meaning_model: {
+    events: [event('ev.ww2.africa', 'The Second World War in Africa, 1940 to 1943'), event('ev.ww2', 'The Second World War, September 1939 to September 1945.')],
+    event_referent_bindings: [], normalized_cuts: [], event_relations: [], context_roots: [], referents: [] } }, graph: { nodes: [], edges: [] } };
+  const index = buildSearchIndex({ inspection: named });
+  assert.equal(searchRecords(index, 'second world war').results[0].id, 'ev.ww2');
+  assert.equal(searchRecords(index, 'the second world war').results[0].id, 'ev.ww2');
+  assert.equal(searchRecords(index, 'second world war in africa').results[0].id, 'ev.ww2.africa');
+});
