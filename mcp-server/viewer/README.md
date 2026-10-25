@@ -74,6 +74,37 @@ from declared records, so it is tested without a browser.
   longer reading has finer ones open, the time they leave uncovered shows, dimmer, the level it must average, and
   nothing where no level can hold; a moment's reading is a narrow bar. Each series is read through
   `prepareReadings`, which works out the nesting once per zoom and reads exactly as `readingAt` does.
+- **Opening a process** makes it the top of the rows. **Open**, on a row that holds parts (and in that process's
+  reading card), draws only that process and its descendants through `model.decomposition`, with the path from the top
+  of its branch above the rows: each step of the path opens that level, and **All processes** draws the whole tree
+  again (so the Cut series and the processes under Events, which are not parts of any process, are drawn there only).
+  A part with two parents is drawn under whichever of them is opened. Opening unfolds the process, folding still hides
+  its parts, and the key, the guide and the counts follow the rows drawn. A process asked for from another view or from
+  search that the opened top does not draw opens at the nearest level above it that does. The choice is the view's
+  `within` setting, the id of the process, written to the address as the focus is and checked against the model's chosen
+  view the same way (`noteAddress`), so a reload or a shared link reopens it; one that names a process the chart does
+  not draw, or one the decomposition leaves out, is ignored. Where the address follows the model's own recorded view,
+  the setting is kept only once `within` is among the settings `public/view-settings.js` lists as the viewer's own; until
+  then such an address opens the view's own settings and drops it. Without a decomposition no process can be opened, so
+  neither Open nor the path appears.
+- **Parts that add up** are stacked only where the model says so: `scale.aggregate: "sum"` on the process record. A
+  mean, or any other aggregate, is never stacked, and nothing is inferred from parts that merely share a unit. Such a
+  process shows its parts as layers beneath its own curve, in its own unit, adding up to it, with each part's value
+  read beside the plot. As the engine compares a sum with its parts (`life_values_record`), only parts in the
+  process's own unit are added up, and only one holder's account at a time: a part is stacked when it is a number with
+  exactly one series, held by the holder of that row, and with no value below zero (the layers stand on zero, so a
+  whole below zero stacks nothing). The others are listed in the row ("Not stacked") and, with why, in its reading
+  card. Layers are drawn where the whole and every stacked part are recorded, as recorded, never rescaled to fill the
+  whole, on a straight scale from zero (a stacked row is not drawn on a log scale). What the whole holds beyond its
+  parts is a plain remainder layer; where they add up to more than the whole, the excess is hatched and outlined,
+  flagged at each recorded date and listed, with its size, in the reading card. A difference of less than a hundredth
+  of the whole (the engine's floor for comparing a sum with its parts) counts as agreeing, so values that agree to
+  rounding show neither. It must also matter to the row: more than a tenth of a percent of the highest the whole reaches
+  for an excess, which is marked at its date, and more than half a percent for a remainder, a layer that must be as much
+  as the row can show, so rounding at the faint start of a series is neither. The whole's stated range does not hide a
+  difference, and the card says where the parts lie inside it. A process that declares the sum of a divided process's
+  parts shows them in its own row instead of a row of the divided parts, which keep ordinary rows of their own; both take
+  the palette in the parts' order.
 - **Events** in the controls shows the parts and Events above the time axis. It is off at first, so the rows take the
   whole height; the axis, the reading at the pointer and an opened Event's time stay. Choosing a whole under **Parts
   of** turns it on. When on, the parts and Events scroll away as the rows scroll and the axis stays at the top;
@@ -81,8 +112,9 @@ from declared records, so it is tested without a browser.
 - **The panel** says how to read the chart (what its marks and lines mean, with the model's counts). The tour is the
   model's own: the highlights of its recorded view, in its order and with its reason for each; without a recorded view
   there is no tour. It shows an opened Event (its causes ranked by the difference each made alone, its Cuts,
-  realized concepts, links and the processes it moves), a process row (its values and its place in the tree) or a
-  group of Events too close to draw apart.
+  realized concepts, links and the processes it moves), a process row (its values, how it opens as the top, the parts
+  it adds up from and those it lists without stacking, and its place in the tree) or a group of Events too close to
+  draw apart.
 - **Shared with the other views**: opening an Event or a process shares the selection; a selection cleared in another
   view, or one the Chart cannot show (a Cut, a relation, a note), returns the panel to the guide. The moment the rows
   are read at is the session's time (`time.now`, in the time views' units): a moment set in a time view is where the

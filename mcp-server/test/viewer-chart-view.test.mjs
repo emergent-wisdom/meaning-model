@@ -255,3 +255,217 @@ test('each row of several same-holder series opens its own values, and folding a
   folded.host.querySelector('.cv-disclose').fire('click');
   assert.deepEqual(folded.host.querySelectorAll('.cv-row').map((row) => [row.dataset.id, row.hidden]), [['root', false], ['p', true], ['p~s2', true]]);
 });
+
+// ---- opening a process as the top of the rows, and declared sums ---------------------------------------------------------------------
+// Runs with a page address that behaves as the browser's: the Chart writes to it and reads it back.
+function withAddress(href, run) {
+  const saved = { location: globalThis.location, history: globalThis.history };
+  globalThis.location = { href, get search() { return new URL(this.href).search; } };
+  globalThis.history = { state: null, replaceState(_state, _title, url) { globalThis.location.href = String(url); } };
+  try { return run(); } finally { Object.assign(globalThis, saved); }
+}
+// Root holds p (which holds q) and r. With a sum declared, p and r add up to root (6 and 4 become 12 and 8; root is 10 and 20).
+const part = (id, label, unit = 'litre', scale = {}) => ({ id, unit, value_type: { kind: 'scalar' }, scale: { label, ...scale } });
+function tree({ sum = false, root = 10, extra = [] } = {}) {
+  const processes = [part('root', 'Root', 'litre', sum ? { aggregate: 'sum' } : {}), part('p', 'Part P'), part('q', 'Part Q'), part('r', 'Part R'), ...extra.map(([id, label, unit]) => part(id, label, unit))];
+  const decomposition = [['root', 'p'], ['root', 'r'], ['p', 'q'], ...extra.map(([id]) => ['root', id])].map(([parent, child]) => ({ parent, child, kind: 'functional_refinement' }));
+  const inspection = { model: { time_unit: 'day', processes, decomposition, meaning_model: { events: [] } } };
+  return { timeUnit: 'day', events: [], inspection, typedScalarSeries: [series('s.root', root, 'alice', 'root'), series('s.p', 6, 'alice', 'p'), series('s.q', 2, 'alice', 'q'), series('s.r', 4, 'alice', 'r'),
+    ...extra.map(([id]) => series(`s.${id}`, 1, 'alice', id))] };
+}
+const rowIds = (host) => host.querySelectorAll('.cv-row').map((row) => row.dataset.id);
+const crumbText = (host) => host.querySelector('.cv-crumbs').children.map((node) => node.textContent).join(' ');
+const within = () => new URL(globalThis.location.href).searchParams.get('within');
+const opener = (host, label) => host.querySelectorAll('.cv-open').find((node) => node.getAttribute('aria-label') === `Open ${label} as the top of the rows`);
+const crumb = (host, text) => host.querySelectorAll('.cv-crumb').find((node) => node.tagName === 'BUTTON' && node.textContent === text);
+
+test('Open on a process with parts draws only it and its parts under the path to it, and All processes returns to the whole tree', () => withAddress('https://example.test/?view=chart&chosen=none', () => {
+  const checked = [];
+  const { host, chart } = mount(tree(), () => {}, { noteAddress: () => checked.push(globalThis.location.search) });
+  chart.activate('chart');
+  assert.deepEqual(rowIds(host), ['root', 'p', 'q', 'r'], 'the whole tree to begin with');
+  assert.ok(host.querySelector('.cv-crumbs').hidden, 'no path to show while the whole tree is drawn');
+  assert.deepEqual(host.querySelectorAll('.cv-open').map((node) => node.getAttribute('aria-label')), ['Open Root as the top of the rows', 'Open Part P as the top of the rows'], 'offered only on rows that hold parts');
+  assert.ok(host.querySelectorAll('.cv-disclose').length === 2, 'folding still works beside it');
+
+  opener(host, 'Part P').fire('click');
+  assert.deepEqual(rowIds(host), ['p', 'q'], 'only it and what it holds');
+  assert.equal(host.querySelector('.cv-crumbs').hidden, false);
+  assert.equal(crumbText(host), 'All processes › Root › Part P', 'the path from the top of the tree, and the way back to all of it');
+  assert.equal(within(), 'p', 'the choice is in the address');
+  assert.equal(checked.length, 1, 'the address is checked against the model\'s chosen view as it is written');
+  assert.match(checked[0], /within=p/u);
+  assert.deepEqual(host.querySelectorAll('.cv-open').map((node) => node.getAttribute('aria-label')), [], 'the top is not offered again, and its parts hold none');
+  assert.match(host.querySelector('.cv-guide').textContent, /Opened at Part P: only it and the parts it holds are drawn \(2 rows\)/u);
+  assert.equal(host.querySelectorAll('.cv-row').filter((row) => row.hidden).length, 0);
+
+  crumb(host, 'Root').fire('click');
+  assert.deepEqual(rowIds(host), ['root', 'p', 'q', 'r']); assert.equal(within(), 'root');
+  assert.equal(crumbText(host), 'All processes › Root', 'each step of the path opens that level');
+  assert.equal(host.querySelectorAll('.cv-crumb').filter((node) => node.tagName === 'BUTTON' && node.textContent === 'Root').length, 0, 'the level shown is not a button');
+
+  host.querySelector('.cv-crumb-all').fire('click');
+  assert.deepEqual(rowIds(host), ['root', 'p', 'q', 'r']); assert.equal(within(), null, 'All processes leaves the address as it was');
+  assert.ok(host.querySelector('.cv-crumbs').hidden);
+  assert.equal(checked.length, 3);
+}));
+
+test('folding a row still hides its parts, and opening a folded process unfolds it', () => withAddress('https://example.test/?view=chart&chosen=none', () => {
+  const { host, chart } = mount(tree(), () => {}); chart.activate('chart');
+  host.querySelectorAll('.cv-disclose')[1].fire('click');
+  assert.deepEqual(host.querySelectorAll('.cv-row').map((row) => [row.dataset.id, row.hidden]), [['root', false], ['p', false], ['q', true], ['r', false]], 'p folded: q hidden');
+  opener(host, 'Part P').fire('click');
+  assert.deepEqual(host.querySelectorAll('.cv-row').map((row) => [row.dataset.id, row.hidden]), [['p', false], ['q', false]], 'opened, p shows its parts');
+  host.querySelector('.cv-disclose').fire('click');
+  assert.deepEqual(host.querySelectorAll('.cv-row').map((row) => [row.dataset.id, row.hidden]), [['p', false], ['q', true]], 'and can be folded again');
+}));
+
+test('the address names the opened process, so a reload and a shared link reopen it; a name the chart does not draw is ignored', () => {
+  const snapshot = tree();
+  const opened = (search) => withAddress(`https://example.test/${search}`, () => { const { host, chart } = mount(snapshot, () => {}); chart.activate('chart'); return host; });
+  const host = opened('?view=chart&within=p');
+  assert.deepEqual(rowIds(host), ['p', 'q']); assert.equal(crumbText(host), 'All processes › Root › Part P');
+  assert.deepEqual(rowIds(opened('?view=chart&within=q')), ['q'], 'a process with no parts opens alone');
+  for (const search of ['?view=chart&within=nothing', '?view=chart&within=', '?view=chart']) assert.deepEqual(rowIds(opened(search)), ['root', 'p', 'q', 'r'], `${search} draws the whole tree`);
+  assert.ok(opened('?view=chart&within=nothing').querySelector('.cv-crumbs').hidden);
+});
+
+test('without a decomposition there is nothing to open: no Open, no path, and the guide does not offer them', () => withAddress('https://example.test/?view=chart', () => {
+  const { host, chart } = mount(data, () => {}); chart.activate('chart');
+  assert.equal(host.querySelectorAll('.cv-open').length, 0); assert.ok(host.querySelector('.cv-crumbs').hidden);
+  assert.doesNotMatch(host.querySelector('.cv-guide').textContent, /Open, on a process|Opened at/u);
+  assert.doesNotMatch(host.querySelector('.cv-foot').textContent, /Stacked|Remainder|Hatched/u, 'and the key names no stacked parts');
+  // An address that names a process opens nothing where there is no decomposition to open it in.
+  withAddress('https://example.test/?view=chart&within=p', () => { const again = mount(data, () => {}); again.chart.activate('chart'); assert.deepEqual(rowIds(again.host), ['p']); assert.ok(again.host.querySelector('.cv-crumbs').hidden); });
+  // Nor does one outside the decomposition, in a model that has one.
+  withAddress('https://example.test/?view=chart&within=loose', () => {
+    const snapshot = tree(); snapshot.inspection.model.processes.push(part('loose', 'Loose')); snapshot.typedScalarSeries.push(series('s.loose', 3, 'alice', 'loose'));
+    const again = mount(snapshot, () => {}); again.chart.activate('chart');
+    assert.deepEqual(rowIds(again.host), ['root', 'p', 'q', 'r', 'loose']); assert.ok(again.host.querySelector('.cv-crumbs').hidden);
+  });
+}));
+
+test('a process asked for from elsewhere that the opened top does not draw opens at the nearest level that does', () => withAddress('https://example.test/?view=chart&within=q', () => {
+  const sent = [];
+  const { host, chart } = mount(tree(), (selection) => sent.push(selection)); chart.activate('chart');
+  assert.deepEqual(rowIds(host), ['q']);
+  chart.deactivate(); chart.activate('chart', { selection: { kind: 'process', id: 'nothing' } });
+  assert.deepEqual(rowIds(host), ['q'], 'a process the chart does not draw at all changes nothing');
+  chart.deactivate(); chart.activate('chart', { selection: { kind: 'process', id: 'p' } });
+  assert.deepEqual(rowIds(host), ['p', 'q']); assert.equal(title(host), 'Part P', 'the process is opened in the reading card'); assert.equal(within(), 'p');
+  chart.deactivate(); chart.activate('chart', { selection: { kind: 'process', id: 'r' } });
+  assert.deepEqual(rowIds(host), ['root', 'p', 'q', 'r'], 'r is not under p: the next level up that draws it opens'); assert.equal(title(host), 'Part R'); assert.equal(within(), 'root');
+  assert.deepEqual(sent, [], 'a selection received is never sent back');
+}));
+
+test('a row the new top leaves out is closed, and its selection is cleared for the other views', () => withAddress('https://example.test/?view=chart', () => {
+  const sent = [];
+  const { host, chart } = mount(tree(), (selection) => sent.push(selection)); chart.activate('chart');
+  host.querySelectorAll('.cv-row').find((row) => row.dataset.id === 'r').querySelector('.cv-row-name').fire('click');
+  assert.equal(title(host), 'Part R'); assert.deepEqual(sent.at(-1), { kind: 'process', id: 'r' });
+  opener(host, 'Part P').fire('click');
+  assert.equal(title(host), 'How to read this chart', 'r is not drawn under p');
+  assert.equal(sent.at(-1), null);
+  // What stays drawn stays open.
+  host.querySelectorAll('.cv-row').find((row) => row.dataset.id === 'q').querySelector('.cv-row-name').fire('click');
+  crumb(host, 'Root').fire('click');
+  assert.equal(title(host), 'Part Q'); assert.ok(host.querySelectorAll('.cv-row').some((row) => row.classes.has('is-selected') && row.dataset.id === 'q'));
+}));
+
+test('the reading card says where a process sits, offers to open it, and reaches the process it was opened from', () => withAddress('https://example.test/?view=chart', () => {
+  const { host, chart } = mount(tree(), () => {}); chart.activate('chart');
+  host.querySelectorAll('.cv-row').find((row) => row.dataset.id === 'p').querySelector('.cv-row-name').fire('click');
+  const button = host.querySelector('.cv-open-card');
+  assert.equal(button.textContent, 'Open as the top'); button.fire('click');
+  assert.deepEqual(rowIds(host), ['p', 'q']); assert.equal(host.querySelector('.cv-open-card'), null, 'once it is the top there is nothing to open');
+  // The top's own card still says what it is part of, and the link opens that level.
+  host.querySelectorAll('.cv-row').find((row) => row.dataset.id === 'p').querySelector('.cv-row-name').fire('click');
+  const up = host.querySelectorAll('.cv-link').find((node) => node.textContent === 'Root');
+  assert.ok(up, 'Part of Root');
+  up.fire('click');
+  assert.deepEqual(rowIds(host), ['root', 'p', 'q', 'r']); assert.equal(title(host), 'Root');
+}));
+
+test('a process that declares the sum of its parts shows them stacked in its own row, with the remainder and any excess marked', () => withAddress('https://example.test/?view=chart', () => {
+  const plain = mount(tree(), () => {}); plain.chart.activate('chart');
+  assert.equal(plain.host.querySelectorAll('.cv-band-path').length, 0, 'no sum declared: nothing is stacked, though the parts share a unit');
+
+  const exact = tree({ sum: true });
+  const one = mount(exact, () => {}); one.chart.activate('chart');
+  const root = one.host.querySelector('.cv-row');
+  assert.deepEqual(root.querySelectorAll('.cv-share-name').map((node) => node.textContent), ['Part P', 'Part R'], 'its parts, listed beside the plot');
+  assert.equal(root.querySelectorAll('.cv-band-path').filter((node) => node.classes.has('is-layer')).length, 2, 'one layer each');
+  assert.equal(root.querySelectorAll('.cv-over-flag').length, 0); assert.doesNotMatch(root.textContent, /Remainder|exceed/u, 'no remainder and no excess, so neither is listed');
+  assert.doesNotMatch(root.querySelector('.cv-row-unit').textContent, /log scale/u);
+  assert.doesNotMatch(one.host.querySelector('.cv-foot').textContent, /Remainder|Hatched/u);
+  assert.match(one.host.querySelector('.cv-foot').textContent, /Stacked parts that add up to it/u);
+  clickAt(one.host, exact, 5);
+  assert.deepEqual(root.querySelectorAll('.cv-share-val').map((node) => node.textContent), ['~ 9', '~ 6'], 'the parts at the moment read, marked as between recorded values');
+
+  // The whole holds more than its parts: the remainder is a layer, and a line of its own.
+  const gap = tree({ sum: true, root: 12 });
+  const two = mount(gap, () => {}); two.chart.activate('chart');
+  const rest = two.host.querySelector('.cv-row');
+  assert.deepEqual(rest.querySelectorAll('.cv-share-name').map((node) => node.textContent), ['Part P', 'Part R', 'Remainder']);
+  assert.equal(rest.querySelectorAll('.cv-band-path').filter((node) => node.classes.has('is-rest')).length, 1);
+  clickAt(two.host, gap, 5);
+  assert.equal(rest.querySelectorAll('.cv-share-val').at(-1).textContent, '~ 3', 'what is left open at that moment');
+  assert.match(two.host.querySelector('.cv-foot').textContent, /Remainder: what the whole holds beyond its parts/u);
+
+  // The parts add up to more than the whole: marked at each date, hatched, and said in words, never hidden.
+  const over = tree({ sum: true, root: 8 });
+  const three = mount(over, () => {}); three.chart.activate('chart');
+  const excess = three.host.querySelector('.cv-row');
+  assert.deepEqual(excess.querySelectorAll('.cv-share-name').map((node) => node.textContent), ['Part P', 'Part R', 'Parts exceed it']);
+  assert.equal(excess.querySelectorAll('.cv-over-flag').length, 2, 'a flag at each date');
+  assert.ok(excess.querySelectorAll('.cv-over').length >= 1, 'and the stretch between');
+  clickAt(three.host, over, 5);
+  assert.equal(excess.querySelectorAll('.cv-share-val').at(-1).textContent, '~ by 3');
+  assert.match(three.host.querySelector('.cv-foot').textContent, /Hatched: its parts add up to more than the whole/u);
+  excess.querySelector('.cv-row-name').fire('click');
+  assert.match(three.host.querySelector('.cv-panel-body').textContent, /At 2 recorded dates the parts add up to more than the whole: 0 day, by 2; 10 day, by 4/u);
+}));
+
+test('a stacked row stands on zero in a straight scale, and lists the parts it does not stack with why', () => withAddress('https://example.test/?view=chart', () => {
+  const snapshot = tree({ sum: true, extra: [['z', 'Part Z', 'kilogram']] });
+  snapshot.inspection.model.processes = snapshot.inspection.model.processes.map((p) => (p.id === 'z' ? { ...p, unit: 'kilogram' } : p));
+  const { host, chart } = mount(snapshot, () => {}); chart.activate('chart');
+  const root = host.querySelector('.cv-row');
+  const listed = root.querySelector('.cv-share-listed');
+  assert.equal(listed.textContent, 'Not stacked: Part Z'); assert.match(listed.attrs.title, /Part Z: its unit, kilogram, is not litre/u);
+  assert.equal(root.querySelectorAll('.cv-band-path').filter((node) => node.classes.has('is-layer')).length, 2, 'the part in another unit is not stacked');
+  root.querySelector('.cv-row-name').fire('click');
+  const card = host.querySelector('.cv-panel-body').textContent;
+  assert.match(card, /The model declares this process the sum of its parts/u); assert.match(card, /Listed, not stacked:/u); assert.match(card, /Part Z its unit, kilogram, is not litre/u);
+}));
+
+// A model whose own view is the Chart: a reader who opens a process has changed what it chose, so reopening the address keeps
+// the process. That needs `within` among the settings view-settings.js lists as the viewer's own, which is where the Chart's
+// other choices are recorded.
+test('reopening the address where the model\'s own view is followed keeps the process the reader opened', { todo: 'needs within in VIEW_SETTINGS (view-settings.js)' }, async () => {
+  const { noteAddress: fresh } = await import('../viewer/public/chosen-view.js?within-todo');
+  const views = [{ id: 'v1', title: 'The tree', settings: { view: 'chart' } }];
+  const opening = openingView(viewAddress('https://example.test/?data=m', views[0]), views);
+  withAddress(opening.href, () => {
+    fresh(); // the viewer's first address write is the baseline
+    const { host, chart } = mount(tree(), () => {}, { noteAddress: fresh }); chart.activate('chart');
+    opener(host, 'Part P').fire('click');
+    const reopened = openingView(globalThis.location.href, views);
+    assert.equal(new URL(reopened.href).searchParams.get('within'), 'p');
+  });
+});
+
+test('the opened process survives a reload wherever the address is the reader\'s own', async () => {
+  const { noteAddress: fresh } = await import('../viewer/public/chosen-view.js?within-own');
+  const views = [{ id: 'v1', title: 'The tree', settings: { view: 'chart' } }];
+  for (const [what, href, list] of [['the reader\'s own settings', 'https://example.test/?data=m&view=chart&chosen=none', views], ['a link set by hand', 'https://example.test/?data=m&view=chart', views],
+    ['a model with no recorded view', 'https://example.test/?data=m&view=chart', []]]) {
+    withAddress(href, () => {
+      const { host, chart } = mount(tree(), () => {}, { noteAddress: fresh }); chart.activate('chart');
+      opener(host, 'Part P').fire('click');
+      const reopened = openingView(globalThis.location.href, list);
+      assert.equal(new URL(reopened.href).searchParams.get('within'), 'p', `${what} keeps it`);
+      assert.equal(reopened.href, globalThis.location.href, `${what} is opened as it is`);
+    });
+  }
+});

@@ -16,7 +16,9 @@ body[data-representation="chart"] #coarse-view { display: none !important; }
 .cv-empty { padding: 24px; color: var(--ink-2); }
 
 /* ---- the chart: full width, leaving the right column to the reading card while it is open ----------------------------- */
-.cv-chart { position: absolute; inset: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; min-width: 0; }
+.cv-chart { position: absolute; inset: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-height: 0; min-width: 0; }
+.cv-scroll { grid-row: 2; }
+.cv-foot { grid-row: 3; }
 .cv.has-panel .cv-chart { right: var(--cv-panel-space); }
 .cv-scroll { position: relative; overflow: auto; overscroll-behavior: contain; min-height: 0; user-select: none; scrollbar-width: thin; }
 .cv-head { position: sticky; top: var(--cv-head-top, 0px); z-index: 3; display: grid; grid-template-columns: var(--cv-stub, 220px) minmax(0, 1fr);
@@ -94,6 +96,12 @@ body[data-representation="chart"] #coarse-view { display: none !important; }
 .cv-row-line-2 { color: var(--muted); font-size: 11px; padding-left: 20px; }
 .cv-row-line-3 { padding-left: 20px; gap: 8px; }
 .cv-disclose, .cv-disclose-space { flex: none; width: 14px; height: 14px; }
+/* Open: draws a process with parts as the top of the rows. Quiet until pointed at, but always there on a row that has parts. */
+.cv-open { flex: none; align-self: center; margin: 0; padding: 0 8px; height: 18px; border: 0; border-radius: 9px; background: rgba(255, 255, 255, 0.06); box-shadow: 0 0 0 1px var(--ring) inset;
+  color: var(--ink-2); font-size: 11px; font-weight: 600; line-height: 1; cursor: pointer; }
+.cv-open:hover { background: rgba(159, 195, 255, 0.22); color: #fff; }
+.cv-open-card { height: auto; padding: 5px 13px; border-radius: 13px; font-size: 12px; }
+.cv-actions { margin: 10px 0 0; }
 .cv-disclose { position: relative; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; align-self: center; border-radius: 4px; }
 .cv-disclose::before { content: ""; position: absolute; left: 3px; top: 4px; border: 4.5px solid transparent; border-top: 6px solid var(--muted); border-bottom: 0; transition: transform 160ms ease-out; }
 .cv-disclose:hover::before { border-top-color: var(--ink); }
@@ -114,6 +122,9 @@ body[data-representation="chart"] #coarse-view { display: none !important; }
 .cv-share-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
 .cv-share-val { font-weight: 600; color: var(--ink); }
 .cv-chip { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--chip, #77746c); }
+/* Where a declared sum's parts add up to more than it: hatched in the warning colour, as the plot hatches it. */
+.cv-chip.is-over { border-radius: 2px; background: repeating-linear-gradient(45deg, var(--cv-over) 0 1.4px, transparent 1.4px 3.2px); box-shadow: 0 0 0 1px var(--cv-over) inset; }
+.cv-row-shares li.cv-share-listed { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 
 .cv-grid-line { stroke: #ffffff; stroke-opacity: 0.05; }
 .cv-grid-line.is-zero { stroke-opacity: 0.2; }
@@ -127,8 +138,24 @@ body[data-representation="chart"] #coarse-view { display: none !important; }
 .cv-dot { fill: var(--ink); }
 .cv-life { fill: #ffffff; fill-opacity: 0.16; }
 .cv-band-path { stroke: #050608; stroke-width: 0.8; stroke-linejoin: round; fill-opacity: 0.85; }
+/* The parts of a declared sum, beneath the curve of its process: a little lighter, so the curve stays the first thing read. */
+.cv-band-path.is-layer { fill-opacity: 0.7; }
+.cv-band-path.is-rest { fill-opacity: 0.5; }
+.cv-over { stroke-width: 1; stroke-opacity: 0.95; stroke-linejoin: round; }
+.cv-line-halo { fill: none; stroke: #050608; stroke-opacity: 0.55; stroke-width: 4.2; stroke-linejoin: round; stroke-linecap: round; }
 .cv-cut-part { stroke: #050608; stroke-width: 0.5; fill-opacity: 0.85; }
 .cv-cut-part.is-derived { fill-opacity: 0.4; }
+
+/* ---- the path to an opened process: one line above the rows, where All processes returns to the whole tree ------------------ */
+.cv-crumbs { grid-row: 1; display: flex; align-items: center; gap: 2px 4px; overflow-x: auto; scrollbar-width: thin; padding: 6px var(--edge); background: #050608;
+  box-shadow: 0 1px 0 var(--cv-rule-2); font-size: 12.5px; line-height: 1.3; white-space: nowrap; }
+.cv-crumbs[hidden] { display: none; }
+.cv-crumb { flex: none; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; margin: 0; padding: 2px 7px; border: 0; border-radius: 7px; background: none; color: var(--ink-2); font-weight: 500; }
+button.cv-crumb { cursor: pointer; }
+button.cv-crumb:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.cv-crumb-all { background: rgba(255, 255, 255, 0.07); box-shadow: 0 0 0 1px var(--ring) inset; color: var(--ink); }
+.cv-crumb-sep { flex: none; color: var(--muted); }
+.cv-crumb.is-here { color: #fff; font-weight: 600; }
 
 /* ---- the key: one quiet line under the chart ------------------------------------------------------------------------------ */
 .cv-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 7px var(--edge) 9px; box-shadow: 0 -1px 0 var(--cv-rule-2); background: #050608; font-size: 11.5px; color: var(--ink-2); }
@@ -142,6 +169,9 @@ body[data-representation="chart"] #coarse-view { display: none !important; }
 .cv-key-line.is-invented { border-top-style: dashed; }
 .cv-key-line.is-rough { border-top: 2.4px dotted var(--ink); }
 .cv-key-range { width: 22px; height: 10px; border-radius: 2px; background: rgba(255, 255, 255, 0.12); }
+.cv-key-layers { width: 22px; height: 10px; border-radius: 2px; opacity: 0.85; background: linear-gradient(90deg, var(--a) 0 33%, var(--b) 33% 66%, var(--c) 66%); }
+.cv-key-rest { width: 22px; height: 10px; border-radius: 2px; background: var(--cv-rest); opacity: 0.55; }
+.cv-key-over { width: 22px; height: 10px; border-radius: 2px; background: repeating-linear-gradient(45deg, var(--cv-over) 0 1.4px, transparent 1.4px 4px); box-shadow: 0 0 0 1px var(--cv-over) inset; }
 .cv-axis-note { margin: 0; color: var(--muted); }
 
 /* ---- the reading card: the viewer's details card, in the right column under the model's view card ---------------------- */
@@ -200,6 +230,8 @@ body[data-representation="chart"] #coarse-view { display: none !important; }
 .cv.is-narrow .cv-row-line-2 { display: none; }
 .cv.is-narrow .cv-row-line-3 { padding-left: 0; }
 .cv.is-narrow .cv-row-shares { display: flex; flex-wrap: wrap; gap: 0 10px; margin: 2px 0 0 20px; font-size: 10.5px; }
+.cv.is-narrow .cv-row-shares li.cv-share-listed { flex: 1 1 100%; }
+.cv.is-narrow .cv-open { align-self: baseline; }
 .cv.is-narrow .cv-overlay { left: 0; }
 @media (max-width: 760px) {
   .cv.has-panel .cv-chart { right: 0; bottom: calc(42vh + var(--edge)); }
