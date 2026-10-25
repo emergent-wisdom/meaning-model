@@ -609,7 +609,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     if (object.interval) lines.push(element('p', intervalText(object.interval, space.timeUnit), 'space-date'));
     if (object.lifeLocation && object.fullLabel) lines.push(element('p', object.fullLabel, 'a'));
     if (object.lifeLocation) lines.push(element('p', object.locationRole === 'home_base' ? 'A home base for this period. This does not claim the person stayed here continuously.' : object.locationRole === 'workplace' ? 'A place of work for this period. This does not replace their home or imply continuous presence.' : 'A bounded location record. Time between records remains unspecified.', 'space-qualification'));
-    for (const text of qualification(object).filter((text) => !['coarse_life_location', 'authored_fictional_tableau', 'sourced_representative_geographical_point'].includes(text))) lines.push(element('p', text, 'space-qualification'));
+    for (const text of qualification(object).filter((text) => !['coarse_life_location', 'authored_fictional_tableau', 'sourced_representative_geographical_point', 'computed_representative_geographical_point'].includes(text))) lines.push(element('p', text, 'space-qualification'));
     const coordinate = element('details', null, 'space-coordinate-detail'); coordinate.append(element('summary', 'Coordinates and source'));
     coordinate.append(element('p', `${frame.frame ?? 'Unnamed frame'}${frame.unit ? ` · ${frame.unit}` : ''}`, 'a'));
     coordinate.append(element('p', object.axes.map((axis, i) => `${axis} ${number((position ?? object.position)[i])}`).join(' · '), 'm'));
