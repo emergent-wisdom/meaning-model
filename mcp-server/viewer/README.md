@@ -182,10 +182,41 @@ unit at a time. It never places anything from a name, an Event's region or prose
   scale `semantic_role: "position"`, or scalar processes with
   `semantic_role: "position"` and a scale `axis`. Scalars of one thing share a
   `spatial_entity:<id>` support item (else an id ending in `.position.<axis>`)
-  and one `reference_frame` and `unit`.
+  and one `reference_frame` and `unit`; the one exception is an `altitude`,
+  which may be in a length unit beside latitude and longitude in degrees.
 - **Axes** `x`, `y`, `z` lie east, north and up. A frame whose axes are
-  `latitude` and `longitude` (optionally `altitude`) is drawn as a map, with
-  longitude narrowed by the cosine of the frame's middle latitude.
+  `latitude` and `longitude` (optionally `altitude`) is drawn on a globe or as
+  a map (next bullet). Each axis is read in the unit its own process declares:
+  an altitude in metres or kilometres can sit beside angles in degrees, and a
+  thing on the Earth belongs to the frame of its angles whichever coordinate is
+  met first.
+- **The Earth** lies on a globe or flat, as the reader chooses with the Globe
+  and Map buttons (shown only for a frame of latitudes and longitudes; degrees
+  or radians, and an unstated unit is read as degrees).
+  - *The globe* is a sphere with a graticule: every 30 degrees on the whole
+    globe, with the equator and the prime meridian a little stronger, and finer
+    as the camera comes down (to 0.0001 degree), with its degrees written
+    beside it. It is geometry only: no coastline, border or place name is drawn
+    that the model does not declare. Each position stands at its declared
+    latitude and longitude, and at its altitude when that is declared in a
+    length unit (m, km, ft, mi), to scale, with a line down to the ground.
+    Positions that change over time move as they do on the map; trails,
+    sequence links and causal arcs follow great circles. Drag turns it; the
+    wheel zooms toward the point under the pointer, from orbit to about 600 m
+    above the surface, so that nearby points part (marks keep one size on the
+    screen; pan and W A S D are the map's). Home frames what is shown again.
+  - *The map* is the flat drawing, as before.
+  - *Which opens.* A frame whose points span more than 30 degrees of longitude
+    (measured round the circle) or latitude, at every time they can be where
+    they are declared, opens as a globe; any other as a map. The reader's
+    choice is written to the address as `earth=globe` or `earth=map`, so that a
+    reload keeps it, and is kept in the tab's storage and in Space's saved
+    state; where the viewer makes the address again from a view the model
+    chose, the tab's storage still has it. Default forgets it.
+  - *No globe.* A frame whose axes are not latitude and longitude (a projected
+    EPSG frame in metres, a local frame), whose angles are in another unit, or
+    with a latitude beyond the poles at any time it can be there, is drawn as it
+    always was; a projection is never converted.
 - **Whose position** comes from a coordinate/position
   `event_referent_binding` whose target is the process. Its `interval` bounds
   the declaration. The process's stated meaning distinguishes bodily presence

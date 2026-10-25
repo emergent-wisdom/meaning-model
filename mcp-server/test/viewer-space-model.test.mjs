@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LifeSimulationService } from '../src/service.mjs';
-import { spaceModel, positionAt, timeSpan, planeOf, lifeLocations, locationSequence, spaceConnections, spatialRecordText, resolveSpaceSelection, spaceToViewerTime, viewerToSpaceTime, placedEvents } from '../viewer/public/space-model.js';
+import { spaceModel, positionAt, timeSpan, planeOf, lifeLocations, locationSequence, spaceConnections, spatialRecordText, resolveSpaceSelection, spaceToViewerTime, viewerToSpaceTime, placedEvents,
+  degreesPer, metresPer, geodetic, globeOf, globeXYZ, globeAngles, globeFraming, circularSpan, arcBetween, graticuleStep, graticuleLines, graticuleTicks, viewArc, GLOBE_RADIUS, EARTH_RADIUS_M, WIDE_SPAN } from '../viewer/public/space-model.js';
 
 // A harbour declared in the existing grammar: a ferry's pose, a buoy's two coordinates, a boat moving at a declared
 // constant speed, and a pier with no position. Places named only in an Event's region are never placed.
@@ -279,4 +280,105 @@ test('Events are placed only where the model says they happen, with their notes,
   assert.deepEqual([byId['boat.run'].passages.map((item) => item.node.id), byId['boat.run'].notes.map((item) => item.node.id)], [['chapter.1'], ['note.1']]);
   assert.deepEqual(placement.causal.map((relation) => relation.id), ['run-docks']);
   assert.equal(placement.unplaced, model.meaning_model.events.length - 2);
+});
+
+
+// ---- The Earth as a globe ---------------------------------------------------------------------------------------------------
+// Places on the Earth, each in the unit its own process declares. The ids sort as a canonical model's do, so that an altitude in
+// metres comes before the angles in degrees.
+const earth = (processes, extra = {}) => ({ time_unit: 'hour', processes, meaning_model: {}, ...extra });
+const scalarAt = (id, value, axis, extra = {}) => ({ id, value_type: { kind: 'scalar', bounds: { minimum: -1e7, maximum: 1e7 } }, initial_value: { kind: 'scalar', value }, uncertainty: { kind: 'exact' }, provenance: ['globe test'],
+  unit: 'degree', reference_frame: 'WGS84', scale: { semantic_role: 'position', axis }, support: [], access_scopes: [], update_mode: 'static', ...extra });
+const place = (name, latitude, longitude, extra = {}) => [scalarAt(`${name}.position.latitude`, latitude, 'latitude', { support: [`spatial_entity:${name}`], ...extra }), scalarAt(`${name}.position.longitude`, longitude, 'longitude', { support: [`spatial_entity:${name}`], ...extra })];
+
+test('a position on the Earth has the unit of each of its own axes, and a length beside its angles does not make a frame of its own', () => {
+  const aircraft = [scalarAt('aircraft.position.altitude', 10000, 'altitude', { unit: 'm', support: ['spatial_entity:aircraft'] }), ...place('aircraft', 36.2, 138.2)];
+  const { frames } = spaceModel(earth([...aircraft, ...place('tokyo', 35.6762, 139.6503)]));
+  assert.equal(frames.length, 1, 'the aircraft stands in the frame of its angles, though its altitude is met first');
+  assert.deepEqual([frames[0].frame, frames[0].unit], ['WGS84', 'degree']);
+  const plane = frames[0].objects.find((object) => object.label === 'aircraft');
+  assert.deepEqual([plane.axes, plane.axisUnits], [['altitude', 'latitude', 'longitude'], ['m', 'degree', 'degree']], 'each axis keeps its own unit, in the order the axes are declared');
+  // An altitude is to scale on the flat map too, as the degrees of arc its length spans, not as a number among degrees.
+  const flat = planeOf(frames[0]), moved = flat.coordinates(plane, plane.position);
+  assert.ok(Math.abs(moved.up - 10000 / (EARTH_RADIUS_M * Math.PI / 180)) < 1e-9);
+  assert.equal(degreesPer('degrees'), 1); assert.equal(degreesPer('°'), 1); assert.equal(degreesPer('degrees_north'), 1); assert.equal(degreesPer(null), 1, 'a unit left undeclared is read as degrees, as the map has always read it');
+  assert.ok(Math.abs(degreesPer('radian') - 180 / Math.PI) < 1e-12); assert.equal(degreesPer('m'), null); assert.equal(degreesPer('degree/hour'), null);
+  assert.deepEqual([metresPer('km'), metresPer('metre'), metresPer('ft'), metresPer('degree'), metresPer(null)], [1000, 1, 0.3048, null, null]);
+});
+
+test('latitude, longitude and altitude become a point of the sphere: north up, longitude 0 toward +z, east to the right', () => {
+  const near = (actual, expected) => assert.ok(actual.every((value, i) => Math.abs(value - expected[i]) < 1e-9), `${actual} is not ${expected}`);
+  near(globeXYZ(0, 0), [0, 0, 100]); near(globeXYZ(90, 0), [0, 100, 0]); near(globeXYZ(0, 90), [100, 0, 0]); near(globeXYZ(0, -90), [-100, 0, 0]); near(globeXYZ(0, 180), [0, 0, -100]); near(globeXYZ(-90, 33), [0, -100, 0]);
+  for (const [latitude, longitude] of [[51.5, -0.13], [-33.9, 151.2], [89.9, 10], [0, 179.9]]) {
+    const back = globeAngles(globeXYZ(latitude, longitude, 123)); assert.ok(Math.abs(back.latitude - latitude) < 1e-9 && Math.abs(back.longitude - longitude) < 1e-9);
+  }
+  const object = { axes: ['latitude', 'longitude', 'altitude'], axisUnits: ['degree', 'degree', 'km'], position: [10, 20, 400] };
+  assert.deepEqual(geodetic(object, object.position), { latitude: 10, longitude: 20, altitude: 400000, altitudeDrawn: true });
+  const radians = { axes: ['latitude', 'longitude'], axisUnits: ['radian', 'radian'], position: [Math.PI / 6, -Math.PI / 2] }, turned = geodetic(radians, radians.position);
+  assert.ok(Math.abs(turned.latitude - 30) < 1e-9 && Math.abs(turned.longitude + 90) < 1e-9);
+  // No sphere takes these: a latitude beyond the poles, angles in another unit, an altitude with no length unit is left off the ground it stands over.
+  assert.equal(geodetic({ axes: ['latitude', 'longitude'], axisUnits: ['degree', 'degree'] }, [91, 0]), null);
+  assert.equal(geodetic({ axes: ['latitude', 'longitude'], axisUnits: ['m', 'm'] }, [10, 20]), null);
+  assert.equal(geodetic({ axes: ['x', 'y'], axisUnits: ['m', 'm'] }, [10, 20]), null);
+  assert.equal(geodetic({ axes: ['latitude', 'longitude', 'altitude'], axisUnits: ['degree', 'degree', 'degree'] }, [1, 2, 3]).altitudeDrawn, false);
+});
+
+test('a frame offers a globe, and opens as one, when its points span more than thirty degrees of longitude or latitude', () => {
+  const world = spaceModel(earth([...place('london', 51.5074, -0.1278), ...place('new_york', 40.7128, -74.006), ...place('tokyo', 35.6762, 139.6503), ...place('sydney', -33.8688, 151.2093)])).frames[0];
+  const wide = globeOf(world); assert.equal(wide.wide, true); assert.equal(wide.objects.length, 4); assert.equal(wide.left.length, 0);
+  assert.ok(wide.latitudeSpan > 80 && wide.longitudeSpan > 200);
+  const small = globeOf(spaceModel(earth([...place('swindon', 51.558, -1.782), ...place('avebury', 51.428, -1.854)])).frames[0]);
+  assert.equal(small.wide, false); assert.ok(small.latitudeSpan < 1);
+  assert.equal(WIDE_SPAN, 30);
+  // Longitude is measured round the circle: 179 and -179 are two degrees apart; a point with nothing near it has no span.
+  assert.equal(globeOf(spaceModel(earth([...place('a', 10, 179), ...place('b', 10, -179)])).frames[0]).wide, false); assert.equal(circularSpan([179, -179]), 2); assert.equal(circularSpan([5]), 0); assert.equal(circularSpan([0, 120, 240]), 240);
+  assert.equal(globeOf(spaceModel(earth([...place('north', 60, 0), ...place('south', 20, 0)])).frames[0]).wide, true, 'forty degrees of latitude is wide');
+  // The span is what the frame reaches over time: a ship at a declared rate crosses an ocean.
+  const sailing = earth([...place('ship', 35, -60), scalarAt('ship.velocity.longitude', 1.5, 'longitude', { unit: 'degree/hour', scale: { semantic_role: 'velocity', axis: 'longitude' } })],
+    { laws: [{ id: 'ship.sails', operator: { role: 'evolution', target: 'ship.position.longitude', derivative: { op: 'process', process: 'ship.velocity.longitude' } } }], meaning_model: { events: [{ id: 'trip', interval: { start: 0, end: 48 } }] } });
+  const trip = spaceModel(sailing).frames[0], ship = globeOf(trip, timeSpan(trip, 48));
+  assert.equal(globeOf(trip, null).wide, false, 'where it starts is a point'); assert.equal(ship.wide, true); assert.ok(Math.abs(ship.longitudeSpan - 72) < 1e-9);
+});
+
+test('a frame that cannot lie on a sphere is not offered one, and keeps the drawing it has', () => {
+  const projected = spaceModel(earth(['x', 'y'].map((axis, i) => scalarAt(`town.position.${axis}`, [414969, 184761][i], axis, { unit: 'm', reference_frame: 'EPSG:27700', support: ['spatial_entity:town'] })))).frames[0];
+  assert.equal(planeOf(projected).geo, false); assert.equal(globeOf(projected), null, 'a projection is not converted');
+  assert.equal(globeOf(spaceModel(earth(place('beyond', 120, 10))).frames[0]), null, 'a latitude of 120 degrees is no place on a sphere');
+  assert.equal(globeOf(spaceModel(earth(place('far', 10, 20, { unit: 'm' }))).frames[0]), null, 'angles in metres are not angles');
+  assert.equal(globeOf(spaceModel(earth(place('radians', 0.5, 0.2, { unit: 'radian' }))).frames[0]).objects.length, 1);
+  // Of the positions that lack a latitude or longitude, the frame says that it leaves them off.
+  const mixed = spaceModel(earth([...place('town', 51, 0), ...place('elsewhere', 40, 10), scalarAt('lone.position.latitude', 10, 'latitude', { support: ['spatial_entity:lone'] })])).frames[0];
+  const partial = globeOf(mixed); assert.equal(partial.objects.length, 2); assert.deepEqual(partial.left.map((object) => object.label), ['lone']);
+  assert.equal(spaceModel({}).frames.length, 0);
+});
+
+test('a great circle joins two places along the surface, and the graticule and the framing follow from the geometry alone', () => {
+  const near = (actual, expected, message, tolerance = 1e-9) => assert.ok(Math.abs(actual - expected) < tolerance, `${message}: ${actual} is not ${expected}`);
+  const a = globeXYZ(0, 0), b = globeXYZ(0, 90), arc = arcBetween(a, b, { maxStep: 30 });
+  assert.equal(arc.length, 4); assert.deepEqual(arc[0], a); assert.deepEqual(arc[3], b);
+  for (const point of arc) near(Math.hypot(...point), GLOBE_RADIUS, 'a point of the arc is on the surface');
+  near(globeAngles(arc[1]).longitude, 30, 'a third of the way'); near(Math.hypot(...arcBetween(a, b, { maxStep: 45, bulge: 0.1 })[1]) - GLOBE_RADIUS, 0.1 * Math.hypot(...a.map((v, i) => v - b[i])), 'the bulge raises the middle by that part of the chord');
+  assert.ok(arcBetween(a, b, { lift: 0.5 }).every((point) => Math.hypot(...point) > GLOBE_RADIUS + 0.49), 'a lift raises every point, ends included');
+  const opposite = arcBetween(globeXYZ(0, 0), globeXYZ(0, 180), { maxStep: 45 });
+  assert.equal(opposite.length, 5); for (const point of opposite) near(Math.hypot(...point), GLOBE_RADIUS, 'opposite points are joined by a half circle'); assert.ok(opposite[2].every((value) => Number.isFinite(value)));
+  // A graticule every thirty degrees: five parallels, twelve meridians, the equator and the prime meridian apart.
+  const grid = graticuleLines({ step: 30 });
+  assert.deepEqual(grid.parallels, [-60, -30, 0, 30, 60]); assert.equal(grid.meridians.length, 12); assert.ok(grid.everywhere);
+  assert.equal(grid.major.length / 6, 720 + 360, 'the equator and the prime meridian, in half-degree pieces'); assert.ok(grid.minor.length > grid.major.length);
+  const longest = Math.max(...Array.from({ length: grid.minor.length / 6 }, (_, i) => { const p = grid.minor.slice(i * 6, i * 6 + 3), q = grid.minor.slice(i * 6 + 3, i * 6 + 6); return Math.hypot(...p.map((v, k) => v - q[k])); }));
+  assert.ok(longest < 100 * 0.5 * Math.PI / 180 * 1.001, 'no piece of a line is longer than half a degree of arc');
+  const near2 = graticuleLines({ step: 0.5, latitude: 51.5, longitude: -0.1, reach: 3 });
+  assert.equal(near2.everywhere, false); assert.ok(near2.parallels.includes(51.5) && near2.meridians.includes(0) && near2.parallels.length < 30 && near2.meridians.length < 30, 'a finer graticule lies only about the view');
+  // The step is finer the closer the camera is, and a whole globe is seen at thirty degrees.
+  const fov = 42, whole = viewArc(309, fov, 1.6); assert.equal(graticuleStep(whole.half), 30); assert.ok(whole.half > 70 && whole.half < 90);
+  const steps = [309, 150, 110, 101, 100.1, 100.011].map((distance) => graticuleStep(viewArc(distance, fov, 1.6).half));
+  assert.deepEqual(steps, steps.toSorted((x, y) => y - x), 'closer is finer'); assert.ok(steps.at(-1) <= 0.001);
+  const ticks = graticuleTicks({ step: 30, latitude: 20, longitude: 10, half: 71 });
+  assert.deepEqual(ticks.filter((tick) => tick.axis === 'latitude').map((tick) => tick.text).sort(), ['0°', '30°N', '30°S', '60°N']); assert.ok(ticks.some((tick) => tick.text === '30°E') && ticks.some((tick) => tick.text === '30°W'));
+  assert.equal(graticuleTicks({ step: 0.05, latitude: 51.5, longitude: -0.1, half: 0.2 }).find((tick) => tick.axis === 'latitude').text.replace(/[0-9.]+/u, '').startsWith('°N'), true);
+  // Seen from a distance that fits them, over their centre: two close points from close by, a world spread from afar.
+  const closeBy = globeFraming([globeXYZ(51.558, -1.782), globeXYZ(51.428, -1.854)], { fov: 42, aspect: 1.6 }), farOff = globeFraming(['london', 'sydney', 'new york'].map((_, i) => globeXYZ([51.5, -33.9, 40.7][i], [-0.1, 151.2, -74][i])), { fov: 42, aspect: 1.6 });
+  assert.ok(closeBy.distance - GLOBE_RADIUS < 20 && closeBy.spread < 1); assert.ok(farOff.distance > 280, 'a spread over more than half the globe is seen whole');
+  near(globeAngles(closeBy.direction).latitude, 51.493, 'the camera is over the centre of the pair', 0.01);
+  assert.ok(globeFraming([], {}).distance > 280, 'with nothing to look at the whole globe is in view');
 });

@@ -7,7 +7,8 @@ import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer
 import { proseUnit } from './inspector.js';
 import { createWalker } from './walk-controls.js';
 import { onPlainClick } from './pointer-click.js';
-import { spaceModel, positionAt, presentAt, timeSpan, planeOf, lifeLocations, locationSequence, spaceConnections, spatialRecordText, resolveSpaceSelection, spaceToViewerTime, viewerToSpaceTime, placedEvents } from './space-model.js';
+import { spaceModel, positionAt, presentAt, timeSpan, planeOf, lifeLocations, locationSequence, spaceConnections, spatialRecordText, resolveSpaceSelection, spaceToViewerTime, viewerToSpaceTime, placedEvents,
+  globeOf, geodetic, degreesPer, globeXYZ, globeAngles, globeRadiusAt, arcBetween, graticuleStep, graticuleLines, graticuleTicks, viewArc, globeFraming, GLOBE_RADIUS, GRATICULE_LIFT } from './space-model.js';
 
 const element = (tag, text, className) => {
   const node = document.createElement(tag); if (text != null) node.textContent = String(text);
@@ -38,6 +39,29 @@ const geographic = (frame) => planeOf(frame).geo || /\b(EPSG|WGS ?84|OSGB|ETRS|U
 function projector(frame) {
   const plane = planeOf(frame);
   return { ...plane, point(object, position) { const { east, north, up } = plane.coordinates(object, position); return new THREE.Vector3(east, up, -north); } };
+}
+// Latitude, longitude and altitude on a sphere about the origin, north up. The ground is the surface under a position.
+function globeProjector() {
+  return { geo: true, globe: true, point(object, position, ground = false) {
+    const at = geodetic(object, position) ?? geodetic(object, object.position);
+    return at ? new THREE.Vector3(...globeXYZ(at.latitude, at.longitude, ground ? GLOBE_RADIUS : globeRadiusAt(at.altitude))) : new THREE.Vector3(0, GLOBE_RADIUS, 0);
+  } };
+}
+// How the Earth is drawn is the reader's to choose. The choice is kept in the address (`earth=globe` or `earth=map`) so that a reload
+// keeps it, and in this tab's storage, which still has it when the address is made again from a view the model chose. The storage key
+// is under the live viewer's prefix, so that Default, which forgets this tab's saved view of a model, forgets it too. Without a
+// choice, a frame whose points span a wide part of the Earth opens as a globe and any other as a map.
+const EARTHS = new Set(['globe', 'map']);
+const earthKey = () => `meaning-model-live:${globalThis.location.pathname}:earth:${new URLSearchParams(globalThis.location.search).get('data') ?? 'model'}`;
+const addressParam = () => { try { const value = new URLSearchParams(globalThis.location?.search ?? '').get('earth'); return EARTHS.has(value) ? value : null; } catch { return null; } };
+const savedEarth = () => { try { const value = globalThis.sessionStorage?.getItem(earthKey()); return EARTHS.has(value) ? value : null; } catch { return null; } };
+const addressEarth = () => addressParam() ?? savedEarth();
+function keepEarth(choice) {
+  try { globalThis.sessionStorage.setItem(earthKey(), choice); } catch { /* storage can be unavailable: the address is enough */ }
+  try {
+    const url = new URL(globalThis.location.href); url.searchParams.set('earth', choice);
+    globalThis.history.replaceState(globalThis.history.state, '', url); globalThis.modelViewer?.noteAddress?.();
+  } catch { /* the address is a convenience: the choice is kept in the view's state either way */ }
 }
 
 export function showSpace(data, { host, tools, detail, surface, onSelect = () => {} }) {
@@ -112,7 +136,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   }
   if (!space.frames.length) {
     summary.classList.add('empty'); count.textContent = 'Places in the model';
-    note.textContent = 'No coordinates are declared. These Events still connect people, places and passages.';
+    note.textContent = 'No coordinates are declared. Positions declared as latitude and longitude are drawn on a globe. These Events still connect people, places and passages.';
     journeys.append(settingList());
     detailsClose.addEventListener('click', () => letGo(), { signal: abort.signal });
     return { activate(_view, state) { active = true; playButton.disabled = true; playButton.textContent = '▶'; track.setAttribute('aria-disabled', 'true'); fill.style.width = '0%'; clock.textContent = 'No spatial clock'; const restored = resolveSpaceSelection([], connections, state?.selection); if (restored.node) showRecord(restored.node); else { shown = null; detail.hidden = true; } }, deactivate() { active = false; }, recenter() {}, coarse() { detail.hidden = true; summary.scrollTop = 0; }, getState: () => ({ space: { frames: 0 } }), destroy() { alive = false; abort.abort(); summary.remove(); } };
@@ -125,15 +149,28 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   scene.add(new THREE.AmbientLight('#b8caff', 1.6)); const light = new THREE.DirectionalLight('#ffffff', 2.8); light.position.set(30, 100, 40); scene.add(light);
   const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 20000);
   const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.addEventListener('change', () => { dirty = true; });
-  const walker = createWalker({ camera, controls, isActive: () => active, signal: abort.signal });
+  const walker = createWalker({ camera, controls, isActive: () => active && drawing !== 'globe', signal: abort.signal });
   renderer.domElement.title = 'Drag to turn · scroll to zoom · W A S D move, Q E down and up, arrows look around, Shift faster';
   const world = new THREE.Group(); scene.add(world);
   let span = null, t = 0, playing = false, frameIndex = 0, selected = null, focus = '', overview = false, showPaths = true, showText = true;
   let layers = { events: true, notes: true, causal: true }, showSummary = true, selectedEvent = null, eventItems = [], arcItems = [];
   let items = [], links = [], grid = null, axes = null, axisLabels = [], scale = 1, projection = null, center = new THREE.Vector3(), currentPeople = [];
+  // How the frame on show is drawn: 'map' (flat) or 'globe'. `geo` is what the frame offers a globe, null when it has no latitude
+  // and longitude to put on one. `earthChoice` is the reader's choice, kept in the address; without one the frame's spread decides.
+  let drawing = 'map', geo = null, globeKit = null, globeGeometry = null, earthChoice = addressEarth(), captionBase = '', gridStep = null;
+  // Both travel with the camera, which is what a saved view of the scene keeps: the reader's choice, and the drawing the camera
+  // is placed for (a position saved for a globe means nothing on a map). getState reads them there.
+  camera.userData = { earth: earthChoice, drawing };
+  const setEarth = (choice) => { earthChoice = camera.userData.earth = choice; }, setDrawing = (kind) => { drawing = camera.userData.drawing = kind; };
+  const MARK_PX = 5.5, MIN_ALTITUDE = 0.01, Y = new THREE.Vector3(0, 1, 0);
   const sphere = new THREE.SphereGeometry(1, 20, 14), disc = new THREE.CircleGeometry(1, 48).rotateX(-Math.PI / 2), ring = new THREE.RingGeometry(1.3, 1.65, 40).rotateX(-Math.PI / 2), octa = new THREE.OctahedronGeometry(0.85);
   const frameSelect = element('select', null, 'graph-control'); frameSelect.setAttribute('aria-label', 'Reference frame');
   space.frames.forEach((frame, i) => { const option = element('option', `${frame.lifeLocations.length ? 'Life locations' : frame.objects.some(authored) ? 'Scene layout' : geographic(frame) ? 'Geography' : 'Positions'} · ${frame.frame ?? 'Unnamed frame'}`); option.value = String(i); frameSelect.append(option); }); tools.append(frameSelect);
+  // A frame of latitudes and longitudes can be drawn on a globe or flat, as a map: the reader's choice, shown only for such a frame.
+  const earthButtons = { globe: button('Globe', () => chooseEarth('globe')), map: button('Map', () => chooseEarth('map')) };
+  earthButtons.globe.title = 'Draw latitude and longitude on a globe: drag to turn it, scroll to zoom in to the surface';
+  earthButtons.map.title = 'Draw latitude and longitude flat, as a map';
+  for (const node of Object.values(earthButtons)) { node.hidden = true; node.setAttribute('aria-pressed', 'false'); tools.append(node); }
   const personSelect = element('select', null, 'graph-control'); personSelect.setAttribute('aria-label', 'Focus person'); tools.append(personSelect);
   const overviewButton = button('Whole life', () => { overview = !overview; update(); renderJourneys(); }, 'tool'); overviewButton.title = 'Show the whole declared location history or only the current time'; tools.append(overviewButton);
   const pathsButton = button('Paths', () => { showPaths = !showPaths; update(); }); pathsButton.setAttribute('aria-pressed', 'true'); pathsButton.title = 'Dashed connections show recorded order, not travel routes'; tools.append(pathsButton);
@@ -181,16 +218,16 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   addEventListener('keydown', (event) => { if (!active || event.defaultPrevented || event.key !== ' ' || event.target.closest?.('input, textarea, select, button, [contenteditable], [role="slider"]')) return; event.preventDefault(); togglePlay(); }, { signal: abort.signal });
   const dispose = (object) => { if (!object) return; world.remove(object); object.geometry?.dispose?.(); object.material?.dispose?.(); };
   function clear() {
-    for (const item of items) { world.remove(item.mesh, item.label, item.halo); item.mesh.material.dispose(); item.halo.material.dispose(); item.label.element.remove(); dispose(item.trail); if (item.spread) { world.remove(item.spread); item.spread.material.dispose(); } }
+    for (const item of items) { world.remove(item.mesh, item.label, item.halo); item.mesh.material.dispose(); item.halo.material.dispose(); item.label.element.remove(); dispose(item.trail); dispose(item.drop); if (item.spread) { world.remove(item.spread); item.spread.material.dispose(); if (item.spread.geometry !== disc) item.spread.geometry.dispose(); } }
     for (const link of links) dispose(link.line);
     for (const item of eventItems) { world.remove(item.marker, item.label); item.marker.material.dispose(); item.label.element.remove(); dispose(item.stem); for (const light of item.lights) { world.remove(light); light.material.dispose(); } }
     for (const arc of arcItems) dispose(arc.line); eventItems = []; arcItems = [];
     for (const label of axisLabels) { world.remove(label); label.element.remove(); }
-    dispose(grid); dispose(axes); grid = null; axes = null; items = []; links = []; axisLabels = [];
+    dispose(grid); dispose(axes); grid = null; axes = null; items = []; links = []; axisLabels = []; removeGlobe();
   }
   const hueFor = (object) => HUES[[...new Set(space.frames.flatMap((frame) => frame.objects.filter((item) => item.lifeLocation).map((item) => item.referentId)))].indexOf(object.referentId) % HUES.length] ?? '#9fc3ff';
   function showFrame(index, keepTime = true) {
-    const oldTime = t; clear(); frameIndex = index; frameSelect.value = String(index); const frame = space.frames[index]; projection = projector(frame);
+    const oldTime = t; clear(); frameIndex = index; frameSelect.value = String(index); const frame = space.frames[index];
     currentPeople = lifeLocations(frame); personSelect.hidden = !currentPeople.length; overviewButton.hidden = !currentPeople.length;
     personSelect.replaceChildren(element('option', 'Everyone')); personSelect.firstChild.value = '';
     for (const person of currentPeople) { const option = element('option', person.label); option.value = person.id; personSelect.append(option); }
@@ -198,17 +235,24 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     span = timeSpan(frame, space.modelEnd);
     if (span) t = keepTime && oldTime >= span.start && oldTime <= span.end ? oldTime : span.start; else t = 0;
     overview = currentPeople.length > 0;
-    const times = (object) => [...new Set([span?.start, span?.end, object.interval?.start, object.interval?.end, ...object.motion.flatMap((motion) => motion?.steps?.map((step) => step.t) ?? [])].filter(Number.isFinite))];
-    const points = frame.objects.flatMap((object) => [0, ...times(object)].map((time) => positionAt(object, time)).filter(Boolean).map((position) => projection.point(object, position)));
-    if (!points.length) points.push(...frame.objects.map((object) => projection.point(object, object.position)));
-    const box = new THREE.Box3().setFromPoints(points), size = box.getSize(new THREE.Vector3()); box.getCenter(center);
-    scale = 100 / Math.max(size.x, size.y, size.z, 1e-9); const width = Math.max(size.x, size.z) * scale * 1.35 || 100;
-    grid = new THREE.GridHelper(width, 12, '#364457', '#18232d'); grid.material.transparent = true; grid.material.opacity = 0.55; grid.position.set(0, (box.min.y - center.y) * scale - 0.02, 0); world.add(grid);
-    axes = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-width / 2, 0, 0), new THREE.Vector3(width / 2, 0, 0), new THREE.Vector3(0, 0, width / 2), new THREE.Vector3(0, 0, -width / 2)]), new THREE.LineBasicMaterial({ color: '#41546c', transparent: true, opacity: 0.55 })); axes.position.copy(grid.position); world.add(axes);
-    const axisName = (axis) => `${axis}${frame.unit ? ` · ${frame.unit}` : ''}`;
-    for (const [text, at] of [[axisName(projection.east), new THREE.Vector3(width / 2, 0, 0)], [axisName(projection.north), new THREE.Vector3(0, 0, -width / 2)]]) { const label = new CSS2DObject(element('div', text, 'space-axis')); label.position.copy(at).add(grid.position); world.add(label); axisLabels.push(label); }
+    // A frame of latitudes and longitudes offers a globe; it opens as one when its points span a wide part of the Earth.
+    geo = globeOf(frame, span); setDrawing(geo && (earthChoice ? earthChoice === 'globe' : geo.wide) ? 'globe' : 'map');
+    syncEarth(); configureControls(); projection = drawing === 'globe' ? globeProjector() : projector(frame);
+    const drawn = new Set(drawing === 'globe' ? geo.objects : frame.objects);
+    if (drawing === 'globe') { center.set(0, 0, 0); scale = 1; buildGlobe(); }
+    else {
+      const times = (object) => [...new Set([span?.start, span?.end, object.interval?.start, object.interval?.end, ...object.motion.flatMap((motion) => motion?.steps?.map((step) => step.t) ?? [])].filter(Number.isFinite))];
+      const points = frame.objects.flatMap((object) => [0, ...times(object)].map((time) => positionAt(object, time)).filter(Boolean).map((position) => projection.point(object, position)));
+      if (!points.length) points.push(...frame.objects.map((object) => projection.point(object, object.position)));
+      const box = new THREE.Box3().setFromPoints(points), size = box.getSize(new THREE.Vector3()); box.getCenter(center);
+      scale = 100 / Math.max(size.x, size.y, size.z, 1e-9); const width = Math.max(size.x, size.z) * scale * 1.35 || 100;
+      grid = new THREE.GridHelper(width, 12, '#364457', '#18232d'); grid.material.transparent = true; grid.material.opacity = 0.55; grid.position.set(0, (box.min.y - center.y) * scale - 0.02, 0); world.add(grid);
+      axes = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-width / 2, 0, 0), new THREE.Vector3(width / 2, 0, 0), new THREE.Vector3(0, 0, width / 2), new THREE.Vector3(0, 0, -width / 2)]), new THREE.LineBasicMaterial({ color: '#41546c', transparent: true, opacity: 0.55 })); axes.position.copy(grid.position); world.add(axes);
+      const axisName = (axis) => `${axis}${frame.unit ? ` · ${frame.unit}` : ''}`;
+      for (const [text, at] of [[axisName(projection.east), new THREE.Vector3(width / 2, 0, 0)], [axisName(projection.north), new THREE.Vector3(0, 0, -width / 2)]]) { const label = new CSS2DObject(element('div', text, 'space-axis')); label.position.copy(at).add(grid.position); world.add(label); axisLabels.push(label); }
+    }
     const hueKeys = [...new Set(frame.objects.map((object) => object.referentId ?? object.id))];
-    frame.objects.forEach((object) => {
+    [...drawn].forEach((object) => {
       const hue = object.lifeLocation ? hueFor(object) : HUES[hueKeys.indexOf(object.referentId ?? object.id) % HUES.length];
       const mesh = new THREE.Mesh(sphere, new THREE.MeshStandardMaterial({ color: hue, emissive: hue, emissiveIntensity: 0.24, metalness: 0.15, roughness: 0.4, transparent: true })); mesh.userData.object = object;
       const labelElement = element('button', short(positionLabel(object), 42), 'space-label'); labelElement.type = 'button'; labelElement.title = `${positionLabel(object)}\n${intervalText(object.interval, space.timeUnit)}`; labelElement.addEventListener('click', () => (shown === object && !detail.hidden ? letGo() : select(object)));
@@ -217,28 +261,45 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
       let trail = null;
       if (object.moves && object.evaluated && span) {
         const samples = Array.from({ length: 65 }, (_, k) => span.start + (span.end - span.start) * k / 64).map((time) => positionAt(object, time)).filter(Boolean).map((position) => place(object, position));
-        if (samples.length > 1) { trail = new THREE.Line(new THREE.BufferGeometry().setFromPoints(samples), new THREE.LineBasicMaterial({ color: hue, transparent: true, opacity: 0.45 })); world.add(trail); }
+        if (samples.length > 1) { trail = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve(samples)), new THREE.LineBasicMaterial({ color: hue, transparent: true, opacity: 0.45 })); trail.userData.globe = 'trail'; world.add(trail); }
       }
       const half = (axis) => { const precision = object.precision[object.axes.indexOf(axis)]; return precision?.kind === 'standard_deviation' ? precision.value : precision?.kind === 'interval' ? (precision.upper - precision.lower) / 2 : 0; };
-      const radius = Math.max(half(projection.east) * (projection.geo ? projection.narrow : 1), half(projection.north)) * scale;
-      let spread = null;
-      if (radius > 0) { spread = new THREE.Mesh(disc, new THREE.MeshBasicMaterial({ color: hue, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide })); spread.scale.setScalar(radius); world.add(spread); }
-      world.add(mesh, label, halo); items.push({ object, mesh, label, trail, spread, halo, hue });
+      let spread = null, drop = null;
+      if (drawing === 'globe') {
+        // A declared spread is an angle on the sphere: the latitude's as it is, the longitude's narrowed by the cosine of the latitude.
+        const at = geodetic(object, object.position), turn = (axis) => half(axis) * (degreesPer(object.axisUnits?.[object.axes.indexOf(axis)]) ?? 1);
+        const degrees = at ? Math.max(turn('longitude') * Math.cos(at.latitude * Math.PI / 180), turn('latitude')) : 0;
+        if (degrees > 0) spread = new THREE.Mesh(new THREE.SphereGeometry(GLOBE_RADIUS + GRATICULE_LIFT * 1.5, 40, 3, 0, Math.PI * 2, 0, Math.min(Math.PI, degrees * Math.PI / 180)), new THREE.MeshBasicMaterial({ color: hue, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide }));
+        if (spread) spread.userData.globe = 'spread';
+        // A declared altitude is drawn to scale, which is little beside the globe: a line down to the ground shows that it is raised.
+        if (at && object.axes.includes('altitude') && at.altitudeDrawn) { drop = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]), new THREE.LineBasicMaterial({ color: hue, transparent: true, opacity: 0.55 })); drop.frustumCulled = false; drop.userData.globe = 'drop'; world.add(drop); }
+      } else {
+        const radius = Math.max(half(projection.east) * (projection.geo ? projection.narrow : 1), half(projection.north)) * scale;
+        if (radius > 0) { spread = new THREE.Mesh(disc, new THREE.MeshBasicMaterial({ color: hue, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide })); spread.scale.setScalar(radius); }
+      }
+      if (spread) world.add(spread);
+      world.add(mesh, label, halo);
+      items.push({ object, mesh, label, trail, spread, halo, hue, drop, at: new THREE.Vector3(), ground: new THREE.Vector3(), normal: new THREE.Vector3(0, 1, 0), grow: 1, haloGrow: 1 });
     });
     for (const link of locationSequence(frame)) {
-      // A straight dashed connection makes the declared ordering visible. It does not simulate motion through gaps.
-      const points = [place(link.source, link.source.position), place(link.target, link.target.position)];
-      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineDashedMaterial({ color: hueFor(link.source), dashSize: link.gap ? 0.6 : 1.5, gapSize: link.gap ? 1.2 : 0.7, transparent: true, opacity: 0.48 }));
-      line.computeLineDistances(); world.add(line); links.push({ ...link, line });
+      if (!drawn.has(link.source) || !drawn.has(link.target)) continue;
+      // A dashed connection makes the declared ordering visible: straight on the map, along the surface on the globe. It does not simulate motion through gaps.
+      const ends = [place(link.source, link.source.position), place(link.target, link.target.position)];
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve(ends)), new THREE.LineDashedMaterial({ color: hueFor(link.source), dashSize: link.gap ? 0.6 : 1.5, gapSize: link.gap ? 1.2 : 0.7, transparent: true, opacity: 0.48 }));
+      line.computeLineDistances(); line.userData.globe = 'link'; world.add(line); links.push({ ...link, line, ends, dashPx: link.gap ? 4 : 9, gapPx: link.gap ? 8 : 4 });
     }
     // Events where the model places them, raised above their place and stacked when several share it; their notes and
     // passages as small lights above; causal links as arcs between them.
     const stacks = new Map();
     for (const placed of placement.events.filter((item) => item.frame === index)) {
+      const standing = placed.objects.filter((object) => drawn.has(object));
+      if (!standing.length) continue;
       const when = placed.interval?.start ?? span?.start ?? 0;
-      const points = placed.objects.map((object) => place(object, positionAt(object, when) ?? object.position));
+      const points = standing.map((object) => place(object, positionAt(object, when) ?? object.position));
       const base = points.reduce((sum, point) => sum.add(point), new THREE.Vector3()).divideScalar(points.length);
-      const key = `${Math.round(base.x)}|${Math.round(base.z)}`;
+      // On the globe the stack stands on the surface where its positions are; places are told apart by where they are in space.
+      if (drawing === 'globe') base.copy(base.lengthSq() > 1e-6 ? base : points[0]).setLength(GLOBE_RADIUS);
+      const key = drawing === 'globe' ? base.toArray().map((value) => Math.round(value * 1000)).join('|') : `${Math.round(base.x)}|${Math.round(base.z)}`;
       const marker = new THREE.Mesh(octa, new THREE.MeshStandardMaterial({ color: '#f2efe6', emissive: '#f2efe6', emissiveIntensity: 0.3, transparent: true })); marker.userData.placed = placed;
       const stem = new THREE.Line(new THREE.BufferGeometry().setFromPoints([base, base.clone()]), new THREE.LineBasicMaterial({ color: '#8b93a6', transparent: true, opacity: 0.35 }));
       const lights = [...placed.passages.map((item) => ({ ...item, color: '#fff0d0' })), ...placed.notes.map((item) => ({ ...item, color: '#c9d4ff' }))].slice(0, 12).map((item, k, all) => {
@@ -247,21 +308,203 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
       });
       const labelElement = element('button', short(placed.event.boundary, 46), 'space-event-label'); labelElement.type = 'button'; labelElement.title = placed.event.boundary; labelElement.addEventListener('click', () => (shown === placed && !detail.hidden ? letGo() : selectEvent(placed)));
       const label = new CSS2DObject(labelElement); label.center.set(0.5, 1.5);
-      world.add(marker, stem, label); eventItems.push({ placed, marker, stem, lights, label, base, key });
+      if (drawing === 'globe') stem.frustumCulled = false;
+      world.add(marker, stem, label); eventItems.push({ placed, marker, stem, lights, label, base, key, height: 3, heightPx: 20 });
     }
     for (const relation of placement.causal) {
       const a = eventItems.find((item) => item.placed.id === relation.source_event_id), b = eventItems.find((item) => item.placed.id === relation.target_event_id);
       if (!a || !b) continue;
       const line = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: '#ff8a4c', transparent: true, opacity: 0.7 }));
-      world.add(line); arcItems.push({ relation, line, a, b });
+      if (drawing === 'globe') line.frustumCulled = false;
+      line.userData.globe = 'causal'; world.add(line); arcItems.push({ relation, line, a, b });
     }
     frameHeading.textContent = currentPeople.length ? 'Lives across places' : frame.objects.some(authored) ? 'Within a scene' : geographic(frame) ? 'Declared geography' : 'Declared positions';
-    frameCaption.textContent = currentPeople.length ? 'Home, work and visits · select a period below' : frame.objects.some(authored) ? 'Authored layout · select a point to see its scope' : 'Coordinates in one shared reference frame';
-    count.textContent = currentPeople.length ? `${currentPeople.length} lives · ${frame.lifeLocations.length} location periods` : `${frame.objects.length} declared positions`;
-    note.textContent = currentPeople.length ? 'Dashed links show sequence, not travel routes. Hatched time is unrecorded. Home and work can overlap.' : frame.objects.some(authored) ? 'Fictional scene layout. Date ranges bound a representative moment, not a continuous stay.' : 'Reference points are shown to scale; a point does not define the extent of what it marks.';
+    captionBase = currentPeople.length ? 'Home, work and visits · select a period below' : frame.objects.some(authored) ? 'Authored layout · select a point to see its scope' : 'Coordinates in one shared reference frame'; gridStep = null; setCaption();
+    const unplaced = drawing === 'globe' && geo.left.length ? ` · ${geo.left.length} without latitude and longitude, not on the globe` : '';
+    count.textContent = currentPeople.length ? `${currentPeople.length} lives · ${frame.lifeLocations.length} location periods` : `${drawn.size} declared positions${unplaced}`;
+    note.textContent = currentPeople.length ? 'Dashed links show sequence, not travel routes. Hatched time is unrecorded. Home and work can overlap.' : frame.objects.some(authored) ? 'Fictional scene layout. Date ranges bound a representative moment, not a continuous stay.'
+      : drawing === 'globe' ? 'Positions lie at their declared latitude and longitude, to scale. The grid is geometry, not data: no coastline, border or place name is drawn that the model does not declare.' : 'Reference points are shown to scale; a point does not define the extent of what it marks.';
     renderJourneys(); update(); fit(); if (active) resize();
   }
-  function place(object, position) { return projection.point(object, position).sub(center).multiplyScalar(scale); }
+  function place(object, position, ground = false) { return projection.point(object, position, ground).sub(center).multiplyScalar(scale); }
+  // ---- The globe ---------------------------------------------------------------------------------------------------------
+  // A frame of latitudes and longitudes can lie on a sphere, at the globe's own scale. The camera orbits its centre; marks keep
+  // one size on screen, so that nearby points part as the camera comes down; the graticule is finer the closer it is. The
+  // grid is geometry: no coastline, border or name is drawn that the model does not declare.
+  const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3(), rightVector = new THREE.Vector3(), upVector = new THREE.Vector3(), spot = new THREE.Vector3();
+  const groundSphere = new THREE.Sphere(new THREE.Vector3(), GLOBE_RADIUS);
+  // The wheel zooms toward what is under the pointer: the point of the globe it was over and where on the screen, kept until the
+  // next frame has used them.
+  let wheelAim = null;
+  const angleBetween = (a, b) => { const u = globeXYZ(a.latitude, a.longitude, 1), v = globeXYZ(b.latitude, b.longitude, 1); return Math.acos(Math.max(-1, Math.min(1, u[0] * v[0] + u[1] * v[1] + u[2] * v[2]))) * 180 / Math.PI; };
+  // Whether the sphere hides a point from the camera: the straight line from one to the other passes through it.
+  function behind(point) {
+    const from = camera.position; tmpA.subVectors(point, from); const length = tmpA.lengthSq(); if (length < 1e-12) return false;
+    const along = Math.min(1, Math.max(0, -from.dot(tmpA) / length));
+    return tmpB.copy(from).addScaledVector(tmpA, along).lengthSq() < (GLOBE_RADIUS * 0.9995) ** 2;
+  }
+  // What joins points: a straight line on the map; on the globe the great circle between each pair, which follows the surface a
+  // hair above it, in pieces short enough that none dips below the sphere's facets.
+  function curve(points, bulge = 0) {
+    if (drawing !== 'globe' || points.length < 2) return points;
+    const out = [];
+    for (let i = 1; i < points.length; i += 1) for (const point of arcBetween(points[i - 1].toArray(), points[i].toArray(), { maxStep: 0.5, bulge, lift: GRATICULE_LIFT * 1.5 }).slice(i === 1 ? 0 : 1)) out.push(new THREE.Vector3(...point));
+    return out;
+  }
+  // A line that follows the camera is rewritten in place, so that no new buffer is made for each frame.
+  function writeLine(line, points) {
+    let attribute = line.geometry.attributes.position;
+    if (!attribute || attribute.count < points.length) {
+      if (attribute) line.geometry.deleteAttribute('position');
+      attribute = new THREE.BufferAttribute(new Float32Array(Math.max(64, points.length * 2) * 3), 3); attribute.setUsage(THREE.DynamicDrawUsage); line.geometry.setAttribute('position', attribute);
+    }
+    points.forEach((point, i) => attribute.setXYZ(i, point.x, point.y, point.z));
+    attribute.needsUpdate = true; line.geometry.setDrawRange(0, points.length); line.frustumCulled = false;
+  }
+  function buildGlobe() {
+    globeGeometry ??= new THREE.SphereGeometry(1, 384, 192);
+    // The body is pushed back a little in depth, so that the lines and marks drawn on it never flicker against it.
+    const body = new THREE.Mesh(globeGeometry, new THREE.MeshStandardMaterial({ color: '#1a2f49', roughness: 0.95, metalness: 0, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
+    body.scale.setScalar(GLOBE_RADIUS); body.userData.globe = 'sphere';
+    const rim = new THREE.Mesh(globeGeometry, new THREE.MeshBasicMaterial({ color: '#6fa2e8', transparent: true, opacity: 0.1, side: THREE.BackSide, depthWrite: false }));
+    rim.scale.setScalar(GLOBE_RADIUS * 1.018); rim.userData.globe = 'rim';
+    world.add(body, rim);
+    const ticks = Array.from({ length: 32 }, () => {
+      const tick = new CSS2DObject(element('div', '', 'space-axis space-tick')); Object.assign(tick.element.style, { background: 'rgba(5, 6, 8, 0.62)', padding: '0 3px', borderRadius: '3px' });
+      tick.visible = false; world.add(tick); return tick;
+    });
+    globeKit = { body, rim, lines: [], ticks, built: null, step: null };
+  }
+  function removeGlobe() {
+    const kit = globeKit; if (!kit) return;
+    world.remove(kit.body, kit.rim); kit.body.material.dispose(); kit.rim.material.dispose();
+    for (const line of kit.lines) { world.remove(line); line.geometry.dispose(); line.material.dispose(); }
+    for (const tick of kit.ticks) { world.remove(tick); tick.element.remove(); }
+    globeKit = null;
+  }
+  // The lines every `step` degrees. Coarse ones cover the globe; finer ones only the neighbourhood of the view, made again when
+  // the step changes or the view has moved toward the edge of what was made.
+  function graticule(step, latitude, longitude, reach) {
+    const kit = globeKit, built = kit.built, everywhere = step >= 5;
+    if (built && built.step === step && (everywhere || angleBetween(built, { latitude, longitude }) + reach <= built.reach * 0.92)) return;
+    for (const line of kit.lines) { world.remove(line); line.geometry.dispose(); line.material.dispose(); }
+    kit.lines = [];
+    const asked = everywhere ? 180 : reach * 1.6, made = graticuleLines({ step, latitude, longitude, reach: asked });
+    for (const [positions, major] of [[made.minor, false], [made.major, true]]) {
+      if (!positions.length) continue;
+      const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      const line = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color: major ? '#86abdc' : '#3a587a', transparent: true, opacity: major ? 0.95 : 0.8, depthWrite: false }));
+      line.frustumCulled = false; line.userData.globe = major ? 'major' : 'graticule'; world.add(line); kit.lines.push(line);
+    }
+    kit.built = { step, latitude, longitude, reach: asked };
+  }
+  function placeTicks(step, latitude, longitude, half) {
+    const list = graticuleTicks({ step, latitude, longitude, half });
+    globeKit.ticks.forEach((tick, i) => {
+      const entry = list[i];
+      if (!entry) { tick.visible = false; return; }
+      tick.position.set(...globeXYZ(entry.latitude, entry.longitude, GLOBE_RADIUS + GRATICULE_LIFT * 2));
+      if (tick.element.textContent !== entry.text) tick.element.textContent = entry.text;
+      tick.visible = showText && !behind(tick.position);
+    });
+  }
+  const setCaption = () => { frameCaption.textContent = drawing === 'globe' ? [captionBase, gridStep ? `grid every ${gridStep}°` : null, 'drag to turn, scroll to zoom'].filter(Boolean).join(' · ') : captionBase; };
+  // Each frame the camera is on the globe: its clipping planes, its light, the size and stand of every mark and the graticule
+  // all follow where it is, so the surface just below it is never cut away and a mark has the same size at every height.
+  function refreshGlobe() {
+    const kit = globeKit; if (!kit || drawing !== 'globe') return;
+    const distance = camera.position.length(), altitude = Math.max(distance - GLOBE_RADIUS, 1e-6), pixels = host.clientHeight || 400;
+    camera.near = Math.max(altitude * 0.25, 0.0004); camera.far = distance + GLOBE_RADIUS * 3; camera.updateProjectionMatrix(); camera.updateMatrixWorld();
+    rightVector.setFromMatrixColumn(camera.matrixWorld, 0); upVector.setFromMatrixColumn(camera.matrixWorld, 1);
+    // The light comes from the viewer's side, a little above and to one side, so that the part in view is always lit.
+    light.position.copy(camera.position).addScaledVector(upVector, distance * 0.5).addScaledVector(rightVector, -distance * 0.3);
+    const perPixel = (from) => 2 * from * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / pixels;
+    for (const item of items) {
+      if (!item.mesh.visible) continue;
+      const size = MARK_PX * perPixel(camera.position.distanceTo(item.at));
+      item.mesh.scale.setScalar(size * item.grow); item.mesh.position.copy(item.at).addScaledVector(item.normal, size * 0.5);
+      item.label.position.copy(item.mesh.position); item.halo.position.copy(item.mesh.position); item.halo.scale.setScalar(size * item.haloGrow);
+    }
+    for (const link of links) {
+      const near = perPixel(Math.min(camera.position.distanceTo(link.ends[0]), camera.position.distanceTo(link.ends[1])));
+      link.line.material.dashSize = link.dashPx * near; link.line.material.gapSize = link.gapPx * near;
+    }
+    // A stack of Events stands up from its place toward the viewer's up, as tall in pixels as the stack is tall in the model.
+    for (const item of eventItems) {
+      if (!item.marker.visible) continue;
+      const per = perPixel(camera.position.distanceTo(item.base)), chosen = selectedEvent === item.placed;
+      tmpA.copy(item.base).normalize().addScaledVector(upVector, 0.8).normalize();
+      item.marker.position.copy(item.base).addScaledVector(tmpA, item.heightPx * per); item.marker.scale.setScalar(MARK_PX * 1.25 * per * (chosen ? 1.45 : 1));
+      item.label.position.copy(item.marker.position);
+      const stem = item.stem.geometry.attributes.position; stem.setXYZ(1, item.marker.position.x, item.marker.position.y, item.marker.position.z); stem.needsUpdate = true;
+      for (const spark of item.lights) {
+        spark.position.copy(item.marker.position).addScaledVector(rightVector, Math.cos(spark.userData.angle) * 12 * per).addScaledVector(upVector, (Math.sin(spark.userData.angle) * 6 + 15) * per); spark.scale.setScalar(3 * per);
+      }
+      item.label.element.style.visibility = behind(item.marker.position) ? 'hidden' : 'visible';
+    }
+    for (const arc of arcItems) if (arc.line.visible) writeLine(arc.line, curve([arc.a.marker.position, arc.b.marker.position], 0.18));
+    const here = globeAngles(camera.position.toArray()), seen = viewArc(distance, camera.fov, camera.aspect), step = graticuleStep(seen.half);
+    graticule(step, here.latitude, here.longitude, seen.reach);
+    if (kit.step !== step) { kit.step = step; gridStep = step; setCaption(); }
+    placeTicks(step, here.latitude, here.longitude, seen.half);
+  }
+  // Turning and zooming keep their feel at every height: a notch of the wheel leaves 85% of the height above the surface, however
+  // much that is, and a drag carries the surface under it. (Left alone, the wheel would scale the distance to the globe's centre.)
+  function steerGlobe() {
+    const distance = camera.position.length(), altitude = Math.max(distance - GLOBE_RADIUS, 1e-6);
+    controls.zoomSpeed = Math.log((GLOBE_RADIUS + 0.85 * altitude) / distance) / Math.log(0.95);
+    controls.rotateSpeed = Math.min(1, Math.max(1e-6, 0.18 * altitude / GLOBE_RADIUS));
+  }
+  // The controls dolly inside the wheel event itself, so what the pointer is over, and how far the camera was, are noted first.
+  renderer.domElement.addEventListener('wheel', (event) => {
+    if (drawing !== 'globe' || wheelAim) return;
+    const rect = renderer.domElement.getBoundingClientRect(); ndc.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1); ray.setFromCamera(ndc, camera);
+    if (ray.ray.intersectSphere(groundSphere, spot)) wheelAim = { point: spot.clone().normalize(), pointer: ndc.clone(), distance: camera.position.length() };
+  }, { capture: true, passive: true, signal: abort.signal });
+  // Turn the camera about the globe's centre until `point` is under `pointer`. Near the horizon a small turn moves the point under the
+  // pointer a long way, so a step that makes things worse is taken back and halved; the closest the camera came is kept.
+  function settle(point, pointer) {
+    let best = null, gain = 1;
+    for (let pass = 0; pass < 10; pass += 1) {
+      camera.lookAt(controls.target); camera.updateMatrixWorld(); ray.setFromCamera(pointer, camera);
+      if (!ray.ray.intersectSphere(groundSphere, spot)) break;
+      spot.normalize(); const angle = Math.acos(Math.max(-1, Math.min(1, spot.dot(point))));
+      if (!best || angle < best.angle) best = { angle, position: camera.position.clone(), axis: new THREE.Vector3().crossVectors(spot, point) }; else gain *= 0.5;
+      if (best.angle < 1e-7 || best.axis.lengthSq() < 1e-16) break;
+      camera.position.copy(best.position).applyAxisAngle(tmpB.copy(best.axis).normalize(), best.angle * gain);
+    }
+    if (best) camera.position.copy(best.position);
+  }
+  // The point of the surface that was under the pointer stays there as the camera comes down or goes up. A long turn of the wheel is
+  // followed in steps of a fifth of the height or less, each settled before the next, so that a fling does not lose the point.
+  function aimWheel() {
+    const { point, pointer, distance } = wheelAim; wheelAim = null;
+    const from = Math.max(distance - GLOBE_RADIUS, 1e-6), to = Math.max(camera.position.length() - GLOBE_RADIUS, 1e-6), steps = Math.max(1, Math.ceil(Math.abs(Math.log(to / from)) / 0.2));
+    camera.position.setLength(distance);
+    for (let step = 1; step <= steps; step += 1) { camera.position.setLength(GLOBE_RADIUS + from * (to / from) ** (step / steps)); settle(point, pointer); }
+    camera.lookAt(controls.target); dirty = true;
+  }
+  // Every control the globe changes is set again for either drawing, so that returning to the map leaves nothing of the globe behind.
+  function configureControls() {
+    const globe = drawing === 'globe';
+    controls.enablePan = !globe; controls.enableZoom = true; controls.minDistance = globe ? GLOBE_RADIUS + MIN_ALTITUDE : 0; controls.maxDistance = globe ? GLOBE_RADIUS * 7 : Infinity;
+    controls.zoomSpeed = 1; controls.rotateSpeed = 1; wheelAim = null; if (globe) controls.target.set(0, 0, 0); else light.position.set(30, 100, 40);
+    renderer.domElement.title = globe ? 'Drag to turn the globe · scroll to zoom in to the surface' : 'Drag to turn · scroll to zoom · W A S D move, Q E down and up, arrows look around, Shift faster';
+    renderer.domElement.setAttribute('aria-label', globe ? 'Space: declared locations on a globe' : 'Space: declared locations and their sequence');
+  }
+  function syncEarth() { for (const [key, node] of Object.entries(earthButtons)) { node.hidden = !geo; node.setAttribute('aria-pressed', String(drawing === key)); } }
+  function chooseEarth(choice) {
+    if (!geo) return;
+    setEarth(choice); keepEarth(choice);
+    if ((choice === 'globe') !== (drawing === 'globe')) showFrame(frameIndex); else syncEarth();
+  }
+  // Over the centre of what is shown, far enough to see all of it, or all of the globe when it spreads wide.
+  function fitGlobe() {
+    const chosen = items.filter((item) => (!focus || item.object.referentId === focus) && (overview || item.mesh.visible));
+    const { direction, distance } = globeFraming((chosen.length ? chosen : items).map((item) => item.at.toArray()), { fov: camera.fov, aspect: camera.aspect, minAltitude: MIN_ALTITUDE });
+    controls.target.set(0, 0, 0); camera.up.set(0, 1, 0); camera.position.set(...direction).multiplyScalar(distance);
+    camera.near = Math.max((distance - GLOBE_RADIUS) * 0.25, 0.0004); camera.far = distance + GLOBE_RADIUS * 3; camera.updateProjectionMatrix(); controls.update(); dirty = true;
+  }
   function renderJourneys() {
     journeys.replaceChildren(); journeys.hidden = !currentPeople.length;
     if (!span) return;
@@ -291,17 +534,26 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     }
   }
   function update() {
+    const onGlobe = drawing === 'globe';
     for (const item of items) {
       const inFocus = !focus || !item.object.lifeLocation || item.object.referentId === focus;
       const here = presentAt(item.object, t), visible = inFocus && (overview || here), position = positionAt(item.object, t) ?? item.object.position;
       item.mesh.visible = item.label.visible = item.halo.visible = visible; if (item.spread) item.spread.visible = visible;
-      item.mesh.position.copy(place(item.object, position)); item.label.position.copy(item.mesh.position); item.halo.position.copy(item.mesh.position); item.halo.position.y += 0.03;
+      item.mesh.position.copy(place(item.object, position)); item.label.position.copy(item.mesh.position); item.halo.position.copy(item.mesh.position);
+      // On the globe a mark lies along the surface's normal, and the camera sets its size (see refreshGlobe).
+      if (onGlobe) { item.at.copy(item.mesh.position); item.ground.copy(place(item.object, position, true)); item.normal.copy(item.ground).normalize(); item.halo.quaternion.setFromUnitVectors(Y, item.normal); }
+      else item.halo.position.y += 0.03;
       const isSelected = item.object === selected;
-      item.mesh.scale.setScalar(isSelected ? 1.55 : item.object.lifeLocation ? 1 : 0.9); item.halo.scale.setScalar(isSelected ? 2 : item.object.lifeLocation ? 1.35 : 1);
+      item.grow = isSelected ? 1.55 : item.object.lifeLocation ? 1 : 0.9; item.haloGrow = isSelected ? 2 : item.object.lifeLocation ? 1.35 : 1;
+      if (!onGlobe) { item.mesh.scale.setScalar(item.grow); item.halo.scale.setScalar(item.haloGrow); }
       item.mesh.material.opacity = overview && !here && !isSelected ? 0.54 : 1;
       item.mesh.material.color.set(isSelected ? '#fff0b8' : item.hue); item.halo.material.opacity = isSelected ? 0.8 : 0.27;
       item.label.element.classList.toggle('selected', isSelected); item.label.element.style.visibility = showText && visible ? 'visible' : 'hidden';
-      if (item.spread) item.spread.position.set(item.mesh.position.x, grid.position.y + 0.02, item.mesh.position.z);
+      if (item.spread) { if (onGlobe) item.spread.quaternion.setFromUnitVectors(Y, item.normal); else item.spread.position.set(item.mesh.position.x, grid.position.y + 0.02, item.mesh.position.z); }
+      if (item.drop) {
+        item.drop.visible = visible && item.at.length() - item.ground.length() > 1e-4;
+        const line = item.drop.geometry.attributes.position; line.setXYZ(0, item.ground.x, item.ground.y, item.ground.z); line.setXYZ(1, item.at.x, item.at.y, item.at.z); line.needsUpdate = true;
+      }
       if (item.trail) item.trail.visible = inFocus && showPaths;
     }
     for (const link of links) link.line.visible = showPaths && (!focus || link.source.referentId === focus) && (overview || link.target.interval.start <= t);
@@ -316,11 +568,14 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
       let height = 3;
       if (overview && Number.isFinite(item.placed.interval?.start) && last > first) height = 3 + 36 * (item.placed.interval.start - first) / (last - first);
       else { const level = levels.get(item.key) ?? 0; if (current.includes(item)) levels.set(item.key, level + 1); height = 3 + level * 1.7; }
+      item.height = height;
+      // On the globe the camera sets how far above the surface a stack stands, in pixels, so that it reads at any zoom (see refreshGlobe).
+      if (onGlobe) { item.heightPx = 20 + (height - 3) * 7.5; continue; }
       item.marker.position.copy(item.base).add(new THREE.Vector3(0, height, 0)); item.label.position.copy(item.marker.position);
       const stem = item.stem.geometry.attributes.position; stem.setXYZ(1, item.marker.position.x, item.marker.position.y, item.marker.position.z); stem.needsUpdate = true; item.stem.geometry.computeBoundingSphere();
       for (const light of item.lights) light.position.copy(item.marker.position).add(new THREE.Vector3(Math.cos(light.userData.angle) * 1.5, 0.95, Math.sin(light.userData.angle) * 1.5));
     }
-    for (const arc of arcItems) {
+    if (!onGlobe) for (const arc of arcItems) {
       const from = arc.a.marker.position, to = arc.b.marker.position, lift = from.clone().add(to).multiplyScalar(0.5).add(new THREE.Vector3(0, from.distanceTo(to) * 0.35 + 2, 0));
       arc.line.geometry.setFromPoints(new THREE.QuadraticBezierCurve3(from.clone(), lift, to.clone()).getPoints(28));
     }
@@ -329,7 +584,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
       const theirs = !focus || placed.objects.some((object) => object.referentId === focus) || Object.values(placed.event.participants ?? {}).flat().includes(focus);
       const visible = layers.events && theirs && (overview || now || isSelected);
       item.marker.visible = item.stem.visible = visible; item.marker.material.opacity = overview && !now && !isSelected ? 0.5 : 1;
-      item.marker.material.color.set(isSelected ? '#fff0b8' : '#f2efe6'); item.marker.scale.setScalar(isSelected ? 1.45 : 1);
+      item.marker.material.color.set(isSelected ? '#fff0b8' : '#f2efe6'); if (!onGlobe) item.marker.scale.setScalar(isSelected ? 1.45 : 1);
       for (const light of item.lights) light.visible = visible && layers.notes;
       // Names only where they can be read: the chosen Event, or the few happening now.
       item.label.visible = visible && showText && (isSelected || (!overview && current.length <= 6));
@@ -364,6 +619,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     coordinate.append(element('p', `${frame.frame ?? 'Unnamed frame'}${frame.unit ? ` · ${frame.unit}` : ''}`, 'a'));
     coordinate.append(element('p', object.axes.map((axis, i) => `${axis} ${number((position ?? object.position)[i])}`).join(' · '), 'm'));
     if (!position && object.moves) coordinate.append(element('p', 'This is the initial value; its motion law is not evaluated here.', 'a'));
+    if (drawing === 'globe' && geodetic(object, position ?? object.position)?.altitudeDrawn === false) coordinate.append(element('p', 'Its altitude is listed here but not drawn on the globe: its unit is not a length.', 'a'));
     const precision = object.axes.map((axis, i) => { const item = object.precision[i]; return item?.kind === 'standard_deviation' ? `${axis} ± ${number(item.value)}` : item?.kind === 'interval' ? `${axis} within ${number(item.lower)}–${number(item.upper)}` : item?.kind === 'exact' ? `${axis} exact within its declared model` : null; }).filter(Boolean);
     coordinate.append(element('p', precision.length ? precision.join(' · ') : 'Numerical uncertainty is not specified.', 'a'));
     for (const source of object.provenance) { const paragraph = element('p', null, 'a'); if (/^https?:\/\/\S+$/u.test(source)) { const link = element('a', source); link.href = source; link.target = '_blank'; link.rel = 'noopener noreferrer'; paragraph.append(link); } else paragraph.textContent = source; coordinate.append(paragraph); }
@@ -412,7 +668,10 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   onPlainClick(renderer.domElement, (event) => {
     const rect = renderer.domElement.getBoundingClientRect(); ndc.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1); ray.setFromCamera(ndc, camera);
     const targets = [...items.filter((item) => item.mesh.visible).map((item) => item.mesh), ...eventItems.filter((item) => item.marker.visible).flatMap((item) => [item.marker, ...item.lights.filter((light) => light.visible)])];
-    const hit = ray.intersectObjects(targets)[0], data2 = hit?.object.userData ?? {};
+    let hit = ray.intersectObjects(targets)[0];
+    // A mark behind the horizon is behind the globe: the ray meets the globe first.
+    if (hit && drawing === 'globe' && ray.ray.intersectSphere(groundSphere, spot) && ray.ray.origin.distanceTo(spot) < hit.distance - 1e-9) hit = undefined;
+    const data2 = hit?.object.userData ?? {};
     const passage = data2.attachment ? connections.nodes.get(JSON.stringify(['narrative', data2.attachment.node.id])) : null;
     const target = data2.placed ?? passage ?? data2.object ?? null;
     if (!target || (target === shown && !detail.hidden)) { letGo(); return; }
@@ -423,6 +682,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   frameSelect.addEventListener('change', () => { letGo(); showFrame(Number(frameSelect.value)); });
   personSelect.addEventListener('change', () => { focus = personSelect.value; renderJourneys(); update(); fit(); });
   function fit() {
+    if (drawing === 'globe') { fitGlobe(); return; }
     const bounds = new THREE.Box3(); for (const item of items) if ((!focus || item.object.referentId === focus) && (overview || item.mesh.visible)) bounds.expandByPoint(item.mesh.position);
     if (bounds.isEmpty()) for (const item of items) bounds.expandByPoint(item.mesh.position);
     const middle = bounds.getCenter(new THREE.Vector3()), radius = Math.max(12, bounds.getSize(new THREE.Vector3()).length() / 2);
@@ -449,7 +709,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     const ordered = [...items].sort((a, b) => Number(b.object === selected) - Number(a.object === selected) || Number(b.object.lifeLocation) - Number(a.object.lifeLocation));
     for (const item of ordered) {
       const node = item.label.element;
-      if (!showText || !item.mesh.visible) { node.style.visibility = 'hidden'; continue; }
+      if (!showText || !item.mesh.visible || (drawing === 'globe' && behind(item.mesh.position))) { node.style.visibility = 'hidden'; continue; }
       const point = item.mesh.position.clone().project(camera), x = (point.x + 1) * width / 2, y = (1 - point.y) * height / 2;
       const w = Math.min(250, Math.max(70, node.textContent.length * 6.8)), rect = { x: x - w / 2, y: y - 31, w, h: 28 };
       const outside = point.z > 1 || rect.x < 0 || rect.x + w > width || rect.y < 0 || rect.y + rect.h > height;
@@ -466,18 +726,25 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     if (playing && span) { t = Math.min(span.end, t + dt * (span.end - span.start) / 45); if (t >= span.end) playing = false; update(); }
     if (walker.step(dt)) dirty = true;
+    if (drawing === 'globe') steerGlobe();
     const changed = controls.update();
-    if (!document.hidden && (dirty || changed)) { renderer.render(scene, camera); labels.render(scene, camera); arrangeLabels(); dirty = false; }
+    if (drawing === 'globe' && wheelAim) aimWheel();
+    if (!document.hidden && (dirty || changed)) { if (drawing === 'globe') refreshGlobe(); renderer.render(scene, camera); labels.render(scene, camera); arrangeLabels(); dirty = false; }
     frameId = requestAnimationFrame(animate);
   }
   showFrame(Math.max(0, space.frames.findIndex((frame) => frame.lifeLocations.length)), false);
+  if (earthChoice && addressParam() !== earthChoice) keepEarth(earthChoice);
   return {
     recenter: fit,
     coarse() { playing = false; focus = ''; personSelect.value = ''; const index = space.frames.findIndex((frame) => frame.lifeLocations.length); if (index >= 0 && index !== frameIndex) showFrame(index); overview = true; renderJourneys(); update(); resize(); fit(); },
     activate(_view, state) {
       active = true; controls.enabled = true;
       const savedFrame = state.space?.frameKey ? space.frames.findIndex((frame) => spaceFrameIdentity(frame) === state.space.frameKey) : state.space?.frame;
-      if (state.space) { if (Number.isInteger(savedFrame) && space.frames[savedFrame] && savedFrame !== frameIndex) showFrame(savedFrame); t = state.space.time ?? t; focus = state.space.focus ?? focus; overview = state.space.overview ?? overview; personSelect.value = focus; }
+      if (state.space) {
+        const choice = EARTHS.has(state.space.earth) ? state.space.earth : null, changed = Boolean(choice) && choice !== earthChoice;
+        if (choice) { setEarth(choice); if (addressParam() !== choice) keepEarth(choice); }
+        if (Number.isInteger(savedFrame) && space.frames[savedFrame] && savedFrame !== frameIndex) showFrame(savedFrame); else if (changed) showFrame(frameIndex);
+        t = state.space.time ?? t; focus = state.space.focus ?? focus; overview = state.space.overview ?? overview; personSelect.value = focus; }
       if (state.time?.mode === 'story' && Number.isFinite(state.time.now)) { t = viewerToSpaceTime(state.time.now, space.timeUnit); if (!state.space) overview = Boolean(state.time.atEnd); }
       const restored = resolveSpaceSelection(space.frames, connections, state.selection, frameIndex);
       if (selectedEvent && !(state.selection?.kind === 'event' && state.selection.id === selectedEvent.id)) selectedEvent = null;
@@ -487,11 +754,11 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
       else if (restored.object) select(restored.object, false);
       // A selection let go elsewhere, or one Space cannot show, leaves nothing open here.
       else { selectedEvent = null; select(null, false); }
-      renderJourneys(); update(); resize(); fit(); if (savedFrame === frameIndex) restoreCamera(camera, controls, state.spaceCamera); last = performance.now(); if (frameId === null) animate();
+      renderJourneys(); update(); resize(); fit(); if (savedFrame === frameIndex && (state.spaceCamera?.drawing ?? 'map') === drawing) restoreCamera(camera, controls, state.spaceCamera); last = performance.now(); if (frameId === null) animate();
     },
-    deactivate() { active = false; controls.enabled = false; playing = false; walker.stop(); cancelAnimationFrame(frameId); frameId = null; },
+    deactivate() { active = false; controls.enabled = false; playing = false; wheelAim = null; walker.stop(); cancelAnimationFrame(frameId); frameId = null; },
     // Whole-life is a spatial presentation, not the temporal renderer's instruction to jump to its window end.
-    getState() { return { space: { frame: frameIndex, frameKey: spaceFrameIdentity(space.frames?.[frameIndex]), time: t, focus, overview }, time: { mode: 'story', now: spaceToViewerTime(t, space.timeUnit), atEnd: false }, spaceCamera: cameraState(camera, controls) }; },
-    destroy() { alive = false; active = false; abort.abort(); cancelAnimationFrame(frameId); clear(); controls.dispose(); renderer.dispose(); sphere.dispose(); disc.dispose(); ring.dispose(); octa.dispose(); summary.remove(); },
+    getState() { return { space: { frame: frameIndex, frameKey: spaceFrameIdentity(space.frames?.[frameIndex]), time: t, focus, overview, earth: camera.userData?.earth ?? null }, time: { mode: 'story', now: spaceToViewerTime(t, space.timeUnit), atEnd: false }, spaceCamera: { ...cameraState(camera, controls), drawing: camera.userData?.drawing ?? 'map' } }; },
+    destroy() { alive = false; active = false; abort.abort(); cancelAnimationFrame(frameId); clear(); controls.dispose(); renderer.dispose(); sphere.dispose(); disc.dispose(); ring.dispose(); octa.dispose(); globeGeometry?.dispose(); summary.remove(); },
   };
 }
