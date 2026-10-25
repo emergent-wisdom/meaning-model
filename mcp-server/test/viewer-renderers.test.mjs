@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { LifeSimulationService } from '../src/service.mjs';
 import { buildViewerData } from '../src/viewer-data.mjs';
 import { globeAngles, GLOBE_RADIUS, EARTH_RADIUS_M } from '../viewer/public/space-model.js';
+import { viewSettingsProblems } from '../viewer/public/view-settings.js';
 
 // Run the real Space and Graph renderers on real snapshots: the real three.js scene graph, a minimal page, and only the
 // WebGL output, the label layer and the camera controls replaced. A render path that throws (as a variable used
@@ -127,10 +128,8 @@ try {
     report.state = view.getState(); report.summary = surface.querySelector('.space-summary')?.textContent?.slice(0, 200) ?? null;
     view.coarse?.(); run(1); view.recenter?.(); view.deactivate(); view.destroy();
   } else if (which === 'globe') {
-    // The Earth drawn as a globe or flat: what the scene holds, where the marks stand, the choice kept in the address and in this
-    // tab's storage, and what a frame without latitude and longitude draws.
-    const stored = new Map(options.stored ? [['meaning-model-live:/viewer/:earth:model', options.stored]] : []);
-    globalThis.sessionStorage = { getItem: (key) => (stored.has(key) ? stored.get(key) : null), setItem: (key, value) => { stored.set(key, String(value)); }, removeItem: (key) => { stored.delete(key); } };
+    // The Earth drawn as a globe or flat: what the scene holds, where the marks stand, the choice kept in the address, and what a
+    // frame without latitude and longitude draws.
     globalThis.location = { href: 'http://viewer.test/viewer/?view=space' + (options.search ?? ''), pathname: '/viewer/', search: '?view=space' + (options.search ?? '') };
     globalThis.history = { state: null, replaceState(_state, _title, url) { const next = new URL(String(url)); globalThis.location.href = next.href; globalThis.location.search = next.search; } };
     const { showSpace } = await import(publicUrl + 'space-view.js'); const { Vector3 } = await import('three');
@@ -163,7 +162,7 @@ try {
     // What the controls and the light are set to: the globe changes them, and the map must find them as it always had them.
     const settings = () => { const c = globalThis.lastControls; let sun = null; renderer.scene.traverse((node) => { if (node.isDirectionalLight) sun = node.position.toArray(); });
       return { pan: c.enablePan, zoom: c.enableZoom, min: c.minDistance, max: String(c.maxDistance), zoomSpeed: c.zoomSpeed, rotateSpeed: c.rotateSpeed, target: c.target.toArray(), near: renderer.camera.near, far: renderer.camera.far, sun }; };
-    const look = () => ({ buttons: buttons(), state: view.getState(), scene: scan(), camera: renderer.camera.position.toArray(), address: globalThis.location.search, stored: [...stored.entries()], controls: settings() });
+    const look = () => ({ buttons: buttons(), state: view.getState(), scene: scan(), camera: renderer.camera.position.toArray(), address: globalThis.location.search, controls: settings() });
     const click = (text) => { controls.querySelectorAll('button').find((node) => node.textContent === text).click(); run(2); };
     const seek = (fraction) => { track.dispatchEvent({ type: 'pointerdown', clientX: fraction * 640, clientY: 0, pointerId: 1, preventDefault() {} }); run(2); };
     report.opened = look();
@@ -360,7 +359,7 @@ test('a frame of latitudes and longitudes opens as a globe when its points span 
   assert.equal(drawn.during.scene.lights.length, 2); assert.ok(drawn.during.scene.lights.every((light) => light.visible && Math.min(...drawn.during.scene.events.map((event) => Math.hypot(...light.position.map((v, i) => v - event.position[i])))) < 25), 'a note or passage is a light beside its Event');
 });
 
-test('the Globe and Map buttons change how the Earth is drawn, and the choice is kept in the address and in the tab', async (t) => {
+test('the Globe and Map buttons change how the Earth is drawn, and the choice is kept in the address', async (t) => {
   const { world } = await geoSnapshots(t);
   const drawn = render('globe', world, { script: true });
   assert.deepEqual(drawn.errors, []);
@@ -368,18 +367,18 @@ test('the Globe and Map buttons change how the Earth is drawn, and the choice is
   assert.equal(map.state.spaceCamera.drawing, 'map'); assert.equal(map.state.space.earth, 'map');
   assert.equal(map.scene.sphere, 0, 'no globe on the map'); assert.equal(map.scene.grids, 1, 'the flat grid is back'); assert.equal(map.scene.graticule, 0);
   assert.deepEqual(map.buttons, { Globe: { hidden: false, pressed: 'false' }, Map: { hidden: false, pressed: 'true' } });
-  assert.match(map.address, /[?&]earth=map(&|$)/u); assert.deepEqual(map.stored, [['meaning-model-live:/viewer/:earth:model', 'map']]);
+  assert.match(map.address, /[?&]earth=map(&|$)/u);
   for (const mark of Object.values(map.scene.marks)) assert.ok(mark.position.every((value) => Math.abs(value) <= GLOBE_RADIUS), 'the map is drawn within its own scale');
   // Back on the map, every control and the light are as the map has always had them: nothing of the globe is left behind.
   assert.deepEqual([map.controls.pan, map.controls.zoom, map.controls.min, map.controls.max, map.controls.zoomSpeed, map.controls.rotateSpeed, map.controls.sun], [true, true, 0, 'Infinity', 1, 1, [30, 100, 40]]);
   assert.equal(back.state.spaceCamera.drawing, 'globe'); assert.equal(back.scene.sphere, 1); assert.equal(back.scene.grids, 0, 'the globe leaves nothing of the map');
   assert.equal(back.controls.pan, false, 'and the globe sets them again');
   assert.match(back.address, /[?&]earth=globe(&|$)/u); assert.equal(back.state.space.earth, 'globe');
-  // A reload opens as the address says, whatever the span; so does the tab's storage when the address was made again without it.
+  // A reload opens as the address says, whatever the span. The choice is a view setting, so a view the model chooses can set it
+  // and a change to a followed view marks it adjusted.
   const asked = render('globe', world, { search: '&earth=map' });
   assert.deepEqual(asked.errors, []); assert.equal(asked.opened.state.spaceCamera.drawing, 'map'); assert.equal(asked.opened.buttons.Map.pressed, 'true');
-  const remembered = render('globe', world, { stored: 'map' });
-  assert.deepEqual(remembered.errors, []); assert.equal(remembered.opened.state.spaceCamera.drawing, 'map'); assert.match(remembered.opened.address, /[?&]earth=map(&|$)/u, 'the address says it again');
+  assert.deepEqual(viewSettingsProblems({ earth: 'map' }), []); assert.match(viewSettingsProblems({ earth: 'flat' })[0], /^earth=flat must be one of globe, map/u);
 });
 
 test('a frame of latitudes and longitudes that spans a small part of the Earth opens as a map, with the globe a click away', async (t) => {
@@ -402,7 +401,7 @@ test('a frame without latitude and longitude is drawn as it always was, with no 
   assert.deepEqual(drawn.errors, []);
   assert.equal(drawn.opened.state.spaceCamera.drawing, 'map'); assert.equal(drawn.opened.scene.sphere, 0); assert.equal(drawn.opened.scene.grids, 1);
   assert.deepEqual([drawn.opened.buttons.Globe.hidden, drawn.opened.buttons.Map.hidden], [true, true], 'a projected frame in metres has no globe to choose');
-  assert.deepEqual(drawn.opened.stored, []);
+  assert.doesNotMatch(drawn.opened.address, /[?&]earth=/u, 'nothing is written for a choice that was not made');
 });
 
 test('the Graph renderer runs its overview, every record and a restored selection without an error', async (t) => {

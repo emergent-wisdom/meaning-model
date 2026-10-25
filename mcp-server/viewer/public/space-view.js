@@ -47,17 +47,12 @@ function globeProjector() {
     return at ? new THREE.Vector3(...globeXYZ(at.latitude, at.longitude, ground ? GLOBE_RADIUS : globeRadiusAt(at.altitude))) : new THREE.Vector3(0, GLOBE_RADIUS, 0);
   } };
 }
-// How the Earth is drawn is the reader's to choose. The choice is kept in the address (`earth=globe` or `earth=map`) so that a reload
-// keeps it, and in this tab's storage, which still has it when the address is made again from a view the model chose. The storage key
-// is under the live viewer's prefix, so that Default, which forgets this tab's saved view of a model, forgets it too. Without a
-// choice, a frame whose points span a wide part of the Earth opens as a globe and any other as a map.
+// How the Earth is drawn is the reader's to choose. The choice is the view setting `earth` (`globe` or `map`), kept in the address
+// so that a reload or a shared link keeps it; made on a view the model chose, it marks that view adjusted, as any setting does.
+// Without a choice, a frame whose points span a wide part of the Earth opens as a globe and any other as a map.
 const EARTHS = new Set(['globe', 'map']);
-const earthKey = () => `meaning-model-live:${globalThis.location.pathname}:earth:${new URLSearchParams(globalThis.location.search).get('data') ?? 'model'}`;
 const addressParam = () => { try { const value = new URLSearchParams(globalThis.location?.search ?? '').get('earth'); return EARTHS.has(value) ? value : null; } catch { return null; } };
-const savedEarth = () => { try { const value = globalThis.sessionStorage?.getItem(earthKey()); return EARTHS.has(value) ? value : null; } catch { return null; } };
-const addressEarth = () => addressParam() ?? savedEarth();
 function keepEarth(choice) {
-  try { globalThis.sessionStorage.setItem(earthKey(), choice); } catch { /* storage can be unavailable: the address is enough */ }
   try {
     const url = new URL(globalThis.location.href); url.searchParams.set('earth', choice);
     globalThis.history.replaceState(globalThis.history.state, '', url); globalThis.modelViewer?.noteAddress?.();
@@ -157,7 +152,7 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
   let items = [], links = [], grid = null, axes = null, axisLabels = [], scale = 1, projection = null, center = new THREE.Vector3(), currentPeople = [];
   // How the frame on show is drawn: 'map' (flat) or 'globe'. `geo` is what the frame offers a globe, null when it has no latitude
   // and longitude to put on one. `earthChoice` is the reader's choice, kept in the address; without one the frame's spread decides.
-  let drawing = 'map', geo = null, globeKit = null, globeGeometry = null, earthChoice = addressEarth(), captionBase = '', gridStep = null;
+  let drawing = 'map', geo = null, globeKit = null, globeGeometry = null, earthChoice = addressParam(), captionBase = '', gridStep = null;
   // Both travel with the camera, which is what a saved view of the scene keeps: the reader's choice, and the drawing the camera
   // is placed for (a position saved for a globe means nothing on a map). getState reads them there.
   camera.userData = { earth: earthChoice, drawing };
@@ -733,7 +728,6 @@ export function showSpace(data, { host, tools, detail, surface, onSelect = () =>
     frameId = requestAnimationFrame(animate);
   }
   showFrame(Math.max(0, space.frames.findIndex((frame) => frame.lifeLocations.length)), false);
-  if (earthChoice && addressParam() !== earthChoice) keepEarth(earthChoice);
   return {
     recenter: fit,
     coarse() { playing = false; focus = ''; personSelect.value = ''; const index = space.frames.findIndex((frame) => frame.lifeLocations.length); if (index >= 0 && index !== frameIndex) showFrame(index); overview = true; renderJourneys(); update(); resize(); fit(); },

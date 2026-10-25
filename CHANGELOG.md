@@ -33,6 +33,13 @@ unpublished work stays under Unreleased. This is not a development transcript.
   cannot be stacked (another unit, another holder, values below zero) are listed with why. Means and other aggregates
   are never stacked, and nothing is inferred from shared units.
 
+**Space: a globe for positions on the Earth**
+- A frame whose positions are declared as latitude and longitude, and span more than 30 degrees, opens on a globe:
+  positions at their declared latitude, longitude and altitude, trails and links along great circles, a grid that grows
+  finer as you descend. Drag turns it and the wheel zooms toward the point under the pointer, down to about 600 m.
+  **Globe** and **Map** switch drawings; the address keeps the choice as `earth`. No coastline, border or name is drawn
+  that the model does not declare, and a projected or local frame is drawn as before.
+
 ## 0.17.0 — 2026-10-29
 
 The engine is reorganized into smaller modules for models, sessions, persistence and the numerical registry.

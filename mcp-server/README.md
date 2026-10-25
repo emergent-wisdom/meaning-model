@@ -145,7 +145,12 @@ sequence connectors do not assert travel routes or speeds. Unlocated periods sta
 unplaced, while qualitative settings remain inspectable. Space shares the bottom
 Play, time cursor and full-story reader. **Coarse view** stays in Space and returns
 to its broad overview; the selected record and world-time cursor carry across
-representation switches. The other layouts do not represent physical geography.
+representation switches. A frame of latitude and longitude that spans a wide part
+of the Earth opens on a globe you can turn and zoom into, down to about 600 m;
+**Globe** and **Map** switch drawings (address setting `earth`). The globe has a
+latitude and longitude grid and nothing else: no coastline, border or name is drawn
+that the model does not declare. The other layouts do not represent physical
+geography.
 
 In the original viewer, the reading-position track follows document order, with
 segment widths based on prose words. Click a part or use Previous/Next to highlight

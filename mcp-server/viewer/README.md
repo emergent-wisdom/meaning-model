@@ -209,10 +209,10 @@ unit at a time. It never places anything from a name, an Event's region or prose
   - *Which opens.* A frame whose points span more than 30 degrees of longitude
     (measured round the circle) or latitude, at every time they can be where
     they are declared, opens as a globe; any other as a map. The reader's
-    choice is written to the address as `earth=globe` or `earth=map`, so that a
-    reload keeps it, and is kept in the tab's storage and in Space's saved
-    state; where the viewer makes the address again from a view the model
-    chose, the tab's storage still has it. Default forgets it.
+    choice is the view setting `earth` (`globe` or `map`), written to the
+    address so that a reload or a shared link keeps it and kept in Space's saved
+    state; made on a view the model chose, it marks that view adjusted, and a
+    view the model chooses can set it.
   - *No globe.* A frame whose axes are not latitude and longitude (a projected
     EPSG frame in metres, a local frame), whose angles are in another unit, or
     with a latitude beyond the poles at any time it can be there, is drawn as it

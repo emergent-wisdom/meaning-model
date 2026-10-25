@@ -14,7 +14,7 @@ export const VIEW_SETTINGS = Object.freeze({
   view: oneOf('together', 'layers', 'terrain', 'chart', 'graph', 'structure', 'space'), timeView: oneOf('together', 'layers', 'terrain'),
   camera: oneOf('spin', 'free', 'locked'), glare: oneOf('full', 'soft'), edges: oneOf('on', 'off'), reading: oneOf('on', 'off'),
   text: oneOf('on', 'off'), legend: oneOf(''), world: oneOf('above', 'below'), smooth: between(0, 1),
-  show: layers, everything: oneOf(''), nothoughts: oneOf(''), lenses: named, depth: whole, detail: whole, scope: named, focus: named, about: named, within: named,
+  show: layers, everything: oneOf(''), nothoughts: oneOf(''), lenses: named, depth: whole, detail: whole, scope: named, focus: named, about: named, within: named, earth: oneOf('globe', 'map'),
   importance: named, importanceTop: (value) => (/^\d+$/u.test(value) && Number(value) >= 1) || 'a whole number from 1',
   rows: oneOf('all'), flat: oneOf('hide'), unopened: oneOf('hide'), undated: oneOf('hide'), names: oneOf('big', 'small'),
   noteLayout: oneOf('floors', 'original', 'nearby', 'overhead', 'centered'), noteLinks: oneOf('some', 'all'),
