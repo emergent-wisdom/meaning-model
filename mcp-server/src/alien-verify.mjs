@@ -2,7 +2,7 @@
 // candidate on four axes: Parsimony, Novelty, Realizable and Expansive. Each axis is judged in its own context without
 // sight of the others' verdicts, and the result is non-compensatory: verified only when every axis is verified
 // (PURE#b65a). Each axis is also a decomposition point: its question opens into probes, each answered the same way, as
-// Fractal Intelligence decomposes a problem into parts (FractalIntelligence#27f7), and the probes compose into the
+// Fractal Intelligence decomposes a problem into parts (FractalIntelligence#1dca), and the probes compose into the
 // axis's status by the axis's own rule. How deep each axis goes is Fractal Intelligence's call, by its marginal-value
 // rule (MarginalValueRule#6611): deepen where the answer is uncertain and would change the verdict, stop where another
 // level would change nothing. A probe that needs a fresh look opens as its own verification, a sub-solver in its own
@@ -14,7 +14,7 @@ export const PURE_STATUSES = Object.freeze(['verified', 'falsified', 'unknown'])
 // The exact cards a verification applied, stored on each record so a later card revision cannot change what it meant.
 // Candidates are MechanisticDesignProposals (MechanisticDesignProposal#930a), the nine-field schema of the study.
 export const PURE_CARDS = Object.freeze({ check: 'PURECheck#574b', framework: 'PURE#b65a', parsimony: 'Parsimony#4df8',
-  novelty: 'Novelty#954f', realizable: 'Realizable#2ed7', expansive: 'Expansive#49a7', fractal: 'FractalIntelligence#27f7',
+  novelty: 'Novelty#954f', realizable: 'Realizable#2ed7', expansive: 'Expansive#49a7', fractal: 'FractalIntelligence#1dca',
   depth: 'MarginalValueRule#6611', proposal: 'MechanisticDesignProposal#930a' });
 // Within one record probes may nest this deep; deeper than that, a probe opens as its own verification.
 export const MAX_PROBE_DEPTH = 6;

@@ -130,7 +130,7 @@ export async function readSearch(service, { graphHash, searchRootId, accessScope
     worlds: byKind('world'), solutions: byKind('solution'), mechanisms: byKind('mechanism'),
     revisions: byKind('ontology_revision'), commissions: byKind('commission'), transfers: byKind('transfer'),
     assessments: byKind('assessment'), selections: byKind('selection'), decisionChecks: byKind('decision_check'),
-    verifications: byKind('verification'), heads,
+    verifications: byKind('verification'), worldModels: byKind('world_model'), scenarios: byKind('scenario'), heads,
     ontologyState: (ontology) => normalizeOntology(heads[ontology]?.data.state),
     record: (nodeId, kind) => {
       const found = records.find((record) => record.nodeId === nodeId);

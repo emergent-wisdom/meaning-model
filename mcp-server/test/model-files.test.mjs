@@ -22,7 +22,7 @@ async function setup(t) {
   const directory = await mkdtemp(join(tmpdir(), 'model-files-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const client = new Client({ name: 'model-files-test', version: '1' });
-  const env = { ...process.env, MEANING_MODEL_ADDONS: '' };
+  const env = { ...process.env, MEANING_MODEL_ADDONS: '', MEANING_MODEL_RESULTS_DIR: join(directory, 'results') };
   delete env.LIFE_SIM_STATE_FILE;
   await client.connect(new StdioClientTransport({ command: process.execPath, args: [join(here, '..', 'src', 'server.ts')], env }));
   t.after(() => client.close());
@@ -77,6 +77,10 @@ test('a model larger than one message registers from a file, inspects without fa
   assert.equal(inspected.model, undefined);
   assert.ok(inspected.definitionBytes > 8 * 1024 * 1024);
   assert.match(inspected.definitionNotInline, /life_model_export/u);
+  // The definition that does not fit is written whole to a file, which registers back as the same model.
+  assert.equal(inspected.definitionFile.path, join(directory, 'results', `${inspected.definitionFile.sha256}.json`));
+  const fromFile = await ok('life_model_register', { requestId: 'large-file', sourcePath: inspected.definitionFile.path });
+  assert.equal(fromFile.modelHash, registered.modelHash, 'the inspect file holds the whole definition');
   const exported = await ok('life_model_export', { modelHash: registered.modelHash, destinationPath: join(directory, 'large-out.json') });
   const back = await ok('life_model_register', { requestId: 'large-back', sourcePath: exported.definitionFile.path });
   assert.equal(back.modelHash, registered.modelHash, 'the exported file holds the same model');

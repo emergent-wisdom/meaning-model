@@ -1,8 +1,16 @@
-// A result must fit in one message (tool-result.mjs) and a write's receipt in what the service keeps of it. The summary
-// or receipt of a large model can list every process, record or Event id, which is more than either holds. boundLists
-// keeps each list's first items within a share of the room and counts the rest, so the result still fits, says what it
-// left out, and is the same every time for the same value. A value that fits already comes back unchanged.
+// A write's receipt must fit in what the service keeps of it, and some results declare how much of the agent's context
+// they may take. The summary or receipt of a large model can list every process, record or Event id, which is more than
+// either holds. boundLists keeps each list's first items within a share of the room and counts the rest, so the result
+// still fits, says what it shows, and is the same every time for the same value. Nothing is lost: the complete value,
+// every entry included, is written to a file that listsComplete names (result-files.mjs). A value that fits already
+// comes back unchanged.
+import { writeResultFile } from './result-files.mjs';
+
 const size = (value) => Buffer.byteLength(JSON.stringify(value), 'utf8');
+const COMPLETE_NOTE = ' The complete value, every entry included, is in the file listsComplete names.';
+// The first cut writes the complete value; a value an earlier bound already cut keeps the file of its complete value.
+const complete = (value) => ({ listsComplete: value.listsComplete ?? writeResultFile(value) });
+const withComplete = (note) => (note.endsWith(COMPLETE_NOTE) ? note : note + COMPLETE_NOTE);
 
 export function boundLists(value, maxBytes, note) {
   if (size(value) <= maxBytes) return value;
@@ -25,8 +33,8 @@ export function boundLists(value, maxBytes, note) {
   const root = { ...value };
   walk(root, []);
   const listed = lists.reduce((sum, list) => sum + list.bytes, 0);
-  // Room for what each cut list says about itself, and for the note.
-  let room = maxBytes - (size(root) - listed) - lists.length * 160 - size(note) - 64;
+  // Room for what each cut list says about itself, for the note, and for the file that holds the complete value.
+  let room = maxBytes - (size(root) - listed) - lists.length * 160 - size(withComplete(note)) - 64 - 512;
   const listsCut = {};
   // Short lists stay whole; what they leave is shared among the long ones.
   let left = lists.length;
@@ -44,7 +52,7 @@ export function boundLists(value, maxBytes, note) {
     listsCut[list.path] = { shown: kept, of: earlier[list.path]?.of ?? list.items.length };
     room -= used;
   }
-  return { ...root, listsCut: { ...earlier, ...listsCut }, listsCutNote: note };
+  return { ...root, listsCut: { ...earlier, ...listsCut }, listsCutNote: withComplete(note), ...complete(value) };
 }
 
 // The last resort before a result is given up: every list longer than `keep`, a short list of records included, keeps
@@ -58,8 +66,8 @@ export function cutLists(value, keep, note) {
       if (item.length > keep) listsCut[path.join('.')] = { shown: kept.length, of: earlier[path.join('.')]?.of ?? item.length };
       return kept;
     }
-    if (item && typeof item === 'object') return Object.fromEntries(Object.entries(item).filter(([key]) => key !== 'listsCut' && key !== 'listsCutNote').map(([key, entry]) => [key, walk(entry, [...path, key])]));
+    if (item && typeof item === 'object') return Object.fromEntries(Object.entries(item).filter(([key]) => key !== 'listsCut' && key !== 'listsCutNote' && key !== 'listsComplete').map(([key, entry]) => [key, walk(entry, [...path, key])]));
     return item;
   };
-  return { ...walk(value, []), listsCut: { ...earlier, ...listsCut }, listsCutNote: note };
+  return { ...walk(value, []), listsCut: { ...earlier, ...listsCut }, listsCutNote: withComplete(note), ...complete(value) };
 }

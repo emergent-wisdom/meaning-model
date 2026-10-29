@@ -364,8 +364,9 @@ pub enum NarrativeInsertionScope {
 #[serde(deny_unknown_fields)]
 pub struct NarrativeInsertionOrder {
     /// Raw caller order for a full graph request, or raw additive order for a
-    /// batch. These identifiers are provenance only: compilation, hashing,
-    /// semantic traversal, and rendering never consult them.
+    /// batch or a revision by change. These identifiers are provenance only:
+    /// compilation, hashing, semantic traversal, and rendering never consult
+    /// them.
     pub scope: NarrativeInsertionScope,
     pub root_ids: Vec<String>,
     pub node_ids: Vec<String>,
@@ -1433,6 +1434,27 @@ fn apply_record_change<T: KeyedRecord>(
         .collect();
     records.extend(upserts.iter().filter(|record| !existing.contains(record.key())).cloned());
     Ok(records)
+}
+
+/// The insertion provenance of a revision by change: the records the change
+/// adds, in the change's own order, as a batch records them. The rest of the
+/// successor's order is its predecessor's, which the store already holds, so a
+/// change that adds nothing, such as a rebind to a successor model, names no
+/// identifiers instead of every record in the graph.
+pub(crate) fn narrative_change_insertion_order(
+    previous: &NarrativeGraphDefinition,
+    change: &NarrativeGraphChange,
+) -> NarrativeInsertionOrder {
+    fn added<'a>(previous: impl Iterator<Item = &'a str>, named: impl Iterator<Item = &'a str>) -> Vec<String> {
+        let mut seen: BTreeSet<&str> = previous.collect();
+        named.filter(|id| seen.insert(id)).map(str::to_owned).collect()
+    }
+    NarrativeInsertionOrder {
+        scope: NarrativeInsertionScope::AdditiveBatch,
+        root_ids: added(previous.roots.iter().map(String::as_str), change.roots.iter().flatten().map(String::as_str)),
+        node_ids: added(previous.nodes.iter().map(KeyedRecord::key), change.upsert_nodes.iter().map(KeyedRecord::key)),
+        edge_ids: added(previous.edges.iter().map(KeyedRecord::key), change.upsert_edges.iter().map(KeyedRecord::key)),
+    }
 }
 
 pub(crate) fn validate_narrative_insertion_order(

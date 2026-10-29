@@ -246,6 +246,17 @@ export function diagnoseSearch(search) {
   if (verification.unverifiedTransfers.length) warnings.push(`Transfers without a full PURE check: ${verification.unverifiedTransfers.join(', ')}. Verify each axis with a verifier task in its own context.`);
   if (verification.unverifiedSelections.length) warnings.push(`Selected without a full PURE check: ${verification.unverifiedSelections.join(', ')}.`);
   for (const item of verification.changed) warnings.push(`A deeper ${item.axis} check (${item.verificationNodeId}) found ${item.deeperStatus} where ${item.deepens} said ${item.probeStatus} at probe [${item.probePath.join(', ')}]; the axis now composes from the deeper finding.`);
+  // World modelling is reported only for searches that use it, so diagnoses of earlier searches keep their hashes.
+  const modelling = search.problem?.data.worldModelling === 'on';
+  if (modelling || search.worldModels.length) {
+    const latest = new Map(search.worldModels.map((item) => [item.data.worldNodeId, item]));
+    const modelled = search.worlds.filter((world) => latest.has(world.nodeId) && !latest.get(world.nodeId).data.decline).map((world) => world.nodeId);
+    const declined = search.worlds.filter((world) => latest.get(world.nodeId)?.data.decline).map((world) => world.nodeId);
+    const textOnly = search.worlds.filter((world) => !latest.has(world.nodeId)).map((world) => world.nodeId);
+    const framed = new Set(search.scenarios.map((item) => search.record(item.data.worldModelNodeId, 'world_model').data.worldNodeId));
+    diagnosis.worldModelling = { on: modelling, modelled, declined, textOnly, scenarios: search.scenarios.length, unframed: modelled.filter((nodeId) => !framed.has(nodeId)) };
+    if (modelling && textOnly.length) warnings.push(`World modelling is on, and these worlds have no model yet: ${textOnly.join(', ')}. Prepare world_modeller tasks.`);
+  }
   diagnosis.warnings = warnings;
   return { diagnosis, diagnosisHash: digest({ graphHash: search.view.graph_hash, searchRootId: search.searchRootId, diagnosis }) };
 }

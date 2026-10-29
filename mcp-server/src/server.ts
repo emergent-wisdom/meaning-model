@@ -9,7 +9,8 @@ import { scaffoldHint } from './scaffold-examples.mjs';
 import { McpServer } from '@modelcontextprotocol/server';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
 import * as z from 'zod/v4';
-import { toolResult } from './tool-result.mjs';
+import { fitsOneMessage, toolResult } from './tool-result.mjs';
+import { writeResultFile } from './result-files.mjs';
 import { absoluteHistoryPath, modelFileText, readModelFile, writeModelFile } from './construction-files.mjs';
 import { boundLists, cutLists } from './bounded-lists.mjs';
 import { describeTool } from './tool-guides.mjs';
@@ -95,7 +96,7 @@ const fullInstructions = `${processBreakdownHead}\n\n${startHereText}\n\n${userF
 const serverInstructions = composeInstructions(agentInstructions, { full: fullInstructions, simple: simpleInstructions });
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.15.0',
+  version: '0.16.0',
 }, {
   instructions: serverInstructions,
 });
@@ -145,20 +146,17 @@ const RESULT_CHARACTERS: Record<string, number> = Object.freeze({
     name in REORIENTING_TOOLS ? (...args: any[]) => { afterReorienting(name, args[0]); return handler(...args); } : handler);
 }
 const service = new LifeSimulationService();
-// The largest model definition life_model_inspect returns inline: what one result can carry.
-const INLINE_DEFINITION_BYTES = 8 * 1024 * 1024;
 // A large model's summary lists more ids than one result holds; then inspect shows each list's first ids, in at most
-// this much, and says where the rest are read.
+// this much, with the whole summary in a file (bounded-lists.mjs).
 const BOUNDED_SUMMARY_BYTES = 1024 * 1024;
 const BOUNDED_SUMMARY_NOTE = 'This model\'s summary lists more ids than one result holds, so each list shows its first ids, and listsCut gives how many it has in all. life_meaning_query pages through every record collection (offset, limit); life_values_query finds processes by text; life_model_export writes the whole definition, every id included, to a file.';
 // A model write has happened by the time its result is built, so a result too large for one message must not fail:
 // whatever fits comes back whole, as before; otherwise its long lists (the open questions can list every process) show
-// their first entries, with listsCut counting them all.
+// their first entries, with listsCut counting them all and the whole result in the file listsComplete names.
 const BOUNDED_WRITE_RESULT_BYTES = 1024 * 1024;
 const LISTS_CUT_NOTE = 'This result lists more than one message holds, so each long list shows its first entries, and listsCut names each list cut with how many it has in all. Act on the entries shown; later results list what remains. life_model_export writes the whole model to a file.';
 function fittedResult(value, note) {
-  const result = toolResult(value);
-  return result.isError ? toolResult(boundLists(value, BOUNDED_WRITE_RESULT_BYTES, note)) : result;
+  return fitsOneMessage(value) ? toolResult(value) : toolResult(boundLists(value, BOUNDED_WRITE_RESULT_BYTES, note));
 }
 const writeResult = (value) => fittedResult(value, `The write was stored whole. ${LISTS_CUT_NOTE}`);
 // A write whose tool declares a result size is fitted to it as the client is sent it (indented): its long lists keep
@@ -168,7 +166,7 @@ const declaredWriteResult = (name: string) => (value: any) => {
   const limit = RESULT_CHARACTERS[name];
   if (!limit || result.content[0].text.length <= limit) return result;
   const note = `The write was stored whole. ${LISTS_CUT_NOTE}`;
-  const fits = (fitted: any) => !fitted.isError && fitted.content[0].text.length <= limit;
+  const fits = (fitted: any) => fitted.content[0].text.length <= limit;
   for (const share of [0.7, 0.5, 0.35, 0.2]) {
     const fitted = toolResult(boundLists(value, Math.floor(limit * share), note));
     if (fits(fitted)) return fitted;
@@ -178,11 +176,12 @@ const declaredWriteResult = (name: string) => (value: any) => {
     const fitted = toolResult(cutLists(value, keep, note));
     if (fits(fitted)) return fitted;
   }
-  // Still too long: the write's identity, and where its report can be read.
+  // Still too long: the write's identity, and the file that holds its whole report.
   const identity = Object.fromEntries(Object.entries(value).filter(([, item]) => item === null || typeof item !== 'object'));
-  return toolResult({ ...identity, reportOmitted: `The write was stored whole, but its report is longer than this result can hold (${limit} characters), because some of its records carry very long text. Read what the model still lacks with life_model_questions on modelHash ${value.modelHash ?? ''}.` });
+  const reportFile = writeResultFile(value);
+  return toolResult({ ...identity, reportFile, reportOmitted: `The write was stored whole, but its report is longer than this result can hold (${limit} characters), because some of its records carry very long text. The whole report is in ${reportFile.path}. life_model_questions on modelHash ${value.modelHash ?? ''} reads what the model still lacks.` });
 };
-const DEFINITION_NOT_INLINE = 'The definition does not fit in one result with its summary. life_model_export writes it to a file; life_values_query, life_meaning_query and life_model_outline read parts of it.';
+const DEFINITION_NOT_INLINE = 'The definition does not fit in one result with its summary, so it was written whole to the file definitionFile names. life_model_export writes it to a file you choose, checked against the model\'s hash; life_values_query, life_meaning_query and life_model_outline read parts of it.';
 const requestIdSchema = z.string().min(1).max(256);
 // What the deepen and breadth checks named on the model a write revised, so each line shows again only when that changes.
 const previousTops = (previous: any) => { const tops = reportTops(questionModel(previous, [])); return { previousTop: tops.deepen, previousBreadth: tops.breadth }; };
@@ -646,7 +645,7 @@ server.registerTool(
 server.registerTool(
   'life_model_inspect',
   {
-    description: 'Inspect a Rust-stored typed model summary. includeDefinition is an administrative operation: it returns the bounded complete definition, including process initial values, and must be protected by authentication/authorization outside this local MCP service. A result too large for one message comes back without the definition (its size and where to read it), and a summary too large on its own lists the first ids of each list, with listsCut counting them all.',
+    description: 'Inspect a Rust-stored typed model summary. includeDefinition is an administrative operation: it returns the bounded complete definition, including process initial values, and must be protected by authentication/authorization outside this local MCP service. A definition too large for one message is written whole to a local file the result names (definitionFile), and a summary too large on its own lists the first ids of each list, with listsCut counting them all and the whole summary in the file listsComplete names.',
     inputSchema: z.object({
       modelHash: z.string().length(64),
       includeDefinition: z.boolean().default(false),
@@ -655,20 +654,17 @@ server.registerTool(
   },
   async (input) => {
     // Whatever fits in one result comes back whole, as in 0.12.0. Only what would not fit changes: first the definition
-    // gives way to a pointer to the file route, then the summary's id lists to their first ids.
+    // is written whole to a file the result names, then the summary's id lists show their first ids, with the whole
+    // summary in a file too.
     const inspected = await service.inspectModel(input);
     let value = inspected;
     if (input.includeDefinition) {
+      if (fitsOneMessage(inspected)) return toolResult(inspected);
       const { model, ...rest } = inspected;
-      const bytes = Buffer.byteLength(JSON.stringify(model));
-      if (bytes <= INLINE_DEFINITION_BYTES) {
-        const whole = toolResult(inspected);
-        if (!whole.isError) return whole;
-      }
-      value = { ...rest, definitionBytes: bytes, definitionNotInline: DEFINITION_NOT_INLINE };
+      const definitionFile = writeResultFile(model);
+      value = { ...rest, definitionBytes: Buffer.byteLength(JSON.stringify(model)), definitionFile, definitionNotInline: DEFINITION_NOT_INLINE };
     }
-    const result = toolResult(value);
-    return result.isError ? toolResult(boundLists(value, BOUNDED_SUMMARY_BYTES, BOUNDED_SUMMARY_NOTE)) : result;
+    return fitsOneMessage(value) ? toolResult(value) : toolResult(boundLists(value, BOUNDED_SUMMARY_BYTES, BOUNDED_SUMMARY_NOTE));
   },
 );
 

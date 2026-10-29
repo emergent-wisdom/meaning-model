@@ -7009,14 +7009,17 @@ impl MachineSession {
 
     /// Registers or revises a narrative graph from its complete definition:
     /// the one path through which a complete revision is compiled, validated
-    /// against its predecessor, source and anchors, and stored.
+    /// against its predecessor, source and anchors, and stored. A complete
+    /// request records its caller's whole order; a revision by change passes
+    /// the order of what it adds.
     fn store_complete_narrative_graph(
         &mut self,
         operation: &str,
         definition: NarrativeGraphDefinition,
         preserve_snapshot: bool,
+        insertion_order: Option<NarrativeInsertionOrder>,
     ) -> Result<serde_json::Value, MachineError> {
-        let insertion_order = NarrativeInsertionOrder {
+        let insertion_order = insertion_order.unwrap_or_else(|| NarrativeInsertionOrder {
             scope: NarrativeInsertionScope::FullDefinition,
             root_ids: definition.roots.clone(),
             node_ids: definition
@@ -7029,7 +7032,7 @@ impl MachineSession {
                 .iter()
                 .map(|edge| edge.id.clone())
                 .collect(),
-        };
+        });
         let compiled = compile_narrative_graph(definition)?;
         if operation == "register_narrative_graph"
             && compiled.definition.revision.number != 0
@@ -9479,6 +9482,7 @@ impl MachineSession {
                     &command.operation,
                     definition,
                     command.preserve_narrative_source_snapshot,
+                    None,
                 )
             }
             "revise_narrative_graph_by_change" => {
@@ -9500,10 +9504,12 @@ impl MachineSession {
                     })?;
                 self.ensure_narrative_fully_visible(&previous, &change.access_scopes)?;
                 let definition = apply_narrative_change(&previous.definition, &change)?;
+                let insertion_order = narrative_change_insertion_order(&previous.definition, &change);
                 self.store_complete_narrative_graph(
                     "revise_narrative_graph",
                     definition,
                     command.preserve_narrative_source_snapshot,
+                    Some(insertion_order),
                 )
             }
             "apply_narrative_batch" => {

@@ -4,6 +4,66 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## 0.16.0 — 2026-10-29
+
+**No result is refused or cut short for its size**
+- A result larger than one message holds (9 MiB, below the 10 MiB an MCP SDK stdio client reads by default) is
+  written whole to a local JSON file, and the result names it: `resultFile` gives its `path`, `bytes` and `sha256`.
+  Before, such a result was an error with nothing returned, and a write that produced it had already happened.
+- A result that shows only the first entries of its long lists, to fit a write's receipt or the size a tool declares,
+  names the file holding the complete value in `listsComplete`. `listsCut` still counts each list.
+- `life_model_inspect` with `includeDefinition` writes a definition too large for one message to the file
+  `definitionFile` names, in place of only its size.
+- The files go into `<LIFE_SIM_STATE_FILE>.results/` beside the store, or `meaning-model-results/` in the system's
+  temporary directory when the work is not saved; `MEANING_MODEL_RESULTS_DIR` names another folder. Each is named by
+  the sha256 of its text, so reading the same large value again writes nothing new, and each can be deleted at any
+  time.
+
+**Mechanism search follows the original method more closely**
+- Compiler and explorer tasks carry the rest of the original runner's opening: a familiar solution has lost the signal, mechanisms must be concrete, and counterintuitive solutions are welcome when their value can be argued. Every population state gets it, so conditions differ only in what the proposer sees.
+- Each candidate field comes with guidance, following MechanisticDesignProposal#930a: `what_is_new` names the practice it is compared with, `core_mechanism` states a causal chain, `why_it_fails` names specific conditions, and the two horizons are 1–3 years and 10+ years.
+- A transfer keeps the mechanism's strangest element, or states the change as a disanalogy.
+- Curator tasks ask for `operations` in exactly the forms `life_alien_ontology_revise` takes, in place of `newConcepts` and "other operations in words", so a script can pass a curator's restructuring on unchanged. The guide says so after the search loop. A caller that read `newConcepts` from a curator's answer reads `operations` instead.
+- The guide recommends compiling openly first and then with the map in view (H), with curator redirects as retries. It notes the paper's Unique (independence) beside the add-on's novelty check, the original meaning of "inverse", and how the seed bank relates to the original's random words.
+- The Fractal Intelligence card is pinned at its current version, FractalIntelligence#1dca.
+
+**Worlds are modelled and run by default**
+- In the alien add-on, each world is now also written as a model that the engine runs. A new `world_modeller`
+  role, target-blind like the builder, writes the world's laws as processes and laws, or declines with a reason.
+  The server registers the model, runs it and records a summary as a `world_model` record. A model the engine
+  refuses is refused with the engine's message, for a retry with `feedback`. The modeller and frame tasks state the
+  limits the server checks, such as a run of at most 400 time units and rule-map entries that name a world rule, and
+  a run that records more than one run may hold is refused with what to change.
+- A new `solver_frame` role sets the problem inside the world's model before solving. It adds the problem's actors
+  as processes under the world's laws, fixes one measure before any run (`final`, `mean`, `peak`, `minimum`,
+  `eventCount`, `meanInterval`, or `cooccurrence` of counters within a window), and proposes up to three
+  interventions of up to three parts each. The server runs the scenario, each intervention, and each intervention
+  without each part, from the same start, and records them as a `scenario`. Each run is drawn five times with its
+  own seeds; the measure is the mean of the draws, and tasks show their range, so a small difference can be told
+  from chance. A run's draws depend only on its model, plan and seed, so any run can be replayed.
+- The solver task with `scenarioNodeId` shows the runs, and a solution cites the runs it relies on as `runIds`. The
+  compiler and transfer tasks see the runs and are asked to keep the part that does the work.
+- The atlas shows each world's model and scenarios, and the diagnosis lists modelled, declined and text-only
+  worlds. World libraries carry each world's model, and an imported model is run again.
+- `life_alien_search_start` takes `worldModelling`: `on` (the default) or `off`. With modelling on, the solver task
+  is refused until the problem has been set in the world's model, unless the modeller declined the world. With it
+  off, and for searches started before 0.16.0, worlds stay text and every task reads as it would without world
+  modelling.
+- Runs show what follows from a world's laws as modelled, not what works in our world.
+
+**Graph rebinds stay small**
+- A narrative revision written as its change (`revise_narrative_graph_by_change`, which `life_narrative_rebind` and
+  history imports use) now records as its insertion provenance only the records the change adds, as a batch does.
+  Before, it named every root, node and edge in the graph, so each rebind stored the whole graph's identifiers again:
+  about 260 KB a rebind on a world history of 3,400 links, 84% of its stored graph. A rebind now stores about 1 KB.
+- Graph hashes, receipts and exports are unchanged, since the insertion order is provenance only, and 0.15.0 opens a
+  store written this way. A complete revision (`register_narrative_graph`, `revise_narrative_graph`) still records
+  its caller's whole order.
+
+**Larger models in the viewer**
+- `life_model_viewer_open` takes a snapshot of up to 64 MiB, up from 32 MiB. A world history with its places, laws
+  and derived values had reached 31.96 MB. The viewer still holds at most 16 snapshots at a time.
+
 ## 0.15.0 — 2026-10-25
 
 0.14.0 was prepared but never published. 0.15.0 is the first release with its changes, listed after this release's own.

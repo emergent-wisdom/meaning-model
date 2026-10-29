@@ -36,7 +36,8 @@ const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
   '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
 const defaultPublicDirectory = fileURLToPath(new URL('../viewer/public/', import.meta.url));
 const maximumSnapshots = 16;
-const maximumSnapshotBytes = 32 * 1024 * 1024;
+// A world history with its places, laws and derived values came to 31.96 MB, against the 32 MiB this was.
+const maximumSnapshotBytes = 64 * 1024 * 1024;
 
 // inspectModel and construction history contain administrative model definitions. This is a
 // complete author view, not a scoped projection: refuse incomplete scope access before serving it.
@@ -252,7 +253,7 @@ export function createModelViewer(service, { buildData = buildViewerData, public
     }
     const data = await buildData({ history, rendered, documentRendered, calls: [], name: 'model', title: input.title });
     const body = JSON.stringify(input.mode === 'live' ? { ...data, viewerLive: { mode: 'live', graphHash: input.graphHash ?? null, modelHash: data.modelHash ?? null } } : data);
-    if (Buffer.byteLength(body) > maximumSnapshotBytes) throw new Error('This model is too large for the local viewer snapshot (32 MiB maximum).');
+    if (Buffer.byteLength(body) > maximumSnapshotBytes) throw new Error(`This model is too large for the local viewer snapshot (${maximumSnapshotBytes / 1024 / 1024} MiB maximum).`);
     const index = JSON.stringify({ default: 'model', runs: [{ name: 'model', title: data.title ?? input.title ?? 'Meaning Model', label: data.title ?? 'Meaning Model', generatedAt: data.generatedAt, live: input.mode === 'live' }] });
     return { body, index, title: data.title ?? input.title ?? 'Meaning Model',
       graphId: history.graphId ?? data.inspection?.graph?.id ?? null,

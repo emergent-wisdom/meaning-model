@@ -34,7 +34,7 @@ async function setup(t, { estimator = null } = {}) {
   const addon = new AlienAddon(service, { estimator });
   const searches = {};
   const open = async (searchId, problem) => {
-    const started = await addon.startSearch({ requestId: `start.${searchId}`, modelHash, graphId: `graph.${searchId}`, searchId, title: searchId, problem, authorId: 'tester', accessScopes: scopes });
+    const started = await addon.startSearch({ worldModelling: 'off', requestId: `start.${searchId}`, modelHash, graphId: `graph.${searchId}`, searchId, title: searchId, problem, authorId: 'tester', accessScopes: scopes });
     const state = { graphHash: started.graphHash, count: 0 };
     const base = (extra = {}) => ({ graphHash: state.graphHash, searchRootId: searchId, accessScopes: scopes, ...extra });
     const step = (result) => { state.graphHash = result.graphHash; return result; };

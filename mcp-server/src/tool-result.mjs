@@ -1,10 +1,17 @@
 // Leave room for the JSON-RPC envelope below the SDK's default 10 MiB stdio buffer.
-// Large results keep their complete structured value, without a second escaped copy in text.
+// Large results keep their complete structured value, without a second escaped copy in text; a value larger than one
+// message holds is written whole to a file, which the result names (result-files.mjs). No result fails for its size.
 import { jsonWireValue, stringifyJson } from './exact-json.mjs';
 import { commitLeanResult, planLeanResult } from './lean-results.mjs';
+import { writeResultFile } from './result-files.mjs';
 export const MAX_TOOL_RESULT_BYTES = 9 * 1024 * 1024;
 const bytes = (value) => Buffer.byteLength(JSON.stringify(value), 'utf8');
 const retrieval = 'For text-only clients, request a smaller projection (life_narrative_query with mode "skeleton" or "neighborhood", or includeContent false), or use life_construction_export with destinationPath to export complete construction history to a file.';
+
+// Whether a value comes back inline, in one message, rather than as a file; it records nothing.
+export function fitsOneMessage(full) {
+  return bytes({ content: [{ type: 'text', text: '' }], structuredContent: jsonWireValue(planLeanResult(full).value) }) + 1024 <= MAX_TOOL_RESULT_BYTES;
+}
 
 export function toolResult(full) {
   // What the result sends of its fixed guidance is recorded only once it is known to be delivered (lean-results.mjs).
@@ -21,9 +28,11 @@ export function toolResult(full) {
     commitLeanResult(plan, result.content[0].text.length, { guidance: false });
     return result;
   }
-  // Nothing reached the client, so nothing is recorded as sent.
-  return {
-    isError: true,
-    content: [{ type: 'text', text: `The operation returned a result too large for the MCP transport (${bytes(value)} UTF-8 bytes before the response envelope; maximum result size ${MAX_TOOL_RESULT_BYTES} bytes). No partial result is returned. ${retrieval} If this was a write, it may already have completed: inspect the saved state before retrying it.` }],
-  };
+  // Larger than one message holds: the whole value goes to a file, and the result says where. The agent reads the
+  // guidance in it only if it opens the file, so it does not count as seen.
+  const resultFile = writeResultFile(value);
+  const note = `The complete result is larger than one message holds (${resultFile.bytes} bytes), so it was written whole to ${resultFile.path} (sha256 ${resultFile.sha256}). Nothing was cut or refused: read that file for the result. A smaller projection fits in a message: life_narrative_query with mode "skeleton" or "neighborhood", or includeContent false; life_meaning_query and life_values_query read parts of a model.`;
+  const pointer = { content: [{ type: 'text', text: note }], structuredContent: { resultFile, resultFileNote: note } };
+  commitLeanResult(plan, note.length, { guidance: false });
+  return pointer;
 }

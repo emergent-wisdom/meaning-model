@@ -62,7 +62,7 @@ test('the alien add-on is opt-in and adds only its tools, resources and prompt',
   assert.ok(prompts.prompts.some(({ name }) => name === 'life_alien_start'));
   const start = await enabled.getPrompt({ name: 'life_alien_start', arguments: {} });
   assert.ok(start.messages[0].content.text.includes(constructionRecordInstructions), 'ideation receives the same macro-to-micro and Understanding Graph instructions');
-  assert.match(start.messages[0].content.text, /builder, solver, compiler, explorer, world_curator and verifier tasks in fresh contexts/u);
+  assert.match(start.messages[0].content.text, /builder, world_modeller, solver_frame, solver, compiler, explorer, world_curator and verifier tasks in fresh contexts/u);
   assert.match(start.messages[0].content.text, /record same_context honestly/u);
   assert.match(start.messages[0].content.text, /life-sim:\/\/theory\/ontology-of-the-alien/u);
   assert.match(start.messages[0].content.text, /optional background/u);

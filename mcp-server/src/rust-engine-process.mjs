@@ -133,6 +133,7 @@ export class RustEngineProcess {
     maxStderrBytes = DEFAULT_MAX_STDERR_BYTES,
     maxPendingCalls = DEFAULT_MAX_PENDING_CALLS,
     testFixture = null,
+    stateless = false,
   } = {}) {
     if (testFixture !== null && testFixture?.mode !== 'explicit-test-fixture') {
       throw new Error('Rust process fixtures require mode explicit-test-fixture.');
@@ -140,9 +141,11 @@ export class RustEngineProcess {
     this.binaryPath = binaryPath;
     this.command = testFixture?.command ?? binaryPath;
     this.arguments = testFixture?.args ?? ['--ndjson'];
+    // A stateless engine keeps nothing on disk: the state file setting is not passed on to it.
+    const { LIFE_SIM_STATE_FILE: _stateFile, ...withoutStateFile } = process.env;
     this.childEnvironment = testFixture?.env
       ? { ...process.env, ...testFixture.env }
-      : process.env;
+      : stateless ? withoutStateFile : process.env;
     this.testFixture = testFixture !== null;
     this.timeoutMs = timeoutMs;
     this.startupTimeoutMs = startupTimeoutMs;

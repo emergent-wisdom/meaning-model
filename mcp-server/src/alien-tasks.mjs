@@ -1,9 +1,10 @@
 import * as z from 'zod/v4';
-import { renderOntologyTree } from './alien-ontology.mjs';
+import { CONCEPT_LIMITS, renderOntologyTree } from './alien-ontology.mjs';
 import { digest, drawSeed, findTargetLeaks, readSearch, requireProblem, targetTerms } from './alien-search.mjs';
 import { ontologyGaps, uncombinedPairs } from './alien-diagnose.mjs';
 import { grammarReadingInstructions } from './construction-principles.mjs';
 import { AXIS_TEXT, PURE_AXES, PURE_CARDS, probeAt } from './alien-verify.mjs';
+import { describeModel, runTable, RUN_LIMITS, summaryText } from './alien-runs.mjs';
 
 // Role tasks with information partitioned by construction, following Ontology of the
 // Alien: a target-blind Builder, a purpose-blind but target-aware Solver, a compiler
@@ -29,12 +30,17 @@ const populationState = (fallback) => z.enum(POPULATION_STATES).default(fallback
 export const taskInputSchemas = {
   builder: z.object({ slot: z.number().int().min(0).max(100_000).nullable().default(null), seedWord: id.nullable().default(null), seedSalt: id.nullable().default(null),
     operators: z.array(worldOperatorSchema).max(6).default([]), commissionNodeId: id.nullable().default(null) }).strict(),
-  solver: z.object({ worldNodeId: id }).strict(),
+  // scenarioNodeId has no default, so a solver task without it keeps its 0.16.0 inputs and hash.
+  solver: z.object({ worldNodeId: id, scenarioNodeId: id.optional() }).strict(),
   compiler: z.object({ worldNodeId: id, solutionNodeId: id, commissionNodeId: id.nullable().default(null), populationState: populationState('none') }).strict(),
   explorer: z.object({ commissionNodeId: id.nullable().default(null), populationState: populationState('map'),
     cueWord: id.nullable().default(null), drawCue: z.boolean().default(false) }).strict(),
   curator: z.object({ subjectNodeId: id, ontology: z.enum(['mechanisms', 'outcomes']).default('mechanisms') }).strict(),
   world_curator: z.object({ subjectNodeId: id }).strict(),
+  // World modelling, on by default for new searches: a target-blind modeller writes the world's laws as a model the engine
+  // runs, then the solver sets the problem inside it and the engine runs its interventions before it solves.
+  world_modeller: z.object({ worldNodeId: id, feedback: z.string().trim().min(1).max(16_000).optional() }).strict(),
+  solver_frame: z.object({ worldNodeId: id, worldModelNodeId: id, feedback: z.string().trim().min(1).max(16_000).optional() }).strict(),
   transfer: z.object({ mechanismNodeId: id }).strict(),
   // PURE (PURECheck#574b): one task per axis, each for its own context, so no axis sees another's verdict.
   // deepen opens one probe of an earlier verification as its own sub-solver task, recursively (Fractal Intelligence).
@@ -65,10 +71,82 @@ const operatorText = {
 
 export const CANDIDATE_LIMITS = Object.freeze({ label: 40, design_principles: 200, core_mechanism: 200, how_it_works: 500, what_is_new: 200,
   why_it_works: 300, why_it_fails: 300, medium_term: 200, long_term_vision: 300 });
-const candidateSpec = Object.entries(CANDIDATE_LIMITS).map(([field, limit]) => `${field} (at most ${limit} characters)`).join(', ');
+// The original runner's guidance for each field, merged with the rules of the card the candidate follows.
+const CANDIDATE_GUIDANCE = Object.freeze({
+  label: 'a short name',
+  design_principles: 'the guiding principles, especially unconventional ones',
+  core_mechanism: 'the causal chain, how A causes B, not that A and B move together',
+  how_it_works: 'clear enough to start implementing, or the research needed to get there',
+  what_is_new: 'the existing solutions or practice you compare it with, and what they cannot do',
+  why_it_works: 'steelman why the counterintuitive element is valuable',
+  why_it_fails: 'steelman the criticism: the specific conditions under which it breaks, not a generic caveat',
+  medium_term: 'the implementation path over the next 1–3 years',
+  long_term_vision: 'what the world looks like in 10+ years if it fully succeeds',
+});
+const candidateSpec = `following ${PURE_CARDS.proposal}:\n${Object.entries(CANDIDATE_LIMITS)
+  .map(([field, limit]) => `  - ${field} (at most ${limit} characters): ${CANDIDATE_GUIDANCE[field]}`).join('\n')}`;
+// The rest of the original runner's opening for every proposal prompt, after "Please think deeply" and the problem.
+const PROPOSAL_OPENING = `If your solution feels familiar, you've lost the signal. Find something genuinely new.
+
+CRITICAL: Your solution must describe concrete mechanisms—what specifically happens when X occurs.
+New laws or technology are fine. Metaphors that sound meaningful but lack mechanical specificity are not.
+
+Counterintuitive solutions are welcome—even preferred—as long as you can argue why the counterintuitive element is valuable, not just strange.`;
 const candidateKeys = Object.keys(CANDIDATE_LIMITS).join(', ');
 const mechanismJson = (world) => `End your answer with the mechanism as one JSON object with the keys operator, roles (each with id, description${world ? ' and worldRuleIds' : ''}), ${world ? 'magicalElements (each with element and fix {kind, text}), ' : ''}strangest {element, preserved}, candidate {${candidateKeys}}${world ? ' and selfAudit {bottleneckRelief, fiat, capabilityProvenance, rationale} or null' : ''}.`;
-const decisionJson = (worlds) => `End your answer with the decision as one JSON object: verdict; conceptId; nearestConceptId; equivalence {nameChanged, actorChanged, parameterChanged, inputSignalChanged, primaryOperatorChanged, explanation} or null; fit (clear, partial, borderline or null); ${worlds ? 'signature with every axis as {code, note} or null; ' : ''}newConcepts (for admit_new or restructuring, each {id, label, operator, differentia, boundary${worlds ? '' : ', roles [{id, description}]'}}, with labels up to 200 characters, operators up to 1,200, each differentia up to 800 and boundaries up to 2,000); ${worlds ? '' : 'membership {question, unit, shares [{conceptId, share}], remainder} or null; '}other operations in words; redirect {addressedTo, relationToChange, alternatives, worldAsk} or null; rationale (up to 4,000 characters).`;
+// A curator returns its changes in exactly the forms life_alien_ontology_revise takes, so a script can pass them on
+// unchanged; a test keeps this list and operationSchema in step. World regimes carry no roles or graded membership.
+const operationForms = (worlds) => [
+  `{op: "add_concept", concept: {id, label, operator, differentia [...], boundary${worlds ? '' : ', roles [{id, description}]'}}}`,
+  `{op: "revise_concept", conceptId, and any of label, operator, differentia, boundary${worlds ? '' : ', roles'}}`,
+  '{op: "add_partition", partition: {id, parentConceptId, childConceptIds (two or more), lens, query}}: more specific kinds of the parent, under a named lens',
+  '{op: "revise_partition", partitionId, and any of childConceptIds, lens, query}',
+  '{op: "remove_partition", partitionId}',
+  '{op: "add_relation", relation: {id, kind (specialization, analogy, opposition, constrains, or other with a label), sourceConceptId, targetConceptId, label}}',
+  '{op: "remove_relation", relationId}',
+  '{op: "merge", keepConceptId, mergeConceptId}',
+  '{op: "split", conceptId, partitionId, lens, query, children: two or more concepts, each with instanceSubjectNodeIds}',
+  `{op: "assign_instance", subjectNodeId, conceptId, fit} or {op: "unassign_instance", subjectNodeId, conceptId}, for other ${worlds ? 'worlds' : 'candidates'}`,
+  ...(worlds ? [] : ['{op: "set_membership", subjectNodeId, question, unit, shares [{conceptId, share}] (two or more), remainder}, with shares and remainder summing to 1, or {op: "clear_membership", subjectNodeId}']),
+].map((form) => `- ${form}`).join('\n');
+const decisionJson = (worlds) => `End your answer with the decision as one JSON object: verdict; conceptId; nearestConceptId; equivalence {nameChanged, actorChanged, parameterChanged, inputSignalChanged, primaryOperatorChanged, explanation} or null; fit (clear, partial, borderline or null); ${worlds ? 'signature with every axis as {code, note} or null; ' : ''}operations; redirect {addressedTo, relationToChange, alternatives, worldAsk} or null; rationale (up to 4,000 characters).
+
+operations lists every change to the ontology, and is empty when nothing changes. The verdict places the ${worlds ? 'world' : 'candidate'} under review, so don't assign it yourself. admit_new needs an operation that creates its conceptId. Each operation is one of:
+${operationForms(worlds)}
+
+Labels take up to ${CONCEPT_LIMITS.label.toLocaleString('en-US')} characters, operators ${CONCEPT_LIMITS.operator.toLocaleString('en-US')}, each differentia ${CONCEPT_LIMITS.differentia.toLocaleString('en-US')}, boundaries ${CONCEPT_LIMITS.boundary.toLocaleString('en-US')} and lenses 400. Ids use letters, digits, dot, underscore, colon or hyphen.`;
+
+// The engine's model vocabulary, for the roles that write model parts. The worked example is the paper's calculation
+// office (paper/supplements/process-as-program), from another domain so that worlds are not all written alike.
+const ENGINE_VOCABULARY = `THE ENGINE'S VOCABULARY
+A model is a set of processes and laws.
+- A process: {id, unit, value_type: {kind: "scalar", bounds: {minimum, maximum}}, initial_value: {kind: "scalar", value}, provenance: [short strings], support: [short strings]}. A fixed input also has update_mode: "static". Ids use letters, digits, dot, underscore and hyphen.
+- A law: {id, operator, provenance: [short strings]}, optionally activation: "gated" (it runs only after an occurrence activates it).
+  - evolution: {role: "evolution", target: <process id>, derivative: <expression>}: the target changes at that rate per time unit.
+  - relation: {role: "relation", target: <process id>, value: <expression>}: the target is computed from other processes.
+  - occurrence: {role: "occurrence", trigger, effects: [{target, mode: "set" or "add", value: <expression>}], activates: [gated law ids]}. Triggers: {kind: "threshold", expression, comparison: "greater_or_equal", "greater_than", "less_or_equal" or "less_than", threshold: <number>, firing: "on_enter" (once, on crossing) or "while_true" (at every step)}, {kind: "hazard", rate: <expression>} (at random, at that rate), or {kind: "always"}. Occurrence laws cannot be gated.
+- Expressions: {op: "constant", value}, {op: "process", process}, {op: "time"}, {op: "add", terms}, {op: "multiply", factors}, {op: "subtract", left, right}, {op: "divide", numerator, denominator}, {op: "negate", value}, {op: "minimum", values}, {op: "maximum", values}, {op: "clamp", value, minimum, maximum}, {op: "absolute", value}, {op: "exponential", value}, {op: "logistic", value}. There is no if: write a switch with clamp. For example clamp(1000 × x, 0, 1) is 1 while x is above 0.001 and 0 once x reaches 0.
+- Plain numbers, never expressions: a trigger's threshold, clamp's minimum and maximum, a constant's value, and a process's bounds and starting value.
+- Two laws must not set the same process in the same step: the engine refuses conflicting set effects. Give one law the set, use add instead, or merge the effects into one law.
+
+A worked example from another domain, a calculation office, in words:
+- backlog-flow: evolution of office.backlog at the rate office.ordered_hours − office.check_capacity
+- queue: relation, office.queue_months = office.backlog / office.check_capacity
+- delivery-rule: occurrence, when office.queue_months ≥ 3 (at every step while true): add 1 to office.unchecked_jobs; add −40 to office.backlog
+- successor-funded: occurrence, when time ≥ 7 (once, on crossing): activate second-checker
+- second-checker: gated relation, office.check_capacity = 160`;
+
+// A check the writer runs before answering: the slips the engine most often refuses.
+const modelChecklist = (scenario) => `Before you answer, check your JSON:
+- every trigger threshold, clamp minimum and maximum, constant value, starting value and bound is a plain number;
+- every comparison is greater_or_equal, greater_than, less_or_equal or less_than;
+- no two laws set the same process in the same step: where two events can reset one process, give one of them add, or merge them into one law;
+- every process a law reads or changes is declared${scenario ? ', in the model above or in your additions' : ''}, and every id is distinct;
+- a run plan lasts at most ${RUN_LIMITS.horizon} time units, with a stepSize of at most 1;${scenario
+    ? '\n- the measure uses the scenario\'s own processes, not ones that only an intervention adds;\n- each part\'s laws can be removed without breaking another part\'s.'
+    : '\n- the rule map names only laws you wrote, and the observables name only processes you declared;\n- each rule map entry names one of the world\'s rules by its recorded id (R1, R2, ...) and lists at most 20 laws; what the world says that no rule covers goes in simplifications.'}`;
+
+const feedbackText = (feedback) => (feedback ? `\n\nA previous attempt was refused:\n${feedback}\n\nCorrect it.` : '');
 
 function rulesIndex(world) {
   return world.data.rules.map((rule) => `${rule.id}: ${rule.statement}`).join('\n');
@@ -93,6 +171,18 @@ function mechanismCard(mechanism) {
     'Candidate:',
     ...Object.keys(CANDIDATE_LIMITS).map((field) => `  ${field}: ${data.candidate[field]}`),
   ].filter(Boolean).join('\n');
+}
+
+export const modellingOn = (search) => search.problem?.data.worldModelling === 'on';
+export const latestWorldModel = (search, worldNodeId) => search.worldModels.filter((item) => item.data.worldNodeId === worldNodeId).at(-1) ?? null;
+
+// The runs behind a solution, for the roles after the solver. Empty for a solution solved without a model.
+function modelBlock(search, solution, role) {
+  if (!solution.data.scenarioNodeId) return '';
+  const scenario = search.record(solution.data.scenarioNodeId, 'scenario');
+  const keep = role === 'compiler' ? 'Keep the part the runs show doing the work, as well as what is strangest.'
+    : 'Keep the part the world\'s runs show doing the work, or state the change as a disanalogy. The runs show what follows from the world\'s laws, not what works in our world.';
+  return `\n\nWHAT THE WORLD'S MODEL SHOWED (the solver set the problem in a model of the world's laws and ran it):\n${runTable(scenario.data)}\n${keep}`;
 }
 
 export function mechanismLabel(search) {
@@ -258,8 +348,83 @@ Begin with a title of at most twelve words, and number the rules R1, R2, ... so 
     purposeBlind = true;
     material = { seed, operators, commissionNodeId: inputs.commissionNodeId, oraclePremise: oracle, ...(regimes.length ? { targetConceptIds: regimes.map((item) => item.id) } : {}) };
     recordAs = 'world';
+  } else if (role === 'world_modeller') {
+    const world = search.record(inputs.worldNodeId, 'world');
+    text = `Please think deeply about this modelling task.
+
+You are given an invented world. Write its laws as a model that a simulation engine can run, so that what follows from the laws can be seen by running them rather than by reading the description.
+
+WORLD:
+${world.data.text}
+
+Rules as recorded:
+${rulesIndex(world)}
+
+${ENGINE_VOCABULARY}
+
+Model the world's own laws: its physics, the rules above. Keep its oddity: write each rule as the world states it, not as our physics would have it. Model only what the rules say, and leave people and institutions out. If the world cannot be written with these laws, decline and say why.${feedbackText(inputs.feedback)}
+
+${modelChecklist(false)}
+
+End your answer with one JSON object: timeUnit (for example day); processes (at most ${RUN_LIMITS.processes}); laws (at most ${RUN_LIMITS.laws}); observables (the process ids to record, at most ${RUN_LIMITS.observables}); run {horizon (time units, at most ${RUN_LIMITS.horizon}), stepSize (for example 0.05)}; ruleMap (each {ruleId: one of the rule ids recorded above, lawIds: at most 20, how}: which laws express which rule); simplifications (what the world says that the model leaves out or changes); decline: null, or {reason} in place of processes and laws.`;
+    targetLeaks = findTargetLeaks([world.data.text, ...world.data.rules.map((rule) => rule.statement)].join('\n'), terms);
+    targetBlind = world.data.targetBlind !== false && targetLeaks.length === 0;
+    purposeBlind = true;
+    material = { worldNodeId: world.nodeId };
+    recordAs = 'world_model';
+  } else if (role === 'solver_frame') {
+    const world = search.record(inputs.worldNodeId, 'world');
+    const worldModel = search.record(inputs.worldModelNodeId, 'world_model');
+    if (worldModel.data.worldNodeId !== world.nodeId) throw new Error(`World model ${worldModel.nodeId} models ${worldModel.data.worldNodeId}, not ${world.nodeId}.`);
+    if (worldModel.data.decline) throw new Error(`The modeller declined ${world.nodeId}; prepare the solver task with worldNodeId ${world.nodeId} instead.`);
+    text = `Please think deeply about this problem.
+
+You live in a world with different physics:
+
+WORLD RULES:
+${world.data.text}
+
+Rules as recorded:
+${rulesIndex(world)}
+
+The world's laws are written as a model that a simulation engine runs.
+
+THE MODEL:
+${describeModel(worldModel.data)}
+
+A RUN OF THE WORLD, ${worldModel.data.run.horizon} ${worldModel.data.timeUnit}s:
+${summaryText(worldModel.data.baseline.summary)}
+
+PROBLEM: ${problemText(problem, { context: false })}
+
+Before solving it, set the problem inside this world, so the engine can show what would happen:
+1. Scenario: the problem's actors as processes that obey the world's laws, with the laws that act on them. Reuse the model's processes and laws by their ids, and add only what the problem needs. You may change starting values with overrides.
+2. Measure: one measure of the problem, fixed now, before any run: final, mean, peak or minimum of a process; eventCount or meanInterval of a counter (a process that rises by one at each event); or cooccurrence of two or more counters within a time window (the share of their events that have another event that close). Give a warm-up time to ignore, whether higher or lower is better, and what the measure means here. The runs last as long as the world's run above unless you give a run plan of your own.
+3. Interventions: up to ${RUN_LIMITS.interventions} ways to solve the problem, each made of named parts, at most ${RUN_LIMITS.parts} per intervention. Put each part in laws of its own, for example a second occurrence law on the same threshold, so that a part can be removed by itself: the engine runs each intervention whole and once without each part, to show which part does the work. A part's processes stay when it is removed. A part may add processes and observe them; the measure itself must use processes the scenario already has, so every run can be measured.
+
+Requirements:
+- The scenario and the interventions must USE the world's physics, not fight against them
+- Do not reference our world or "normal" physics
+
+${ENGINE_VOCABULARY}${feedbackText(inputs.feedback)}
+
+${modelChecklist(true)}
+
+End your answer with one JSON object: description (the problem inside the world, in a paragraph); processes and laws (the scenario's additions, in the JSON form above); overrides (each {processId, value}); observables (process ids to record); measure {kind, process, or counters and window, after, better, meaning}; run {horizon (time units, at most ${RUN_LIMITS.horizon}), stepSize (at most 1)} or null; interventions (each {id, label, parts: [{id, label, processes, laws, overrides}]}).`;
+    purposeBlind = true;
+    material = { worldNodeId: world.nodeId, worldModelNodeId: worldModel.nodeId };
+    recordAs = 'scenario';
   } else if (role === 'solver') {
     const world = search.record(inputs.worldNodeId, 'world');
+    const scenario = inputs.scenarioNodeId ? search.record(inputs.scenarioNodeId, 'scenario') : null;
+    if (scenario && search.record(scenario.data.worldModelNodeId, 'world_model').data.worldNodeId !== world.nodeId) {
+      throw new Error(`Scenario ${scenario.nodeId} is set in another world than ${world.nodeId}.`);
+    }
+    if (!scenario && modellingOn(search)) {
+      const worldModel = latestWorldModel(search, world.nodeId);
+      if (!worldModel) throw new Error(`World modelling is on for this search: prepare a world_modeller task with worldNodeId ${world.nodeId} first.`);
+      if (!worldModel.data.decline) throw new Error(`World modelling is on for this search: prepare a solver_frame task with worldNodeId ${world.nodeId} and worldModelNodeId ${worldModel.nodeId}, record its scenario, then prepare the solver with scenarioNodeId.`);
+    }
     text = `Please think deeply about solving this problem.
 
 You live in a world with different physics:
@@ -278,8 +443,16 @@ Requirements:
 - Your solution must USE the world's physics, not fight against them
 - Be specific about HOW the solution leverages the world's rules, citing them as R1, R2, ...
 - Do not reference our world or "normal" physics`;
+    if (scenario) text += `
+
+WHAT THE WORLD'S MODEL SHOWED
+You set the problem inside the world's model as: ${scenario.data.description}
+The engine ran it, and each way to solve it, from the same start, several times each:
+${runTable(scenario.data)}
+
+Use what the runs showed. Cite the runs you rely on by their ids, for example intervention:a or ablation:a/b, as well as the rules.`;
     purposeBlind = true;
-    material = { worldNodeId: world.nodeId };
+    material = { worldNodeId: world.nodeId, ...(scenario ? { scenarioNodeId: scenario.nodeId } : {}) };
     recordAs = 'solution';
   } else if (role === 'compiler') {
     const world = search.record(inputs.worldNodeId, 'world');
@@ -299,6 +472,8 @@ Requirements:
 PROBLEM:
 ${problemText(problem)}
 
+${PROPOSAL_OPENING}
+
 WORLD:
 ${world.data.text}
 
@@ -306,7 +481,7 @@ Rules as recorded:
 ${rulesIndex(world)}
 
 SOLUTION:
-${solution.data.text}
+${solution.data.text}${modelBlock(search, solution, 'compiler')}
 
 Your task is to adapt this solution to our world:
 1. First, imagine implementing this solution exactly as described. What would it look like?
@@ -321,7 +496,7 @@ Then state the compiled mechanism:
 - roles: the two to eight parts the relation needs, each with the world rules (R1, ...) that supply it in this world
 - magicalElements: each with its fix, as invented_technology, existing_approximation, institutional_substitute or unresolved
 - strangest: the strangest element, and how the candidate keeps it
-- candidate: ${candidateSpec}
+- candidate, ${candidateSpec}
 - selfAudit, optional: bottleneck relief (clear, partial or none: does a world rule make a problem function automatic by assumption?), final-outcome fiat (pass, borderline or fail: does the principal operation simply assert the desired end?), and capability provenance (direct, amplified or mixed)
 
 ${mechanismJson(true)}`;
@@ -347,13 +522,15 @@ ${mechanismJson(true)}`;
     text = `Please think deeply about this problem.
 
 PROBLEM:
-${problemText(problem)}${population}${cueText}${direction}${fill}
+${problemText(problem)}
+
+${PROPOSAL_OPENING}${population}${cueText}${direction}${fill}
 
 ${aim} Then state:
 - operator: the operative causal relation in one or two sentences
 - roles: the two to eight parts it needs
 - strangest: its strangest element, and how the candidate keeps it
-- candidate: ${candidateSpec}
+- candidate, ${candidateSpec}
 
 ${mechanismJson(false)}`;
     text += '\n\nWhen recording this explorer output, use isolation.explorer (the legacy isolation.compiler key is also accepted).';
@@ -463,14 +640,15 @@ ${model.text}
 
 MECHANISM (${mechanism.nodeId}):
 ${mechanismCard(mechanism)}
-${families.length ? `\nFamily: ${families.join('; ')}` : '\nFamily: not yet curated'}
+${families.length ? `\nFamily: ${families.join('; ')}` : '\nFamily: not yet curated'}${mechanism.data.source.solutionNodeId ? modelBlock(search, search.record(mechanism.data.source.solutionNodeId, 'solution'), 'transfer') : ''}
 
 1. Map every role: bind it to a model record (kind:id), describe the new component the domain would need, or leave it unfilled with the reason.
 2. Label each magical element's proxy as portable (achievable with present means), inverse (the domain needs the opposite effect) or magical (no present means), and date the judgment.
 3. List where the analogy breaks: at least one disanalogy.
-4. Write the candidate in the domain's own terms: ${candidateSpec}.
-5. State the evidence needed before anyone relies on it.
-6. If you grade how well the role alignment fits, do it as a fit Cut: name the comparison question and unit, and divide that one unit among matches, does not match and an unresolved remainder. Otherwise leave fit unscored.
+4. Keep the mechanism's strangest element, as its card above states it. If the domain forces a change to it, say what changed and why, as a disanalogy.
+5. Write the candidate in the domain's own terms, ${candidateSpec}
+6. State the evidence needed before anyone relies on it.
+7. If you grade how well the role alignment fits, do it as a fit Cut: name the comparison question and unit, and divide that one unit among matches, does not match and an unresolved remainder. Otherwise leave fit unscored.
 A transfer records an idea and its mapping, not a finding. Do not claim efficacy.
 
 End your answer with one JSON object: roleMap (each {roleId, binding} where binding is {kind: model, ref, how}, {kind: new_component, description} or {kind: unfilled, reason}), proxies (each {element, label, proxy, asOf}), disanalogies, candidate {${candidateKeys}}, fitCut ({question, unit, matches, doesNotMatch, remainder} summing to 1, or null) and evidenceNeeded.`;
@@ -539,6 +717,9 @@ End your answer with one JSON object: status (verified, falsified or unknown: wh
     ? (targetBlind ? 'Give this task and only the permitted neutral reading to a fresh context that has never seen the problem. Record the output as a world with the returned taskNodeId, and state the isolation you used.'
       : `This builder task is not target-blind (${targetLeaks.length ? `target terms: ${targetLeaks.join(', ')}` : 'oracle premise'}); the world record will say so. ${material.oraclePremise ? 'An oracle premise is target-aware by design; continue with that label if intentional.' : 'For a target-blind world, prepare a revised commission or operators without the listed target terms.'}`)
     : role === 'solver' ? 'Give this task to a fresh context that has not seen the builder task or the search\'s purpose. Record its answer as a solution with the returned taskNodeId.'
+      : role === 'world_modeller' ? (targetBlind ? 'Give this task and only the permitted neutral reading to a fresh context that has never seen the problem. Record its JSON as a world_model with the returned taskNodeId; the server runs the model and refuses one the engine cannot run, with the engine\'s message for a retry (feedback).'
+        : `This world is not target-blind (${targetLeaks.length ? `target terms: ${targetLeaks.join(', ')}` : 'its world record says so'}); the world model inherits that. Record its JSON as a world_model with the returned taskNodeId.`)
+      : role === 'solver_frame' ? 'Give this task to a fresh context that has not seen the builder or modeller tasks or the search\'s purpose. Record its JSON as a scenario with the returned taskNodeId; the server runs the scenario and every intervention.'
       : role === 'world_curator' ? 'The world curator stays target-blind: a fresh context should see only this task and the permitted neutral reading.'
       : role === 'verifier' ? 'Give each axis its own fresh context that sees only this task: PURE judges the axes in isolation, so no verifier sees another axis\'s verdict. Record the answer as a verification with the returned taskNodeId, and state the isolation you used.'
         : 'A fresh context is preferred; record the isolation you used.';

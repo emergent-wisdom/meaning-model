@@ -2962,3 +2962,90 @@ fn a_revision_by_change_equals_the_complete_revision_refuses_hidden_or_unknown_r
     assert!(text.contains("rewritten") && text.contains("A new last passage.") && !text.contains("The second passage."), "{text}");
     let _ = fs::remove_file(&state_file);
 }
+
+#[test]
+fn a_revision_by_change_records_only_what_it_adds_so_a_rebind_stores_no_identifiers() {
+    let state_file = state_path("narrative-change-order");
+    let mut session = MachineSession::with_state_file(&state_file).unwrap();
+    let model_hash = register_test_model(&mut session, "change-order-model");
+    let successor_hash = register_test_model(&mut session, "change-order-successor");
+    let passages: Vec<Value> = (0..40).map(|index| story_node(&format!("passage-{index:02}"), format!("Passage {index}."))).collect();
+    let edges: Vec<Value> = (0..40).map(|index| story_edge(&format!("edge-{index:02}"), &format!("passage-{index:02}"), index)).collect();
+    let registered = execute(
+        &mut session,
+        json!({
+            "schema": "life-sim-rust-command/v1",
+            "operation": "register_narrative_graph",
+            "narrative_graph": root_story_graph(&model_hash, "change-order-story", passages, edges)
+        }),
+    );
+    let parent = registered["summary"]["graph_hash"].as_str().unwrap().to_owned();
+    let change = |previous: &str, number: u64, body: Value| {
+        let mut narrative_change = json!({
+            "schema": "life-sim-rust-narrative-change/v1",
+            "previous_graph_hash": previous,
+            "revision": {"number": number, "previous_graph_hash": previous, "reason": "Insertion order test.", "provenance": ["narrative change order test"]}
+        });
+        narrative_change.as_object_mut().unwrap().extend(body.as_object().unwrap().clone());
+        json!({"schema": "life-sim-rust-command/v1", "operation": "revise_narrative_graph_by_change", "narrative_change": narrative_change})
+    };
+    // A change that rewrites one passage and adds two names only the two it adds, in its own order.
+    let added = execute(
+        &mut session,
+        change(&parent, 1, json!({
+            "upsert_nodes": [
+                story_node("passage-05", "Passage 5, rewritten.".to_owned()),
+                story_node("zeta", "A passage added last in order, first in the change.".to_owned()),
+                story_node("alpha", "A passage added second.".to_owned())
+            ],
+            "upsert_edges": [story_edge("zeta-edge", "zeta", 41), story_edge("alpha-edge", "alpha", 40)]
+        })),
+    );
+    let added_hash = added["summary"]["graph_hash"].as_str().unwrap().to_owned();
+    // A rebind changes only the source: it adds nothing, so it names nothing.
+    let rebound = execute(
+        &mut session,
+        change(&added_hash, 2, json!({"source": {"kind": "model", "model_hash": successor_hash}})),
+    );
+    let rebound_hash = rebound["summary"]["graph_hash"].as_str().unwrap().to_owned();
+    drop(session);
+
+    let connection = Connection::open(&state_file).unwrap();
+    let stored = |graph_hash: &str| -> (Value, usize) {
+        let bytes: Vec<u8> = connection
+            .query_row("SELECT revision_json FROM narrative_revisions WHERE graph_hash = ?1", [graph_hash], |row| row.get(0))
+            .unwrap();
+        (serde_json::from_slice(&bytes).unwrap(), bytes.len())
+    };
+    let (root_record, root_bytes) = stored(&parent);
+    assert_eq!(root_record["insertion_order"]["scope"], json!("full_definition"));
+    assert_eq!(root_record["insertion_order"]["node_ids"].as_array().unwrap().len(), 41);
+    let (added_record, _) = stored(&added_hash);
+    assert_eq!(
+        added_record["insertion_order"],
+        json!({"scope": "additive_batch", "root_ids": [], "node_ids": ["zeta", "alpha"], "edge_ids": ["zeta-edge", "alpha-edge"]})
+    );
+    let (rebound_record, rebound_bytes) = stored(&rebound_hash);
+    assert_eq!(
+        rebound_record["insertion_order"],
+        json!({"scope": "additive_batch", "root_ids": [], "node_ids": [], "edge_ids": []})
+    );
+    assert_eq!(rebound_record["source"]["model_hash"], json!(successor_hash));
+    assert!(rebound_bytes * 4 < root_bytes, "a rebind stores {rebound_bytes} bytes against the root's {root_bytes}");
+    drop(connection);
+
+    // The stored orders pass the checks a restart makes, and the rebound graph is whole.
+    let mut restarted = MachineSession::with_state_file(&state_file).unwrap();
+    let rendered = execute(
+        &mut restarted,
+        json!({
+            "schema": "life-sim-rust-command/v1",
+            "operation": "render_narrative_graph",
+            "narrative_graph_hash": rebound_hash,
+            "narrative_render": {}
+        }),
+    );
+    let text = rendered["text"].as_str().unwrap();
+    assert!(text.contains("Passage 5, rewritten.") && text.contains("Passage 39.") && text.contains("A passage added second."), "{text}");
+    let _ = fs::remove_file(&state_file);
+}

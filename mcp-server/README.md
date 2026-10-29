@@ -324,11 +324,12 @@ The model tools expose immutable typed profiles:
 - `life_model_register` validates and stores a complete revision-0 model, given
   inline (`model`) or in a local JSON file (`sourcePath`) for a model larger than
   one message holds (clients cap a message at about 10 MiB).
-- `life_model_inspect` returns a model summary and, when requested, its bounded
+- `life_model_inspect` returns a model summary and, when requested, its
   complete definition. Whatever fits in one result comes back whole. A
-  definition that does not fit with its summary comes back as its size and a
-  pointer to `life_model_export` and the targeted reads, and a summary too large
-  on its own lists the first ids of each list, with `listsCut` counting them all.
+  definition that does not fit with its summary is written whole to a local
+  file that `definitionFile` names, and a summary too large on its own lists the
+  first ids of each list, with `listsCut` counting them all and the whole
+  summary in the file `listsComplete` names.
 - `life_model_export` writes a snapshot of one stored model revision, its
   complete definition, to a new local JSON file (never over an existing one). It
   first checks that the file's text validates to the model's hash, and writes
@@ -1441,18 +1442,25 @@ inline export (maximum 1 MiB) and pass that result to import as `history`; suppl
 exactly one of `history` or `sourcePath`. See [persistence limits](#honest-boundary)
 below.
 
-Large tool replies keep the complete result in `structuredContent`. Small replies
-also include the existing formatted JSON text; when duplicating it would exceed
-the server's 9 MiB response budget, the text instead explains where the complete
-structured result is. This leaves room below the MCP SDK's default 10 MiB stdio
-buffer. Clients should read `structuredContent` when present. Text-only clients
-can request a narrative `skeleton` or bounded `neighborhood`, omit content, or
-export construction history with `destinationPath` as above.
+No result is refused or cut short because of its size. Large tool replies keep
+the complete result in `structuredContent`. Small replies also include the
+existing formatted JSON text; when duplicating it would exceed 9 MiB, the text
+instead explains where the complete structured result is. This leaves room below
+the MCP SDK's default 10 MiB stdio buffer. Clients should read
+`structuredContent` when present. Text-only clients can request a narrative
+`skeleton` or bounded `neighborhood`, omit content, or export construction
+history with `destinationPath` as above.
 
-If the structured result alone cannot fit, the tool returns an explicit error,
-not a partial graph. Narrow the query or use file export. The size check happens
-after the operation returns, so a write may already have completed; inspect the
-saved state before retrying a write.
+A result whose structured value alone is larger than one message holds is
+written whole to a local JSON file, and the reply's `resultFile` gives its
+`path`, `bytes` and `sha256`. A result that shows only the first entries of its
+long lists, to fit a write's receipt or the size a tool declares, names the file
+holding the complete value in `listsComplete`. Files go into
+`<LIFE_SIM_STATE_FILE>.results/` beside the store, or `meaning-model-results/`
+in the system's temporary directory when the work is not saved;
+`MEANING_MODEL_RESULTS_DIR` names another folder. Each file is named by the
+sha256 of its text, so reading the same large value again writes nothing new.
+The files are copies of what a read returned and can be deleted at any time.
 
 ## Prepare an npm tarball
 

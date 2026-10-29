@@ -2,7 +2,8 @@
 // outline, guide sections) that answer what agents used to export and search, and write results that stop repeating
 // unchanged parts. Every shortened view is checked against the full one it stands for.
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
@@ -306,12 +307,19 @@ test('the reset returns what the most recent result stood for, though that resul
   assert.deepEqual(modelHashes, [privateModel]);
 });
 
-test('guidance in a result that never reached the agent, or reached it without its text, is not counted as sent', () => {
+test('guidance in a result that reached the agent only as a file, or without its text, is not counted as sent', async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), 'lean-context-results-'));
+  const environment = process.env.MEANING_MODEL_RESULTS_DIR;
+  process.env.MEANING_MODEL_RESULTS_DIR = directory;
+  t.after(async () => {
+    if (environment === undefined) delete process.env.MEANING_MODEL_RESULTS_DIR; else process.env.MEANING_MODEL_RESULTS_DIR = environment;
+    await rm(directory, { recursive: true, force: true });
+  });
   forgetSentRepeats();
   const open = { alwaysAsk: ['Ask this before every write.'], questions: [] };
   const write = (extra = {}) => toolResult({ modelHash: 'a'.repeat(64), ...extra, openQuestions: open });
-  const refused = write({ blob: 'x'.repeat(Math.ceil(9.5 * 1024 * 1024)) });
-  assert.equal(refused.isError, true, 'too large to deliver');
+  const filed = write({ blob: 'x'.repeat(Math.ceil(9.5 * 1024 * 1024)) });
+  assert.ok(!filed.isError && filed.structuredContent.resultFile.path.startsWith(directory), 'too large for one message, so written to a file');
   assert.deepEqual(write().structuredContent.openQuestions.alwaysAsk, open.alwaysAsk, 'so the next result sends the guidance in full');
   forgetSentRepeats();
   const textless = write({ blob: 'x'.repeat(5 * 1024 * 1024) });

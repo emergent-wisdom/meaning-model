@@ -5,7 +5,8 @@ import { ResourceTemplate } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
 import { applyOperations, equivalenceSchema, FIT_LABELS, meaningModelFragment, normalizeOntology, ONTOLOGY_KINDS, operationSchema, renderOntologyTree, validateOntology } from './alien-ontology.mjs';
 import { digest, findTargetLeaks, ISOLATION, PROVENANCE, readSearch, RECORD_SCHEMA, requireProblem, SEARCH_NODE_TYPE, sortedScopes, storeRecords, targetTerms, understandingRootId } from './alien-search.mjs';
-import { buildTask, CANDIDATE_LIMITS, mechanismLabel, POPULATION_STATES, SIGNATURE_AXES, storedTask, TASK_ROLES, verifyTaskRef, worldOperatorSchema } from './alien-tasks.mjs';
+import { buildTask, CANDIDATE_LIMITS, latestWorldModel, mechanismLabel, modellingOn, POPULATION_STATES, SIGNATURE_AXES, storedTask, TASK_ROLES, verifyTaskRef, worldOperatorSchema } from './alien-tasks.mjs';
+import { checkConflicts, checkModelParts, drawnValue, drawSeeds, measureValue, RUN_LIMITS, runModel, runTable, scenarioData, scenarioVariants, summarise, summaryText, variantDefinition, withRunEngine, worldDefinition, worldModelData } from './alien-runs.mjs';
 import { diagnoseSearch, mechanismCondition, ontologyGaps } from './alien-diagnose.mjs';
 import { runEstimatorRequest } from './estimator-receipts.mjs';
 import { expandTexInputs, serveReadableResource } from './modeling-guidance.mjs';
@@ -34,15 +35,17 @@ The method has three parts. (1) Invented worlds find kinds of solutions nobody h
 Read ${RESOURCE_URI} and follow the returned role task instructions. ${ALIEN_PAPER_URI} is optional background for the method and its evidence boundary.
 Roles and what each may see. The server writes and stores every task with life_alien_task; the partition is in the task text itself:
 - builder: a seed word and optional departures or a commission; never the problem
-- solver: the recorded world, the problem statement and its constraints, but not the problem's context, why the world exists or what happens next
+- world_modeller (world modelling on, the default): the recorded world and the engine's model vocabulary; never the problem. It writes the world's laws as processes and laws, which the server runs
+- solver_frame (world modelling on): the world, its model in words, a run of it and the problem statement. It sets the problem inside the model, with a measure and up to three interventions, which the server runs whole and without each part
+- solver: the recorded world, the problem statement and its constraints, and with world modelling its scenario's runs, but not the problem's context, why the world exists or what happens next
 - compiler: world, solution and problem; it keeps the strangest element. Its population state is none (the paper's condition F), a Semantic Tabu archive (G) or the curated map (H)
 - explorer: the problem with no world, optionally with a random-word cue, and population state none, tabu or map (uncued conditions target_only, A, B; with a cue C, D, E)
 - curator: owns the mechanism ontology and the claimed-outcome ontology and decides admission
 - world_curator: codes each world's causal signature and owns the regime ontology, still without the problem
 - transfer: maps a mechanism's roles onto the bound target model. Optionally, to try a mechanism against our world, bind a model of it as the target: an existing world history, that history opened deeper where the mechanism would act, or a new model built for the purpose; then follow the mechanism there with fit Cuts over time
 - verifier: one PURE axis of one mechanism or transfer, with the problem but never another axis's verdict; with deepen it opens one probe of an earlier check as its own question
-Run builder, solver, compiler, explorer, world_curator and verifier tasks in fresh contexts that see only the task and the complete unchanged Meaning Model grammar, for example separate subagents. Supply the grammar separately or provide grammar-only reader access; do not include the target, workflow guide, other role packets or population records beyond what that task permits. For compiler and explorer this preserves the selected none, tabu or map population state without prior candidates leaking through caller memory. When you cannot, do the step yourself and record same_context honestly; context isolation is then not established, and target blindness remains procedural.
-Loop: life_alien_search_start (problem and target model) -> builder task -> record world with its taskNodeId -> solver task -> record solution -> world_curator task -> life_alien_ontology_revise (worlds) -> compiler task -> record mechanism -> curator tasks (mechanisms, outcomes) -> life_alien_ontology_revise -> life_alien_search_diagnose -> record a commission for the gap you judge most useful -> the next builder task takes commissionNodeId. Transfer the mechanisms you want to develop, verify each with four verifier tasks (parsimony, novelty, realizable, expansive), opening probes deeper where the marginal-value rule says, record assessments, and record a selection when the user wants a single idea, a diverse portfolio or a weighted set. Read the whole search with life_alien_atlas.
+Run builder, world_modeller, solver_frame, solver, compiler, explorer, world_curator and verifier tasks in fresh contexts that see only the task and the complete unchanged Meaning Model grammar, for example separate subagents. Supply the grammar separately or provide grammar-only reader access; do not include the target, workflow guide, other role packets or population records beyond what that task permits. For compiler and explorer this preserves the selected none, tabu or map population state without prior candidates leaking through caller memory. When you cannot, do the step yourself and record same_context honestly; context isolation is then not established, and target blindness remains procedural.
+Loop: life_alien_search_start (problem and target model) -> builder task -> record world with its taskNodeId -> (world modelling on: world_modeller task -> record world_model -> solver_frame task -> record scenario ->) solver task -> record solution -> world_curator task -> life_alien_ontology_revise (worlds) -> compiler task -> record mechanism -> curator tasks (mechanisms, outcomes) -> life_alien_ontology_revise -> life_alien_search_diagnose -> record a commission for the gap you judge most useful -> the next builder task takes commissionNodeId. Transfer the mechanisms you want to develop, verify each with four verifier tasks (parsimony, novelty, realizable, expansive), opening probes deeper where the marginal-value rule says, record assessments, and record a selection when the user wants a single idea, a diverse portfolio or a weighted set. Read the whole search with life_alien_atlas.
 Check curator decisions with life_alien_decision_check, a second judge that sees the candidate and the concepts but not the curator's reasons (Jev when MEANING_MODEL_ESTIMATOR is set). Reuse target-blind worlds from another search with life_alien_worlds_export and life_alien_worlds_import; the importing search starts at the solver.\nNumbers follow the Meaning Model rule: a graded fit is a fit Cut with a question, unit and remainder; a weighted selection is an allocation with a remainder; ontology fit is categorical, and a candidate between families may also carry a graded membership Cut.
 The server checks structure: stored task provenance, rule and role bindings, ontology references and acyclicity, the admission guard, model references, Cut sums, and target terms in target-blind tasks. It does not judge whether a world is coherent, whether two mechanisms are equivalent, or whether an idea works; a PURE verdict is a model-judged screening of an idea, not evidence that it works. Worlds are textual thought experiments, not simulations; a transfer records an idea and its mapping, not evidence. Develop an unusual branch before judging it on familiarity.`;
 
@@ -60,6 +63,7 @@ const searchStartSchema = z.object({
   }).strict(),
   authorId: id,
   accessScopes: scopes.describe('Author scope for the problem and every record of this search.'),
+  worldModelling: z.enum(['on', 'off']).default('on').describe('on (default): every world is also written as a model the engine runs, and the solver sets the problem inside it and runs its interventions before solving. off: worlds stay text, as in searches started before 0.16.0.'),
 }).strict().superRefine((input, context) => {
   if ((input.modelHash === null) === (input.graphHash === null)) context.addIssue({ code: 'custom', path: ['modelHash'], message: 'Give exactly one of modelHash (new graph) or graphHash (existing graph).' });
   if (input.modelHash !== null && input.graphId === null) context.addIssue({ code: 'custom', path: ['graphId'], message: 'A new search graph needs graphId.' });
@@ -79,6 +83,9 @@ const taskSchema = z.object({
     cueWord: id.nullable().optional().describe('explorer: a cue word to use; null explicitly removes an inherited retry cue.'), drawCue: z.boolean().optional().describe('explorer: draw a new cue word from the bank, including on a retry.'),
     ontology: z.enum(['mechanisms', 'outcomes']).optional().describe('curator: which ontology the decision concerns (default mechanisms).'),
     worldNodeId: id.optional(), solutionNodeId: id.optional(), subjectNodeId: id.optional(), mechanismNodeId: id.optional(),
+    worldModelNodeId: id.optional().describe('solver_frame: the world model the problem is set in.'),
+    scenarioNodeId: id.optional().describe('solver: the scenario whose runs the solver reads. Required while world modelling is on, unless the modeller declined the world.'),
+    feedback: z.string().trim().min(1).max(16_000).optional().describe('world_modeller or solver_frame: why earlier attempts were refused (every refusal so far, so a fix is not undone), with the latest attempt, so the retry can correct them.'),
     axis: z.enum(PURE_AXES).optional().describe('verifier: the PURE axis this task checks, one per task: parsimony, novelty, realizable or expansive.'),
     deepen: z.object({ verificationNodeId: id, probePath: z.array(z.number().int().min(0).max(23)).min(1).max(12) }).strict().nullable().optional()
       .describe('verifier: open one probe of an earlier verification of the same subject and axis as its own check, as deep as Fractal Intelligence\'s marginal-value rule says.'),
@@ -108,8 +115,13 @@ const recordData = {
   }).strict(),
   solution: z.object({
     worldNodeId: id, text: prose(64_000).describe('The solver output, verbatim.'), citedRuleIds: z.array(ruleId).max(24).default([]),
+    scenarioNodeId: id.optional().describe('The scenario the solver read; taken from the solver task when omitted.'),
+    runIds: z.array(z.string().min(1).max(200)).max(16).optional().describe('The scenario runs the solution relies on, for example intervention:a.'),
     isolation: z.object({ solver: isolation }).strict(),
   }).strict(),
+  // World modelling: the modeller's model of a world's laws (or its decline), and the solver's scenario with every run.
+  world_model: worldModelData,
+  scenario: scenarioData,
   mechanism: z.object({
     operator: prose(600),
     roles: z.array(z.object({ id, description: prose(400), worldRuleIds: z.array(ruleId).max(12).default([]) }).strict()).min(2).max(8),
@@ -241,6 +253,9 @@ const libraryWorld = z.object({
   isolation: z.object({ builder: isolation }).strict(), textHash: hash,
   regimes: z.array(z.object({ conceptId: id, relation: z.enum(['instance', 'alias']), fit: z.enum(FIT_LABELS).nullable() }).strict()).max(32).default([]),
   signature: z.record(z.string(), z.object({ code: z.string().max(80), note: z.string().max(600).nullable() }).strict().nullable()).nullable().default(null),
+  // A world exported with its model brings it along; no default, so libraries without models keep their bundle hashes.
+  model: z.object({ timeUnit: prose(80), processes: worldModelData.shape.processes, laws: worldModelData.shape.laws, observables: worldModelData.shape.observables,
+    run: worldModelData.shape.run, ruleMap: worldModelData.shape.ruleMap, simplifications: worldModelData.shape.simplifications, modelHash: hash }).strict().optional(),
 }).strict();
 const librarySchema = z.object({
   schema: z.literal(WORLD_LIBRARY_SCHEMA),
@@ -269,6 +284,16 @@ function resolveModelRef(model, ref) {
 
 const diagnoseNext = 'Diagnose the search with life_alien_search_diagnose before commissioning the next world.';
 
+// A world's model and its scenarios, for the atlas.
+function worldModelLines(search, worldModel) {
+  const data = worldModel.data;
+  if (data.decline) return [`World model (${worldModel.nodeId}): declined. ${data.decline.reason}`];
+  const lines = [`World model (${worldModel.nodeId}${data.imported ? `, imported from library ${data.imported.bundleHash.slice(0, 12)}` : ''}): ${data.processes.length} processes and ${data.laws.length} laws, model ${data.modelHash.slice(0, 12)}. Rules modelled: ${data.ruleMap.map((item) => `${item.ruleId} (${item.lawIds.join(', ')})`).join('; ')}.`,
+    ...(data.simplifications.length ? [`Left out: ${data.simplifications.join(' ')}`] : []), '', `A run of ${data.run.horizon} ${data.timeUnit}s:`, summaryText(data.baseline.summary)];
+  for (const scenario of search.scenarios.filter((item) => item.data.worldModelNodeId === worldModel.nodeId)) lines.push('', `Scenario (${scenario.nodeId}): ${scenario.data.description}`, runTable(scenario.data));
+  return lines;
+}
+
 function pendingSubjectStep(search, subject, current = null) {
   const decisionFor = (ontology, nodeId) => current?.ontology === ontology && current.decision.subjectNodeId === nodeId
     ? current.decision : search.revisions.filter((item) => item.data.ontology === ontology && item.data.decision.subjectNodeId === nodeId).at(-1)?.data.decision;
@@ -279,6 +304,15 @@ function pendingSubjectStep(search, subject, current = null) {
   if (subject?.kind === 'mechanism') return mechanismStep(subject) ?? diagnoseNext;
   if (subject?.kind !== 'world') return diagnoseNext;
   const solution = search.solutions.filter((item) => item.data.worldNodeId === subject.nodeId).at(-1);
+  if (!solution && modellingOn(search)) {
+    const worldModel = latestWorldModel(search, subject.nodeId);
+    if (!worldModel) return `Prepare a world_modeller task with worldNodeId ${subject.nodeId}.`;
+    if (!worldModel.data.decline) {
+      const scenario = search.scenarios.filter((item) => item.data.worldModelNodeId === worldModel.nodeId).at(-1);
+      return scenario ? `Prepare the solver task with worldNodeId ${subject.nodeId} and scenarioNodeId ${scenario.nodeId}.`
+        : `Prepare a solver_frame task with worldNodeId ${subject.nodeId} and worldModelNodeId ${worldModel.nodeId}.`;
+    }
+  }
   if (!solution) return `Prepare the solver task with worldNodeId ${subject.nodeId}.`;
   const worldDecision = decisionFor('worlds', subject.nodeId);
   if (!worldDecision) return `Prepare a world_curator task with subjectNodeId ${subject.nodeId}, then record the worlds ontology decision.`;
@@ -317,7 +351,8 @@ export class AlienAddon {
           purpose: 'Tasks, worlds, solves, compiled mechanisms, ontology revisions, commissions and transfers of this search.' }),
         render: 'exclude', epistemic_status: 'authored_process', evidence_type: 'creative_hypothesis' },
       { ...common, id: problemNodeId, node_type: 'alien.problem', role: 'metadata', title: 'Problem', subject: input.searchId, holder: input.authorId, value_time: step,
-        text: JSON.stringify({ schema: RECORD_SCHEMA, kind: 'problem', data: { ...input.problem, derivedTerms: terms },
+        // A search started before world modelling has no worldModelling field and reads as off.
+        text: JSON.stringify({ schema: RECORD_SCHEMA, kind: 'problem', data: { ...input.problem, derivedTerms: terms, ...(input.worldModelling === 'on' ? { worldModelling: 'on' } : {}) },
           searchClock: { rootId: uroot, unit: 'search_step', at: step, index: 0 } }),
         render: 'exclude', epistemic_status: 'authored_brief', evidence_type: 'creative_hypothesis' },
     ];
@@ -337,7 +372,7 @@ export class AlienAddon {
         schema: 'life-sim-rust-narrative-graph/v1', id: input.graphId, revision: { number: 0, reason: `Start alien search ${input.searchId}.`, provenance },
         source: { kind: 'model', model_hash: modelHash }, roots: [input.searchId, uroot], nodes, edges } });
     return { graphHash: stored.graphHash, searchRootId: input.searchId, understandingRootId: uroot, problemNodeId, modelHash, modelId: model.id,
-      targetTerms: terms, graphMutation: true, worldMutation: false,
+      targetTerms: terms, worldModelling: input.worldModelling, graphMutation: true, worldMutation: false,
       nextStep: 'Prepare the first world with life_alien_task role builder, and run it in a fresh context that has not seen the problem.' };
   }
 
@@ -349,7 +384,7 @@ export class AlienAddon {
     const task = await buildTask(this.service, { ...input, search });
     const nodeId = input.nodeId ?? `task.${input.requestId}`;
     const links = [...new Set([task.material.worldNodeId, task.material.solutionNodeId, task.material.subjectNodeId, task.material.mechanismNodeId,
-      task.material.commissionNodeId].filter(Boolean))].map((targetNodeId) => ({ relation: 'uses', targetNodeId }));
+      task.material.commissionNodeId, task.material.worldModelNodeId, task.material.scenarioNodeId].filter(Boolean))].map((targetNodeId) => ({ relation: 'uses', targetNodeId }));
     const data = { role: task.role, inputs: task.inputs, text: task.text, textHash: digest({ text: task.text }), material: task.material,
       condition: task.condition, targetBlind: task.targetBlind, purposeBlind: task.purposeBlind, targetLeaks: task.targetLeaks, preparedAtGraphHash: input.graphHash };
     const { stored } = await storeRecords(this.service, search, { requestId: input.requestId, authorId: input.authorId, accessScopes: input.accessScopes,
@@ -398,7 +433,85 @@ export class AlienAddon {
       const unknown = data.citedRuleIds.filter((rule) => !known.has(rule));
       if (unknown.length) throw new Error(`Cited rules ${unknown.join(', ')} are not rules of ${world.nodeId}.`);
       links.push({ relation: 'solves', targetNodeId: world.nodeId });
+      const scenarioNodeId = data.scenarioNodeId ?? task.inputs.scenarioNodeId;
+      if (task.inputs.scenarioNodeId && scenarioNodeId !== task.inputs.scenarioNodeId) throw new Error(`The solver task read scenario ${task.inputs.scenarioNodeId}, not ${scenarioNodeId}.`);
+      if (scenarioNodeId) {
+        const scenario = search.record(scenarioNodeId, 'scenario');
+        if (search.record(scenario.data.worldModelNodeId, 'world_model').data.worldNodeId !== world.nodeId) throw new Error(`Scenario ${scenario.nodeId} is set in another world than ${world.nodeId}.`);
+        const runs = new Set(scenario.data.runs.map((run) => run.runId));
+        const unknownRuns = (data.runIds ?? []).filter((runId) => !runs.has(runId));
+        if (unknownRuns.length) throw new Error(`Cited runs ${unknownRuns.join(', ')} are not runs of ${scenario.nodeId}.`);
+        data.scenarioNodeId = scenarioNodeId;
+        links.push({ relation: 'uses', targetNodeId: scenario.nodeId });
+      } else if (data.runIds?.length) throw new Error('runIds cite a scenario: solve with a solver task that has scenarioNodeId.');
       title = `Solve of ${world.data.title}`; epistemicStatus = 'fictional_artifact'; evidenceType = 'fictional_canon';
+      if (data.isolation.solver !== 'fresh_context') warnings.push('The solver did not run in a fresh context; purpose blindness is procedural here.');
+    } else if (input.kind === 'world_model') {
+      task = await this.resolveTask(input, search, ['world_modeller']);
+      if (task.inputs.worldNodeId !== data.worldNodeId) throw new Error(`The modeller task models ${task.inputs.worldNodeId}, not ${data.worldNodeId}.`);
+      const world = search.record(data.worldNodeId, 'world');
+      links.push({ relation: 'models', targetNodeId: world.nodeId });
+      title = `Model of ${world.data.title}${data.decline ? ': declined' : ''}`; epistemicStatus = 'fictional_artifact'; evidenceType = 'fictional_canon';
+      if (!data.decline) {
+        const unknown = data.ruleMap.map((item) => item.ruleId).filter((rule) => !world.data.rules.some((item) => item.id === rule));
+        if (unknown.length) throw new Error(`The rule map names ${[...new Set(unknown)].join(', ')}, which are not rules of ${world.nodeId}.`);
+        const lawIds = new Set(data.laws.map((law) => law.id));
+        const missingLaws = data.ruleMap.flatMap((item) => item.lawIds).filter((lawId) => !lawIds.has(lawId));
+        if (missingLaws.length) throw new Error(`The rule map names laws the model does not have: ${[...new Set(missingLaws)].join(', ')}.`);
+        const processIds = new Set(data.processes.map((process) => process.id));
+        const missing = data.observables.filter((processId) => !processIds.has(processId));
+        if (missing.length) throw new Error(`Observables name processes the model does not have: ${missing.join(', ')}.`);
+        const unmapped = world.data.rules.map((rule) => rule.id).filter((rule) => !data.ruleMap.some((item) => item.ruleId === rule));
+        if (unmapped.length && !data.simplifications.length) warnings.push(`Rules ${unmapped.join(', ')} have no laws, and no simplification says why.`);
+        checkModelParts(data);
+        checkConflicts(data.laws);
+        // The engine checks the model in full when it is registered, and runs it; a refusal carries the engine's message.
+        const { modelHash, samples } = await withRunEngine((engine) => runModel(engine, { definition: worldDefinition(data, world.nodeId, `World model of ${world.data.title}`),
+          observables: data.observables, plan: data.run, seed: input.nodeId, requestPrefix: `${input.requestId}.baseline` }));
+        Object.assign(data, { modelHash, baseline: { summary: summarise(samples, data.observables) } });
+      }
+      if (data.isolation.modeller !== 'fresh_context') warnings.push('The modeller did not run in a fresh context; target blindness is procedural here.');
+    } else if (input.kind === 'scenario') {
+      task = await this.resolveTask(input, search, ['solver_frame']);
+      if (task.inputs.worldModelNodeId !== data.worldModelNodeId) throw new Error(`The solver_frame task uses ${task.inputs.worldModelNodeId}, not ${data.worldModelNodeId}.`);
+      const worldModel = search.record(data.worldModelNodeId, 'world_model');
+      if (worldModel.data.decline) throw new Error(`${worldModel.nodeId} records a decline; a scenario needs a model to run.`);
+      const world = search.record(worldModel.data.worldNodeId, 'world');
+      if (new Set(data.interventions.map((item) => item.id)).size !== data.interventions.length) throw new Error('Intervention ids must be distinct.');
+      for (const intervention of data.interventions) {
+        if (new Set(intervention.parts.map((part) => part.id)).size !== intervention.parts.length) throw new Error(`Part ids within ${intervention.id} must be distinct.`);
+      }
+      const measured = data.measure.kind === 'cooccurrence' ? data.measure.counters : [data.measure.process];
+      const observables = [...new Set([...(data.observables.length ? data.observables : worldModel.data.observables), ...measured])];
+      if (observables.length > RUN_LIMITS.observables) throw new Error(`Record at most ${RUN_LIMITS.observables} observables, including the measure's.`);
+      checkModelParts(data, 'scenario.');
+      data.interventions.forEach((intervention, index) => intervention.parts.forEach((part, partIndex) => checkModelParts(part, `interventions[${index}].parts[${partIndex}].`)));
+      const base = worldDefinition(worldModel.data, world.nodeId, `Scenario ${input.nodeId} in ${world.data.title}`);
+      const variants = scenarioVariants(data).map((variant, index) => ({ ...variant, definition: variantDefinition(base, data, { intervention: variant.intervention, without: variant.without, suffix: `-run${index}` }) }));
+      for (const variant of variants) checkConflicts(variant.definition.laws, `Run ${variant.runId}`);
+      // The measure must be readable in every run, so it uses the scenario's own processes; other observables may come
+      // from an intervention's parts, and each run records the ones its model has.
+      const inScenario = new Set(variants[0].definition.processes.map((process) => process.id));
+      const unmeasurable = measured.filter((processId) => !inScenario.has(processId));
+      if (unmeasurable.length) throw new Error(`The measure names processes the scenario does not have: ${unmeasurable.join(', ')}. Measure with the scenario's own processes, so every run can be measured.`);
+      const anywhere = new Set(variants.flatMap((variant) => variant.definition.processes.map((process) => process.id)));
+      const unknown = observables.filter((processId) => !anywhere.has(processId));
+      if (unknown.length) throw new Error(`The observables name processes neither the scenario nor any intervention has: ${unknown.join(', ')}.`);
+      const runs = [];
+      for (const [index, variant] of variants.entries()) {
+        const present = new Set(variant.definition.processes.map((process) => process.id));
+        const observed = observables.filter((processId) => present.has(processId));
+        // Every variant starts from the same state and is drawn with the same seeds, each draw in an engine of its own.
+        // Different models still draw differently, so runs differ by the intervention and by chance: the draws' range shows how much.
+        const drawn = await Promise.all(drawSeeds(input.nodeId).map((seed, draw) => withRunEngine((engine) => runModel(engine, { definition: variant.definition, observables: observed,
+          plan: data.run ?? worldModel.data.run, seed, requestPrefix: `${input.requestId}.run${index}.draw${draw}` }))));
+        const draws = drawn.map(({ samples }) => measureValue(samples, data.measure));
+        runs.push({ runId: variant.runId, label: variant.label, modelHash: drawn[0].modelHash, measureValue: drawnValue(draws), draws, summary: summarise(drawn[0].samples, observed) });
+      }
+      if (runs.some((run) => run.measureValue === null)) warnings.push('Some runs give no measure value: check the measure, its warm-up and the run length.');
+      Object.assign(data, { observables, runs });
+      links.push({ relation: 'extends', targetNodeId: worldModel.nodeId });
+      title = `Scenario in ${world.data.title}`; epistemicStatus = 'fictional_artifact'; evidenceType = 'fictional_canon';
       if (data.isolation.solver !== 'fresh_context') warnings.push('The solver did not run in a fresh context; purpose blindness is procedural here.');
     } else if (input.kind === 'mechanism') {
       task = await this.resolveTask(input, search, ['compiler', 'explorer']);
@@ -522,7 +635,11 @@ export class AlienAddon {
         epistemicStatus, evidenceType, task: task ? { taskNodeId: task.taskNodeId ?? null, role: task.role, graphHash: task.graphHash ?? task.preparedAtGraphHash,
           taskHash: task.taskHash, targetBlind: task.targetBlind, purposeBlind: task.purposeBlind } : null }] }));
     const next = {
-      world: `Prepare the solver task for ${input.nodeId}, then code its causal signature with a world_curator task.`,
+      world: modellingOn(search) ? `World modelling is on for this search: prepare a world_modeller task with worldNodeId ${input.nodeId}, then code the world's causal signature with a world_curator task.`
+        : `Prepare the solver task for ${input.nodeId}, then code its causal signature with a world_curator task.`,
+      world_model: input.kind === 'world_model' ? (data.decline ? `The modeller declined: prepare the solver task with worldNodeId ${data.worldNodeId}; the world stays text only.`
+        : `Prepare a solver_frame task with worldNodeId ${data.worldNodeId} and worldModelNodeId ${input.nodeId}.`) : null,
+      scenario: input.kind === 'scenario' ? `Prepare the solver task with worldNodeId ${search.record(data.worldModelNodeId, 'world_model').data.worldNodeId} and scenarioNodeId ${input.nodeId}.` : null,
       solution: input.kind === 'solution' ? pendingSubjectStep({ ...search, solutions: [...search.solutions, { nodeId: input.nodeId, data }] }, search.record(data.worldNodeId, 'world')) : null,
       mechanism: `Prepare curator tasks with subjectNodeId ${input.nodeId} for the mechanisms and outcomes ontologies, then record the decisions with life_alien_ontology_revise.`,
       commission: data.addressedTo === 'new_world'
@@ -765,7 +882,13 @@ export class AlienAddon {
         seed: { word: world.data.seed.word, source: world.data.seed.source, salt: world.data.seed.salt ?? null }, operators: world.data.operators ?? [],
         isolation: world.data.isolation, textHash: digest({ text: world.data.text }),
         regimes: state.instances.filter((item) => item.subjectNodeId === world.nodeId).map((item) => ({ conceptId: item.conceptId, relation: item.relation, fit: item.fit ?? null })),
-        signature: signatures.get(world.nodeId) ?? world.data.imported?.signature ?? null });
+        signature: signatures.get(world.nodeId) ?? world.data.imported?.signature ?? null,
+        ...(() => {
+          const model = latestWorldModel(search, world.nodeId);
+          if (!model || model.data.decline) return {};
+          const { timeUnit, processes, laws, observables, run, ruleMap, simplifications, modelHash } = model.data;
+          return { model: { timeUnit, processes, laws, observables, run, ruleMap, simplifications, modelHash } };
+        })() });
     }
     if (!worldsOut.length) throw new Error('No target-blind world to export.');
     const active = state.concepts.filter((concept) => concept.status === 'active');
@@ -802,7 +925,18 @@ export class AlienAddon {
         imported: { bundleHash, sourceSearchRootId: library.source.searchRootId, sourceGraphHash: library.source.graphHash, sourceWorldNodeId: world.sourceNodeId, textHash: world.textHash, signature: world.signature, regimes: world.regimes } });
       if (leaks.length) warnings.push(`${nodeId} names this search's target terms (${leaks.join(', ')}); it is recorded as not target-blind.`);
       records.push({ nodeId, kind: 'world', title: world.title, data, links: [], epistemicStatus: 'fictional_artifact', evidenceType: 'fictional_canon' });
-      imported.push({ nodeId, sourceWorldNodeId: world.sourceNodeId, targetBlind: leaks.length === 0, targetLeaks: leaks });
+      imported.push({ nodeId, sourceWorldNodeId: world.sourceNodeId, targetBlind: leaks.length === 0, targetLeaks: leaks, ...(world.model ? { modelled: true } : {}) });
+      if (world.model) {
+        const { modelHash: sourceModelHash, ...model } = world.model;
+        const modelData = worldModelData.parse({ ...model, worldNodeId: nodeId, decline: null, isolation: { modeller: 'imported' } });
+        // The model is run again here, so the record holds what this engine computes from it.
+        const run = await withRunEngine((engine) => runModel(engine, { definition: worldDefinition(modelData, nodeId, `World model of ${world.title}`), observables: modelData.observables,
+          plan: modelData.run, seed: `${nodeId}.model`, requestPrefix: `${input.requestId}.${nodeId}.model` }));
+        Object.assign(modelData, { modelHash: run.modelHash, baseline: { summary: summarise(run.samples, modelData.observables) },
+          imported: { bundleHash, sourceWorldNodeId: world.sourceNodeId, sourceModelHash } });
+        records.push({ nodeId: `${nodeId}.model`, kind: 'world_model', title: `Model of ${world.title}`, data: modelData, links: [{ relation: 'models', targetNodeId: nodeId }],
+          epistemicStatus: 'fictional_artifact', evidenceType: 'fictional_canon' });
+      }
     }
     let { stored } = await storeRecords(this.service, search, { requestId: input.requestId, authorId: input.authorId, accessScopes: input.accessScopes,
       reason: `Import ${records.length} worlds from library ${bundleHash.slice(0, 12)}.`, records });
@@ -821,7 +955,9 @@ export class AlienAddon {
       }
     }
     return { ...stored, imported, regimesImported, bundleHash, warnings, graphMutation: true, worldMutation: false,
-      nextStep: `Prepare solver tasks for the imported worlds (life_alien_task role solver with worldNodeId ${imported[0].nodeId}, ...); they need no builder.` };
+      nextStep: modellingOn(search)
+        ? `World modelling is on: prepare solver_frame tasks for the imported worlds that brought a model (worldModelNodeId <world>.model) and world_modeller tasks for the others; they need no builder.`
+        : `Prepare solver tasks for the imported worlds (life_alien_task role solver with worldNodeId ${imported[0].nodeId}, ...); they need no builder.` };
   }
 
   async atlas(raw) {
@@ -849,8 +985,10 @@ export class AlienAddon {
         ...(world.data.commissionNodeId ? [`Commissioned by ${world.data.commissionNodeId}.`] : []),
         ...(world.data.imported ? [`Imported from world library ${world.data.imported.bundleHash.slice(0, 12)} (search ${world.data.imported.sourceSearchRootId}, world ${world.data.imported.sourceWorldNodeId}).`] : []),
         '', `Principle: ${world.data.principle}`, '', ...world.data.rules.map((rule) => `- ${rule.id}: ${rule.statement}`), '');
+      const worldModel = latestWorldModel(search, world.nodeId);
+      if (worldModel) lines.push(...worldModelLines(search, worldModel), '');
       if (input.includeWorldTexts) lines.push(world.data.text, '');
-      for (const solution of solutions) lines.push(`Solve (${solution.nodeId}, solver isolation ${solution.data.isolation.solver}):`, '',
+      for (const solution of solutions) lines.push(`Solve (${solution.nodeId}, solver isolation ${solution.data.isolation.solver}${solution.data.runIds?.length ? `, runs cited: ${solution.data.runIds.join(', ')}` : ''}):`, '',
         input.includeWorldTexts ? solution.data.text : `${solution.data.text.slice(0, 600)}${solution.data.text.length > 600 ? '...' : ''}`, '');
     }
     lines.push('## Mechanisms', '');
@@ -914,7 +1052,9 @@ export class AlienAddon {
       }
       lines.push('');
     }
-    lines.push(`Tasks prepared: ${search.tasks.length}. Worlds are textual thought experiments and transfers are ideas with their mappings; nothing here is evidence that an idea works.`);
+    lines.push(search.worldModels.length || modellingOn(search)
+      ? `Tasks prepared: ${search.tasks.length}. Worlds are thought experiments: where a world has a model, its runs show what follows from its laws as modelled, not what works in our world. Transfers are ideas with their mappings; nothing here is evidence that an idea works.`
+      : `Tasks prepared: ${search.tasks.length}. Worlds are textual thought experiments and transfers are ideas with their mappings; nothing here is evidence that an idea works.`);
     const markdown = lines.join('\n');
     const provenance = [PROVENANCE, `search:${search.searchRootId}`, `graph:${input.graphHash}`];
     const fragments = Object.fromEntries(ONTOLOGY_KINDS.map((ontology) => [ontology,
@@ -967,11 +1107,11 @@ export function registerAlienAddon(server, service, { estimator = null } = {}) {
   }, async () => ({ messages: [{ role: 'user', content: { type: 'text', text: `${thinkInTheModelInstructions}\n\n${constructionRecordInstructions}\n\nRead ${RESOURCE_URI} and follow the returned role task instructions. Then settle with the user: the problem statement and any context; the target model the ideas should land in (build it with the general modeling workflow if none exists); terms that would disclose the target; how many worlds to try; and who curates, the user or you under delegation. Record the problem with life_alien_search_start.\n\n${alienInstructions}` } }] }));
   for (const [name, method, schema, description, readOnly, idempotent] of [
     ['life_alien_search_start', 'startSearch', searchStartSchema,
-      'Start an alien search: record the problem as an author-scoped record and create a search root, either in a new graph bound to the target model or in an existing graph. Returns the derived target terms that builder tasks are checked against.', false, false],
+      'Start an alien search: record the problem as an author-scoped record and create a search root, either in a new graph bound to the target model or in an existing graph. Returns the derived target terms that builder tasks are checked against. worldModelling: on (default) writes every world as a model the engine runs, and the solver sets the problem in it before solving; off keeps worlds as text.', false, false],
     ['life_alien_task', 'task', taskSchema,
-      'Prepare a role task written by the server with the information that role may see, and store its exact text in the graph: builder (seed word, departures and commission; never the problem), solver (world, problem statement and constraints; not the purpose), compiler (population state none, tabu or map: the paper\'s F, G, H), explorer (population state none, tabu or map: uncued target_only, A, B; with a random-word cue C, D, E), curator (mechanisms or outcomes), world_curator (target-blind), transfer, or verifier (one PURE axis of one candidate; deepen opens a probe of an earlier check as its own task). Run builder, solver, compiler, explorer, world_curator and verifier tasks in fresh contexts that see only the task; if unavailable, record same_context honestly. A prepared builder task reserves its draw slot. Returns the task text and the taskNodeId that records of its output must cite. textHash is SHA-256 of the UTF-8 JSON.stringify({text}) wrapper; life_review_record.prompt.sha256 hashes the UTF-8 prompt text itself.', false, false],
+      'Prepare a role task written by the server with the information that role may see, and store its exact text in the graph: builder (seed word, departures and commission; never the problem), world_modeller (the world and the engine\'s model vocabulary; never the problem), solver_frame (the world\'s model, a run of it and the problem: set the problem in the model with a measure and up to three interventions), solver (world, problem statement and constraints, and with world modelling the scenario\'s runs; not the purpose), compiler (population state none, tabu or map: the paper\'s F, G, H), explorer (population state none, tabu or map: uncued target_only, A, B; with a random-word cue C, D, E), curator (mechanisms or outcomes), world_curator (target-blind), transfer, or verifier (one PURE axis of one candidate; deepen opens a probe of an earlier check as its own task). Run builder, world_modeller, solver_frame, solver, compiler, explorer, world_curator and verifier tasks in fresh contexts that see only the task; if unavailable, record same_context honestly. A prepared builder task reserves its draw slot. Returns the task text and the taskNodeId that records of its output must cite. textHash is SHA-256 of the UTF-8 JSON.stringify({text}) wrapper; life_review_record.prompt.sha256 hashes the UTF-8 prompt text itself.', false, false],
     ['life_alien_record', 'record', recordSchema,
-      `Record one output of the search as an Understanding Node in the graph, citing the stored task it answers. Kinds: world, solution, mechanism (compiled from a world or proposed by an explorer), commission (new_world or explorer; targetConceptIds forces kinds no candidate realizes yet), transfer (role map onto the target model, with an optional fit Cut), assessment, verification (one PURE axis of a mechanism or transfer from a verifier task, with the probes it opened; realizable holds only when every part does), selection (single, portfolio, or a weighted allocation with question, unit and remainder). The server binds the world's seed and target blindness from its task and checks rule bindings, role coverage, model references, Cut sums and candidate field limits (${Object.entries(CANDIDATE_LIMITS).map(([field, limit]) => `${field} ${limit}`).join(', ')} characters).`, false, false],
+      `Record one output of the search as an Understanding Node in the graph, citing the stored task it answers. Kinds: world, world_model (the modeller's model, which the server runs, or its decline), scenario (the problem set in the model; the server runs every intervention whole and without each part), solution, mechanism (compiled from a world or proposed by an explorer), commission (new_world or explorer; targetConceptIds forces kinds no candidate realizes yet), transfer (role map onto the target model, with an optional fit Cut), assessment, verification (one PURE axis of a mechanism or transfer from a verifier task, with the probes it opened; realizable holds only when every part does), selection (single, portfolio, or a weighted allocation with question, unit and remainder). The server binds the world's seed and target blindness from its task and checks rule bindings, role coverage, model references, Cut sums and candidate field limits (${Object.entries(CANDIDATE_LIMITS).map(([field, limit]) => `${field} ${limit}`).join(', ')} characters).`, false, false],
     ['life_alien_ontology_revise', 'reviseOntology', reviseSchema,
       'Record a curator decision on the mechanism, claimed-outcome or world-regime ontology as a new immutable revision: admit_new, admit_instance, equivalent (alias), reject_redirect (writes a retry or new-world commission) or restructure_only, with operations (add, revise, merge or split concepts; partitions, meaning more specific kinds under a named lens; relations; instance assignments with categorical fit). The server applies the operations, checks references, acyclicity and at least two children per partition, and admits a new concept only when the equivalence test says the primary operator changed. It does not judge equivalence itself.', false, false],
     ['life_alien_search_diagnose', 'diagnose', readSchema,

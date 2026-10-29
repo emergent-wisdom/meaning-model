@@ -150,7 +150,7 @@ async function setup(t) {
   const markdown = await readFile(new URL('../../docs/examples/MINIMAL-MODEL-AND-GRAPH.md', import.meta.url), 'utf8');
   const [, register] = [...markdown.matchAll(/```json\n([\s\S]*?)```/gu)].map((match) => JSON.parse(match[1]));
   const { modelHash } = await service.registerModel(register);
-  const started = await addon.startSearch({ requestId: 'start', modelHash, graphId: 'graph.synthetic', searchId: 'search.synthetic', title: 'Shared capacity',
+  const started = await addon.startSearch({ worldModelling: 'off', requestId: 'start', modelHash, graphId: 'graph.synthetic', searchId: 'search.synthetic', title: 'Shared capacity',
     problem: { statement: 'How can a workshop share equipment?', deriveTargetTerms: false, targetTerms: ['workshop'] }, authorId: 'tester', accessScopes: ['author'] });
   let graphHash = started.graphHash; let counter = 0; const heads = {};
   const base = () => ({ graphHash, searchRootId: 'search.synthetic', accessScopes: ['author'] });
@@ -305,7 +305,7 @@ test('verifier tasks judge one axis in isolation and open probes as deeper check
 
   const parsimony = await run.task('verifier', { subjectNodeId: 'mechanism.first', axis: 'parsimony' });
   for (const pattern of [/one axis of a viability check, Parsimony/, /QUESTION: Does the simplest form/, /PROBES: one probe per part or set of parts removed/,
-    /THE STATUS FOLLOWS FROM THE PROBES: verified when every probe is verified/, /marginal-value rule/, /Cards: PURECheck#574b, PURE#b65a, Parsimony#4df8, FractalIntelligence#27f7, MarginalValueRule#6611; the candidate follows MechanisticDesignProposal#930a\./]) {
+    /THE STATUS FOLLOWS FROM THE PROBES: verified when every probe is verified/, /marginal-value rule/, /Cards: PURECheck#574b, PURE#b65a, Parsimony#4df8, FractalIntelligence#1dca, MarginalValueRule#6611; the candidate follows MechanisticDesignProposal#930a\./]) {
     assert.match(parsimony.text, pattern);
   }
   assert.doesNotMatch(parsimony.text, /Novelty|Realizable|Expansive/, 'a verifier sees only its own axis');
@@ -338,7 +338,7 @@ test('verifier tasks judge one axis in isolation and open probes as deeper check
   assert.match(deepened.nextStep, /PURE for mechanism.first: verified\./);
   const search = await readSearch(run.service, run.base());
   assert.deepEqual(search.record('v.realizable.1').data.deepens, { verificationNodeId: 'v.realizable', probePath: [1] });
-  assert.deepEqual(search.record('v.realizable.1').data.cards, ['PURECheck#574b', 'PURE#b65a', 'Realizable#2ed7', 'FractalIntelligence#27f7', 'MarginalValueRule#6611']);
+  assert.deepEqual(search.record('v.realizable.1').data.cards, ['PURECheck#574b', 'PURE#b65a', 'Realizable#2ed7', 'FractalIntelligence#1dca', 'MarginalValueRule#6611']);
   assert.deepEqual(pureResult(search, 'mechanism.first').axes.realizable, { status: 'verified', stated: 'unknown', nodeId: 'v.realizable' });
 
   const diagnosis = await run.diagnosis();

@@ -30,7 +30,9 @@ async function scratch(t) {
 // The real server, as a client reaches it.
 async function connect(t, environment = {}) {
   const client = new Client({ name: 'large-models-test', version: '1' });
-  const env = { ...process.env, MEANING_MODEL_ADDONS: '' };
+  const results = await mkdtemp(join(tmpdir(), 'large-models-results-'));
+  t.after(() => rm(results, { recursive: true, force: true }));
+  const env = { ...process.env, MEANING_MODEL_ADDONS: '', MEANING_MODEL_RESULTS_DIR: results };
   delete env.LIFE_SIM_STATE_FILE;
   await client.connect(new StdioClientTransport({ command: process.execPath, args: [join(here, '..', 'src', 'server.ts')], env: { ...env, ...environment } }));
   t.after(() => client.close());
@@ -138,7 +140,14 @@ test('a model with 25,000 long process ids inspects, exports and revises with re
     assert.ok(inspected.summary.process_ids.length > 100 && inspected.summary.process_ids.length < 25_000, 'the first ids, not all');
     assert.equal(inspected.summary.process_ids[0], model.processes[0].id);
     assert.match(inspected.listsCutNote, /life_model_export/u);
-    if (includeDefinition) assert.match(inspected.definitionNotInline, /life_model_export/u);
+    // Nothing is lost: the shown summary names the file of the whole one.
+    const whole = JSON.parse(await readFile(inspected.listsComplete.path, 'utf8'));
+    assert.equal(whole.summary.process_ids.length, 25_000);
+    if (includeDefinition) {
+      assert.match(inspected.definitionNotInline, /life_model_export/u);
+      const definition = JSON.parse(await readFile(inspected.definitionFile.path, 'utf8'));
+      assert.deepEqual(definition.processes.map((process) => process.id), model.processes.map((process) => process.id));
+    }
   }
   const exported = await ok('life_model_export', { modelHash, destinationPath: join(directory, 'long-ids-out.json') });
   assert.equal(exported.summary.process_count, 25_000);
@@ -155,6 +164,8 @@ test('a model with 25,000 long process ids inspects, exports and revises with re
   assert.equal(revised.worldAdoption.adoptableByParentWorlds, false);
   assert.equal(revised.listsCut['worldAdoption.blockingChanges'].of, removed.length);
   assert.ok(revised.worldAdoption.blockingChanges.length > 0 && revised.worldAdoption.blockingChanges.length < removed.length);
+  const complete = JSON.parse(await readFile(revised.listsComplete.path, 'utf8'));
+  assert.equal(complete.worldAdoption.blockingChanges.length, removed.length, 'the receipt\'s file lists every blocking change');
 });
 
 test('a model with 65,000 undescribed Events registers with a receipt that fits, the same on a retry', { timeout: 300_000 }, async (t) => {

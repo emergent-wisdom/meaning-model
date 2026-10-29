@@ -40,7 +40,7 @@ async function setup(t, { persistent = false, searchId = 'search.synthetic' } = 
   const markdown = await readFile(new URL('../../docs/examples/MINIMAL-MODEL-AND-GRAPH.md', import.meta.url), 'utf8');
   const [, register] = [...markdown.matchAll(/```json\n([\s\S]*?)```/gu)].map((match) => JSON.parse(match[1]));
   const { modelHash } = await service.registerModel(register);
-  const started = await addon.startSearch({ requestId: 'start', modelHash, graphId: 'graph.synthetic', searchId, title: 'Shared capacity',
+  const started = await addon.startSearch({ worldModelling: 'off', requestId: 'start', modelHash, graphId: 'graph.synthetic', searchId, title: 'Shared capacity',
     problem: { statement: 'How can a workshop share equipment?', deriveTargetTerms: false, targetTerms: ['workshop'] }, authorId: 'tester', accessScopes: ['author'] });
   let graphHash = started.graphHash; let counter = 0; const heads = {};
   const base = () => ({ graphHash, searchRootId: searchId, accessScopes: ['author'] });

@@ -5,6 +5,7 @@ import { LifeSimulationService } from '../src/service.mjs';
 import { AlienAddon } from '../src/alien-addon.mjs';
 import { alienSeedWords, findTargetLeaks } from '../src/alien-search.mjs';
 import { buildTask } from '../src/alien-tasks.mjs';
+import { operationSchema } from '../src/alien-ontology.mjs';
 import { grammarReadingInstructions } from '../src/construction-principles.mjs';
 
 const scopes = ['author'];
@@ -22,7 +23,7 @@ async function setup(t) {
   await service.initialize();
   const { modelHash } = await service.registerModel(registerRequest);
   const addon = new AlienAddon(service);
-  const started = await addon.startSearch({ requestId: 'start', modelHash, graphId: 'alien-bakery', searchId: 'search.bakery',
+  const started = await addon.startSearch({ worldModelling: 'off', requestId: 'start', modelHash, graphId: 'alien-bakery', searchId: 'search.bakery',
     title: 'Carrying the loan', problem, authorId: 'tester', accessScopes: scopes });
   const state = { graphHash: started.graphHash, count: 0 };
   const base = (extra = {}) => ({ graphHash: state.graphHash, searchRootId: 'search.bakery', accessScopes: scopes, ...extra });
@@ -116,6 +117,10 @@ test('the search loop partitions information by role, stores every task and reco
   const compiler = await task('compiler', { worldNodeId: 'world.dusk', solutionNodeId: 'solve.dusk' });
   assert.equal(compiler.condition, 'F');
   assert.match(compiler.text, /Preserve what's strangest/);
+  // The original runner's opening and the per-field guidance, following MechanisticDesignProposal#930a.
+  for (const pattern of [/you've lost the signal/, /what specifically happens when X occurs/, /Counterintuitive solutions are welcome/,
+    /candidate, following MechanisticDesignProposal#930a:/, /what_is_new \(at most 200 characters\): the existing solutions or practice you compare it with/,
+    /medium_term \(at most 200 characters\): the implementation path over the next 1–3 years/]) assert.match(compiler.text, pattern);
   await assert.rejects(record('mech.bad', 'mechanism', mechanismData('Claims', ['R7', 'R2']), compiler.taskNodeId), /R7, which are not rules/);
   await assert.rejects(record('mech.long', 'mechanism', mechanismData('A label that is far longer than forty characters'), compiler.taskNodeId), /label/);
   const mechanism = await record('mech.claims', 'mechanism', mechanismData('Circulating claims'), compiler.taskNodeId);
@@ -124,6 +129,11 @@ test('the search loop partitions information by role, stores every task and reco
   // Curator: first family, then the first claimed-outcome class.
   const curator = await task('curator', { subjectNodeId: 'mech.claims' });
   assert.match(curator.text, /Circulating claims/);
+  // Curators answer with operations in exactly the forms the revise tool takes; the list and the schema stay in step.
+  const forms = operationSchema.options.map((option) => option.shape.op.value);
+  for (const form of forms) assert.ok(curator.text.includes(`{op: "${form}"`), `the curator task lists ${form}`);
+  assert.doesNotMatch(curator.text, /newConcepts|operations in words/);
+  assert.match(curator.text, /operators 1,200, each differentia 800, boundaries 2,000 and lenses 400/);
   const first = await revise('rev.1', 'mechanisms', null, { verdict: 'admit_new', subjectNodeId: 'mech.claims', conceptId: 'f.circulation', fit: 'clear', rationale: 'First family.' },
     [{ op: 'add_concept', concept: { id: 'f.circulation', label: 'Forced circulation', operator: 'surplus must move and becomes a claim',
       roles: [{ id: 'holder', description: 'who has the surplus' }, { id: 'claim', description: 'the return owed' }] } }], curator.taskNodeId);
@@ -143,6 +153,7 @@ test('the search loop partitions information by role, stores every task and reco
   const explorer = await task('explorer');
   assert.equal(explorer.condition, 'B');
   assert.match(explorer.text, /Forced circulation/);
+  for (const pattern of [/you've lost the signal/, /Counterintuitive solutions are welcome/, /candidate, following MechanisticDesignProposal#930a:/]) assert.match(explorer.text, pattern);
   await record('mech.alias', 'mechanism', explorerData('Passed-on surplus', 'Surplus that must move becomes a claim held by the next person.'), explorer.taskNodeId);
   await assert.rejects(revise('rev.2', 'mechanisms', 'rev.1', { verdict: 'admit_new', subjectNodeId: 'mech.alias', conceptId: 'f.alias', nearestConceptId: 'f.circulation',
     equivalence: equivalence(false), rationale: 'Try.' }, [{ op: 'add_concept', concept: { id: 'f.alias', label: 'Alias', operator: 'same' } }]), /only when the primary operator changes/);
@@ -174,6 +185,8 @@ test('the search loop partitions information by role, stores every task and reco
   assert.equal(tabu.condition, 'A');
   assert.match(tabu.text, /EXISTING SOLUTIONS:[\s\S]*Circulating claims[\s\S]*AVOIDING/);
   const mapped = await task('compiler', { worldNodeId: 'world.dusk', solutionNodeId: 'solve.dusk', populationState: 'map' });
+  // Every population state gets the same opening, so conditions differ only in what the proposer sees.
+  for (const item of [tabu, mapped]) assert.match(item.text, /you've lost the signal/);
   assert.equal(mapped.condition, 'H');
   assert.match(mapped.text, /Family and claimed-outcome combinations no candidate has yet: f\.routing \([^)]+\) with o\.steady \([^)]+\)/);
   assert.match(mapped.text, /The claimed-outcome classes[^\n]*\n- \[o\./, 'outcome classes are named, not only cited by id');
@@ -185,6 +198,8 @@ test('the search loop partitions information by role, stores every task and reco
   const code = (value) => ({ code: value, note: null });
   const signature = { temporality: code('daily deadline'), conservation: code('goods not conserved when idle'), agency: code('forced exchange'), identity: null, scarcity: code('holding time'),
     information_flow: null, boundary_structure: null, permitted_transformations: code('exchange only'), enforcement: code('physical') };
+  // World regimes carry no roles or graded membership; every other form is listed.
+  for (const form of forms) assert.equal(worldCurator.text.includes(`{op: "${form}"`), !form.endsWith('_membership'), `the world curator task and ${form}`);
   await revise('wrev.1', 'worlds', null, { verdict: 'admit_new', subjectNodeId: 'world.dusk', conceptId: 'r.decay', signature, rationale: 'First regime.' },
     [{ op: 'add_concept', concept: { id: 'r.decay', label: 'Decay of the unexchanged', operator: 'idle holdings decay on a fixed clock' } }], worldCurator.taskNodeId);
 
@@ -216,6 +231,8 @@ test('the search loop partitions information by role, stores every task and reco
   // Transfer onto the target model: every role mapped, refs resolved and grounded, fit as a Cut.
   const transferTask = await task('transfer', { mechanismNodeId: 'mech.claims' });
   assert.match(transferTask.text, /process:bakery\.debt_nok/);
+  assert.match(transferTask.text, /4\. Keep the mechanism's strangest element, as its card above states it\./);
+  assert.match(transferTask.text, /5\. Write the candidate in the domain's own terms, following MechanisticDesignProposal#930a:/);
   const transfer = (roleMap, fitCut = null) => ({ mechanismNodeId: 'mech.claims', roleMap,
     proxies: [{ element: 'dissolution at dusk', label: 'portable', proxy: 'a fee on idle balances', asOf: '2026-09-22' }],
     disanalogies: ['Bread does spoil, but money does not dissolve.'], candidate: candidate('Loaf claims'), fitCut,
@@ -280,7 +297,7 @@ test('a search can be added to an existing graph, and oracle premises are record
   const markdown = await readFile(new URL('../../docs/examples/MINIMAL-MODEL-AND-GRAPH.md', import.meta.url), 'utf8');
   const [, , graphRequest] = [...markdown.matchAll(/```json\n([\s\S]*?)```/g)].map((match) => JSON.parse(match[1]));
   const story = await service.registerNarrativeGraph(JSON.parse(JSON.stringify(graphRequest).replaceAll('MODEL_HASH', modelHash)));
-  const started = await addon.startSearch({ requestId: 'start-existing', graphHash: story.graphHash, searchId: 'search.two', title: 'Second search',
+  const started = await addon.startSearch({ worldModelling: 'off', requestId: 'start-existing', graphHash: story.graphHash, searchId: 'search.two', title: 'Second search',
     problem: { statement: 'How can a harbour town keep its only bakery open?', targetTerms: ['bakery'] }, authorId: 'tester', accessScopes: scopes });
   const oracle = await addon.task({ graphHash: started.graphHash, requestId: 'oracle', searchRootId: 'search.two', authorId: 'tester', accessScopes: scopes, role: 'builder',
     inputs: { operators: [{ kind: 'oracle_premise', statement: 'Every bakery always has exactly the flour it needs.' }] } });
@@ -292,6 +309,6 @@ test('a search can be added to an existing graph, and oracle premises are record
   assert.match(stored.warnings.join(' '), /not target-blind/);
   const { diagnosis } = await addon.diagnose({ graphHash: stored.graphHash, searchRootId: 'search.two', accessScopes: scopes });
   assert.deepEqual(diagnosis.isolation.notTargetBlind, [{ worldNodeId: 'world.flour', targetLeaks: ['bakery'], oraclePremise: true }]);
-  await assert.rejects(addon.startSearch({ requestId: 'dup', graphHash: stored.graphHash, searchId: 'search.two', title: 'Again', problem: { statement: 'x' },
+  await assert.rejects(addon.startSearch({ worldModelling: 'off', requestId: 'dup', graphHash: stored.graphHash, searchId: 'search.two', title: 'Again', problem: { statement: 'x' },
     authorId: 'tester', accessScopes: scopes }), /already exists/);
 });

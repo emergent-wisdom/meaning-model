@@ -13,9 +13,12 @@ ontologies:
 Diagnosing those ontologies informs which world to commission next; the choice
 stays with the caller. Mechanisms
 worth developing are then transferred onto a target model, with every role mapped
-and every disanalogy stated. The mode is for ideation. A world is a textual
-thought experiment, not a simulation, and a transfer records an idea and its
-mapping, not evidence that the idea works.
+and every disanalogy stated. The mode is for ideation. A world is written first
+and then, by default, modelled as processes and laws that the engine runs, so the
+solver can see what follows from the world's laws and try its ideas in it before
+solving. With `worldModelling: "off"` a world stays a written thought experiment.
+Runs show what follows from a world's laws, not what works in our world, and a
+transfer records an idea and its mapping, not evidence that the idea works.
 
 Enable the add-on with `MEANING_MODEL_ADDONS=alien`, or together with storytelling
 as `MEANING_MODEL_ADDONS=storytelling,alien`. When it is unset, the server keeps its
@@ -78,7 +81,9 @@ in the task text, not in the caller's good intentions.
 | Role | Receives | Never receives |
 |---|---|---|
 | `builder` | a seed word, optional departures and a commission's world ask | the problem, the purpose |
-| `solver` | the recorded world, the problem statement and its constraints | the problem's context, why the world exists, the later transfer |
+| `world_modeller` | the recorded world and the engine's model vocabulary | the problem, the purpose |
+| `solver_frame` | the recorded world, its model in words, a run of it, the problem statement and its constraints | the problem's context, why the world exists, the later transfer |
+| `solver` | the recorded world, the problem statement and its constraints; with world modelling, its scenario's runs | the problem's context, why the world exists, the later transfer |
 | `compiler` | world, solution and problem, plus the chosen population state | population context outside the chosen state |
 | `explorer` | the problem, optionally a random-word cue, and the chosen population state | worlds, population context outside the chosen state |
 | `curator` | the problem, the mechanism or outcome ontology, and one candidate | (nothing withheld) |
@@ -87,8 +92,8 @@ in the task text, not in the caller's good intentions.
 | `verifier` | the problem, one mechanism or transfer, and one PURE axis's question, method and criterion; for novelty, the candidates found before it; with `deepen`, the one probe to open | every other axis's verdict and reasoning |
 
 A single MCP caller already knows the problem and earlier candidates, so
-partitioning the task text is not enough on its own. Run builder, solver,
-compiler, explorer, world-curator and verifier tasks in fresh contexts that see
+partitioning the task text is not enough on its own. Run builder, world-modeller,
+solver-frame, solver, compiler, explorer, world-curator and verifier tasks in fresh contexts that see
 only the task, for example separate subagents. For compiler and explorer this preserves
 the selected `none`, `tabu` or `map` population state without prior candidates
 leaking through caller memory. When that is not possible, do the step yourself
@@ -118,8 +123,11 @@ can run every cell, and each mechanism records its condition:
 - **Map** gives the mechanism ontology, the claimed-outcome classes with their
   labels and operators, the thin branches, and the family and claimed-outcome
   combinations no candidate has yet, each named as well as cited.
-- **Compiler default: F**, the open compiler. Condition H compiles with the map in
-  view, as the paper's richest executed crossing did.
+- **Compiler: F first, then H.** Compile the first worlds openly (F). Once the
+  mechanism map holds a few families, compile with the map in view (H), and run the
+  curator's redirects as retries, up to three attempts, as the paper's Studio loop
+  did. A search that only ever runs F uses the world front end, not
+  ontology-governed search, the paper's own contribution.
 - **Explorer default: B.** A drawn cue comes from the word bank on its own sequence.
 
 A retry inherits the original compiler or explorer population state and the exact
@@ -138,7 +146,17 @@ across conditions need matched budgets, which one search does not supply.
 
 1. `life_alien_task` with role `builder`, then run the task and record its output
    with `life_alien_record` kind `world`, citing the returned `taskNodeId`.
-2. Role `solver` with `worldNodeId`, then record kind `solution`.
+2. With world modelling on, the default for a new search:
+   - role `world_modeller` with `worldNodeId`, then record kind `world_model`. The
+     server registers the model and runs it, or records the modeller's decline;
+   - role `solver_frame` with `worldNodeId` and `worldModelNodeId`, then record
+     kind `scenario`. The server runs the scenario, every intervention, and each
+     intervention without each of its parts;
+   - role `solver` with `worldNodeId` and `scenarioNodeId`, then record kind
+     `solution`.
+
+   With world modelling off, or for a world the modeller declined: role `solver`
+   with `worldNodeId`, then record kind `solution`.
 3. Role `world_curator` with `subjectNodeId`, then record the regime decision and
    the world's causal signature with `life_alien_ontology_revise` (ontology
    `worlds`).
@@ -149,6 +167,10 @@ across conditions need matched budgets, which one search does not supply.
    `life_alien_ontology_revise`.
 6. `life_alien_search_diagnose`, then record a `commission` for the gap judged most
    useful. The next builder task takes its `commissionNodeId`.
+
+In steps 3 and 5, pass each curator's decision and `operations` unchanged. Add
+only `subjectNodeId` and, for a redirect, a new `commissionNodeId`. The server
+checks the operations and refuses any that would break the ontology.
 
 Explorer proposals skip the world. A family that only explorers reach, or only
 worlds reach, is itself a finding. Transfer the mechanisms worth developing (role
@@ -195,6 +217,9 @@ bank. The draw depends on the search and a draw slot:
 - An explicit `slot` re-prepares that draw, unless a world already holds it.
 - `seedSalt` draws again. The world records the salt, so a re-draw is visible.
 - A supplied `seedWord` is recorded as the caller's.
+- The bank stands in for the random dictionary words of the December 2025
+  toolkit, which let no user pick a seed. A new search or a new `seedSalt` draws
+  new words; a supplied `seedWord` departs from that rule, and the record shows it.
 
 `operators` compose departures with the seed, following the paper's governed
 generator:
@@ -220,6 +245,76 @@ The builder returns a title, a principle, rules numbered R1, R2, …, how people
 under them, and what is easy and hard. The world record keeps the builder output
 verbatim and the rules as structured records (at most twelve), so later roles can
 cite them.
+
+## Modelling worlds
+
+`life_alien_search_start` takes `worldModelling`: `"on"` (the default) or `"off"`.
+A search started before this option existed reads as off, and with it off every
+task reads as it would without world modelling. With it on, the solver task for a world is
+refused until the world has a model and the problem has been set in it, unless the
+modeller declined the world.
+
+**The world model.** The `world_modeller` task gives a fresh, target-blind context
+the world's text and rules, the engine's model vocabulary and one worked example
+from another domain (the calculation office of the paper's process-as-program
+supplement). It answers with one JSON object:
+- `processes` and `laws`, in the engine's JSON form: evolution, relation and
+  occurrence laws; threshold, hazard and always triggers; set and add effects; gated
+  laws; and the expression operations. There is no `if`: a switch is written with
+  `clamp`.
+- `observables` and a run plan (`horizon` up to 400 time units, `stepSize`).
+- `ruleMap`, saying which laws express which rule, and `simplifications`, saying
+  what the world states that the model leaves out or changes.
+- Or `decline` with its reason, when the world cannot be written with these laws.
+  The world then stays text only.
+
+`life_alien_record` kind `world_model` checks the rule map against the world's rules
+and the model's laws, then registers the model and runs it. A model the engine
+refuses is refused with the engine's message. Pass that message, with the attempt,
+as `feedback` in a new `world_modeller` task. The record keeps the model, its hash
+and a compact summary of the run: each observable's range and mean, and the events
+it counted, with their intervals.
+
+**The scenario.** The `solver_frame` task gives the solver the world, its model in
+words, the run summary and the problem. It sets the problem inside the world as
+additions to the model:
+- the problem's actors as processes that obey the world's laws, with the laws that
+  act on them, and any changed starting values (`overrides`);
+- one `measure`, fixed before any run:
+  - `final`, `mean`, `peak` or `minimum` of a process;
+  - `eventCount` or `meanInterval` of a counter;
+  - `cooccurrence` of two or more counters within a time window: the share of their
+    events that have another event that close;
+  - with a warm-up (`after`), whether higher or lower is better, and what it means;
+- up to three `interventions`, each made of up to three named parts. A part adds
+  laws, processes and overrides. Each part goes in laws of its own, so it can be
+  removed by itself, for example a second occurrence law on the same threshold. A
+  removed part's processes stay, so other laws can still read them;
+- a `run` plan of its own, or the world model's.
+
+`life_alien_record` kind `scenario` runs, from the same start:
+- the scenario;
+- each intervention whole;
+- each intervention without each of its parts, when it has more than one.
+
+That is at most 13 runs. Each run is drawn five times, with five seeds taken from the
+scenario's node id, each draw in an engine of its own. The measure value is the mean
+of the draws, and tasks show its range, because runs of different models draw
+differently and a small difference may be chance. A draw depends only on its model,
+plan and seed, so any run can be replayed. The record keeps every run's model hash,
+measure value, draws and the first draw's summary.
+
+The `solver` task with `scenarioNodeId` adds the run table. The solution cites the
+runs it relies on as `runIds`, and the server checks them. The compiler and the
+transfer see the same table, with the instruction to keep the part the runs show
+doing the work. The atlas shows each world's model and scenarios, the diagnosis
+lists modelled, declined and text-only worlds, and a world library carries each
+world's model. An imported model is run again in the importing search.
+
+What a run shows is what follows from the world's laws as modelled, and the
+modeller and the solver choose those laws. It is still a thought experiment, run
+rather than read. It says nothing about our world until a transfer and a test
+there.
 
 ## Target terms
 
@@ -521,7 +616,8 @@ A transfer also records:
 - proxies, each dated, because what is magical today may be portable later.
   Each is labeled one of:
   - `portable`: achievable with present means;
-  - `inverse`: the domain needs the opposite effect;
+  - `inverse`: the domain needs the opposite effect (in the December 2025 toolkit,
+    INVERSE marked an idea that reveals what is broken);
   - `magical`: no present means;
 - at least one disanalogy;
 - the candidate in the domain's own terms;
@@ -544,8 +640,11 @@ alternatives.
 
 PURE is the viability check of Fractal Intelligence: four independent,
 non-compensatory gates, Parsimonious, Unique, Realizable and Expansive. Sema
-carries it as cards, and Sema's card for the U is Novelty#954f. A verifier checks
-one candidate, a mechanism or a transfer, with PURECheck#574b.
+carries it as cards, and Sema's card for the U is Novelty#954f. The paper's Unique
+asks "does this lever stand on its own?", which is independence; the add-on follows
+the card and asks whether the operative relation is new against earlier candidates
+and known practice. A verifier checks one candidate, a mechanism or a transfer, with
+PURECheck#574b.
 The four axes are judged separately, each in a context that never sees another
 axis's verdict or reasoning, and no axis can make up for another (PURE#b65a). One
 `verifier` task covers one axis; give each its own fresh context.
@@ -559,7 +658,7 @@ axis's verdict or reasoning, and no axis can make up for another (PURE#b65a). On
 
 Every other combination is unknown.
 
-Each axis is a decomposition point (FractalIntelligence#27f7). The verifier opens
+Each axis is a decomposition point (FractalIntelligence#1dca). The verifier opens
 the question into probes and answers each the same way. It opens a probe further
 where the answer is uncertain and would change the verdict, and stops where another
 level would change nothing. The marginal-value rule (MarginalValueRule#6611)

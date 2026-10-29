@@ -1868,13 +1868,16 @@ export class LifeSimulationService {
     }
   }
 
-  async createWorld({ requestId, presetId = null, modelHash = null }) {
+  // worldId is for callers inside the server only: a run in an engine of its own names its world, so its start state, and
+  // with it every draw, depends only on the model and the seed.
+  async createWorld({ requestId, presetId = null, modelHash = null, worldId: namedWorldId = null }) {
     if (modelHash !== null) ensureHash(modelHash, 'modelHash');
+    if (namedWorldId !== null && !/^world_[A-Za-z0-9._-]{1,120}$/u.test(namedWorldId)) throw new Error('worldId is world_ followed by letters, digits, dot, underscore or hyphen.');
     return this.#withIdempotentReceipt(
       this.createReceipts,
       'create-world',
       requestId,
-      { presetId, modelHash },
+      { presetId, modelHash, ...(namedWorldId ? { worldId: namedWorldId } : {}) },
       async () => {
         if (presetId && modelHash) throw new Error('Choose presetId or modelHash, not both.');
         this.#reserveWorld();
@@ -1885,7 +1888,8 @@ export class LifeSimulationService {
           const processIds = processIdsFromModelResult(model);
           const fieldCount = model.summary.process_count ?? model.summary.process_ids?.length;
           const persistence = this.backend.status().persistenceMode;
-          const worldId = `world_${randomUUID()}`;
+          if (namedWorldId && this.worlds.has(namedWorldId)) throw new Error(`A world named ${namedWorldId} already exists.`);
+          const worldId = namedWorldId ?? `world_${randomUUID()}`;
           const world = {
             id: worldId,
             presetId: selectedPreset,
