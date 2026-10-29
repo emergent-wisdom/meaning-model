@@ -4,6 +4,17 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## 0.16.1 — 2026-10-29
+
+**A search through modelled worlds, in the paper and in examples**
+- The paper's section on mechanism search says that from 0.16.0 a world is modelled and run. It gives the geyser
+  world's runs as an example, and what one search of ten modelled worlds showed, with its confounds. The closing
+  sentence no longer calls a world "not a simulation".
+- `examples/alien-search-loneliness/` documents that search: the atlas, the diagnoses, the variety measure, the
+  blind jury and recorded replay results for every run. Solver excerpts are abbreviated; the executable construction
+  graph is not included. The search used code identical to 0.16.0's.
+- The tool is unchanged.
+
 ## 0.16.0 — 2026-10-29
 
 **No result is refused or cut short for its size**

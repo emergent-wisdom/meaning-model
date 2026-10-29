@@ -46,6 +46,7 @@
     "output/pdf/meaning-model-grammar.pdf",
     "output/pdf/the-book-of-conditions.pdf",
     "examples/refinement-trial",
+    "examples/alien-search-loneliness",
     "examples/progressive-authoring",
     "rust-engine/Cargo.toml",
     "rust-engine/Cargo.lock",

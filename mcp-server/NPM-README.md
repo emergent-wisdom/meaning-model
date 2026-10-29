@@ -24,6 +24,12 @@ operational guidance. Reading the papers is optional.
 
 See the [changelog](https://github.com/emergent-wisdom/meaning-model/blob/main/CHANGELOG.md) for release changes and upgrade notes.
 
+## Upgrading to 0.16.1
+
+0.16.1 changes no tool and no stored format. Its paper describes modelled worlds in mechanism search, and the
+repository adds a recorded search through ten modelled worlds as an example. Install the matching 0.16.1 engine.
+Coming from 0.15.0, the 0.16.0 notes below apply as well.
+
 ## Upgrading to 0.16.0
 
 Install the matching 0.16.0 engine. Models, graphs and histories keep their hashes, and nothing needs migrating; a
@@ -347,7 +353,7 @@ can use the explicit source build below.
 In a directory where you want to keep the installation, run:
 
 ```sh
-npm install @emergent-wisdom/meaning-model-mcp@0.16.0
+npm install @emergent-wisdom/meaning-model-mcp@0.16.1
 npx meaning-model-mcp --install-engine
 ```
 
@@ -816,7 +822,7 @@ configuration looks like this:
   "mcpServers": {
     "meaning-model": {
       "command": "npx",
-      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.16.0"],
+      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.16.1"],
       "env": {
         "LIFE_SIM_ENGINE_BIN": "/absolute/path/to/life-sim-engine",
         "LIFE_SIM_STATE_FILE": "/absolute/private/path/meaning-model.sqlite"
@@ -890,7 +896,7 @@ for release.
 Record the reviewed tarball's checksum and inspect the publication preview:
 
 ```sh
-release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.16.0.tgz"
+release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.16.1.tgz"
 shasum -a 256 "$release_tarball"
 npm publish "$release_tarball" --dry-run --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
@@ -902,7 +908,7 @@ exact tarball, authenticate with an npm account that can publish to
 ```sh
 npm whoami --registry=https://registry.npmjs.org/
 npm publish "$release_tarball" --access public --ignore-scripts --registry=https://registry.npmjs.org/
-npm view @emergent-wisdom/meaning-model-mcp@0.16.0 version dist.integrity --registry=https://registry.npmjs.org/
+npm view @emergent-wisdom/meaning-model-mcp@0.16.1 version dist.integrity --registry=https://registry.npmjs.org/
 ```
 
 A dry run does not establish registry authentication or scope access. Any change

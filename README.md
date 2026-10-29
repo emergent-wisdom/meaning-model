@@ -340,7 +340,7 @@ serves. See the [forecasting add-on guide](profiles/FORECASTING_ADDON.md).
 
 ## Papers and worked example
 
-The paper was revised on October 25, 2026, and the grammar appendix on October 17, 2026.
+The paper was revised on October 29, 2026, and the grammar appendix on October 17, 2026.
 The [Zenodo series](https://doi.org/10.5281/zenodo.22313515) provides the
 archived versions.
 

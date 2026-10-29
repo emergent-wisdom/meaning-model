@@ -1,0 +1,1345 @@
+{
+  "diagnosisHash": "1bda517835e55327bbd18ea81f6ea2d5cdb745c0f84bacfa6eb940e47e61c91d",
+  "diagnosis": {
+    "schema": "meaning-model-alien-diagnosis/v1",
+    "tasks": {
+      "prepared": 112,
+      "byRole": {
+        "world_modeller": 11,
+        "solver_frame": 11,
+        "solver": 10,
+        "compiler": 10,
+        "curator": 20,
+        "transfer": 10,
+        "verifier": 40
+      },
+      "unused": [
+        {
+          "nodeId": "task.task.world_modeller.mvtf4ied.10",
+          "role": "world_modeller"
+        },
+        {
+          "nodeId": "task.task.solver_frame.mvtfspz0.52",
+          "role": "solver_frame"
+        }
+      ]
+    },
+    "conditions": {
+      "H": {
+        "mechanisms": 10,
+        "newFamilies": 10
+      }
+    },
+    "outcomes": {
+      "active": 12,
+      "leaves": [
+        "outcome.carried-pair-tie",
+        "outcome.load-verified-tie",
+        "outcome.place-corroborated-approach",
+        "outcome.readiness-matched-copresence",
+        "outcome.rotating-witnessed-recognition",
+        "outcome.self-sustained-arrival-ties",
+        "outcome.turnover-surviving-tie",
+        "outcome.vouched-arrival-carried-closeness",
+        "outcome.wear-shielded-arrival-ties"
+      ],
+      "thin": [
+        "outcome.carried-pair-tie",
+        "outcome.load-verified-tie",
+        "outcome.place-corroborated-approach",
+        "outcome.readiness-matched-copresence",
+        "outcome.rotating-witnessed-recognition",
+        "outcome.self-sustained-arrival-ties",
+        "outcome.vouched-arrival-carried-closeness",
+        "outcome.wear-shielded-arrival-ties"
+      ],
+      "empty": [],
+      "crowded": [],
+      "crowdedThreshold": 3,
+      "roots": [
+        {
+          "conceptId": "outcome.continuous-regard",
+          "subtree": 6
+        },
+        {
+          "conceptId": "outcome.readiness-matched-copresence",
+          "subtree": 1
+        },
+        {
+          "conceptId": "outcome.warranted-first-contact",
+          "subtree": 2
+        },
+        {
+          "conceptId": "outcome.wear-shielded-arrival-ties",
+          "subtree": 1
+        }
+      ],
+      "thinRoots": [
+        "outcome.readiness-matched-copresence",
+        "outcome.wear-shielded-arrival-ties"
+      ],
+      "uncombinedPairs": [
+        {
+          "familyId": "mech.position-bound-tie-succession",
+          "outcomeId": "outcome.self-sustained-arrival-ties"
+        },
+        {
+          "familyId": "mech.position-bound-tie-succession",
+          "outcomeId": "outcome.rotating-witnessed-recognition"
+        },
+        {
+          "familyId": "mech.position-bound-tie-succession",
+          "outcomeId": "outcome.vouched-arrival-carried-closeness"
+        },
+        {
+          "familyId": "mech.position-bound-tie-succession",
+          "outcomeId": "outcome.carried-pair-tie"
+        },
+        {
+          "familyId": "mech.position-bound-tie-succession",
+          "outcomeId": "outcome.readiness-matched-copresence"
+        },
+        {
+          "familyId": "mech.position-bound-tie-succession",
+          "outcomeId": "outcome.load-verified-tie"
+        },
+        {
+          "familyId": "mech.position-bound-tie-succession",
+          "outcomeId": "outcome.place-corroborated-approach"
+        },
+        {
+          "familyId": "mech.position-bound-tie-succession",
+          "outcomeId": "outcome.wear-shielded-arrival-ties"
+        },
+        {
+          "familyId": "mech.arrival-dose-metered-taper",
+          "outcomeId": "outcome.turnover-surviving-tie"
+        },
+        {
+          "familyId": "mech.arrival-dose-metered-taper",
+          "outcomeId": "outcome.rotating-witnessed-recognition"
+        },
+        {
+          "familyId": "mech.arrival-dose-metered-taper",
+          "outcomeId": "outcome.vouched-arrival-carried-closeness"
+        },
+        {
+          "familyId": "mech.arrival-dose-metered-taper",
+          "outcomeId": "outcome.carried-pair-tie"
+        },
+        {
+          "familyId": "mech.arrival-dose-metered-taper",
+          "outcomeId": "outcome.readiness-matched-copresence"
+        },
+        {
+          "familyId": "mech.arrival-dose-metered-taper",
+          "outcomeId": "outcome.load-verified-tie"
+        },
+        {
+          "familyId": "mech.arrival-dose-metered-taper",
+          "outcomeId": "outcome.place-corroborated-approach"
+        },
+        {
+          "familyId": "mech.arrival-dose-metered-taper",
+          "outcomeId": "outcome.wear-shielded-arrival-ties"
+        },
+        {
+          "familyId": "mech.obligatory-exchange-counterpart-pinning",
+          "outcomeId": "outcome.self-sustained-arrival-ties"
+        },
+        {
+          "familyId": "mech.obligatory-exchange-counterpart-pinning",
+          "outcomeId": "outcome.rotating-witnessed-recognition"
+        },
+        {
+          "familyId": "mech.obligatory-exchange-counterpart-pinning",
+          "outcomeId": "outcome.vouched-arrival-carried-closeness"
+        },
+        {
+          "familyId": "mech.obligatory-exchange-counterpart-pinning",
+          "outcomeId": "outcome.carried-pair-tie"
+        },
+        {
+          "familyId": "mech.obligatory-exchange-counterpart-pinning",
+          "outcomeId": "outcome.readiness-matched-copresence"
+        },
+        {
+          "familyId": "mech.obligatory-exchange-counterpart-pinning",
+          "outcomeId": "outcome.load-verified-tie"
+        },
+        {
+          "familyId": "mech.obligatory-exchange-counterpart-pinning",
+          "outcomeId": "outcome.place-corroborated-approach"
+        },
+        {
+          "familyId": "mech.obligatory-exchange-counterpart-pinning",
+          "outcomeId": "outcome.wear-shielded-arrival-ties"
+        },
+        {
+          "familyId": "mech.compensated-post-held-acknowledgment",
+          "outcomeId": "outcome.turnover-surviving-tie"
+        },
+        {
+          "familyId": "mech.compensated-post-held-acknowledgment",
+          "outcomeId": "outcome.self-sustained-arrival-ties"
+        },
+        {
+          "familyId": "mech.compensated-post-held-acknowledgment",
+          "outcomeId": "outcome.vouched-arrival-carried-closeness"
+        },
+        {
+          "familyId": "mech.compensated-post-held-acknowledgment",
+          "outcomeId": "outcome.carried-pair-tie"
+        },
+        {
+          "familyId": "mech.compensated-post-held-acknowledgment",
+          "outcomeId": "outcome.readiness-matched-copresence"
+        },
+        {
+          "familyId": "mech.compensated-post-held-acknowledgment",
+          "outcomeId": "outcome.load-verified-tie"
+        },
+        {
+          "familyId": "mech.compensated-post-held-acknowledgment",
+          "outcomeId": "outcome.place-corroborated-approach"
+        },
+        {
+          "familyId": "mech.compensated-post-held-acknowledgment",
+          "outcomeId": "outcome.wear-shielded-arrival-ties"
+        },
+        {
+          "familyId": "mech.ended-tie-credential-bridge",
+          "outcomeId": "outcome.turnover-surviving-tie"
+        },
+        {
+          "familyId": "mech.ended-tie-credential-bridge",
+          "outcomeId": "outcome.self-sustained-arrival-ties"
+        },
+        {
+          "familyId": "mech.ended-tie-credential-bridge",
+          "outcomeId": "outcome.rotating-witnessed-recognition"
+        },
+        {
+          "familyId": "mech.ended-tie-credential-bridge",
+          "outcomeId": "outcome.carried-pair-tie"
+        },
+        {
+          "familyId": "mech.ended-tie-credential-bridge",
+          "outcomeId": "outcome.readiness-matched-copresence"
+        },
+        {
+          "familyId": "mech.ended-tie-credential-bridge",
+          "outcomeId": "outcome.load-verified-tie"
+        },
+        {
+          "familyId": "mech.ended-tie-credential-bridge",
+          "outcomeId": "outcome.place-corroborated-approach"
+        },
+        {
+          "familyId": "mech.ended-tie-credential-bridge",
+          "outcomeId": "outcome.wear-shielded-arrival-ties"
+        },
+        {
+          "familyId": "mech.co-placed-tie-carry",
+          "outcomeId": "outcome.turnover-surviving-tie"
+        },
+        {
+          "familyId": "mech.co-placed-tie-carry",
+          "outcomeId": "outcome.self-sustained-arrival-ties"
+        },
+        {
+          "familyId": "mech.co-placed-tie-carry",
+          "outcomeId": "outcome.rotating-witnessed-recognition"
+        },
+        {
+          "familyId": "mech.co-placed-tie-carry",
+          "outcomeId": "outcome.vouched-arrival-carried-closeness"
+        },
+        {
+          "familyId": "mech.co-placed-tie-carry",
+          "outcomeId": "outcome.readiness-matched-copresence"
+        },
+        {
+          "familyId": "mech.co-placed-tie-carry",
+          "outcomeId": "outcome.load-verified-tie"
+        },
+        {
+          "familyId": "mech.co-placed-tie-carry",
+          "outcomeId": "outcome.place-corroborated-approach"
+        },
+        {
+          "familyId": "mech.co-placed-tie-carry",
+          "outcomeId": "outcome.wear-shielded-arrival-ties"
+        },
+        {
+          "familyId": "mech.readiness-gated-copresence-sync",
+          "outcomeId": "outcome.turnover-surviving-tie"
+        },
+        {
+          "familyId": "mech.readiness-gated-copresence-sync",
+          "outcomeId": "outcome.self-sustained-arrival-ties"
+        }
+      ],
+      "unclassified": []
+    },
+    "population": {
+      "worlds": 10,
+      "importedWorlds": 10,
+      "solutions": 10,
+      "mechanisms": {
+        "total": 10,
+        "fromWorlds": 10,
+        "fromExplorer": 0,
+        "retries": 0
+      },
+      "transfers": 10,
+      "commissions": 0,
+      "assessments": 0
+    },
+    "isolation": {
+      "builder": {
+        "fresh_context": 10
+      },
+      "notTargetBlind": [
+        {
+          "worldNodeId": "lib.world.w7",
+          "targetLeaks": [
+            "move",
+            "neighbor",
+            "neighbors"
+          ],
+          "oraclePremise": false
+        },
+        {
+          "worldNodeId": "lib.world.w6",
+          "targetLeaks": [
+            "lonely"
+          ],
+          "oraclePremise": false
+        },
+        {
+          "worldNodeId": "lib.world.w8",
+          "targetLeaks": [
+            "move",
+            "neighbour",
+            "neighbours"
+          ],
+          "oraclePremise": false
+        },
+        {
+          "worldNodeId": "lib.world.w1",
+          "targetLeaks": [
+            "city",
+            "feels",
+            "neighbor",
+            "neighbors"
+          ],
+          "oraclePremise": false
+        },
+        {
+          "worldNodeId": "lib.world.w2",
+          "targetLeaks": [
+            "city",
+            "feels",
+            "neighbor",
+            "neighbors"
+          ],
+          "oraclePremise": false
+        },
+        {
+          "worldNodeId": "lib.world.w4",
+          "targetLeaks": [
+            "lonely",
+            "move"
+          ],
+          "oraclePremise": false
+        },
+        {
+          "worldNodeId": "lib.world.w9",
+          "targetLeaks": [
+            "friendship",
+            "isolation",
+            "lonely",
+            "move",
+            "stranger",
+            "strangers"
+          ],
+          "oraclePremise": false
+        },
+        {
+          "worldNodeId": "lib.world.w3",
+          "targetLeaks": [
+            "isolation",
+            "lonely",
+            "neighbor",
+            "neighbors",
+            "nobody",
+            "stranger",
+            "strangers"
+          ],
+          "oraclePremise": false
+        }
+      ],
+      "solver": {
+        "fresh_context": 10
+      },
+      "compiler": {
+        "fresh_context": 10
+      }
+    },
+    "mechanisms": {
+      "active": 13,
+      "leaves": [
+        "mech.co-placed-tie-carry",
+        "mech.compensated-post-held-acknowledgment",
+        "mech.dedicated-occasion-contact-scaffold",
+        "mech.ended-tie-credential-bridge",
+        "mech.load-probed-tie-repair",
+        "mech.obligatory-exchange-counterpart-pinning",
+        "mech.place-anchored-stranger-corroboration",
+        "mech.readiness-gated-copresence-sync",
+        "mech.tie-cold-contact-shield"
+      ],
+      "thin": [
+        "mech.arrival-dose-metered-taper",
+        "mech.co-placed-tie-carry",
+        "mech.compensated-post-held-acknowledgment",
+        "mech.dedicated-occasion-contact-scaffold",
+        "mech.ended-tie-credential-bridge",
+        "mech.load-probed-tie-repair",
+        "mech.obligatory-exchange-counterpart-pinning",
+        "mech.place-anchored-stranger-corroboration",
+        "mech.position-bound-tie-succession",
+        "mech.readiness-gated-copresence-sync",
+        "mech.tie-cold-contact-shield"
+      ],
+      "empty": [
+        "mech.dedicated-occasion-contact-scaffold"
+      ],
+      "crowded": [],
+      "crowdedThreshold": 3,
+      "roots": [
+        {
+          "conceptId": "mech.institutional-contact-condition-holder",
+          "subtree": 10
+        }
+      ],
+      "thinRoots": [],
+      "decisions": {
+        "admit_new": 10
+      },
+      "saturation": {
+        "decisionsSinceLastNewFamily": 0,
+        "lastNewFamilySubjectNodeId": "mech.w10"
+      },
+      "relabelPressure": 0,
+      "redirectChains": [],
+      "undecided": [],
+      "undeveloped": [],
+      "hybrids": [
+        {
+          "subjectNodeId": "mech.w5",
+          "shares": [
+            {
+              "conceptId": "mech.ended-tie-credential-bridge",
+              "share": 0.45
+            },
+            {
+              "conceptId": "mech.obligatory-exchange-counterpart-pinning",
+              "share": 0.3
+            },
+            {
+              "conceptId": "mech.position-bound-tie-succession",
+              "share": 0.1
+            }
+          ],
+          "remainder": 0.15
+        }
+      ]
+    },
+    "worlds": {
+      "active": 29,
+      "leaves": [
+        "kind.constitutive-bond-persistence",
+        "kind.crossing-licensed-alteration",
+        "kind.indelible-formation-record",
+        "kind.intrinsic-determinacy",
+        "kind.lapse-triggered-release",
+        "kind.path-erasable-formation-record",
+        "kind.plural-vantage-determinacy",
+        "kind.reply-licensed-alteration",
+        "kind.store-triggered-release",
+        "kind.support-coupled-alteration",
+        "kind.sustained-attention-persistence",
+        "kind.witnessed-portrayal-alteration",
+        "lens.alteration-licensing",
+        "lens.determinacy-sourcing",
+        "lens.formation-record",
+        "lens.junction-licensing",
+        "lens.opposition-resolution",
+        "lens.persistence-composition",
+        "lens.release-gating",
+        "regime.baseline-consensus-resolution",
+        "regime.grounded-impact-alteration",
+        "regime.mediated-reflow-joining",
+        "regime.obligate-complementary-pairing",
+        "regime.path-dependent-strain-relaxation",
+        "regime.renewal-held-truce",
+        "regime.settling-imprint",
+        "regime.shifted-echo-exchange",
+        "regime.threshold-burst-release",
+        "regime.witnessed-enactment-persistence"
+      ],
+      "thin": [
+        "kind.constitutive-bond-persistence",
+        "kind.crossing-licensed-alteration",
+        "kind.indelible-formation-record",
+        "kind.intrinsic-determinacy",
+        "kind.lapse-triggered-release",
+        "kind.path-erasable-formation-record",
+        "kind.plural-vantage-determinacy",
+        "kind.reply-licensed-alteration",
+        "kind.store-triggered-release",
+        "kind.support-coupled-alteration",
+        "kind.sustained-attention-persistence",
+        "kind.witnessed-portrayal-alteration",
+        "lens.alteration-licensing",
+        "lens.determinacy-sourcing",
+        "lens.formation-record",
+        "lens.junction-licensing",
+        "lens.opposition-resolution",
+        "lens.persistence-composition",
+        "lens.release-gating",
+        "regime.baseline-consensus-resolution",
+        "regime.grounded-impact-alteration",
+        "regime.mediated-reflow-joining",
+        "regime.obligate-complementary-pairing",
+        "regime.path-dependent-strain-relaxation",
+        "regime.renewal-held-truce",
+        "regime.settling-imprint",
+        "regime.shifted-echo-exchange",
+        "regime.threshold-burst-release",
+        "regime.witnessed-enactment-persistence"
+      ],
+      "empty": [
+        "kind.constitutive-bond-persistence",
+        "kind.crossing-licensed-alteration",
+        "kind.indelible-formation-record",
+        "kind.intrinsic-determinacy",
+        "kind.lapse-triggered-release",
+        "kind.path-erasable-formation-record",
+        "kind.plural-vantage-determinacy",
+        "kind.reply-licensed-alteration",
+        "kind.store-triggered-release",
+        "kind.support-coupled-alteration",
+        "kind.sustained-attention-persistence",
+        "kind.witnessed-portrayal-alteration",
+        "lens.alteration-licensing",
+        "lens.determinacy-sourcing",
+        "lens.formation-record",
+        "lens.junction-licensing",
+        "lens.opposition-resolution",
+        "lens.persistence-composition",
+        "lens.release-gating"
+      ],
+      "crowded": [],
+      "crowdedThreshold": 3,
+      "roots": [
+        {
+          "conceptId": "kind.constitutive-bond-persistence",
+          "subtree": 0
+        },
+        {
+          "conceptId": "kind.crossing-licensed-alteration",
+          "subtree": 0
+        },
+        {
+          "conceptId": "kind.indelible-formation-record",
+          "subtree": 0
+        },
+        {
+          "conceptId": "kind.intrinsic-determinacy",
+          "subtree": 0
+        },
+        {
+          "conceptId": "kind.lapse-triggered-release",
+          "subtree": 0
+        },
+        {
+          "conceptId": "kind.path-erasable-formation-record",
+          "subtree": 0
+        },
+        {
+          "conceptId": "kind.plural-vantage-determinacy",
+          "subtree": 0
+        },
+        {
+          "conceptId": "kind.reply-licensed-alteration",
+          "subtree": 0
+        },
+        {
+          "conceptId": "kind.store-triggered-release",
+          "subtree": 0
+        },
+        {
+          "conceptId": "kind.support-coupled-alteration",
+          "subtree": 0
+        },
+        {
+          "conceptId": "kind.sustained-attention-persistence",
+          "subtree": 0
+        },
+        {
+          "conceptId": "kind.witnessed-portrayal-alteration",
+          "subtree": 0
+        },
+        {
+          "conceptId": "lens.alteration-licensing",
+          "subtree": 0
+        },
+        {
+          "conceptId": "lens.determinacy-sourcing",
+          "subtree": 0
+        },
+        {
+          "conceptId": "lens.formation-record",
+          "subtree": 0
+        },
+        {
+          "conceptId": "lens.junction-licensing",
+          "subtree": 0
+        },
+        {
+          "conceptId": "lens.opposition-resolution",
+          "subtree": 0
+        },
+        {
+          "conceptId": "lens.persistence-composition",
+          "subtree": 0
+        },
+        {
+          "conceptId": "lens.release-gating",
+          "subtree": 0
+        },
+        {
+          "conceptId": "regime.baseline-consensus-resolution",
+          "subtree": 1
+        },
+        {
+          "conceptId": "regime.grounded-impact-alteration",
+          "subtree": 1
+        },
+        {
+          "conceptId": "regime.mediated-reflow-joining",
+          "subtree": 1
+        },
+        {
+          "conceptId": "regime.obligate-complementary-pairing",
+          "subtree": 1
+        },
+        {
+          "conceptId": "regime.path-dependent-strain-relaxation",
+          "subtree": 1
+        },
+        {
+          "conceptId": "regime.renewal-held-truce",
+          "subtree": 1
+        },
+        {
+          "conceptId": "regime.settling-imprint",
+          "subtree": 1
+        },
+        {
+          "conceptId": "regime.shifted-echo-exchange",
+          "subtree": 1
+        },
+        {
+          "conceptId": "regime.threshold-burst-release",
+          "subtree": 1
+        },
+        {
+          "conceptId": "regime.witnessed-enactment-persistence",
+          "subtree": 1
+        }
+      ],
+      "thinRoots": [
+        "kind.constitutive-bond-persistence",
+        "kind.crossing-licensed-alteration",
+        "kind.indelible-formation-record",
+        "kind.intrinsic-determinacy",
+        "kind.lapse-triggered-release",
+        "kind.path-erasable-formation-record",
+        "kind.plural-vantage-determinacy",
+        "kind.reply-licensed-alteration",
+        "kind.store-triggered-release",
+        "kind.support-coupled-alteration",
+        "kind.sustained-attention-persistence",
+        "kind.witnessed-portrayal-alteration",
+        "lens.alteration-licensing",
+        "lens.determinacy-sourcing",
+        "lens.formation-record",
+        "lens.junction-licensing",
+        "lens.opposition-resolution",
+        "lens.persistence-composition",
+        "lens.release-gating",
+        "regime.baseline-consensus-resolution",
+        "regime.grounded-impact-alteration",
+        "regime.mediated-reflow-joining",
+        "regime.obligate-complementary-pairing",
+        "regime.path-dependent-strain-relaxation",
+        "regime.renewal-held-truce",
+        "regime.settling-imprint",
+        "regime.shifted-echo-exchange",
+        "regime.threshold-burst-release",
+        "regime.witnessed-enactment-persistence"
+      ],
+      "decisions": {},
+      "signatureCoverage": {
+        "temporality": {
+          "coded": 10,
+          "distinct": 10,
+          "values": {
+            "relaxation cycles: accumulate→threshold→burst→refractory; vent clocks": 1,
+            "one-way settling stamps a permanent record; re-wet cycles degrade (~7 to blank)": 1,
+            "dual tempo: wet edge growth at bounded rate; dry total suspension; age=diameter": 1,
+            "inert stasis without Ground; per-blow change; finite blow budget → brittleness": 1,
+            "brief above-melt dwell then undisturbed freeze; seams fatigue/creep; reflowable": 1,
+            "finite terms renewed periodically; lapse surge grows with hold time": 1,
+            "soak then sub-critical ramp relaxes; quench locks; tidal Soak/Settling cycle": 1,
+            "continuous hold; unattended blur→Blank; handoff in breaths; day-long Fixing": 1,
+            "resolution tracks current vantage geometry instantly; no decay clock": 1,
+            "lagged replies: delay ∝ separation × relays; layered nows; no first cause": 1
+          },
+          "uniform": false
+        },
+        "conservation": {
+          "coded": 10,
+          "distinct": 10,
+          "values": {
+            "cycle-averaged flux balance: supply in = discharge out per cycle": 1,
+            "matter recyclable but mark fidelity only decays; record is never erased": 1,
+            "stone irreversibly consumed to soil by bonds; unpaired mass decays ~10%/season": 1,
+            "blow energy splits: reshaping + ring; residual returns as sound/heat": 1,
+            "bonds reversible, matter reclaimed by reflow; mediator and fuel consumed per sea": 1,
+            "no gradient decay; difference stored as Deferred; concessions conserved": 1,
+            "strain conserved: annealing exports it as diffuse warmth to surroundings": 1,
+            "nothing conserved; effects cost the exertion portrayed; overacting wastes": 1,
+            "no stated conservation; dissonance dissipates energy as heat and noise": 1,
+            "caller's breath spent per call, restored only by answers; unanswered cost lost": 1
+          },
+          "uniform": false
+        },
+        "agency": {
+          "coded": 10,
+          "distinct": 10,
+          "values": {
+            "agents shape thresholds/feeds and time action to cycles; cannot fire at will": 1,
+            "agents act by choosing moulds/conditions at setting; cannot alter set things": 1,
+            "agents nurse bonds, tend edges and mist; cannot hasten pairing or growth": 1,
+            "agents act as Striker/Holder/Fire-tender; strength bounded by Ground coupling": 1,
+            "agents flux, heat and hold still; tier work high→low melt; can unjoin at will": 1,
+            "agents renew, broker terms, time lapses; force only by granted stand-down": 1,
+            "agents set heat paths: soak, ramp or quench; cannot de-strain quickly": 1,
+            "agents enact, witness and hand off gestures; effect scales with fidelity": 1,
+            "agents place and pair vantages, extend baselines, shift consensus; none alone": 1,
+            "agents call and answer; act only via responsive targets; choose the shift": 1
+          },
+          "uniform": false
+        },
+        "identity": {
+          "coded": 10,
+          "distinct": 10,
+          "values": {
+            "channel identity = fixed throat geometry/material setting its threshold": 1,
+            "identity = formation mark from mould; identical marks only from same mould": 1,
+            "identity = bonded Holder+Giver composite; traits belong to neither half alone": 1,
+            "identity = current struck form; reheat erases it; hardness tracks blow count": 1,
+            "assembly identity = its seam network; bodies persist unchanged when unjoined": 1,
+            "a stable thing = a truce: a held Line between opposed tendencies": 1,
+            "identity=imposed form held by locked strain; annealing erases it": 1,
+            "a thing = an enacted gesture recognized by witnesses; no underlying matter": 1,
+            "thing = consistent crossing of ≥2 vantages' bearings; lone vantage → flat": 1,
+            "thing = closed ring of call and answer; strength = count of nested rounds": 1
+          },
+          "uniform": false
+        },
+        "scarcity": {
+          "coded": 10,
+          "distinct": 10,
+          "values": {
+            "rival draw on shared reservoirs; supply caps group discharge": 1,
+            "moulds and fresh unworn matter are scarce; light for reading is costly": 1,
+            "bare stone substrate is the wealth; clean air and mist are shared and finite": 1,
+            "bedrock-coupled Ground mass is wealth; each Work's blow budget is finite": 1,
+            "mediator, stored heat/fuel and matched fluxes are scarce; films always recur": 1,
+            "held term, renewal effort and Margin width are scarce; Deferred is free": 1,
+            "cooling time, soak heat and room to export strain are scarce; speed costly": 1,
+            "attention, sightlines, light, quiet and sustaining bodies are scarce": 1,
+            "long maintained baselines and trusted vantages are scarce; rent per span-hour": 1,
+            "answerers, refrain coupling and breath are scarce; isolation drains": 1
+          },
+          "uniform": false
+        },
+        "information_flow": {
+          "coded": 10,
+          "distinct": 10,
+          "values": {
+            "preplay gives graded advance warning; messages are untunable bursts": 1,
+            "provenance legible only by transmitted light; thick/dark things hide it": 1,
+            "indicator thalli publicly report air purity; diameter publicly reveals age": 1,
+            "every change rings; ring encodes yield split; signals travel through Ground": 1,
+            "signals cross only good seams; seam quality hidden, read by assay/tapping": 1,
+            "terms schedule the future; Deferred readable by instruments at Lines": 1,
+            "strain legible by sound/colour/feel; snaps foreseeable; memory needs strain": 1,
+            "meaning travels by sight only; sound carries none; effects reach sightlines": 1,
+            "depth needs ≥2 bearings; precision ∝ baseline/distance; far frame stable": 1,
+            "every change is a reply, so acts become public; lag layers news; hush blocks": 1
+          },
+          "uniform": false
+        },
+        "boundary_structure": {
+          "coded": 10,
+          "distinct": 10,
+          "values": {
+            "confinement gates mode: constricted channel→bursts, unconfined→steady flow": 1,
+            "thickness/opacity gates legibility; joints capped by the fainter mark": 1,
+            "change only at living edges; interiors fixed; soil cannot hold a bond": 1,
+            "coupling-chain depth to Bedrock gates change strength; unsupported = inert": 1,
+            "contact is inert; only mediated seams couple bodies into one conduit": 1,
+            "Lines with neutral Margins; width inverse to opposition; outside unrestrained": 1,
+            "enclosure/crowding blocks strain export; snaps load coupled neighbours": 1,
+            "sightlines bound causal reach; dark, walls, fog cut it; earshot bounds Drop": 1,
+            "baseline/distance bounds reach; zero-parallax dead line between vantages": 1,
+            "unresponsive targets absorb calls; overlap-hush zones; relays shorten lag": 1
+          },
+          "uniform": false
+        },
+        "permitted_transformations": {
+          "coded": 10,
+          "distinct": 10,
+          "values": {
+            "all-or-nothing release; fine/gradual output only via staggered channels": 1,
+            "set things fixed; only re-wet→re-set, which layers a new mark over ghosts": 1,
+            "pair, edge-accrete, wet↔dry suspend reversibly; no interior change, no heat": 1,
+            "hot Work struck on firmer Ground reshapes; cold shatters; reheat resets form": 1,
+            "mediated join below both melts; reflow separates; no direct cohesion": 1,
+            "no resolution in truce; change only via lapse, breach or new truce": 1,
+            "make adds strain; soak+ramp relaxes and erases form; quench locks; overload snap": 1,
+            "faithful mime alters; upstaging by truer act; Fixing; Drop slumps/undoes": 1,
+            "force only on resolved targets; consensus shift moves things; axis makes flat": 1,
+            "change = call echoed with one attribute shifted; pure echo = stasis": 1
+          },
+          "uniform": false
+        },
+        "enforcement": {
+          "coded": 10,
+          "distinct": 10,
+          "values": {
+            "impersonal physical law; no enforcer, threshold fixed by channel form": 1,
+            "impersonal physical law; capability ceiling fixed by formation mark": 1,
+            "impersonal physical law; persistence requires partner, clean air, mist, stone": 1,
+            "impersonal physical law; Ground coupling and heat license all change": 1,
+            "impersonal physical law; melt order, clean faces, heat window license bonds": 1,
+            "impersonal physical law; lapse and breach punish; contracts are physical truces": 1,
+            "impersonal physical law; thermal path and strain capacity govern failure": 1,
+            "impersonal law of witnessed enactment; social courts punish noise, false mime": 1,
+            "impersonal geometric law; surveyors settle; vantage fraud is gravest crime": 1,
+            "impersonal physical law; unanswered calls fade; courts sentence by unanswering": 1
+          },
+          "uniform": false
+        }
+      },
+      "uncoded": [],
+      "yield": [
+        {
+          "worldNodeId": "lib.world.w7",
+          "seed": "geyser",
+          "targetBlind": false,
+          "mechanisms": 1,
+          "newFamilies": 1
+        },
+        {
+          "worldNodeId": "lib.world.w5",
+          "seed": "watermark",
+          "targetBlind": true,
+          "mechanisms": 1,
+          "newFamilies": 1
+        },
+        {
+          "worldNodeId": "lib.world.w6",
+          "seed": "lichen",
+          "targetBlind": false,
+          "mechanisms": 1,
+          "newFamilies": 1
+        },
+        {
+          "worldNodeId": "lib.world.w10",
+          "seed": "anvil",
+          "targetBlind": true,
+          "mechanisms": 1,
+          "newFamilies": 1
+        },
+        {
+          "worldNodeId": "lib.world.w8",
+          "seed": "solder",
+          "targetBlind": false,
+          "mechanisms": 1,
+          "newFamilies": 1
+        },
+        {
+          "worldNodeId": "lib.world.w1",
+          "seed": "truce",
+          "targetBlind": false,
+          "mechanisms": 1,
+          "newFamilies": 1
+        },
+        {
+          "worldNodeId": "lib.world.w2",
+          "seed": "anneal",
+          "targetBlind": false,
+          "mechanisms": 1,
+          "newFamilies": 1
+        },
+        {
+          "worldNodeId": "lib.world.w4",
+          "seed": "pantomime",
+          "targetBlind": false,
+          "mechanisms": 1,
+          "newFamilies": 1
+        },
+        {
+          "worldNodeId": "lib.world.w9",
+          "seed": "parallax",
+          "targetBlind": false,
+          "mechanisms": 1,
+          "newFamilies": 1
+        },
+        {
+          "worldNodeId": "lib.world.w3",
+          "seed": "antiphony",
+          "targetBlind": false,
+          "mechanisms": 1,
+          "newFamilies": 1
+        }
+      ],
+      "newFamiliesPerWorld": 1
+    },
+    "combinations": {
+      "regimeFamilyPairs": [
+        {
+          "regimeId": "regime.renewal-held-truce",
+          "familyId": "mech.position-bound-tie-succession",
+          "count": 1
+        },
+        {
+          "regimeId": "regime.path-dependent-strain-relaxation",
+          "familyId": "mech.arrival-dose-metered-taper",
+          "count": 1
+        },
+        {
+          "regimeId": "regime.shifted-echo-exchange",
+          "familyId": "mech.obligatory-exchange-counterpart-pinning",
+          "count": 1
+        },
+        {
+          "regimeId": "regime.witnessed-enactment-persistence",
+          "familyId": "mech.compensated-post-held-acknowledgment",
+          "count": 1
+        },
+        {
+          "regimeId": "regime.settling-imprint",
+          "familyId": "mech.ended-tie-credential-bridge",
+          "count": 1
+        },
+        {
+          "regimeId": "regime.obligate-complementary-pairing",
+          "familyId": "mech.co-placed-tie-carry",
+          "count": 1
+        },
+        {
+          "regimeId": "regime.threshold-burst-release",
+          "familyId": "mech.readiness-gated-copresence-sync",
+          "count": 1
+        },
+        {
+          "regimeId": "regime.mediated-reflow-joining",
+          "familyId": "mech.load-probed-tie-repair",
+          "count": 1
+        },
+        {
+          "regimeId": "regime.baseline-consensus-resolution",
+          "familyId": "mech.place-anchored-stranger-corroboration",
+          "count": 1
+        },
+        {
+          "regimeId": "regime.grounded-impact-alteration",
+          "familyId": "mech.tie-cold-contact-shield",
+          "count": 1
+        }
+      ],
+      "familiesWithoutWorldSource": [],
+      "worldsWithoutAdmittedMechanism": []
+    },
+    "audits": {
+      "bottleneckRelief": {
+        "partial": 10
+      },
+      "fiat": {
+        "borderline": 4,
+        "pass": 6
+      },
+      "capabilityProvenance": {
+        "mixed": 10
+      },
+      "fiatFailures": []
+    },
+    "secondJudge": {
+      "checked": 0,
+      "byEvaluator": {},
+      "declaredIsolation": {},
+      "independenceVerified": false,
+      "decisions": 20,
+      "disagreements": []
+    },
+    "commissions": {
+      "avoidance": [],
+      "open": [],
+      "fulfilled": []
+    },
+    "forcing": [],
+    "verification": {
+      "results": [
+        {
+          "subjectNodeId": "trans.w8",
+          "status": "falsified",
+          "axes": {
+            "parsimony": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w8.parsimony"
+            },
+            "novelty": {
+              "status": "unknown",
+              "stated": "unknown",
+              "nodeId": "ver.w8.novelty"
+            },
+            "realizable": {
+              "status": "verified",
+              "stated": "verified",
+              "nodeId": "ver.w8.realizable"
+            },
+            "expansive": {
+              "status": "verified",
+              "stated": "verified",
+              "nodeId": "ver.w8.expansive"
+            }
+          },
+          "missing": []
+        },
+        {
+          "subjectNodeId": "trans.w1",
+          "status": "falsified",
+          "axes": {
+            "parsimony": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w1.parsimony"
+            },
+            "novelty": {
+              "status": "unknown",
+              "stated": "unknown",
+              "nodeId": "ver.w1.novelty"
+            },
+            "realizable": {
+              "status": "verified",
+              "stated": "verified",
+              "nodeId": "ver.w1.realizable"
+            },
+            "expansive": {
+              "status": "verified",
+              "stated": "verified",
+              "nodeId": "ver.w1.expansive"
+            }
+          },
+          "missing": []
+        },
+        {
+          "subjectNodeId": "trans.w9",
+          "status": "falsified",
+          "axes": {
+            "parsimony": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w9.parsimony"
+            },
+            "novelty": {
+              "status": "verified",
+              "stated": "verified",
+              "nodeId": "ver.w9.novelty"
+            },
+            "realizable": {
+              "status": "unknown",
+              "stated": "unknown",
+              "nodeId": "ver.w9.realizable"
+            },
+            "expansive": {
+              "status": "verified",
+              "stated": "verified",
+              "nodeId": "ver.w9.expansive"
+            }
+          },
+          "missing": []
+        },
+        {
+          "subjectNodeId": "trans.w4",
+          "status": "falsified",
+          "axes": {
+            "parsimony": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w4.parsimony"
+            },
+            "novelty": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w4.novelty"
+            },
+            "realizable": {
+              "status": "verified",
+              "stated": "verified",
+              "nodeId": "ver.w4.realizable"
+            },
+            "expansive": {
+              "status": "unknown",
+              "stated": "unknown",
+              "nodeId": "ver.w4.expansive"
+            }
+          },
+          "missing": []
+        },
+        {
+          "subjectNodeId": "trans.w7",
+          "status": "falsified",
+          "axes": {
+            "parsimony": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w7.parsimony"
+            },
+            "novelty": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w7.novelty"
+            },
+            "realizable": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w7.realizable"
+            },
+            "expansive": {
+              "status": "verified",
+              "stated": "verified",
+              "nodeId": "ver.w7.expansive"
+            }
+          },
+          "missing": []
+        },
+        {
+          "subjectNodeId": "trans.w10",
+          "status": "falsified",
+          "axes": {
+            "parsimony": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w10.parsimony"
+            },
+            "novelty": {
+              "status": "verified",
+              "stated": "verified",
+              "nodeId": "ver.w10.novelty"
+            },
+            "realizable": {
+              "status": "unknown",
+              "stated": "unknown",
+              "nodeId": "ver.w10.realizable"
+            },
+            "expansive": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w10.expansive"
+            }
+          },
+          "missing": []
+        },
+        {
+          "subjectNodeId": "trans.w6",
+          "status": "falsified",
+          "axes": {
+            "parsimony": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w6.parsimony"
+            },
+            "novelty": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w6.novelty"
+            },
+            "realizable": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w6.realizable"
+            },
+            "expansive": {
+              "status": "verified",
+              "stated": "verified",
+              "nodeId": "ver.w6.expansive"
+            }
+          },
+          "missing": []
+        },
+        {
+          "subjectNodeId": "trans.w5",
+          "status": "falsified",
+          "axes": {
+            "parsimony": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w5.parsimony"
+            },
+            "novelty": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w5.novelty"
+            },
+            "realizable": {
+              "status": "unknown",
+              "stated": "unknown",
+              "nodeId": "ver.w5.realizable"
+            },
+            "expansive": {
+              "status": "verified",
+              "stated": "verified",
+              "nodeId": "ver.w5.expansive"
+            }
+          },
+          "missing": []
+        },
+        {
+          "subjectNodeId": "trans.w2",
+          "status": "falsified",
+          "axes": {
+            "parsimony": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w2.parsimony"
+            },
+            "novelty": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w2.novelty"
+            },
+            "realizable": {
+              "status": "unknown",
+              "stated": "unknown",
+              "nodeId": "ver.w2.realizable"
+            },
+            "expansive": {
+              "status": "unknown",
+              "stated": "unknown",
+              "nodeId": "ver.w2.expansive"
+            }
+          },
+          "missing": []
+        },
+        {
+          "subjectNodeId": "trans.w3",
+          "status": "falsified",
+          "axes": {
+            "parsimony": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w3.parsimony"
+            },
+            "novelty": {
+              "status": "falsified",
+              "stated": "falsified",
+              "nodeId": "ver.w3.novelty"
+            },
+            "realizable": {
+              "status": "unknown",
+              "stated": "unknown",
+              "nodeId": "ver.w3.realizable"
+            },
+            "expansive": {
+              "status": "verified",
+              "stated": "verified",
+              "nodeId": "ver.w3.expansive"
+            }
+          },
+          "missing": []
+        }
+      ],
+      "verified": [],
+      "falsified": [
+        "trans.w8",
+        "trans.w1",
+        "trans.w9",
+        "trans.w4",
+        "trans.w7",
+        "trans.w10",
+        "trans.w6",
+        "trans.w5",
+        "trans.w2",
+        "trans.w3"
+      ],
+      "incomplete": [],
+      "unverifiedTransfers": [],
+      "unverifiedSelections": [],
+      "deepened": [],
+      "changed": []
+    },
+    "transfers": {
+      "byMechanism": {
+        "mech.w1": 1,
+        "mech.w9": 1,
+        "mech.w8": 1,
+        "mech.w4": 1,
+        "mech.w7": 1,
+        "mech.w10": 1,
+        "mech.w5": 1,
+        "mech.w6": 1,
+        "mech.w2": 1,
+        "mech.w3": 1
+      },
+      "unfilledRoles": 1,
+      "magicalProxies": 14
+    },
+    "worldModelling": {
+      "on": true,
+      "modelled": [
+        "lib.world.w7",
+        "lib.world.w5",
+        "lib.world.w6",
+        "lib.world.w10",
+        "lib.world.w8",
+        "lib.world.w1",
+        "lib.world.w2",
+        "lib.world.w4",
+        "lib.world.w9",
+        "lib.world.w3"
+      ],
+      "declined": [],
+      "textOnly": [],
+      "scenarios": 10,
+      "unframed": []
+    },
+    "warnings": [
+      "8 worlds had target terms or an oracle premise in their builder task.",
+      "2 prepared tasks have no recorded output; they stay visible as attempts.",
+      "Mechanism families no candidate realizes yet: mech.dedicated-occasion-contact-scaffold. Force one with a commission naming targetConceptIds, for an explorer.",
+      "World regimes no candidate realizes yet: kind.constitutive-bond-persistence, kind.crossing-licensed-alteration, kind.indelible-formation-record, kind.intrinsic-determinacy, kind.lapse-triggered-release, kind.path-erasable-formation-record, kind.plural-vantage-determinacy, kind.reply-licensed-alteration, kind.store-triggered-release, kind.support-coupled-alteration, kind.sustained-attention-persistence, kind.witnessed-portrayal-alteration, lens.alteration-licensing, lens.determinacy-sourcing, lens.formation-record, lens.junction-licensing, lens.opposition-resolution, lens.persistence-composition, lens.release-gating. Force one with a commission naming targetConceptIds, for a new world.",
+      "PURE falsified: trans.w8, trans.w1, trans.w9, trans.w4, trans.w7, trans.w10, trans.w6, trans.w5, trans.w2, trans.w3. Every axis must hold; one that fails is not offset by the others."
+    ]
+  }
+}

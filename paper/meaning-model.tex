@@ -2577,9 +2577,80 @@ world. Scenario planning, counterfactual history, and agent-based simulation
 explore the same
 ground~\cite{wack1985scenarios,tetlockBelkin1996counterfactual,epsteinAxtell1996growing}.
 
-These records organize ideation. A world is a textual thought experiment, not a
-simulation; a transfer records an idea and its mapping; and a verified candidate
-has passed four separate checks, all made in text. None of them is evidence that
+From version 0.16.0 a world is not only written. A target-blind modeller writes
+the world's laws as processes and laws of the Meaning Model, maps each law to the
+rule it expresses, and lists what the model leaves out; it may decline a world
+whose physics is not a quantity. The server runs the model in the engine and
+records it. The solver then sets the problem inside the world before solving it:
+the problem's actors become processes under the world's laws, one measure of the
+problem is fixed before any run, and up to three interventions are proposed as
+named parts. The server runs the scenario, each intervention, and each
+intervention without each of its parts, all from the same start. Each run is
+drawn five times, and the solver sees the mean and the range of the draws. A run
+depends only on its model, plan and seed, so every run can be replayed from the
+graph. The aim is that the AI can find connections no one wrote down. Running a
+world's laws shows consequences its builder asserted but never derived, and
+removing one part at a time shows which part of an idea does the work. The
+compiler and the transfer read the runs. A run is a hypothesis generator, like a
+branch of our own world, not evidence: it shows what follows from the laws as
+modelled.
+
+In one world, built from the seed word geyser, no quantity passes a constriction
+smoothly. It accumulates and discharges at a threshold; a wide channel leaks
+instead of erupting; and channels fed from one reservoir drain each other. The
+solver set urban loneliness in this world. Each resident's reaching out is a
+confined channel, and a reach-out is met only when another neighbour's arrives
+within one tick of it. With no intervention, no reach-out was met. Gathering at
+the great vent's surge, with a relay that passes part of each burst to neighbours
+already close to erupting, met 0.93 of reach-outs (0.90 to 0.96 over five draws).
+Without the relay this fell to 0.52, and without the gathering to 0.73
+(Table~\ref{tab:geyser-runs}). The obvious remedy, wider channels so that
+residents reach out more often and more cheaply, met almost none (0.01), because
+in this world a wide channel leaks instead of erupting. The solver turned that
+run into a rule, and the compiler kept the relay as the part that did the work.
+The compiler wrote that ``cheap pings let the social urge leak away without anyone
+meeting''.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}Yrr@{}}
+\toprule
+Run & Mean of five draws & Range \\
+\midrule
+The scenario, no intervention & 0 & 0 \\
+Meet at the Long Vent (gathering, relay, welcome) & 0.93 & 0.90--0.96 \\
+\quad without the gathering & 0.73 & 0.73--0.76 \\
+\quad without the relay & 0.52 & 0.51--0.54 \\
+\quad without the welcome & 0.82 & 0.73--0.92 \\
+Quicker reaches (wider channels for residents and newcomers) & 0.01 & 0--0.05 \\
+\quad without the wider channels for residents & 0 & 0 \\
+\quad without the wider channel for newcomers & 0 & 0 \\
+\bottomrule
+\end{tabularx}
+\caption{The geyser world's loneliness scenario as run by the engine. The measure
+is the share of reach-outs met by another neighbour's within one tick; higher is
+better.}
+\label{tab:geyser-runs}
+\end{table}
+
+In one search on that problem, ten invented worlds were modelled and run, giving
+115 runs, and each run replayed exactly from the graph. The resulting ideas were
+rated blind by a jury of Claude models, against the ideas from the same ten worlds
+in an earlier search where the worlds were only written. The modelled ideas were
+rated more likely to work in eight of the ten worlds: 4.3 against 3.1 on a
+seven-point scale, paired Wilcoxon $p = 0.016$. They were rated less original:
+3.9 against 4.7. They stayed more varied than ten direct answers from the same
+model (mean successive distance 0.64 against 0.38), but less varied than the
+written-only ideas (0.80). The two searches also differ in the tool version and in
+one added instruction to every role, to say plainly where something does not work.
+So the comparison shows a difference, not its cause; a search with world modelling
+switched off on the same version would separate them.
+
+These records organize ideation. A world is a thought experiment, written and,
+by default, run as a model of its own laws; a transfer records an idea
+and its mapping; and a verified candidate has passed four separate checks, made
+in text. None of them is evidence that
 the idea works. One possible way to begin testing a candidate is to place it in a
 model of our own world. The model could be the world history
 (Section~\ref{sec:world-history}) as it stands, the world history opened deeper

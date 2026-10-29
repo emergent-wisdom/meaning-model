@@ -1,0 +1,2801 @@
+{
+  "graphHash": "a5d73de3285441bf2aa3cf3c304971d60aa22e8d76ae09024267a81b70f54f49",
+  "scenarios": [
+    {
+      "world": 1,
+      "scenarioNodeId": "scenario.w1",
+      "measure": {
+        "kind": "mean",
+        "process": "dweller.bonds_held",
+        "after": 20,
+        "better": "higher",
+        "meaning": "Average number of person-truces the dweller holds in good standing (0 to 2). At 0 the dweller shares no Margin with anyone, which is loneliness; at 2 both bond slots are held."
+      },
+      "runs": [
+        {
+          "runId": "scenario",
+          "mean": 0.43997,
+          "draws": [
+            0.43481,
+            0.39508,
+            0.44797,
+            0.39508,
+            0.5269
+          ],
+          "replayed": [
+            0.43481,
+            0.39508,
+            0.44797,
+            0.39508,
+            0.5269
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:register",
+          "mean": 2,
+          "draws": [
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "replayed": [
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:register/register.bell",
+          "mean": 1.2374,
+          "draws": [
+            1.211,
+            1.211,
+            1.211,
+            1.211,
+            1.3428
+          ],
+          "replayed": [
+            1.211,
+            1.211,
+            1.211,
+            1.211,
+            1.3428
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:register/register.handover",
+          "mean": 1.7297,
+          "draws": [
+            1.7507,
+            1.7244,
+            1.7244,
+            1.7244,
+            1.7244
+          ],
+          "replayed": [
+            1.7507,
+            1.7244,
+            1.7244,
+            1.7244,
+            1.7244
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:register/register.enrollment",
+          "mean": 2,
+          "draws": [
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "replayed": [
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:margin-meeting",
+          "mean": 1.607,
+          "draws": [
+            1.7438,
+            1.502,
+            1.5991,
+            1.5774,
+            1.6127
+          ],
+          "replayed": [
+            1.7438,
+            1.502,
+            1.5991,
+            1.5774,
+            1.6127
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:margin-meeting/margin-meeting.grant",
+          "mean": 0.77208,
+          "draws": [
+            0.9354,
+            0.92198,
+            0.63242,
+            0.69846,
+            0.67215
+          ],
+          "replayed": [
+            0.9354,
+            0.92198,
+            0.63242,
+            0.69846,
+            0.67215
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:margin-meeting/margin-meeting.hall",
+          "mean": 1.1723,
+          "draws": [
+            1.2572,
+            1.2881,
+            1.0478,
+            1.2055,
+            1.0631
+          ],
+          "replayed": [
+            1.2572,
+            1.2881,
+            1.0478,
+            1.2055,
+            1.0631
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:margin-meeting/margin-meeting.envoy",
+          "mean": 1.3351,
+          "draws": [
+            1.2384,
+            1.3006,
+            1.5981,
+            1.1858,
+            1.3528
+          ],
+          "replayed": [
+            1.2384,
+            1.3006,
+            1.5981,
+            1.1858,
+            1.3528
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:renewal-circle",
+          "mean": 1.5439,
+          "draws": [
+            1.239,
+            1.6252,
+            1.5649,
+            1.5931,
+            1.6971
+          ],
+          "replayed": [
+            1.239,
+            1.6252,
+            1.5649,
+            1.5931,
+            1.6971
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:renewal-circle/renewal-circle.lending",
+          "mean": 1.2922,
+          "draws": [
+            1.3204,
+            1.3173,
+            1.319,
+            1.3186,
+            1.1855
+          ],
+          "replayed": [
+            1.3204,
+            1.3173,
+            1.319,
+            1.3186,
+            1.1855
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:renewal-circle/renewal-circle.introductions",
+          "mean": 0.69512,
+          "draws": [
+            0.59242,
+            0.84265,
+            0.59242,
+            0.59242,
+            0.85568
+          ],
+          "replayed": [
+            0.59242,
+            0.84265,
+            0.59242,
+            0.59242,
+            0.85568
+          ],
+          "exact": true
+        }
+      ],
+      "parts": [
+        {
+          "runId": "ablation:register/register.bell",
+          "drop": 0.7626,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:register/register.handover",
+          "drop": 0.2703,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:register/register.enrollment",
+          "drop": 0,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:margin-meeting/margin-meeting.grant",
+          "drop": 0.83492,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:margin-meeting/margin-meeting.hall",
+          "drop": 0.4347,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:margin-meeting/margin-meeting.envoy",
+          "drop": 0.2719,
+          "doesWork": true,
+          "clear": false
+        },
+        {
+          "runId": "ablation:renewal-circle/renewal-circle.lending",
+          "drop": 0.2517,
+          "doesWork": true,
+          "clear": false
+        },
+        {
+          "runId": "ablation:renewal-circle/renewal-circle.introductions",
+          "drop": 0.84878,
+          "doesWork": true,
+          "clear": true
+        }
+      ]
+    },
+    {
+      "world": 2,
+      "scenarioNodeId": "scenario.w2",
+      "measure": {
+        "kind": "mean",
+        "process": "city.loneliness",
+        "after": 30,
+        "better": "lower",
+        "meaning": "Average strain the two residents carry and have not exported, after the first month. In this world that is loneliness: strain that cannot leave a closed person. Lower means less loneliness. A snap also lowers it by dumping the excess into the crowd, so read the snap counts alongside it."
+      },
+      "runs": [
+        {
+          "runId": "scenario",
+          "mean": 190.14,
+          "draws": [
+            190.14,
+            190.14,
+            190.14,
+            190.14,
+            190.14
+          ],
+          "replayed": [
+            190.14,
+            190.14,
+            190.14,
+            190.14,
+            190.14
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:soak-house-season",
+          "mean": 74.703,
+          "draws": [
+            74.703,
+            74.703,
+            74.703,
+            74.703,
+            74.703
+          ],
+          "replayed": [
+            74.703,
+            74.703,
+            74.703,
+            74.703,
+            74.703
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:soak-house-season/season-soak",
+          "mean": 190.14,
+          "draws": [
+            190.14,
+            190.14,
+            190.14,
+            190.14,
+            190.14
+          ],
+          "replayed": [
+            190.14,
+            190.14,
+            190.14,
+            190.14,
+            190.14
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:soak-house-season/slow-parting",
+          "mean": 190.14,
+          "draws": [
+            190.14,
+            190.14,
+            190.14,
+            190.14,
+            190.14
+          ],
+          "replayed": [
+            190.14,
+            190.14,
+            190.14,
+            190.14,
+            190.14
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:soak-house-season/open-room",
+          "mean": 156.94,
+          "draws": [
+            156.94,
+            156.94,
+            156.94,
+            156.94,
+            156.94
+          ],
+          "replayed": [
+            156.94,
+            156.94,
+            156.94,
+            156.94,
+            156.94
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:settle-the-movers",
+          "mean": 36.714,
+          "draws": [
+            36.714,
+            36.714,
+            36.714,
+            36.714,
+            36.714
+          ],
+          "replayed": [
+            36.714,
+            36.714,
+            36.714,
+            36.714,
+            36.714
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:settle-the-movers/careful-moves",
+          "mean": 52.504,
+          "draws": [
+            52.504,
+            52.504,
+            52.504,
+            52.504,
+            52.504
+          ],
+          "replayed": [
+            52.504,
+            52.504,
+            52.504,
+            52.504,
+            52.504
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:settle-the-movers/welcome-ramp",
+          "mean": 163.63,
+          "draws": [
+            163.63,
+            163.63,
+            163.63,
+            163.63,
+            163.63
+          ],
+          "replayed": [
+            163.63,
+            163.63,
+            163.63,
+            163.63,
+            163.63
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:settle-the-movers/read-then-open",
+          "mean": 97.909,
+          "draws": [
+            97.909,
+            97.909,
+            97.909,
+            97.909,
+            97.909
+          ],
+          "replayed": [
+            97.909,
+            97.909,
+            97.909,
+            97.909,
+            97.909
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:pool-the-hours",
+          "mean": 56.462,
+          "draws": [
+            56.462,
+            56.462,
+            56.462,
+            56.462,
+            56.462
+          ],
+          "replayed": [
+            56.462,
+            56.462,
+            56.462,
+            56.462,
+            56.462
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:pool-the-hours/drop-rushed-evenings",
+          "mean": 74.122,
+          "draws": [
+            74.122,
+            74.122,
+            74.122,
+            74.122,
+            74.122
+          ],
+          "replayed": [
+            74.122,
+            74.122,
+            74.122,
+            74.122,
+            74.122
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:pool-the-hours/pooled-week",
+          "mean": 190.14,
+          "draws": [
+            190.14,
+            190.14,
+            190.14,
+            190.14,
+            190.14
+          ],
+          "replayed": [
+            190.14,
+            190.14,
+            190.14,
+            190.14,
+            190.14
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:pool-the-hours/open-room-pooled",
+          "mean": 135.55,
+          "draws": [
+            135.55,
+            135.55,
+            135.55,
+            135.55,
+            135.55
+          ],
+          "replayed": [
+            135.55,
+            135.55,
+            135.55,
+            135.55,
+            135.55
+          ],
+          "exact": true
+        }
+      ],
+      "parts": [
+        {
+          "runId": "ablation:soak-house-season/season-soak",
+          "drop": 115.437,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:soak-house-season/slow-parting",
+          "drop": 115.437,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:soak-house-season/open-room",
+          "drop": 82.237,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:settle-the-movers/careful-moves",
+          "drop": 15.79,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:settle-the-movers/welcome-ramp",
+          "drop": 126.916,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:settle-the-movers/read-then-open",
+          "drop": 61.195,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:pool-the-hours/drop-rushed-evenings",
+          "drop": 17.66,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:pool-the-hours/pooled-week",
+          "drop": 133.678,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:pool-the-hours/open-room-pooled",
+          "drop": 79.088,
+          "doesWork": true,
+          "clear": true
+        }
+      ]
+    },
+    {
+      "world": 3,
+      "scenarioNodeId": "scenario.w3.a2",
+      "measure": {
+        "kind": "mean",
+        "process": "R.reserve",
+        "after": 30,
+        "better": "higher",
+        "meaning": "Mean breath reserve of the resident after the first month. Higher means R is answered firmly enough not to thin; falling toward zero is loneliness as physical fading."
+      },
+      "runs": [
+        {
+          "runId": "scenario",
+          "mean": 1.9018,
+          "draws": [
+            1.9018,
+            1.9018,
+            1.9018,
+            1.9018,
+            1.9018
+          ],
+          "replayed": [
+            1.9018,
+            1.9018,
+            1.9018,
+            1.9018,
+            1.9018
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:choir-house-round",
+          "mean": 82.356,
+          "draws": [
+            82.356,
+            82.356,
+            82.356,
+            82.356,
+            82.356
+          ],
+          "replayed": [
+            82.356,
+            82.356,
+            82.356,
+            82.356,
+            82.356
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:choir-house-round/standing-pairs",
+          "mean": 40.922,
+          "draws": [
+            40.922,
+            40.922,
+            40.922,
+            40.922,
+            40.922
+          ],
+          "replayed": [
+            40.922,
+            40.922,
+            40.922,
+            40.922,
+            40.922
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:choir-house-round/greeting-pairs",
+          "mean": 62.251,
+          "draws": [
+            62.251,
+            62.251,
+            62.251,
+            62.251,
+            62.251
+          ],
+          "replayed": [
+            62.251,
+            62.251,
+            62.251,
+            62.251,
+            62.251
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:choir-house-round/house-welcome",
+          "mean": 55.796,
+          "draws": [
+            55.796,
+            55.796,
+            55.796,
+            55.796,
+            55.796
+          ],
+          "replayed": [
+            55.796,
+            55.796,
+            55.796,
+            55.796,
+            55.796
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:responsory-lines",
+          "mean": 24.375,
+          "draws": [
+            24.375,
+            24.375,
+            24.375,
+            24.375,
+            24.375
+          ],
+          "replayed": [
+            24.375,
+            24.375,
+            24.375,
+            24.375,
+            24.375
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:responsory-lines/relay-stations",
+          "mean": 20.929,
+          "draws": [
+            20.929,
+            20.929,
+            20.929,
+            20.929,
+            20.929
+          ],
+          "replayed": [
+            20.929,
+            20.929,
+            20.929,
+            20.929,
+            20.929
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:responsory-lines/turn-taking",
+          "mean": 24.158,
+          "draws": [
+            24.158,
+            24.158,
+            24.158,
+            24.158,
+            24.158
+          ],
+          "replayed": [
+            24.158,
+            24.158,
+            24.158,
+            24.158,
+            24.158
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:neighbour-first",
+          "mean": 50.493,
+          "draws": [
+            50.493,
+            50.493,
+            50.493,
+            50.493,
+            50.493
+          ],
+          "replayed": [
+            50.493,
+            50.493,
+            50.493,
+            50.493,
+            50.493
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:neighbour-first/nf-greeting-pairs",
+          "mean": 7.499,
+          "draws": [
+            7.499,
+            7.499,
+            7.499,
+            7.499,
+            7.499
+          ],
+          "replayed": [
+            7.499,
+            7.499,
+            7.499,
+            7.499,
+            7.499
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:neighbour-first/nf-local-share",
+          "mean": 62.694,
+          "draws": [
+            62.694,
+            62.694,
+            62.694,
+            62.694,
+            62.694
+          ],
+          "replayed": [
+            62.694,
+            62.694,
+            62.694,
+            62.694,
+            62.694
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:neighbour-first/nf-turn-taking",
+          "mean": 20.737,
+          "draws": [
+            20.737,
+            20.737,
+            20.737,
+            20.737,
+            20.737
+          ],
+          "replayed": [
+            20.737,
+            20.737,
+            20.737,
+            20.737,
+            20.737
+          ],
+          "exact": true
+        }
+      ],
+      "parts": [
+        {
+          "runId": "ablation:choir-house-round/standing-pairs",
+          "drop": 41.434,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:choir-house-round/greeting-pairs",
+          "drop": 20.105,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:choir-house-round/house-welcome",
+          "drop": 26.56,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:responsory-lines/relay-stations",
+          "drop": 3.446,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:responsory-lines/turn-taking",
+          "drop": 0.217,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:neighbour-first/nf-greeting-pairs",
+          "drop": 42.994,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:neighbour-first/nf-local-share",
+          "drop": -12.201,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:neighbour-first/nf-turn-taking",
+          "drop": 29.756,
+          "doesWork": true,
+          "clear": true
+        }
+      ]
+    },
+    {
+      "world": 4,
+      "scenarioNodeId": "scenario.w4",
+      "measure": {
+        "kind": "mean",
+        "process": "resident.form",
+        "after": 24,
+        "better": "higher",
+        "meaning": "Average fraction of the resident held in full form by recognition after the first day. Low values mean the resident is blurring through too few comprehending witnesses: loneliness in this world's sense. 0 is Blank."
+      },
+      "runs": [
+        {
+          "runId": "scenario",
+          "mean": 0.45665,
+          "draws": [
+            0.44511,
+            0.46871,
+            0.45169,
+            0.44941,
+            0.46831
+          ],
+          "replayed": [
+            0.44511,
+            0.46871,
+            0.45169,
+            0.44941,
+            0.46831
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:witness-square",
+          "mean": 0.94375,
+          "draws": [
+            0.95767,
+            0.91564,
+            0.94167,
+            0.95678,
+            0.947
+          ],
+          "replayed": [
+            0.95767,
+            0.91564,
+            0.94167,
+            0.95678,
+            0.947
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:witness-square/square-shifts",
+          "mean": 0.84911,
+          "draws": [
+            0.78775,
+            0.86569,
+            0.88228,
+            0.84669,
+            0.86313
+          ],
+          "replayed": [
+            0.78775,
+            0.86569,
+            0.88228,
+            0.84669,
+            0.86313
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:witness-square/square-regulars",
+          "mean": 0.86925,
+          "draws": [
+            0.86809,
+            0.8668,
+            0.86697,
+            0.87042,
+            0.87398
+          ],
+          "replayed": [
+            0.86809,
+            0.8668,
+            0.86697,
+            0.87042,
+            0.87398
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:witness-square/paid-watching",
+          "mean": 0.88599,
+          "draws": [
+            0.89126,
+            0.89132,
+            0.86732,
+            0.87732,
+            0.90275
+          ],
+          "replayed": [
+            0.89126,
+            0.89132,
+            0.86732,
+            0.87732,
+            0.90275
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:honest-greeting",
+          "mean": 0.92578,
+          "draws": [
+            0.92578,
+            0.92578,
+            0.92578,
+            0.92578,
+            0.92578
+          ],
+          "replayed": [
+            0.92578,
+            0.92578,
+            0.92578,
+            0.92578,
+            0.92578
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:honest-greeting/fidelity-schooling",
+          "mean": 0.88926,
+          "draws": [
+            0.90087,
+            0.91132,
+            0.88361,
+            0.87924,
+            0.87126
+          ],
+          "replayed": [
+            0.90087,
+            0.91132,
+            0.88361,
+            0.87924,
+            0.87126
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:honest-greeting/greeting-test",
+          "mean": 0.71364,
+          "draws": [
+            0.71364,
+            0.71364,
+            0.71364,
+            0.71364,
+            0.71364
+          ],
+          "replayed": [
+            0.71364,
+            0.71364,
+            0.71364,
+            0.71364,
+            0.71364
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:honest-greeting/attention-ask",
+          "mean": 0.76161,
+          "draws": [
+            0.76161,
+            0.76161,
+            0.76161,
+            0.76161,
+            0.76161
+          ],
+          "replayed": [
+            0.76161,
+            0.76161,
+            0.76161,
+            0.76161,
+            0.76161
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:handoff-move",
+          "mean": 0.63278,
+          "draws": [
+            0.62905,
+            0.63233,
+            0.63043,
+            0.63073,
+            0.64136
+          ],
+          "replayed": [
+            0.62905,
+            0.63233,
+            0.63043,
+            0.63073,
+            0.64136
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:handoff-move/handoff-walk",
+          "mean": 0.59856,
+          "draws": [
+            0.59831,
+            0.60485,
+            0.59142,
+            0.60556,
+            0.59267
+          ],
+          "replayed": [
+            0.59831,
+            0.60485,
+            0.59142,
+            0.60556,
+            0.59267
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:handoff-move/welcome-round",
+          "mean": 0.53009,
+          "draws": [
+            0.5328,
+            0.52738,
+            0.54615,
+            0.51658,
+            0.52754
+          ],
+          "replayed": [
+            0.5328,
+            0.52738,
+            0.54615,
+            0.51658,
+            0.52754
+          ],
+          "exact": true
+        }
+      ],
+      "parts": [
+        {
+          "runId": "ablation:witness-square/square-shifts",
+          "drop": 0.09464,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:witness-square/square-regulars",
+          "drop": 0.0745,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:witness-square/paid-watching",
+          "drop": 0.05776,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:honest-greeting/fidelity-schooling",
+          "drop": 0.03652,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:honest-greeting/greeting-test",
+          "drop": 0.21214,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:honest-greeting/attention-ask",
+          "drop": 0.16417,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:handoff-move/handoff-walk",
+          "drop": 0.03422,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:handoff-move/welcome-round",
+          "drop": 0.10269,
+          "doesWork": true,
+          "clear": true
+        }
+      ]
+    },
+    {
+      "world": 5,
+      "scenarioNodeId": "scenario.w5",
+      "measure": {
+        "kind": "mean",
+        "process": "resident.loneliness",
+        "after": 50,
+        "better": "lower",
+        "meaning": "Average shortfall between the belonging a resident needs and the depth of the ties they actually hold, after a 50-day warm-up and across three moves; 0 means no loneliness, 0.5 means no settled ties at all."
+      },
+      "runs": [
+        {
+          "runId": "scenario",
+          "mean": 0.37808,
+          "draws": [
+            0.35123,
+            0.38776,
+            0.39951,
+            0.37403,
+            0.37788
+          ],
+          "replayed": [
+            0.35123,
+            0.38776,
+            0.39951,
+            0.37403,
+            0.37788
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:reading-rooms",
+          "mean": 0.13006,
+          "draws": [
+            0.13447,
+            0.1292,
+            0.12283,
+            0.13234,
+            0.13148
+          ],
+          "replayed": [
+            0.13447,
+            0.1292,
+            0.12283,
+            0.13234,
+            0.13148
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:reading-rooms/lamps",
+          "mean": 0.21705,
+          "draws": [
+            0.18133,
+            0.2225,
+            0.22592,
+            0.23886,
+            0.21664
+          ],
+          "replayed": [
+            0.18133,
+            0.2225,
+            0.22592,
+            0.23886,
+            0.21664
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:reading-rooms/errands",
+          "mean": 0.29528,
+          "draws": [
+            0.29594,
+            0.29951,
+            0.28667,
+            0.30189,
+            0.29241
+          ],
+          "replayed": [
+            0.29594,
+            0.29951,
+            0.28667,
+            0.30189,
+            0.29241
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:district-mould",
+          "mean": 0.28945,
+          "draws": [
+            0.29216,
+            0.28182,
+            0.28841,
+            0.29459,
+            0.29025
+          ],
+          "replayed": [
+            0.29216,
+            0.28182,
+            0.28841,
+            0.29459,
+            0.29025
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:district-mould/tokens",
+          "mean": 0.32111,
+          "draws": [
+            0.33062,
+            0.32648,
+            0.30602,
+            0.32329,
+            0.31913
+          ],
+          "replayed": [
+            0.33062,
+            0.32648,
+            0.30602,
+            0.32329,
+            0.31913
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:district-mould/witnessed-pressings",
+          "mean": 0.2966,
+          "draws": [
+            0.30969,
+            0.29359,
+            0.29167,
+            0.29825,
+            0.28981
+          ],
+          "replayed": [
+            0.30969,
+            0.29359,
+            0.29167,
+            0.29825,
+            0.28981
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:travelling-ties",
+          "mean": 0.24374,
+          "draws": [
+            0.24187,
+            0.2438,
+            0.24907,
+            0.24127,
+            0.24271
+          ],
+          "replayed": [
+            0.24187,
+            0.2438,
+            0.24907,
+            0.24127,
+            0.24271
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:travelling-ties/co-set-sheets",
+          "mean": 0.34362,
+          "draws": [
+            0.34034,
+            0.36085,
+            0.32989,
+            0.3337,
+            0.35334
+          ],
+          "replayed": [
+            0.34034,
+            0.36085,
+            0.32989,
+            0.3337,
+            0.35334
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:travelling-ties/high-water",
+          "mean": 0.26049,
+          "draws": [
+            0.28474,
+            0.24965,
+            0.25691,
+            0.23694,
+            0.2742
+          ],
+          "replayed": [
+            0.28474,
+            0.24965,
+            0.25691,
+            0.23694,
+            0.2742
+          ],
+          "exact": true
+        }
+      ],
+      "parts": [
+        {
+          "runId": "ablation:reading-rooms/lamps",
+          "drop": 0.08699,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:reading-rooms/errands",
+          "drop": 0.16522,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:district-mould/tokens",
+          "drop": 0.03166,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:district-mould/witnessed-pressings",
+          "drop": 0.00715,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:travelling-ties/co-set-sheets",
+          "drop": 0.09988,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:travelling-ties/high-water",
+          "drop": 0.01675,
+          "doesWork": false,
+          "clear": false
+        }
+      ]
+    },
+    {
+      "world": 6,
+      "scenarioNodeId": "scenario.w6",
+      "measure": {
+        "kind": "mean",
+        "process": "city.lonely",
+        "after": 20,
+        "better": "lower",
+        "meaning": "Average share of the disc's residents who have neither a consort nor a pairing under way, after the first 20 years of settling."
+      },
+      "runs": [
+        {
+          "runId": "scenario",
+          "mean": 0.72333,
+          "draws": [
+            0.73614,
+            0.71488,
+            0.72366,
+            0.7177,
+            0.72427
+          ],
+          "replayed": [
+            0.73614,
+            0.71488,
+            0.72366,
+            0.7177,
+            0.72427
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:move-as-one",
+          "mean": 0.34725,
+          "draws": [
+            0.3382,
+            0.34452,
+            0.35365,
+            0.35093,
+            0.34896
+          ],
+          "replayed": [
+            0.3382,
+            0.34452,
+            0.35365,
+            0.35093,
+            0.34896
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:move-as-one/dry-consort-caravans",
+          "mean": 0.51902,
+          "draws": [
+            0.52156,
+            0.52685,
+            0.50983,
+            0.5226,
+            0.51426
+          ],
+          "replayed": [
+            0.52156,
+            0.52685,
+            0.50983,
+            0.5226,
+            0.51426
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:move-as-one/dry-courtship-carry",
+          "mean": 0.47112,
+          "draws": [
+            0.47226,
+            0.4727,
+            0.46575,
+            0.48107,
+            0.46384
+          ],
+          "replayed": [
+            0.47226,
+            0.4727,
+            0.46575,
+            0.48107,
+            0.46384
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:move-as-one/cohort-waking",
+          "mean": 0.44928,
+          "draws": [
+            0.45647,
+            0.44766,
+            0.44139,
+            0.43914,
+            0.46172
+          ],
+          "replayed": [
+            0.45647,
+            0.44766,
+            0.44139,
+            0.43914,
+            0.46172
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:work-is-contact",
+          "mean": 0.68661,
+          "draws": [
+            0.70361,
+            0.68266,
+            0.68643,
+            0.67708,
+            0.68328
+          ],
+          "replayed": [
+            0.70361,
+            0.68266,
+            0.68643,
+            0.67708,
+            0.68328
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:work-is-contact/paired-edge-shifts",
+          "mean": 0.69377,
+          "draws": [
+            0.68826,
+            0.69563,
+            0.69278,
+            0.6991,
+            0.69306
+          ],
+          "replayed": [
+            0.68826,
+            0.69563,
+            0.69278,
+            0.6991,
+            0.69306
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:work-is-contact/dew-hall-evenings",
+          "mean": 0.68836,
+          "draws": [
+            0.69819,
+            0.69163,
+            0.67955,
+            0.69602,
+            0.67641
+          ],
+          "replayed": [
+            0.69819,
+            0.69163,
+            0.67955,
+            0.69602,
+            0.67641
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:work-is-contact/dry-waiting",
+          "mean": 0.69265,
+          "draws": [
+            0.70122,
+            0.69098,
+            0.6917,
+            0.69456,
+            0.68479
+          ],
+          "replayed": [
+            0.70122,
+            0.69098,
+            0.6917,
+            0.69456,
+            0.68479
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:readable-strangers",
+          "mean": 0.43856,
+          "draws": [
+            0.42711,
+            0.44653,
+            0.4494,
+            0.4273,
+            0.44247
+          ],
+          "replayed": [
+            0.42711,
+            0.44653,
+            0.4494,
+            0.4273,
+            0.44247
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:readable-strangers/worn-indicator",
+          "mean": 0.57785,
+          "draws": [
+            0.58406,
+            0.57681,
+            0.57314,
+            0.56776,
+            0.58747
+          ],
+          "replayed": [
+            0.58406,
+            0.57681,
+            0.57314,
+            0.56776,
+            0.58747
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:readable-strangers/standing-sponsors",
+          "mean": 0.52785,
+          "draws": [
+            0.50307,
+            0.53289,
+            0.55809,
+            0.53498,
+            0.51024
+          ],
+          "replayed": [
+            0.50307,
+            0.53289,
+            0.55809,
+            0.53498,
+            0.51024
+          ],
+          "exact": true
+        }
+      ],
+      "parts": [
+        {
+          "runId": "ablation:move-as-one/dry-consort-caravans",
+          "drop": 0.17177,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:move-as-one/dry-courtship-carry",
+          "drop": 0.12387,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:move-as-one/cohort-waking",
+          "drop": 0.10203,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:work-is-contact/paired-edge-shifts",
+          "drop": 0.00716,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:work-is-contact/dew-hall-evenings",
+          "drop": 0.00175,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:work-is-contact/dry-waiting",
+          "drop": 0.00604,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:readable-strangers/worn-indicator",
+          "drop": 0.13929,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:readable-strangers/standing-sponsors",
+          "drop": 0.08929,
+          "doesWork": false,
+          "clear": false
+        }
+      ]
+    },
+    {
+      "world": 7,
+      "scenarioNodeId": "scenario.w7",
+      "measure": {
+        "kind": "cooccurrence",
+        "counters": [
+          "A.eruptions",
+          "B.eruptions",
+          "C.eruptions"
+        ],
+        "window": 1,
+        "after": 20,
+        "better": "higher",
+        "meaning": "Share of neighbours' reach-outs that are met by another neighbour's reach-out within one tick; near 0 means everyone reaches out into others' silence (loneliness), near 1 means reach-outs meet."
+      },
+      "runs": [
+        {
+          "runId": "scenario",
+          "mean": 0,
+          "draws": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "replayed": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:meet-at-long-vent",
+          "mean": 0.92737,
+          "draws": [
+            0.90909,
+            0.95556,
+            0.95833,
+            0.90909,
+            0.90476
+          ],
+          "replayed": [
+            0.90909,
+            0.95556,
+            0.95833,
+            0.90909,
+            0.90476
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:meet-at-long-vent/gather",
+          "mean": 0.73476,
+          "draws": [
+            0.72727,
+            0.72727,
+            0.72727,
+            0.72727,
+            0.76471
+          ],
+          "replayed": [
+            0.72727,
+            0.72727,
+            0.72727,
+            0.72727,
+            0.76471
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:meet-at-long-vent/relay",
+          "mean": 0.52193,
+          "draws": [
+            0.52778,
+            0.54054,
+            0.51351,
+            0.51351,
+            0.51429
+          ],
+          "replayed": [
+            0.52778,
+            0.54054,
+            0.51351,
+            0.51351,
+            0.51429
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:meet-at-long-vent/welcome",
+          "mean": 0.82368,
+          "draws": [
+            0.725,
+            0.86364,
+            0.80488,
+            0.80488,
+            0.92
+          ],
+          "replayed": [
+            0.725,
+            0.86364,
+            0.80488,
+            0.80488,
+            0.92
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:quicker-reaches",
+          "mean": 0.010256,
+          "draws": [
+            0,
+            0,
+            0,
+            0.051282,
+            0
+          ],
+          "replayed": [
+            0,
+            0,
+            0,
+            0.051282,
+            0
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:quicker-reaches/wider-neighbours",
+          "mean": 0,
+          "draws": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "replayed": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:quicker-reaches/wider-newcomer",
+          "mean": 0,
+          "draws": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "replayed": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "exact": true
+        }
+      ],
+      "parts": [
+        {
+          "runId": "ablation:meet-at-long-vent/gather",
+          "drop": 0.19261,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:meet-at-long-vent/relay",
+          "drop": 0.40544,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:meet-at-long-vent/welcome",
+          "drop": 0.10369,
+          "doesWork": true,
+          "clear": false
+        },
+        {
+          "runId": "ablation:quicker-reaches/wider-neighbours",
+          "drop": 0.01026,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:quicker-reaches/wider-newcomer",
+          "drop": 0.01026,
+          "doesWork": false,
+          "clear": false
+        }
+      ]
+    },
+    {
+      "world": 8,
+      "scenarioNodeId": "scenario.w8",
+      "measure": {
+        "kind": "mean",
+        "process": "signal.D",
+        "after": 30,
+        "better": "higher",
+        "meaning": "Share of time, once the settled household's own seam has frozen, that the newcomer D is part of one conduit with A and B, so that a signal sent from D reaches them. Time without it is time D shares nothing with anyone nearby, which is loneliness in this world."
+      },
+      "runs": [
+        {
+          "runId": "scenario",
+          "mean": 0.25982,
+          "draws": [
+            0.26046,
+            0.26042,
+            0.25758,
+            0.26043,
+            0.26019
+          ],
+          "replayed": [
+            0.26046,
+            0.26042,
+            0.25758,
+            0.26043,
+            0.26019
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:I1-welcome-bench",
+          "mean": 0.59057,
+          "draws": [
+            0.58333,
+            0.58821,
+            0.58356,
+            0.57565,
+            0.6221
+          ],
+          "replayed": [
+            0.58333,
+            0.58821,
+            0.58356,
+            0.57565,
+            0.6221
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:I1-welcome-bench/I1a-matched-flux-first-meeting",
+          "mean": 0.54278,
+          "draws": [
+            0.53085,
+            0.54881,
+            0.54638,
+            0.55567,
+            0.53217
+          ],
+          "replayed": [
+            0.53085,
+            0.54881,
+            0.54638,
+            0.55567,
+            0.53217
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:I1-welcome-bench/I1b-fluxers-meet-the-mover",
+          "mean": 0.32066,
+          "draws": [
+            0.30958,
+            0.32462,
+            0.32464,
+            0.32459,
+            0.31985
+          ],
+          "replayed": [
+            0.30958,
+            0.32462,
+            0.32464,
+            0.32459,
+            0.31985
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:I1-welcome-bench/I1c-warm-dwell-on-arrival",
+          "mean": 0.31669,
+          "draws": [
+            0.31289,
+            0.30221,
+            0.32458,
+            0.32016,
+            0.32363
+          ],
+          "replayed": [
+            0.31289,
+            0.30221,
+            0.32458,
+            0.32016,
+            0.32363
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:I2-tier-ordered-calendar",
+          "mean": 0.44003,
+          "draws": [
+            0.42349,
+            0.45394,
+            0.46132,
+            0.43422,
+            0.42718
+          ],
+          "replayed": [
+            0.42349,
+            0.45394,
+            0.46132,
+            0.43422,
+            0.42718
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:I2-tier-ordered-calendar/I2a-low-tier-redo-after-high-tier",
+          "mean": 0.32989,
+          "draws": [
+            0.32858,
+            0.33491,
+            0.33373,
+            0.33312,
+            0.31913
+          ],
+          "replayed": [
+            0.32858,
+            0.33491,
+            0.33373,
+            0.33312,
+            0.31913
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:I2-tier-ordered-calendar/I2b-fluxer-before-joiner",
+          "mean": 0.42789,
+          "draws": [
+            0.43059,
+            0.42673,
+            0.42568,
+            0.42343,
+            0.43302
+          ],
+          "replayed": [
+            0.43059,
+            0.42673,
+            0.42568,
+            0.42343,
+            0.43302
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:I3-standing-seam-circle",
+          "mean": 0.60115,
+          "draws": [
+            0.59411,
+            0.58911,
+            0.59583,
+            0.6533,
+            0.57338
+          ],
+          "replayed": [
+            0.59411,
+            0.58911,
+            0.59583,
+            0.6533,
+            0.57338
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:I3-standing-seam-circle/I3a-watch-and-flux",
+          "mean": 0.25885,
+          "draws": [
+            0.26046,
+            0.26038,
+            0.26042,
+            0.25845,
+            0.25455
+          ],
+          "replayed": [
+            0.26046,
+            0.26038,
+            0.26042,
+            0.25845,
+            0.25455
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:I3-standing-seam-circle/I3b-short-warm-dwell",
+          "mean": 0.38639,
+          "draws": [
+            0.39915,
+            0.37632,
+            0.39914,
+            0.3582,
+            0.39912
+          ],
+          "replayed": [
+            0.39915,
+            0.37632,
+            0.39914,
+            0.3582,
+            0.39912
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:I3-standing-seam-circle/I3c-come-back-until-it-holds",
+          "mean": 0.35298,
+          "draws": [
+            0.34704,
+            0.35479,
+            0.35359,
+            0.35494,
+            0.35452
+          ],
+          "replayed": [
+            0.34704,
+            0.35479,
+            0.35359,
+            0.35494,
+            0.35452
+          ],
+          "exact": true
+        }
+      ],
+      "parts": [
+        {
+          "runId": "ablation:I1-welcome-bench/I1a-matched-flux-first-meeting",
+          "drop": 0.04779,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:I1-welcome-bench/I1b-fluxers-meet-the-mover",
+          "drop": 0.26991,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:I1-welcome-bench/I1c-warm-dwell-on-arrival",
+          "drop": 0.27388,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:I2-tier-ordered-calendar/I2a-low-tier-redo-after-high-tier",
+          "drop": 0.11014,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:I2-tier-ordered-calendar/I2b-fluxer-before-joiner",
+          "drop": 0.01214,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:I3-standing-seam-circle/I3a-watch-and-flux",
+          "drop": 0.3423,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:I3-standing-seam-circle/I3b-short-warm-dwell",
+          "drop": 0.21476,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:I3-standing-seam-circle/I3c-come-back-until-it-holds",
+          "drop": 0.24817,
+          "doesWork": true,
+          "clear": true
+        }
+      ]
+    },
+    {
+      "world": 9,
+      "scenarioNodeId": "scenario.w9",
+      "measure": {
+        "kind": "final",
+        "process": "city.unkept_share",
+        "after": 24,
+        "better": "lower",
+        "meaning": "Share of residents at hour 400 who keep no settled span: those living alone in a dimmed, flat world plus those in a trial span that still flickers. Lower means fewer lonely residents."
+      },
+      "runs": [
+        {
+          "runId": "scenario",
+          "mean": 0.44091,
+          "draws": [
+            0.44091,
+            0.44091,
+            0.44091,
+            0.44091,
+            0.44091
+          ],
+          "replayed": [
+            0.44091,
+            0.44091,
+            0.44091,
+            0.44091,
+            0.44091
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:datum-corners",
+          "mean": 0.33469,
+          "draws": [
+            0.33469,
+            0.33469,
+            0.33469,
+            0.33469,
+            0.33469
+          ],
+          "replayed": [
+            0.33469,
+            0.33469,
+            0.33469,
+            0.33469,
+            0.33469
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:datum-corners/corner-posts",
+          "mean": 0.40821,
+          "draws": [
+            0.40821,
+            0.40821,
+            0.40821,
+            0.40821,
+            0.40821
+          ],
+          "replayed": [
+            0.40821,
+            0.40821,
+            0.40821,
+            0.40821,
+            0.40821
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:datum-corners/datum-calibration",
+          "mean": 0.37827,
+          "draws": [
+            0.37827,
+            0.37827,
+            0.37827,
+            0.37827,
+            0.37827
+          ],
+          "replayed": [
+            0.37827,
+            0.37827,
+            0.37827,
+            0.37827,
+            0.37827
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:datum-corners/recorded-separation",
+          "mean": 0.3958,
+          "draws": [
+            0.3958,
+            0.3958,
+            0.3958,
+            0.3958,
+            0.3958
+          ],
+          "replayed": [
+            0.3958,
+            0.3958,
+            0.3958,
+            0.3958,
+            0.3958
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:rail-twinning",
+          "mean": 0.40624,
+          "draws": [
+            0.40624,
+            0.40624,
+            0.40624,
+            0.40624,
+            0.40624
+          ],
+          "replayed": [
+            0.40624,
+            0.40624,
+            0.40624,
+            0.40624,
+            0.40624
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:rail-twinning/span-seats",
+          "mean": 0.42553,
+          "draws": [
+            0.42553,
+            0.42553,
+            0.42553,
+            0.42553,
+            0.42553
+          ],
+          "replayed": [
+            0.42553,
+            0.42553,
+            0.42553,
+            0.42553,
+            0.42553
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:rail-twinning/ride-together",
+          "mean": 0.41944,
+          "draws": [
+            0.41944,
+            0.41944,
+            0.41944,
+            0.41944,
+            0.41944
+          ],
+          "replayed": [
+            0.41944,
+            0.41944,
+            0.41944,
+            0.41944,
+            0.41944
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:rail-twinning/long-span-seating",
+          "mean": 0.42188,
+          "draws": [
+            0.42188,
+            0.42188,
+            0.42188,
+            0.42188,
+            0.42188
+          ],
+          "replayed": [
+            0.42188,
+            0.42188,
+            0.42188,
+            0.42188,
+            0.42188
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:portable-span",
+          "mean": 0.43172,
+          "draws": [
+            0.43172,
+            0.43172,
+            0.43172,
+            0.43172,
+            0.43172
+          ],
+          "replayed": [
+            0.43172,
+            0.43172,
+            0.43172,
+            0.43172,
+            0.43172
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:portable-span/relay-keeping",
+          "mean": 0.43748,
+          "draws": [
+            0.43748,
+            0.43748,
+            0.43748,
+            0.43748,
+            0.43748
+          ],
+          "replayed": [
+            0.43748,
+            0.43748,
+            0.43748,
+            0.43748,
+            0.43748
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:portable-span/handover-introduction",
+          "mean": 0.43358,
+          "draws": [
+            0.43358,
+            0.43358,
+            0.43358,
+            0.43358,
+            0.43358
+          ],
+          "replayed": [
+            0.43358,
+            0.43358,
+            0.43358,
+            0.43358,
+            0.43358
+          ],
+          "exact": true
+        }
+      ],
+      "parts": [
+        {
+          "runId": "ablation:datum-corners/corner-posts",
+          "drop": 0.07352,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:datum-corners/datum-calibration",
+          "drop": 0.04358,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:datum-corners/recorded-separation",
+          "drop": 0.06111,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:rail-twinning/span-seats",
+          "drop": 0.01929,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:rail-twinning/ride-together",
+          "drop": 0.0132,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:rail-twinning/long-span-seating",
+          "drop": 0.01564,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:portable-span/relay-keeping",
+          "drop": 0.00576,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:portable-span/handover-introduction",
+          "drop": 0.00186,
+          "doesWork": false,
+          "clear": false
+        }
+      ]
+    },
+    {
+      "world": 10,
+      "scenarioNodeId": "scenario.w10",
+      "measure": {
+        "kind": "mean",
+        "process": "tie.held_form",
+        "after": 20,
+        "better": "higher",
+        "meaning": "Average lasting bond-form the dweller holds with the people where they currently live; 0 means wholly alone, and higher means stronger and longer-held local friendship."
+      },
+      "runs": [
+        {
+          "runId": "scenario",
+          "mean": 2.1795,
+          "draws": [
+            2.5264,
+            2.6673,
+            1.3752,
+            2.0735,
+            2.2549
+          ],
+          "replayed": [
+            2.5264,
+            2.6673,
+            1.3752,
+            2.0735,
+            2.2549
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:welcome-triad",
+          "mean": 14.886,
+          "draws": [
+            14.727,
+            15.042,
+            14.984,
+            14.885,
+            14.793
+          ],
+          "replayed": [
+            14.727,
+            15.042,
+            14.984,
+            14.885,
+            14.793
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:welcome-triad/fire-tender",
+          "mean": 8.1082,
+          "draws": [
+            8.4337,
+            7.9531,
+            8.8508,
+            8.1187,
+            7.1849
+          ],
+          "replayed": [
+            8.4337,
+            7.9531,
+            8.8508,
+            8.1187,
+            7.1849
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:welcome-triad/striker-rota",
+          "mean": 11.896,
+          "draws": [
+            11.026,
+            11.035,
+            13.639,
+            11.575,
+            12.204
+          ],
+          "replayed": [
+            11.026,
+            11.035,
+            13.639,
+            11.575,
+            12.204
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:welcome-triad/holder-hangs",
+          "mean": 1.3186,
+          "draws": [
+            1.1227,
+            1.8777,
+            1.6674,
+            0.68571,
+            1.2395
+          ],
+          "replayed": [
+            1.1227,
+            1.8777,
+            1.6674,
+            0.68571,
+            1.2395
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:founding-stone-commons",
+          "mean": 5.1349,
+          "draws": [
+            6.0071,
+            5.3455,
+            5.7889,
+            4.2089,
+            4.324
+          ],
+          "replayed": [
+            6.0071,
+            5.3455,
+            5.7889,
+            4.2089,
+            4.324
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:founding-stone-commons/stone-coupling",
+          "mean": 1.5723,
+          "draws": [
+            1.7756,
+            2.3219,
+            1.0065,
+            1.5071,
+            1.2505
+          ],
+          "replayed": [
+            1.7756,
+            2.3219,
+            1.0065,
+            1.5071,
+            1.2505
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:founding-stone-commons/on-the-daily-path",
+          "mean": 11.447,
+          "draws": [
+            10.17,
+            11.477,
+            9.9916,
+            13.756,
+            11.84
+          ],
+          "replayed": [
+            10.17,
+            11.477,
+            9.9916,
+            13.756,
+            11.84
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:founding-stone-commons/stone-warmth",
+          "mean": 4.9038,
+          "draws": [
+            5.9871,
+            5.8314,
+            4.49,
+            4.5718,
+            3.6386
+          ],
+          "replayed": [
+            5.9871,
+            5.8314,
+            4.49,
+            4.5718,
+            3.6386
+          ],
+          "exact": true
+        },
+        {
+          "runId": "intervention:heard-change",
+          "mean": 9.9301,
+          "draws": [
+            9.3587,
+            7.1766,
+            11.369,
+            11.146,
+            10.6
+          ],
+          "replayed": [
+            9.3587,
+            7.1766,
+            11.369,
+            11.146,
+            10.6
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:heard-change/answer-the-ring",
+          "mean": 3.4331,
+          "draws": [
+            2.9237,
+            2.9308,
+            3.1995,
+            3.9309,
+            4.1806
+          ],
+          "replayed": [
+            2.9237,
+            2.9308,
+            3.1995,
+            3.9309,
+            4.1806
+          ],
+          "exact": true
+        },
+        {
+          "runId": "ablation:heard-change/heed-the-pitch",
+          "mean": 3.4295,
+          "draws": [
+            3.543,
+            3.1914,
+            3.2409,
+            3.7735,
+            3.3989
+          ],
+          "replayed": [
+            3.543,
+            3.1914,
+            3.2409,
+            3.7735,
+            3.3989
+          ],
+          "exact": true
+        }
+      ],
+      "parts": [
+        {
+          "runId": "ablation:welcome-triad/fire-tender",
+          "drop": 6.7778,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:welcome-triad/striker-rota",
+          "drop": 2.99,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:welcome-triad/holder-hangs",
+          "drop": 13.5674,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:founding-stone-commons/stone-coupling",
+          "drop": 3.5626,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:founding-stone-commons/on-the-daily-path",
+          "drop": -6.3121,
+          "doesWork": false,
+          "clear": false
+        },
+        {
+          "runId": "ablation:founding-stone-commons/stone-warmth",
+          "drop": 0.2311,
+          "doesWork": true,
+          "clear": false
+        },
+        {
+          "runId": "ablation:heard-change/answer-the-ring",
+          "drop": 6.497,
+          "doesWork": true,
+          "clear": true
+        },
+        {
+          "runId": "ablation:heard-change/heed-the-pitch",
+          "drop": 6.5006,
+          "doesWork": true,
+          "clear": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,422 @@
+{
+  "axes": {
+    "effectiveness": {
+      "worlds_mean": 4.32,
+      "baseline_mean": 3.0599999999999996,
+      "mannwhitney_u": 75.0,
+      "mannwhitney_p": 0.06282359844919698,
+      "rank_biserial": 0.5,
+      "within_judge_median_diff": 1.3499999999999996,
+      "within_judge_positive": 10,
+      "wilcoxon_p": 0.001953125,
+      "kendall_w": 0.8404578943198923,
+      "calls": 10,
+      "by_model": {
+        "claude-haiku-5-5": {
+          "worlds": 4.6,
+          "baseline": 3.1399999999999997
+        },
+        "claude-sonnet-5-5": {
+          "worlds": 4.04,
+          "baseline": 2.98
+        }
+      }
+    },
+    "novelty": {
+      "worlds_mean": 3.88,
+      "baseline_mean": 4.74,
+      "mannwhitney_u": 30.0,
+      "mannwhitney_p": 0.13956906564539742,
+      "rank_biserial": -0.4,
+      "within_judge_median_diff": -0.8999999999999997,
+      "within_judge_positive": 0,
+      "wilcoxon_p": 0.001953125,
+      "kendall_w": 0.848402441924998,
+      "calls": 10,
+      "by_model": {
+        "claude-haiku-5-5": {
+          "worlds": 3.7399999999999998,
+          "baseline": 4.819999999999999
+        },
+        "claude-sonnet-5-5": {
+          "worlds": 4.02,
+          "baseline": 4.66
+        }
+      }
+    },
+    "realizable": {
+      "worlds_mean": 3.5100000000000002,
+      "baseline_mean": 3.4299999999999997,
+      "mannwhitney_u": 54.0,
+      "mannwhitney_p": 0.7913367801006604,
+      "rank_biserial": 0.08000000000000007,
+      "within_judge_median_diff": 0.050000000000000044,
+      "within_judge_positive": 5,
+      "wilcoxon_p": 0.515625,
+      "kendall_w": 0.7664269734739534,
+      "calls": 10,
+      "by_model": {
+        "claude-haiku-5-5": {
+          "worlds": 3.7599999999999993,
+          "baseline": 3.6599999999999993
+        },
+        "claude-sonnet-5-5": {
+          "worlds": 3.2599999999999993,
+          "baseline": 3.2
+        }
+      }
+    },
+    "parsimony": {
+      "worlds_mean": 2.9400000000000004,
+      "baseline_mean": 2.7300000000000004,
+      "mannwhitney_u": 51.5,
+      "mannwhitney_p": 0.9395612918732799,
+      "rank_biserial": 0.030000000000000027,
+      "within_judge_median_diff": 0.19999999999999996,
+      "within_judge_positive": 6,
+      "wilcoxon_p": 0.0625,
+      "kendall_w": 0.7308612440191388,
+      "calls": 10,
+      "by_model": {
+        "claude-haiku-5-5": {
+          "worlds": 2.7,
+          "baseline": 2.3200000000000003
+        },
+        "claude-sonnet-5-5": {
+          "worlds": 3.1800000000000006,
+          "baseline": 3.1399999999999997
+        }
+      }
+    },
+    "expansive": {
+      "worlds_mean": 4.25,
+      "baseline_mean": 3.47,
+      "mannwhitney_u": 81.0,
+      "mannwhitney_p": 0.020699341761649875,
+      "rank_biserial": 0.6200000000000001,
+      "within_judge_median_diff": 0.8,
+      "within_judge_positive": 8,
+      "wilcoxon_p": 0.013671875,
+      "kendall_w": 0.4679961556943777,
+      "calls": 10,
+      "by_model": {
+        "claude-haiku-5-5": {
+          "worlds": 4.5,
+          "baseline": 3.1799999999999997
+        },
+        "claude-sonnet-5-5": {
+          "worlds": 3.999999999999999,
+          "baseline": 3.7600000000000002
+        }
+      }
+    }
+  },
+  "words": {
+    "worlds_mean": 97.0,
+    "baseline_mean": 109.8,
+    "mannwhitney_p": 0.36235365553359355
+  },
+  "n_calls": 60,
+  "pure_pass": {
+    "worlds": 0,
+    "baseline": 0,
+    "fisher_p": 1.0
+  },
+  "fund": {
+    "world_picks": 21,
+    "total_picks": 30,
+    "binomial_p": 0.042773945257067694,
+    "by_code": {
+      "P02": 1,
+      "P05": 4,
+      "P11": 4,
+      "P12": 6,
+      "P14": 2,
+      "P16": 2,
+      "P18": 4,
+      "P19": 7
+    }
+  },
+  "best_three": {
+    "worlds": [
+      {
+        "code": "P12",
+        "index": 2,
+        "effectiveness": 6.0,
+        "novelty": 2.6,
+        "realizable": 3.4,
+        "text": "What it is: A program for new movers.\n\nHow it works: Registering an address triggers an invitation to a cohort of six to ten arrivals within a ten-minute walk. Arrival leave covers eight days of three-hour hosted meals with staged mutual disclosure, then sessions on days 10, 13, 17, 22, 30, 40, 55; a gap widens only if a weekly one-tap check shows self-made meetups. No mixers run meanwhile; contact details unlock after shared attendance; a separate custodian holds attendance-only records."
+      },
+      {
+        "code": "P19",
+        "index": 1,
+        "effectiveness": 5.2,
+        "novelty": 2.0,
+        "realizable": 5.6,
+        "text": "What it is: A register books fixed recurring meetings for paired units, and a leaver vouches in the newcomer.\n\nHow it works: A housing authority or co-op pairs each opted-in unit with two others, favoring renter-owner mixes. Pairs meet 45 minutes every other week at a fixed time in a neutral ground-floor room, reminded 48 hours ahead; three-month terms end in renewal or blameless release, and notice to vacate triggers a handover. A pilot randomizes units, tracking attendance and loneliness."
+      },
+      {
+        "code": "P18",
+        "index": 6,
+        "effectiveness": 5.1,
+        "novelty": 4.2,
+        "realizable": 4.2,
+        "text": "What it is: A scheme housing mutually named tenants close together when either moves, so invested hours keep accruing instead of resetting.\n\nHow it works: Social, co-op and large-landlord networks keep a registry where two tenants name each other, at most two each, renewed six-monthly, silent opt-out. When one moves, a unit is offered in the other's stairwell or block, or adjacent if both move, fees waived. Vacancies are batched quarterly so arrivals share a floor and move-in week."
+      }
+    ],
+    "baseline": [
+      {
+        "code": "P16",
+        "index": 1,
+        "effectiveness": 5.4,
+        "novelty": 3.6,
+        "realizable": 3.3,
+        "text": "What it is: A lease requirement ties each apartment unit to three to five other units through small, reciprocal chores, and the arrangement passes to the next tenant at move-out, so a newcomer's first contact with neighbors is a task they owe.\n\nHow it works: Each lease lists the bonded units and a chore menu of catching parcels, holding a spare key, watering plants, and heatwave check-ins, while a ledger app routes requests so favors balance both ways. Optional personal ties last 13 weeks and renew in a quarterly building-wide window by double-blind mutual opt-in, so an ending reveals no rejection. At move-out a mediator privately polls bonded units and resets any flagged bond, and the leaver walks the newcomer to each bonded door."
+      },
+      {
+        "code": "P11",
+        "index": 2,
+        "effectiveness": 4.9,
+        "novelty": 3.2,
+        "realizable": 5.1,
+        "text": "What it is: Laundromats and building laundry rooms would offer a discounted long, low-heat cycle booked as a standing weekly berth for seven residents who live within walking distance, in 13-week terms starting on lease-quarter boundaries.\n\nHow it works: In weeks 1 to 4 the seats face the machines and silence is fine, and at week 4 each member privately opts in or moves berth. In weeks 5 to 9 members share a table of rooting cuttings, and in weeks 10 to 13 the seats face each other. In the last session, each member braids one strand into a cord."
+      },
+      {
+        "code": "P14",
+        "index": 3,
+        "effectiveness": 4.1,
+        "novelty": 4.4,
+        "realizable": 6.0,
+        "text": "What it is: A group of six to eight households on one stair shares a wooden baton that is passed from door to door in a fixed order.\n\nHow it works: The baton has a mechanical tally and comes with a route card listing door numbers only. The holder clicks the tally and hangs the baton on the next listed handle within 24 hours. Each full circuit, about one week, adds to the ring count. If the baton is 48 hours late, the downstream door knocks upstream, while a hold tag skips a household without a knock. When someone leaves, the doors beside them are rewritten as adjacent, newcomers receive the baton within days and are inserted, and each season one adjacent pair swaps."
+      }
+    ]
+  },
+  "items": {
+    "P01": {
+      "pile": "worlds",
+      "index": 4,
+      "effectiveness": 4.1,
+      "novelty": 3.7,
+      "realizable": 3.7,
+      "parsimony": 2.6,
+      "expansive": 3.8,
+      "pure_pass": false,
+      "fund_picks": 0
+    },
+    "P02": {
+      "pile": "baseline",
+      "index": 10,
+      "effectiveness": 4.0,
+      "novelty": 2.8,
+      "realizable": 3.8,
+      "parsimony": 3.5,
+      "expansive": 4.0,
+      "pure_pass": false,
+      "fund_picks": 1
+    },
+    "P03": {
+      "pile": "worlds",
+      "index": 9,
+      "effectiveness": 3.7,
+      "novelty": 5.4,
+      "realizable": 2.1,
+      "parsimony": 1.8,
+      "expansive": 4.1,
+      "pure_pass": false,
+      "fund_picks": 0
+    },
+    "P04": {
+      "pile": "worlds",
+      "index": 8,
+      "effectiveness": 3.8,
+      "novelty": 3.6,
+      "realizable": 3.5,
+      "parsimony": 2.2,
+      "expansive": 4.2,
+      "pure_pass": false,
+      "fund_picks": 0
+    },
+    "P05": {
+      "pile": "worlds",
+      "index": 3,
+      "effectiveness": 4.0,
+      "novelty": 3.6,
+      "realizable": 4.1,
+      "parsimony": 3.5,
+      "expansive": 4.1,
+      "pure_pass": false,
+      "fund_picks": 4
+    },
+    "P06": {
+      "pile": "baseline",
+      "index": 6,
+      "effectiveness": 2.1,
+      "novelty": 6.0,
+      "realizable": 1.5,
+      "parsimony": 1.4,
+      "expansive": 3.8,
+      "pure_pass": false,
+      "fund_picks": 0
+    },
+    "P07": {
+      "pile": "baseline",
+      "index": 7,
+      "effectiveness": 2.4,
+      "novelty": 5.0,
+      "realizable": 2.8,
+      "parsimony": 2.1,
+      "expansive": 2.8,
+      "pure_pass": false,
+      "fund_picks": 0
+    },
+    "P08": {
+      "pile": "worlds",
+      "index": 5,
+      "effectiveness": 4.1,
+      "novelty": 5.5,
+      "realizable": 2.0,
+      "parsimony": 1.8,
+      "expansive": 4.9,
+      "pure_pass": false,
+      "fund_picks": 0
+    },
+    "P09": {
+      "pile": "worlds",
+      "index": 7,
+      "effectiveness": 3.1,
+      "novelty": 5.2,
+      "realizable": 2.6,
+      "parsimony": 1.9,
+      "expansive": 3.8,
+      "pure_pass": false,
+      "fund_picks": 0
+    },
+    "P10": {
+      "pile": "baseline",
+      "index": 8,
+      "effectiveness": 2.2,
+      "novelty": 5.2,
+      "realizable": 2.7,
+      "parsimony": 2.2,
+      "expansive": 2.0,
+      "pure_pass": false,
+      "fund_picks": 0
+    },
+    "P11": {
+      "pile": "baseline",
+      "index": 2,
+      "effectiveness": 4.9,
+      "novelty": 3.2,
+      "realizable": 5.1,
+      "parsimony": 2.9,
+      "expansive": 3.3,
+      "pure_pass": false,
+      "fund_picks": 4
+    },
+    "P12": {
+      "pile": "worlds",
+      "index": 2,
+      "effectiveness": 6.0,
+      "novelty": 2.6,
+      "realizable": 3.4,
+      "parsimony": 2.6,
+      "expansive": 5.4,
+      "pure_pass": false,
+      "fund_picks": 6
+    },
+    "P13": {
+      "pile": "baseline",
+      "index": 4,
+      "effectiveness": 2.1,
+      "novelty": 5.6,
+      "realizable": 4.3,
+      "parsimony": 3.9,
+      "expansive": 3.5,
+      "pure_pass": false,
+      "fund_picks": 0
+    },
+    "P14": {
+      "pile": "baseline",
+      "index": 3,
+      "effectiveness": 4.1,
+      "novelty": 4.4,
+      "realizable": 6.0,
+      "parsimony": 4.4,
+      "expansive": 3.4,
+      "pure_pass": false,
+      "fund_picks": 2
+    },
+    "P15": {
+      "pile": "baseline",
+      "index": 9,
+      "effectiveness": 1.1,
+      "novelty": 5.5,
+      "realizable": 1.9,
+      "parsimony": 1.9,
+      "expansive": 2.9,
+      "pure_pass": false,
+      "fund_picks": 0
+    },
+    "P16": {
+      "pile": "baseline",
+      "index": 1,
+      "effectiveness": 5.4,
+      "novelty": 3.6,
+      "realizable": 3.3,
+      "parsimony": 2.6,
+      "expansive": 3.5,
+      "pure_pass": false,
+      "fund_picks": 2
+    },
+    "P17": {
+      "pile": "baseline",
+      "index": 5,
+      "effectiveness": 2.3,
+      "novelty": 6.1,
+      "realizable": 2.9,
+      "parsimony": 2.4,
+      "expansive": 5.5,
+      "pure_pass": false,
+      "fund_picks": 0
+    },
+    "P18": {
+      "pile": "worlds",
+      "index": 6,
+      "effectiveness": 5.1,
+      "novelty": 4.2,
+      "realizable": 4.2,
+      "parsimony": 4.8,
+      "expansive": 3.0,
+      "pure_pass": false,
+      "fund_picks": 4
+    },
+    "P19": {
+      "pile": "worlds",
+      "index": 1,
+      "effectiveness": 5.2,
+      "novelty": 2.0,
+      "realizable": 5.6,
+      "parsimony": 5.4,
+      "expansive": 5.1,
+      "pure_pass": false,
+      "fund_picks": 7
+    },
+    "P20": {
+      "pile": "worlds",
+      "index": 10,
+      "effectiveness": 4.1,
+      "novelty": 3.0,
+      "realizable": 3.9,
+      "parsimony": 2.8,
+      "expansive": 4.1,
+      "pure_pass": false,
+      "fund_picks": 0
+    }
+  },
+  "reading": {
+    "H1_method_better": false,
+    "H2_strangeness_rewarded": false,
+    "H3_plain_more_practical": false,
+    "inconclusive_on_quality": false
+  }
+}
