@@ -2,6 +2,9 @@ use life_sim_engine::{compile_model, MachineSession, ModelDefinition};
 use serde_json::{json, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+/// A named change that makes a valid model invalid.
+type Variant = (&'static str, fn(&mut Value));
+
 fn event(id: &str, start: f64, end: f64) -> Value {
     json!({
         "id": id, "boundary": id, "interval": {"start": start, "end": end},
@@ -107,7 +110,7 @@ fn normalized_cuts_accept_static_events_and_stop_at_nearest_roots() {
 
 #[test]
 fn normalized_cuts_reject_invalid_accounting_and_component_addresses() {
-    let variants: &[(&str, fn(&mut Value))] = &[
+    let variants: &[Variant] = &[
         ("unknown parent event", |m| {
             m["meaning_model"]["normalized_cuts"][0]["parent_event_id"] = json!("missing")
         }),
@@ -165,7 +168,7 @@ fn normalized_cuts_reject_invalid_accounting_and_component_addresses() {
 
 #[test]
 fn context_roots_reject_unrooted_ambiguous_cyclic_and_escaping_ancestry() {
-    let variants: &[(&str, fn(&mut Value))] = &[
+    let variants: &[Variant] = &[
         ("unknown event", |m| {
             m["meaning_model"]["context_roots"][0]["event_id"] = json!("missing")
         }),
@@ -206,10 +209,20 @@ fn context_roots_reject_unrooted_ambiguous_cyclic_and_escaping_ancestry() {
 #[test]
 fn normalized_cuts_hash_canonically_without_changing_legacy_models() {
     let original = compile(model()).unwrap();
-    assert_eq!(original.model_hash, "09caeb94b272b41321c9a49ee824ec09a134d3c4f64bc082c3135e3a9590681f");
+    assert_eq!(
+        original.model_hash,
+        "09caeb94b272b41321c9a49ee824ec09a134d3c4f64bc082c3135e3a9590681f"
+    );
     let encoded = serde_json::to_value(original.definition()).unwrap();
-    assert!(encoded["meaning_model"]["normalized_cuts"].as_array().unwrap()
-        .iter().all(|cut| cut["answers"].as_array().unwrap().iter().all(|answer| answer.get("meaning").is_none())));
+    assert!(encoded["meaning_model"]["normalized_cuts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|cut| cut["answers"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|answer| answer.get("meaning").is_none())));
     let mut reordered = model();
     for key in [
         "events",
@@ -245,7 +258,9 @@ fn normalized_cuts_hash_canonically_without_changing_legacy_models() {
     let encoded = serde_json::to_value(compiled.definition()).unwrap();
     assert!(encoded["meaning_model"].get("normalized_cuts").is_none());
     assert!(encoded["meaning_model"].get("context_roots").is_none());
-    assert!(encoded["meaning_model"].get("temporal_cut_recompositions").is_none());
+    assert!(encoded["meaning_model"]
+        .get("temporal_cut_recompositions")
+        .is_none());
     assert!(encoded["meaning_model"]["events"][0]
         .get("description")
         .is_none());
@@ -260,12 +275,33 @@ fn normalized_cut_definitions_are_optional_exact_and_part_of_the_revision_hash()
     candidate["meaning_model"]["normalized_cuts"][0]["answers"][2]["meaning"] = json!(remainder);
     let compiled = compile(candidate.clone()).unwrap();
     let encoded = serde_json::to_value(compiled.definition()).unwrap();
-    let outlook = encoded["meaning_model"]["normalized_cuts"].as_array().unwrap()
-        .iter().find(|cut| cut["id"] == "outlook").unwrap();
+    let outlook = encoded["meaning_model"]["normalized_cuts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|cut| cut["id"] == "outlook")
+        .unwrap();
     let answers = outlook["answers"].as_array().unwrap();
-    assert_eq!(answers.iter().find(|answer| answer["key"] == "matches").unwrap()["meaning"], definition);
-    assert_eq!(answers.iter().find(|answer| answer["key"] == "remainder").unwrap()["meaning"], remainder);
-    assert!(answers.iter().find(|answer| answer["key"] == "zero").unwrap().get("meaning").is_none());
+    assert_eq!(
+        answers
+            .iter()
+            .find(|answer| answer["key"] == "matches")
+            .unwrap()["meaning"],
+        definition
+    );
+    assert_eq!(
+        answers
+            .iter()
+            .find(|answer| answer["key"] == "remainder")
+            .unwrap()["meaning"],
+        remainder
+    );
+    assert!(answers
+        .iter()
+        .find(|answer| answer["key"] == "zero")
+        .unwrap()
+        .get("meaning")
+        .is_none());
     assert_eq!(compile(encoded).unwrap().model_hash, compiled.model_hash);
     candidate["meaning_model"]["normalized_cuts"][0]["answers"][0]["meaning"] =
         json!("The same key now means numerical equality, excluding correspondence of roles.");
@@ -273,7 +309,10 @@ fn normalized_cut_definitions_are_optional_exact_and_part_of_the_revision_hash()
 
     let mut legacy = model();
     legacy["meaning_model"]["normalized_cuts"][0]["answers"][0]["meaning"] = Value::Null;
-    assert_eq!(compile(legacy).unwrap().model_hash, compile(model()).unwrap().model_hash);
+    assert_eq!(
+        compile(legacy).unwrap().model_hash,
+        compile(model()).unwrap().model_hash
+    );
 }
 
 #[test]
@@ -281,10 +320,14 @@ fn normalized_cut_definitions_are_nonblank_and_bounded_without_changing_accounti
     for text in [" ".to_owned(), "x".repeat(64 * 1024 + 1)] {
         let mut candidate = model();
         candidate["meaning_model"]["normalized_cuts"][0]["answers"][2]["meaning"] = json!(text);
-        assert!(compile(candidate).unwrap_err().to_string().contains("meaning must be nonempty and at most"));
+        assert!(compile(candidate)
+            .unwrap_err()
+            .to_string()
+            .contains("meaning must be nonempty and at most"));
     }
     let mut candidate = model();
-    candidate["meaning_model"]["normalized_cuts"][0]["answers"][0]["meaning"] = json!("深".repeat(16_000));
+    candidate["meaning_model"]["normalized_cuts"][0]["answers"][0]["meaning"] =
+        json!("深".repeat(16_000));
     compile(candidate).unwrap();
 }
 
@@ -361,7 +404,11 @@ fn normalized_cuts_and_roots_survive_native_revision_and_durable_restart() {
         json!("Correspondence of observed roles, not numerical equality.");
     base["meaning_model"]["normalized_cuts"][0]["answers"][2]["meaning"] =
         json!("Neither correspondence nor mismatch is resolved.");
-    let registered = execute(&mut session, "register_model", json!({"model": base.clone()}));
+    let registered = execute(
+        &mut session,
+        "register_model",
+        json!({"model": base.clone()}),
+    );
     let first_hash = registered["summary"]["model_hash"]
         .as_str()
         .unwrap()
@@ -405,7 +452,11 @@ fn temporal_model() -> Value {
         "answers":[{"key":"hopeful","weight":0.58},{"key":"cautious","weight":0.32},
                    {"key":"remainder","weight":0.10}], "provenance":["synthetic refinement trial"]
     })];
-    for (period, hopeful, cautious) in [("preparation", 0.8, 0.1), ("execution", 0.6, 0.3), ("comparison", 0.4, 0.5)] {
+    for (period, hopeful, cautious) in [
+        ("preparation", 0.8, 0.1),
+        ("execution", 0.6, 0.3),
+        ("comparison", 0.4, 0.5),
+    ] {
         cuts.push(json!({
             "id":format!("outlook.{period}"), "parent_event_id":period, "question":question, "unit":"outlook",
             "answers":[{"key":"hopeful","weight":hopeful},{"key":"cautious","weight":cautious},
@@ -440,14 +491,27 @@ fn temporal_model() -> Value {
 #[test]
 fn temporal_recomposition_checks_the_declared_projection_and_committed_mixture() {
     let compiled = compile(temporal_model()).unwrap();
-    assert_eq!(compiled.summary().meaning_model.unwrap().temporal_cut_recomposition_count, 1);
+    assert_eq!(
+        compiled
+            .summary()
+            .meaning_model
+            .unwrap()
+            .temporal_cut_recomposition_count,
+        1
+    );
     let mut inconsistent = temporal_model();
     // Every Cut still sums to one. Only the cross-Cut equation fails.
     inconsistent["meaning_model"]["normalized_cuts"][1]["answers"][0]["weight"] = json!(0.7);
     inconsistent["meaning_model"]["normalized_cuts"][1]["answers"][1]["weight"] = json!(0.2);
     let failure = compile(inconsistent.clone()).unwrap_err().to_string();
-    assert!(failure.contains("does not match committed parent answer"), "{failure}");
-    inconsistent["meaning_model"].as_object_mut().unwrap().remove("temporal_cut_recompositions");
+    assert!(
+        failure.contains("does not match committed parent answer"),
+        "{failure}"
+    );
+    inconsistent["meaning_model"]
+        .as_object_mut()
+        .unwrap()
+        .remove("temporal_cut_recompositions");
     // Descriptive containment alone does not assert a numeric mixture.
     inconsistent["meaning_model"]["events"][2]["interval"]["start"] = json!(1.0);
     compile(inconsistent).unwrap();
@@ -455,49 +519,115 @@ fn temporal_recomposition_checks_the_declared_projection_and_committed_mixture()
 
 #[test]
 fn temporal_recomposition_rejects_invalid_partitions_semantics_and_projections() {
-    let variants: &[(&str, fn(&mut Value))] = &[
-        ("unknown parent cut", |m| m["meaning_model"]["temporal_cut_recompositions"][0]["parent_cut_id"] = json!("missing")),
-        ("unknown child cut", |m| m["meaning_model"]["temporal_cut_recompositions"][0]["children"][0]["cut_id"] = json!("missing")),
+    let variants: &[Variant] = &[
+        ("unknown parent cut", |m| {
+            m["meaning_model"]["temporal_cut_recompositions"][0]["parent_cut_id"] = json!("missing")
+        }),
+        ("unknown child cut", |m| {
+            m["meaning_model"]["temporal_cut_recompositions"][0]["children"][0]["cut_id"] =
+                json!("missing")
+        }),
         ("duplicate temporal Cut recomposition", |m| {
             let contract = m["meaning_model"]["temporal_cut_recompositions"][0].clone();
-            m["meaning_model"]["temporal_cut_recompositions"].as_array_mut().unwrap().push(contract);
+            m["meaning_model"]["temporal_cut_recompositions"]
+                .as_array_mut()
+                .unwrap()
+                .push(contract);
         }),
         ("duplicate child cut", |m| {
             let child = m["meaning_model"]["temporal_cut_recompositions"][0]["children"][0].clone();
-            m["meaning_model"]["temporal_cut_recompositions"][0]["children"].as_array_mut().unwrap().push(child);
+            m["meaning_model"]["temporal_cut_recompositions"][0]["children"]
+                .as_array_mut()
+                .unwrap()
+                .push(child);
         }),
-        ("requires nonempty provenance", |m| m["meaning_model"]["temporal_cut_recompositions"][0]["provenance"] = json!([])),
-        ("requires 1..=2048 children", |m| m["meaning_model"]["temporal_cut_recompositions"][0]["children"] = json!([])),
-        ("overlaps another child interval", |m| m["meaning_model"]["events"][2]["interval"]["start"] = json!(1.0)),
-        ("exact interval partition", |m| m["meaning_model"]["events"][2]["interval"]["start"] = json!(3.0)),
-        ("trailing gap", |m| m["meaning_model"]["events"][3]["interval"]["end"] = json!(9.0)),
+        ("requires nonempty provenance", |m| {
+            m["meaning_model"]["temporal_cut_recompositions"][0]["provenance"] = json!([])
+        }),
+        ("requires 1..=2048 children", |m| {
+            m["meaning_model"]["temporal_cut_recompositions"][0]["children"] = json!([])
+        }),
+        ("overlaps another child interval", |m| {
+            m["meaning_model"]["events"][2]["interval"]["start"] = json!(1.0)
+        }),
+        ("exact interval partition", |m| {
+            m["meaning_model"]["events"][2]["interval"]["start"] = json!(3.0)
+        }),
+        ("trailing gap", |m| {
+            m["meaning_model"]["events"][3]["interval"]["end"] = json!(9.0)
+        }),
         ("interval exceeds parent", |m| {
             m["meaning_model"]["events"][3]["interval"]["end"] = json!(11.0);
             m["meaning_model"]["context_roots"] = json!([]);
         }),
-        ("requires positive duration", |m| m["meaning_model"]["events"][1]["interval"]["end"] = json!(0.0)),
-        ("bounded parent Event interval", |m| m["meaning_model"]["events"][0]["interval"] = Value::Null),
-        ("bounded child Event interval", |m| m["meaning_model"]["events"][1]["interval"] = Value::Null),
-        ("same question and unit", |m| m["meaning_model"]["normalized_cuts"][1]["question"] = json!("A different question")),
-        ("same question and unit", |m| m["meaning_model"]["normalized_cuts"][1]["unit"] = json!("different unit")),
-        ("same conditioning", |m| m["meaning_model"]["normalized_cuts"][1]["conditioning"] = json!({"cut_id":"outlook","answer_key":"hopeful"})),
-        ("crosses context roots", |m| m["meaning_model"]["context_roots"].as_array_mut().unwrap().push(json!({"event_id":"preparation","kind":"candidate","provenance":["fixture"]}))),
-        ("identical answer support", |m| m["meaning_model"]["temporal_cut_recompositions"][0]["children"][0]["projection"] = json!({"kind":"identity"})),
-        ("map every child answer exactly once", |m| {
-            m["meaning_model"]["temporal_cut_recompositions"][0]["children"][0]["projection"]["answers"].as_object_mut().unwrap().remove("fatigue");
+        ("requires positive duration", |m| {
+            m["meaning_model"]["events"][1]["interval"]["end"] = json!(0.0)
+        }),
+        ("bounded parent Event interval", |m| {
+            m["meaning_model"]["events"][0]["interval"] = Value::Null
+        }),
+        ("bounded child Event interval", |m| {
+            m["meaning_model"]["events"][1]["interval"] = Value::Null
+        }),
+        ("same question and unit", |m| {
+            m["meaning_model"]["normalized_cuts"][1]["question"] = json!("A different question")
+        }),
+        ("same question and unit", |m| {
+            m["meaning_model"]["normalized_cuts"][1]["unit"] = json!("different unit")
+        }),
+        ("same conditioning", |m| {
+            m["meaning_model"]["normalized_cuts"][1]["conditioning"] =
+                json!({"cut_id":"outlook","answer_key":"hopeful"})
+        }),
+        ("crosses context roots", |m| {
+            m["meaning_model"]["context_roots"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"event_id":"preparation","kind":"candidate","provenance":["fixture"]}))
+        }),
+        ("identical answer support", |m| {
+            m["meaning_model"]["temporal_cut_recompositions"][0]["children"][0]["projection"] =
+                json!({"kind":"identity"})
         }),
         ("map every child answer exactly once", |m| {
-            m["meaning_model"]["normalized_cuts"][1]["answers"].as_array_mut().unwrap().push(json!({"key":"unopened","weight":0.0}));
+            m["meaning_model"]["temporal_cut_recompositions"][0]["children"][0]["projection"]
+                ["answers"]
+                .as_object_mut()
+                .unwrap()
+                .remove("fatigue");
         }),
-        ("unknown parent answer", |m| m["meaning_model"]["temporal_cut_recompositions"][0]["children"][0]["projection"]["answers"]["fatigue"] = json!("missing")),
-        ("project remainder to parent remainder", |m| m["meaning_model"]["temporal_cut_recompositions"][0]["children"][0]["projection"]["answers"]["remainder"] = json!("cautious")),
-        ("acyclic", |m| m["meaning_model"]["temporal_cut_recompositions"][0]["children"][0]["cut_id"] = json!("outlook")),
-        ("acyclic", |m| m["meaning_model"]["temporal_cut_recompositions"].as_array_mut().unwrap().push(json!({
-            "parent_cut_id":"outlook.preparation", "coverage":"complete",
-            "children":[{"cut_id":"outlook", "projection":{"kind":"identity"}}],
-            "provenance":["cyclic projection fixture"]
-        }))),
-        ("acyclic", |m| m["meaning_model"]["normalized_cuts"][0]["conditioning"] = json!({"cut_id":"outlook.preparation","answer_key":"hopeful"})),
+        ("map every child answer exactly once", |m| {
+            m["meaning_model"]["normalized_cuts"][1]["answers"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"key":"unopened","weight":0.0}));
+        }),
+        ("unknown parent answer", |m| {
+            m["meaning_model"]["temporal_cut_recompositions"][0]["children"][0]["projection"]
+                ["answers"]["fatigue"] = json!("missing")
+        }),
+        ("project remainder to parent remainder", |m| {
+            m["meaning_model"]["temporal_cut_recompositions"][0]["children"][0]["projection"]
+                ["answers"]["remainder"] = json!("cautious")
+        }),
+        ("acyclic", |m| {
+            m["meaning_model"]["temporal_cut_recompositions"][0]["children"][0]["cut_id"] =
+                json!("outlook")
+        }),
+        ("acyclic", |m| {
+            m["meaning_model"]["temporal_cut_recompositions"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({
+                    "parent_cut_id":"outlook.preparation", "coverage":"complete",
+                    "children":[{"cut_id":"outlook", "projection":{"kind":"identity"}}],
+                    "provenance":["cyclic projection fixture"]
+                }))
+        }),
+        ("acyclic", |m| {
+            m["meaning_model"]["normalized_cuts"][0]["conditioning"] =
+                json!({"cut_id":"outlook.preparation","answer_key":"hopeful"})
+        }),
     ];
     for (expected, mutate) in variants {
         let mut candidate = temporal_model();
@@ -507,21 +637,41 @@ fn temporal_recomposition_rejects_invalid_partitions_semantics_and_projections()
     }
     let mut overflow = temporal_model();
     overflow["meaning_model"]["events"][0]["interval"] = json!({"start":-f64::MAX, "end":f64::MAX});
-    assert!(compile(overflow).unwrap_err().to_string().contains("duration must be finite"));
+    assert!(compile(overflow)
+        .unwrap_err()
+        .to_string()
+        .contains("duration must be finite"));
     let mut missing_projection = temporal_model();
-    missing_projection["meaning_model"]["temporal_cut_recompositions"][0]["children"][0].as_object_mut().unwrap().remove("projection");
-    assert!(serde_json::from_value::<ModelDefinition>(missing_projection).unwrap_err().to_string().contains("missing field `projection`"));
+    missing_projection["meaning_model"]["temporal_cut_recompositions"][0]["children"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("projection");
+    assert!(
+        serde_json::from_value::<ModelDefinition>(missing_projection)
+            .unwrap_err()
+            .to_string()
+            .contains("missing field `projection`")
+    );
 }
 
 #[test]
 fn temporal_partial_detail_must_leave_a_feasible_remaining_duration() {
     let mut partial = temporal_model();
     partial["meaning_model"]["temporal_cut_recompositions"][0]["coverage"] = json!("partial");
-    partial["meaning_model"]["temporal_cut_recompositions"][0]["children"].as_array_mut().unwrap().truncate(1);
+    partial["meaning_model"]["temporal_cut_recompositions"][0]["children"]
+        .as_array_mut()
+        .unwrap()
+        .truncate(1);
     // Known contribution (.16,.02,.02); residual (.42,.30,.08), mass .80.
     let compiled = compile(partial.clone()).unwrap();
     let encoded = serde_json::to_value(compiled.definition()).unwrap();
-    assert_eq!(encoded["meaning_model"]["temporal_cut_recompositions"][0]["children"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        encoded["meaning_model"]["temporal_cut_recompositions"][0]["children"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
     partial["meaning_model"]["events"][1]["interval"]["end"] = json!(8.0);
     // This known phase alone commits .64 hopeful mass against the parent's .58.
     let failure = compile(partial).unwrap_err().to_string();
@@ -533,48 +683,100 @@ fn temporal_contracts_roundtrip_and_hash_canonically_with_identity_refinement() 
     let mut candidate = temporal_model();
     let mut finer = candidate["meaning_model"]["normalized_cuts"][1].clone();
     finer["id"] = json!("outlook.preparation.finer");
-    candidate["meaning_model"]["normalized_cuts"].as_array_mut().unwrap().push(finer);
-    candidate["meaning_model"]["temporal_cut_recompositions"].as_array_mut().unwrap().push(json!({
-        "parent_cut_id":"outlook.preparation", "coverage":"complete",
-        "children":[{"cut_id":"outlook.preparation.finer", "projection":{"kind":"identity"}}],
-        "provenance":["same-interval identity refinement"]
-    }));
+    candidate["meaning_model"]["normalized_cuts"]
+        .as_array_mut()
+        .unwrap()
+        .push(finer);
+    candidate["meaning_model"]["temporal_cut_recompositions"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({
+            "parent_cut_id":"outlook.preparation", "coverage":"complete",
+            "children":[{"cut_id":"outlook.preparation.finer", "projection":{"kind":"identity"}}],
+            "provenance":["same-interval identity refinement"]
+        }));
     let original = compile(candidate.clone()).unwrap();
-    let roundtrip: ModelDefinition = serde_json::from_str(&serde_json::to_string(original.definition()).unwrap()).unwrap();
-    assert_eq!(compile_model(roundtrip).unwrap().model_hash, original.model_hash);
-    for key in ["events", "event_relations", "normalized_cuts", "temporal_cut_recompositions"] {
-        candidate["meaning_model"][key].as_array_mut().unwrap().reverse();
+    let roundtrip: ModelDefinition =
+        serde_json::from_str(&serde_json::to_string(original.definition()).unwrap()).unwrap();
+    assert_eq!(
+        compile_model(roundtrip).unwrap().model_hash,
+        original.model_hash
+    );
+    for key in [
+        "events",
+        "event_relations",
+        "normalized_cuts",
+        "temporal_cut_recompositions",
+    ] {
+        candidate["meaning_model"][key]
+            .as_array_mut()
+            .unwrap()
+            .reverse();
     }
-    for cut in candidate["meaning_model"]["normalized_cuts"].as_array_mut().unwrap() {
+    for cut in candidate["meaning_model"]["normalized_cuts"]
+        .as_array_mut()
+        .unwrap()
+    {
         cut["answers"].as_array_mut().unwrap().reverse();
     }
-    for contract in candidate["meaning_model"]["temporal_cut_recompositions"].as_array_mut().unwrap() {
+    for contract in candidate["meaning_model"]["temporal_cut_recompositions"]
+        .as_array_mut()
+        .unwrap()
+    {
         contract["children"].as_array_mut().unwrap().reverse();
     }
-    assert_eq!(compile(candidate.clone()).unwrap().model_hash, original.model_hash);
-    candidate["meaning_model"]["temporal_cut_recompositions"][0]["provenance"] = json!(["changed contract provenance"]);
+    assert_eq!(
+        compile(candidate.clone()).unwrap().model_hash,
+        original.model_hash
+    );
+    candidate["meaning_model"]["temporal_cut_recompositions"][0]["provenance"] =
+        json!(["changed contract provenance"]);
     assert_ne!(compile(candidate).unwrap().model_hash, original.model_hash);
 }
 
 #[test]
 fn temporal_contracts_survive_durable_restart_and_reject_inconsistent_registration() {
-    let nonce = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
-    let path = std::env::temp_dir().join(format!("life-sim-temporal-cuts-{}-{nonce}.sqlite", std::process::id()));
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let path = std::env::temp_dir().join(format!(
+        "life-sim-temporal-cuts-{}-{nonce}.sqlite",
+        std::process::id()
+    ));
     let mut session = MachineSession::with_state_file(&path).unwrap();
-    let registered = execute(&mut session, "register_model", json!({"model":temporal_model()}));
+    let registered = execute(
+        &mut session,
+        "register_model",
+        json!({"model":temporal_model()}),
+    );
     let mut inconsistent = temporal_model();
     inconsistent["meaning_model"]["normalized_cuts"][0]["answers"][0]["weight"] = json!(0.59);
     inconsistent["meaning_model"]["normalized_cuts"][0]["answers"][1]["weight"] = json!(0.31);
-    let rejected = session.parse_and_execute(&json!({
-        "schema":"life-sim-rust-command/v1", "operation":"register_model", "model":inconsistent
-    }).to_string());
+    let rejected = session.parse_and_execute(
+        &json!({
+            "schema":"life-sim-rust-command/v1", "operation":"register_model", "model":inconsistent
+        })
+        .to_string(),
+    );
     assert!(!rejected.ok);
-    assert!(rejected.error.unwrap().message.contains("does not match committed parent answer"));
+    assert!(rejected
+        .error
+        .unwrap()
+        .message
+        .contains("does not match committed parent answer"));
     drop(session);
     let mut restored = MachineSession::with_state_file(&path).unwrap();
-    let fetched = execute(&mut restored, "get_model", json!({"model_hash":registered["summary"]["model_hash"]}));
+    let fetched = execute(
+        &mut restored,
+        "get_model",
+        json!({"model_hash":registered["summary"]["model_hash"]}),
+    );
     assert_eq!(fetched["model"], registered["model"]);
-    assert_eq!(fetched["summary"]["meaning_model"]["temporal_cut_recomposition_count"], 1);
+    assert_eq!(
+        fetched["summary"]["meaning_model"]["temporal_cut_recomposition_count"],
+        1
+    );
     drop(restored);
     std::fs::remove_file(path).unwrap();
 }

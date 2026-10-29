@@ -166,6 +166,26 @@ test('transport loss after a mutating write is a typed indeterminate outcome', a
   await backend.close();
 });
 
+test('transport loss during a project checkpoint write is indeterminate, as for every mutating operation', async () => {
+  const backend = fixture({
+    env: { LIFE_SIM_PROCESS_FIXTURE_MODE: 'hang_after_describe' },
+    timeoutMs: 1_000,
+  });
+  await backend.initialize();
+  backend.timeoutMs = 25;
+  await assert.rejects(
+    backend.call('register_project_checkpoint', { project_checkpoint: {} }),
+    (cause) => {
+      assert.ok(cause instanceof EngineError);
+      assert.equal(cause.code, 'transport_indeterminate');
+      assert.equal(cause.operation, 'register_project_checkpoint');
+      assert.equal(cause.indeterminate, true);
+      return true;
+    },
+  );
+  await backend.close();
+});
+
 test('transport loss after genesis refinement is also indeterminate', async () => {
   const backend = fixture({
     env: { LIFE_SIM_PROCESS_FIXTURE_MODE: 'hang_after_describe' },

@@ -4,7 +4,9 @@
 //! grow with what each revision changed, not with the size of the whole model times the number of revisions.
 
 use super::model_delta::{self, ModelDelta};
-use super::{compile_model, error, serialized_size, CompiledModel, EngineResult, ModelDefinition};
+use crate::limits::serialized_size;
+use crate::model::{compile_model, CompiledModel, ModelDefinition};
+use crate::{error, EngineResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::cell::RefCell;
@@ -18,22 +20,35 @@ const REBUILT_MODELS_KEPT: usize = 4;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum StoredModel {
-    Changes { model_hash: String, base_model_hash: String, delta: ModelDelta },
-    Whole { model_hash: String, definition: Box<ModelDefinition> },
+    Changes {
+        model_hash: String,
+        base_model_hash: String,
+        delta: ModelDelta,
+    },
+    Whole {
+        model_hash: String,
+        definition: Box<ModelDefinition>,
+    },
 }
 
 impl StoredModel {
     pub fn model_hash(&self) -> &str {
         match self {
-            StoredModel::Changes { model_hash, .. } | StoredModel::Whole { model_hash, .. } => model_hash,
+            StoredModel::Changes { model_hash, .. } | StoredModel::Whole { model_hash, .. } => {
+                model_hash
+            }
         }
     }
 
     /// The revision this one is rebuilt after: its base, or for a whole revision the one it was made from.
     fn rebuilt_after(&self) -> Option<&str> {
         match self {
-            StoredModel::Changes { base_model_hash, .. } => Some(base_model_hash),
-            StoredModel::Whole { definition, .. } => definition.revision.previous_model_hash.as_deref(),
+            StoredModel::Changes {
+                base_model_hash, ..
+            } => Some(base_model_hash),
+            StoredModel::Whole { definition, .. } => {
+                definition.revision.previous_model_hash.as_deref()
+            }
         }
     }
 }
@@ -104,7 +119,9 @@ impl ModelStore {
     pub fn kept_form(&self, model: &CompiledModel) -> EngineResult<StoredModel> {
         match &model.revision.previous_model_hash {
             Some(previous) if self.entries.contains_key(previous) => {
-                let base = self.get(previous)?.ok_or_else(|| error("the previous model revision is unavailable"))?;
+                let base = self
+                    .get(previous)?
+                    .ok_or_else(|| error("the previous model revision is unavailable"))?;
                 kept_form(model, Some((previous.as_str(), base.definition())))
             }
             _ => kept_form(model, None),
@@ -114,34 +131,62 @@ impl ModelStore {
     /// Rebuilds a stored revision whose base, if it has one, the session already holds, and checks it against its hash.
     pub fn rebuild_stored(&self, stored: &StoredModel) -> EngineResult<CompiledModel> {
         let (model_hash, definition) = match stored {
-            StoredModel::Whole { model_hash, definition } => (model_hash, (**definition).clone()),
-            StoredModel::Changes { model_hash, base_model_hash, delta } => {
-                let base = self
-                    .get(base_model_hash)?
-                    .ok_or_else(|| error(format!("stored model revision {model_hash} lacks its base {base_model_hash}")))?;
+            StoredModel::Whole {
+                model_hash,
+                definition,
+            } => (model_hash, (**definition).clone()),
+            StoredModel::Changes {
+                model_hash,
+                base_model_hash,
+                delta,
+            } => {
+                let base = self.get(base_model_hash)?.ok_or_else(|| {
+                    error(format!(
+                        "stored model revision {model_hash} lacks its base {base_model_hash}"
+                    ))
+                })?;
                 let mut value = definition_value(base.definition())?;
-                model_delta::apply(&mut value, delta)
-                    .map_err(|cause| error(format!("stored model revision {model_hash} does not rebuild: {cause}")))?;
-                let definition = serde_json::from_value(value)
-                    .map_err(|cause| error(format!("stored model revision {model_hash} does not rebuild: {cause}")))?;
+                model_delta::apply(&mut value, delta).map_err(|cause| {
+                    error(format!(
+                        "stored model revision {model_hash} does not rebuild: {cause}"
+                    ))
+                })?;
+                let definition = serde_json::from_value(value).map_err(|cause| {
+                    error(format!(
+                        "stored model revision {model_hash} does not rebuild: {cause}"
+                    ))
+                })?;
                 (model_hash, definition)
             }
         };
         let model = compile_model(definition)?;
         if &model.model_hash != model_hash {
-            return Err(error(format!("stored model revision {model_hash} does not match its content hash")));
+            return Err(error(format!(
+                "stored model revision {model_hash} does not match its content hash"
+            )));
         }
         Ok(model)
     }
 
     /// Adds a revision exactly as it was stored, after the caller has rebuilt it and checked its hash.
-    pub fn insert_stored(&mut self, model: Arc<CompiledModel>, stored: StoredModel) -> EngineResult<()> {
+    pub fn insert_stored(
+        &mut self,
+        model: Arc<CompiledModel>,
+        stored: StoredModel,
+    ) -> EngineResult<()> {
         if stored.model_hash() != model.model_hash || self.entries.contains_key(&model.model_hash) {
-            return Err(error("a stored model revision does not match its place in the session"));
+            return Err(error(
+                "a stored model revision does not match its place in the session",
+            ));
         }
-        if let StoredModel::Changes { base_model_hash, .. } = &stored {
+        if let StoredModel::Changes {
+            base_model_hash, ..
+        } = &stored
+        {
             if !self.entries.contains_key(base_model_hash) {
-                return Err(error("a stored model revision names a base the session does not hold"));
+                return Err(error(
+                    "a stored model revision names a base the session does not hold",
+                ));
             }
         }
         self.add_entry(&model, stored)?;
@@ -157,7 +202,11 @@ impl ModelStore {
             .ok_or_else(|| error("stored model byte count overflow"))?;
         self.entries.insert(
             model.model_hash.clone(),
-            ModelEntry { id: model.id.clone(), revision_number: model.revision.number, stored },
+            ModelEntry {
+                id: model.id.clone(),
+                revision_number: model.revision.number,
+                stored,
+            },
         );
         Ok(())
     }
@@ -175,9 +224,16 @@ impl ModelStore {
         let mut rebuilt = self.rebuilt.borrow_mut();
         rebuilt.clock += 1;
         let clock = rebuilt.clock;
-        rebuilt.models.insert(model.model_hash.clone(), (model.clone(), clock));
+        rebuilt
+            .models
+            .insert(model.model_hash.clone(), (model.clone(), clock));
         while rebuilt.models.len() > REBUILT_MODELS_KEPT {
-            let Some(oldest) = rebuilt.models.iter().min_by_key(|(_, (_, used))| *used).map(|(hash, _)| hash.clone()) else {
+            let Some(oldest) = rebuilt
+                .models
+                .iter()
+                .min_by_key(|(_, (_, used))| *used)
+                .map(|(hash, _)| hash.clone())
+            else {
                 break;
             };
             rebuilt.models.remove(&oldest);
@@ -198,51 +254,87 @@ impl ModelStore {
                     break definition_value(model.definition())?;
                 }
             }
-            let entry = self
-                .entries
-                .get(cursor)
-                .ok_or_else(|| error(format!("stored model revision {model_hash} lacks its base {cursor}")))?;
+            let entry = self.entries.get(cursor).ok_or_else(|| {
+                error(format!(
+                    "stored model revision {model_hash} lacks its base {cursor}"
+                ))
+            })?;
             match &entry.stored {
                 StoredModel::Whole { definition, .. } => break definition_value(definition)?,
-                StoredModel::Changes { base_model_hash, delta, .. } => {
+                StoredModel::Changes {
+                    base_model_hash,
+                    delta,
+                    ..
+                } => {
                     changes.push(delta);
                     cursor = base_model_hash;
                 }
             }
         };
         for delta in changes.iter().rev() {
-            model_delta::apply(&mut value, delta).map_err(|cause| error(format!("stored model revision {model_hash} does not rebuild: {cause}")))?;
+            model_delta::apply(&mut value, delta).map_err(|cause| {
+                error(format!(
+                    "stored model revision {model_hash} does not rebuild: {cause}"
+                ))
+            })?;
         }
-        let definition: ModelDefinition = serde_json::from_value(value)
-            .map_err(|cause| error(format!("stored model revision {model_hash} does not rebuild: {cause}")))?;
+        let definition: ModelDefinition = serde_json::from_value(value).map_err(|cause| {
+            error(format!(
+                "stored model revision {model_hash} does not rebuild: {cause}"
+            ))
+        })?;
         let model = compile_model(definition)?;
         if model.model_hash != model_hash {
-            return Err(error(format!("stored model revision {model_hash} rebuilds with a different hash")));
+            return Err(error(format!(
+                "stored model revision {model_hash} rebuilds with a different hash"
+            )));
         }
         Ok(model)
     }
 }
 
 /// How a revision is kept: as its changes from `base` when they rebuild it exactly and are smaller, otherwise whole.
-pub fn kept_form(model: &CompiledModel, base: Option<(&str, &ModelDefinition)>) -> EngineResult<StoredModel> {
-    let whole = StoredModel::Whole { model_hash: model.model_hash.clone(), definition: Box::new(model.definition().clone()) };
+pub fn kept_form(
+    model: &CompiledModel,
+    base: Option<(&str, &ModelDefinition)>,
+) -> EngineResult<StoredModel> {
+    let whole = StoredModel::Whole {
+        model_hash: model.model_hash.clone(),
+        definition: Box::new(model.definition().clone()),
+    };
     let Some((base_model_hash, base)) = base else {
         return Ok(whole);
     };
-    let Some(delta) = model_delta::compute(&definition_value(base)?, &definition_value(model.definition())?) else {
+    let Some(delta) = model_delta::compute(
+        &definition_value(base)?,
+        &definition_value(model.definition())?,
+    ) else {
         return Ok(whole);
     };
-    let changes = StoredModel::Changes { model_hash: model.model_hash.clone(), base_model_hash: base_model_hash.to_owned(), delta };
-    Ok(if serialized_size(&changes)? < serialized_size(&whole)? { changes } else { whole })
+    let changes = StoredModel::Changes {
+        model_hash: model.model_hash.clone(),
+        base_model_hash: base_model_hash.to_owned(),
+        delta,
+    };
+    Ok(if serialized_size(&changes)? < serialized_size(&whole)? {
+        changes
+    } else {
+        whole
+    })
 }
 
 fn definition_value(definition: &ModelDefinition) -> EngineResult<Value> {
-    serde_json::to_value(definition).map_err(|cause| error(format!("failed to encode a model definition: {cause}")))
+    serde_json::to_value(definition)
+        .map_err(|cause| error(format!("failed to encode a model definition: {cause}")))
 }
 
 /// The order in which stored revisions can be rebuilt: every revision after the one it is rebuilt from.
 pub fn rebuild_order(stored: &[StoredModel]) -> EngineResult<Vec<usize>> {
-    let index: BTreeMap<&str, usize> = stored.iter().enumerate().map(|(i, row)| (row.model_hash(), i)).collect();
+    let index: BTreeMap<&str, usize> = stored
+        .iter()
+        .enumerate()
+        .map(|(i, row)| (row.model_hash(), i))
+        .collect();
     if index.len() != stored.len() {
         return Err(error("state file contains a duplicate model hash"));
     }
@@ -253,7 +345,9 @@ pub fn rebuild_order(stored: &[StoredModel]) -> EngineResult<Vec<usize>> {
             Some(parent) => children.entry(*parent).or_default().push(i),
             None => {
                 if let StoredModel::Changes { model_hash, .. } = row {
-                    return Err(error(format!("stored model revision {model_hash} lacks its base")));
+                    return Err(error(format!(
+                        "stored model revision {model_hash} lacks its base"
+                    )));
                 }
                 roots.push(i);
             }

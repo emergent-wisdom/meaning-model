@@ -32,6 +32,7 @@ const MUTATING_OPERATIONS = new Set([
   'revise_narrative_graph',
   'revise_narrative_graph_by_change',
   'apply_narrative_batch',
+  'register_project_checkpoint',
 ]);
 const REQUIRED_OPERATIONS = Object.freeze([
   'compile_profiles',

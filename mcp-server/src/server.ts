@@ -96,7 +96,7 @@ const fullInstructions = `${processBreakdownHead}\n\n${startHereText}\n\n${userF
 const serverInstructions = composeInstructions(agentInstructions, { full: fullInstructions, simple: simpleInstructions });
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.16.1',
+  version: '0.17.0',
 }, {
   instructions: serverInstructions,
 });

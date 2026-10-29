@@ -86,20 +86,38 @@ mod tests {
 
     #[test]
     fn an_acyclic_graph_passes_and_a_cycle_is_named_in_edge_order() {
-        assert!(ensure_acyclic(["a", "b", "c"], [("a", "b"), ("b", "c"), ("a", "c")], "test graph").is_ok());
-        let message = ensure_acyclic(["a", "b", "c", "d"], [("a", "b"), ("b", "c"), ("c", "a"), ("c", "d")], "test graph")
-            .unwrap_err()
-            .to_string();
+        assert!(ensure_acyclic(
+            ["a", "b", "c"],
+            [("a", "b"), ("b", "c"), ("a", "c")],
+            "test graph"
+        )
+        .is_ok());
+        let message = ensure_acyclic(
+            ["a", "b", "c", "d"],
+            [("a", "b"), ("b", "c"), ("c", "a"), ("c", "d")],
+            "test graph",
+        )
+        .unwrap_err()
+        .to_string();
         assert!(message.contains("test graph must be acyclic"), "{message}");
-        let cycle = message.split("broken: ").nth(1).expect("the cycle is spelled out");
+        let cycle = message
+            .split("broken: ")
+            .nth(1)
+            .expect("the cycle is spelled out");
         let names: Vec<&str> = cycle.split(" -> ").collect();
-        assert_eq!(names.first(), names.last(), "the cycle returns to where it starts: {cycle}");
+        assert_eq!(
+            names.first(),
+            names.last(),
+            "the cycle returns to where it starts: {cycle}"
+        );
         assert_eq!(names.len(), 4, "a three-record cycle: {cycle}");
     }
 
     #[test]
     fn a_self_edge_is_a_cycle() {
-        let message = ensure_acyclic(["a"], [("a", "a")], "test graph").unwrap_err().to_string();
+        let message = ensure_acyclic(["a"], [("a", "a")], "test graph")
+            .unwrap_err()
+            .to_string();
         assert!(message.ends_with("a -> a"), "{message}");
     }
 }

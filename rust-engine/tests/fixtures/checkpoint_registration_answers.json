@@ -1,0 +1,181 @@
+{
+  "bad graph json": {
+    "code": "invalid_request",
+    "message": "project checkpoint graph snapshot JSON is invalid: invalid type: integer `1`, expected struct StoredNarrativeGraph at line 1 column 1"
+  },
+  "bad model json": {
+    "code": "invalid_request",
+    "message": "project checkpoint model snapshot JSON is invalid: EOF while parsing an object at line 1 column 1"
+  },
+  "bad world json": {
+    "code": "invalid_request",
+    "message": "project checkpoint world snapshot JSON is invalid: invalid length 0, expected struct WorldHead with 10 elements at line 1 column 2"
+  },
+  "blank path": {
+    "code": "invalid_request",
+    "message": "project document media type or canonical path is invalid or unbounded"
+  },
+  "blank provenance": {
+    "code": "invalid_request",
+    "message": "project checkpoint reason or provenance is invalid or unbounded"
+  },
+  "document before snapshots": {
+    "code": "invalid_request",
+    "message": "unsupported project document schema x; expected life-sim-rust-project-document/v1"
+  },
+  "document schema": {
+    "code": "invalid_request",
+    "message": "unsupported project document schema x; expected life-sim-rust-project-document/v1"
+  },
+  "empty media type": {
+    "code": "invalid_request",
+    "message": "project document media type or canonical path is invalid or unbounded"
+  },
+  "empty name": {
+    "code": "invalid_request",
+    "message": "project checkpoint name must be nonempty, bounded, and not a 64-character hexadecimal hash"
+  },
+  "graph hash mismatch": {
+    "code": "conflict",
+    "message": "project checkpoint graph hash does not match its frozen graph snapshot"
+  },
+  "graph identity mismatch": {
+    "code": "conflict",
+    "message": "project checkpoint graph snapshot identity does not match its frozen graph and source snapshot"
+  },
+  "hash-shaped name": {
+    "code": "invalid_request",
+    "message": "project checkpoint name must be nonempty, bounded, and not a 64-character hexadecimal hash"
+  },
+  "imported": {
+    "checkpoint_hash": "bebcc1f3077c13a13416786d7563598a1544bcc11a3c4622f86a11618a2de50b",
+    "checkpoint_sequence": 0,
+    "document": {
+      "byte_count": 15,
+      "canonical_external_path": "drafts/full.txt",
+      "document_hash": "183acb92df068d8efc55ae65644fada7fecd0791ac76ff1a910077eca59261cd",
+      "media_type": "text/plain"
+    },
+    "immutable": true,
+    "model_hash": "b693311a36352ff20e4d458d67bfe7f8b54f5f8a8c0f6ed540b35ac4e9189784",
+    "name": "full",
+    "narrative_graph_hash": "66aaff25319e73bccbe07eac025b328bfc4a0f18233158c9f6921fed8eaaa0ca",
+    "narrative_graph_snapshot_hash": "077886bba8fe48c917c2d97ce1954d0f48990a8465964f14b02f5442bd19d6af",
+    "parent_checkpoint_hash": null,
+    "provenance": [
+      "protocol test"
+    ],
+    "reason": "Freeze everything",
+    "schema": "life-sim-rust-project-checkpoint/v1",
+    "world_hash": "fc33359051a7d93c3c4366258d8fb9ba764dd0fe6728696bab827d8ab718fc16"
+  },
+  "imported render": {
+    "canonical_authority": "declared_external_path; embedded_content_is_checkpoint_authority",
+    "canonical_external_path": "drafts/full.txt",
+    "checkpoint": {
+      "checkpoint_hash": "bebcc1f3077c13a13416786d7563598a1544bcc11a3c4622f86a11618a2de50b",
+      "checkpoint_sequence": 0,
+      "document": {
+        "byte_count": 15,
+        "canonical_external_path": "drafts/full.txt",
+        "document_hash": "183acb92df068d8efc55ae65644fada7fecd0791ac76ff1a910077eca59261cd",
+        "media_type": "text/plain"
+      },
+      "immutable": true,
+      "model_hash": "b693311a36352ff20e4d458d67bfe7f8b54f5f8a8c0f6ed540b35ac4e9189784",
+      "name": "full",
+      "narrative_graph_hash": "66aaff25319e73bccbe07eac025b328bfc4a0f18233158c9f6921fed8eaaa0ca",
+      "narrative_graph_snapshot_hash": "077886bba8fe48c917c2d97ce1954d0f48990a8465964f14b02f5442bd19d6af",
+      "parent_checkpoint_hash": null,
+      "provenance": [
+        "protocol test"
+      ],
+      "reason": "Freeze everything",
+      "schema": "life-sim-rust-project-checkpoint/v1",
+      "world_hash": "fc33359051a7d93c3c4366258d8fb9ba764dd0fe6728696bab827d8ab718fc16"
+    },
+    "content": {
+      "text": "A frozen draft."
+    },
+    "document_hash": "183acb92df068d8efc55ae65644fada7fecd0791ac76ff1a910077eca59261cd",
+    "media_type": "text/plain",
+    "projection_hash": "18bb51c9042be46efa64235d0ed7d278dd0054a007ac6b4b9d7147ecd0d40746",
+    "schema": "life-sim-rust-project-checkpoint-render/v1"
+  },
+  "invalid model": {
+    "code": "invalid_request",
+    "message": "model must contain at least one process"
+  },
+  "long reason": {
+    "code": "invalid_request",
+    "message": "project checkpoint reason or provenance is invalid or unbounded"
+  },
+  "model disagrees": {
+    "code": "conflict",
+    "message": "project checkpoint model, world, and graph snapshots disagree"
+  },
+  "name before everything": {
+    "code": "conflict",
+    "message": "project checkpoint full already exists"
+  },
+  "parent before document": {
+    "code": "not_found",
+    "message": "unknown project checkpoint nope"
+  },
+  "registered again": {
+    "code": "conflict",
+    "message": "project checkpoint full already exists"
+  },
+  "schema": {
+    "code": "invalid_request",
+    "message": "unsupported project checkpoint schema x; expected life-sim-rust-project-checkpoint/v1"
+  },
+  "taken name": {
+    "code": "conflict",
+    "message": "project checkpoint full already exists"
+  },
+  "tampered graph definition": {
+    "code": "conflict",
+    "message": "project checkpoint graph definition hash is invalid"
+  },
+  "tampered graph snapshot": {
+    "code": "conflict",
+    "message": "project checkpoint graph source snapshot hash is invalid: expected b4c3292f100a9aeb4c7e3ba7ae48fa0c35ab08c06658515bcb330edf6be34e58, computed 3a46c1b908031d8104c1affdb1a37ffdee46dc507692256dc1a015f11cd0712c"
+  },
+  "two graph forms": {
+    "code": "invalid_request",
+    "message": "project checkpoint must provide at most one graph snapshot representation"
+  },
+  "two model forms": {
+    "code": "invalid_request",
+    "message": "project checkpoint must provide at most one model snapshot representation"
+  },
+  "two world forms": {
+    "code": "invalid_request",
+    "message": "project checkpoint must provide at most one world snapshot representation"
+  },
+  "unknown active graph": {
+    "code": "not_found",
+    "message": "unknown active narrative graph abababababababababababababababababababababababababababababababab; a frozen project graph requires narrative_graph_snapshot_hash"
+  },
+  "unknown graph snapshot": {
+    "code": "not_found",
+    "message": "unknown narrative graph snapshot abababababababababababababababababababababababababababababababab"
+  },
+  "unknown model": {
+    "code": "not_found",
+    "message": "unknown model abababababababababababababababababababababababababababababababab"
+  },
+  "unknown parent": {
+    "code": "not_found",
+    "message": "unknown project checkpoint nope"
+  },
+  "unknown world": {
+    "code": "not_found",
+    "message": "unknown world snapshot abababababababababababababababababababababababababababababababab"
+  },
+  "world hash mismatch": {
+    "code": "conflict",
+    "message": "project checkpoint world hash does not match imported world snapshot"
+  }
+}

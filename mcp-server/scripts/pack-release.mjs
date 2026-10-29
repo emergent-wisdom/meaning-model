@@ -9,7 +9,7 @@ const runtimeFiles = [
   'LICENSE', 'LICENSE-CONTENT', 'NOTICE', 'server.json', 'CHANGELOG.md',
   'mcp-server/bin', 'mcp-server/resources', 'mcp-server/viewer',
   'rust-engine/Cargo.toml', 'rust-engine/Cargo.lock', 'rust-engine/src',
-  'rust-engine/README.md', 'rust-engine/MEANING_MODEL_CONFORMANCE.md',
+  'rust-engine/README.md', 'rust-engine/ARCHITECTURE.md', 'rust-engine/MEANING_MODEL_CONFORMANCE.md',
   'rust-engine/examples/meaning-model-command.json',
   'rust-engine/examples/construction-scaffolds-command.json',
   'rust-engine/examples/category_revision.rs',

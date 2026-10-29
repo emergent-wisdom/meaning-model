@@ -6,7 +6,7 @@ import { LifeSimulationService } from '../src/service.mjs';
 import { RustEngineProcess } from '../src/rust-engine-process.mjs';
 import { AlienAddon } from '../src/alien-addon.mjs';
 import { findTargetLeaks } from '../src/alien-search.mjs';
-import { drawSeeds, eventTimes, explainRunError, measureValue, RUN_LIMITS, runModel, summarise, withRunEngine, worldDefinition } from '../src/alien-runs.mjs';
+import { drawSeeds, eventTimes, explainRunError, measureValue, RUN_LIMITS, runModel, summarise, variantDefinition, withRunEngine, worldDefinition } from '../src/alien-runs.mjs';
 import { flow } from './alien-baseline-flow.mjs';
 import { C, geyserWorld, geyserWorldModel, lonelinessScenario, proc } from './fixtures/geyser-world.mjs';
 
@@ -170,6 +170,15 @@ test('an engine refusal for a run that records too much is put in terms a modell
   assert.match(explainRunError(engine).message, /shorten the run plan's horizon, use a larger stepSize, or record fewer observables/);
   const other = new Error('law x requires nonempty provenance');
   assert.equal(explainRunError(other), other, 'other engine messages pass through unchanged');
+});
+
+test('a variant whose parts share an id is refused, naming the id', () => {
+  const base = { id: 'alien-world', processes: [{ id: 'vent.pressure' }], laws: [{ id: 'vent.fill' }] };
+  const scenario = (extra) => ({ processes: [], laws: [], overrides: [], ...extra });
+  assert.throws(() => variantDefinition(base, scenario({ processes: [{ id: 'vent.pressure' }] }), { suffix: '.v' }),
+    { message: 'Two processes share the id vent.pressure; give each a distinct id.' });
+  assert.throws(() => variantDefinition(base, scenario({ laws: [{ id: 'vent.fill' }] }), { suffix: '.v' }),
+    { message: 'Two laws share the id vent.fill; give each a distinct id.' });
 });
 
 // A counter that ticks at random: the draws of a run depend only on its model, plan and seed.

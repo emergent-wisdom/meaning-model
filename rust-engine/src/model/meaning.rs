@@ -1,7 +1,13 @@
-use super::{
-    ClaimAuthority, ClaimUncertainty, ProcessDefinition, MAX_MODEL_IDENTIFIER_BYTES,
-    MAX_QUERY_STRING_BYTES,
-};
+//! The optional Meaning Model layer of a model definition: a static semantic schema of concepts with their abstract
+//! relations and cuts, referents, events with their relations and referent bindings, physical and encapsulation cuts,
+//! realizations, normalized cuts and their temporal recompositions, context roots, importance scales, and causal
+//! questions with their assessments.
+//!
+//! It is validated when a model compiles and never executes: processes and laws remain the physical substrate. A model
+//! without the layer serializes without it, so its absence changes no hash.
+
+use super::{ClaimAuthority, ClaimUncertainty, ProcessDefinition};
+use crate::limits::{MAX_MODEL_IDENTIFIER_BYTES, MAX_QUERY_STRING_BYTES};
 use crate::{error, finite, EngineResult};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -60,7 +66,7 @@ pub struct RecordWithdrawal {
 }
 
 impl RecordWithdrawal {
-    fn validate<'a>(&self, label: &str, own_id: &str, same_kind: &BTreeSet<&'a str>) -> EngineResult<()> {
+    fn validate(&self, label: &str, own_id: &str, same_kind: &BTreeSet<&str>) -> EngineResult<()> {
         validate_text(&self.reason, &format!("{label} withdrawal reason"))?;
         if self.superseded_by.len() > MAX_MEANING_CUT_CHILDREN {
             return Err(error(format!(
@@ -69,7 +75,10 @@ impl RecordWithdrawal {
         }
         let mut seen = BTreeSet::new();
         for replacement in &self.superseded_by {
-            if replacement == own_id || !same_kind.contains(replacement.as_str()) || !seen.insert(replacement.as_str()) {
+            if replacement == own_id
+                || !same_kind.contains(replacement.as_str())
+                || !seen.insert(replacement.as_str())
+            {
                 return Err(error(format!(
                     "{label} withdrawal names invalid replacement {replacement}; name other records of the same kind once each"
                 )));
@@ -778,7 +787,8 @@ fn classify_semantic_coverage(
         .collect::<BTreeSet<_>>();
 
     for realization in &meaning_model.realizations {
-        if realization.degree <= 0.0 || withdrawn_concepts.contains(realization.concept_id.as_str()) {
+        if realization.degree <= 0.0 || withdrawn_concepts.contains(realization.concept_id.as_str())
+        {
             continue;
         }
         direct.extend(realization.roles.values().cloned());
@@ -904,12 +914,23 @@ impl MeaningModelDefinition {
                 .map(|item| item.id.clone())
                 .collect(),
             normalized_cut_count: self.normalized_cuts.len(),
-            normalized_cut_ids: self.normalized_cuts.iter().map(|item| item.id.clone()).collect(),
+            normalized_cut_ids: self
+                .normalized_cuts
+                .iter()
+                .map(|item| item.id.clone())
+                .collect(),
             temporal_cut_recomposition_count: self.temporal_cut_recompositions.len(),
-            temporal_cut_recomposition_parent_cut_ids: self.temporal_cut_recompositions.iter()
-                .map(|item| item.parent_cut_id.clone()).collect(),
+            temporal_cut_recomposition_parent_cut_ids: self
+                .temporal_cut_recompositions
+                .iter()
+                .map(|item| item.parent_cut_id.clone())
+                .collect(),
             context_root_count: self.context_roots.len(),
-            context_root_event_ids: self.context_roots.iter().map(|item| item.event_id.clone()).collect(),
+            context_root_event_ids: self
+                .context_roots
+                .iter()
+                .map(|item| item.event_id.clone())
+                .collect(),
             semantic_coverage,
         }
     }
@@ -934,17 +955,31 @@ pub(super) fn normalize_meaning_model(meaning_model: &mut MeaningModelDefinition
         .sort_by(|a, b| a.id.cmp(&b.id));
     meaning_model.physical_cuts.sort_by(|a, b| a.id.cmp(&b.id));
     meaning_model.realizations.sort_by(|a, b| a.id.cmp(&b.id));
-    meaning_model.normalized_cuts.sort_by(|a, b| a.id.cmp(&b.id));
-    meaning_model.temporal_cut_recompositions.sort_by(|a, b| a.parent_cut_id.cmp(&b.parent_cut_id));
+    meaning_model
+        .normalized_cuts
+        .sort_by(|a, b| a.id.cmp(&b.id));
+    meaning_model
+        .temporal_cut_recompositions
+        .sort_by(|a, b| a.parent_cut_id.cmp(&b.parent_cut_id));
     for contract in &mut meaning_model.temporal_cut_recompositions {
         contract.children.sort_by(|a, b| a.cut_id.cmp(&b.cut_id));
     }
-    meaning_model.context_roots.sort_by(|a, b| a.event_id.cmp(&b.event_id));
+    meaning_model
+        .context_roots
+        .sort_by(|a, b| a.event_id.cmp(&b.event_id));
     // A scale's levels keep their order: the most important comes first.
-    meaning_model.importance_scales.sort_by(|a, b| a.id.cmp(&b.id));
-    meaning_model.event_importance.sort_by(|a, b| a.id.cmp(&b.id));
-    meaning_model.cause_questions.sort_by(|a, b| a.id.cmp(&b.id));
-    meaning_model.cause_assessments.sort_by(|a, b| a.id.cmp(&b.id));
+    meaning_model
+        .importance_scales
+        .sort_by(|a, b| a.id.cmp(&b.id));
+    meaning_model
+        .event_importance
+        .sort_by(|a, b| a.id.cmp(&b.id));
+    meaning_model
+        .cause_questions
+        .sort_by(|a, b| a.id.cmp(&b.id));
+    meaning_model
+        .cause_assessments
+        .sort_by(|a, b| a.id.cmp(&b.id));
     for assessment in &mut meaning_model.cause_assessments {
         assessment.removed_with.sort();
     }
@@ -1080,10 +1115,16 @@ fn validate_event_contexts<'a>(
     for root in &meaning_model.context_roots {
         validate_identifier(&root.event_id, "context root event id")?;
         if !events.contains_key(root.event_id.as_str()) {
-            return Err(error(format!("context root names unknown event {}", root.event_id)));
+            return Err(error(format!(
+                "context root names unknown event {}",
+                root.event_id
+            )));
         }
         if !roots.insert(root.event_id.as_str()) {
-            return Err(error(format!("duplicate context root event {}", root.event_id)));
+            return Err(error(format!(
+                "duplicate context root event {}",
+                root.event_id
+            )));
         }
         validate_provenance(&root.provenance, &format!("context root {}", root.event_id))?;
     }
@@ -1119,18 +1160,25 @@ fn validate_event_contexts<'a>(
     validate_dag(&nodes, &edges, "context containment graph")?;
     // Contexts propagate in Kahn order, lowest id first. The order decides which
     // event an ancestry error names, so it stays rather than a library sort.
-    let mut ready: VecDeque<&str> = indegree.iter()
-        .filter_map(|(node, degree)| (*degree == 0).then_some(*node)).collect();
+    let mut ready: VecDeque<&str> = indegree
+        .iter()
+        .filter_map(|(node, degree)| (*degree == 0).then_some(*node))
+        .collect();
     let mut contexts = BTreeMap::new();
     while let Some(event_id) = ready.pop_front() {
         let context = if roots.contains(event_id) {
             event_id
         } else {
-            let event_parents = parents.get(event_id).ok_or_else(|| error(format!(
-                "event {event_id} has an ancestry path without a declared context root"
-            )))?;
+            let event_parents = parents.get(event_id).ok_or_else(|| {
+                error(format!(
+                    "event {event_id} has an ancestry path without a declared context root"
+                ))
+            })?;
             let context = contexts[event_parents[0]];
-            if event_parents.iter().any(|parent| contexts[parent] != context) {
+            if event_parents
+                .iter()
+                .any(|parent| contexts[parent] != context)
+            {
                 return Err(error(format!(
                     "event {event_id} has conflicting nearest context roots"
                 )));
@@ -1162,13 +1210,20 @@ fn validate_normalized_cuts<'a>(
         if cuts.insert(cut.id.as_str(), cut).is_some() {
             return Err(error(format!("duplicate normalized cut id {}", cut.id)));
         }
-        validate_identifier(&cut.parent_event_id, &format!("normalized cut {} parent event id", cut.id))?;
+        validate_identifier(
+            &cut.parent_event_id,
+            &format!("normalized cut {} parent event id", cut.id),
+        )?;
         if !event_ids.contains(cut.parent_event_id.as_str()) {
             return Err(error(format!(
-                "normalized cut {} names unknown parent event {}", cut.id, cut.parent_event_id
+                "normalized cut {} names unknown parent event {}",
+                cut.id, cut.parent_event_id
             )));
         }
-        validate_text(&cut.question, &format!("normalized cut {} question", cut.id))?;
+        validate_text(
+            &cut.question,
+            &format!("normalized cut {} question", cut.id),
+        )?;
         validate_text(&cut.unit, &format!("normalized cut {} unit", cut.id))?;
         validate_provenance(&cut.provenance, &format!("normalized cut {}", cut.id))?;
         if cut.answers.is_empty() || cut.answers.len() > MAX_MEANING_CUT_CHILDREN {
@@ -1179,9 +1234,14 @@ fn validate_normalized_cuts<'a>(
         let mut keys = BTreeSet::new();
         let mut total = 0.0;
         for answer in &cut.answers {
-            validate_identifier(&answer.key, &format!("normalized cut {} answer key", cut.id))?;
+            validate_identifier(
+                &answer.key,
+                &format!("normalized cut {} answer key", cut.id),
+            )?;
             if let Some(meaning) = &answer.meaning {
-                if meaning.trim().is_empty() || meaning.len() > MAX_NORMALIZED_CUT_ANSWER_MEANING_BYTES {
+                if meaning.trim().is_empty()
+                    || meaning.len() > MAX_NORMALIZED_CUT_ANSWER_MEANING_BYTES
+                {
                     return Err(error(format!(
                         "normalized cut {} answer {} meaning must be nonempty and at most {MAX_NORMALIZED_CUT_ANSWER_MEANING_BYTES} bytes",
                         cut.id, answer.key
@@ -1189,16 +1249,28 @@ fn validate_normalized_cuts<'a>(
                 }
             }
             if !keys.insert(answer.key.as_str()) {
-                return Err(error(format!("normalized cut {} has duplicate answer key {}", cut.id, answer.key)));
+                return Err(error(format!(
+                    "normalized cut {} has duplicate answer key {}",
+                    cut.id, answer.key
+                )));
             }
-            finite(answer.weight, &format!("normalized cut {} answer {} weight", cut.id, answer.key))?;
+            finite(
+                answer.weight,
+                &format!("normalized cut {} answer {} weight", cut.id, answer.key),
+            )?;
             if answer.weight < 0.0 {
-                return Err(error(format!("normalized cut {} answer {} weight must be nonnegative", cut.id, answer.key)));
+                return Err(error(format!(
+                    "normalized cut {} answer {} weight must be nonnegative",
+                    cut.id, answer.key
+                )));
             }
             total += answer.weight;
         }
         if !keys.contains(NORMALIZED_CUT_REMAINDER_KEY) {
-            return Err(error(format!("normalized cut {} requires explicit remainder answer", cut.id)));
+            return Err(error(format!(
+                "normalized cut {} requires explicit remainder answer",
+                cut.id
+            )));
         }
         if !total.is_finite() || (total - 1.0).abs() > NORMALIZED_CUT_SUM_TOLERANCE {
             return Err(error(format!(
@@ -1215,14 +1287,28 @@ fn validate_normalized_cuts<'a>(
     let mut edges = Vec::new();
     for cut in &meaning_model.normalized_cuts {
         if let Some(condition) = &cut.conditioning {
-            validate_identifier(&condition.cut_id, &format!("normalized cut {} conditioning cut id", cut.id))?;
-            validate_identifier(&condition.answer_key, &format!("normalized cut {} conditioning answer key", cut.id))?;
-            let enclosing = cuts.get(condition.cut_id.as_str()).ok_or_else(|| error(format!(
-                "normalized cut {} conditions on unknown cut {}", cut.id, condition.cut_id
-            )))?;
-            if !enclosing.answers.iter().any(|answer| answer.key == condition.answer_key) {
+            validate_identifier(
+                &condition.cut_id,
+                &format!("normalized cut {} conditioning cut id", cut.id),
+            )?;
+            validate_identifier(
+                &condition.answer_key,
+                &format!("normalized cut {} conditioning answer key", cut.id),
+            )?;
+            let enclosing = cuts.get(condition.cut_id.as_str()).ok_or_else(|| {
+                error(format!(
+                    "normalized cut {} conditions on unknown cut {}",
+                    cut.id, condition.cut_id
+                ))
+            })?;
+            if !enclosing
+                .answers
+                .iter()
+                .any(|answer| answer.key == condition.answer_key)
+            {
                 return Err(error(format!(
-                    "normalized cut {} conditions on unknown answer {} in cut {}", cut.id, condition.answer_key, condition.cut_id
+                    "normalized cut {} conditions on unknown answer {} in cut {}",
+                    cut.id, condition.answer_key, condition.cut_id
                 )));
             }
             if cut.withdrawn.is_none() && enclosing.withdrawn.is_some() {
@@ -1232,9 +1318,13 @@ fn validate_normalized_cuts<'a>(
                 )));
             }
             if !event_contexts.is_empty()
-                && event_contexts[cut.parent_event_id.as_str()] != event_contexts[enclosing.parent_event_id.as_str()]
+                && event_contexts[cut.parent_event_id.as_str()]
+                    != event_contexts[enclosing.parent_event_id.as_str()]
             {
-                return Err(error(format!("normalized cut {} conditioning crosses context roots", cut.id)));
+                return Err(error(format!(
+                    "normalized cut {} conditioning crosses context roots",
+                    cut.id
+                )));
             }
             edges.push((enclosing.id.as_str(), cut.id.as_str()));
         }
@@ -1252,12 +1342,20 @@ fn validate_temporal_cut_recompositions<'a>(
         return Ok(());
     }
     // Local Cut accounting and Event references were validated first.
-    let cuts: BTreeMap<&str, &NormalizedCutDefinition> = meaning_model.normalized_cuts
-        .iter().map(|cut| (cut.id.as_str(), cut)).collect();
+    let cuts: BTreeMap<&str, &NormalizedCutDefinition> = meaning_model
+        .normalized_cuts
+        .iter()
+        .map(|cut| (cut.id.as_str(), cut))
+        .collect();
     let nodes = cuts.keys().copied().collect();
-    let mut edges: Vec<(&str, &str)> = cuts.values().filter_map(|cut| {
-        cut.conditioning.as_ref().map(|condition| (condition.cut_id.as_str(), cut.id.as_str()))
-    }).collect();
+    let mut edges: Vec<(&str, &str)> = cuts
+        .values()
+        .filter_map(|cut| {
+            cut.conditioning
+                .as_ref()
+                .map(|condition| (condition.cut_id.as_str(), cut.id.as_str()))
+        })
+        .collect();
     let mut parents = BTreeSet::new();
     for contract in &meaning_model.temporal_cut_recompositions {
         let label = format!("temporal Cut recomposition {}", contract.parent_cut_id);
@@ -1270,21 +1368,33 @@ fn validate_temporal_cut_recompositions<'a>(
         }
         validate_provenance(&contract.provenance, &label)?;
         if contract.children.is_empty() || contract.children.len() > MAX_MEANING_CUT_CHILDREN {
-            return Err(error(format!("{label} requires 1..={MAX_MEANING_CUT_CHILDREN} children")));
+            return Err(error(format!(
+                "{label} requires 1..={MAX_MEANING_CUT_CHILDREN} children"
+            )));
         }
         let mut children = BTreeSet::new();
         for child in &contract.children {
             validate_identifier(&child.cut_id, &format!("{label} child cut id"))?;
             if !cuts.contains_key(child.cut_id.as_str()) {
-                return Err(error(format!("{label} names unknown child cut {}", child.cut_id)));
+                return Err(error(format!(
+                    "{label} names unknown child cut {}",
+                    child.cut_id
+                )));
             }
             if !children.insert(child.cut_id.as_str()) {
-                return Err(error(format!("{label} has duplicate child cut {}", child.cut_id)));
+                return Err(error(format!(
+                    "{label} has duplicate child cut {}",
+                    child.cut_id
+                )));
             }
             edges.push((contract.parent_cut_id.as_str(), child.cut_id.as_str()));
         }
     }
-    validate_dag(&nodes, &edges, "normalized cut conditioning and temporal recomposition graph")?;
+    validate_dag(
+        &nodes,
+        &edges,
+        "normalized cut conditioning and temporal recomposition graph",
+    )?;
 
     let positive_duration = |interval: &EventInterval, label: &str| -> EngineResult<f64> {
         let duration = interval.end - interval.start;
@@ -1297,41 +1407,69 @@ fn validate_temporal_cut_recompositions<'a>(
     for contract in &meaning_model.temporal_cut_recompositions {
         let label = format!("temporal Cut recomposition {}", contract.parent_cut_id);
         let parent = cuts[contract.parent_cut_id.as_str()];
-        let parent_interval = events[parent.parent_event_id.as_str()].interval.as_ref()
+        let parent_interval = events[parent.parent_event_id.as_str()]
+            .interval
+            .as_ref()
             .ok_or_else(|| error(format!("{label} requires a bounded parent Event interval")))?;
         let parent_duration = positive_duration(parent_interval, &label)?;
-        let parent_keys: BTreeSet<&str> = parent.answers.iter().map(|answer| answer.key.as_str()).collect();
-        let mut contribution: BTreeMap<&str, f64> = parent_keys.iter().map(|key| (*key, 0.0)).collect();
+        let parent_keys: BTreeSet<&str> = parent
+            .answers
+            .iter()
+            .map(|answer| answer.key.as_str())
+            .collect();
+        let mut contribution: BTreeMap<&str, f64> =
+            parent_keys.iter().map(|key| (*key, 0.0)).collect();
         let mut periods = Vec::new();
         for child in &contract.children {
             let child_cut = cuts[child.cut_id.as_str()];
             let child_label = format!("{label} child {}", child.cut_id);
             if child_cut.question != parent.question || child_cut.unit != parent.unit {
-                return Err(error(format!("{child_label} requires the same question and unit as the parent")));
+                return Err(error(format!(
+                    "{child_label} requires the same question and unit as the parent"
+                )));
             }
             if child_cut.conditioning != parent.conditioning {
-                return Err(error(format!("{child_label} requires the same conditioning as the parent")));
+                return Err(error(format!(
+                    "{child_label} requires the same conditioning as the parent"
+                )));
             }
             if !event_contexts.is_empty()
-                && event_contexts[child_cut.parent_event_id.as_str()] != event_contexts[parent.parent_event_id.as_str()]
+                && event_contexts[child_cut.parent_event_id.as_str()]
+                    != event_contexts[parent.parent_event_id.as_str()]
             {
                 return Err(error(format!("{child_label} crosses context roots")));
             }
-            let child_interval = events[child_cut.parent_event_id.as_str()].interval.as_ref()
-                .ok_or_else(|| error(format!("{child_label} requires a bounded child Event interval")))?;
+            let child_interval = events[child_cut.parent_event_id.as_str()]
+                .interval
+                .as_ref()
+                .ok_or_else(|| {
+                    error(format!(
+                        "{child_label} requires a bounded child Event interval"
+                    ))
+                })?;
             positive_duration(child_interval, &child_label)?;
             if !interval_contains(parent_interval, child_interval) {
-                return Err(error(format!("{child_label} interval exceeds parent Event interval")));
+                return Err(error(format!(
+                    "{child_label} interval exceeds parent Event interval"
+                )));
             }
-            let child_keys: BTreeSet<&str> = child_cut.answers.iter().map(|answer| answer.key.as_str()).collect();
+            let child_keys: BTreeSet<&str> = child_cut
+                .answers
+                .iter()
+                .map(|answer| answer.key.as_str())
+                .collect();
             match &child.projection {
                 TemporalCutProjection::Identity => {
                     if child_keys != parent_keys {
-                        return Err(error(format!("{child_label} identity projection requires identical answer support")));
+                        return Err(error(format!(
+                            "{child_label} identity projection requires identical answer support"
+                        )));
                     }
                 }
                 TemporalCutProjection::AnswerMap { answers } => {
-                    if answers.len() != child_keys.len() || !child_keys.iter().all(|key| answers.contains_key(*key)) {
+                    if answers.len() != child_keys.len()
+                        || !child_keys.iter().all(|key| answers.contains_key(*key))
+                    {
                         return Err(error(format!("{child_label} answer projection must map every child answer exactly once")));
                     }
                     for (source, target) in answers {
@@ -1340,22 +1478,35 @@ fn validate_temporal_cut_recompositions<'a>(
                         }
                     }
                     if answers[NORMALIZED_CUT_REMAINDER_KEY] != NORMALIZED_CUT_REMAINDER_KEY {
-                        return Err(error(format!("{child_label} must project remainder to parent remainder")));
+                        return Err(error(format!(
+                            "{child_label} must project remainder to parent remainder"
+                        )));
                     }
                 }
             }
             periods.push((child_interval, child_cut, &child.projection));
         }
-        periods.sort_by(|left, right| left.0.start.total_cmp(&right.0.start)
-            .then_with(|| left.0.end.total_cmp(&right.0.end)));
+        periods.sort_by(|left, right| {
+            left.0
+                .start
+                .total_cmp(&right.0.start)
+                .then_with(|| left.0.end.total_cmp(&right.0.end))
+        });
         let mut previous_end = parent_interval.start;
         let mut uncovered_duration = 0.0;
         for (interval, child, projection) in periods {
             if interval.start < previous_end {
-                return Err(error(format!("{label} child {} overlaps another child interval", child.id)));
+                return Err(error(format!(
+                    "{label} child {} overlaps another child interval",
+                    child.id
+                )));
             }
-            if contract.coverage == TemporalCutCoverage::Complete && interval.start != previous_end {
-                return Err(error(format!("{label} complete coverage requires an exact interval partition; gap before {}", child.id)));
+            if contract.coverage == TemporalCutCoverage::Complete && interval.start != previous_end
+            {
+                return Err(error(format!(
+                    "{label} complete coverage requires an exact interval partition; gap before {}",
+                    child.id
+                )));
             }
             uncovered_duration += interval.start - previous_end;
             previous_end = interval.end;
@@ -1366,18 +1517,29 @@ fn validate_temporal_cut_recompositions<'a>(
                     TemporalCutProjection::Identity => answer.key.as_str(),
                     TemporalCutProjection::AnswerMap { answers } => answers[&answer.key].as_str(),
                 };
-                let total = contribution.get_mut(target).expect("validated answer projection");
+                let total = contribution
+                    .get_mut(target)
+                    .expect("validated answer projection");
                 *total += share * answer.weight;
-                finite(*total, &format!("{label} projected answer {target} contribution"))?;
+                finite(
+                    *total,
+                    &format!("{label} projected answer {target} contribution"),
+                )?;
             }
         }
-        if contract.coverage == TemporalCutCoverage::Complete && previous_end != parent_interval.end {
-            return Err(error(format!("{label} complete coverage requires an exact interval partition; trailing gap")));
+        if contract.coverage == TemporalCutCoverage::Complete && previous_end != parent_interval.end
+        {
+            return Err(error(format!(
+                "{label} complete coverage requires an exact interval partition; trailing gap"
+            )));
         }
         uncovered_duration += parent_interval.end - previous_end;
         finite(uncovered_duration, &format!("{label} uncovered duration"))?;
         let remaining_share = uncovered_duration / parent_duration;
-        finite(remaining_share, &format!("{label} remaining duration share"))?;
+        finite(
+            remaining_share,
+            &format!("{label} remaining duration share"),
+        )?;
         let mut residual_mass = 0.0;
         for answer in &parent.answers {
             let residual = answer.weight - contribution[answer.key.as_str()];
@@ -1424,7 +1586,10 @@ fn validate_importance<'a>(
         if scales.insert(scale.id.as_str(), scale).is_some() {
             return Err(error(format!("duplicate importance scale id {}", scale.id)));
         }
-        validate_text(&scale.audience, &format!("importance scale {} audience", scale.id))?;
+        validate_text(
+            &scale.audience,
+            &format!("importance scale {} audience", scale.id),
+        )?;
         if let Some(concept_id) = &scale.concept_id {
             if !concept_ids.contains(concept_id.as_str()) {
                 return Err(error(format!(
@@ -1465,7 +1630,10 @@ fn validate_importance<'a>(
     for judgment in &meaning_model.event_importance {
         validate_identifier(&judgment.id, "event importance id")?;
         if !ids.insert(judgment.id.as_str()) {
-            return Err(error(format!("duplicate event importance id {}", judgment.id)));
+            return Err(error(format!(
+                "duplicate event importance id {}",
+                judgment.id
+            )));
         }
         if !event_ids.contains(judgment.event_id.as_str()) {
             return Err(error(format!(
@@ -1485,8 +1653,15 @@ fn validate_importance<'a>(
                 judgment.id, judgment.level, judgment.scale_id
             )));
         }
-        validate_identifier(&judgment.holder, &format!("event importance {} holder", judgment.id))?;
-        if !judged.insert((judgment.event_id.as_str(), judgment.scale_id.as_str(), judgment.holder.as_str())) {
+        validate_identifier(
+            &judgment.holder,
+            &format!("event importance {} holder", judgment.id),
+        )?;
+        if !judged.insert((
+            judgment.event_id.as_str(),
+            judgment.scale_id.as_str(),
+            judgment.holder.as_str(),
+        )) {
             return Err(error(format!(
                 "event importance {}: {} already has a level on {} from {}; replace that judgment instead",
                 judgment.id, judgment.event_id, judgment.scale_id, judgment.holder
@@ -1496,7 +1671,10 @@ fn validate_importance<'a>(
             judgment.reason.as_deref(),
             &format!("event importance {} reason", judgment.id),
         )?;
-        validate_provenance(&judgment.provenance, &format!("event importance {}", judgment.id))?;
+        validate_provenance(
+            &judgment.provenance,
+            &format!("event importance {}", judgment.id),
+        )?;
     }
     Ok(())
 }
@@ -1512,7 +1690,9 @@ fn validate_cut_answer_references(
     for cut in &meaning_model.normalized_cuts {
         let mut named = BTreeSet::new();
         for answer in &cut.answers {
-            let Some(reference) = &answer.refers_to else { continue };
+            let Some(reference) = &answer.refers_to else {
+                continue;
+            };
             if answer.key == NORMALIZED_CUT_REMAINDER_KEY {
                 return Err(error(format!(
                     "normalized cut {} remainder cannot refer to a record: it holds what the named answers miss",
@@ -1520,11 +1700,17 @@ fn validate_cut_answer_references(
                 )));
             }
             let (kind, id, known) = match reference {
-                CutAnswerReference::Event { event_id } => ("event", event_id, event_ids.contains(event_id.as_str())),
-                CutAnswerReference::Referent { referent_id } => {
-                    ("referent", referent_id, referent_ids.contains(referent_id.as_str()))
+                CutAnswerReference::Event { event_id } => {
+                    ("event", event_id, event_ids.contains(event_id.as_str()))
                 }
-                CutAnswerReference::Process { process_id } => ("process", process_id, processes.contains_key(process_id)),
+                CutAnswerReference::Referent { referent_id } => (
+                    "referent",
+                    referent_id,
+                    referent_ids.contains(referent_id.as_str()),
+                ),
+                CutAnswerReference::Process { process_id } => {
+                    ("process", process_id, processes.contains_key(process_id))
+                }
             };
             if !known {
                 return Err(error(format!(
@@ -1567,7 +1753,11 @@ fn relation_kind_name(kind: &EventRelationKind) -> &'static str {
 }
 
 // A reading on a why-question's measure: a probability lies between 0 and 1, an amount of the outcome is nonnegative.
-fn validate_cause_reading(question: &CauseQuestionDefinition, value: f64, label: &str) -> EngineResult<()> {
+fn validate_cause_reading(
+    question: &CauseQuestionDefinition,
+    value: f64,
+    label: &str,
+) -> EngineResult<()> {
     finite(value, label)?;
     match question.measure {
         CauseMeasure::Probability if !(0.0..=1.0).contains(&value) => Err(error(format!(
@@ -1597,7 +1787,10 @@ fn validate_causes(
     for question in &meaning_model.cause_questions {
         validate_identifier(&question.id, "cause question id")?;
         if questions.insert(question.id.as_str(), question).is_some() {
-            return Err(error(format!("duplicate cause question id {}", question.id)));
+            return Err(error(format!(
+                "duplicate cause question id {}",
+                question.id
+            )));
         }
         if !event_ids.contains(question.outcome_event_id.as_str()) {
             return Err(error(format!(
@@ -1605,8 +1798,14 @@ fn validate_causes(
                 question.id, question.outcome_event_id
             )));
         }
-        validate_text(&question.contrast, &format!("cause question {} contrast", question.id))?;
-        validate_text(&question.holder, &format!("cause question {} holder", question.id))?;
+        validate_text(
+            &question.contrast,
+            &format!("cause question {} contrast", question.id),
+        )?;
+        validate_text(
+            &question.holder,
+            &format!("cause question {} holder", question.id),
+        )?;
         let (unit, measured_process) = match &question.measure {
             CauseMeasure::Probability => (None, None),
             CauseMeasure::Amount { unit, process_id } => {
@@ -1622,13 +1821,32 @@ fn validate_causes(
                 (Some(unit.as_str()), process_id.as_deref())
             }
         };
-        validate_cause_reading(question, question.actual, &format!("cause question {} actual", question.id))?;
+        validate_cause_reading(
+            question,
+            question.actual,
+            &format!("cause question {} actual", question.id),
+        )?;
         if let Some(cutoff) = question.evidence_cutoff {
-            finite(cutoff, &format!("cause question {} evidence cutoff", question.id))?;
+            finite(
+                cutoff,
+                &format!("cause question {} evidence cutoff", question.id),
+            )?;
         }
-        validate_optional_text(question.reason.as_deref(), &format!("cause question {} reason", question.id))?;
-        validate_provenance(&question.provenance, &format!("cause question {}", question.id))?;
-        if !asked.insert((question.outcome_event_id.as_str(), question.contrast.as_str(), question.holder.as_str(), unit, measured_process)) {
+        validate_optional_text(
+            question.reason.as_deref(),
+            &format!("cause question {} reason", question.id),
+        )?;
+        validate_provenance(
+            &question.provenance,
+            &format!("cause question {}", question.id),
+        )?;
+        if !asked.insert((
+            question.outcome_event_id.as_str(),
+            question.contrast.as_str(),
+            question.holder.as_str(),
+            unit,
+            measured_process,
+        )) {
             return Err(error(format!(
                 "cause question {}: {} already asks why {} came about rather than \"{}\" on this measure; add the causes to that question instead",
                 question.id, question.holder, question.outcome_event_id, question.contrast
@@ -1641,20 +1859,27 @@ fn validate_causes(
     for assessment in &meaning_model.cause_assessments {
         validate_identifier(&assessment.id, "cause assessment id")?;
         if !assessment_ids.insert(assessment.id.as_str()) {
-            return Err(error(format!("duplicate cause assessment id {}", assessment.id)));
+            return Err(error(format!(
+                "duplicate cause assessment id {}",
+                assessment.id
+            )));
         }
-        let question = questions.get(assessment.question_id.as_str()).ok_or_else(|| {
-            error(format!(
-                "cause assessment {} names unknown cause question {}",
-                assessment.id, assessment.question_id
-            ))
-        })?;
-        let relation = relations.get(assessment.relation_id.as_str()).ok_or_else(|| {
-            error(format!(
-                "cause assessment {} names unknown event relation {}",
-                assessment.id, assessment.relation_id
-            ))
-        })?;
+        let question = questions
+            .get(assessment.question_id.as_str())
+            .ok_or_else(|| {
+                error(format!(
+                    "cause assessment {} names unknown cause question {}",
+                    assessment.id, assessment.question_id
+                ))
+            })?;
+        let relation = relations
+            .get(assessment.relation_id.as_str())
+            .ok_or_else(|| {
+                error(format!(
+                    "cause assessment {} names unknown event relation {}",
+                    assessment.id, assessment.relation_id
+                ))
+            })?;
         let brings_about = cause_direction(&relation.kind).ok_or_else(|| {
             error(format!(
                 "cause assessment {} weighs relation {} of kind {}, which names no cause; only causes, enables, prevents and constrains relations do",
@@ -1664,7 +1889,11 @@ fn validate_causes(
         if relation.target_event_id != question.outcome_event_id {
             return Err(error(format!(
                 "cause assessment {}: relation {} ends at {}, not at question {}'s outcome {}",
-                assessment.id, relation.id, relation.target_event_id, question.id, question.outcome_event_id
+                assessment.id,
+                relation.id,
+                relation.target_event_id,
+                question.id,
+                question.outcome_event_id
             )));
         }
         if let Some(role) = assessment.role {
@@ -1690,8 +1919,16 @@ fn validate_causes(
             )));
         }
         if let Some(band) = &assessment.without_band {
-            validate_cause_reading(question, band.lower, &format!("cause assessment {} band lower", assessment.id))?;
-            validate_cause_reading(question, band.upper, &format!("cause assessment {} band upper", assessment.id))?;
+            validate_cause_reading(
+                question,
+                band.lower,
+                &format!("cause assessment {} band lower", assessment.id),
+            )?;
+            validate_cause_reading(
+                question,
+                band.upper,
+                &format!("cause assessment {} band upper", assessment.id),
+            )?;
             if !(band.lower <= assessment.without && assessment.without <= band.upper) {
                 return Err(error(format!(
                     "cause assessment {} band {}..{} must hold its reading {}",
@@ -1714,7 +1951,9 @@ fn validate_causes(
                     assessment.id, other_id
                 ))
             })?;
-            if cause_direction(&other.kind) != Some(brings_about) || other.target_event_id != question.outcome_event_id {
+            if cause_direction(&other.kind) != Some(brings_about)
+                || other.target_event_id != question.outcome_event_id
+            {
                 return Err(error(format!(
                     "cause assessment {} removes relation {} with its cause, but {} is not a cause of the same direction ending at the outcome {}",
                     assessment.id, other_id, other_id, question.outcome_event_id
@@ -1739,9 +1978,19 @@ fn validate_causes(
                 )));
             }
         }
-        validate_optional_text(assessment.reason.as_deref(), &format!("cause assessment {} reason", assessment.id))?;
-        validate_provenance(&assessment.provenance, &format!("cause assessment {}", assessment.id))?;
-        let key = (assessment.question_id.as_str(), assessment.relation_id.as_str(), together.into_iter().collect::<Vec<_>>());
+        validate_optional_text(
+            assessment.reason.as_deref(),
+            &format!("cause assessment {} reason", assessment.id),
+        )?;
+        validate_provenance(
+            &assessment.provenance,
+            &format!("cause assessment {}", assessment.id),
+        )?;
+        let key = (
+            assessment.question_id.as_str(),
+            assessment.relation_id.as_str(),
+            together.into_iter().collect::<Vec<_>>(),
+        );
         if !judged.insert(key) {
             return Err(error(format!(
                 "cause assessment {}: question {} already reads the outcome without relation {}, removed with the same causes; replace that assessment instead",
@@ -1839,11 +2088,19 @@ pub(super) fn validate_meaning_model(
     }
     for concept in &meaning_model.concepts {
         if let Some(withdrawal) = &concept.withdrawn {
-            withdrawal.validate(&format!("concept {}", concept.id), &concept.id, &concept_ids)?;
+            withdrawal.validate(
+                &format!("concept {}", concept.id),
+                &concept.id,
+                &concept_ids,
+            )?;
         }
     }
-    let withdrawn_concepts: BTreeSet<&str> = meaning_model.concepts.iter()
-        .filter(|concept| concept.withdrawn.is_some()).map(|concept| concept.id.as_str()).collect();
+    let withdrawn_concepts: BTreeSet<&str> = meaning_model
+        .concepts
+        .iter()
+        .filter(|concept| concept.withdrawn.is_some())
+        .map(|concept| concept.id.as_str())
+        .collect();
 
     let mut referent_ids = BTreeSet::new();
     let mut referents = BTreeMap::new();
@@ -1884,7 +2141,9 @@ pub(super) fn validate_meaning_model(
         }
         validate_text(&event.boundary, &format!("event {} boundary", event.id))?;
         if let Some(description) = &event.description {
-            if description.trim().is_empty() || description.len() > MAX_MEANING_EVENT_DESCRIPTION_BYTES {
+            if description.trim().is_empty()
+                || description.len() > MAX_MEANING_EVENT_DESCRIPTION_BYTES
+            {
                 return Err(error(format!(
                     "event {} description must be nonempty and at most {MAX_MEANING_EVENT_DESCRIPTION_BYTES} bytes",
                     event.id
@@ -2144,7 +2403,11 @@ pub(super) fn validate_meaning_model(
     }
     for relation in &meaning_model.abstract_relations {
         if let Some(withdrawal) = &relation.withdrawn {
-            withdrawal.validate(&format!("abstract relation {}", relation.id), &relation.id, &relation_ids)?;
+            withdrawal.validate(
+                &format!("abstract relation {}", relation.id),
+                &relation.id,
+                &relation_ids,
+            )?;
         }
     }
 
@@ -2191,7 +2454,8 @@ pub(super) fn validate_meaning_model(
         )?;
         validate_provenance(&cut.provenance, &format!("abstract cut {}", cut.id))?;
         if cut.withdrawn.is_none() {
-            if let Some(concept) = std::iter::once(&cut.parent_concept_id).chain(cut.child_concept_ids.iter())
+            if let Some(concept) = std::iter::once(&cut.parent_concept_id)
+                .chain(cut.child_concept_ids.iter())
                 .find(|concept| withdrawn_concepts.contains(concept.as_str()))
             {
                 return Err(error(format!(
@@ -2204,7 +2468,11 @@ pub(super) fn validate_meaning_model(
     }
     for cut in &meaning_model.abstract_cuts {
         if let Some(withdrawal) = &cut.withdrawn {
-            withdrawal.validate(&format!("abstract cut {}", cut.id), &cut.id, &abstract_cut_ids)?;
+            withdrawal.validate(
+                &format!("abstract cut {}", cut.id),
+                &cut.id,
+                &abstract_cut_ids,
+            )?;
         }
     }
     validate_dag(&concept_ids, &abstract_edges, "abstract structural graph")?;
@@ -2559,8 +2827,11 @@ pub(super) fn validate_meaning_model(
         )?;
     }
 
-    let normalized_cut_parents: BTreeSet<&str> = meaning_model.normalized_cuts.iter()
-        .map(|cut| cut.parent_event_id.as_str()).collect();
+    let normalized_cut_parents: BTreeSet<&str> = meaning_model
+        .normalized_cuts
+        .iter()
+        .map(|cut| cut.parent_event_id.as_str())
+        .collect();
     let mut realization_ids = BTreeSet::new();
     for realization in &meaning_model.realizations {
         validate_identifier(&realization.id, "realization id")?;
@@ -2658,7 +2929,10 @@ pub(super) fn validate_meaning_model(
             None => None,
         };
         let normalized_definition = realization.degree == 1.0
-            && realization.roles.values().any(|event_id| normalized_cut_parents.contains(event_id.as_str()));
+            && realization
+                .roles
+                .values()
+                .any(|event_id| normalized_cut_parents.contains(event_id.as_str()));
         if realization.purpose == RealizationPurpose::Define
             && abstract_cut.is_none()
             && !normalized_definition
@@ -2714,7 +2988,7 @@ pub(super) fn validate_meaning_model(
 }
 
 #[cfg(test)]
-pub(super) fn test_meaning_model_fixture() -> MeaningModelDefinition {
+pub(crate) fn test_meaning_model_fixture() -> MeaningModelDefinition {
     fn concept(id: &str) -> ConceptDefinition {
         ConceptDefinition {
             id: id.to_owned(),
@@ -3204,8 +3478,18 @@ mod tests {
             question: "Where does care go next?".to_owned(),
             unit: "continuation".to_owned(),
             answers: vec![
-                NormalizedCutAnswer { key: "repair".to_owned(), weight: 0.7, meaning: None, refers_to: None },
-                NormalizedCutAnswer { key: NORMALIZED_CUT_REMAINDER_KEY.to_owned(), weight: 0.3, meaning: None, refers_to: None },
+                NormalizedCutAnswer {
+                    key: "repair".to_owned(),
+                    weight: 0.7,
+                    meaning: None,
+                    refers_to: None,
+                },
+                NormalizedCutAnswer {
+                    key: NORMALIZED_CUT_REMAINDER_KEY.to_owned(),
+                    weight: 0.3,
+                    meaning: None,
+                    refers_to: None,
+                },
             ],
             conditioning: None,
             provenance: vec!["unit-test".to_owned()],
@@ -3238,22 +3522,29 @@ mod tests {
         validate_meaning_model(&named, &test_processes()).unwrap();
 
         let mut remainder = with_direction_cut(test_meaning_model_fixture());
-        remainder.event_relations.push(realized(NORMALIZED_CUT_REMAINDER_KEY));
+        remainder
+            .event_relations
+            .push(realized(NORMALIZED_CUT_REMAINDER_KEY));
         validate_meaning_model(&remainder, &test_processes()).unwrap();
 
         let json = serde_json::to_value(&named.event_relations[1]).unwrap();
         assert_eq!(json["kind"], "realizes_forecast");
         assert_eq!(json["forecast_answer"]["cut_id"], "care-direction");
         let plain = serde_json::to_value(&named.event_relations[0]).unwrap();
-        assert!(plain.get("forecast_answer").is_none(), "absent references stay out of existing model hashes");
+        assert!(
+            plain.get("forecast_answer").is_none(),
+            "absent references stay out of existing model hashes"
+        );
     }
 
     #[test]
     fn withdrawn_records_stay_as_history_and_current_records_cannot_depend_on_them() {
-        let withdrawal = |replacements: &[&str]| Some(RecordWithdrawal {
-            reason: "The reviewer showed this question mixed a change with a level.".to_owned(),
-            superseded_by: replacements.iter().map(|id| (*id).to_owned()).collect(),
-        });
+        let withdrawal = |replacements: &[&str]| {
+            Some(RecordWithdrawal {
+                reason: "The reviewer showed this question mixed a change with a level.".to_owned(),
+                superseded_by: replacements.iter().map(|id| (*id).to_owned()).collect(),
+            })
+        };
         // A withdrawn Cut keeps its weights and may name its replacement.
         let mut model = with_direction_cut(test_meaning_model_fixture());
         let mut replacement = model.normalized_cuts[0].clone();
@@ -3264,7 +3555,10 @@ mod tests {
         let json = serde_json::to_value(&model.normalized_cuts[0]).unwrap();
         assert_eq!(json["withdrawn"]["superseded_by"][0], "care-direction-v2");
         let current = serde_json::to_value(&model.normalized_cuts[1]).unwrap();
-        assert!(current.get("withdrawn").is_none(), "absent withdrawals stay out of existing model hashes");
+        assert!(
+            current.get("withdrawn").is_none(),
+            "absent withdrawals stay out of existing model hashes"
+        );
 
         let mut unknown = model.clone();
         unknown.normalized_cuts[0].withdrawn = withdrawal(&["nope"]);
@@ -3279,15 +3573,25 @@ mod tests {
         // A current Cut may not divide an answer of a withdrawn one.
         let mut conditioned = model.clone();
         conditioned.normalized_cuts[1].conditioning = Some(NormalizedCutCondition {
-            cut_id: "care-direction".to_owned(), answer_key: "repair".to_owned() });
+            cut_id: "care-direction".to_owned(),
+            answer_key: "repair".to_owned(),
+        });
         assert!(failure(conditioned).contains("conditions on withdrawn cut care-direction"));
 
         // A withdrawn concept stays; a current opening may not divide it or into it.
         let mut concepts = test_meaning_model_fixture();
-        concepts.concepts.push(ConceptDefinition { id: "attentive-care".to_owned(), ..concepts.concepts[2].clone() });
-        let care = concepts.concepts.iter_mut().find(|concept| concept.id == "care").unwrap();
+        concepts.concepts.push(ConceptDefinition {
+            id: "attentive-care".to_owned(),
+            ..concepts.concepts[2].clone()
+        });
+        let care = concepts
+            .concepts
+            .iter_mut()
+            .find(|concept| concept.id == "care")
+            .unwrap();
         care.withdrawn = withdrawal(&["attentive-care"]);
-        assert!(failure(concepts.clone()).contains("abstract cut love-components names withdrawn concept care"));
+        assert!(failure(concepts.clone())
+            .contains("abstract cut love-components names withdrawn concept care"));
         concepts.abstract_cuts[0].withdrawn = withdrawal(&[]);
         validate_meaning_model(&concepts, &test_processes()).unwrap();
     }
@@ -3304,7 +3608,8 @@ mod tests {
         let mut relation = realized("repair");
         relation.kind = EventRelationKind::Causes;
         wrong_kind.event_relations.push(relation);
-        assert!(failure(wrong_kind).contains("forecast_answer is only valid for kind realizes_forecast"));
+        assert!(failure(wrong_kind)
+            .contains("forecast_answer is only valid for kind realizes_forecast"));
 
         let mut unknown_cut = with_direction_cut(test_meaning_model_fixture());
         let mut relation = realized("repair");
@@ -3316,19 +3621,30 @@ mod tests {
         let mut relation = realized("repair");
         relation.source_event_id = "trust-event".to_owned();
         wrong_source.event_relations.push(relation);
-        assert!(failure(wrong_source).contains("must start at Cut care-direction's parent event care-event"));
+        assert!(failure(wrong_source)
+            .contains("must start at Cut care-direction's parent event care-event"));
 
         let mut unknown_answer = with_direction_cut(test_meaning_model_fixture());
         unknown_answer.event_relations.push(realized("abandon"));
-        assert!(failure(unknown_answer).contains("names unknown answer abandon of Cut care-direction"));
+        assert!(
+            failure(unknown_answer).contains("names unknown answer abandon of Cut care-direction")
+        );
 
         let mut repeated = with_direction_cut(test_meaning_model_fixture());
         repeated.event_relations.push(realized("repair"));
-        repeated.event_relations.push(realized(NORMALIZED_CUT_REMAINDER_KEY));
-        assert!(failure(repeated).contains("Cut care-direction has more than one realized continuation"));
+        repeated
+            .event_relations
+            .push(realized(NORMALIZED_CUT_REMAINDER_KEY));
+        assert!(failure(repeated)
+            .contains("Cut care-direction has more than one realized continuation"));
     }
 
-    fn causal(id: &str, source: &str, target: &str, kind: EventRelationKind) -> EventRelationDefinition {
+    fn causal(
+        id: &str,
+        source: &str,
+        target: &str,
+        kind: EventRelationKind,
+    ) -> EventRelationDefinition {
         EventRelationDefinition {
             id: id.to_owned(),
             source_event_id: source.to_owned(),
@@ -3342,7 +3658,12 @@ mod tests {
         }
     }
 
-    fn cause(id: &str, relation_id: &str, role: Option<CauseRole>, without: f64) -> CauseAssessmentDefinition {
+    fn cause(
+        id: &str,
+        relation_id: &str,
+        role: Option<CauseRole>,
+        without: f64,
+    ) -> CauseAssessmentDefinition {
         CauseAssessmentDefinition {
             id: id.to_owned(),
             question_id: "why.repair".to_owned(),
@@ -3359,8 +3680,18 @@ mod tests {
     // Why did the repair come, rather than the relationship ending? Trust made it possible, care set it off and the
     // strain stood in its way; without trust and care together it would almost certainly not have come.
     fn with_causes(mut meaning_model: MeaningModelDefinition) -> MeaningModelDefinition {
-        meaning_model.event_relations.push(causal("care-causes-repair", "care-event", "repair-event", EventRelationKind::Causes));
-        meaning_model.event_relations.push(causal("strain-constrains-repair", "relationship-event", "repair-event", EventRelationKind::Constrains));
+        meaning_model.event_relations.push(causal(
+            "care-causes-repair",
+            "care-event",
+            "repair-event",
+            EventRelationKind::Causes,
+        ));
+        meaning_model.event_relations.push(causal(
+            "strain-constrains-repair",
+            "relationship-event",
+            "repair-event",
+            EventRelationKind::Constrains,
+        ));
         meaning_model.cause_questions.push(CauseQuestionDefinition {
             id: "why.repair".to_owned(),
             outcome_event_id: "repair-event".to_owned(),
@@ -3372,12 +3703,30 @@ mod tests {
             reason: Some("unit test".to_owned()),
             provenance: vec!["unit-test".to_owned()],
         });
-        meaning_model.cause_assessments.push(cause("cause.trust", "trust-enables-repair", Some(CauseRole::Enabling), 0.1));
-        meaning_model.cause_assessments.push(cause("cause.care", "care-causes-repair", Some(CauseRole::Trigger), 0.5));
-        meaning_model.cause_assessments.push(cause("cause.strain", "strain-constrains-repair", Some(CauseRole::Hindering), 0.95));
+        meaning_model.cause_assessments.push(cause(
+            "cause.trust",
+            "trust-enables-repair",
+            Some(CauseRole::Enabling),
+            0.1,
+        ));
+        meaning_model.cause_assessments.push(cause(
+            "cause.care",
+            "care-causes-repair",
+            Some(CauseRole::Trigger),
+            0.5,
+        ));
+        meaning_model.cause_assessments.push(cause(
+            "cause.strain",
+            "strain-constrains-repair",
+            Some(CauseRole::Hindering),
+            0.95,
+        ));
         let mut joint = cause("cause.trust-and-care", "trust-enables-repair", None, 0.02);
         joint.removed_with = vec!["care-causes-repair".to_owned()];
-        joint.without_band = Some(CauseValueBand { lower: 0.0, upper: 0.1 });
+        joint.without_band = Some(CauseValueBand {
+            lower: 0.0,
+            upper: 0.1,
+        });
         meaning_model.cause_assessments.push(joint);
         meaning_model
     }
@@ -3388,15 +3737,33 @@ mod tests {
         validate_meaning_model(&meaning_model, &test_processes()).unwrap();
         normalize_meaning_model(&mut meaning_model);
         assert_eq!(
-            meaning_model.cause_assessments.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(),
-            ["cause.care", "cause.strain", "cause.trust", "cause.trust-and-care"]
+            meaning_model
+                .cause_assessments
+                .iter()
+                .map(|item| item.id.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "cause.care",
+                "cause.strain",
+                "cause.trust",
+                "cause.trust-and-care"
+            ]
         );
         let json = serde_json::to_value(&meaning_model).unwrap();
         assert_eq!(json["cause_questions"][0]["measure"]["kind"], "probability");
-        assert_eq!(json["cause_questions"][0]["contrast"], "rather than the relationship ending");
+        assert_eq!(
+            json["cause_questions"][0]["contrast"],
+            "rather than the relationship ending"
+        );
         assert_eq!(json["cause_assessments"][0]["role"], "trigger");
-        assert_eq!(json["cause_assessments"][3]["removed_with"][0], "care-causes-repair");
-        assert!(json["cause_assessments"][0].get("removed_with").is_none(), "an assessment of one cause omits removed_with");
+        assert_eq!(
+            json["cause_assessments"][3]["removed_with"][0],
+            "care-causes-repair"
+        );
+        assert!(
+            json["cause_assessments"][0].get("removed_with").is_none(),
+            "an assessment of one cause omits removed_with"
+        );
         let round: MeaningModelDefinition = serde_json::from_value(json).unwrap();
         assert_eq!(round, meaning_model);
         // A model without causes serializes as before, so its hash is unchanged.
@@ -3407,10 +3774,18 @@ mod tests {
         let mut amount = with_causes(test_meaning_model_fixture());
         let mut points = amount.cause_questions[0].clone();
         points.id = "why.repair.points".to_owned();
-        points.measure = CauseMeasure::Amount { unit: "points of family pressure".to_owned(), process_id: Some("family.pressure".to_owned()) };
+        points.measure = CauseMeasure::Amount {
+            unit: "points of family pressure".to_owned(),
+            process_id: Some("family.pressure".to_owned()),
+        };
         points.actual = 6.0;
         amount.cause_questions.push(points);
-        let mut by_points = cause("cause.care.points", "care-causes-repair", Some(CauseRole::Trigger), 2.0);
+        let mut by_points = cause(
+            "cause.care.points",
+            "care-causes-repair",
+            Some(CauseRole::Trigger),
+            2.0,
+        );
         by_points.question_id = "why.repair.points".to_owned();
         amount.cause_assessments.push(by_points);
         validate_meaning_model(&amount, &test_processes()).unwrap();
@@ -3424,16 +3799,23 @@ mod tests {
         let mut model = with_causes(test_meaning_model_fixture());
         model.cause_assessments.clear();
         model.cause_questions[0].measure = CauseMeasure::Amount {
-            unit: "points".to_owned(), process_id: Some("family.pressure".to_owned())
+            unit: "points".to_owned(),
+            process_id: Some("family.pressure".to_owned()),
         };
         let mut second = model.cause_questions[0].clone();
         second.id = "why.repair.stress".to_owned();
-        second.measure = CauseMeasure::Amount { unit: "points".to_owned(), process_id: Some("person.stress".to_owned()) };
+        second.measure = CauseMeasure::Amount {
+            unit: "points".to_owned(),
+            process_id: Some("person.stress".to_owned()),
+        };
         model.cause_questions.push(second.clone());
         validate_meaning_model(&model, &test_processes()).unwrap();
         let mut unbound = second.clone();
         unbound.id = "why.repair.points".to_owned();
-        unbound.measure = CauseMeasure::Amount { unit: "points".to_owned(), process_id: None };
+        unbound.measure = CauseMeasure::Amount {
+            unit: "points".to_owned(),
+            process_id: None,
+        };
         model.cause_questions.push(unbound);
         validate_meaning_model(&model, &test_processes()).unwrap();
         second.id = "why.repair.stress.twice".to_owned();
@@ -3444,12 +3826,29 @@ mod tests {
     #[test]
     fn causes_removed_together_name_each_event_once() {
         let mut model = with_causes(test_meaning_model_fixture());
-        model.event_relations.push(causal("trust-causes-repair", "trust-event", "repair-event", EventRelationKind::Causes));
-        model.event_relations.push(causal("care-enables-repair", "care-event", "repair-event", EventRelationKind::Enables));
+        model.event_relations.push(causal(
+            "trust-causes-repair",
+            "trust-event",
+            "repair-event",
+            EventRelationKind::Causes,
+        ));
+        model.event_relations.push(causal(
+            "care-enables-repair",
+            "care-event",
+            "repair-event",
+            EventRelationKind::Enables,
+        ));
         model.cause_assessments[3].removed_with = vec!["trust-causes-repair".to_owned()];
-        assert!(failure(model.clone()).contains("removes cause event trust-event together with itself"));
-        model.cause_assessments[3].removed_with = vec!["care-causes-repair".to_owned(), "care-enables-repair".to_owned()];
-        assert!(failure(model.clone()).contains("names cause event care-event twice in removed_with"));
+        assert!(
+            failure(model.clone()).contains("removes cause event trust-event together with itself")
+        );
+        model.cause_assessments[3].removed_with = vec![
+            "care-causes-repair".to_owned(),
+            "care-enables-repair".to_owned(),
+        ];
+        assert!(
+            failure(model.clone()).contains("names cause event care-event twice in removed_with")
+        );
         model.cause_assessments[3].removed_with = vec!["care-enables-repair".to_owned()];
         validate_meaning_model(&model, &test_processes()).unwrap();
     }
@@ -3466,12 +3865,18 @@ mod tests {
 
         let mut negative_amount = with_causes(test_meaning_model_fixture());
         negative_amount.cause_assessments.clear();
-        negative_amount.cause_questions[0].measure = CauseMeasure::Amount { unit: "years".to_owned(), process_id: None };
+        negative_amount.cause_questions[0].measure = CauseMeasure::Amount {
+            unit: "years".to_owned(),
+            process_id: None,
+        };
         negative_amount.cause_questions[0].actual = -2.0;
         assert!(failure(negative_amount).contains("must be nonnegative; got -2"));
 
         let mut unknown_process = with_causes(test_meaning_model_fixture());
-        unknown_process.cause_questions[0].measure = CauseMeasure::Amount { unit: "years".to_owned(), process_id: Some("person.age".to_owned()) };
+        unknown_process.cause_questions[0].measure = CauseMeasure::Amount {
+            unit: "years".to_owned(),
+            process_id: Some("person.age".to_owned()),
+        };
         assert!(failure(unknown_process).contains("names unknown process person.age"));
 
         let mut asked_twice = with_causes(test_meaning_model_fixture());
@@ -3486,25 +3891,44 @@ mod tests {
 
         let mut unknown_relation = with_causes(test_meaning_model_fixture());
         unknown_relation.cause_assessments[0].relation_id = "nothing-causes-repair".to_owned();
-        assert!(failure(unknown_relation).contains("names unknown event relation nothing-causes-repair"));
+        assert!(failure(unknown_relation)
+            .contains("names unknown event relation nothing-causes-repair"));
 
         let mut not_a_cause = with_causes(test_meaning_model_fixture());
-        not_a_cause.event_relations.push(causal("care-about-repair", "care-event", "repair-event", EventRelationKind::About));
-        not_a_cause.cause_assessments.push(cause("cause.about", "care-about-repair", None, 0.5));
+        not_a_cause.event_relations.push(causal(
+            "care-about-repair",
+            "care-event",
+            "repair-event",
+            EventRelationKind::About,
+        ));
+        not_a_cause
+            .cause_assessments
+            .push(cause("cause.about", "care-about-repair", None, 0.5));
         assert!(failure(not_a_cause).contains("of kind about, which names no cause"));
 
         let mut elsewhere = with_causes(test_meaning_model_fixture());
-        elsewhere.event_relations.push(causal("repair-causes-care", "repair-event", "care-event", EventRelationKind::Causes));
-        elsewhere.cause_assessments.push(cause("cause.elsewhere", "repair-causes-care", None, 0.5));
-        assert!(failure(elsewhere).contains("ends at care-event, not at question why.repair's outcome repair-event"));
+        elsewhere.event_relations.push(causal(
+            "repair-causes-care",
+            "repair-event",
+            "care-event",
+            EventRelationKind::Causes,
+        ));
+        elsewhere
+            .cause_assessments
+            .push(cause("cause.elsewhere", "repair-causes-care", None, 0.5));
+        assert!(failure(elsewhere)
+            .contains("ends at care-event, not at question why.repair's outcome repair-event"));
 
         let mut hindering_cause = with_causes(test_meaning_model_fixture());
         hindering_cause.cause_assessments[1].role = Some(CauseRole::Hindering);
-        assert!(failure(hindering_cause).contains("role hindering does not fit relation care-causes-repair of kind causes"));
+        assert!(failure(hindering_cause)
+            .contains("role hindering does not fit relation care-causes-repair of kind causes"));
 
         let mut enabling_obstacle = with_causes(test_meaning_model_fixture());
         enabling_obstacle.cause_assessments[2].role = Some(CauseRole::Enabling);
-        assert!(failure(enabling_obstacle).contains("role enabling does not fit relation strain-constrains-repair of kind constrains"));
+        assert!(failure(enabling_obstacle).contains(
+            "role enabling does not fit relation strain-constrains-repair of kind constrains"
+        ));
 
         let mut raises = with_causes(test_meaning_model_fixture());
         raises.cause_assessments[1].without = 0.9;
@@ -3515,26 +3939,36 @@ mod tests {
         assert!(failure(lowers).contains("below the actual 0.8; a cause whose absence would make the outcome less likely or smaller brings it about"));
 
         let mut out_of_band = with_causes(test_meaning_model_fixture());
-        out_of_band.cause_assessments[3].without_band = Some(CauseValueBand { lower: 0.05, upper: 0.1 });
+        out_of_band.cause_assessments[3].without_band = Some(CauseValueBand {
+            lower: 0.05,
+            upper: 0.1,
+        });
         assert!(failure(out_of_band).contains("band 0.05..0.1 must hold its reading 0.02"));
 
         let mut with_itself = with_causes(test_meaning_model_fixture());
         with_itself.cause_assessments[3].removed_with = vec!["trust-enables-repair".to_owned()];
-        assert!(failure(with_itself).contains("removes relation trust-enables-repair together with itself"));
+        assert!(failure(with_itself)
+            .contains("removes relation trust-enables-repair together with itself"));
 
         let mut opposite = with_causes(test_meaning_model_fixture());
         opposite.cause_assessments[3].removed_with = vec!["strain-constrains-repair".to_owned()];
-        assert!(failure(opposite).contains("is not a cause of the same direction ending at the outcome repair-event"));
+        assert!(failure(opposite)
+            .contains("is not a cause of the same direction ending at the outcome repair-event"));
 
         let mut twice_removed = with_causes(test_meaning_model_fixture());
-        twice_removed.cause_assessments[3].removed_with = vec!["care-causes-repair".to_owned(), "care-causes-repair".to_owned()];
-        assert!(failure(twice_removed).contains("names relation care-causes-repair twice in removed_with"));
+        twice_removed.cause_assessments[3].removed_with = vec![
+            "care-causes-repair".to_owned(),
+            "care-causes-repair".to_owned(),
+        ];
+        assert!(failure(twice_removed)
+            .contains("names relation care-causes-repair twice in removed_with"));
 
         let mut read_twice = with_causes(test_meaning_model_fixture());
         let mut second = read_twice.cause_assessments[1].clone();
         second.id = "cause.care.again".to_owned();
         read_twice.cause_assessments.push(second);
-        assert!(failure(read_twice).contains("already reads the outcome without relation care-causes-repair"));
+        assert!(failure(read_twice)
+            .contains("already reads the outcome without relation care-causes-repair"));
 
         let mut same_id = with_causes(test_meaning_model_fixture());
         same_id.cause_assessments[1].id = "cause.trust".to_owned();
@@ -3542,22 +3976,48 @@ mod tests {
     }
 
     fn with_cause_shares(mut meaning_model: MeaningModelDefinition) -> MeaningModelDefinition {
-        let answer = |key: &str, weight: f64, refers_to: Option<CutAnswerReference>| NormalizedCutAnswer {
-            key: key.to_owned(),
-            weight,
-            meaning: Some(format!("{key} in the repair")),
-            refers_to,
-        };
+        let answer =
+            |key: &str, weight: f64, refers_to: Option<CutAnswerReference>| NormalizedCutAnswer {
+                key: key.to_owned(),
+                weight,
+                meaning: Some(format!("{key} in the repair")),
+                refers_to,
+            };
         meaning_model.normalized_cuts.push(NormalizedCutDefinition {
             id: "repair-causes".to_owned(),
             parent_event_id: "repair-event".to_owned(),
-            question: "Of the pressure the repair took off, how much came from each change?".to_owned(),
+            question: "Of the pressure the repair took off, how much came from each change?"
+                .to_owned(),
             unit: "the 6 points of family pressure the repair removed".to_owned(),
             answers: vec![
-                answer("trust", 0.5, Some(CutAnswerReference::Event { event_id: "trust-event".to_owned() })),
-                answer("care", 0.3, Some(CutAnswerReference::Event { event_id: "care-event".to_owned() })),
-                answer("bob", 0.1, Some(CutAnswerReference::Referent { referent_id: "bob".to_owned() })),
-                answer("pressure", 0.05, Some(CutAnswerReference::Process { process_id: "family.pressure".to_owned() })),
+                answer(
+                    "trust",
+                    0.5,
+                    Some(CutAnswerReference::Event {
+                        event_id: "trust-event".to_owned(),
+                    }),
+                ),
+                answer(
+                    "care",
+                    0.3,
+                    Some(CutAnswerReference::Event {
+                        event_id: "care-event".to_owned(),
+                    }),
+                ),
+                answer(
+                    "bob",
+                    0.1,
+                    Some(CutAnswerReference::Referent {
+                        referent_id: "bob".to_owned(),
+                    }),
+                ),
+                answer(
+                    "pressure",
+                    0.05,
+                    Some(CutAnswerReference::Process {
+                        process_id: "family.pressure".to_owned(),
+                    }),
+                ),
                 answer(NORMALIZED_CUT_REMAINDER_KEY, 0.05, None),
             ],
             conditioning: None,
@@ -3572,55 +4032,92 @@ mod tests {
         let meaning_model = with_cause_shares(test_meaning_model_fixture());
         validate_meaning_model(&meaning_model, &test_processes()).unwrap();
         let json = serde_json::to_value(&meaning_model.normalized_cuts[0]).unwrap();
-        assert_eq!(json["answers"][0]["refers_to"], serde_json::json!({ "kind": "event", "event_id": "trust-event" }));
+        assert_eq!(
+            json["answers"][0]["refers_to"],
+            serde_json::json!({ "kind": "event", "event_id": "trust-event" })
+        );
         assert_eq!(json["answers"][2]["refers_to"]["kind"], "referent");
-        assert!(json["answers"][4].get("refers_to").is_none(), "an answer without a record omits refers_to");
+        assert!(
+            json["answers"][4].get("refers_to").is_none(),
+            "an answer without a record omits refers_to"
+        );
         let round: NormalizedCutDefinition = serde_json::from_value(json).unwrap();
         assert_eq!(round, meaning_model.normalized_cuts[0]);
 
         let mut unknown = with_cause_shares(test_meaning_model_fixture());
-        unknown.normalized_cuts[0].answers[1].refers_to = Some(CutAnswerReference::Event { event_id: "nothing".to_owned() });
+        unknown.normalized_cuts[0].answers[1].refers_to = Some(CutAnswerReference::Event {
+            event_id: "nothing".to_owned(),
+        });
         assert!(failure(unknown).contains("answer care refers to unknown event nothing"));
 
         let mut unknown_process = with_cause_shares(test_meaning_model_fixture());
-        unknown_process.normalized_cuts[0].answers[3].refers_to = Some(CutAnswerReference::Process { process_id: "person.age".to_owned() });
-        assert!(failure(unknown_process).contains("answer pressure refers to unknown process person.age"));
+        unknown_process.normalized_cuts[0].answers[3].refers_to =
+            Some(CutAnswerReference::Process {
+                process_id: "person.age".to_owned(),
+            });
+        assert!(failure(unknown_process)
+            .contains("answer pressure refers to unknown process person.age"));
 
         let mut remainder = with_cause_shares(test_meaning_model_fixture());
-        remainder.normalized_cuts[0].answers[4].refers_to = Some(CutAnswerReference::Event { event_id: "relationship-event".to_owned() });
+        remainder.normalized_cuts[0].answers[4].refers_to = Some(CutAnswerReference::Event {
+            event_id: "relationship-event".to_owned(),
+        });
         assert!(failure(remainder).contains("remainder cannot refer to a record"));
 
         let mut twice = with_cause_shares(test_meaning_model_fixture());
-        twice.normalized_cuts[0].answers[1].refers_to = Some(CutAnswerReference::Event { event_id: "trust-event".to_owned() });
+        twice.normalized_cuts[0].answers[1].refers_to = Some(CutAnswerReference::Event {
+            event_id: "trust-event".to_owned(),
+        });
         assert!(failure(twice).contains("names event trust-event in two answers"));
     }
 
     fn with_importance(mut meaning_model: MeaningModelDefinition) -> MeaningModelDefinition {
-        let level = |key: &str, anchor: &str| ImportanceLevelDefinition { key: key.to_owned(), anchor: anchor.to_owned() };
-        meaning_model.importance_scales.push(ImportanceScaleDefinition {
-            id: "importance.world".to_owned(),
-            audience: "Everyone who lives in this world".to_owned(),
-            concept_id: Some("love".to_owned()),
-            levels: vec![
-                level("epochal", "Changes how most people live for generations"),
-                level("major", "Changes life across a region for years"),
-                level("notable", "Remembered by those near it"),
-            ],
-            provenance: vec!["unit-test".to_owned()],
-        });
-        let judgment = |id: &str, event_id: &str, level: &str, holder: &str| EventImportanceDefinition {
-            id: id.to_owned(),
-            event_id: event_id.to_owned(),
-            scale_id: "importance.world".to_owned(),
-            level: level.to_owned(),
-            holder: holder.to_owned(),
-            reason: Some("unit test".to_owned()),
-            provenance: vec!["unit-test".to_owned()],
+        let level = |key: &str, anchor: &str| ImportanceLevelDefinition {
+            key: key.to_owned(),
+            anchor: anchor.to_owned(),
         };
-        meaning_model.event_importance.push(judgment("importance.world.repair-event.modeler", "repair-event", "major", "modeler"));
-        meaning_model.event_importance.push(judgment("importance.world.care-event.modeler", "care-event", "epochal", "modeler"));
+        meaning_model
+            .importance_scales
+            .push(ImportanceScaleDefinition {
+                id: "importance.world".to_owned(),
+                audience: "Everyone who lives in this world".to_owned(),
+                concept_id: Some("love".to_owned()),
+                levels: vec![
+                    level("epochal", "Changes how most people live for generations"),
+                    level("major", "Changes life across a region for years"),
+                    level("notable", "Remembered by those near it"),
+                ],
+                provenance: vec!["unit-test".to_owned()],
+            });
+        let judgment =
+            |id: &str, event_id: &str, level: &str, holder: &str| EventImportanceDefinition {
+                id: id.to_owned(),
+                event_id: event_id.to_owned(),
+                scale_id: "importance.world".to_owned(),
+                level: level.to_owned(),
+                holder: holder.to_owned(),
+                reason: Some("unit test".to_owned()),
+                provenance: vec!["unit-test".to_owned()],
+            };
+        meaning_model.event_importance.push(judgment(
+            "importance.world.repair-event.modeler",
+            "repair-event",
+            "major",
+            "modeler",
+        ));
+        meaning_model.event_importance.push(judgment(
+            "importance.world.care-event.modeler",
+            "care-event",
+            "epochal",
+            "modeler",
+        ));
         // Another holder judges the same Event on the same scale differently; both are kept.
-        meaning_model.event_importance.push(judgment("importance.world.care-event.reader", "care-event", "notable", "reader"));
+        meaning_model.event_importance.push(judgment(
+            "importance.world.care-event.reader",
+            "care-event",
+            "notable",
+            "reader",
+        ));
         meaning_model
     }
 
@@ -3630,17 +4127,31 @@ mod tests {
         validate_meaning_model(&meaning_model, &test_processes()).unwrap();
         normalize_meaning_model(&mut meaning_model);
         assert_eq!(
-            meaning_model.event_importance.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(),
-            ["importance.world.care-event.modeler", "importance.world.care-event.reader", "importance.world.repair-event.modeler"]
+            meaning_model
+                .event_importance
+                .iter()
+                .map(|item| item.id.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "importance.world.care-event.modeler",
+                "importance.world.care-event.reader",
+                "importance.world.repair-event.modeler"
+            ]
         );
         // Levels keep their authored order: the most important first.
         assert_eq!(
-            meaning_model.importance_scales[0].levels.iter().map(|level| level.key.as_str()).collect::<Vec<_>>(),
+            meaning_model.importance_scales[0]
+                .levels
+                .iter()
+                .map(|level| level.key.as_str())
+                .collect::<Vec<_>>(),
             ["epochal", "major", "notable"]
         );
         // A model without importance serializes as before, so its hash is unchanged.
         let plain = serde_json::to_value(test_meaning_model_fixture()).unwrap();
-        assert!(plain.get("importance_scales").is_none() && plain.get("event_importance").is_none());
+        assert!(
+            plain.get("importance_scales").is_none() && plain.get("event_importance").is_none()
+        );
         let json = serde_json::to_value(&meaning_model).unwrap();
         assert_eq!(json["importance_scales"][0]["levels"][0]["key"], "epochal");
         let round: MeaningModelDefinition = serde_json::from_value(json).unwrap();
@@ -3664,7 +4175,8 @@ mod tests {
 
         let mut unknown_level = with_importance(test_meaning_model_fixture());
         unknown_level.event_importance[0].level = "huge".to_owned();
-        assert!(failure(unknown_level).contains("huge is not a level of importance scale importance.world"));
+        assert!(failure(unknown_level)
+            .contains("huge is not a level of importance scale importance.world"));
 
         let mut one_level = with_importance(test_meaning_model_fixture());
         one_level.importance_scales[0].levels.truncate(1);
@@ -3923,7 +4435,9 @@ mod tests {
                 provenance: vec!["unit-test".to_owned()],
                 withdrawn: None,
             });
-        assert!(failure(abstract_cycle.clone()).contains("abstract structural graph must be acyclic"));
+        assert!(
+            failure(abstract_cycle.clone()).contains("abstract structural graph must be acyclic")
+        );
         // A withdrawn specialization stays as history but leaves the current hierarchy, so the climb it closed is open
         // again; it serializes its withdrawal, and an absent one stays out of the record.
         let mut reversed = abstract_cycle;
@@ -3931,12 +4445,23 @@ mod tests {
             reason: "The climb was re-carved: social process is not a kind of love.".to_owned(),
             superseded_by: vec!["care-specializes-to-social-process".to_owned()],
         });
-        validate_meaning_model(&reversed, &test_processes()).expect("a withdrawn specialization does not close a cycle");
+        validate_meaning_model(&reversed, &test_processes())
+            .expect("a withdrawn specialization does not close a cycle");
         let json = serde_json::to_value(&reversed.abstract_relations).unwrap();
-        assert_eq!(json[0]["withdrawn"]["superseded_by"][0], "care-specializes-to-social-process");
-        assert!(json[1].get("withdrawn").is_none(), "absent withdrawals stay out of existing model hashes");
+        assert_eq!(
+            json[0]["withdrawn"]["superseded_by"][0],
+            "care-specializes-to-social-process"
+        );
+        assert!(
+            json[1].get("withdrawn").is_none(),
+            "absent withdrawals stay out of existing model hashes"
+        );
         let mut unknown = reversed.clone();
-        unknown.abstract_relations[0].withdrawn.as_mut().unwrap().superseded_by = vec!["nope".to_owned()];
+        unknown.abstract_relations[0]
+            .withdrawn
+            .as_mut()
+            .unwrap()
+            .superseded_by = vec!["nope".to_owned()];
         assert!(failure(unknown).contains("abstract relation social-process-specializes-to-love withdrawal names invalid replacement nope"));
 
         let mut physical_cycle = test_meaning_model_fixture();

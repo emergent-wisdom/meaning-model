@@ -43,7 +43,10 @@ pub enum ModelChange {
 pub fn compute(base: &Value, target: &Value) -> Option<ModelDelta> {
     let mut changes = Vec::new();
     diff(base, target, &mut Vec::new(), &mut changes);
-    let delta = ModelDelta { schema: MODEL_DELTA_SCHEMA.to_owned(), changes };
+    let delta = ModelDelta {
+        schema: MODEL_DELTA_SCHEMA.to_owned(),
+        changes,
+    };
     let mut rebuilt = base.clone();
     apply(&mut rebuilt, &delta).ok()?;
     same(&rebuilt, target).then_some(delta)
@@ -54,8 +57,14 @@ pub fn compute(base: &Value, target: &Value) -> Option<ModelDelta> {
 fn same(a: &Value, b: &Value) -> bool {
     match (a, b) {
         (Value::Number(a), Value::Number(b)) => same_number(a, b),
-        (Value::Array(a), Value::Array(b)) => a.len() == b.len() && a.iter().zip(b).all(|(a, b)| same(a, b)),
-        (Value::Object(a), Value::Object(b)) => a.len() == b.len() && a.iter().all(|(key, value)| b.get(key).is_some_and(|other| same(value, other))),
+        (Value::Array(a), Value::Array(b)) => {
+            a.len() == b.len() && a.iter().zip(b).all(|(a, b)| same(a, b))
+        }
+        (Value::Object(a), Value::Object(b)) => {
+            a.len() == b.len()
+                && a.iter()
+                    .all(|(key, value)| b.get(key).is_some_and(|other| same(value, other)))
+        }
         _ => a == b,
     }
 }
@@ -75,24 +84,44 @@ pub fn apply(value: &mut Value, delta: &ModelDelta) -> Result<(), String> {
     }
     for change in &delta.changes {
         match change {
-            ModelChange::Set { path, value: replacement } => match path.split_last() {
+            ModelChange::Set {
+                path,
+                value: replacement,
+            } => match path.split_last() {
                 None => *value = replacement.clone(),
                 Some((key, parents)) => {
                     object_at(value, parents)?.insert(key.clone(), replacement.clone());
                 }
             },
             ModelChange::Unset { path } => {
-                let (key, parents) = path.split_last().ok_or("a model delta cannot remove the whole model")?;
+                let (key, parents) = path
+                    .split_last()
+                    .ok_or("a model delta cannot remove the whole model")?;
                 if object_at(value, parents)?.remove(key).is_none() {
-                    return Err(format!("a model delta removes {} which its base does not have", path.join(".")));
+                    return Err(format!(
+                        "a model delta removes {} which its base does not have",
+                        path.join(".")
+                    ));
                 }
             }
-            ModelChange::Records { path, upsert, remove, sorted } => {
+            ModelChange::Records {
+                path,
+                upsert,
+                remove,
+                sorted,
+            } => {
                 let records = match path.split_last() {
                     None => value.as_array_mut(),
-                    Some((key, parents)) => object_at(value, parents)?.get_mut(key).and_then(Value::as_array_mut),
+                    Some((key, parents)) => object_at(value, parents)?
+                        .get_mut(key)
+                        .and_then(Value::as_array_mut),
                 }
-                .ok_or_else(|| format!("a model delta changes records at {} where its base has none", path.join(".")))?;
+                .ok_or_else(|| {
+                    format!(
+                        "a model delta changes records at {} where its base has none",
+                        path.join(".")
+                    )
+                })?;
                 apply_records(records, upsert, remove, *sorted)?;
             }
         }
@@ -115,16 +144,30 @@ fn diff(base: &Value, target: &Value, path: &mut Vec<String>, out: &mut Vec<Mode
                 path.push(key.clone());
                 match old.get(key) {
                     Some(previous) => diff(previous, value, path, out),
-                    None => out.push(ModelChange::Set { path: path.clone(), value: value.clone() }),
+                    None => out.push(ModelChange::Set {
+                        path: path.clone(),
+                        value: value.clone(),
+                    }),
                 }
                 path.pop();
             }
         }
         (Value::Array(old), Value::Array(new)) => match records_change(old, new) {
-            Some((upsert, remove, sorted)) => out.push(ModelChange::Records { path: path.clone(), upsert, remove, sorted }),
-            None => out.push(ModelChange::Set { path: path.clone(), value: target.clone() }),
+            Some((upsert, remove, sorted)) => out.push(ModelChange::Records {
+                path: path.clone(),
+                upsert,
+                remove,
+                sorted,
+            }),
+            None => out.push(ModelChange::Set {
+                path: path.clone(),
+                value: target.clone(),
+            }),
         },
-        _ => out.push(ModelChange::Set { path: path.clone(), value: target.clone() }),
+        _ => out.push(ModelChange::Set {
+            path: path.clone(),
+            value: target.clone(),
+        }),
     }
 }
 
@@ -141,11 +184,16 @@ fn records_change(old: &[Value], new: &[Value]) -> Option<(Vec<Value>, Vec<Strin
         .filter(|(id, record)| !before.get(*id).is_some_and(|old| same(old, record)))
         .map(|(_, record)| record.clone())
         .collect();
-    let remove: Vec<String> = old_ids.iter().filter(|id| !after.contains(*id)).map(|id| (*id).to_owned()).collect();
+    let remove: Vec<String> = old_ids
+        .iter()
+        .filter(|id| !after.contains(*id))
+        .map(|id| (*id).to_owned())
+        .collect();
     let sorted = new_ids.windows(2).all(|pair| pair[0] < pair[1]);
     let mut rebuilt = old.to_vec();
     apply_records(&mut rebuilt, &upsert, &remove, sorted).ok()?;
-    (rebuilt.len() == new.len() && rebuilt.iter().zip(new).all(|(a, b)| same(a, b))).then_some((upsert, remove, sorted))
+    (rebuilt.len() == new.len() && rebuilt.iter().zip(new).all(|(a, b)| same(a, b)))
+        .then_some((upsert, remove, sorted))
 }
 
 /// Each record's id, if every record is an object with a string id and no id repeats.
@@ -153,15 +201,28 @@ fn record_ids(records: &[Value]) -> Option<Vec<&str>> {
     let mut seen = BTreeSet::new();
     records
         .iter()
-        .map(|record| record.get("id").and_then(Value::as_str).filter(|id| seen.insert(*id)))
+        .map(|record| {
+            record
+                .get("id")
+                .and_then(Value::as_str)
+                .filter(|id| seen.insert(*id))
+        })
         .collect()
 }
 
-fn apply_records(records: &mut Vec<Value>, upsert: &[Value], remove: &[String], sorted: bool) -> Result<(), String> {
+fn apply_records(
+    records: &mut Vec<Value>,
+    upsert: &[Value],
+    remove: &[String],
+    sorted: bool,
+) -> Result<(), String> {
     let removed: BTreeSet<&str> = remove.iter().map(String::as_str).collect();
     let mut replacements: BTreeMap<&str, &Value> = BTreeMap::new();
     for record in upsert {
-        let id = record.get("id").and_then(Value::as_str).ok_or("a model delta adds a record without an id")?;
+        let id = record
+            .get("id")
+            .and_then(Value::as_str)
+            .ok_or("a model delta adds a record without an id")?;
         if removed.contains(id) || replacements.insert(id, record).is_some() {
             return Err(format!("a model delta changes record {id} twice"));
         }
@@ -169,7 +230,11 @@ fn apply_records(records: &mut Vec<Value>, upsert: &[Value], remove: &[String], 
     let mut found = BTreeSet::new();
     let mut rebuilt = Vec::with_capacity(records.len() + upsert.len());
     for record in records.drain(..) {
-        let id = record.get("id").and_then(Value::as_str).ok_or("a model delta changes a collection without record ids")?.to_owned();
+        let id = record
+            .get("id")
+            .and_then(Value::as_str)
+            .ok_or("a model delta changes a collection without record ids")?
+            .to_owned();
         if !found.insert(id.clone()) {
             return Err(format!("a model delta's base repeats record {id}"));
         }
@@ -182,7 +247,9 @@ fn apply_records(records: &mut Vec<Value>, upsert: &[Value], remove: &[String], 
         }
     }
     if let Some(id) = removed.iter().find(|id| !found.contains(**id)) {
-        return Err(format!("a model delta removes record {id} which its base does not have"));
+        return Err(format!(
+            "a model delta removes record {id} which its base does not have"
+        ));
     }
     // What is left was added; it follows in the order given.
     for record in upsert {
@@ -193,21 +260,35 @@ fn apply_records(records: &mut Vec<Value>, upsert: &[Value], remove: &[String], 
         }
     }
     if sorted {
-        rebuilt.sort_by(|a, b| a.get("id").and_then(Value::as_str).cmp(&b.get("id").and_then(Value::as_str)));
+        rebuilt.sort_by(|a, b| {
+            a.get("id")
+                .and_then(Value::as_str)
+                .cmp(&b.get("id").and_then(Value::as_str))
+        });
     }
     *records = rebuilt;
     Ok(())
 }
 
-fn object_at<'a>(value: &'a mut Value, path: &[String]) -> Result<&'a mut serde_json::Map<String, Value>, String> {
+fn object_at<'a>(
+    value: &'a mut Value,
+    path: &[String],
+) -> Result<&'a mut serde_json::Map<String, Value>, String> {
     let mut current = value;
     for key in path {
         current = current
             .as_object_mut()
             .and_then(|object| object.get_mut(key))
-            .ok_or_else(|| format!("a model delta reaches {} which its base does not have", path.join(".")))?;
+            .ok_or_else(|| {
+                format!(
+                    "a model delta reaches {} which its base does not have",
+                    path.join(".")
+                )
+            })?;
     }
-    current.as_object_mut().ok_or_else(|| format!("a model delta expects an object at {}", path.join(".")))
+    current
+        .as_object_mut()
+        .ok_or_else(|| format!("a model delta expects an object at {}", path.join(".")))
 }
 
 #[cfg(test)]
@@ -225,7 +306,8 @@ mod tests {
         let mut rebuilt = base.clone();
         apply(&mut rebuilt, &delta).unwrap();
         assert_eq!(written(&rebuilt), written(target));
-        let stored: ModelDelta = serde_json::from_str(&serde_json::to_string(&delta).unwrap()).unwrap();
+        let stored: ModelDelta =
+            serde_json::from_str(&serde_json::to_string(&delta).unwrap()).unwrap();
         assert_eq!(stored, delta, "a delta survives storage unchanged");
         delta
     }
@@ -242,7 +324,11 @@ mod tests {
         let base = json!({ "start": 0.0, "events": [{ "id": "a", "start": 0.0 }, { "id": "b", "start": -0.0 }] });
         let target = json!({ "start": -0.0, "events": [{ "id": "a", "start": -0.0 }, { "id": "b", "start": 0.0 }] });
         assert_eq!(base, target, "Value equality cannot see it");
-        assert_ne!(written(&base), written(&target), "what is written, and hashed, can");
+        assert_ne!(
+            written(&base),
+            written(&target),
+            "what is written, and hashed, can"
+        );
         let delta = rebuilds(&base, &target);
         assert!(!delta.changes.is_empty());
         let integer = json!({ "n": 1 });
@@ -259,20 +345,28 @@ mod tests {
 
     #[test]
     fn a_small_revision_keeps_only_what_changed() {
-        let events: Vec<Value> = (0..400).map(|i| json!({ "id": format!("ev.{i:04}"), "description": "x".repeat(200) })).collect();
+        let events: Vec<Value> = (0..400)
+            .map(|i| json!({ "id": format!("ev.{i:04}"), "description": "x".repeat(200) }))
+            .collect();
         let base = model(events.clone());
         let mut changed = events.clone();
         changed[17]["description"] = json!("a revised description");
         changed.remove(40);
         changed.push(json!({ "id": "ev.9999", "description": "added" }));
         let mut target = model(changed);
-        target["revision"] = json!({ "number": 4, "previous_model_hash": "b", "reason": "s", "provenance": ["p"] });
+        target["revision"] =
+            json!({ "number": 4, "previous_model_hash": "b", "reason": "s", "provenance": ["p"] });
         let delta = rebuilds(&base, &target);
         let full = serde_json::to_vec(&target).unwrap().len();
         let kept = serde_json::to_vec(&delta).unwrap().len();
-        assert!(kept * 50 < full, "a three-record change keeps {kept} of {full} bytes");
-        assert!(delta.changes.iter().any(|change| matches!(change, ModelChange::Records { upsert, remove, sorted: true, .. }
-            if upsert.len() == 2 && remove == &vec!["ev.0040".to_owned()])));
+        assert!(
+            kept * 50 < full,
+            "a three-record change keeps {kept} of {full} bytes"
+        );
+        assert!(delta.changes.iter().any(
+            |change| matches!(change, ModelChange::Records { upsert, remove, sorted: true, .. }
+            if upsert.len() == 2 && remove == &vec!["ev.0040".to_owned()])
+        ));
     }
 
     #[test]
@@ -285,46 +379,88 @@ mod tests {
     #[test]
     fn an_unsorted_collection_with_an_insertion_inside_it_is_still_rebuilt_exactly() {
         let base = json!({ "items": [{ "id": "z" }, { "id": "a" }, { "id": "m" }] });
-        let target = json!({ "items": [{ "id": "z" }, { "id": "q" }, { "id": "a" }, { "id": "m" }] });
+        let target =
+            json!({ "items": [{ "id": "z" }, { "id": "q" }, { "id": "a" }, { "id": "m" }] });
         let delta = rebuilds(&base, &target);
-        assert!(matches!(&delta.changes[0], ModelChange::Set { .. }), "the collection is replaced whole when its order cannot be kept");
+        assert!(
+            matches!(&delta.changes[0], ModelChange::Set { .. }),
+            "the collection is replaced whole when its order cannot be kept"
+        );
     }
 
     #[test]
     fn collections_without_unique_ids_are_replaced_whole() {
-        let base = json!({ "a": [{ "id": "x" }, { "id": "x" }], "b": [1, 2, 3], "c": [{ "name": "n" }] });
+        let base =
+            json!({ "a": [{ "id": "x" }, { "id": "x" }], "b": [1, 2, 3], "c": [{ "name": "n" }] });
         let target = json!({ "a": [{ "id": "x" }], "b": [1, 2], "c": [{ "name": "m" }] });
         let delta = rebuilds(&base, &target);
-        assert!(delta.changes.iter().all(|change| matches!(change, ModelChange::Set { .. })));
+        assert!(delta
+            .changes
+            .iter()
+            .all(|change| matches!(change, ModelChange::Set { .. })));
     }
 
     #[test]
     fn a_delta_that_does_not_fit_its_base_is_refused() {
         let base = json!({ "items": [{ "id": "a" }] });
-        let wrong = ModelDelta { schema: MODEL_DELTA_SCHEMA.to_owned(), changes: vec![ModelChange::Records {
-            path: vec!["items".to_owned()], upsert: vec![], remove: vec!["missing".to_owned()], sorted: true }] };
-        assert!(apply(&mut base.clone(), &wrong).unwrap_err().contains("missing"));
-        let unset = ModelDelta { schema: MODEL_DELTA_SCHEMA.to_owned(), changes: vec![ModelChange::Unset { path: vec!["nope".to_owned()] }] };
+        let wrong = ModelDelta {
+            schema: MODEL_DELTA_SCHEMA.to_owned(),
+            changes: vec![ModelChange::Records {
+                path: vec!["items".to_owned()],
+                upsert: vec![],
+                remove: vec!["missing".to_owned()],
+                sorted: true,
+            }],
+        };
+        assert!(apply(&mut base.clone(), &wrong)
+            .unwrap_err()
+            .contains("missing"));
+        let unset = ModelDelta {
+            schema: MODEL_DELTA_SCHEMA.to_owned(),
+            changes: vec![ModelChange::Unset {
+                path: vec!["nope".to_owned()],
+            }],
+        };
         assert!(apply(&mut base.clone(), &unset).is_err());
-        let schema = ModelDelta { schema: "other".to_owned(), changes: vec![] };
+        let schema = ModelDelta {
+            schema: "other".to_owned(),
+            changes: vec![],
+        };
         assert!(apply(&mut base.clone(), &schema).is_err());
-        let twice = ModelDelta { schema: MODEL_DELTA_SCHEMA.to_owned(), changes: vec![ModelChange::Records {
-            path: vec!["items".to_owned()], upsert: vec![json!({ "id": "a", "v": 1 })], remove: vec!["a".to_owned()], sorted: false }] };
+        let twice = ModelDelta {
+            schema: MODEL_DELTA_SCHEMA.to_owned(),
+            changes: vec![ModelChange::Records {
+                path: vec!["items".to_owned()],
+                upsert: vec![json!({ "id": "a", "v": 1 })],
+                remove: vec!["a".to_owned()],
+                sorted: false,
+            }],
+        };
         assert!(apply(&mut base.clone(), &twice).is_err());
     }
 
     #[test]
     fn a_delta_written_by_the_mcp_javascript_rebuilds_the_same_revision_here() {
         // Written by mcp-server/src/model-delta.mjs; the history files the MCP writes use the same format.
-        let fixture: Value = serde_json::from_str(include_str!("../tests/fixtures/javascript-model-delta.json")).unwrap();
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/javascript-model-delta.json"
+        ))
+        .unwrap();
         let written: ModelDelta = serde_json::from_value(fixture["delta"].clone()).unwrap();
         let mut rebuilt = fixture["base"].clone();
         apply(&mut rebuilt, &written).unwrap();
-        assert_eq!(serde_json::to_vec(&rebuilt).unwrap(), serde_json::to_vec(&fixture["target"]).unwrap());
-        let mut ours = compute(&fixture["base"], &fixture["target"]).unwrap().changes;
+        assert_eq!(
+            serde_json::to_vec(&rebuilt).unwrap(),
+            serde_json::to_vec(&fixture["target"]).unwrap()
+        );
+        let mut ours = compute(&fixture["base"], &fixture["target"])
+            .unwrap()
+            .changes;
         let mut theirs = written.changes;
         let path = |change: &ModelChange| match change {
-            ModelChange::Set { path, .. } | ModelChange::Unset { path } | ModelChange::Records { path, .. } => path.clone(),
+            ModelChange::Set { path, .. }
+            | ModelChange::Unset { path }
+            | ModelChange::Records { path, .. } => path.clone(),
         };
         ours.sort_by_key(path);
         theirs.sort_by_key(path);
@@ -346,7 +482,11 @@ mod tests {
     }
 
     fn random_value(rng: &mut Rng, depth: u32) -> Value {
-        match if depth == 0 { rng.below(4) } else { rng.below(7) } {
+        match if depth == 0 {
+            rng.below(4)
+        } else {
+            rng.below(7)
+        } {
             0 => Value::Null,
             1 => match rng.below(4) {
                 0 => json!(0.0),
@@ -373,7 +513,11 @@ mod tests {
                 }
                 Value::Array(ids.into_iter().map(|id| json!({ "id": format!("r{id:02}"), "v": random_value(rng, depth - 1) })).collect())
             }
-            _ => Value::Array((0..rng.below(4)).map(|_| random_value(rng, depth - 1)).collect()),
+            _ => Value::Array(
+                (0..rng.below(4))
+                    .map(|_| random_value(rng, depth - 1))
+                    .collect(),
+            ),
         }
     }
 
@@ -383,16 +527,25 @@ mod tests {
                 let keys: Vec<String> = object.keys().cloned().collect();
                 let key = &keys[rng.below(keys.len() as u64) as usize];
                 match rng.below(5) {
-                    0 => { object.remove(key); }
-                    1 => { object.insert(format!("n{}", rng.below(9)), random_value(rng, depth)); }
+                    0 => {
+                        object.remove(key);
+                    }
+                    1 => {
+                        object.insert(format!("n{}", rng.below(9)), random_value(rng, depth));
+                    }
                     _ => mutate(rng, object.get_mut(key).unwrap(), depth.saturating_sub(1)),
                 }
             }
             Value::Array(items) if !items.is_empty() && rng.below(4) != 0 => {
                 let at = rng.below(items.len() as u64) as usize;
                 match rng.below(4) {
-                    0 => { items.remove(at); }
-                    1 => { let copy = items[at].clone(); items.push(copy); }
+                    0 => {
+                        items.remove(at);
+                    }
+                    1 => {
+                        let copy = items[at].clone();
+                        items.push(copy);
+                    }
                     _ => mutate(rng, &mut items[at], depth.saturating_sub(1)),
                 }
             }

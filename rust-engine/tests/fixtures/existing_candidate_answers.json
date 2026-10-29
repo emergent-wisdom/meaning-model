@@ -1,0 +1,932 @@
+{
+  "existing_reroll_upgraded": {
+    "candidate": {
+      "candidate_hash": "0a0dceff31426bd8cd2adb8af7c6f7444f5925001a4e999b75bf7747ec502d23",
+      "dynamics_hash": "f25f085dce117578361e89f95038290691fbe7cf9ac0e711892d69f29c3f5507",
+      "end_time": 1.0,
+      "expected_parent_version": 0,
+      "mark_count": 0,
+      "model_hash": "b693311a36352ff20e4d458d67bfe7f8b54f5f8a8c0f6ed540b35ac4e9189784",
+      "model_revision": 0,
+      "parent_world_hash": "fc33359051a7d93c3c4366258d8fb9ba764dd0fe6728696bab827d8ab718fc16",
+      "path": {
+        "retention": {
+          "mode": "full"
+        },
+        "samples": [
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 1.0
+              }
+            },
+            "step": 0,
+            "time": 0.0
+          },
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 1.25
+              }
+            },
+            "step": 1,
+            "time": 0.25
+          },
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 1.5
+              }
+            },
+            "step": 2,
+            "time": 0.5
+          },
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 1.75
+              }
+            },
+            "step": 3,
+            "time": 0.75
+          },
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 2.0
+              }
+            },
+            "step": 4,
+            "time": 1.0
+          }
+        ],
+        "schema": "life-sim-rust-view/v1",
+        "source_schema": "life-sim-rust-model-path/v1",
+        "total_sample_count": 5
+      },
+      "query": {
+        "access_scopes": [],
+        "delta_time": 1.0,
+        "direction": "forward",
+        "intervention_count": 0,
+        "observation_count": 0,
+        "path": {
+          "mode": "full"
+        },
+        "precedence": "balanced",
+        "requested_observables": [
+          "x"
+        ],
+        "roll_index": 2,
+        "schema": "life-sim-rust-model-query/v1",
+        "selected_support_count": 0,
+        "semantic_resolution": null,
+        "step_size": 0.25,
+        "temporal_resolution": null
+      },
+      "randomness": {
+        "comparison_stream": null,
+        "draw_count": 0,
+        "draw_set_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "generator": "sha256-keyed-box-muller/v1",
+        "policy": "candidate_bound",
+        "roll_index": 2,
+        "schedule_hash": "2e78bc065fb5b26ca6c8f9b094b154d7a7685432c20027de1496030e181992b1"
+      },
+      "roll_index": 2,
+      "schema": "life-sim-rust-view/v1",
+      "source_kind": "candidate",
+      "source_schema": "life-sim-rust-model-candidate/v1",
+      "start_time": 0.0,
+      "successor_claims": {
+        "claim-x": {
+          "authority": {
+            "source": "observer",
+            "weight": 1.0
+          },
+          "evidence_cutoff": 0.0,
+          "evidence_type": "observation",
+          "holder": "observer",
+          "id": "claim-x",
+          "provenance": [
+            "protocol test"
+          ],
+          "subject": "x",
+          "uncertainty": {
+            "kind": "exact"
+          },
+          "value": {
+            "kind": "scalar",
+            "value": 1.0
+          }
+        }
+      },
+      "successor_state": {
+        "x": {
+          "kind": "scalar",
+          "value": 2.0
+        }
+      },
+      "trajectory_hash": "7de6b0391c5cc8cdda5ee58c0d0ecdbc7d6170467ac7620fb762e01e9adfa6bb",
+      "view": {
+        "access_scopes": [],
+        "include_path": true,
+        "requested_observables": [
+          "x"
+        ]
+      },
+      "world_id": "world"
+    },
+    "proposed_head": {
+      "claims": {
+        "claim-x": {
+          "authority": {
+            "source": "observer",
+            "weight": 1.0
+          },
+          "evidence_cutoff": 0.0,
+          "evidence_type": "observation",
+          "holder": "observer",
+          "id": "claim-x",
+          "provenance": [
+            "protocol test"
+          ],
+          "subject": "x",
+          "uncertainty": {
+            "kind": "exact"
+          },
+          "value": {
+            "kind": "scalar",
+            "value": 1.0
+          }
+        }
+      },
+      "lineage_head": "0a0dceff31426bd8cd2adb8af7c6f7444f5925001a4e999b75bf7747ec502d23",
+      "model_hash": "b693311a36352ff20e4d458d67bfe7f8b54f5f8a8c0f6ed540b35ac4e9189784",
+      "model_revision": 0,
+      "schema": "life-sim-rust-view/v1",
+      "source_kind": "world",
+      "source_schema": "life-sim-rust-world-head/v1",
+      "state": {
+        "x": {
+          "kind": "scalar",
+          "value": 2.0
+        }
+      },
+      "time": 1.0,
+      "version": 1,
+      "view": {
+        "access_scopes": [],
+        "include_path": true,
+        "requested_observables": [
+          "x"
+        ]
+      },
+      "world_hash": "dfb2b9316883455b90221a7ef47f6897b79b812186faff721f2aab30c9e7a037",
+      "world_id": "world"
+    },
+    "retention_upgraded": true,
+    "status": "pending"
+  },
+  "first_roll": {
+    "candidate": {
+      "candidate_hash": "8141fa4dc860e9f0a4ca52943cf30b5fd97770bb6bb243c5a73dcfb803f9af81",
+      "dynamics_hash": "f25f085dce117578361e89f95038290691fbe7cf9ac0e711892d69f29c3f5507",
+      "end_time": 1.0,
+      "expected_parent_version": 0,
+      "mark_count": 0,
+      "model_hash": "b693311a36352ff20e4d458d67bfe7f8b54f5f8a8c0f6ed540b35ac4e9189784",
+      "model_revision": 0,
+      "parent_world_hash": "fc33359051a7d93c3c4366258d8fb9ba764dd0fe6728696bab827d8ab718fc16",
+      "path": {
+        "retention": {
+          "mode": "endpoint"
+        },
+        "samples": [
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 2.0
+              }
+            },
+            "step": 4,
+            "time": 1.0
+          }
+        ],
+        "schema": "life-sim-rust-view/v1",
+        "source_schema": "life-sim-rust-model-path/v1",
+        "total_sample_count": 5
+      },
+      "query": {
+        "access_scopes": [],
+        "delta_time": 1.0,
+        "direction": "forward",
+        "intervention_count": 0,
+        "observation_count": 0,
+        "path": {
+          "mode": "endpoint"
+        },
+        "precedence": "balanced",
+        "requested_observables": [
+          "x"
+        ],
+        "roll_index": 0,
+        "schema": "life-sim-rust-model-query/v1",
+        "selected_support_count": 0,
+        "semantic_resolution": null,
+        "step_size": 0.25,
+        "temporal_resolution": null
+      },
+      "randomness": {
+        "comparison_stream": null,
+        "draw_count": 0,
+        "draw_set_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "generator": "sha256-keyed-box-muller/v1",
+        "policy": "candidate_bound",
+        "roll_index": 0,
+        "schedule_hash": "2e78bc065fb5b26ca6c8f9b094b154d7a7685432c20027de1496030e181992b1"
+      },
+      "roll_index": 0,
+      "schema": "life-sim-rust-view/v1",
+      "source_kind": "candidate",
+      "source_schema": "life-sim-rust-model-candidate/v1",
+      "start_time": 0.0,
+      "successor_claims": {
+        "claim-x": {
+          "authority": {
+            "source": "observer",
+            "weight": 1.0
+          },
+          "evidence_cutoff": 0.0,
+          "evidence_type": "observation",
+          "holder": "observer",
+          "id": "claim-x",
+          "provenance": [
+            "protocol test"
+          ],
+          "subject": "x",
+          "uncertainty": {
+            "kind": "exact"
+          },
+          "value": {
+            "kind": "scalar",
+            "value": 1.0
+          }
+        }
+      },
+      "successor_state": {
+        "x": {
+          "kind": "scalar",
+          "value": 2.0
+        }
+      },
+      "trajectory_hash": "7de6b0391c5cc8cdda5ee58c0d0ecdbc7d6170467ac7620fb762e01e9adfa6bb",
+      "view": {
+        "access_scopes": [],
+        "include_path": true,
+        "requested_observables": [
+          "x"
+        ]
+      },
+      "world_id": "world"
+    },
+    "proposed_head": {
+      "claims": {
+        "claim-x": {
+          "authority": {
+            "source": "observer",
+            "weight": 1.0
+          },
+          "evidence_cutoff": 0.0,
+          "evidence_type": "observation",
+          "holder": "observer",
+          "id": "claim-x",
+          "provenance": [
+            "protocol test"
+          ],
+          "subject": "x",
+          "uncertainty": {
+            "kind": "exact"
+          },
+          "value": {
+            "kind": "scalar",
+            "value": 1.0
+          }
+        }
+      },
+      "lineage_head": "8141fa4dc860e9f0a4ca52943cf30b5fd97770bb6bb243c5a73dcfb803f9af81",
+      "model_hash": "b693311a36352ff20e4d458d67bfe7f8b54f5f8a8c0f6ed540b35ac4e9189784",
+      "model_revision": 0,
+      "schema": "life-sim-rust-view/v1",
+      "source_kind": "world",
+      "source_schema": "life-sim-rust-world-head/v1",
+      "state": {
+        "x": {
+          "kind": "scalar",
+          "value": 2.0
+        }
+      },
+      "time": 1.0,
+      "version": 1,
+      "view": {
+        "access_scopes": [],
+        "include_path": true,
+        "requested_observables": [
+          "x"
+        ]
+      },
+      "world_hash": "9fc4be3af3630a8574981d96db29419200ca0862151a94e33b1d2a492515ddab",
+      "world_id": "world"
+    },
+    "retention_upgraded": false,
+    "status": "pending"
+  },
+  "new_reroll": {
+    "candidate": {
+      "candidate_hash": "bfd992382027a23c94168fab0b26562a830e872fb8cd0657b5e0931ef5fccf8b",
+      "dynamics_hash": "f25f085dce117578361e89f95038290691fbe7cf9ac0e711892d69f29c3f5507",
+      "end_time": 1.0,
+      "expected_parent_version": 0,
+      "mark_count": 0,
+      "model_hash": "b693311a36352ff20e4d458d67bfe7f8b54f5f8a8c0f6ed540b35ac4e9189784",
+      "model_revision": 0,
+      "parent_world_hash": "fc33359051a7d93c3c4366258d8fb9ba764dd0fe6728696bab827d8ab718fc16",
+      "path": {
+        "retention": {
+          "mode": "full"
+        },
+        "samples": [
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 1.0
+              }
+            },
+            "step": 0,
+            "time": 0.0
+          },
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 1.25
+              }
+            },
+            "step": 1,
+            "time": 0.25
+          },
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 1.5
+              }
+            },
+            "step": 2,
+            "time": 0.5
+          },
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 1.75
+              }
+            },
+            "step": 3,
+            "time": 0.75
+          },
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 2.0
+              }
+            },
+            "step": 4,
+            "time": 1.0
+          }
+        ],
+        "schema": "life-sim-rust-view/v1",
+        "source_schema": "life-sim-rust-model-path/v1",
+        "total_sample_count": 5
+      },
+      "query": {
+        "access_scopes": [],
+        "delta_time": 1.0,
+        "direction": "forward",
+        "intervention_count": 0,
+        "observation_count": 0,
+        "path": {
+          "mode": "full"
+        },
+        "precedence": "balanced",
+        "requested_observables": [
+          "x"
+        ],
+        "roll_index": 1,
+        "schema": "life-sim-rust-model-query/v1",
+        "selected_support_count": 0,
+        "semantic_resolution": null,
+        "step_size": 0.25,
+        "temporal_resolution": null
+      },
+      "randomness": {
+        "comparison_stream": null,
+        "draw_count": 0,
+        "draw_set_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "generator": "sha256-keyed-box-muller/v1",
+        "policy": "candidate_bound",
+        "roll_index": 1,
+        "schedule_hash": "2e78bc065fb5b26ca6c8f9b094b154d7a7685432c20027de1496030e181992b1"
+      },
+      "roll_index": 1,
+      "schema": "life-sim-rust-view/v1",
+      "source_kind": "candidate",
+      "source_schema": "life-sim-rust-model-candidate/v1",
+      "start_time": 0.0,
+      "successor_claims": {
+        "claim-x": {
+          "authority": {
+            "source": "observer",
+            "weight": 1.0
+          },
+          "evidence_cutoff": 0.0,
+          "evidence_type": "observation",
+          "holder": "observer",
+          "id": "claim-x",
+          "provenance": [
+            "protocol test"
+          ],
+          "subject": "x",
+          "uncertainty": {
+            "kind": "exact"
+          },
+          "value": {
+            "kind": "scalar",
+            "value": 1.0
+          }
+        }
+      },
+      "successor_state": {
+        "x": {
+          "kind": "scalar",
+          "value": 2.0
+        }
+      },
+      "trajectory_hash": "7de6b0391c5cc8cdda5ee58c0d0ecdbc7d6170467ac7620fb762e01e9adfa6bb",
+      "view": {
+        "access_scopes": [],
+        "include_path": true,
+        "requested_observables": [
+          "x"
+        ]
+      },
+      "world_id": "world"
+    },
+    "proposed_head": {
+      "claims": {
+        "claim-x": {
+          "authority": {
+            "source": "observer",
+            "weight": 1.0
+          },
+          "evidence_cutoff": 0.0,
+          "evidence_type": "observation",
+          "holder": "observer",
+          "id": "claim-x",
+          "provenance": [
+            "protocol test"
+          ],
+          "subject": "x",
+          "uncertainty": {
+            "kind": "exact"
+          },
+          "value": {
+            "kind": "scalar",
+            "value": 1.0
+          }
+        }
+      },
+      "lineage_head": "bfd992382027a23c94168fab0b26562a830e872fb8cd0657b5e0931ef5fccf8b",
+      "model_hash": "b693311a36352ff20e4d458d67bfe7f8b54f5f8a8c0f6ed540b35ac4e9189784",
+      "model_revision": 0,
+      "schema": "life-sim-rust-view/v1",
+      "source_kind": "world",
+      "source_schema": "life-sim-rust-world-head/v1",
+      "state": {
+        "x": {
+          "kind": "scalar",
+          "value": 2.0
+        }
+      },
+      "time": 1.0,
+      "version": 1,
+      "view": {
+        "access_scopes": [],
+        "include_path": true,
+        "requested_observables": [
+          "x"
+        ]
+      },
+      "world_hash": "0c2193425952bd64c431c6702d5b5d4b02389fba1ac8422085606ac4ae475e36",
+      "world_id": "world"
+    },
+    "retention_upgraded": false,
+    "status": "pending"
+  },
+  "superseded_roll": {
+    "candidate": {
+      "candidate_hash": "8141fa4dc860e9f0a4ca52943cf30b5fd97770bb6bb243c5a73dcfb803f9af81",
+      "dynamics_hash": "f25f085dce117578361e89f95038290691fbe7cf9ac0e711892d69f29c3f5507",
+      "end_time": 1.0,
+      "expected_parent_version": 0,
+      "mark_count": 0,
+      "model_hash": "b693311a36352ff20e4d458d67bfe7f8b54f5f8a8c0f6ed540b35ac4e9189784",
+      "model_revision": 0,
+      "parent_world_hash": "fc33359051a7d93c3c4366258d8fb9ba764dd0fe6728696bab827d8ab718fc16",
+      "path": {
+        "retention": {
+          "mode": "full"
+        },
+        "samples": [
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 1.0
+              }
+            },
+            "step": 0,
+            "time": 0.0
+          },
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 1.25
+              }
+            },
+            "step": 1,
+            "time": 0.25
+          },
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 1.5
+              }
+            },
+            "step": 2,
+            "time": 0.5
+          },
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 1.75
+              }
+            },
+            "step": 3,
+            "time": 0.75
+          },
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 2.0
+              }
+            },
+            "step": 4,
+            "time": 1.0
+          }
+        ],
+        "schema": "life-sim-rust-view/v1",
+        "source_schema": "life-sim-rust-model-path/v1",
+        "total_sample_count": 5
+      },
+      "query": {
+        "access_scopes": [],
+        "delta_time": 1.0,
+        "direction": "forward",
+        "intervention_count": 0,
+        "observation_count": 0,
+        "path": {
+          "mode": "full"
+        },
+        "precedence": "balanced",
+        "requested_observables": [
+          "x"
+        ],
+        "roll_index": 0,
+        "schema": "life-sim-rust-model-query/v1",
+        "selected_support_count": 0,
+        "semantic_resolution": null,
+        "step_size": 0.25,
+        "temporal_resolution": null
+      },
+      "randomness": {
+        "comparison_stream": null,
+        "draw_count": 0,
+        "draw_set_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "generator": "sha256-keyed-box-muller/v1",
+        "policy": "candidate_bound",
+        "roll_index": 0,
+        "schedule_hash": "2e78bc065fb5b26ca6c8f9b094b154d7a7685432c20027de1496030e181992b1"
+      },
+      "roll_index": 0,
+      "schema": "life-sim-rust-view/v1",
+      "source_kind": "candidate",
+      "source_schema": "life-sim-rust-model-candidate/v1",
+      "start_time": 0.0,
+      "successor_claims": {
+        "claim-x": {
+          "authority": {
+            "source": "observer",
+            "weight": 1.0
+          },
+          "evidence_cutoff": 0.0,
+          "evidence_type": "observation",
+          "holder": "observer",
+          "id": "claim-x",
+          "provenance": [
+            "protocol test"
+          ],
+          "subject": "x",
+          "uncertainty": {
+            "kind": "exact"
+          },
+          "value": {
+            "kind": "scalar",
+            "value": 1.0
+          }
+        }
+      },
+      "successor_state": {
+        "x": {
+          "kind": "scalar",
+          "value": 2.0
+        }
+      },
+      "trajectory_hash": "7de6b0391c5cc8cdda5ee58c0d0ecdbc7d6170467ac7620fb762e01e9adfa6bb",
+      "view": {
+        "access_scopes": [],
+        "include_path": true,
+        "requested_observables": [
+          "x"
+        ]
+      },
+      "world_id": "world"
+    },
+    "proposed_head": {
+      "claims": {
+        "claim-x": {
+          "authority": {
+            "source": "observer",
+            "weight": 1.0
+          },
+          "evidence_cutoff": 0.0,
+          "evidence_type": "observation",
+          "holder": "observer",
+          "id": "claim-x",
+          "provenance": [
+            "protocol test"
+          ],
+          "subject": "x",
+          "uncertainty": {
+            "kind": "exact"
+          },
+          "value": {
+            "kind": "scalar",
+            "value": 1.0
+          }
+        }
+      },
+      "lineage_head": "8141fa4dc860e9f0a4ca52943cf30b5fd97770bb6bb243c5a73dcfb803f9af81",
+      "model_hash": "b693311a36352ff20e4d458d67bfe7f8b54f5f8a8c0f6ed540b35ac4e9189784",
+      "model_revision": 0,
+      "schema": "life-sim-rust-view/v1",
+      "source_kind": "world",
+      "source_schema": "life-sim-rust-world-head/v1",
+      "state": {
+        "x": {
+          "kind": "scalar",
+          "value": 2.0
+        }
+      },
+      "time": 1.0,
+      "version": 1,
+      "view": {
+        "access_scopes": [],
+        "include_path": true,
+        "requested_observables": [
+          "x"
+        ]
+      },
+      "world_hash": "9fc4be3af3630a8574981d96db29419200ca0862151a94e33b1d2a492515ddab",
+      "world_id": "world"
+    },
+    "retention_upgraded": false,
+    "status": "superseded"
+  },
+  "upgraded_roll": {
+    "candidate": {
+      "candidate_hash": "8141fa4dc860e9f0a4ca52943cf30b5fd97770bb6bb243c5a73dcfb803f9af81",
+      "dynamics_hash": "f25f085dce117578361e89f95038290691fbe7cf9ac0e711892d69f29c3f5507",
+      "end_time": 1.0,
+      "expected_parent_version": 0,
+      "mark_count": 0,
+      "model_hash": "b693311a36352ff20e4d458d67bfe7f8b54f5f8a8c0f6ed540b35ac4e9189784",
+      "model_revision": 0,
+      "parent_world_hash": "fc33359051a7d93c3c4366258d8fb9ba764dd0fe6728696bab827d8ab718fc16",
+      "path": {
+        "retention": {
+          "mode": "full"
+        },
+        "samples": [
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 1.0
+              }
+            },
+            "step": 0,
+            "time": 0.0
+          },
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 1.25
+              }
+            },
+            "step": 1,
+            "time": 0.25
+          },
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 1.5
+              }
+            },
+            "step": 2,
+            "time": 0.5
+          },
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 1.75
+              }
+            },
+            "step": 3,
+            "time": 0.75
+          },
+          {
+            "state": {
+              "x": {
+                "kind": "scalar",
+                "value": 2.0
+              }
+            },
+            "step": 4,
+            "time": 1.0
+          }
+        ],
+        "schema": "life-sim-rust-view/v1",
+        "source_schema": "life-sim-rust-model-path/v1",
+        "total_sample_count": 5
+      },
+      "query": {
+        "access_scopes": [],
+        "delta_time": 1.0,
+        "direction": "forward",
+        "intervention_count": 0,
+        "observation_count": 0,
+        "path": {
+          "mode": "full"
+        },
+        "precedence": "balanced",
+        "requested_observables": [
+          "x"
+        ],
+        "roll_index": 0,
+        "schema": "life-sim-rust-model-query/v1",
+        "selected_support_count": 0,
+        "semantic_resolution": null,
+        "step_size": 0.25,
+        "temporal_resolution": null
+      },
+      "randomness": {
+        "comparison_stream": null,
+        "draw_count": 0,
+        "draw_set_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "generator": "sha256-keyed-box-muller/v1",
+        "policy": "candidate_bound",
+        "roll_index": 0,
+        "schedule_hash": "2e78bc065fb5b26ca6c8f9b094b154d7a7685432c20027de1496030e181992b1"
+      },
+      "roll_index": 0,
+      "schema": "life-sim-rust-view/v1",
+      "source_kind": "candidate",
+      "source_schema": "life-sim-rust-model-candidate/v1",
+      "start_time": 0.0,
+      "successor_claims": {
+        "claim-x": {
+          "authority": {
+            "source": "observer",
+            "weight": 1.0
+          },
+          "evidence_cutoff": 0.0,
+          "evidence_type": "observation",
+          "holder": "observer",
+          "id": "claim-x",
+          "provenance": [
+            "protocol test"
+          ],
+          "subject": "x",
+          "uncertainty": {
+            "kind": "exact"
+          },
+          "value": {
+            "kind": "scalar",
+            "value": 1.0
+          }
+        }
+      },
+      "successor_state": {
+        "x": {
+          "kind": "scalar",
+          "value": 2.0
+        }
+      },
+      "trajectory_hash": "7de6b0391c5cc8cdda5ee58c0d0ecdbc7d6170467ac7620fb762e01e9adfa6bb",
+      "view": {
+        "access_scopes": [],
+        "include_path": true,
+        "requested_observables": [
+          "x"
+        ]
+      },
+      "world_id": "world"
+    },
+    "proposed_head": {
+      "claims": {
+        "claim-x": {
+          "authority": {
+            "source": "observer",
+            "weight": 1.0
+          },
+          "evidence_cutoff": 0.0,
+          "evidence_type": "observation",
+          "holder": "observer",
+          "id": "claim-x",
+          "provenance": [
+            "protocol test"
+          ],
+          "subject": "x",
+          "uncertainty": {
+            "kind": "exact"
+          },
+          "value": {
+            "kind": "scalar",
+            "value": 1.0
+          }
+        }
+      },
+      "lineage_head": "8141fa4dc860e9f0a4ca52943cf30b5fd97770bb6bb243c5a73dcfb803f9af81",
+      "model_hash": "b693311a36352ff20e4d458d67bfe7f8b54f5f8a8c0f6ed540b35ac4e9189784",
+      "model_revision": 0,
+      "schema": "life-sim-rust-view/v1",
+      "source_kind": "world",
+      "source_schema": "life-sim-rust-world-head/v1",
+      "state": {
+        "x": {
+          "kind": "scalar",
+          "value": 2.0
+        }
+      },
+      "time": 1.0,
+      "version": 1,
+      "view": {
+        "access_scopes": [],
+        "include_path": true,
+        "requested_observables": [
+          "x"
+        ]
+      },
+      "world_hash": "9fc4be3af3630a8574981d96db29419200ca0862151a94e33b1d2a492515ddab",
+      "world_id": "world"
+    },
+    "retention_upgraded": true,
+    "status": "pending"
+  }
+}

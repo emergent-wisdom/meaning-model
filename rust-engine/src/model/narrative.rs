@@ -1,7 +1,18 @@
+//! Narrative understanding graphs: story passages, character interiors, externalized reflections, reader responses
+//! and metadata, joined by structural, grounding, semantic, provenance and revision edges, some anchored to exact
+//! records of a model, world or candidate.
+//!
+//! A graph is compiled and hashed as a whole revision; stored, each revision is an append-only delta from its
+//! predecessor, materialized by sharing the records it does not change. Its anchors are checked against the model and
+//! the frozen snapshot it was written against, by one function for a stored graph and an imported checkpoint alike
+//! (`validate_narrative_anchor_references`); which nodes and edges a caller sees follows the one rule of access.rs.
+
+use super::access::visible_to;
 use super::{
-    validate_uncertainty, Claim, ClaimAuthority, ClaimUncertainty, EventInterval, EvidenceType,
-    OccurrenceMark, ProcessValue, MAX_MODEL_IDENTIFIER_BYTES,
+    validate_uncertainty, Claim, ClaimAuthority, ClaimUncertainty, CompiledModel, EventInterval,
+    EvidenceType, OccurrenceMark, ProcessValue,
 };
+use crate::limits::MAX_MODEL_IDENTIFIER_BYTES;
 use crate::{error, hash_serializable, EngineResult};
 use rpds::{RedBlackTreeMap, RedBlackTreeMapSync};
 use serde::{Deserialize, Serialize};
@@ -893,10 +904,16 @@ fn sorted_patch_operations<T: KeyedRecord, Operation>(
     operations
 }
 
-fn root_patch_operations(previous: &[String], successor: &[String]) -> Vec<NarrativeRootPatchOperation> {
+fn root_patch_operations(
+    previous: &[String],
+    successor: &[String],
+) -> Vec<NarrativeRootPatchOperation> {
     let mut root_operations = Vec::new();
     let mut roots = previous.to_vec();
-    for node_id in previous.iter().filter(|node_id| !successor.contains(node_id)) {
+    for node_id in previous
+        .iter()
+        .filter(|node_id| !successor.contains(node_id))
+    {
         root_operations.push(NarrativeRootPatchOperation::Remove {
             node_id: node_id.clone(),
         });
@@ -1221,7 +1238,10 @@ pub(crate) struct MaterializedNarrative {
 impl MaterializedNarrative {
     /// Applies one stored revision to its parent's materialization; a root
     /// record has no parent. Rejects exactly what the positional applier rejects.
-    pub(crate) fn apply(previous: Option<&Self>, record: &StoredNarrativeRevision) -> EngineResult<Self> {
+    pub(crate) fn apply(
+        previous: Option<&Self>,
+        record: &StoredNarrativeRevision,
+    ) -> EngineResult<Self> {
         if record.schema != NARRATIVE_REVISION_STORE_SCHEMA {
             return Err(error(format!(
                 "unsupported narrative revision record schema {}; expected {NARRATIVE_REVISION_STORE_SCHEMA}",
@@ -1229,7 +1249,14 @@ impl MaterializedNarrative {
             )));
         }
         match (&record.payload, previous) {
-            (NarrativeRevisionPayload::Root { roots, nodes, edges }, None) => {
+            (
+                NarrativeRevisionPayload::Root {
+                    roots,
+                    nodes,
+                    edges,
+                },
+                None,
+            ) => {
                 if record.revision.number != 0 || record.revision.previous_graph_hash.is_some() {
                     return Err(error("narrative root record has invalid revision metadata"));
                 }
@@ -1240,15 +1267,25 @@ impl MaterializedNarrative {
                 };
                 for node in nodes {
                     if materialized.nodes.contains_key(&node.id) {
-                        return Err(error(format!("narrative root record repeats node {}", node.id)));
+                        return Err(error(format!(
+                            "narrative root record repeats node {}",
+                            node.id
+                        )));
                     }
-                    materialized.nodes.insert_mut(node.id.clone(), Arc::new(node.clone()));
+                    materialized
+                        .nodes
+                        .insert_mut(node.id.clone(), Arc::new(node.clone()));
                 }
                 for edge in edges {
                     if materialized.edges.contains_key(&edge.id) {
-                        return Err(error(format!("narrative root record repeats edge {}", edge.id)));
+                        return Err(error(format!(
+                            "narrative root record repeats edge {}",
+                            edge.id
+                        )));
                     }
-                    materialized.edges.insert_mut(edge.id.clone(), Arc::new(edge.clone()));
+                    materialized
+                        .edges
+                        .insert_mut(edge.id.clone(), Arc::new(edge.clone()));
                 }
                 Ok(materialized)
             }
@@ -1269,13 +1306,15 @@ impl MaterializedNarrative {
                             if next.nodes.contains_key(&node.id) {
                                 return Err(error("narrative node patch inserts an existing node"));
                             }
-                            next.nodes.insert_mut(node.id.clone(), Arc::new(node.clone()));
+                            next.nodes
+                                .insert_mut(node.id.clone(), Arc::new(node.clone()));
                         }
                         NarrativeNodePatchOperation::Replace { node } => {
                             if !next.nodes.contains_key(&node.id) {
                                 return Err(error("narrative node patch replaces an unknown node"));
                             }
-                            next.nodes.insert_mut(node.id.clone(), Arc::new(node.clone()));
+                            next.nodes
+                                .insert_mut(node.id.clone(), Arc::new(node.clone()));
                         }
                         NarrativeNodePatchOperation::Remove { node_id } => {
                             if !next.nodes.remove_mut(node_id) {
@@ -1297,13 +1336,15 @@ impl MaterializedNarrative {
                             if next.edges.contains_key(&edge.id) {
                                 return Err(error("narrative edge patch inserts an existing edge"));
                             }
-                            next.edges.insert_mut(edge.id.clone(), Arc::new(edge.clone()));
+                            next.edges
+                                .insert_mut(edge.id.clone(), Arc::new(edge.clone()));
                         }
                         NarrativeEdgePatchOperation::Replace { edge } => {
                             if !next.edges.contains_key(&edge.id) {
                                 return Err(error("narrative edge patch replaces an unknown edge"));
                             }
-                            next.edges.insert_mut(edge.id.clone(), Arc::new(edge.clone()));
+                            next.edges
+                                .insert_mut(edge.id.clone(), Arc::new(edge.clone()));
                         }
                         NarrativeEdgePatchOperation::Remove { edge_id } => {
                             if !next.edges.remove_mut(edge_id) {
@@ -1337,8 +1378,16 @@ impl MaterializedNarrative {
             revision: record.revision.clone(),
             source: record.source.clone(),
             roots: self.roots.clone(),
-            nodes: self.nodes.values().map(|node| node.as_ref().clone()).collect(),
-            edges: self.edges.values().map(|edge| edge.as_ref().clone()).collect(),
+            nodes: self
+                .nodes
+                .values()
+                .map(|node| node.as_ref().clone())
+                .collect(),
+            edges: self
+                .edges
+                .values()
+                .map(|edge| edge.as_ref().clone())
+                .collect(),
         }
     }
 
@@ -1347,8 +1396,16 @@ impl MaterializedNarrative {
         self.roots == definition.roots
             && self.nodes.size() == definition.nodes.len()
             && self.edges.size() == definition.edges.len()
-            && self.nodes.values().zip(&definition.nodes).all(|(held, node)| held.as_ref() == node)
-            && self.edges.values().zip(&definition.edges).all(|(held, edge)| held.as_ref() == edge)
+            && self
+                .nodes
+                .values()
+                .zip(&definition.nodes)
+                .all(|(held, node)| held.as_ref() == node)
+            && self
+                .edges
+                .values()
+                .zip(&definition.edges)
+                .all(|(held, edge)| held.as_ref() == edge)
     }
 }
 
@@ -1393,10 +1450,26 @@ pub(crate) fn apply_narrative_change(
         schema: previous.schema.clone(),
         id: previous.id.clone(),
         revision: change.revision.clone(),
-        source: change.source.clone().unwrap_or_else(|| previous.source.clone()),
-        roots: change.roots.clone().unwrap_or_else(|| previous.roots.clone()),
-        nodes: apply_record_change(&previous.nodes, &change.upsert_nodes, &change.remove_node_ids, "node")?,
-        edges: apply_record_change(&previous.edges, &change.upsert_edges, &change.remove_edge_ids, "edge")?,
+        source: change
+            .source
+            .clone()
+            .unwrap_or_else(|| previous.source.clone()),
+        roots: change
+            .roots
+            .clone()
+            .unwrap_or_else(|| previous.roots.clone()),
+        nodes: apply_record_change(
+            &previous.nodes,
+            &change.upsert_nodes,
+            &change.remove_node_ids,
+            "node",
+        )?,
+        edges: apply_record_change(
+            &previous.edges,
+            &change.upsert_edges,
+            &change.remove_edge_ids,
+            "edge",
+        )?,
     })
 }
 
@@ -1409,7 +1482,10 @@ fn apply_record_change<T: KeyedRecord>(
     let mut named = BTreeSet::new();
     for record in upserts {
         if !named.insert(record.key()) {
-            return Err(error(format!("The change names {label} {} twice.", record.key())));
+            return Err(error(format!(
+                "The change names {label} {} twice.",
+                record.key()
+            )));
         }
     }
     let existing: BTreeSet<&str> = previous.iter().map(KeyedRecord::key).collect();
@@ -1426,13 +1502,25 @@ fn apply_record_change<T: KeyedRecord>(
             )));
         }
     }
-    let replacements: BTreeMap<&str, &T> = upserts.iter().map(|record| (record.key(), record)).collect();
+    let replacements: BTreeMap<&str, &T> = upserts
+        .iter()
+        .map(|record| (record.key(), record))
+        .collect();
     let mut records: Vec<T> = previous
         .iter()
         .filter(|record| !removed.contains(record.key()))
-        .map(|record| replacements.get(record.key()).map_or_else(|| record.clone(), |replacement| (*replacement).clone()))
+        .map(|record| {
+            replacements
+                .get(record.key())
+                .map_or_else(|| record.clone(), |replacement| (*replacement).clone())
+        })
         .collect();
-    records.extend(upserts.iter().filter(|record| !existing.contains(record.key())).cloned());
+    records.extend(
+        upserts
+            .iter()
+            .filter(|record| !existing.contains(record.key()))
+            .cloned(),
+    );
     Ok(records)
 }
 
@@ -1445,15 +1533,30 @@ pub(crate) fn narrative_change_insertion_order(
     previous: &NarrativeGraphDefinition,
     change: &NarrativeGraphChange,
 ) -> NarrativeInsertionOrder {
-    fn added<'a>(previous: impl Iterator<Item = &'a str>, named: impl Iterator<Item = &'a str>) -> Vec<String> {
+    fn added<'a>(
+        previous: impl Iterator<Item = &'a str>,
+        named: impl Iterator<Item = &'a str>,
+    ) -> Vec<String> {
         let mut seen: BTreeSet<&str> = previous.collect();
-        named.filter(|id| seen.insert(id)).map(str::to_owned).collect()
+        named
+            .filter(|id| seen.insert(id))
+            .map(str::to_owned)
+            .collect()
     }
     NarrativeInsertionOrder {
         scope: NarrativeInsertionScope::AdditiveBatch,
-        root_ids: added(previous.roots.iter().map(String::as_str), change.roots.iter().flatten().map(String::as_str)),
-        node_ids: added(previous.nodes.iter().map(KeyedRecord::key), change.upsert_nodes.iter().map(KeyedRecord::key)),
-        edge_ids: added(previous.edges.iter().map(KeyedRecord::key), change.upsert_edges.iter().map(KeyedRecord::key)),
+        root_ids: added(
+            previous.roots.iter().map(String::as_str),
+            change.roots.iter().flatten().map(String::as_str),
+        ),
+        node_ids: added(
+            previous.nodes.iter().map(KeyedRecord::key),
+            change.upsert_nodes.iter().map(KeyedRecord::key),
+        ),
+        edge_ids: added(
+            previous.edges.iter().map(KeyedRecord::key),
+            change.upsert_edges.iter().map(KeyedRecord::key),
+        ),
     }
 }
 
@@ -1776,17 +1879,212 @@ fn validate_structural_acyclicity<'a>(
 ) -> EngineResult<()> {
     crate::ensure_acyclic(
         node_ids.map(String::as_str),
-        edges.iter().map(|(source, target, _)| (source.as_str(), target.as_str())),
+        edges
+            .iter()
+            .map(|(source, target, _)| (source.as_str(), target.as_str())),
         "narrative contains/next structure",
     )
 }
 
 pub fn node_is_visible(node: &NarrativeNode, access_scopes: &[String]) -> bool {
-    node.access_scopes.is_empty()
-        || node
-            .access_scopes
-            .iter()
-            .any(|scope| access_scopes.contains(scope))
+    visible_to(&node.access_scopes, access_scopes)
+}
+
+/// Whether a caller holding `access_scopes` sees an edge: the edge's own scopes allow it, each node it joins is in
+/// `visible`, and each process or claim it anchors (and the process a claimed anchor is about) is visible too.
+pub(crate) fn narrative_edge_is_visible(
+    edge: &NarrativeEdge,
+    visible: &BTreeSet<String>,
+    access_scopes: &[String],
+    model: &CompiledModel,
+    snapshot: &NarrativeSourceSnapshot,
+) -> bool {
+    visible_to(&edge.access_scopes, access_scopes)
+        && [&edge.source, &edge.target]
+            .into_iter()
+            .all(|endpoint| match endpoint {
+                NarrativeEndpoint::Node { node_id } => visible.contains(node_id),
+                NarrativeEndpoint::Anchor {
+                    anchor_kind: NarrativeAnchorKind::Process,
+                    anchor_id,
+                    ..
+                } => model
+                    .processes
+                    .get(anchor_id)
+                    .is_none_or(|process| visible_to(&process.access_scopes, access_scopes)),
+                NarrativeEndpoint::Anchor {
+                    anchor_kind: NarrativeAnchorKind::Claim,
+                    anchor_id,
+                    ..
+                } => snapshot.claims.get(anchor_id).is_none_or(|claim| {
+                    visible_to(&claim.access_scopes, access_scopes)
+                        && model
+                            .processes
+                            .get(&claim.subject)
+                            .is_none_or(|process| visible_to(&process.access_scopes, access_scopes))
+                }),
+                NarrativeEndpoint::Anchor { .. } => true,
+            })
+}
+
+/// Checks every anchor a narrative graph names against the model and the frozen source snapshot it was written
+/// against: each must resolve to an existing record, and to an existing value at its subpath, and an edge to a scoped
+/// process or claim (or a claim about a scoped process) must carry one of that record's scopes. A candidate anchor
+/// resolves only when it is one of `bound_candidate_ids`, the candidates of the graph's source lineage. A graph stored
+/// in the session and one imported in a project checkpoint are checked by this same function.
+pub(crate) fn validate_narrative_anchor_references(
+    model: &CompiledModel,
+    graph: &CompiledNarrativeGraph,
+    snapshot: &NarrativeSourceSnapshot,
+    bound_candidate_ids: &BTreeSet<String>,
+) -> EngineResult<()> {
+    let meaning = model.definition.meaning_model.as_ref();
+    let anchor_value = |kind: NarrativeAnchorKind, id: &str| -> Option<serde_json::Value> {
+        match kind {
+            NarrativeAnchorKind::Model if id == model.model_hash || id == model.id => {
+                serde_json::to_value(&model.definition).ok()
+            }
+            NarrativeAnchorKind::Process => model
+                .processes
+                .get(id)
+                .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::Decomposition => model
+                .definition
+                .decomposition
+                .iter()
+                .find(|record| record.id == id)
+                .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::Dependency => model
+                .definition
+                .dependencies
+                .iter()
+                .find(|record| record.id == id)
+                .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::Law => model
+                .laws
+                .iter()
+                .find(|record| record.id == id)
+                .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::Claim => snapshot
+                .claims
+                .get(id)
+                .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::Concept => meaning
+                .and_then(|layer| layer.concepts.iter().find(|record| record.id == id))
+                .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::AbstractRelation => meaning
+                .and_then(|layer| {
+                    layer
+                        .abstract_relations
+                        .iter()
+                        .find(|record| record.id == id)
+                })
+                .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::AbstractCut => meaning
+                .and_then(|layer| layer.abstract_cuts.iter().find(|record| record.id == id))
+                .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::Referent => meaning
+                .and_then(|layer| layer.referents.iter().find(|record| record.id == id))
+                .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::EncapsulationCut => meaning
+                .and_then(|layer| {
+                    layer
+                        .encapsulation_cuts
+                        .iter()
+                        .find(|record| record.id == id)
+                })
+                .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::Event => meaning
+                .and_then(|layer| layer.events.iter().find(|record| record.id == id))
+                .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::EventRelation => meaning
+                .and_then(|layer| layer.event_relations.iter().find(|record| record.id == id))
+                .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::EventReferentBinding => meaning
+                .and_then(|layer| {
+                    layer
+                        .event_referent_bindings
+                        .iter()
+                        .find(|record| record.id == id)
+                })
+                .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::PhysicalCut => meaning
+                .and_then(|layer| layer.physical_cuts.iter().find(|record| record.id == id))
+                .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::Realization => meaning
+                .and_then(|layer| layer.realizations.iter().find(|record| record.id == id))
+                .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::NormalizedCut => meaning
+                .and_then(|layer| layer.normalized_cuts.iter().find(|record| record.id == id))
+                .and_then(|record| serde_json::to_value(record).ok()),
+            NarrativeAnchorKind::World if snapshot.world_id.as_deref() == Some(id) => {
+                serde_json::to_value(snapshot).ok()
+            }
+            NarrativeAnchorKind::Candidate if bound_candidate_ids.contains(id) => {
+                snapshot.candidate_anchors.get(id).cloned()
+            }
+            NarrativeAnchorKind::Occurrence => snapshot
+                .occurrences
+                .iter()
+                .find(|record| record.id == id)
+                .and_then(|record| serde_json::to_value(record).ok()),
+            _ => None,
+        }
+    };
+    for edge in &graph.definition.edges {
+        for endpoint in [&edge.source, &edge.target] {
+            if let NarrativeEndpoint::Anchor {
+                anchor_kind,
+                anchor_id,
+                path,
+            } = endpoint
+            {
+                let Some(value) = anchor_value(*anchor_kind, anchor_id) else {
+                    return Err(error(format!(
+                        "narrative edge {} names unknown or source-incompatible {:?} anchor {anchor_id}",
+                        edge.id, anchor_kind
+                    )));
+                };
+                if path
+                    .as_deref()
+                    .is_some_and(|pointer| value.pointer(pointer).is_none())
+                {
+                    return Err(error(format!(
+                        "narrative edge {} anchor {:?}:{anchor_id} has an unresolved subpath {}",
+                        edge.id,
+                        anchor_kind,
+                        path.as_deref().unwrap_or_default()
+                    )));
+                }
+                let mut required_scope_groups: Vec<&[String]> = Vec::new();
+                match anchor_kind {
+                    NarrativeAnchorKind::Process => {
+                        if let Some(process) = model.processes.get(anchor_id) {
+                            required_scope_groups.push(process.access_scopes.as_slice());
+                        }
+                    }
+                    NarrativeAnchorKind::Claim => {
+                        if let Some(claim) = snapshot.claims.get(anchor_id) {
+                            required_scope_groups.push(claim.access_scopes.as_slice());
+                            if let Some(subject) = model.processes.get(&claim.subject) {
+                                required_scope_groups.push(subject.access_scopes.as_slice());
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+                for required_scopes in required_scope_groups {
+                    if !visible_to(required_scopes, &edge.access_scopes) {
+                        return Err(error(format!(
+                            "narrative edge {} must carry an access scope for private {:?} anchor {anchor_id}",
+                            edge.id, anchor_kind
+                        )));
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 pub fn validate_narrative_access_scopes(scopes: &mut Vec<String>) -> EngineResult<()> {
@@ -1879,7 +2177,11 @@ mod materialization_tests {
         .unwrap()
     }
 
-    fn definition(roots: Vec<String>, mut nodes: Vec<NarrativeNode>, mut edges: Vec<NarrativeEdge>) -> NarrativeGraphDefinition {
+    fn definition(
+        roots: Vec<String>,
+        mut nodes: Vec<NarrativeNode>,
+        mut edges: Vec<NarrativeEdge>,
+    ) -> NarrativeGraphDefinition {
         nodes.sort_by(|a, b| a.id.cmp(&b.id));
         edges.sort_by(|a, b| a.id.cmp(&b.id));
         serde_json::from_value::<NarrativeGraphDefinition>(json!({
@@ -1910,7 +2212,9 @@ mod materialization_tests {
                 reason: "case".to_owned(),
                 provenance: vec!["materialization test".to_owned()],
             },
-            source: NarrativeGraphSource::Model { model_hash: "m".to_owned() },
+            source: NarrativeGraphSource::Model {
+                model_hash: "m".to_owned(),
+            },
             insertion_order: NarrativeInsertionOrder::default(),
             payload,
         }
@@ -1946,14 +2250,20 @@ mod materialization_tests {
             let previous = random_definition(&mut cases);
             let successor = random_definition(&mut cases);
             let delta = build_narrative_graph_delta(&previous, &successor);
-            assert_eq!(delta, build_narrative_graph_delta_general(&previous, &successor));
+            assert_eq!(
+                delta,
+                build_narrative_graph_delta_general(&previous, &successor)
+            );
             let root = MaterializedNarrative::apply(
                 None,
-                &record(0, NarrativeRevisionPayload::Root {
-                    roots: previous.roots.clone(),
-                    nodes: previous.nodes.clone(),
-                    edges: previous.edges.clone(),
-                }),
+                &record(
+                    0,
+                    NarrativeRevisionPayload::Root {
+                        roots: previous.roots.clone(),
+                        nodes: previous.nodes.clone(),
+                        edges: previous.edges.clone(),
+                    },
+                ),
             )
             .unwrap();
             assert!(root.matches(&previous));
@@ -1962,7 +2272,10 @@ mod materialization_tests {
             let materialized = MaterializedNarrative::apply(Some(&root), &step).unwrap();
             assert_eq!(materialized.definition(&step), positional);
             assert!(materialized.matches(&successor));
-            assert!(root.matches(&previous), "applying a revision leaves its parent unchanged");
+            assert!(
+                root.matches(&previous),
+                "applying a revision leaves its parent unchanged"
+            );
         }
     }
 
@@ -1982,19 +2295,66 @@ mod materialization_tests {
         let previous = definition(vec![], vec![node("a", "x")], vec![]);
         let root = MaterializedNarrative::apply(
             None,
-            &record(0, NarrativeRevisionPayload::Root { roots: vec![], nodes: previous.nodes.clone(), edges: vec![] }),
+            &record(
+                0,
+                NarrativeRevisionPayload::Root {
+                    roots: vec![],
+                    nodes: previous.nodes.clone(),
+                    edges: vec![],
+                },
+            ),
         )
         .unwrap();
         for (operation, message) in [
-            (NarrativeNodePatchOperation::Insert { index: 0, node: node("a", "again") }, "inserts an existing node"),
-            (NarrativeNodePatchOperation::Insert { index: 5, node: node("b", "far") }, "insertion index 5 exceeds length 1"),
-            (NarrativeNodePatchOperation::Replace { node: node("z", "none") }, "replaces an unknown node"),
-            (NarrativeNodePatchOperation::Remove { node_id: "z".to_owned() }, "removes an unknown node"),
-            (NarrativeNodePatchOperation::Move { node_id: "z".to_owned(), index: 0 }, "moves an unknown node"),
+            (
+                NarrativeNodePatchOperation::Insert {
+                    index: 0,
+                    node: node("a", "again"),
+                },
+                "inserts an existing node",
+            ),
+            (
+                NarrativeNodePatchOperation::Insert {
+                    index: 5,
+                    node: node("b", "far"),
+                },
+                "insertion index 5 exceeds length 1",
+            ),
+            (
+                NarrativeNodePatchOperation::Replace {
+                    node: node("z", "none"),
+                },
+                "replaces an unknown node",
+            ),
+            (
+                NarrativeNodePatchOperation::Remove {
+                    node_id: "z".to_owned(),
+                },
+                "removes an unknown node",
+            ),
+            (
+                NarrativeNodePatchOperation::Move {
+                    node_id: "z".to_owned(),
+                    index: 0,
+                },
+                "moves an unknown node",
+            ),
         ] {
-            let step = record(1, NarrativeRevisionPayload::Delta { delta: NarrativeGraphDelta { node_operations: vec![operation], ..Default::default() } });
-            let positional = apply_narrative_revision_record(Some(&previous), &step).unwrap_err().to_string();
-            let persistent = MaterializedNarrative::apply(Some(&root), &step).unwrap_err().to_string();
+            let step = record(
+                1,
+                NarrativeRevisionPayload::Delta {
+                    delta: NarrativeGraphDelta {
+                        node_operations: vec![operation],
+                        ..Default::default()
+                    },
+                },
+            );
+            let positional = apply_narrative_revision_record(Some(&previous), &step)
+                .unwrap_err()
+                .to_string();
+            let persistent = MaterializedNarrative::apply(Some(&root), &step)
+                .unwrap_err()
+                .to_string();
             assert!(positional.contains(message), "{positional}");
             assert_eq!(positional, persistent);
         }

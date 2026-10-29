@@ -100,9 +100,9 @@ export function variantDefinition(base, scenario, { intervention = null, without
     if (part.id === without) continue;
     laws.push(...part.laws); overrides.push(...part.overrides);
   }
-  for (const [list, kind] of [[processes, 'process'], [laws, 'law']]) {
+  for (const [list, kinds] of [[processes, 'processes'], [laws, 'laws']]) {
     const seen = new Set();
-    for (const item of list) { if (seen.has(item.id)) throw new Error(`Two ${kind}es share the id ${item.id}; give each a distinct id.`); seen.add(item.id); }
+    for (const item of list) { if (seen.has(item.id)) throw new Error(`Two ${kinds} share the id ${item.id}; give each a distinct id.`); seen.add(item.id); }
   }
   const byId = new Map(processes.map((process) => [process.id, structuredClone(process)]));
   for (const override of overrides) {

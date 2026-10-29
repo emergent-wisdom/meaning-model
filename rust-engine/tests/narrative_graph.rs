@@ -2817,10 +2817,16 @@ fn understanding_nodes_anchor_to_a_normalized_cut_and_one_of_its_answers() {
         "answers": [{"key": "jonas", "weight": 0.6}, {"key": "remainder", "weight": 0.4}],
         "provenance": ["rust narrative graph test"]
     }]);
-    let registered = execute(&mut session, json!({
-        "schema": "life-sim-rust-command/v1", "operation": "register_model", "model": definition
-    }));
-    let model_hash = registered["summary"]["model_hash"].as_str().unwrap().to_owned();
+    let registered = execute(
+        &mut session,
+        json!({
+            "schema": "life-sim-rust-command/v1", "operation": "register_model", "model": definition
+        }),
+    );
+    let model_hash = registered["summary"]["model_hash"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     let note = json!({
         "id": "note", "node_type": "understanding.decision", "role": "externalized_reflection",
         "text": "Jonas takes most of her attention because the secret concerns him.",
@@ -2830,29 +2836,61 @@ fn understanding_nodes_anchor_to_a_normalized_cut_and_one_of_its_answers() {
         "provenance": ["rust narrative graph test"]
     });
     let anchored = |graph_id: &str, anchor_id: &str, path: Option<&str>| {
-        let mut target = json!({"kind": "anchor", "anchor_kind": "normalized_cut", "anchor_id": anchor_id});
-        if let Some(path) = path { target["path"] = json!(path); }
-        root_story_graph(&model_hash, graph_id, vec![note.clone()], vec![
-            story_edge("root.contains.note", "note", 0),
-            json!({"id": "note.about.cut", "source": {"kind": "node", "node_id": "note"}, "target": target,
+        let mut target =
+            json!({"kind": "anchor", "anchor_kind": "normalized_cut", "anchor_id": anchor_id});
+        if let Some(path) = path {
+            target["path"] = json!(path);
+        }
+        root_story_graph(
+            &model_hash,
+            graph_id,
+            vec![note.clone()],
+            vec![
+                story_edge("root.contains.note", "note", 0),
+                json!({"id": "note.about.cut", "source": {"kind": "node", "node_id": "note"}, "target": target,
                 "family": "grounding", "relation": "about", "provenance": ["rust narrative graph test"]}),
-        ])
+            ],
+        )
     };
-    let register = |session: &mut MachineSession, graph: Value| session.parse_and_execute(&json!({
+    let register = |session: &mut MachineSession, graph: Value| {
+        session.parse_and_execute(&json!({
         "schema": "life-sim-rust-command/v1", "operation": "register_narrative_graph", "narrative_graph": graph
-    }).to_string());
-    let accepted = register(&mut session, anchored("cut-anchor", "cut.mara.attention", Some("/answers/0")));
-    assert!(accepted.ok, "a note anchors to one answer of a Cut: {:?}", accepted.error);
-    let unknown = register(&mut session, anchored("cut-anchor-unknown", "cut.missing", None));
+    }).to_string())
+    };
+    let accepted = register(
+        &mut session,
+        anchored("cut-anchor", "cut.mara.attention", Some("/answers/0")),
+    );
+    assert!(
+        accepted.ok,
+        "a note anchors to one answer of a Cut: {:?}",
+        accepted.error
+    );
+    let unknown = register(
+        &mut session,
+        anchored("cut-anchor-unknown", "cut.missing", None),
+    );
     assert!(!unknown.ok);
-    assert!(format!("{:?}", unknown.error).contains("NormalizedCut anchor cut.missing"), "{:?}", unknown.error);
-    let bad_path = register(&mut session, anchored("cut-anchor-path", "cut.mara.attention", Some("/answers/9")));
+    assert!(
+        format!("{:?}", unknown.error).contains("NormalizedCut anchor cut.missing"),
+        "{:?}",
+        unknown.error
+    );
+    let bad_path = register(
+        &mut session,
+        anchored("cut-anchor-path", "cut.mara.attention", Some("/answers/9")),
+    );
     assert!(!bad_path.ok);
-    assert!(format!("{:?}", bad_path.error).contains("unresolved subpath"), "{:?}", bad_path.error);
+    assert!(
+        format!("{:?}", bad_path.error).contains("unresolved subpath"),
+        "{:?}",
+        bad_path.error
+    );
 }
 
 #[test]
-fn a_revision_by_change_equals_the_complete_revision_refuses_hidden_or_unknown_records_and_survives_restart() {
+fn a_revision_by_change_equals_the_complete_revision_refuses_hidden_or_unknown_records_and_survives_restart(
+) {
     let state_file = state_path("narrative-change");
     let mut session = MachineSession::with_state_file(&state_file).unwrap();
     let model_hash = register_test_model(&mut session, "change-model");
@@ -2881,7 +2919,10 @@ fn a_revision_by_change_equals_the_complete_revision_refuses_hidden_or_unknown_r
             )
         }),
     );
-    let parent = registered["summary"]["graph_hash"].as_str().unwrap().to_owned();
+    let parent = registered["summary"]["graph_hash"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     let revision = json!({
         "number": 1,
         "previous_graph_hash": parent,
@@ -2914,13 +2955,19 @@ fn a_revision_by_change_equals_the_complete_revision_refuses_hidden_or_unknown_r
     };
     // A caller who cannot see the whole predecessor may not change it, and a
     // removal must name a record the predecessor has.
-    refused(session.parse_and_execute(&change(json!([]), "second").to_string()), "these accessScopes hide some of them");
+    refused(
+        session.parse_and_execute(&change(json!([]), "second").to_string()),
+        "these accessScopes hide some of them",
+    );
     refused(
         session.parse_and_execute(&change(json!(["author"]), "missing").to_string()),
         "The change removes node missing, which the predecessor does not have.",
     );
     let changed = execute(&mut session, change(json!(["author"]), "second"));
-    let changed_hash = changed["summary"]["graph_hash"].as_str().unwrap().to_owned();
+    let changed_hash = changed["summary"]["graph_hash"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     assert_eq!(changed["reused_existing"], json!(false));
 
     // The same successor written out in full is the same revision.
@@ -2932,7 +2979,11 @@ fn a_revision_by_change_equals_the_complete_revision_refuses_hidden_or_unknown_r
             private,
             story_node("third", "A new last passage.".to_owned()),
         ],
-        vec![story_edge("first-edge", "first", 0), private_edge, story_edge("third-edge", "third", 3)],
+        vec![
+            story_edge("first-edge", "first", 0),
+            private_edge,
+            story_edge("third-edge", "third", 3),
+        ],
     );
     complete["revision"] = revision.clone();
     let rewritten = execute(
@@ -2959,7 +3010,12 @@ fn a_revision_by_change_equals_the_complete_revision_refuses_hidden_or_unknown_r
         }),
     );
     let text = rendered["text"].as_str().unwrap();
-    assert!(text.contains("rewritten") && text.contains("A new last passage.") && !text.contains("The second passage."), "{text}");
+    assert!(
+        text.contains("rewritten")
+            && text.contains("A new last passage.")
+            && !text.contains("The second passage."),
+        "{text}"
+    );
     let _ = fs::remove_file(&state_file);
 }
 
@@ -2969,8 +3025,18 @@ fn a_revision_by_change_records_only_what_it_adds_so_a_rebind_stores_no_identifi
     let mut session = MachineSession::with_state_file(&state_file).unwrap();
     let model_hash = register_test_model(&mut session, "change-order-model");
     let successor_hash = register_test_model(&mut session, "change-order-successor");
-    let passages: Vec<Value> = (0..40).map(|index| story_node(&format!("passage-{index:02}"), format!("Passage {index}."))).collect();
-    let edges: Vec<Value> = (0..40).map(|index| story_edge(&format!("edge-{index:02}"), &format!("passage-{index:02}"), index)).collect();
+    let passages: Vec<Value> = (0..40)
+        .map(|index| story_node(&format!("passage-{index:02}"), format!("Passage {index}.")))
+        .collect();
+    let edges: Vec<Value> = (0..40)
+        .map(|index| {
+            story_edge(
+                &format!("edge-{index:02}"),
+                &format!("passage-{index:02}"),
+                index,
+            )
+        })
+        .collect();
     let registered = execute(
         &mut session,
         json!({
@@ -2979,47 +3045,77 @@ fn a_revision_by_change_records_only_what_it_adds_so_a_rebind_stores_no_identifi
             "narrative_graph": root_story_graph(&model_hash, "change-order-story", passages, edges)
         }),
     );
-    let parent = registered["summary"]["graph_hash"].as_str().unwrap().to_owned();
+    let parent = registered["summary"]["graph_hash"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     let change = |previous: &str, number: u64, body: Value| {
         let mut narrative_change = json!({
             "schema": "life-sim-rust-narrative-change/v1",
             "previous_graph_hash": previous,
             "revision": {"number": number, "previous_graph_hash": previous, "reason": "Insertion order test.", "provenance": ["narrative change order test"]}
         });
-        narrative_change.as_object_mut().unwrap().extend(body.as_object().unwrap().clone());
+        narrative_change
+            .as_object_mut()
+            .unwrap()
+            .extend(body.as_object().unwrap().clone());
         json!({"schema": "life-sim-rust-command/v1", "operation": "revise_narrative_graph_by_change", "narrative_change": narrative_change})
     };
     // A change that rewrites one passage and adds two names only the two it adds, in its own order.
     let added = execute(
         &mut session,
-        change(&parent, 1, json!({
-            "upsert_nodes": [
-                story_node("passage-05", "Passage 5, rewritten.".to_owned()),
-                story_node("zeta", "A passage added last in order, first in the change.".to_owned()),
-                story_node("alpha", "A passage added second.".to_owned())
-            ],
-            "upsert_edges": [story_edge("zeta-edge", "zeta", 41), story_edge("alpha-edge", "alpha", 40)]
-        })),
+        change(
+            &parent,
+            1,
+            json!({
+                "upsert_nodes": [
+                    story_node("passage-05", "Passage 5, rewritten.".to_owned()),
+                    story_node("zeta", "A passage added last in order, first in the change.".to_owned()),
+                    story_node("alpha", "A passage added second.".to_owned())
+                ],
+                "upsert_edges": [story_edge("zeta-edge", "zeta", 41), story_edge("alpha-edge", "alpha", 40)]
+            }),
+        ),
     );
     let added_hash = added["summary"]["graph_hash"].as_str().unwrap().to_owned();
     // A rebind changes only the source: it adds nothing, so it names nothing.
     let rebound = execute(
         &mut session,
-        change(&added_hash, 2, json!({"source": {"kind": "model", "model_hash": successor_hash}})),
+        change(
+            &added_hash,
+            2,
+            json!({"source": {"kind": "model", "model_hash": successor_hash}}),
+        ),
     );
-    let rebound_hash = rebound["summary"]["graph_hash"].as_str().unwrap().to_owned();
+    let rebound_hash = rebound["summary"]["graph_hash"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     drop(session);
 
     let connection = Connection::open(&state_file).unwrap();
     let stored = |graph_hash: &str| -> (Value, usize) {
         let bytes: Vec<u8> = connection
-            .query_row("SELECT revision_json FROM narrative_revisions WHERE graph_hash = ?1", [graph_hash], |row| row.get(0))
+            .query_row(
+                "SELECT revision_json FROM narrative_revisions WHERE graph_hash = ?1",
+                [graph_hash],
+                |row| row.get(0),
+            )
             .unwrap();
         (serde_json::from_slice(&bytes).unwrap(), bytes.len())
     };
     let (root_record, root_bytes) = stored(&parent);
-    assert_eq!(root_record["insertion_order"]["scope"], json!("full_definition"));
-    assert_eq!(root_record["insertion_order"]["node_ids"].as_array().unwrap().len(), 41);
+    assert_eq!(
+        root_record["insertion_order"]["scope"],
+        json!("full_definition")
+    );
+    assert_eq!(
+        root_record["insertion_order"]["node_ids"]
+            .as_array()
+            .unwrap()
+            .len(),
+        41
+    );
     let (added_record, _) = stored(&added_hash);
     assert_eq!(
         added_record["insertion_order"],
@@ -3030,8 +3126,14 @@ fn a_revision_by_change_records_only_what_it_adds_so_a_rebind_stores_no_identifi
         rebound_record["insertion_order"],
         json!({"scope": "additive_batch", "root_ids": [], "node_ids": [], "edge_ids": []})
     );
-    assert_eq!(rebound_record["source"]["model_hash"], json!(successor_hash));
-    assert!(rebound_bytes * 4 < root_bytes, "a rebind stores {rebound_bytes} bytes against the root's {root_bytes}");
+    assert_eq!(
+        rebound_record["source"]["model_hash"],
+        json!(successor_hash)
+    );
+    assert!(
+        rebound_bytes * 4 < root_bytes,
+        "a rebind stores {rebound_bytes} bytes against the root's {root_bytes}"
+    );
     drop(connection);
 
     // The stored orders pass the checks a restart makes, and the rebound graph is whole.
@@ -3046,6 +3148,126 @@ fn a_revision_by_change_records_only_what_it_adds_so_a_rebind_stores_no_identifi
         }),
     );
     let text = rendered["text"].as_str().unwrap();
-    assert!(text.contains("Passage 5, rewritten.") && text.contains("Passage 39.") && text.contains("A passage added second."), "{text}");
+    assert!(
+        text.contains("Passage 5, rewritten.")
+            && text.contains("Passage 39.")
+            && text.contains("A passage added second."),
+        "{text}"
+    );
     let _ = fs::remove_file(&state_file);
+}
+
+#[test]
+fn every_anchor_must_resolve_and_an_edge_to_a_private_anchor_must_carry_one_of_its_scopes() {
+    let mut session = MachineSession::default();
+    let model_hash = register_test_model(&mut session, "graph-native-story");
+    let world = execute(
+        &mut session,
+        json!({
+            "schema": "life-sim-rust-command/v1", "operation": "create_world",
+            "model_hash": model_hash, "world_id": "story-world"
+        }),
+    );
+    let definition = graph(
+        world["world_hash"].as_str().unwrap(),
+        0,
+        None,
+        "The first passage.",
+    );
+    let mut refused = |change: &dyn Fn(&mut Value)| {
+        let mut changed = definition.clone();
+        change(&mut changed);
+        let response = session.parse_and_execute(
+            &json!({
+                "schema": "life-sim-rust-command/v1", "operation": "register_narrative_graph",
+                "narrative_graph": changed
+            })
+            .to_string(),
+        );
+        assert!(!response.ok, "{:?}", response.result);
+        let error = response.error.unwrap();
+        (error.code, error.message)
+    };
+    let edge = |graph: &mut Value, id: &str| -> Value {
+        graph["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|edge| edge["id"] == id)
+            .unwrap()
+            .clone()
+    };
+    let set_edge = |graph: &mut Value, changed: Value| {
+        let edges = graph["edges"].as_array_mut().unwrap();
+        let index = edges
+            .iter()
+            .position(|edge| edge["id"] == changed["id"])
+            .unwrap();
+        edges[index] = changed;
+    };
+
+    let private = "narrative edge passage-private-signal must carry an access scope for private Process anchor mara.private_signal";
+    assert_eq!(
+        refused(&|graph| {
+            let mut changed = edge(graph, "passage-private-signal");
+            changed["access_scopes"] = json!(["editor"]);
+            set_edge(graph, changed);
+        }),
+        ("invalid_request", private.to_owned())
+    );
+    assert_eq!(
+        refused(&|graph| {
+            let mut changed = edge(graph, "passage-private-signal");
+            changed.as_object_mut().unwrap().remove("access_scopes");
+            set_edge(graph, changed);
+        }),
+        ("invalid_request", private.to_owned())
+    );
+    assert_eq!(
+        refused(&|graph| {
+            let mut changed = edge(graph, "passage-expresses-trust-type");
+            changed["target"]["anchor_id"] = json!("mara.missing");
+            set_edge(graph, changed);
+        }),
+        (
+            "invalid_request",
+            "narrative edge passage-expresses-trust-type names unknown or source-incompatible Process anchor mara.missing".to_owned()
+        )
+    );
+    assert_eq!(
+        refused(&|graph| {
+            let mut changed = edge(graph, "passage-expresses-trust-type");
+            changed["target"]["path"] = json!("/value_type/missing");
+            set_edge(graph, changed);
+        }),
+        (
+            "invalid_request",
+            "narrative edge passage-expresses-trust-type anchor Process:mara.trust has an unresolved subpath /value_type/missing".to_owned()
+        )
+    );
+    assert_eq!(
+        refused(&|graph| {
+            let mut changed = edge(graph, "passage-expresses-trust-type");
+            changed["target"] = json!({
+                "kind": "anchor", "anchor_kind": "candidate", "anchor_id": "0".repeat(64)
+            });
+            set_edge(graph, changed);
+        }),
+        (
+            "invalid_request",
+            format!(
+                "narrative edge passage-expresses-trust-type names unknown or source-incompatible Candidate anchor {}",
+                "0".repeat(64)
+            )
+        )
+    );
+
+    // An edge that carries one of the private anchor's scopes, beside a scope it does not name, is accepted.
+    execute(
+        &mut session,
+        json!({
+            "schema": "life-sim-rust-command/v1", "operation": "register_narrative_graph",
+            "narrative_graph": definition
+        }),
+    );
 }

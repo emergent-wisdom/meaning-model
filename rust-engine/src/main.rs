@@ -1,3 +1,12 @@
+//! The engine process. It reads its arguments (`--ndjson`, `--pretty`, `--state-file`), opens one session (durable
+//! when a state file is named, by argument or by LIFE_SIM_STATE_FILE), and answers JSON commands from stdin on stdout:
+//! one command read whole, or one per line with `--ndjson`.
+//!
+//! It keeps the framing honest: a command over MAX_COMMAND_BYTES or one that is not UTF-8 is answered with an error
+//! without reaching the session, and an oversized line is skipped so the next line is still read. Every command gets
+//! exactly one response. The process exits 2 on a bad argument, and 1 when the state file cannot be opened or a
+//! response cannot be written.
+
 use life_sim_engine::{MachineSession, ResponseEnvelope, MAX_COMMAND_BYTES, RESPONSE_SCHEMA};
 use std::env;
 use std::io::{self, BufRead, Read, Write};

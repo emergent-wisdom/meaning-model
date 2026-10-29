@@ -24,6 +24,13 @@ operational guidance. Reading the papers is optional.
 
 See the [changelog](https://github.com/emergent-wisdom/meaning-model/blob/main/CHANGELOG.md) for release changes and upgrade notes.
 
+## Upgrading to 0.17.0
+
+Install the matching 0.17.0 engine. Models, graphs, histories and their hashes keep the same format; no data
+migration is required. The engine's internal modules are reorganized. An interrupted project checkpoint write
+now reports an indeterminate outcome: check the stored state before deciding whether to retry. The paper and
+examples are unchanged from 0.16.1.
+
 ## Upgrading to 0.16.1
 
 0.16.1 changes no tool and no stored format. Its paper describes modelled worlds in mechanism search, and the
@@ -353,7 +360,7 @@ can use the explicit source build below.
 In a directory where you want to keep the installation, run:
 
 ```sh
-npm install @emergent-wisdom/meaning-model-mcp@0.16.1
+npm install @emergent-wisdom/meaning-model-mcp@0.17.0
 npx meaning-model-mcp --install-engine
 ```
 
@@ -822,7 +829,7 @@ configuration looks like this:
   "mcpServers": {
     "meaning-model": {
       "command": "npx",
-      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.16.1"],
+      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.17.0"],
       "env": {
         "LIFE_SIM_ENGINE_BIN": "/absolute/path/to/life-sim-engine",
         "LIFE_SIM_STATE_FILE": "/absolute/private/path/meaning-model.sqlite"
@@ -896,7 +903,7 @@ for release.
 Record the reviewed tarball's checksum and inspect the publication preview:
 
 ```sh
-release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.16.1.tgz"
+release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.17.0.tgz"
 shasum -a 256 "$release_tarball"
 npm publish "$release_tarball" --dry-run --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
@@ -908,7 +915,7 @@ exact tarball, authenticate with an npm account that can publish to
 ```sh
 npm whoami --registry=https://registry.npmjs.org/
 npm publish "$release_tarball" --access public --ignore-scripts --registry=https://registry.npmjs.org/
-npm view @emergent-wisdom/meaning-model-mcp@0.16.1 version dist.integrity --registry=https://registry.npmjs.org/
+npm view @emergent-wisdom/meaning-model-mcp@0.17.0 version dist.integrity --registry=https://registry.npmjs.org/
 ```
 
 A dry run does not establish registry authentication or scope access. Any change

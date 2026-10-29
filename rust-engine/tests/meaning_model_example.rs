@@ -119,16 +119,28 @@ fn abstract_cut(id: &str, parent: &str, children: &[&str]) -> serde_json::Value 
 
 #[test]
 fn a_withdrawn_decomposition_does_not_stop_its_replacement_from_reversing_it() {
-    let concepts: Vec<serde_json::Value> = ["a", "b", "c"].iter().map(|id| serde_json::json!({"id": id, "provenance": ["fixture"]})).collect();
+    let concepts: Vec<serde_json::Value> = ["a", "b", "c"]
+        .iter()
+        .map(|id| serde_json::json!({"id": id, "provenance": ["fixture"]}))
+        .collect();
     let mut old = abstract_cut("old", "a", &["b", "c"]);
     assert!(validate(serde_json::json!({"schema": "life-sim-rust-meaning-model/v1", "concepts": concepts, "abstract_cuts": [old]})).ok);
-    old["withdrawn"] = serde_json::json!({"reason": "The relationship was backward", "superseded_by": ["new"]});
-    let replaced = validate(serde_json::json!({"schema": "life-sim-rust-meaning-model/v1", "concepts": concepts,
-        "abstract_cuts": [old, abstract_cut("new", "b", &["a", "c"])]}));
-    assert!(replaced.ok, "replacement after withdrawal was refused: {:?}", replaced.error.map(|error| error.message));
+    old["withdrawn"] =
+        serde_json::json!({"reason": "The relationship was backward", "superseded_by": ["new"]});
+    let replaced = validate(
+        serde_json::json!({"schema": "life-sim-rust-meaning-model/v1", "concepts": concepts,
+        "abstract_cuts": [old, abstract_cut("new", "b", &["a", "c"])]}),
+    );
+    assert!(
+        replaced.ok,
+        "replacement after withdrawal was refused: {:?}",
+        replaced.error.map(|error| error.message)
+    );
     // Two current cuts that reverse each other are still a cycle.
-    let both = validate(serde_json::json!({"schema": "life-sim-rust-meaning-model/v1", "concepts": concepts,
-        "abstract_cuts": [abstract_cut("old", "a", &["b", "c"]), abstract_cut("new", "b", &["a", "c"])]}));
+    let both = validate(
+        serde_json::json!({"schema": "life-sim-rust-meaning-model/v1", "concepts": concepts,
+        "abstract_cuts": [abstract_cut("old", "a", &["b", "c"]), abstract_cut("new", "b", &["a", "c"])]}),
+    );
     assert!(!both.ok);
 }
 
@@ -136,7 +148,10 @@ fn a_withdrawn_decomposition_does_not_stop_its_replacement_from_reversing_it() {
 fn a_withdrawn_concept_no_longer_covers_its_events() {
     let layer = |withdrawn: bool| {
         let mut concept = serde_json::json!({"id": "a", "provenance": ["fixture"]});
-        if withdrawn { concept["withdrawn"] = serde_json::json!({"reason": "No longer an account of this Event"}); }
+        if withdrawn {
+            concept["withdrawn"] =
+                serde_json::json!({"reason": "No longer an account of this Event"});
+        }
         serde_json::json!({"schema": "life-sim-rust-meaning-model/v1", "concepts": [concept],
             "events": [{"id": "e", "boundary": "event", "process_ids": [], "provenance": ["fixture"]}],
             "realizations": [{"id": "r", "concept_id": "a", "purpose": "describe", "roles": {"subject": "e"}, "degree": 1, "provenance": ["fixture"], "viewpoint": "fixture"}],
@@ -145,19 +160,36 @@ fn a_withdrawn_concept_no_longer_covers_its_events() {
     assert!(validate(layer(false)).ok);
     let after = validate(layer(true));
     assert!(!after.ok);
-    assert!(after.error.unwrap().message.contains("strict mode found 1 orphaned events: e"));
+    assert!(after
+        .error
+        .unwrap()
+        .message
+        .contains("strict mode found 1 orphaned events: e"));
 }
 
 #[test]
 fn an_about_relation_refers_without_causing() {
     let layer = |extra: serde_json::Value| {
         let mut relation = serde_json::json!({"id": "reading.about", "source_event_id": "reading", "target_event_id": "act", "kind": "about", "uncertainty": {"kind": "unknown"}, "provenance": ["fixture"]});
-        if let Some(object) = extra.as_object() { for (key, value) in object { relation[key] = value.clone(); } }
+        if let Some(object) = extra.as_object() {
+            for (key, value) in object {
+                relation[key] = value.clone();
+            }
+        }
         serde_json::json!({"schema": "life-sim-rust-meaning-model/v1",
             "events": [{"id": "act", "boundary": "an act", "process_ids": [], "provenance": ["fixture"]}, {"id": "reading", "boundary": "a reading of the act", "process_ids": [], "provenance": ["fixture"]}],
             "event_relations": [relation]})
     };
     let plain = validate(layer(serde_json::json!({})));
-    assert!(plain.ok, "an about relation was refused: {:?}", plain.error.map(|error| error.message));
-    assert!(!validate(layer(serde_json::json!({"forecast_answer": {"cut_id": "c", "answer_key": "a"}}))).ok);
+    assert!(
+        plain.ok,
+        "an about relation was refused: {:?}",
+        plain.error.map(|error| error.message)
+    );
+    assert!(
+        !validate(layer(
+            serde_json::json!({"forecast_answer": {"cut_id": "c", "answer_key": "a"}})
+        ))
+        .ok
+    );
 }

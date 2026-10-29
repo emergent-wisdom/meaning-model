@@ -4,6 +4,20 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## 0.17.0 — 2026-10-29
+
+The engine is reorganized into smaller modules for models, sessions, persistence and the numerical registry.
+Models, graphs, histories and their hashes keep the same format. Install the matching 0.17.0 engine;
+no data migration is required.
+
+- Each command and law kind is handled explicitly, so the compiler checks that the engine covers every kind.
+  Shared code now handles content hashing, access scopes and narrative anchor checks. The engine architecture
+  guide describes the module boundaries and their invariants.
+- A failed reload after a persistence error is reported, rather than silently discarded.
+- If the engine connection is interrupted during a project checkpoint write, the MCP server reports the outcome
+  as indeterminate. The caller must check the stored state before deciding whether to retry.
+- Alien world validation reports an unsupported `laws` field with its correct spelling.
+
 ## 0.16.1 — 2026-10-29
 
 **A search through modelled worlds, in the paper and in examples**

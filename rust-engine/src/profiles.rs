@@ -7,16 +7,27 @@
 //! candidate transaction as every hand-authored model. There is no profile
 //! runtime, scheduler, inference engine, or alternate source of canon.
 
+// The scaffold profiles, each in its own module: a concept, a bounded arc of change, a thing with its lifecycle, and a
+// relationship between two things.
+mod change_arc;
+mod concept_scaffold;
+mod relationship;
+mod thing_scaffold;
+pub use change_arc::*;
+pub use concept_scaffold::*;
+pub use relationship::*;
+pub use thing_scaffold::*;
+
 use crate::{
-    compile_model, ChangeArcScaffoldProfile, Claim, ClaimAuthority, ClaimMode, ClaimUncertainty,
-    Comparison, ConceptDefinition, ConceptScaffoldProfile, DecompositionEdge, DependencyEdge,
-    DependencyKind, EffectMode, EngineError, EngineResult, EventInterval, EventReferentBinding,
-    EventReferentBindingTarget, EventRelationDefinition, EventRelationKind, EvidenceType,
-    GraphEdgeValue, GraphValue, LawActivation, LawDefinition, LawOperator, MeaningEventDefinition,
-    MeaningModelDefinition, ModelDefinition, ModelRevision, NumericBounds, OccurrenceTrigger,
-    ProcessDefinition, ProcessType, ProcessUpdateMode, ProcessValue, RealizationPurpose,
-    RealizationRecord, ReferentDefinition, RelationshipScaffoldProfile, ScalarExpression,
-    StateEffect, ThingScaffoldProfile, TriggerFiring, MEANING_MODEL_SCHEMA, MODEL_SCHEMA,
+    compile_model, Claim, ClaimAuthority, ClaimMode, ClaimUncertainty, Comparison,
+    ConceptDefinition, DecompositionEdge, DependencyEdge, DependencyKind, EffectMode, EngineError,
+    EngineResult, EventInterval, EventReferentBinding, EventReferentBindingTarget,
+    EventRelationDefinition, EventRelationKind, EvidenceType, GraphEdgeValue, GraphValue,
+    LawActivation, LawDefinition, LawOperator, MeaningEventDefinition, MeaningModelDefinition,
+    ModelDefinition, ModelRevision, NumericBounds, OccurrenceTrigger, ProcessDefinition,
+    ProcessType, ProcessUpdateMode, ProcessValue, RealizationPurpose, RealizationRecord,
+    ReferentDefinition, ScalarExpression, StateEffect, TriggerFiring, MEANING_MODEL_SCHEMA,
+    MODEL_SCHEMA,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -437,7 +448,9 @@ fn merge_meaning_model(
     target.realizations.append(&mut source.realizations);
     target.normalized_cuts.append(&mut source.normalized_cuts);
     target.context_roots.append(&mut source.context_roots);
-    target.temporal_cut_recompositions.append(&mut source.temporal_cut_recompositions);
+    target
+        .temporal_cut_recompositions
+        .append(&mut source.temporal_cut_recompositions);
     Ok(())
 }
 
