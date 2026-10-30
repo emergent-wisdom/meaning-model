@@ -793,7 +793,9 @@ for (const row of rows) {
   const positions = new Float32Array(NX * 2 * 3); const colors = new Float32Array(NX * 2 * 4); const index = [];
   for (let i = 0; i < NX; i += 1) { colors.set([c.r, c.g, c.b, 0.0, c.r, c.g, c.b, open ? 0.08 : 0.3], i * 8); if (i) index.push((i - 1) * 2, (i - 1) * 2 + 1, i * 2, i * 2, (i - 1) * 2 + 1, i * 2 + 1); }
   const wall = new THREE.BufferGeometry(); wall.setAttribute('position', new THREE.BufferAttribute(positions, 3)); wall.setAttribute('color', new THREE.BufferAttribute(colors, 4)); wall.setIndex(index);
-  row.wall = new THREE.Mesh(wall, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+  // A curtain lies in its row's plane, so all of it faces one way: one pass draws it as three.js's two (its back faces,
+  // then its front) did, without a second draw and a second program check each frame.
+  row.wall = new THREE.Mesh(wall, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }));
   const line = new THREE.BufferGeometry(); line.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NX * 3), 3));
   // Per-sample brightness: full for a recorded level, dimmer for a derived one, dark where there is no value.
   line.setAttribute('color', new THREE.BufferAttribute(new Float32Array(NX * 3).fill(1), 3));
@@ -1440,7 +1442,7 @@ function arcLines(target) {
 }
 
 // The sweep: a plane of light at the story's moment.
-const sweep = new THREE.Mesh(new THREE.PlaneGeometry(zFront - zBack + 12, AMP + 6), new THREE.MeshBasicMaterial({ color: '#9fb8ff', transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+const sweep = new THREE.Mesh(new THREE.PlaneGeometry(zFront - zBack + 12, AMP + 6), new THREE.MeshBasicMaterial({ color: '#9fb8ff', transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }));
 sweep.rotation.y = Math.PI / 2; sweep.position.set(0, (AMP + 6) / 2 - 0.5, (zFront + zBack) / 2 + 2); field.add(sweep);
 
 // ---- what the panel adds: the tree's Events, subsidiary processes, readings and prose ------------------------------------------
