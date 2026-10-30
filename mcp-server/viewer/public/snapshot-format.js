@@ -1,7 +1,7 @@
 // A viewer snapshot is one JSON file, schema meaning-model-viewer/2. The optional compact form, meaning-model-viewer/3,
 // holds exactly the same data in less space:
 // - each dated series' points are written as columns (packRows), so a holder, a mode or an evidence type that every
-//   point of a series shares is written once;
+//   point of a series shares is written once (where that is shorter: a series of a point or two stays as it is);
 // - the graph's full records (inspection.graph) are in a file of their own, fetched when a view first needs them:
 //   Graph, Structure, Space, search, or a selection's record.
 // openSnapshot reads either form into the same object, so no view knows which it was given. A compact snapshot says
@@ -89,7 +89,11 @@ export function packSnapshot(data, { name, sha256, defer = [...LATER] }) {
   const packed = [];
   for (const path of PACKED_PATHS) {
     let found = false;
-    visit(snapshot, path.split('/'), (holder, key) => { if (Array.isArray(holder[key]) && holder[key].every(plain)) { holder[key] = packRows(holder[key]); found = true; } else throw new Error(`${path} holds something other than rows.`); });
+    visit(snapshot, path.split('/'), (holder, key) => {
+      if (!Array.isArray(holder[key]) || !holder[key].every(plain)) throw new Error(`${path} holds something other than rows.`);
+      const table = packRows(holder[key]);
+      if (JSON.stringify(table).length < JSON.stringify(holder[key]).length) { holder[key] = table; found = true; }
+    });
     if (found) packed.push(path);
   }
   snapshot.schema = COMPACT_SCHEMA;
@@ -106,7 +110,8 @@ const pending = new WeakMap();
 export async function openSnapshot(data, { url = null, fetch = globalThis.fetch } = {}) {
   if (data?.schema !== COMPACT_SCHEMA) return data;
   const { from, packed = [], parts = {} } = data.compact ?? {};
-  for (const path of packed) visit(data, path.split('/'), (holder, key) => { holder[key] = unpackRows(holder[key]); });
+  // Rows written as columns are an object; rows left as they were are still an array.
+  for (const path of packed) visit(data, path.split('/'), (holder, key) => { if (!Array.isArray(holder[key])) holder[key] = unpackRows(holder[key]); });
   data.schema = from; delete data.compact;
   const waiting = new Map();
   for (const [path, part] of Object.entries(parts)) {

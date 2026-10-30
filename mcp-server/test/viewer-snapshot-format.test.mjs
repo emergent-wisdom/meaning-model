@@ -75,8 +75,11 @@ test('a compact snapshot opens as the snapshot it was made from, and its views d
   const data = await snapshot();
   assert.equal(data.schema, 'meaning-model-viewer/2');
   assert.ok(data.typedScalarSeries.length >= 2 && data.inspection.graph.nodes.length === 5);
+  // A series of one point is shorter as it is, and stays so.
+  data.typedScalarSeries.push({ ...structuredClone(data.typedScalarSeries[0]), id: 'one-point', points: structuredClone(data.typedScalarSeries[0].points.slice(0, 1)) });
   const { compact, files } = compactFiles(data);
   assert.equal(compact.schema, COMPACT_SCHEMA); assert.equal(compact.inspection.graph, undefined);
+  assert.ok(Array.isArray(compact.typedScalarSeries.at(-1).points) && !Array.isArray(compact.typedScalarSeries[0].points));
   assert.ok(files.get('model.json').length < JSON.stringify(data).length);
   const log = [];
   const opened = await openSnapshot(JSON.parse(files.get('model.json')), { url: 'https://host.test/m/data/model.json?ts=1', fetch: serve(files, log) });
