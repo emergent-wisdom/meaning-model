@@ -34,6 +34,7 @@ import { onPlainClick } from './pointer-click.js';
 import { curationAt, openingLevel } from './view-settings.js';
 import { createFrameGate } from './frame-gate.js';
 import { timeAxis } from './time-axis.js';
+import { createGlowBatches } from './glow-batch.js';
 import { partPending, whenPart } from './snapshot-format.js';
 
 let temporalActive = !window.modelViewer, temporalFrame = null, appliedSelection = null, hoveredRecord = null;
@@ -423,7 +424,10 @@ const label = (className, text, position, center = [0.5, 0.5], parent = field) =
 const additive = (hex, opacity = 1) => new THREE.LineBasicMaterial({ color: hex, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false });
 const glow = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
   r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.25, 'rgba(255,255,255,0.55)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
-const spark = (hex, size) => { const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: hex, transparent: true, opacity: opt.glare === 'soft' ? 0.5 : 1, blending: THREE.AdditiveBlending, depthWrite: false })); sprite.scale.setScalar(size); return sprite; };
+// The lights and the short lines are drawn in a few batches (glow-batch.js), copied from what is shown every drawn frame.
+const glowBatches = createGlowBatches(THREE, { map: glow }); scene.add(glowBatches.object);
+const batched = (object) => glowBatches.add(object);
+const spark = (hex, size) => { const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: hex, transparent: true, opacity: opt.glare === 'soft' ? 0.5 : 1, blending: THREE.AdditiveBlending, depthWrite: false })); sprite.scale.setScalar(size); return batched(sprite); };
 
 // Growable buffers for what the panel adds and for the links the view redraws as it zooms: line segments, triangles and
 // glowing points, refilled whenever the view changes.
@@ -932,7 +936,7 @@ function bigNameFor(group) {
 const tickPool = [];
 for (let i = 0; i < 48; i += 1) {
   const object = label('year', '', new THREE.Vector3(0, 0, 0)); const lineGeometry = new THREE.BufferGeometry(); lineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
-  const line = new THREE.Line(lineGeometry, additive('#2a3246', 0.8)); line.frustumCulled = false; scene.add(line); tickPool.push({ object, line });
+  const line = batched(new THREE.Line(lineGeometry, additive('#2a3246', 0.8))); line.frustumCulled = false; scene.add(line); tickPool.push({ object, line });
 }
 
 // Events that move processes: a thread through the crests they touch, at the moment they begin.
@@ -942,11 +946,11 @@ for (const event of data.events) {
   if (!touched.length || !Number.isFinite(event.start)) continue;
   const group = new THREE.Group(); group.userData = { t: event.start, event, touched, lines: [], sparks: [] };
   for (const row of touched) {
-    const stem = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3)), additive('#ffffff', 0.35)); stem.frustumCulled = false; group.add(stem); group.userData.lines.push(stem);
+    const stem = batched(new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3)), additive('#ffffff', 0.35))); stem.frustumCulled = false; group.add(stem); group.userData.lines.push(stem);
     const s = spark('#ffffff', 1.5); s.userData.hover = { kind: 'Event', title: event.label, text: event.description, about: touched.map((item) => NAMES[item.measure.id] ?? item.measure.id),
       valueRows: touched, valueTime: event.start }; group.add(s); eventSparks.push(s); group.userData.sparks.push(s);
   }
-  if (touched.length > 1) { const link = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(touched.length * 3), 3)), additive('#fff3d6', 0.9)); link.frustumCulled = false; group.add(link); group.userData.link = link; }
+  if (touched.length > 1) { const link = batched(new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(touched.length * 3), 3)), additive('#fff3d6', 0.9))); link.frustumCulled = false; group.add(link); group.userData.link = link; }
   field.add(group); threads.push(group);
   if (touched.length >= 2) { const tag = label('event', clip(event.label, 70), new THREE.Vector3(0, 0, 0), [0.5, 1], group); tag.userData = { t: event.start, weight: touched.length }; group.userData.tag = tag; }
 }
@@ -3467,7 +3471,8 @@ document.fonts?.addEventListener?.('loadingdone', () => drawing.wake());
 const cameraPose = () => [...camera.position.toArray(), ...camera.quaternion.toArray(), ...camera.projectionMatrix.elements];
 // The scene's world matrices are brought up to date once per drawing, for the scene and its names alike.
 scene.matrixWorldAutoUpdate = false;
-function drawScene() { scene.updateMatrixWorld(); composer.render(); labels.render(scene, camera); }
+const syncBatches = () => glowBatches.sync(scene, camera);
+function drawScene() { scene.updateMatrixWorld(); syncBatches(); composer.render(); labels.render(scene, camera); }
 function frame() {
   temporalFrame = null; if (!temporalActive) return;
   const clock = performance.now(); const dt = Math.max(0, Math.min(0.1, (clock - last) / 1000)); last = clock;
@@ -3518,7 +3523,7 @@ window.explorer = {
   // Where each causal link crosses the screen, at its middle, to point at it in a test.
   arcs: (at = 0.5) => arcTargets.map((target) => { const p = target.pts[Math.floor((target.pts.length - 1) * at)]; const point = screen(p.x, p.y, p.z); return { kind: target.relation.kind, x: Math.round(point.x), y: Math.round(point.y) }; }),
   // The time a frame takes: laid out again each frame (as while zooming or turning to layers) or steady.
-  parts: (n = 20) => { const parts = { tick: () => tick(performance.now(), 1 / 60), camera: () => (opt.camera === 'locked' ? placeLocked() : controls.update()), render: () => { scene.updateMatrixWorld(); composer.render(); }, labels: () => labels.render(scene, camera), declutter, labels2: () => labels2.update(), hover };
+  parts: (n = 20) => { const parts = { tick: () => tick(performance.now(), 1 / 60), camera: () => (opt.camera === 'locked' ? placeLocked() : controls.update()), render: () => { scene.updateMatrixWorld(); syncBatches(); composer.render(); }, labels: () => labels.render(scene, camera), declutter, labels2: () => labels2.update(), hover };
     return Object.fromEntries(Object.entries(parts).map(([name, fn]) => { const times = []; for (let i = 0; i < n; i += 1) { const t0 = performance.now(); fn(); times.push(performance.now() - t0); } times.sort((a, b) => a - b); return [name, +times[n >> 1].toFixed(2)]; })); },
   profile: (n = 30, full = true) => { const times = []; for (let i = 0; i < n; i += 1) { const t0 = performance.now(); if (full) relayout = true; tick(performance.now(), 1 / 60); if (opt.camera === 'locked') placeLocked(); else controls.update(); drawScene(); declutter(); labels2.update(); hover(); times.push(performance.now() - t0); } times.sort((a, b) => a - b); return { median: +times[n >> 1].toFixed(1), max: +times.at(-1).toFixed(1) }; },
 };

@@ -159,7 +159,7 @@ test('Event threads find typed process series and hide links before their sample
   const row = { z: 0, measure: { id: 'typed-series-id', processId: 'tank.level', kind: 'typed-scalar', points: points() } };
   row.points = row.measure.points;
   Object.assign(context, { THREE, rows: [row], data: { events: [{ id: 'inspection', start: 15, processIds: ['tank.level'], label: 'Inspection' }] },
-    field: new THREE.Group(), NAMES: { 'typed-series-id': 'Tank level' }, spark: () => new THREE.Object3D(),
+    field: new THREE.Group(), NAMES: { 'typed-series-id': 'Tank level' }, spark: () => new THREE.Object3D(), batched: (object) => object,
     additive: () => new THREE.LineBasicMaterial(), F: { a: 0 }, X: (time) => time, presence: () => 1,
     rowAt: () => ({ y: 0, z: 0 }), heightAt: () => 1 });
   const start = source.indexOf('const threads = [];');
