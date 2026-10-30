@@ -52,12 +52,13 @@ Worlds are built at progressive resolution: coarse first, then opened where a
 purpose needs detail, each opening keeping the coarser account's commitments or
 revising them openly. The world, its meanings, the modeler's reasons, and the
 prose or code written from it share one medium, so a change shows what depends on
-it, and discovered concepts anchor further inference. An agent built \emph{The Book
-of Conditions}, a novel, from a premise and historical sources. A history of
-humankind from about 300,000 years ago to 2025 was built in agent passes, reaching
-539 processes, 44,569 dated values, and 2,240 Events on 20 October 2026. A separate
-continuation used explicit laws to check the account's numbers against each
-other, exposing errors and known effects, not discoveries. These constructions
+it, and discovered concepts anchor further inference. The paper gives the grammar, the ideas behind it, and a working tool with modes
+for modeling a world, writing fiction from it, keeping an agent's memory, and
+searching for new mechanisms through invented worlds. Two constructions show it in
+use: a novel, \emph{The Book of Conditions}, built from a premise and historical
+sources, and a history of humankind from about 300,000 years ago to 2025, built in
+agent passes and checked against its own numbers. A further example models and runs invented worlds to search for mechanisms for a
+real-world problem. These constructions
 show that such accounts can be built and checked for internal consistency. They do not
 yet show that explicit structure improves on what a model does implicitly, or that
 the medium can train better models, which the companion paper Life Simulation
@@ -2645,10 +2646,14 @@ seven-point scale, paired Wilcoxon $p = 0.016$. They were rated less original:
 3.9 against 4.7. They stayed more varied than ten direct answers from the same
 model (mean successive distance 0.64 against 0.38), but less varied than the
 written-only ideas (0.80), with each idea cut to twenty content words for this
-comparison. The two searches also differ in the tool version and in
-one added instruction to every role, to say plainly where something does not work.
-So the comparison shows a difference, not its cause; a search with world modelling
-switched off on the same version would separate them.
+comparison. The two searches also differ in the tool version and in one added
+instruction to every role, to say plainly where something does not work. So the
+comparison shows a difference, not its cause; a search with world modelling
+switched off on the same version would separate them. The search is recorded in
+\href{https://github.com/emergent-wisdom/meaning-model/tree/v0.16.1/examples/alien-search-loneliness}{\texttt{examples/alien-search-loneliness}}:
+an atlas of its worlds, runs and mechanisms, the diagnoses, the jury's ratings, and
+the replay of every run. The graph, models and seeds are not included, so a reader
+can inspect the replay but not rerun the models.
 
 These records organize ideation. A world is a thought experiment, written and,
 by default, run as a model of its own laws; a transfer records an idea
@@ -3106,34 +3111,37 @@ version, and counts.
 \begin{table}[htbp]
 \centering
 \small
-\begin{tabular}{lrrr}
+\begin{tabular}{lrrrr}
 \toprule
- & 15 October & 18 October & 20 October \\
+ & 15 October & 18 October & 20 October & 28 October \\
 \midrule
-Tool & 0.13.1 & 0.14.0 candidate & 0.15.0 build \\
-Model definitions & 230 & 539 & 843 \\
-Graph revisions & 257 & 520 & 635 \\
-Processes & 152 & 239 & 539 \\
-Dated values & 17,852 & 30,076 & 44,569 \\
-\quad tagged sketch & 10,202 & 18,751 & 26,513 \\
-\quad tagged inferred & 7,518 & 11,188 & 15,023 \\
-\quad tagged exploring & 132 & 137 & 2,874 \\
-\quad tagged sourced & 0 & 0 & 159 \\
-\quad with a band & 15,859 & 27,447 & 35,054 \\
-Median band, inferred & 20\% & 25\% & 27\% \\
-Median band, sketch & 83\% & 105\% & 102\% \\
-Values changed after first recorded & 188 & 817 & 1,577 \\
-\quad median change & 15\% & 5\% & 3\% \\
-Events & 1,143 & 1,152 & 2,240 \\
-Cause questions & 56 & 88 & 91 \\
-Weighed causes & 188 & 296 & 308 \\
-Judgments of importance & 3,309 & 3,343 & 3,343 \\
-Processes declaring a sum & 0 & 42 & 45 \\
+Tool & 0.13.1 & 0.14.0 candidate & 0.15.0 build & 0.15.0 \\
+Model definitions & 230 & 539 & 843 & 567 \\
+Graph revisions & 257 & 520 & 635 & 557 \\
+Processes & 152 & 239 & 539 & 543 \\
+Dated values & 17,852 & 30,076 & 44,569 & 31,107 \\
+\quad tagged sketch & 10,202 & 18,751 & 26,513 & 19,465 \\
+\quad tagged inferred & 7,518 & 11,188 & 15,023 & 11,463 \\
+\quad tagged exploring & 132 & 137 & 2,874 & 137 \\
+\quad tagged sourced & 0 & 0 & 159 & 42 \\
+\quad with a band & 15,859 & 27,447 & 35,054 & 28,466 \\
+Median band, inferred & 20\% & 25\% & 27\% & 26\% \\
+Median band, sketch & 83\% & 105\% & 102\% & 104\% \\
+Values changed after first recorded & 188 & 817 & 1,577 & 855 \\
+\quad median change & 15\% & 5\% & 3\% & 5\% \\
+Events & 1,143 & 1,152 & 2,240 & 1,400 \\
+Cause questions & 56 & 88 & 91 & 88 \\
+Weighed causes & 188 & 296 & 308 & 296 \\
+Judgments of importance & 3,309 & 3,343 & 3,343 & 3,343 \\
+Processes declaring a sum & 0 & 42 & 45 & 42 \\
 \bottomrule
 \end{tabular}
-\caption{The world-history construction at the three states reported here, counted at each state's head model. A
+\caption{The world-history construction at the four states reported here, counted at each state's head model. A
 band's width is taken as a share of its value, and the median is over the values with that tag. On 20 October the
-Understanding Graph is bound to model revision 631 (see text).}
+Understanding Graph is bound to model revision 631 (see text). The 28 October state is the separate continuation of
+Section~\ref{sec:world-history-laws}: it branches from the 18 October state and does not follow from the 20 October
+one. Its rows for values count only the recorded values; the 6,068 values derived by its laws, which bring its dated
+values to 37,175, are left out.}
 \label{tab:world-history-states}
 \end{table}
 
@@ -3160,7 +3168,8 @@ bound to model revision 631 while the model runs on to 842, and the last two
 passes recorded their notes in the model instead. The 843 model revisions on the
 way to the head form one linear chain, with 109 more kept on abandoned branches.
 
-Table~\ref{tab:world-history-states} counts these three states, and
+Table~\ref{tab:world-history-states} counts these three states and the separate
+28 October state, and
 Figure~\ref{fig:world-history-growth} shows the growth along the
 chain: coarse values first, then Events, then a finer tree, and from 19 October
 new roots beside it. History, with 314 of the 539 processes, divides into the
@@ -3204,11 +3213,12 @@ from what it had read.
 \label{sec:world-history-laws}
 
 The passes of 25 to 28 October returned to the 18 October state, rather than
-extending the 20 October branch. They asked where things happened and whether
-the account's numbers agree with one another. At model revision 566 this branch
-holds 543 processes and 1,400 Events. The counts include 278 position processes,
-one for each of 248 countries and areas and 30 regions, and 19 processes derived
-by laws. The places' own lives account for 278 Events; excluding them leaves
+extending the 20 October branch. They asked where things happened and whether the
+account's numbers agree with one another. At model revision 566 this branch holds
+543 processes, 37,175 dated values, and 1,400 Events. The counts include 278
+position processes, one for each of 248 countries and areas and 30 regions, and 19
+processes derived by laws, whose 6,068 derived values are counted with the 31,107
+recorded ones. The places' own lives account for 278 Events; excluding them leaves
 1,122. A script recorded the places and their representative points; agents placed
 Events in countries where the account supported that placement.
 
