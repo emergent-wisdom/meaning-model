@@ -58,18 +58,17 @@ function billboards(THREE, map) {
     colors = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4).setUsage(THREE.DynamicDrawUsage);
     geometry.setAttribute('iPosition', positions); geometry.setAttribute('iScale', scales); geometry.setAttribute('iColor', colors);
   };
-  const at = new THREE.Vector3(), basis = new THREE.Vector3();
   return {
     object,
     fill(sprites) {
       if (sprites.length > capacity) grow(sprites.length);
       n = 0;
+      const p = positions.array, s = scales.array, c = colors.array;
       for (const sprite of sprites) {
         const e = sprite.matrixWorld.elements, m = sprite.material;
-        at.setFromMatrixPosition(sprite.matrixWorld);
-        positions.array.set([at.x, at.y, at.z], n * 3);
-        scales.array.set([basis.set(e[0], e[1], e[2]).length(), basis.set(e[4], e[5], e[6]).length()], n * 2);
-        colors.array.set([m.color.r, m.color.g, m.color.b, m.opacity], n * 4);
+        p[n * 3] = e[12]; p[n * 3 + 1] = e[13]; p[n * 3 + 2] = e[14];
+        s[n * 2] = Math.sqrt(e[0] * e[0] + e[1] * e[1] + e[2] * e[2]); s[n * 2 + 1] = Math.sqrt(e[4] * e[4] + e[5] * e[5] + e[6] * e[6]);
+        c[n * 4] = m.color.r; c[n * 4 + 1] = m.color.g; c[n * 4 + 2] = m.color.b; c[n * 4 + 3] = m.opacity;
         n += 1;
       }
       geometry.instanceCount = n;
@@ -101,12 +100,14 @@ function segments(THREE) {
       let needed = 0; for (const line of lines) { const [first, last] = span(line); needed += 2 * Math.max(0, last - first); }
       if (needed > capacity) grow(needed);
       n = 0;
+      const p = positions.array, c = colors.array;
       for (const line of lines) {
         const source = line.geometry.attributes.position, tint = line.geometry.attributes.color, m = line.material, [first, last] = span(line);
         const r = m.color.r, g = m.color.g, b = m.color.b, a = m.opacity, own = m.vertexColors && tint;
-        for (let i = first; i < last; i += 1) for (const k of [i, i + 1]) {
-          v.fromBufferAttribute(source, k).applyMatrix4(line.matrixWorld); positions.array.set([v.x, v.y, v.z], n * 3);
-          colors.array.set(own ? [r * tint.getX(k), g * tint.getY(k), b * tint.getZ(k), a * (tint.itemSize === 4 ? tint.getW(k) : 1)] : [r, g, b, a], n * 4);
+        for (let i = first; i < last; i += 1) for (let k = i; k <= i + 1; k += 1) {
+          v.fromBufferAttribute(source, k).applyMatrix4(line.matrixWorld); p[n * 3] = v.x; p[n * 3 + 1] = v.y; p[n * 3 + 2] = v.z;
+          if (own) { c[n * 4] = r * tint.getX(k); c[n * 4 + 1] = g * tint.getY(k); c[n * 4 + 2] = b * tint.getZ(k); c[n * 4 + 3] = a * (tint.itemSize === 4 ? tint.getW(k) : 1); }
+          else { c[n * 4] = r; c[n * 4 + 1] = g; c[n * 4 + 2] = b; c[n * 4 + 3] = a; }
           n += 1;
         }
       }
@@ -124,11 +125,11 @@ export function createGlowBatches(THREE, { map }) {
   const kinds = { sprite: { items: new Set(), runs: [], make: () => billboards(THREE, map) }, line: { items: new Set(), runs: [], make: () => segments(THREE) } };
   const center = new THREE.Vector3(), forward = new THREE.Vector3(), cameraAt = new THREE.Vector3();
   // The depth, from the camera, at which three.js sorts an object: its bounding sphere's centre, the object's own where
-  // it has one (an instanced mesh), else its geometry's.
-  const depthOf = (object, camera) => {
+  // it has one (an instanced mesh), else its geometry's, along the camera's line of sight.
+  const depthOf = (object) => {
     if (object.boundingSphere !== undefined) { if (object.boundingSphere === null) object.computeBoundingSphere(); center.copy(object.boundingSphere.center); }
     else { if (object.geometry.boundingSphere === null) object.geometry.computeBoundingSphere(); center.copy(object.geometry.boundingSphere.center); }
-    return -center.applyMatrix4(object.matrixWorld).applyMatrix4(camera.matrixWorldInverse).z;
+    return center.applyMatrix4(object.matrixWorld).sub(cameraAt).dot(forward);
   };
   const runOf = (kind, index) => { const runs = kinds[kind].runs; while (runs.length <= index) { const run = kinds[kind].make(); runs.push(run); group.add(run.object); } return runs[index]; };
   return {
@@ -138,23 +139,22 @@ export function createGlowBatches(THREE, { map }) {
     sync(scene, camera) {
       // The covering objects the camera draws among the lights (the same orders, so sorted by depth with them), farthest
       // first; those of another order are drawn before or after all of them either way.
-      camera.updateMatrixWorld();
+      camera.updateMatrixWorld(); camera.getWorldPosition(cameraAt); camera.getWorldDirection(forward);
       const covers = [];
       scene.traverseVisible((object) => {
         const material = object.material;
         if (!material || Array.isArray(material) || !material.transparent || material.blending !== THREE.NormalBlending || !material.visible || !object.layers.test(camera.layers) || !sortedWithLights(object)) return;
-        if (object.isMesh || object.isLine || object.isPoints || object.isSprite) covers.push(depthOf(object, camera));
+        if (object.isMesh || object.isLine || object.isPoints || object.isSprite) covers.push(depthOf(object));
       });
       covers.sort((a, b) => b - a);
       // Each run is placed for sorting at a depth between the covering objects around it, on the camera's line of sight.
-      camera.getWorldPosition(cameraAt); camera.getWorldDirection(forward);
       const placeAt = (index) => (covers.length === 0 ? 1 : index === 0 ? covers[0] * 2 + 1 : index === covers.length ? covers.at(-1) / 2 : (covers[index - 1] + covers[index]) / 2);
       for (const [kind, { items }] of Object.entries(kinds)) {
         const buckets = new Map();
         for (const item of items) {
           if (!shown(item)) continue;
           // How many covering objects lie behind it: those are drawn before it.
-          const depth = depthOf(item, camera); let lo = 0, hi = covers.length;
+          const depth = depthOf(item); let lo = 0, hi = covers.length;
           while (lo < hi) { const mid = (lo + hi) >> 1; if (covers[mid] > depth) lo = mid + 1; else hi = mid; }
           if (!buckets.has(lo)) buckets.set(lo, []); buckets.get(lo).push(item);
         }
