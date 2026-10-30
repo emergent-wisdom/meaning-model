@@ -53,6 +53,8 @@ unpublished work stays under Unreleased. This is not a development transcript.
   on a tall screen, and a small one is never enlarged. The camera follows only from the size of what is drawn and of
   the screen; an address that names a camera keeps it. A camera goes in the address only once the reader has moved it, so
   a reloaded or shared address opens framed for the screen it lands on.
+- While a finger drags or pinches the scene its labels step aside, and return a moment after the last finger lifts:
+  placing them was most of what a frame cost on a phone. A tap never hides them, and a mouse never does.
 - A drag that starts on a row's name or a lens card moves the view, as one beside it does. A press that stays put stays
   theirs: a card still opens on a tap and a name keeps its tooltip.
 - No label in Processes and Tree covers another label, a panel (the model's card and the controls among them) or the

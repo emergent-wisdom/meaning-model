@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { passDragsToCanvas } from '../viewer/public/scene-touch.js';
+import { passDragsToCanvas, watchFingerDrag } from '../viewer/public/scene-touch.js';
 
 const pointer = (type, fields = {}) => Object.assign(new Event(type), { pointerId: 1, clientX: 0, clientY: 0, pointerType: 'touch', ...fields });
 function dragSetup() {
@@ -34,4 +34,46 @@ test('another pointer moving does not hand on a press', () => {
   layer.dispatchEvent(pointer('pointerdown'));
   target.dispatchEvent(pointer('pointermove', { pointerId: 2, clientX: 90 }));
   assert.equal(handed.length, 0);
+});
+
+function fingerSetup() {
+  const canvas = new EventTarget(), target = new EventTarget(), changes = [], timers = [];
+  watchFingerDrag(canvas, (on) => changes.push(on), { target, later: (run) => { timers.push(run); return timers.length; }, cancel: (id) => { if (id) timers[id - 1] = null; } });
+  return { canvas, target, changes, fire: () => { for (const run of timers.splice(0)) run?.(); } };
+}
+
+test('a finger that moves starts a drag, and the drag ends a moment after it lifts', () => {
+  const { canvas, target, changes, fire } = fingerSetup();
+  canvas.dispatchEvent(pointer('pointerdown'));
+  assert.deepEqual(changes, []);
+  target.dispatchEvent(pointer('pointermove', { clientX: 20 }));
+  assert.deepEqual(changes, [true]);
+  target.dispatchEvent(pointer('pointerup'));
+  assert.deepEqual(changes, [true], 'the glide after a flick still counts');
+  fire();
+  assert.deepEqual(changes, [true, false]);
+});
+
+test('a tap is no drag, and a mouse never is', () => {
+  const { canvas, target, changes } = fingerSetup();
+  canvas.dispatchEvent(pointer('pointerdown'));
+  target.dispatchEvent(pointer('pointermove', { clientX: 3 }));
+  target.dispatchEvent(pointer('pointerup'));
+  canvas.dispatchEvent(pointer('pointerdown', { pointerType: 'mouse' }));
+  target.dispatchEvent(pointer('pointermove', { clientX: 90, pointerType: 'mouse' }));
+  assert.deepEqual(changes, []);
+});
+
+test('a drag lasts until the last finger lifts, and a new finger keeps it going', () => {
+  const { canvas, target, changes, fire } = fingerSetup();
+  canvas.dispatchEvent(pointer('pointerdown', { pointerId: 1 }));
+  canvas.dispatchEvent(pointer('pointerdown', { pointerId: 2 }));
+  target.dispatchEvent(pointer('pointermove', { pointerId: 2, clientX: 40 }));
+  target.dispatchEvent(pointer('pointerup', { pointerId: 2 }));
+  fire();
+  assert.deepEqual(changes, [true], 'one finger is still down');
+  target.dispatchEvent(pointer('pointerup', { pointerId: 1 }));
+  canvas.dispatchEvent(pointer('pointerdown', { pointerId: 3 }));
+  fire();
+  assert.deepEqual(changes, [true], 'a finger came back before the drag ended');
 });

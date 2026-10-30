@@ -36,7 +36,7 @@ import { createFrameGate } from './frame-gate.js';
 import { timeAxis } from './time-axis.js';
 import { createGlowBatches } from './glow-batch.js';
 import { openingFrame, fitBox, cameraMoved } from './opening-frame.js';
-import { passDragsToCanvas } from './scene-touch.js';
+import { passDragsToCanvas, watchFingerDrag } from './scene-touch.js';
 import { partPending, whenPart } from './snapshot-format.js';
 
 let temporalActive = !window.modelViewer, temporalFrame = null, appliedSelection = null, hoveredRecord = null;
@@ -3121,6 +3121,9 @@ const pressed = new Set();
 renderer.domElement.addEventListener('pointerdown', (event) => { pressed.add(event.pointerId); tip.hidden = true; });
 for (const type of ['pointerup', 'pointercancel']) addEventListener(type, (event) => pressed.delete(event.pointerId));
 passDragsToCanvas(labels.domElement, renderer.domElement);
+// While a finger drags the scene its labels step aside: placing them is most of what a frame costs on a phone.
+let labelsAside = false;
+watchFingerDrag(renderer.domElement, (on) => { labelsAside = on; document.body.classList.toggle('labels-aside', on); drawing.wake(); });
 renderer.domElement.addEventListener('pointerleave', () => { pointerAt = null; tip.hidden = true; if (lit) { lit = null; drawNotes(); } });
 // A click on anything opens what it is beside the view, as in the understanding graph; a click on nothing closes it.
 const details = document.getElementById('details');
@@ -3508,7 +3511,7 @@ scene.matrixWorldAutoUpdate = false;
 const syncBatches = () => glowBatches.sync(scene, camera);
 // The time views' labels never cover each other (declutter), so which stands in front needs no sorting each frame; the
 // terrain's may, and keeps it.
-function drawScene() { scene.updateMatrixWorld(); syncBatches(); composer.render(); labels.sortObjects = terrain.on; labels.render(scene, camera); }
+function drawScene() { scene.updateMatrixWorld(); syncBatches(); composer.render(); if (labelsAside) return; labels.sortObjects = terrain.on; labels.render(scene, camera); }
 function frame() {
   temporalFrame = null; if (!temporalActive) return;
   const clock = performance.now(); const dt = Math.max(0, Math.min(0.1, (clock - last) / 1000)); last = clock;
@@ -3516,7 +3519,7 @@ function frame() {
   if (glide) { const u = Math.min(1, (clock - glide.start) / glide.duration), e = u * u * (3 - 2 * u); camera.position.lerpVectors(glide.from.position, glide.to.position, e); controls.target.lerpVectors(glide.from.target, glide.to.target, e); if (u >= 1) glide = null; }
   if (opt.camera === 'locked') placeLocked(); else controls.update();
   if (drawing.due(changed, cameraPose())) {
-    drawScene(); declutter(); labels2.update(); if (!pressed.size) hover();
+    drawScene(); if (!labelsAside) { declutter(); labels2.update(); } if (!pressed.size) hover();
     // Once the names are on the page their widths are known, and a locked view frames them.
     // A still camera opened fresh frames the whole view in the room the panels leave, as Default does; a camera that came
     // with a pose keeps it.
