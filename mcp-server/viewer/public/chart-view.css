@@ -237,5 +237,8 @@ button.cv-crumb:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
   .cv.has-panel .cv-chart { right: 0; bottom: calc(42vh + var(--edge)); }
   .cv-panel { top: auto; left: var(--edge); right: var(--edge); width: auto; max-width: none; height: 42vh; }
   .cv-foot { display: none; }
+  .cv.is-narrow .cv-row-shares { font-size: 12px; }
 }
+/* On a touch screen the fold triangle answers a finger around it, without moving the row. */
+@media (pointer: coarse) { .cv-disclose::after { content: ""; position: absolute; inset: -9px; } }
 @media (prefers-reduced-motion: reduce) { .cv-band, .cv-shape, .cv-disclose::before { transition: none; } }

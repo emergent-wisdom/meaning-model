@@ -58,12 +58,13 @@ export function mountChosenView({ data, opening, onHighlight = () => {}, documen
   (document.getElementById('tools') ?? document.body).after(card);
   const go = (href) => location.assign(href);
   const own = () => { const url = new URL(location.href); for (const key of ['chosen', 'level', 'adjusted']) url.searchParams.delete(key); url.searchParams.set('chosen', 'none'); go(url.href); };
-  let justChanged = opening.state === 'changed', folded = false;
+  // On a narrow screen the card opens folded to its title and levels, so the model shows beneath it.
+  let justChanged = opening.state === 'changed', folded = Boolean(globalThis.matchMedia?.('(max-width: 760px)').matches);
   function render() {
     const address = new URL(location.href), adjusted = address.searchParams.has('adjusted');
     const state = opening.state === 'own' || opening.state === 'none' ? 'own' : adjusted ? 'adjusted' : 'following';
     const view = state === 'own' ? current : opening.view ?? current;
-    card.replaceChildren(); card.dataset.state = state; card.classList.toggle('just-changed', justChanged);
+    card.replaceChildren(); card.dataset.state = state; card.classList.toggle('just-changed', justChanged); card.classList.toggle('folded', folded);
     // One detail control at a time: on the model's view its levels are the detail, so the toolbar's subprocess stepper
     // and Coarse wait until the reader turns to their own settings.
     for (const id of ['detail-stepper', 'coarse-view']) { const control = document.getElementById(id); if (control) control.hidden = state !== 'own'; }
@@ -74,7 +75,7 @@ export function mountChosenView({ data, opening, onHighlight = () => {}, documen
     if (state !== 'own') {
       const fold = document.createElement('button'); fold.type = 'button'; fold.className = 'chosen-fold'; fold.textContent = folded ? '+' : '−';
       fold.setAttribute('aria-expanded', String(!folded)); fold.title = folded ? 'Show the model\'s view card' : 'Fold the card';
-      fold.addEventListener('click', () => { folded = !folded; render(); }); head.append(fold);
+      fold.addEventListener('click', () => { folded = !folded; render(); globalThis.dispatchEvent?.(new Event('resize')); }); head.append(fold);
     }
     const title = document.createElement('h2'); title.className = 'chosen-title'; title.textContent = view.title;
     card.append(head, title);
@@ -84,14 +85,21 @@ export function mountChosenView({ data, opening, onHighlight = () => {}, documen
       show.addEventListener('click', () => go(viewAddress(location.href, current)));
       card.append(note, show); return;
     }
-    if (folded) return;
+    // Detail: the view itself, then each level the model labelled, then Everything. Folded, the card keeps these steps.
+    const names = levelNames(view), level = Math.min(opening.level ?? 0, everythingLevel(view));
+    const stops = document.createElement('ol'); stops.className = 'chosen-stops';
+    names.forEach((text, index) => {
+      const stop = document.createElement('li'); const button = document.createElement('button'); button.type = 'button'; button.textContent = text;
+      button.classList.toggle('on', index === level); button.setAttribute('aria-pressed', String(index === level));
+      button.addEventListener('click', () => { if (index !== level) go(viewAddress(location.href, view, index)); });
+      stop.append(button); stops.append(stop);
+    });
+    if (folded) { card.append(stops); return; }
     const caption = document.createElement('p'); caption.className = 'chosen-caption'; caption.textContent = view.caption; card.append(caption);
     if (state === 'adjusted' && opening.newer) {
       const newer = document.createElement('button'); newer.type = 'button'; newer.className = 'tool chosen-newer'; newer.textContent = 'The model chose a new view · show it';
       newer.addEventListener('click', () => go(viewAddress(location.href, current))); card.append(newer);
     }
-    // Detail: the view itself, then each level the model labelled, then Everything.
-    const names = levelNames(view), level = Math.min(opening.level ?? 0, everythingLevel(view));
     const levels = document.createElement('div'); levels.className = 'chosen-levels';
     const label = document.createElement('label'); label.className = 'chosen-level-label';
     const word = document.createElement('i'); word.textContent = 'Detail'; const name = document.createElement('b'); name.textContent = names[level];
@@ -100,13 +108,6 @@ export function mountChosenView({ data, opening, onHighlight = () => {}, documen
     slider.setAttribute('aria-label', 'Detail'); slider.setAttribute('aria-valuetext', names[level]);
     slider.addEventListener('input', () => { name.textContent = names[Number(slider.value)]; slider.setAttribute('aria-valuetext', names[Number(slider.value)]); });
     slider.addEventListener('change', () => go(viewAddress(location.href, view, Number(slider.value))));
-    const stops = document.createElement('ol'); stops.className = 'chosen-stops';
-    names.forEach((text, index) => {
-      const stop = document.createElement('li'); const button = document.createElement('button'); button.type = 'button'; button.textContent = text;
-      button.classList.toggle('on', index === level); button.setAttribute('aria-pressed', String(index === level));
-      button.addEventListener('click', () => { if (index !== level) go(viewAddress(location.href, view, index)); });
-      stop.append(button); stops.append(stop);
-    });
     label.htmlFor = slider.id = 'chosen-level';
     levels.append(label, slider, stops); card.append(levels);
     // What to notice: the highlights up to this level, what the level added first, each with why it matters; picking

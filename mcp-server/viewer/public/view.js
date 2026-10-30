@@ -2135,11 +2135,14 @@ const LOCKED = { fov: 17, elevation: 0.8, pose: null, scroll: 0 };
 const HOME_DISTANCE = HOME.position.distanceTo(HOME.target); const FOG = 0.0048;
 function freeRoom() {
   const title = document.querySelector('.hud.title').getBoundingClientRect(); const stats = document.getElementById('stats').getBoundingClientRect(); const bar = document.querySelector('.hud.bar').getBoundingClientRect();
-  const side = [document.getElementById('details'), document.getElementById('legend'), document.getElementById('chosen-view')].filter(Boolean).map((el) => el.getBoundingClientRect()).find((r) => r.width && r.left > innerWidth * 0.5);
+  const panels = [document.getElementById('details'), document.getElementById('legend'), document.getElementById('chosen-view')].filter(Boolean).map((el) => el.getBoundingClientRect());
+  const side = panels.find((r) => r.width && r.left > innerWidth * 0.5);
+  // On a narrow screen a panel spans the width above the scene instead: the scene's room starts below it.
+  const above = Math.max(0, ...panels.filter((r) => r.height && r.width > innerWidth * 0.6).map((r) => r.bottom));
   const tools = document.getElementById('tools').getBoundingClientRect();
   // The caption and the reading position stand together above the time bar; the scene's room ends above them both.
   const dock = document.getElementById('dock')?.getBoundingClientRect(); const caption = dock?.height ? dock : document.querySelector('.hud.caption').getBoundingClientRect();
-  return { l: 28, r: side ? side.left - 20 : innerWidth - 28, t: Math.min(Math.max(title.bottom, stats.bottom, tools.bottom) + 24, innerHeight * 0.35), b: (caption.height ? caption.top : bar.top || innerHeight - 66) - 16 };
+  return { l: 28, r: side ? side.left - 20 : innerWidth - 28, t: Math.min(Math.max(title.bottom, stats.bottom, tools.bottom, above) + 24, innerHeight * 0.35), b: (caption.height ? caption.top : bar.top || innerHeight - 66) - 16 };
 }
 // The whole view fits the free room when it can. A tall one (a deep tree in layers) is never shrunk below three quarters
 // of the size that fills the width: it runs on below, and scrolls (shift and scroll, drag up and down, or the arrow keys).

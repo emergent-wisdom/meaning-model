@@ -46,6 +46,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
   which keeps the model's What to notice at every level. Everything now keeps how the view presents its records (its
   window, moment, time mode, the Chart's whole and the Earth's drawing) and lifts only what leaves records out. A
   view recorded with a later level opens there, and `life_model_viewer_view` describes `level` so.
+- On a phone (up to 760 px wide) the viewer opens on the model: the controls start hidden behind **Show controls**, and
+  the model's card starts folded to its title and its levels, which scroll sideways as one row of steps. Before, the
+  controls and the card covered the whole screen and the time bar's buttons. The Chart, Structure and Space start
+  below the card, the scene frames itself beneath it, small print is at least 11 px, and the card's fold button and
+  the Chart's fold triangles answer a finger around them.
 - Processes, Tree and Terrain draw only when something changes (a camera move, an input, playback, an animation or a
   call from another view) and once a second besides. Left still, the world history kept an emulated phone's processor
   (a laptop's slowed four times) busy almost all the time, and a laptop's about a quarter; now both are nearly idle.

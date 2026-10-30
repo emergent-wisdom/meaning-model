@@ -59,11 +59,13 @@ function fitPanels() {
   const bar = document.querySelector('.hud.bar')?.getBoundingClientRect(), floor = bar?.height ? bar.top - 8 : innerHeight - 12;
   for (const panel of document.querySelectorAll('.pop:not([hidden]), .details:not([hidden])')) if (!panel.closest('.bar')) panel.style.maxHeight = `${Math.max(0, floor - panel.getBoundingClientRect().top)}px`;
   const title = document.querySelector('.title').getBoundingClientRect(), tools = document.getElementById('tools').getBoundingClientRect(), visibility = document.getElementById('toolbar-visibility').getBoundingClientRect();
-  structureHost.style.top = `${Math.max(title.bottom, tools.bottom, visibility.bottom) + 12}px`;
+  // On a narrow screen the model's view card stands in the column above the surfaces, which start below it; on a wide one
+  // it sits over the top of the Chart's reading panel, and the panel starts below it.
+  const card = document.getElementById('chosen-view')?.getBoundingClientRect(), across = Boolean(card?.height && card.width > innerWidth * 0.6);
+  structureHost.style.top = `${Math.max(title.bottom, tools.bottom, visibility.bottom, across ? card.bottom : 0) + 12}px`;
   chartHost.style.top = structureHost.style.top;
-  // The model's view card sits over the top of the Chart's reading panel: the panel starts below it.
-  const card = document.getElementById('chosen-view')?.getBoundingClientRect();
-  chartHost.style.setProperty?.('--cv-card', `${card?.height ? Math.max(0, card.bottom - Math.max(title.bottom, tools.bottom, visibility.bottom) - 12) : 0}px`);
+  document.body.style.setProperty?.('--surface-top', structureHost.style.top);
+  chartHost.style.setProperty?.('--cv-card', `${card?.height && !across ? Math.max(0, card.bottom - Math.max(title.bottom, tools.bottom, visibility.bottom) - 12) : 0}px`);
 }
 // Default: forget this tab's saved view of the model and open it as it first opens (the same model, nothing chosen).
 function backToDefault() {
@@ -81,14 +83,19 @@ function togglePanel(id) {
 }
 for (const button of document.querySelectorAll('.tool[data-pop]')) button.addEventListener('click', () => togglePanel(button.dataset.pop));
 const toolbar = document.getElementById('tools'), toolbarVisibility = document.getElementById('toolbar-visibility');
+function showControls(shown) {
+  toolbar.hidden = !shown;
+  toolbarVisibility.textContent = shown ? 'Hide controls' : 'Show controls';
+  toolbarVisibility.setAttribute('aria-expanded', String(shown));
+}
 toolbarVisibility.addEventListener('click', () => {
   if (openPanel) togglePanel(openPanel);
-  toolbar.hidden = !toolbar.hidden;
-  toolbarVisibility.textContent = toolbar.hidden ? 'Show controls' : 'Hide controls';
-  toolbarVisibility.setAttribute('aria-expanded', String(!toolbar.hidden));
+  showControls(toolbar.hidden);
   fitPanels();
   dispatchEvent(new Event('viewer-controls-change'));
 });
+// On a narrow screen the controls fill most of it: they open hidden, one tap away, so the model shows first.
+if (globalThis.matchMedia?.('(max-width: 760px)').matches) showControls(false);
 document.addEventListener('pointerdown', (event) => { if (openPanel && !event.target.closest?.('.tool-wrap')) togglePanel(openPanel); });
 addEventListener('keydown', (event) => { if (event.key === 'Escape' && openPanel) togglePanel(openPanel); });
 addEventListener('resize', fitPanels);

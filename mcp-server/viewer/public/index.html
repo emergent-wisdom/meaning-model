@@ -303,7 +303,7 @@
   .space-record-text { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; font-size: 13px; line-height: 1.65; }
   .space-raw { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 10px; }
   .space-label:focus-visible, .space-life-period:focus-visible, .space-person:focus-visible, .space-related:focus-visible { outline: 2px solid #ffe6ae; outline-offset: 2px; }
-  @media (max-width: 760px) { #space-details { width: auto; } .space-summary { left: 12px; right: 12px; bottom: 96px; padding: 9px 10px; } .space-overview-note { font-size: 10px; } .space-life-row { grid-template-columns: 75px 1fr; gap: 5px; } .space-life-axis { padding-left: 122px; } .space-context-label { display: none; } .space-journeys { max-height: 23vh; } #space-controls { gap: 4px; justify-content: flex-start; } #space-controls select { max-width: 170px; } }
+  @media (max-width: 760px) { #space-details { width: auto; } .space-summary { left: 12px; right: 12px; bottom: 96px; padding: 9px 10px; max-height: calc(100vh - var(--surface-top, 0px) - 96px); overflow-y: auto; } .space-overview-note { font-size: 12px; } .space-life-row { grid-template-columns: 75px 1fr; gap: 5px; } .space-life-axis { padding-left: 122px; } .space-context-label { display: none; } .space-journeys { max-height: 23vh; } #space-controls { gap: 4px; justify-content: flex-start; } #space-controls select { max-width: 170px; } }
 
   .toolbar-visibility { padding: 0 9px; font-size: 12px; color: var(--ink-2); }
   /* While the controls show, their switch is a small chevron; hidden, it says how to bring them back. */
@@ -341,7 +341,8 @@
   .chosen-eyebrow { font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: #9fd0ff; font-weight: 600; }
   .chosen-view[data-state="adjusted"] .chosen-eyebrow { color: var(--ink-2); } .chosen-view[data-state="own"] .chosen-eyebrow { color: var(--muted); }
   .chosen-view.just-changed { box-shadow: 0 0 0 1px #ffd27a inset, 0 0 18px rgba(255, 210, 122, 0.3); } .chosen-view.just-changed .chosen-eyebrow { color: #ffd27a; }
-  .chosen-fold { border: 0; background: none; color: var(--muted); font: inherit; font-size: 16px; line-height: 1; cursor: pointer; padding: 0 4px; }
+  .chosen-fold { position: relative; border: 0; background: none; color: var(--muted); font: inherit; font-size: 16px; line-height: 1; cursor: pointer; padding: 0 4px; }
+  @media (pointer: coarse) { .chosen-fold::after { content: ""; position: absolute; inset: -9px -8px; } }
   .chosen-title { margin: 0; color: var(--ink); font-size: 15px; font-weight: 600; line-height: 1.3; }
   .chosen-caption { margin: 0; }
   .chosen-levels { display: grid; gap: 5px; padding-top: 2px; }
@@ -403,6 +404,11 @@
     .track { flex: 1 1 100%; order: 5; }
     .clock { min-width: 0; font-size: 13px; }
     .dock { left: 16px; right: 16px; bottom: 96px; }
+    /* A folded card keeps its levels on one row that scrolls sideways; on touch each step is a finger wide. */
+    .chosen-view.folded .chosen-stops { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .chosen-stops button { padding: 7px 10px; font-size: 13px; white-space: nowrap; }
+    /* The small print of the denser views stays readable on a phone. */
+    .strip-help, .lens .kinds, .space-axis, .space-life-axis, .space-gaps, .space-raw { font-size: 12px; } .space-role { font-size: 11px; }
   }
 </style>
 <script type="importmap">{ "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }</script>
