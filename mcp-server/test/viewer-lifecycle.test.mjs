@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { createFrameGate } from '../viewer/public/frame-gate.js';
 
 const source = readFileSync(new URL('../viewer/public/view.js', import.meta.url), 'utf8');
 const functionSource = (name) => {
@@ -36,6 +37,7 @@ test('the actual temporal controller owns one frame loop and pauses keyboard/pla
     recenterCalls: 0, recenterView() { context.recenterCalls += 1; },
     syncPanel() {}, syncURL() {}, fitLocked() {}, placeLocked() {}, tick() {}, declutter() {}, hover() {},
     stop() { context.playing = false; }, keyboardCalls: 0,
+    drawing: createFrameGate({ now: () => 100 }), cameraPose: () => [0],
   };
   vm.createContext(context);
   const guard = source.slice(source.indexOf('let temporalActive ='), source.indexOf('\nfunction publishRecord'));

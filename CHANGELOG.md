@@ -40,6 +40,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
   **Globe** and **Map** switch drawings; the address keeps the choice as `earth`. No coastline, border or name is drawn
   that the model does not declare, and a projected or local frame is drawn as before.
 
+**The viewer on phones and with big models**
+- Processes, Tree and Terrain draw only when something changes (a camera move, an input, playback, an animation or a
+  call from another view) and once a second besides. Left still, the world history kept an emulated phone's processor
+  (a laptop's slowed four times) busy almost all the time, and a laptop's about a quarter; now both are nearly idle.
+
 ## 0.17.0 — 2026-10-29
 
 The engine is reorganized into smaller modules for models, sessions, persistence and the numerical registry.

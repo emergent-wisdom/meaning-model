@@ -32,6 +32,7 @@ import { bigNamesOn, namePlace, nameHeight, screenHeight } from './character-nam
 import { readerInline } from './reader-markdown.js';
 import { onPlainClick } from './pointer-click.js';
 import { curationAt } from './view-settings.js';
+import { createFrameGate } from './frame-gate.js';
 
 let temporalActive = !window.modelViewer, temporalFrame = null, appliedSelection = null, hoveredRecord = null;
 // The thing under the pointer (a light, bar, link or card; null on a curtain or the ground) and the one the panel holds,
@@ -3426,20 +3427,25 @@ function walk(dt) {
   if (yaw || pitch) { const look = controls.target.clone().sub(camera.position); look.applyAxisAngle(UP, yaw); const across = new THREE.Vector3().crossVectors(look, UP).normalize(); const turned = look.clone().applyAxisAngle(across, pitch); if (Math.abs(turned.clone().normalize().y) < 0.97) look.copy(turned); controls.target.copy(camera.position).add(look); }
 }
 let shiftDown = false; addEventListener('keydown', (event) => { if (event.key === 'Shift') shiftDown = true; }); addEventListener('keyup', (event) => { if (event.key === 'Shift') shiftDown = false; });
+// Whether the frame moved anything: a walk, an animation, a blend, a rising curtain, a layout or the terrain.
 function tick(clock, dt) {
   frameDt = dt;
+  let changed = held.size > 0 || animation !== null;
   walk(dt);
   if (animation) animation(clock);
   if (Math.abs(blend.now - blend.to) > 0.001) { blend.now += Math.sign(blend.to - blend.now) * Math.min(Math.abs(blend.to - blend.now), dt / 0.9); relayout = true; if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } } else if (blend.now !== blend.to) { blend.now = blend.to; relayout = true; }
   // Curtains rise as the construction makes them, and sink when the play goes back before them.
   for (const row of rows) if (row.rise !== row.riseTo) { const rise = Math.max(0, Math.min(1, row.rise)); row.rise = row.riseTo > rise ? Math.min(row.riseTo, rise + dt / 0.8) : Math.max(row.riseTo, rise - dt / 0.4); relayout = true; }
+  changed ||= relayout || dirty || extrasDirty;
   if (relayout) relayOut(); else if (dirty) { dirty = false; apply(); }
   if (extrasDirty) { extrasDirty = false; if (!terrain.on) drawExtras(); }
   if (terrain.on) {
     let moving = false; for (const row of terrain.rows) if (row.scale !== row.target) { row.scale = Math.abs(row.target - row.scale) < 0.002 ? row.target : row.scale + (row.target - row.scale) * Math.min(1, dt * 7); moving = true; }
     if (moving) heightsTerrain();
-    terrain.mind.forEach((point, i) => { if (point.visible) point.position.y = point.userData.y + Math.sin(clock / 1250 + i) * 0.2 * TS; });
+    terrain.mind.forEach((point, i) => { if (point.visible) { point.position.y = point.userData.y + Math.sin(clock / 1250 + i) * 0.2 * TS; moving = true; } });
+    changed ||= moving;
   }
+  return changed;
 }
 // Each frame reads the clock itself: a frame's own time stamp can come from before the last one, and time never runs
 // backwards here.
@@ -3456,16 +3462,26 @@ function glideTo(points) {
   glide = { from: { position: camera.position.clone(), target: controls.target.clone() }, to: { position: center.clone().addScaledVector(direction, distance), target: center }, start: performance.now(), duration: 900 };
 }
 controls.addEventListener('start', () => { glide = null; });
+// The scene, its names and what is under the pointer are drawn only when the frame is due (frame-gate.js): a still view
+// costs nothing but its clock. Any input wakes it, as does any call from the other views.
+const drawing = createFrameGate();
+for (const type of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'keydown', 'keyup', 'touchstart', 'touchmove', 'touchend', 'resize', 'click', 'input', 'change', 'scroll', 'viewer-controls-change'])
+  addEventListener(type, () => drawing.wake(), { capture: true, passive: true });
+document.fonts?.addEventListener?.('loadingdone', () => drawing.wake());
+const cameraPose = () => [...camera.position.toArray(), ...camera.quaternion.toArray(), ...camera.projectionMatrix.elements];
 function frame() {
   temporalFrame = null; if (!temporalActive) return;
-  const clock = performance.now(); const dt = Math.max(0, Math.min(0.1, (clock - last) / 1000)); last = clock; tick(clock, dt);
+  const clock = performance.now(); const dt = Math.max(0, Math.min(0.1, (clock - last) / 1000)); last = clock;
+  const changed = tick(clock, dt) || glide !== null || playing;
   if (glide) { const u = Math.min(1, (clock - glide.start) / glide.duration), e = u * u * (3 - 2 * u); camera.position.lerpVectors(glide.from.position, glide.to.position, e); controls.target.lerpVectors(glide.from.target, glide.to.target, e); if (u >= 1) glide = null; }
   if (opt.camera === 'locked') placeLocked(); else controls.update();
-  composer.render(); labels.render(scene, camera); declutter(); labels2.update(); hover();
-  // Once the names are on the page their widths are known, and a locked view frames them.
-  // A still camera opened fresh frames the whole view in the room the panels leave, as Default does; a camera that came
-  // with a pose keeps it.
-  framesDrawn += 1; if (framesDrawn === 2 && opt.camera === 'locked') { fitLocked(); placeLocked(true); } else if (framesDrawn === 2 && opt.camera === 'free' && !posed) fitFree();
+  if (drawing.due(changed, cameraPose())) {
+    composer.render(); labels.render(scene, camera); declutter(); labels2.update(); hover();
+    // Once the names are on the page their widths are known, and a locked view frames them.
+    // A still camera opened fresh frames the whole view in the room the panels leave, as Default does; a camera that came
+    // with a pose keeps it.
+    framesDrawn += 1; if (framesDrawn === 2 && opt.camera === 'locked') { fitLocked(); placeLocked(true); } else if (framesDrawn === 2 && opt.camera === 'free' && !posed) fitFree();
+  }
   temporalFrame = requestAnimationFrame(() => frame());
 }
 // For captures and tests: the window on screen, and the view's state.
@@ -3640,3 +3656,5 @@ export const temporalController = {
   getState() { return { timeView: opt.layout, time: { now, tau, atEnd, mode: opt.mode, start: F.a, end: F.b }, temporalCamera: { ...cameraState(camera, controls), layout: opt.layout, scroll: LOCKED.scroll } }; },
   destroy() { temporalActive = false; temporalEvents.abort(); clearInterval(timer); clearInterval(liveTimer); clearTimeout(urlTimer); cancelAnimationFrame(temporalFrame); controls.dispose(); composer.dispose(); renderer.dispose(); },
 };
+// What another view, search or the model's view card asks of the time views is drawn at once.
+for (const [name, method] of Object.entries(temporalController)) temporalController[name] = function (...rest) { drawing.wake(); return method.apply(this, rest); };
