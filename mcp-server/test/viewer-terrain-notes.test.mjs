@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import * as THREE from '../viewer/public/vendor/three/three.core.js';
 import { isPlaybackVisible } from '../viewer/public/playback-time.js';
+import { timeAxis } from '../viewer/public/time-axis.js';
 
 const source = readFileSync(new URL('../viewer/public/view.js', import.meta.url), 'utf8');
 function block(startText) {
@@ -51,10 +52,11 @@ function fixture(data = model()) {
     terrain: { built: false, on: true }, rows: [], NAMES: {}, table: null,
     F: { a: 0, b: 100, s: 100, w: 0 }, now: 100, tau: 100, atEnd: true, playing: false,
     opt: { mode: 'story', show: new Set(['notes', 'threads']), edges: true, hideUndated: false, glare: 'soft' },
-    selectedPart: null, hoveredAt: null, causalAll: [], terrainArcTargets: [] };
+    selectedPart: null, hoveredAt: null, causalAll: [], terrainArcTargets: [],
+    fracOf: timeAxis({ earliest: 0, present: 100, calendar: false }).fracOf };
   vm.createContext(context);
   const declarations = ['HUES', 'LENGTH', 'TS', 'clip', 'push', 'COLORS', 'shortName', 'hashOf', 'fieldRows',
-    'fracOf', 'X', 'timeAtX', 'inView', 'madeAt', 'bornAt', 'building', 'playbackClock', 'shownByPlay', 'spark'];
+    'X', 'timeAtX', 'inView', 'madeAt', 'bornAt', 'building', 'playbackClock', 'shownByPlay', 'spark'];
   const noteMappingStart = source.indexOf('const neighbours =');
   const noteMappingEnd = source.indexOf('const noteLayer =', noteMappingStart);
   assert.ok(noteMappingStart >= 0 && noteMappingEnd > noteMappingStart);

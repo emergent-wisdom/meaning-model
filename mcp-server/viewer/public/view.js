@@ -33,6 +33,7 @@ import { readerInline } from './reader-markdown.js';
 import { onPlainClick } from './pointer-click.js';
 import { curationAt, openingLevel } from './view-settings.js';
 import { createFrameGate } from './frame-gate.js';
+import { timeAxis } from './time-axis.js';
 import { partPending, whenPart } from './snapshot-format.js';
 
 let temporalActive = !window.modelViewer, temporalFrame = null, appliedSelection = null, hoveredRecord = null;
@@ -344,27 +345,12 @@ function measureValueLines(row, t) {
 }
 
 // ---- time: an axis from a moment to deep time ----------------------------------------------------------------------------
-// A view is a window [a, b] of years, by default the story's. Its mapping to the screen blends a linear scale with a log
-// scale of years before the present, by how wide the window is: linear across a few centuries, logarithmic across
-// millennia.
+// A view is a window [a, b] of years, by default the story's, on the axis time-axis.js maps to the screen.
 const reachOf = (event) => (Array.isArray(event.reach) ? event.reach : [event.start, event.end ?? event.start]);
 const allReach = data.events.map(reachOf).filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
 const PRESENT = Math.max(data.extent?.end ?? T1, T1, ...allReach.map(([, b]) => b));
 const EARLIEST = Math.min(data.extent?.start ?? T0, T0, ...allReach.map(([a]) => a));
-const KNEE = 3; const BOUNDS = [EARLIEST - (PRESENT - EARLIEST) * 0.015, Math.max(PRESENT, T1)]; const MIN_SPAN = calendarTime ? 0.004 : Math.max(Number.EPSILON, (BOUNDS[1] - BOUNDS[0]) * 1e-6);
-const G = (t) => -Math.log(KNEE + BOUNDS[1] - Math.min(t, BOUNDS[1] + KNEE * 0.999));
-const Ginv = (g) => BOUNDS[1] + KNEE - Math.exp(-g);
-const warpOf = (span) => calendarTime ? smooth((Math.log10(span) - 2.45) / 1.15) : 0;
-const frameOf = (a, b) => ({ a, b, s: b - a, w: warpOf(b - a), ga: G(a), gb: G(b) });
-const fracOf = (V, t) => (1 - V.w) * ((t - V.a) / V.s) + (V.w ? V.w * ((G(t) - V.ga) / (V.gb - V.ga)) : 0);
-function timeAt(V, u) { if (!V.w) return V.a + u * V.s; let lo = V.a - V.s * 4; let hi = Math.min(V.b + V.s * 4, BOUNDS[1] + KNEE * 0.99); for (let i = 0; i < 64; i += 1) { const mid = (lo + hi) / 2; if (fracOf(V, mid) < u) lo = mid; else hi = mid; } return (lo + hi) / 2; }
-// The window of a given width that keeps time t at screen fraction u.
-function windowAt(t, u, span) {
-  span = Math.max(MIN_SPAN, Math.min(span, BOUNDS[1] - BOUNDS[0]));
-  let lo = t - span; let hi = t;
-  for (let i = 0; i < 64; i += 1) { const mid = (lo + hi) / 2; if (fracOf(frameOf(mid, mid + span), t) > u) lo = mid; else hi = mid; }
-  const a = Math.max(BOUNDS[0], Math.min((lo + hi) / 2, BOUNDS[1] - span)); return [a, a + span];
-}
+const { BOUNDS, MIN_SPAN, G, Ginv, frameOf, fracOf, timeAt, windowAt } = timeAxis({ earliest: EARLIEST, present: PRESENT, calendar: calendarTime });
 let F = frameOf(T0, T1);
 const isStory = () => Math.abs(F.a - T0) < 1e-9 && Math.abs(F.b - T1) < 1e-9;
 const X = (t) => { const x = (fracOf(F, t) - 0.5) * LENGTH; return x < -3 * LENGTH ? -3 * LENGTH : x > 3 * LENGTH ? 3 * LENGTH : x; };
