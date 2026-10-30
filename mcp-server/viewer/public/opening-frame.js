@@ -5,9 +5,8 @@
 // down from the side of the present, so that the rows run back along the free room's diagonal, from its lower left to
 // its upper right: across a wide screen, up a tall one. And it comes in, until the field fills three quarters of the
 // room, while the rows run on behind, into the distance and off the screen; but never so close that less of the front
-// row's time axis stays in the room than the whole of it for a shallow field, a seventh of it for a deep one (as in the
-// wide view of a big model the viewer was shown with). Nothing here depends on what a model is about: only on the box
-// of what is drawn, the screen and the camera.
+// row's time axis stays in the room than the whole of it for a shallow field, a seventh of it for a deep one.
+// Nothing here depends on what a model is about: only on the box of what is drawn, the screen and the camera.
 const LOWEST = (32 * Math.PI) / 180; // the height a field four times as deep as long is seen from
 const HIGHEST = (60 * Math.PI) / 180; // the highest a field framed whole is seen from, to fill a room taller than its picture
 const AXIS_LEAST = 1 / 7; // the least share of the front row's time axis that stays in the room, for the deepest field

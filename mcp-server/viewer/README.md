@@ -191,8 +191,8 @@ snapshot was. The viewer opens the first and fetches the second when Graph, Stru
 record first needs it, or soon after the first view is drawn. `public/snapshot-format.js` reads either form into the
 same object, so every view sees exactly the data of the whole file; the command reads its output back and compares it
 with the original before it writes anything. The part's file carries the sha256 the snapshot names, and the viewer
-refuses one from another snapshot. Measured on three models, the file the viewer needs before it can draw is 36–66%
-smaller gzipped (the world history: 3.49 MB to 2.25 MB). A host whose own loader hands the viewer its data directly
+refuses one from another snapshot. On the world history, the Book of Conditions and Twelve Words, the file the viewer
+needs before it can draw is 36–66% smaller gzipped (the world history: 3.49 MB to 2.25 MB). A host whose own loader hands the viewer its data directly
 should keep the whole file, or pass the parsed JSON through `openSnapshot(data, { url })` first.
 
 ## Following a story as it grows

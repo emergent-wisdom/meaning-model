@@ -73,8 +73,9 @@ unpublished work stays under Unreleased. This is not a development transcript.
   scene's positions are worked out once per frame instead of twice. The thousands of lights and short lines are drawn
   in a few batches (the world history's 6,000 draw calls a frame became about 1,000), each curtain of light in one
   pass instead of two, and the labels are measured and placed with less work. At its opening, with all its curves,
-  dragging and pinching the world history on that phone runs at about 29 frames a second, up from 7, and the two story
-  models at about 59, up from 21 and 25; on a laptop the world history runs at 37, up from 25.
+  dragging and pinching the world history runs at about 29 frames a second, up from 7, and the Book of Conditions and
+  Twelve Words at about 59, up from 25 and 21. Those were measured on a phone-sized screen with a laptop's processor
+  slowed four times and its own graphics chip, not on a phone. On a laptop the world history runs at 37, up from 25.
 - An optional compact snapshot for hosting (`meaning-model-viewer/3`, written by `viewer/compact-snapshot.mjs`): the
   same data, with each dated series' points as columns and the graph's full records in a file the viewer fetches when
   a view first needs them. What the viewer must download before it draws is 36–66% smaller (the world history 3.49 to
