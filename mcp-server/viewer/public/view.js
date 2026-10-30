@@ -35,6 +35,7 @@ import { curationAt, openingLevel } from './view-settings.js';
 import { createFrameGate } from './frame-gate.js';
 import { timeAxis } from './time-axis.js';
 import { createGlowBatches } from './glow-batch.js';
+import { openingFrame, fitBox } from './opening-frame.js';
 import { partPending, whenPart } from './snapshot-format.js';
 
 let temporalActive = !window.modelViewer, temporalFrame = null, appliedSelection = null, hoveredRecord = null;
@@ -2211,29 +2212,22 @@ function fitFree() {
     document.getElementById('stats').getBoundingClientRect().bottom, document.getElementById('tools').getBoundingClientRect().bottom);
   room.t = Math.min(Math.max(room.t, hudBottom + 16), room.b - 80);
   room.r = Math.max(room.l + 80, room.r);
-  const center = new THREE.Vector3(0, (box.y0 + box.y1) / 2, (box.z0 + box.z1) / 2);
   const direction = home.position.clone().sub(home.target).normalize();
-  const right = new THREE.Vector3().crossVectors(camera.up, direction).normalize();
-  const up = new THREE.Vector3().crossVectors(direction, right);
   camera.clearViewOffset(); camera.fov = terrain.on ? 42 : 40;
-  const vertical = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), horizontal = vertical * camera.aspect;
-  // Shift the target as well as backing away: the useful screen area is below
-  // the toolbar and beside the inspector, not necessarily the viewport centre.
+  // The useful screen area is below the toolbar and beside the inspector, not necessarily the viewport centre.
   const left = (room.l + 12) / innerWidth * 2 - 1, top = 1 - (room.t + 12) / innerHeight * 2;
-  const r = Math.max(left + .04, (room.r - 12) / innerWidth * 2 - 1);
+  const right = Math.max(left + .04, (room.r - 12) / innerWidth * 2 - 1);
   const bottom = Math.min(top - .04, 1 - (room.b - 12) / innerHeight * 2);
-  const cx = (left + r) / 2, cy = (bottom + top) / 2;
-  let distance = 30;
-  for (const x of [box.x0 ?? -LENGTH / 2 - 1.2, box.x1 ?? LENGTH / 2 + 1.2]) for (const y of [box.y0, box.y1]) for (const z of [box.z0, box.z1]) {
-    const offset = new THREE.Vector3(x, y, z).sub(center);
-    const dx = offset.dot(right) / horizontal, dy = offset.dot(up) / vertical, dz = offset.dot(direction);
-    distance = Math.max(distance, dz + 1, (dx + r * dz) / (r - cx), (-dx - left * dz) / (cx - left),
-      (dy + top * dz) / (top - cy), (-dy - bottom * dz) / (cy - bottom));
-  }
-  controls.target.copy(center).addScaledVector(right, -cx * distance * horizontal).addScaledVector(up, -cy * distance * vertical);
-  camera.position.copy(controls.target).addScaledVector(direction, distance);
-  camera.far = Math.max(900, distance * 4); camera.updateProjectionMatrix();
-  scene.fog.density = terrain.on ? TFOG * (terrain.homeDistance / distance) : FOG * (HOME_DISTANCE / distance);
+  const ndc = { left, right, top, bottom };
+  const extent = { x0: box.x0 ?? -LENGTH / 2 - 1.2, x1: box.x1 ?? LENGTH / 2 + 1.2, y0: box.y0, y1: box.y1, z0: box.z0, z1: box.z1 };
+  // The field opens framed from the side that makes it fill the room (opening-frame.js); the terrain keeps its view.
+  const frame = terrain.on
+    ? fitBox(THREE, { corners: [extent.x0, extent.x1].flatMap((x) => [extent.y0, extent.y1].flatMap((y) => [extent.z0, extent.z1].map((z) => new THREE.Vector3(x, y, z)))),
+      center: new THREE.Vector3(0, (box.y0 + box.y1) / 2, (box.z0 + box.z1) / 2), direction, fov: camera.fov, aspect: camera.aspect, room: ndc })
+    : openingFrame(THREE, { box: extent, usual: direction, fov: camera.fov, aspect: camera.aspect, room: ndc });
+  controls.target.copy(frame.target); camera.position.copy(frame.position);
+  camera.far = Math.max(900, frame.distance * 4); camera.updateProjectionMatrix();
+  scene.fog.density = terrain.on ? TFOG * (terrain.homeDistance / frame.distance) : FOG * (HOME_DISTANCE / frame.distance);
   controls.update();
   if (!terrain.on) framed = fieldFrame();
 }
