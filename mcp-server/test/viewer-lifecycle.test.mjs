@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { createFrameGate } from '../viewer/public/frame-gate.js';
 
 const source = readFileSync(new URL('../viewer/public/view.js', import.meta.url), 'utf8');
 const functionSource = (name) => {
@@ -27,7 +28,7 @@ test('the actual temporal controller owns one frame loop and pauses keyboard/pla
     camera: { updateProjectionMatrix() {} }, scene: {},
     cameraState: () => ({}), cameraRestores: [], restoreCamera(_camera, _controls, saved) { context.cameraRestores.push(saved); }, LOCKED: { scroll: 0 },
     composer: { setSize() {}, render() { renders += 1; }, dispose() { disposed.push('composer'); } },
-    params: new URLSearchParams(), opt: { camera: 'free', layout: 'layers', mode: 'story' }, glide: null, posed: false, fitFree() {},
+    params: new URLSearchParams(), opt: { camera: 'free', layout: 'layers', mode: 'story' }, glide: null, posed: false, placed: null, HOME: {}, labelsAside: false, fitFree() {},
     now: 1843, tau: 20, atEnd: false, F: { a: 1836, b: 1857 },
     playing: true, timer: 17, liveTimer: 18, urlTimer: null,
     held: new Set(['w']), pointerAt: { x: 3, y: 4 }, tip: { hidden: false },
@@ -36,6 +37,7 @@ test('the actual temporal controller owns one frame loop and pauses keyboard/pla
     recenterCalls: 0, recenterView() { context.recenterCalls += 1; },
     syncPanel() {}, syncURL() {}, fitLocked() {}, placeLocked() {}, tick() {}, declutter() {}, hover() {},
     stop() { context.playing = false; }, keyboardCalls: 0,
+    drawing: createFrameGate({ now: () => 100 }), cameraPose: () => [0], pressed: new Set(), drawScene() { context.composer.render(); },
   };
   vm.createContext(context);
   const guard = source.slice(source.indexOf('let temporalActive ='), source.indexOf('\nfunction publishRecord'));

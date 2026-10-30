@@ -4,9 +4,9 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
-## Unreleased
+## 0.18.0 — 2026-10-30
 
-**Large constructions (planned 0.18.0)**
+**Large constructions**
 - Durable stores keep revision headers in memory and load saved model and narrative rows when needed. Bounded caches
   retain recent rows; the session can address more revisions without holding every stored revision in memory.
 - Opening an older store validates and seals each revision once. Later opens check the seals; each saved row is
@@ -24,6 +24,83 @@ unpublished work stays under Unreleased. This is not a development transcript.
   and a closed input pipe returns an error instead of terminating the MCP server.
 - Streaming imports reject malformed delimiters, duplicate metadata and inconsistent history headers before writes.
   Metadata keys such as `__proto__` remain ordinary data.
+
+**The viewer: going to a time, an Event, a place or a person**
+- The time views have **−** and **+** beside **Time**, which zoom out and in around the playhead.
+- Search takes a time in the model's own clock and opens the time view across it: a year, a range, a decade, a century
+  or a millennium, or "years ago" counted back from the model's present, in a calendar; plain numbers in any other
+  unit, never called years. An Event found by search opens across its own interval, and a whole-name match ranks first.
+  A referent whose name is the whole query comes before anything else, so typing a place or a person and pressing Enter
+  shows it.
+- A referent found by search, such as a place or a person, keeps Processes and Tree to what the model declares about it:
+  the Events bound to it or to the referents its encapsulation Cuts contain, those whose owner, region or participants
+  name one of them, the Events containing those, and the processes they own. Nothing is read from names or words. The
+  address keeps it as `about`, a view the model chooses can set it, and **Showing … ✕** shows everything again.
+  Terrain and the Chart draw every Event, so a referent picked there opens in Tree; a time typed in the Chart opens
+  that stretch on the Chart's own axis.
+- The caption under the time views names only an Event the filters show; before, it could name one the importance
+  filter hid.
+
+**The Chart: zooming down the tree of processes, and parts that add up**
+- A process with parts can be opened as the top of the rows (**Open** on its row or in its reading card): only it and
+  what it holds through the decomposition are drawn, with the path from the top of its branch above them; each step
+  opens that level and **All processes** draws the whole tree again. The address keeps it as `within`, and a view the
+  model chooses can set it. Without a decomposition nothing can be opened.
+- A process whose record declares `scale.aggregate: "sum"` shows its parts as layers beneath its curve, in its own
+  unit, on a straight scale from zero. What the whole holds beyond its parts is a plain remainder layer; where the parts
+  add up to more than the whole, the excess is hatched, flagged at each date and listed in the reading card. Parts that
+  cannot be stacked (another unit, another holder, values below zero) are listed with why. Means and other aggregates
+  are never stacked, and nothing is inferred from shared units.
+
+**Space: a globe for positions on the Earth**
+- A frame whose positions are declared as latitude and longitude, and span more than 30 degrees, opens on a globe:
+  positions at their declared latitude, longitude and altitude, trails and links along great circles, a grid that grows
+  finer as you descend. Drag turns it and the wheel zooms toward the point under the pointer, down to about 600 m.
+  **Globe** and **Map** switch drawings; the address keeps the choice as `earth`. No coastline, border or name is drawn
+  that the model does not declare, and a projected or local frame is drawn as before.
+
+**The viewer on phones and with big models**
+- The model's chosen view opens at its fullest level, Everything, so a big model first shows all it holds: the world
+  history opened on 7 of its 239 curves and now opens on all of them. The view and its levels are steps on its card,
+  which keeps the model's What to notice at every level. Everything now keeps how the view presents its records (its
+  window, moment, time mode, the Chart's whole and the Earth's drawing) and lifts only what leaves records out. A
+  view recorded with a later level opens there, and `life_model_viewer_view` describes `level` so.
+- A model of many rows opens in Processes and Tree as big as it is: the camera looks from the side of its present, so
+  the rows run back along the free part of the screen's diagonal (across a laptop's screen, up a phone's), and it comes
+  in until the field fills three quarters of that space, the rows running on into the distance. Framed whole from the
+  front, the world history filled a fifth of it. A model no deeper than it is long still opens whole, from higher up
+  on a tall screen, and a small one is never enlarged. The camera follows only from the size of what is drawn and of
+  the screen; an address that names a camera keeps it. A camera goes in the address only once the reader has moved it, so
+  a reloaded or shared address opens framed for the screen it lands on.
+- While a finger drags or pinches the scene its labels step aside, and return a moment after the last finger lifts:
+  placing them was most of what a frame cost on a phone. A tap never hides them, and a mouse never does.
+- A drag that starts on a row's name or a lens card moves the view, as one beside it does. A press that stays put stays
+  theirs: a card still opens on a tap and a name keeps its tooltip.
+- No label in Processes and Tree covers another label, a panel (the model's card and the controls among them) or the
+  edge of the screen; where they cannot all fit, fewer show, in a fixed order: the model's highlights, the time marks,
+  the names of groups and rows, lens cards, values, then the Events' names. Labels have a darker edge, so a value
+  standing on a bright light stays readable.
+- On a phone (up to 760 px wide) the viewer opens on the model: the controls start hidden behind **Show controls**, and
+  the model's card starts folded to its title and its levels, which scroll sideways as one row of steps. Before, the
+  controls and the card covered the whole screen and the time bar's buttons. The Chart, Structure and Space start
+  below the card, the scene frames itself beneath it, small print is at least 11 px, and the card's fold button and
+  the Chart's fold triangles answer a finger around them.
+- Processes, Tree and Terrain draw only when something changes (a camera move, an input, playback, an animation or a
+  call from another view) and once a second besides. Left still, the world history kept an emulated phone's processor
+  (a laptop's slowed four times) busy almost all the time, and a laptop's about a quarter; now both are nearly idle.
+- While a finger or a mouse button drags or pinches the scene, nothing under it is tested for hovering, and the
+  scene's positions are worked out once per frame instead of twice. The thousands of lights and short lines are drawn
+  in a few batches (the world history's 6,000 draw calls a frame became about 1,000), each curtain of light in one
+  pass instead of two, and the labels are measured and placed with less work. At its opening, with all its curves,
+  dragging and pinching the world history runs at about 29 frames a second, up from 7, and the Book of Conditions and
+  Twelve Words at about 59, up from 25 and 21. Those were measured on a phone-sized screen with a laptop's processor
+  slowed four times and its own graphics chip, not on a phone. On a laptop the world history runs at 37, up from 25.
+- In the measured desktop scene, Twelve Words ran at 42 frames a second, compared with 58 before, with the larger
+  opening framing. The rendering changes do not improve frame rate in every model and view.
+- An optional compact snapshot for hosting (`meaning-model-viewer/3`, written by `viewer/compact-snapshot.mjs`): the
+  same data, with each dated series' points as columns and the graph's full records in a file the viewer fetches when
+  a view first needs them. What the viewer must download before it draws is 36–66% smaller (the world history 3.49 to
+  2.25 MB gzipped). The whole one-file snapshot is still what the MCP serves, and it opens as before.
 
 ## 0.17.0 — 2026-10-29
 

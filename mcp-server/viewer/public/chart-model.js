@@ -1,8 +1,10 @@
 // The Chart: a whole model on one time axis. Across the top, the parts of one Event as the model contains them (the
 // Event named by the view's focus); under them the Events, in rows by a declared importance scale, with their causal links; then the
-// model's process decomposition, one row per process, each read at one moment. Everything here is read from what the
-// snapshot declares: containment and intervals, importance scales, relations, cause assessments, the decomposition
-// and its kinds, dated values (as the time views project them) and Cut series. Nothing is placed from a name or prose.
+// model's process decomposition, one row per process, each read at one moment: the whole tree, or one process opened as
+// its top with only the parts it holds. A process that declares its parts add up to it (scale.aggregate 'sum') shows them
+// stacked in its own row. Everything here is read from what the snapshot declares: containment and intervals, importance
+// scales, relations, cause assessments, the decomposition and its kinds, declared sums, dated values (as the time views
+// project them) and Cut series. Nothing is placed from a name or prose.
 import { typedScalarTrajectories } from './scalar-trajectories.js';
 import { cutTrajectories } from './cut-trajectories.js';
 import { temporalWindow, isCalendarTime, calendarDateOf, calendarTimeOf, calendarTickAt, numericTimeTicks, nativeTimeText } from './temporal-layout.js';
@@ -225,12 +227,62 @@ export function chartModel(data) {
     const own = (seriesOf.get(id) ?? []).length > 0 || (childEdges.get(id) ?? []).some((edge) => hasValues(edge.child, seen));
     valued.set(id, own); return own;
   };
+  // The parts a process declares add up to it. scale.aggregate 'sum' is the process's own statement; nothing is inferred
+  // from units that happen to match. As the engine compares a sum with its parts, only parts in the process's own unit
+  // are added up (the others are listed, with why), and only one holder's account at a time: a part is stacked when it
+  // has exactly one series held by the one that holds the row. The layers stand on zero, so a part, or a whole, that
+  // has a value below zero is listed instead of stacked. A mean, or any other aggregate, is never stacked.
+  const unitOf = (id) => String(processes.get(id)?.unit ?? seriesOf.get(id)?.[0]?.unit ?? '');
+  function layersOf(id, s) {
+    const whole = processes.get(id);
+    if (whole?.scale?.aggregate !== 'sum' || whole.value_type?.kind !== 'scalar' || !s || s.states) return null;
+    const unit = unitOf(id), below = (x) => x.points.some((p) => p.v < 0), wholeBelow = below(s);
+    const members = [], listed = [], seen = new Set();
+    for (const edge of childEdges.get(id) ?? []) {
+      const part = edge.child;
+      if (part === id || seen.has(part)) continue;
+      seen.add(part);
+      const unlisted = (why) => listed.push({ id: part, label: label(part), why });
+      if (processes.get(part)?.value_type?.kind !== 'scalar') { unlisted('not a number'); continue; }
+      if (unitOf(part) !== unit) { unlisted(`its unit, ${unitOf(part) || 'none stated'}, is not ${unit || 'none stated'}`); continue; }
+      const all = seriesOf.get(part) ?? [];
+      if (!all.length) { unlisted('no dated values'); continue; }
+      const mine = all.filter((x) => (x.holder ?? null) === (s.holder ?? null));
+      if (!mine.length) { unlisted('held by someone else'); continue; }
+      if (mine.length > 1) { unlisted('several series of its holder'); continue; }
+      if (mine[0].states) { unlisted('not a number'); continue; }
+      if (below(mine[0])) { unlisted('has values below zero'); continue; }
+      if (wholeBelow) { unlisted('the whole has values below zero'); continue; }
+      members.push({ id: part, label: label(part), about: about(part), series: mine[0] });
+    }
+    const layers = { members, listed, times: [], gap: false, over: false, exceeds: [], top: 0, peak: Math.max(0, ...s.points.map((p) => p.v)) };
+    if (!members.length) return layers;
+    // Where the whole and every stacked part are recorded, at the dates any of them is recorded.
+    const every = [s, ...members.map((m) => m.series)];
+    const from = Math.max(...every.map((x) => x.points[0].t)), to = Math.min(...every.map((x) => x.points.at(-1).t));
+    const times = from < to ? [...new Set(every.flatMap((x) => x.points.map((p) => p.t)).filter((t) => t >= from && t <= to))].sort((a, b) => a - b) : [];
+    if (!times.length) {
+      // No stretch holds them all, so there is nothing to stack: they are listed, as any part not stacked is.
+      for (const m of members.splice(0)) listed.push({ id: m.id, label: m.label, why: 'not recorded over a stretch where the whole and the other parts are' });
+      return layers;
+    }
+    layers.times = times;
+    for (const t of layers.times) {
+      const r = readLayers(s, layers, t); if (!r) continue;
+      layers.top = Math.max(layers.top, r.whole.v, r.sum, Number.isFinite(r.whole.hi) ? r.whole.hi : 0);
+      layers.gap ||= r.gap > 0;
+      if (r.over > 0) layers.exceeds.push({ t, by: r.over, sum: r.sum, inRange: r.inRange });
+    }
+    layers.over = layers.exceeds.length > 0;
+    return layers;
+  }
   const rows = []; const placed = new Set();
-  const lineRows = (id, depth, parent) => {
+  const lineRows = (id, depth, parent, via = parent) => {
     const list = seriesOf.get(id) ?? [];
     const base = { id, kind: 'measure', process: id, label: label(id), about: about(id), unit: processes.get(id)?.unit ?? list[0]?.unit ?? '', depth, parent,
-      alsoUnder: (parentsOf.get(id) ?? []).filter((p) => p !== parent) };
-    if (list.length <= 1) return [{ ...base, children: [], series: list[0] ?? null, holder: list[0]?.holder ?? null, holders: 1, apart: null }];
+      alsoUnder: (parentsOf.get(id) ?? []).filter((p) => p !== via) };
+    const stacked = (s, alone) => { const layers = alone ? layersOf(id, s) : null; return layers ? { layers } : {}; };
+    if (list.length <= 1) return [{ ...base, children: [], series: list[0] ?? null, holder: list[0]?.holder ?? null, holders: 1, apart: null, ...stacked(list[0], true) }];
     // Each series' values stay their own: one row each, named by whose they are and, where one holder has several, by
     // what else tells them apart. The first row is the process's own; the others take the series' identity, or their
     // place when that is missing or taken, counting on from there until the id is free.
@@ -239,38 +291,45 @@ export function chartModel(data) {
       let rowId = id;
       if (i) { rowId = s.id !== undefined && s.id !== null ? `${id}~${s.id}` : `${id}~${i}`; for (let k = i; used.has(rowId); k += 1) rowId = `${id}~${k}`; }
       used.add(rowId);
-      return { ...base, id: rowId, children: [], series: s, holder: s.holder ?? null, holders: list.length, apart: apartOf(s, list) };
+      const apart = apartOf(s, list);
+      return { ...base, id: rowId, children: [], series: s, holder: s.holder ?? null, holders: list.length, apart, ...stacked(s, apart === null) };
     });
   };
-  function walk(id, depth, parent) {
-    if (placed.has(id) || !hasValues(id)) return null;
-    placed.add(id);
-    const own = lineRows(id, depth, parent);
-    rows.push(...own);
+  // The walk places a process and what it holds, once each, into the rows it is given. The whole tree walks from its
+  // roots; opening a process walks from it alone, with a record of its own, so a part that has two parents is drawn under
+  // whichever of them is opened.
+  const makeWalk = (into, taken) => function walk(id, depth, parent, via = parent) {
+    if (taken.has(id) || !hasValues(id)) return null;
+    taken.add(id);
+    const own = lineRows(id, depth, parent, via);
+    into.push(...own);
     const node = own[0];
-    const children = (childEdges.get(id) ?? []).filter((edge) => !placed.has(edge.child) && hasValues(edge.child));
+    const children = (childEdges.get(id) ?? []).filter((edge) => !taken.has(edge.child) && hasValues(edge.child));
     // Parts that the model declares as an observational partition of this process, with no parts of their own, divide
     // one whole: when each has one series, all held by one holder in one unit, they are drawn together, stacked.
-    // Otherwise no total is implied: each part keeps its own row, named by whose it is.
+    // Otherwise no total is implied: each part keeps its own row, named by whose it is. A process that declares the
+    // sum of its parts already shows these, stacked in its own row, and its parts keep rows of their own.
     const partition = children.filter((edge) => edge.kind === 'observational_partition' && !(childEdges.get(edge.child) ?? []).some((e) => hasValues(e.child)));
     const memberSeries = partition.map((edge) => seriesOf.get(edge.child) ?? []);
     const units = new Set(partition.map((edge, i) => processes.get(edge.child)?.unit ?? memberSeries[i][0]?.unit ?? ''));
     const holders = new Set(memberSeries.map((list) => list[0]?.holder ?? null));
-    if (partition.length >= 2 && memberSeries.every((list) => list.length === 1) && holders.size === 1 && units.size === 1) {
+    const shown = own.some((row) => row.holder === [...holders][0] && row.layers?.members.length && partition.every((edge) => row.layers.members.some((m) => m.id === edge.child)));
+    if (partition.length >= 2 && memberSeries.every((list) => list.length === 1) && holders.size === 1 && units.size === 1 && !shown) {
       const stack = { id: `stack:${id}`, kind: 'stack', label: `${label(id)}, divided`, about: `The parts the model declares as dividing ${label(id)}, stacked`,
         unit: [...units][0], holder: [...holders][0], depth: depth + 1, parent: id, children: [],
         members: partition.map((edge) => ({ id: edge.child, label: label(edge.child), about: about(edge.child), series: seriesOf.get(edge.child)[0] })) };
-      for (const edge of partition) placed.add(edge.child);
-      rows.push(stack); node.children.push(stack.id);
+      for (const edge of partition) taken.add(edge.child);
+      into.push(stack); node.children.push(stack.id);
     }
     // Every row a part generates is held by this process, so folding it hides them all.
     for (const edge of children) {
-      if (placed.has(edge.child)) continue;
+      if (taken.has(edge.child)) continue;
       const child = walk(edge.child, depth + 1, id);
       if (child) node.children.push(...child.map((row) => row.id));
     }
     return own;
-  }
+  };
+  const walk = makeWalk(rows, placed);
   // The top of the tree: the decomposition's roots, then the processes it does not reach. When these belong to more than
   // one Event (a life, a development), each is drawn under the Event that holds it.
   const reach = new Set(); const down = (id) => { if (reach.has(id)) return; reach.add(id); for (const edge of childEdges.get(id) ?? []) down(edge.child); };
@@ -306,10 +365,32 @@ export function chartModel(data) {
     }
   }
 
+  // The tree as a reader can open it: a process that has a row and takes part in the decomposition (as a part or as what has
+  // parts) can be the top, drawing it and the parts it holds; without a decomposition nothing can be opened. Its path is
+  // the chain of processes above it in the whole tree, from the one at the top of its branch. A row can be looked up
+  // (rowOf) for any process that has one, opened or not.
+  const rowById = new Map(rows.map((row) => [row.id, row]));
+  const rowOfProcess = new Map();
+  for (const row of rows) if (row.kind === 'measure' && !rowOfProcess.has(row.process)) rowOfProcess.set(row.process, row);
+  const upOf = (id) => { const above = rowById.get(rowOfProcess.get(id)?.parent); return above?.kind === 'measure' ? above.process : null; };
+  function pathTo(id) {
+    const path = [];
+    for (let at = rowOfProcess.get(id), hops = 0; at?.kind === 'measure' && hops < 256; at = rowById.get(at.parent), hops += 1) path.unshift({ id: at.process, label: at.label });
+    return path;
+  }
+  const opened = new Map();
+  function treeFrom(id) {
+    if (!rowOfProcess.has(id) || !(childEdges.has(id) || parentsOf.has(id))) return null;
+    if (!opened.has(id)) {
+      const part = [], up = upOf(id);
+      makeWalk(part, new Set())(id, 0, null, up);
+      part[0].up = up;
+      opened.set(id, { rows: part, path: pathTo(id), has: new Set(part.filter((row) => row.kind === 'measure').map((row) => row.process)) });
+    }
+    return opened.get(id);
+  }
   // Tags the drawn values carry, so the key lists only those.
-  const tagCounts = {};
-  const count = (s) => { for (const p of s?.points ?? []) { const tag = tagOf(p.tag); if (tag) tagCounts[tag] = (tagCounts[tag] ?? 0) + 1; } };
-  for (const row of rows) { if (row.kind === 'measure') count(row.series); if (row.kind === 'stack') row.members.forEach((m) => count(m.series)); }
+  const tagCounts = tagCountsOf(rows);
 
   const times = [...events.flatMap((e) => [e.start]), ...series.flatMap((s) => s.points.map((p) => p.t))];
   const axis = chartAxis(window, times);
@@ -331,6 +412,7 @@ export function chartModel(data) {
     available: true, unit, calendar: isCalendarTime(unit), window, axis, present, latest, readAt,
     wholes, partsOf, events, eventRows, scaleChoices: scaleChoices.map((s) => ({ id: s.id, audience: s.audience ?? null, count: s.count })),
     defaultScale: scaleChoices[0]?.id ?? null, links, why: whyOf, rows, tagCounts,
+    tree: { rowOf: (id) => rowOfProcess.get(id) ?? null, from: treeFrom, path: pathTo, up: upOf },
     unvalued: (model.processes ?? []).filter((p) => !String(p.id).startsWith('profile.') && !seriesOf.has(p.id) && !placed.has(p.id)).length,
     byId: new Map(dated.map((x) => [x.id, x])),
   };
@@ -358,6 +440,33 @@ function labelFromId(id) {
   const words = String(id).split('.').at(-1).replace(/[_-]+/g, ' ');
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
+
+// How often each tag appears among the values the given rows draw as lines or stacks.
+export function tagCountsOf(rows) {
+  const counts = {};
+  const count = (s) => { for (const p of s?.points ?? []) { const tag = tagOf(p.tag); if (tag) counts[tag] = (counts[tag] ?? 0) + 1; } };
+  for (const row of rows) { if (row.kind === 'measure') count(row.series); if (row.kind === 'stack') row.members.forEach((m) => count(m.series)); }
+  return counts;
+}
+
+// ---- a declared sum, read at one moment ---------------------------------------------------------------------------------------
+// The whole and each stacked part are read as any series is; where one of them has no value there is no reading. What the
+// whole holds beyond its parts is its gap, and what the parts hold beyond the whole is the excess. Either counts once it is
+// more than a hundredth of the whole (the engine's own floor for comparing a sum with its parts), so values that agree to
+// rounding show neither. Beside that, a difference must matter to the row: more than a tenth of a percent of the highest
+// the whole reaches for an excess, which is marked at its date, and more than half a percent for a gap, which is a layer
+// to be drawn and so must be as much as the row can show. Rounding at the faint start of a series is neither. The whole's
+// stated range does not hide a difference, but a sum that lies inside that range says so.
+function readLayers(whole, layers, t) {
+  const w = readSeries(whole, t); if (!w) return null;
+  const parts = layers.members.map((m) => readSeries(m.series, t));
+  if (parts.some((r) => !r)) return null;
+  let sum = 0; const tops = parts.map((r) => (sum += r.v));
+  const tolerance = Math.max(Math.abs(w.v) * 0.01, 1e-9), marked = Math.max(tolerance, layers.peak * 0.001), drawable = Math.max(tolerance, layers.peak * 0.005);
+  const inRange = Number.isFinite(w.lo) && Number.isFinite(w.hi) && sum >= w.lo && sum <= w.hi;
+  return { whole: w, parts, tops, sum, gap: w.v - sum > drawable ? w.v - sum : 0, over: sum - w.v > marked ? sum - w.v : 0, inRange, between: [w, ...parts].some((r) => r.between) };
+}
+export const layerReading = (row, t) => (row?.layers?.members.length && row.series ? readLayers(row.series, row.layers, t) : null);
 
 // ---- reading a row at one moment ------------------------------------------------------------------------------------------------
 // A dated series is read along the straight line between its samples (a visual guide, marked as between samples), and

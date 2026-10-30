@@ -7,6 +7,9 @@ import { takeLiveContext, mountLiveViewer } from './live-viewer.js';
 import { openingView } from './view-settings.js';
 import { mountChosenView, noteAddress } from './chosen-view.js';
 import { mountSearch } from './search.js';
+import { parseTimeQuery } from './time-query.js';
+import { isCalendarTime } from './temporal-layout.js';
+import { whenPart, whenAllParts } from './snapshot-format.js';
 
 // A branch of the model is hypothetical: say so above everything it shows, with the premise it assumes.
 function showBranch(branch) {
@@ -56,11 +59,13 @@ function fitPanels() {
   const bar = document.querySelector('.hud.bar')?.getBoundingClientRect(), floor = bar?.height ? bar.top - 8 : innerHeight - 12;
   for (const panel of document.querySelectorAll('.pop:not([hidden]), .details:not([hidden])')) if (!panel.closest('.bar')) panel.style.maxHeight = `${Math.max(0, floor - panel.getBoundingClientRect().top)}px`;
   const title = document.querySelector('.title').getBoundingClientRect(), tools = document.getElementById('tools').getBoundingClientRect(), visibility = document.getElementById('toolbar-visibility').getBoundingClientRect();
-  structureHost.style.top = `${Math.max(title.bottom, tools.bottom, visibility.bottom) + 12}px`;
+  // On a narrow screen the model's view card stands in the column above the surfaces, which start below it; on a wide one
+  // it sits over the top of the Chart's reading panel, and the panel starts below it.
+  const card = document.getElementById('chosen-view')?.getBoundingClientRect(), across = Boolean(card?.height && card.width > innerWidth * 0.6);
+  structureHost.style.top = `${Math.max(title.bottom, tools.bottom, visibility.bottom, across ? card.bottom : 0) + 12}px`;
   chartHost.style.top = structureHost.style.top;
-  // The model's view card sits over the top of the Chart's reading panel: the panel starts below it.
-  const card = document.getElementById('chosen-view')?.getBoundingClientRect();
-  chartHost.style.setProperty?.('--cv-card', `${card?.height ? Math.max(0, card.bottom - Math.max(title.bottom, tools.bottom, visibility.bottom) - 12) : 0}px`);
+  document.body.style.setProperty?.('--surface-top', structureHost.style.top);
+  chartHost.style.setProperty?.('--cv-card', `${card?.height && !across ? Math.max(0, card.bottom - Math.max(title.bottom, tools.bottom, visibility.bottom) - 12) : 0}px`);
 }
 // Default: forget this tab's saved view of the model and open it as it first opens (the same model, nothing chosen).
 function backToDefault() {
@@ -78,14 +83,19 @@ function togglePanel(id) {
 }
 for (const button of document.querySelectorAll('.tool[data-pop]')) button.addEventListener('click', () => togglePanel(button.dataset.pop));
 const toolbar = document.getElementById('tools'), toolbarVisibility = document.getElementById('toolbar-visibility');
+function showControls(shown) {
+  toolbar.hidden = !shown;
+  toolbarVisibility.textContent = shown ? 'Hide controls' : 'Show controls';
+  toolbarVisibility.setAttribute('aria-expanded', String(shown));
+}
 toolbarVisibility.addEventListener('click', () => {
   if (openPanel) togglePanel(openPanel);
-  toolbar.hidden = !toolbar.hidden;
-  toolbarVisibility.textContent = toolbar.hidden ? 'Show controls' : 'Hide controls';
-  toolbarVisibility.setAttribute('aria-expanded', String(!toolbar.hidden));
+  showControls(toolbar.hidden);
   fitPanels();
   dispatchEvent(new Event('viewer-controls-change'));
 });
+// On a narrow screen the controls fill most of it: they open hidden, one tap away, so the model shows first.
+if (globalThis.matchMedia?.('(max-width: 760px)').matches) showControls(false);
 document.addEventListener('pointerdown', (event) => { if (openPanel && !event.target.closest?.('.tool-wrap')) togglePanel(openPanel); });
 addEventListener('keydown', (event) => { if (event.key === 'Escape' && openPanel) togglePanel(openPanel); });
 addEventListener('resize', fitPanels);
@@ -111,23 +121,30 @@ function spaceParts() {
   detail.querySelector('#space-details-body').classList.add('details-body'); document.getElementById('side').append(detail);
   return { surface, host, detail, tools: document.getElementById('space-controls') };
 }
-let selection = null;
+let selection = null, chartView = null;
+// The graph's full records, which a compact snapshot keeps in a file of its own until a view needs them.
+const graphRecords = () => whenPart(data, 'inspection/graph').catch((error) => { throw Object.assign(new Error(`The model's full records could not be read: ${error.message}`), { snapshotPart: true }); });
 try { const value = JSON.parse(params.get('record') ?? 'null'); if (value && typeof value.kind === 'string' && typeof value.id === 'string') selection = value; } catch { /* An invalid UI selection does not change the snapshot. */ }
 const session = createViewerSession({
   temporal, initialView, state: { selection, timeView: params.get('timeView'), ...restoredState },
   mounts: {
     temporal: async () => (await import('./view.js')).temporalController,
     graph: async () => {
+      await graphRecords();
       const { showGraph } = await import('./graph-view.js'), parts = graphParts();
       try { return showGraph(data, { ...parts, onSelect: (record) => session.selectRecord(record) }); }
       catch (error) { parts.surface.remove(); parts.detail.remove(); parts.reader.remove(); parts.tools.replaceChildren(); throw error; }
     },
-    structure: async () => showInspector(data, notice, { host: structureHost, onSelect: (record) => session.selectRecord(record) }),
+    structure: async () => {
+      const unavailable = await graphRecords().then(() => null, (error) => error.message);
+      return showInspector(data, [notice, unavailable].filter(Boolean).join(' ') || null, { host: structureHost, onSelect: (record) => session.selectRecord(record) });
+    },
     chart: async () => {
       const { showChart } = await import('./chart-view.js');
-      return showChart(data, { host: chartHost, tools: document.getElementById('chart-controls'), onSelect: (record) => session.selectRecord(record), noteAddress });
+      return (chartView = showChart(data, { host: chartHost, tools: document.getElementById('chart-controls'), onSelect: (record) => session.selectRecord(record), noteAddress }));
     },
     space: async () => {
+      await graphRecords();
       const { showSpace } = await import('./space-view.js'), parts = spaceParts();
       try { return showSpace(data, { ...parts, onSelect: (record) => session.selectRecord(record) }); }
       catch (error) { parts.surface.remove(); parts.detail.remove(); parts.tools.replaceChildren(); throw error; }
@@ -169,17 +186,32 @@ async function switchView(view) {
     await new Promise((done) => { const timer = setTimeout(done, 60); globalThis.requestAnimationFrame?.(() => setTimeout(() => { clearTimeout(timer); done(); }, 0)); });
   }
   try { const state = await session.setView(view); opened.add(key); if (state.view === 'chart') chosenCard?.fold(true); return state; }
-  catch (error) { console.error(error); notice = 'The 3D view is unavailable in this browser. The recorded model is available below.'; return session.setView('structure'); }
+  catch (error) { console.error(error); notice = error.snapshotPart ? error.message : 'The 3D view is unavailable in this browser. The recorded model is available below.'; return session.setView('structure'); }
   finally { document.body.setAttribute('aria-busy', 'false'); }
 }
 window.modelViewer = { switchView, selectRecord: (record) => session.selectRecord(record), getState: () => session.snapshot(), getSnapshot: () => ({ name: dataName, data }), noteAddress };
 // A found record opens where the reader is: in a time view at its place in time (a row in Processes, where rows are
 // drawn), elsewhere selected as the record it is or is drawn from.
+// A time typed into search is read in the model's own clock, counting "years ago" back from the latest time the model
+// declares, as the time view's labels do.
+const present = Math.max(...[data?.extent?.end, ...(data?.events ?? []).map((event) => (Array.isArray(event.reach) ? event.reach[1] : event.end ?? event.start))].filter(Number.isFinite));
+if (temporal) document.getElementById('search')?.setAttribute('placeholder', isCalendarTime(data?.timeUnit) ? 'Search, or a time: 1914–1945' : 'Search, or a time');
 mountSearch({ data, input: document.getElementById('search'), list: document.getElementById('search-results'),
+  timeQuery: temporal ? (query) => parseTimeQuery(query, { unit: data?.timeUnit, present }) : null,
   onOpenList: () => { if (openPanel) togglePanel(openPanel); },
   open: async (result) => {
+    // A time opens across its stretch: in the Chart on its own axis, otherwise in a time view.
+    if (result.kind === 'time') {
+      if (session.snapshot().view === 'chart' && chartView?.zoomTo?.(result.start, result.end)) return;
+      if (!timeViews.has(session.snapshot().view)) await switchView('together');
+      if (timeViews.has(session.snapshot().view)) (await import('./view.js')).temporalController.zoomTo(result.start, result.end);
+      return;
+    }
     const current = session.snapshot().view;
     if (temporal && result.rowId && timeViews.has(current) && current !== 'together') await switchView('together');
+    // Terrain and the Chart draw every Event whatever is chosen, so a place or a person opens in the Tree, where it
+    // narrows the view.
+    if (temporal && result.kind === 'referent' && (current === 'terrain' || current === 'chart')) await switchView('layers');
     if (temporal && timeViews.has(session.snapshot().view)) { (await import('./view.js')).temporalController.locate(result); return; }
     const record = result.kind === 'row' ? result.record ?? null : { kind: result.kind, id: result.id };
     if (record) await session.revealRecord(record);
@@ -211,6 +243,8 @@ addEventListener('keydown', (event) => {
 addEventListener('pagehide', (event) => { if (!event.persisted) session.destroy(); });
 await mountModelPicker();
 await switchView(initialView);
+// What the first view did not need is fetched while the reader looks at it, so the other views open at once.
+if (data) setTimeout(() => whenAllParts(data).catch(() => {}), 0);
 // A highlight opens in the time view when there is a clock, otherwise as a native record in Graph (or its fallback).
 chosenCard = mountChosenView({ data, opening, onHighlight: async (target) => {
   if (!temporal) {

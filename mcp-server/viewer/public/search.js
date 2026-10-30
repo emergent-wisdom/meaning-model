@@ -5,6 +5,7 @@ import { buildModelGraph } from './model-graph.js';
 import { cutTrajectories } from './cut-trajectories.js';
 import { typedScalarTrajectories } from './scalar-trajectories.js';
 import { processLabel } from './common.js';
+import { partPending, whenPart } from './snapshot-format.js';
 
 const KINDS = Object.freeze({
   event: 'Event', process: 'Process', referent: 'Referent', normalized_cut: 'Cut', narrative: 'Note or passage',
@@ -84,6 +85,8 @@ export function buildSearchIndex(data, graph = null) {
   }
   const rowOfProcess = new Map([...rowsOfProcess].filter(([, list]) => list.length === 1).map(([key, list]) => [key, list[0]]));
   const nameOf = new Map((data?.people ?? []).map((person) => [person.id, person.name]));
+  // A referent is also found under the name the views give it, up to a colon: "Earth: the planet" is Earth.
+  const referentName = new Map((data?.referents ?? []).map((referent) => [referent.id, String(referent.name ?? '').split(':')[0].trim()]).filter(([, name]) => name));
   const entries = nodes.filter((node) => !node.unresolved && !SKIP.has(node.kind)).map((node) => {
     if (node.kind === 'narrative') {
       const { summary, text } = narrative(node.record);
@@ -94,7 +97,8 @@ export function buildSearchIndex(data, graph = null) {
       const shown = row?.label ?? processLabel(data ?? {}, node.nativeId);
       return entry('process', node.nativeId, shown, [node.label, textOf(node)].join(' · '), { ...(row ? { rowId: row.id } : {}) });
     }
-    return entry(node.kind, node.nativeId, node.label, textOf(node), { withdrawn: Boolean(node.withdrawn) });
+    const named = node.kind === 'referent' && referentName.has(node.nativeId) ? { foldedName: fold(referentName.get(node.nativeId)) } : {};
+    return entry(node.kind, node.nativeId, node.label, textOf(node), { withdrawn: Boolean(node.withdrawn), ...named });
   });
   const processIds = new Set(nodes.filter((node) => node.kind === 'process').map((node) => node.nativeId));
   for (const row of rows) {
@@ -118,20 +122,28 @@ function snippet(entry, terms) {
   return `${from ? '…' : ''}${entry.text.slice(from, to).replace(/\s+/gu, ' ').trim()}${to < entry.text.length ? '…' : ''}`;
 }
 
-// Every word of the query must appear in the record's label, id or text. A whole-label or id match ranks first, then
-// a label that starts with the query, then words found in the label, then words found only in the text.
+// A label's name: what comes before its first comma or bracket, without a leading "the", so "The Second World War,
+// September 1939 to September 1945" is named "second world war".
+const nameOfLabel = (folded) => folded.split(/,|\(| — /u)[0].replace(/^the /u, '').replace(/[.:;]$/u, '').trim();
+
+// Every word of the query must appear in the record's label, id or text. A place, a person or any referent named by the
+// whole query ranks first: showing it keeps the processes and Events that carry its name. Then a whole-label or id
+// match, a label whose name is the query, a label that starts with the query, words found in the label, and words
+// found only in the text.
 export function searchRecords(index, query, limit = 30) {
   const whole = fold(query).trim();
   const terms = whole.split(/\s+/u).filter(Boolean);
   if (!terms.length) return { total: 0, results: [] };
   const matched = [];
   for (const entry of index) {
-    const haystack = `${entry.foldedLabel} ${entry.foldedId} ${entry.foldedText}`;
+    const haystack = `${entry.foldedLabel} ${entry.foldedId} ${entry.foldedText} ${entry.foldedName ?? ''}`;
     if (!terms.every((term) => haystack.includes(term))) continue;
     const inLabel = terms.filter((term) => entry.foldedLabel.includes(term) || entry.foldedId.includes(term)).length;
     // A row's own name (a feeling, a process) counts as its whole label, without whose it is.
     const name = entry.foldedName ?? entry.foldedLabel;
-    const score = (entry.foldedLabel === whole || name === whole || entry.foldedId === whole ? 1_000 : 0) + (entry.foldedLabel.startsWith(whole) || name.startsWith(whole) ? 200 : 0)
+    const named = nameOfLabel(entry.foldedLabel) === whole.replace(/^the /u, '') ? 500 : 0;
+    const referent = entry.kind === 'referent' && entry.foldedName?.replace(/^the /u, '') === whole.replace(/^the /u, '') ? 2_000 : 0;
+    const score = referent + (entry.foldedLabel === whole || name === whole || entry.foldedId === whole ? 1_000 : 0) + named + (entry.foldedLabel.startsWith(whole) || name.startsWith(whole) ? 200 : 0)
       + inLabel * 40 + (terms.length - inLabel) * 8 + (PRIORITY[entry.kind] ?? 1) - (entry.withdrawn ? 50 : 0);
     matched.push({ entry, score, inLabel });
   }
@@ -142,12 +154,16 @@ export function searchRecords(index, query, limit = 30) {
     ...(inLabel < terms.length ? { snippet: snippet(entry, terms) } : {}) })) };
 }
 
-// The field and its list. `open` receives the chosen result ({ kind, id, rowId?, record? }) and shows it.
-export function mountSearch({ data, input, list, open, onOpenList = () => {} }) {
+// The field and its list. `open` receives the chosen result ({ kind, id, rowId?, record? }) and shows it. `timeQuery`, when
+// the model has a clock, reads the query as a stretch of time; a time read that way comes first, as { kind: 'time',
+// start, end }, above the records that match the same words.
+export function mountSearch({ data, input, list, open, onOpenList = () => {}, timeQuery = null }) {
   if (!input || !list) return null;
   if (!data) { input.disabled = true; return null; }
-  let index = null, results = [], active = -1;
+  let index = null, results = [], active = -1, graphUnavailable = false;
   const ensure = () => (index ??= buildSearchIndex(data));
+  // The notes and passages are the graph's full records, which a compact snapshot fetches when first needed.
+  const waiting = () => !index && !graphUnavailable && partPending(data, 'inspection/graph');
   const close = () => { list.hidden = true; input.setAttribute('aria-expanded', 'false'); input.removeAttribute('aria-activedescendant'); };
   const mark = (next) => {
     active = next;
@@ -163,10 +179,19 @@ export function mountSearch({ data, input, list, open, onOpenList = () => {} }) 
   const render = () => {
     const query = input.value;
     if (!query.trim()) { results = []; close(); return; }
+    if (waiting()) {
+      results = []; const head = document.createElement('div'); head.className = 'search-head'; head.textContent = 'Reading the model\'s full records…';
+      list.replaceChildren(head); if (list.hidden) onOpenList(); list.hidden = false; input.setAttribute('aria-expanded', 'true');
+      whenPart(data, 'inspection/graph').catch(() => { graphUnavailable = true; }).then(() => { if (document.activeElement === input && input.value.trim()) render(); });
+      return;
+    }
     const found = searchRecords(ensure(), query);
-    results = found.results;
+    const time = timeQuery?.(query) ?? null;
+    results = [...(time ? [{ kind: 'time', id: 'time', label: `Go to ${time.label}`, kindLabel: 'Time', start: time.start, end: time.end }] : []), ...found.results];
     const head = document.createElement('div'); head.className = 'search-head';
-    head.textContent = found.total ? `${found.total} match${found.total === 1 ? '' : 'es'}${found.total > results.length ? `, the first ${results.length} shown` : ''}` : 'No record matches every word.';
+    head.textContent = found.total ? `${found.total} match${found.total === 1 ? '' : 'es'}${found.total > found.results.length ? `, the first ${found.results.length} shown` : ''}`
+      : time ? 'A time; no record matches every word.' : 'No record matches every word.';
+    if (graphUnavailable) head.textContent += ' The notes and passages could not be read, so they are not searched.';
     const rows = results.map((result, i) => {
       const row = document.createElement('div'); row.className = 'search-row'; row.id = `search-result-${i}`; row.setAttribute('role', 'option'); row.setAttribute('aria-selected', 'false');
       const kind = document.createElement('span'); kind.className = 'search-kind'; kind.textContent = result.withdrawn ? `${result.kindLabel}, withdrawn` : result.kindLabel;

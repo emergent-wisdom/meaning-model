@@ -23,15 +23,14 @@ function fixture() {
   const layer = { children: [], append(el) { this.children.push(el); } };
   const node = { id: 'life', shown: true, kind: 'event', depth: 1, t0: 0, t1: 100,
     event: { name: 'A character’s life', start: 0 } };
-  const context = { layer, nodes: [node], panels: [], terrain: { on: false }, floors: [], selectedLinks: [],
+  const context = { layer, nodes: [node], labelRoom: { panels: [], labels: [] }, terrain: { on: false }, floors: [], selectedLinks: [],
     LENGTH: 100, BAR: 0.3, blend: { now: 0 }, smooth: (value) => value,
     opt: { show: new Set() }, litChain: new Set(), innerWidth: 500, innerHeight: 400,
     shownNow: (item) => item.shown, shownByPlay: () => true, bornAt: () => -Infinity,
     nodeAt: () => ({ y: 0, z: 0 }), playbackClock: () => ({}),
     playbackSpan: (start, end) => ({ start, end }), X: (time) => time - 50,
     words: (text) => text, screen: () => ({ x: 180, y: 160, ok: true }),
-    labels: { domElement: { querySelectorAll: () => [] } },
-    document: { getElementById: () => layer, createElement: element, querySelectorAll: () => context.panels },
+    document: { getElementById: () => layer, createElement: element },
   };
   vm.createContext(context); vm.runInContext(`${labelSource}\nthis.updateLabels = labels2.update;`, context);
   return context;
@@ -54,12 +53,12 @@ test('an Event label returns to the same screen position after repeated coarse/d
 test('collision-hidden labels stay hidden across repeated frames and reappear when the panel moves away', () => {
   const context = fixture(); context.updateLabels();
   const label = context.layer.children[0], position = label.style.transform;
-  context.panels = [{ getBoundingClientRect: () => ({ left: 150, right: 300, top: 100, bottom: 200, width: 150 }) }];
+  context.labelRoom = { panels: [{ left: 150, right: 300, top: 100, bottom: 200, width: 150 }], labels: [] };
   for (let frame = 0; frame < 4; frame += 1) {
     context.updateLabels();
     assert.equal(label.classList.contains('hide'), true, `frame ${frame}: measurement must not clear the retained collision-hidden class`);
   }
-  context.panels = []; context.updateLabels();
+  context.labelRoom = { panels: [], labels: [] }; context.updateLabels();
   assert.equal(label.classList.contains('hide'), false);
   assert.equal(label.style.transform, position);
 });

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { buildViewerData } from '../src/viewer-data.mjs';
 import { projectScalarSeries } from '../src/viewer-scalar-series.mjs';
-import { chartModel, packLanes, chartAxis, axisFraction, axisTicks, timeLabel, readSeries } from '../viewer/public/chart-model.js';
+import { chartModel, packLanes, chartAxis, axisFraction, axisTicks, timeLabel, readSeries, layerReading, tagCountsOf } from '../viewer/public/chart-model.js';
 
 const part = (id, start, end) => ({ id, start, end });
 
@@ -206,6 +206,185 @@ test('every row a process generates is held by its parent, so folding the parent
     typedScalarSeries: [home(series('s1', 'alice', 1), 'life.a'), home(series('s2', 'bob', 10), 'life.a'), home(leaf('s3', 'q'), 'life.b')] };
   const groupRows = chartModel(grouped).rows;
   assert.deepEqual(groupRows.find((row) => row.id === 'group:life.a').children, ['p', 'p~s2']);
+});
+
+// Processes that add up. A whole in tonnes holds parts declared in the decomposition; each process has the dated values given.
+const sumLine = (processId, values, { holder = 'ana', unit = 'tonnes' } = {}) => ({ id: `values.${processId}~${holder}`, processId, holder, unit, interpolation: { kind: 'linear-visual-guide' },
+  points: values.map(([t, v, range]) => ({ t, v, tag: 'inferred', ...(range ? { uncertainty: { kind: 'interval', lower: range[0], upper: range[1] } } : {}) })) });
+const sumProcess = (id, { unit = 'tonnes', aggregate, kind = 'scalar' } = {}) => ({ id, unit, value_type: { kind }, scale: { label: `Label of ${id}`, ...(aggregate ? { aggregate } : {}) } });
+function sums({ aggregate = 'sum', whole = [[0, 10], [50, 20], [100, 30]], parts = { a: [[0, 4], [50, 8], [100, 12]], b: [[0, 6], [50, 12], [100, 18]] }, more = [], processes = [], edges = [] } = {}) {
+  const model = { time_unit: 'year', meaning_model: { events: [] },
+    processes: [sumProcess('total', { aggregate }), ...Object.keys(parts).map((id) => sumProcess(id)), ...processes],
+    decomposition: [...Object.keys(parts).map((id) => ({ parent: 'total', child: id, kind: 'functional_refinement' })), ...edges] };
+  return { timeUnit: 'year', events: [], inspection: { model }, typedScalarSeries: [sumLine('total', whole), ...Object.entries(parts).map(([id, values]) => sumLine(id, values)), ...more] };
+}
+const rowOf = (c, id) => c.rows.find((row) => row.process === id);
+
+test('a process that declares the sum of its parts stacks them, in its own unit, and only then', () => {
+  const c = chartModel(sums());
+  const total = rowOf(c, 'total');
+  assert.deepEqual(total.layers.members.map((m) => m.id), ['a', 'b'], 'the parts the model declares, in its own unit');
+  assert.deepEqual(total.layers.listed, []);
+  assert.deepEqual(total.layers.times, [0, 50, 100], 'over the dates the whole and every part are recorded');
+  const read = layerReading(total, 50);
+  assert.deepEqual([read.whole.v, read.parts.map((r) => r.v), read.tops, read.sum, read.gap, read.over], [20, [8, 12], [8, 20], 20, 0, 0], 'the layers add up to the whole');
+  assert.deepEqual([total.layers.gap, total.layers.over, total.layers.exceeds], [false, false, []]);
+  assert.equal(layerReading(total, 150), null, 'unrecorded time has no reading');
+  assert.ok(rowOf(c, 'a').layers === undefined && rowOf(c, 'b').layers === undefined, 'a part that declares no sum stacks nothing');
+  assert.deepEqual(c.rows.map((row) => row.id), ['total', 'a', 'b'], 'the parts keep rows of their own');
+  // Shared units are not a declaration: the same parts, the same unit, no sum.
+  for (const aggregate of [null, 'mean', 'average', 'median']) {
+    const rows = chartModel(sums({ aggregate })).rows;
+    assert.ok(rows.every((row) => row.layers === undefined), `aggregate ${aggregate} stacks nothing`);
+  }
+});
+
+test('what a declared sum holds beyond its parts is its remainder, and parts that exceed it are marked at their dates', () => {
+  const gap = rowOf(chartModel(sums({ whole: [[0, 12], [50, 24], [100, 36]] })), 'total');
+  assert.deepEqual([gap.layers.gap, gap.layers.over], [true, false]);
+  const short = layerReading(gap, 50);
+  assert.deepEqual([short.gap, short.over, short.sum], [4, 0, 20], 'the whole minus its parts, as a plain remainder');
+  assert.equal(layerReading(gap, 25).gap, 3, 'read along the lines between dates');
+
+  const over = rowOf(chartModel(sums({ whole: [[0, 10], [50, 17], [100, 30]] })), 'total');
+  assert.deepEqual([over.layers.gap, over.layers.over], [false, true]);
+  assert.deepEqual(over.layers.exceeds.map((x) => [x.t, x.by, x.sum]), [[50, 3, 20]], 'the date it exceeds, by how much, and where the parts reach');
+  const excess = layerReading(over, 50);
+  assert.deepEqual([excess.gap, excess.over, excess.tops.at(-1)], [0, 3, 20], 'the parts are kept as recorded, never cut back to the whole');
+
+  // Values that agree to rounding show neither: a difference under a hundredth of the whole counts as agreeing. It must also
+  // matter to the row: over a tenth of a percent of the highest the whole reaches for an excess, marked at its date, and over
+  // half a percent for a remainder, a layer that must be as much as the row can show.
+  const rounded = rowOf(chartModel(sums({ whole: [[0, 10.05], [50, 19.9], [100, 30]] })), 'total');
+  assert.deepEqual([rounded.layers.gap, rounded.layers.over], [false, false], 'within a hundredth of the whole');
+  const faint = rowOf(chartModel(sums({ whole: [[0, 0.1], [50, 20], [100, 30]], parts: { a: [[0, 0], [50, 8], [100, 12]], b: [[0, 0], [50, 12], [100, 18]] } })), 'total');
+  assert.deepEqual([faint.layers.gap, layerReading(faint, 0).gap], [false, 0], 'a tenth against a peak of thirty is not a remainder worth drawing');
+  const seen = rowOf(chartModel(sums({ whole: [[0, 0.2], [50, 20], [100, 30]], parts: { a: [[0, 0], [50, 8], [100, 12]], b: [[0, 0], [50, 12], [100, 18]] } })), 'total');
+  assert.deepEqual([seen.layers.gap, layerReading(seen, 0).gap], [true, 0.2], 'but a fifth of it is');
+  const slight = rowOf(chartModel(sums({ whole: [[0, 0.1], [50, 20], [100, 30]], parts: { a: [[0, 0.06], [50, 8], [100, 12]], b: [[0, 0.06], [50, 12], [100, 18]] } })), 'total');
+  assert.deepEqual([slight.layers.over, layerReading(slight, 0).over], [false, 0], 'a hundredth of a tenth of the peak is rounding at the start of a series');
+  const marked = rowOf(chartModel(sums({ whole: [[0, 0.1], [50, 20], [100, 30]], parts: { a: [[0, 0.1], [50, 8], [100, 12]], b: [[0, 0.1], [50, 12], [100, 18]] } })), 'total');
+  assert.deepEqual(marked.layers.exceeds.map((x) => [x.t, x.by]), [[0, 0.1]], 'but an excess of a tenth of a percent of it is marked, though the row can hardly show it');
+  // The range the whole states does not hide a difference, but a sum that lies inside it says so.
+  const ranged = rowOf(chartModel(sums({ whole: [[0, 10, [8, 11]], [50, 17, [14, 20]], [100, 30]] })), 'total');
+  assert.deepEqual([ranged.layers.gap, ranged.layers.over], [false, true]);
+  assert.deepEqual(ranged.layers.exceeds.map((x) => [x.t, x.by, x.inRange]), [[50, 3, true]], 'the sum of 20 lies inside the range 14 to 20');
+  const beyond = rowOf(chartModel(sums({ whole: [[0, 10, [9.5, 10.5]], [50, 17, [16, 18]], [100, 30]] })), 'total');
+  assert.deepEqual(beyond.layers.exceeds.map((x) => [x.t, x.inRange]), [[50, false]], 'a sum beyond the range it states');
+  const wide = rowOf(chartModel(sums({ whole: [[0, 20, [5, 35]], [50, 40, [10, 70]], [100, 60, [15, 105]]] })), 'total');
+  assert.equal(wide.layers.gap, true, 'a wide range does not hide what the whole holds beyond its parts');
+  assert.deepEqual([layerReading(wide, 0).gap, layerReading(wide, 0).inRange], [10, true]);
+});
+
+test('only parts in the whole\'s own unit, held by the one who holds the row, are stacked; the rest are listed with why', () => {
+  // Besides two parts in tonnes: one in litres, one that is not a number, one held by someone else, one with two series,
+  // one that dips below zero, one with no dated values, the whole named as its own part, and a part named twice.
+  const data = sums({
+    parts: { a: [[0, 4], [50, 8], [100, 12]], b: [[0, 6], [50, 12], [100, 18]], litres: [[0, 1], [100, 2]], text: [[0, 1], [100, 2]], theirs: [[0, 1], [100, 2]], twice: [[0, 1], [100, 2]], cold: [[0, 1], [50, -2], [100, 3]] },
+    processes: [sumProcess('empty')], edges: [{ parent: 'total', child: 'empty', kind: 'functional_refinement' }, { parent: 'total', child: 'total', kind: 'functional_refinement' }, { parent: 'total', child: 'a', kind: 'semantic_subtype' }],
+    more: [{ ...sumLine('twice', [[0, 2], [100, 3]]), id: 'values.twice~second' }],
+  });
+  data.inspection.model.processes = data.inspection.model.processes.map((p) => (p.id === 'litres' ? { ...p, unit: 'litres' } : p.id === 'text' ? { ...p, value_type: { kind: 'category' } } : p));
+  data.typedScalarSeries = data.typedScalarSeries.map((s) => (s.processId === 'litres' ? { ...s, unit: 'litres' } : s.processId === 'theirs' ? { ...s, holder: 'bob' } : s));
+  const total = rowOf(chartModel(data), 'total');
+  assert.deepEqual(total.layers.members.map((m) => m.id), ['a', 'b'], 'each part once, however many edges name it');
+  const why = Object.fromEntries(total.layers.listed.map((x) => [x.id, x.why]));
+  assert.deepEqual(why, { litres: 'its unit, litres, is not tonnes', text: 'not a number', theirs: 'held by someone else', twice: 'several series of its holder', cold: 'has values below zero', empty: 'no dated values' });
+  assert.ok(total.layers.listed.every((x) => x.label), 'each is named');
+});
+
+test('a whole below zero stacks nothing, and a sum held by two holders is stacked from each one\'s own parts', () => {
+  const below = rowOf(chartModel(sums({ whole: [[0, -10], [100, -30]], parts: { a: [[0, 4], [100, 12]] } })), 'total');
+  assert.deepEqual([below.layers.members.length, below.layers.listed.map((x) => x.why)], [0, ['the whole has values below zero']], 'the layers stand on zero');
+  assert.equal(layerReading(below, 50), null);
+
+  const data = sums({ more: [sumLine('total', [[0, 11], [50, 22], [100, 33]], { holder: 'bob' }), sumLine('a', [[0, 5], [50, 10], [100, 15]], { holder: 'bob' })] });
+  const rows = chartModel(data).rows.filter((row) => row.process === 'total');
+  assert.deepEqual(rows.map((row) => [row.holder, row.layers.members.map((m) => m.id), row.layers.listed.map((x) => `${x.id}: ${x.why}`)]),
+    [['ana', ['a', 'b'], []], ['bob', ['a'], ['b: held by someone else']]], 'a holder\'s whole is added up from that holder\'s parts only');
+  assert.equal(layerReading(rows[1], 50).sum, 10);
+
+  // Several series of one holder: which part belongs to the whole is not known, so nothing is stacked for it.
+  const several = chartModel(sums({ more: [{ ...sumLine('total', [[0, 1], [100, 2]]), id: 'values.total~other' }] })).rows.filter((row) => row.process === 'total');
+  assert.ok(several.every((row) => row.layers === undefined));
+  // Parts recorded at other times than the whole have no stretch to stack.
+  const apart = rowOf(chartModel(sums({ whole: [[0, 10], [10, 20]], parts: { a: [[50, 4], [100, 12]] } })), 'total');
+  assert.deepEqual([apart.layers.members.length, apart.layers.times, apart.layers.listed.map((x) => x.id)], [0, [], ['a']], 'no stretch holds the whole and the part, so the part is listed, not stacked');
+  assert.equal(layerReading(apart, 5), null);
+  const meet = rowOf(chartModel(sums({ whole: [[0, 10], [100, 20]], parts: { a: [[100, 4], [200, 12]] } })), 'total');
+  assert.equal(meet.layers.members.length, 0, 'a single date they share is no stretch to stack');
+});
+
+test('a declared sum is shown in its own row, so its divided parts are not stacked a second time but keep their own rows', async () => {
+  const model = fixture();
+  assert.ok(chartModel(await snapshotOf(model)).rows.some((row) => row.kind === 'stack'), 'without the declaration the partition is stacked in a row of its own');
+  model.processes = model.processes.map((p) => (p.id === 'whole' ? { ...p, unit: '% of whole', scale: { ...p.scale, aggregate: 'sum' } } : p));
+  const c = chartModel(await snapshotOf(model));
+  const whole = c.rows.find((row) => row.process === 'whole' && row.holder === 'modeler');
+  assert.deepEqual(whole.layers.members.map((m) => m.id), ['part.a', 'part.b', 'kind.x', 'kind.y'], 'every part in its unit, whatever kind of refinement it is');
+  assert.ok(!c.rows.some((row) => row.kind === 'stack'), 'the stack row is replaced');
+  assert.deepEqual(c.rows.filter((row) => row.parent === 'whole').map((row) => row.id), ['part.a', 'part.b', 'kind.x', 'kind.y'], 'the partition\'s parts are rows of their own');
+  assert.equal(c.tree.rowOf('part.a').series.points.length, 2, 'their values are still drawn');
+  // A partition held by someone else than the whole's row is not what that row stacks: the stack stays.
+  const other = fixture();
+  other.processes = other.processes.map((p) => (p.id === 'whole' ? { ...p, unit: '% of whole', scale: { ...p.scale, aggregate: 'sum' } } : p));
+  other.value_series = other.value_series.map((s) => (s.process_id === 'part.a' || s.process_id === 'part.b' ? { ...s, id: `${s.id}.theirs`, holder: 'bob' } : s));
+  const rows = chartModel(await snapshotOf(other)).rows;
+  assert.ok(rows.some((row) => row.kind === 'stack' && row.holder === 'bob'));
+});
+
+// A tree: root holds p (which holds q and s) and r; x is a part of both p and r.
+function treeData(extra = {}) {
+  const ids = ['root', 'p', 'q', 's', 'r', 'x'];
+  const model = { time_unit: 'year', meaning_model: { events: [] }, processes: ids.map((id) => sumProcess(id)),
+    decomposition: [['root', 'p'], ['root', 'r'], ['p', 'q'], ['p', 's'], ['p', 'x'], ['r', 'x']].map(([parent, child]) => ({ parent, child, kind: 'functional_refinement' })) };
+  return { timeUnit: 'year', events: [], inspection: { model }, typedScalarSeries: ids.map((id, i) => sumLine(id, [[0, i + 1], [100, i + 2]])), ...extra };
+}
+
+test('a process can be opened as the top: its own tree, from itself, with the path to it from the top of its branch', () => {
+  const c = chartModel(treeData());
+  assert.deepEqual(c.rows.map((row) => [row.id, row.depth, row.parent]), [['root', 0, null], ['p', 1, 'root'], ['q', 2, 'p'], ['s', 2, 'p'], ['x', 2, 'p'], ['r', 1, 'root']]);
+  assert.deepEqual(c.rows.find((row) => row.id === 'x').alsoUnder, ['r'], 'a part with two parents is drawn under the first, and names the other');
+  assert.deepEqual(c.tree.path('q').map((step) => step.id), ['root', 'p', 'q'], 'the path from the root');
+  assert.deepEqual(c.tree.path('root').map((step) => step.id), ['root']);
+  const p = c.tree.from('p');
+  assert.deepEqual(p.rows.map((row) => [row.id, row.depth, row.parent]), [['p', 0, null], ['q', 1, 'p'], ['s', 1, 'p'], ['x', 1, 'p']], 'only it and what it holds, from depth 0');
+  assert.deepEqual(p.path.map((step) => step.label), ['Label of root', 'Label of p']);
+  assert.deepEqual([...p.has].sort(), ['p', 'q', 's', 'x']);
+  assert.equal(p.rows[0].up, 'root', 'the process it was opened from');
+  assert.deepEqual(p.rows[0].alsoUnder, [], 'and that is not a second parent');
+  // x has two parents: opened from r it is drawn under r, as it is under p.
+  const r = c.tree.from('r');
+  assert.deepEqual(r.rows.map((row) => [row.id, row.depth]), [['r', 0], ['x', 1]], 'a part is drawn under whichever of its parents is opened');
+  assert.deepEqual(r.rows[1].alsoUnder, ['p']);
+  assert.equal(c.tree.from('p'), p, 'the same opening is not worked out twice');
+  assert.deepEqual(c.tree.from('root').rows.map((row) => row.id), c.rows.map((row) => row.id), 'the root opens as the whole tree');
+  // Only a process the chart draws can be opened.
+  assert.equal(c.tree.from('nothing'), null); assert.equal(c.tree.rowOf('nothing'), null); assert.deepEqual(c.tree.path('nothing'), []);
+  assert.equal(c.tree.rowOf('s'), c.rows.find((row) => row.id === 's'));
+});
+
+test('without a decomposition there is nothing to open into: no row holds another', () => {
+  const data = treeData(); data.inspection.model.decomposition = [];
+  const c = chartModel(data);
+  assert.ok(c.rows.every((row) => row.children.length === 0), 'no row holds parts, so no row offers to be opened');
+  assert.equal(c.tree.from('p'), null, 'so nothing is offered to open');
+  assert.equal(c.tree.rowOf('p'), c.rows.find((row) => row.id === 'p'), 'though every process keeps its row');
+  assert.ok(c.rows.every((row) => row.layers === undefined));
+  // A process the decomposition leaves out cannot be the top of a tree it is not in, in a model that has one.
+  const loose = treeData();
+  loose.inspection.model.processes.push(sumProcess('loose')); loose.typedScalarSeries.push(sumLine('loose', [[0, 1], [100, 2]]));
+  const d = chartModel(loose);
+  assert.equal(d.tree.from('loose'), null); assert.equal(d.tree.rowOf('loose').id, 'loose');
+  assert.ok(d.tree.from('q') && d.tree.from('r'), 'while a part, or a process with parts, can');
+});
+
+test('the tags a key lists are those of the rows drawn', () => {
+  const c = chartModel(sums());
+  assert.deepEqual(tagCountsOf(c.rows), { inferred: 9 });
+  assert.deepEqual(tagCountsOf(c.tree.from('total').rows), tagCountsOf(c.rows));
+  assert.deepEqual(tagCountsOf(c.rows.filter((row) => row.process === 'a')), { inferred: 3 }, 'only what is drawn counts');
+  assert.deepEqual(c.tagCounts, tagCountsOf(c.rows));
 });
 
 test('a snapshot without a time axis has no chart', () => {

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import * as THREE from '../viewer/public/vendor/three/three.core.js';
+import { openingFrame, fitBox } from '../viewer/public/opening-frame.js';
 
 const source = readFileSync(new URL('../viewer/public/view.js', import.meta.url), 'utf8');
 const graphSource = readFileSync(new URL('../viewer/public/graph-view.js', import.meta.url), 'utf8');
@@ -48,7 +49,7 @@ function temporalFixture({ mode = 'free', terrain = false } = {}) {
   controls.zoomToCursor = true;
   controls.autoRotate = mode === 'spin'; controls.enabled = mode !== 'locked';
   const context = {
-    THREE, camera, controls, HOME: { position: vector(-30, 40, 100), target: vector(0, 5, 3) },
+    THREE, openingFrame, fitBox, camera, controls, HOME: { position: vector(-30, 40, 100), target: vector(0, 5, 3) },
     HOME_FRAME: { size: 60, cy: 5, cz: 3 }, framed: { size: 120, cy: -15, cz: 20 },
     HOME_DISTANCE: 110, FOG: .0048, TFOG: .002,
     terrain: { on: terrain, home: { position: vector(-40, 80, 220), target: vector(12, 2, 10) },
@@ -122,7 +123,10 @@ test('free recenter fits current detail below the real toolbar and stays there a
   context.camera.setViewOffset(505, 788, 90, 200, 505, 788);
   addInertia(context.controls); context.recenterView();
   const target = context.controls.target.clone(), position = context.camera.position.clone();
-  closeVector(position.clone().sub(target).normalize(), context.HOME.position.clone().sub(context.HOME.target).normalize(), 'the home viewing direction is retained');
+  // A field no deeper than it is long keeps the home side; in this tall window its flat picture is seen from higher up.
+  const looking = position.clone().sub(target).normalize(), home = context.HOME.position.clone().sub(context.HOME.target).normalize();
+  assert.ok(Math.abs(Math.atan2(looking.x, looking.z) - Math.atan2(home.x, home.z)) < 1e-9, 'the home side is retained');
+  assert.ok(looking.y >= home.y - 1e-9, 'never lower than home');
   expectBoundsInRoom(context);
   assert.deepEqual(context.framed, context.fieldFrame(), 'future detail changes start from the newly fitted field');
   assert.equal(context.camera.view.enabled, false);

@@ -74,6 +74,35 @@ from declared records, so it is tested without a browser.
   longer reading has finer ones open, the time they leave uncovered shows, dimmer, the level it must average, and
   nothing where no level can hold; a moment's reading is a narrow bar. Each series is read through
   `prepareReadings`, which works out the nesting once per zoom and reads exactly as `readingAt` does.
+- **Opening a process** makes it the top of the rows. **Open**, on a row that holds parts (and in that process's
+  reading card), draws only that process and its descendants through `model.decomposition`, with the path from the top
+  of its branch above the rows: each step of the path opens that level, and **All processes** draws the whole tree
+  again (so the Cut series and the processes under Events, which are not parts of any process, are drawn there only).
+  A part with two parents is drawn under whichever of them is opened. Opening unfolds the process, folding still hides
+  its parts, and the key, the guide and the counts follow the rows drawn. A process asked for from another view or from
+  search that the opened top does not draw opens at the nearest level above it that does. The choice is the view's
+  `within` setting, the id of the process, written to the address as the focus is and checked against the model's chosen
+  view the same way (`noteAddress`), so a reload or a shared link reopens it; one that names a process the chart does
+  not draw, or one the decomposition leaves out, is ignored. A view the model chooses can set it too. Without a
+  decomposition no process can be opened, so neither Open nor the path appears.
+- **Parts that add up** are stacked only where the model says so: `scale.aggregate: "sum"` on the process record. A
+  mean, or any other aggregate, is never stacked, and nothing is inferred from parts that merely share a unit. Such a
+  process shows its parts as layers beneath its own curve, in its own unit, adding up to it, with each part's value
+  read beside the plot. As the engine compares a sum with its parts (`life_values_record`), only parts in the
+  process's own unit are added up, and only one holder's account at a time: a part is stacked when it is a number with
+  exactly one series, held by the holder of that row, and with no value below zero (the layers stand on zero, so a
+  whole below zero stacks nothing). The others are listed in the row ("Not stacked") and, with why, in its reading
+  card. Layers are drawn where the whole and every stacked part are recorded, as recorded, never rescaled to fill the
+  whole, on a straight scale from zero (a stacked row is not drawn on a log scale). What the whole holds beyond its
+  parts is a plain remainder layer; where they add up to more than the whole, the excess is hatched and outlined,
+  flagged at each recorded date and listed, with its size, in the reading card. A difference of less than a hundredth
+  of the whole (the engine's floor for comparing a sum with its parts) counts as agreeing, so values that agree to
+  rounding show neither. It must also matter to the row: more than a tenth of a percent of the highest the whole reaches
+  for an excess, which is marked at its date, and more than half a percent for a remainder, a layer that must be as much
+  as the row can show, so rounding at the faint start of a series is neither. The whole's stated range does not hide a
+  difference, and the card says where the parts lie inside it. A process that declares the sum of a divided process's
+  parts shows them in its own row instead of a row of the divided parts, which keep ordinary rows of their own; both take
+  the palette in the parts' order.
 - **Events** in the controls shows the parts and Events above the time axis. It is off at first, so the rows take the
   whole height; the axis, the reading at the pointer and an opened Event's time stay. Choosing a whole under **Parts
   of** turns it on. When on, the parts and Events scroll away as the rows scroll and the axis stays at the top;
@@ -81,8 +110,9 @@ from declared records, so it is tested without a browser.
 - **The panel** says how to read the chart (what its marks and lines mean, with the model's counts). The tour is the
   model's own: the highlights of its recorded view, in its order and with its reason for each; without a recorded view
   there is no tour. It shows an opened Event (its causes ranked by the difference each made alone, its Cuts,
-  realized concepts, links and the processes it moves), a process row (its values and its place in the tree) or a
-  group of Events too close to draw apart.
+  realized concepts, links and the processes it moves), a process row (its values, how it opens as the top, the parts
+  it adds up from and those it lists without stacking, and its place in the tree) or a group of Events too close to
+  draw apart.
 - **Shared with the other views**: opening an Event or a process shares the selection; a selection cleared in another
   view, or one the Chart cannot show (a Cut, a relation, a note), returns the panel to the guide. The moment the rows
   are read at is the session's time (`time.now`, in the time views' units): a moment set in a time view is where the
@@ -111,6 +141,59 @@ that cannot form a curve. Untimed initial values remain untimed.
 When only Event spans are available, a note explains that bars show intervals and
 asks the agent to check recorded values and their display representation. Hiding
 curves or viewing constant values does not trigger that note.
+
+## How the model's chosen view opens
+
+A view recorded with `life_model_viewer_view` has its own settings, rows and highlights, and levels that each add
+more; the viewer adds **Everything** last (`view-settings.js`). A followed view opens at Everything, so a reader first
+sees every record the model holds rather than the few rows its first level names. Everything lifts only the settings
+that leave records out (layers, rows, filters, depth and the like) and keeps how the view presents them: its window
+and moment, its time mode, the whole across the Chart's top, the drawing of the Earth. The card lists the view and its
+levels as steps, one tap each, and keeps the model's **What to notice** at every level. A view recorded with a later
+level than 0 opens there, and an address that names a level opens at it.
+
+## Where the time views' camera opens, and which labels show
+
+Processes and Tree open with a camera worked out from the box of what is drawn and the part of the screen the panels
+leave free (`opening-frame.js`); nothing depends on what the model is about. A field no deeper than it is long is
+framed whole, from the side it has always been seen from, and from higher up where its picture is flatter than the
+free room (a short field on a tall phone screen). The deeper a field runs for its length, the further the camera turns
+toward the side of the present and lowers, until, four times as deep as long, its rows run back along the free room's
+diagonal: across a wide screen, up a tall one. It then comes in until the field covers three quarters of the room,
+with the rows running on into the distance, but never so close that less of the front row's time axis stays on the
+screen than a seventh of it. An address that names a camera (`pose`) opens with that camera, and **Default** and
+recentring frame the view by the same rule.
+
+A drag that starts on a label moves the view as one beside it does; a press that stays put stays the label's. While a
+finger drags or pinches the scene its labels step aside, and they return a moment after the last finger lifts; a mouse
+leaves them in place.
+
+One rule decides which labels show, at the opening and as the view moves: a label shows only where all of it is on
+the screen, clear of every panel (the controls and their toggle, the model's card, an open pop-up, the reader) and of
+every label placed before it. Where they cannot all fit, fewer show. They are placed in this order: a selected
+document, what the model highlighted, the time marks, the count of causal links, the names of groups and rows, the
+lens cards, the values, the Events' names on their threads, and the names of the tree's Events. The terrain keeps its
+own rule.
+
+## Compact snapshots for hosting
+
+A snapshot is one JSON file (`schema: "meaning-model-viewer/2"`), and every host keeps working with it: the local
+MCP viewer serves only this form. For a host that serves files, `compact-snapshot.mjs` writes an optional compact form
+of the same data:
+
+```sh
+node mcp-server/viewer/compact-snapshot.mjs path/to/world-history.json out/
+```
+
+`out/world-history.json` (`schema: "meaning-model-viewer/3"`) holds each dated series' points as columns, and
+`out/world-history.inspection-graph.json` holds the graph's full records (`inspection.graph`). Put both where the
+snapshot was. The viewer opens the first and fetches the second when Graph, Structure, Space, search or a selected
+record first needs it, or soon after the first view is drawn. `public/snapshot-format.js` reads either form into the
+same object, so every view sees exactly the data of the whole file; the command reads its output back and compares it
+with the original before it writes anything. The part's file carries the sha256 the snapshot names, and the viewer
+refuses one from another snapshot. On the world history, the Book of Conditions and Twelve Words, the file the viewer
+needs before it can draw is 36–66% smaller gzipped (the world history: 3.49 MB to 2.25 MB). A host whose own loader hands the viewer its data directly
+should keep the whole file, or pass the parsed JSON through `openSnapshot(data, { url })` first.
 
 ## Following a story as it grows
 
@@ -152,10 +235,41 @@ unit at a time. It never places anything from a name, an Event's region or prose
   scale `semantic_role: "position"`, or scalar processes with
   `semantic_role: "position"` and a scale `axis`. Scalars of one thing share a
   `spatial_entity:<id>` support item (else an id ending in `.position.<axis>`)
-  and one `reference_frame` and `unit`.
+  and one `reference_frame` and `unit`; the one exception is an `altitude`,
+  which may be in a length unit beside latitude and longitude in degrees.
 - **Axes** `x`, `y`, `z` lie east, north and up. A frame whose axes are
-  `latitude` and `longitude` (optionally `altitude`) is drawn as a map, with
-  longitude narrowed by the cosine of the frame's middle latitude.
+  `latitude` and `longitude` (optionally `altitude`) is drawn on a globe or as
+  a map (next bullet). Each axis is read in the unit its own process declares:
+  an altitude in metres or kilometres can sit beside angles in degrees, and a
+  thing on the Earth belongs to the frame of its angles whichever coordinate is
+  met first.
+- **The Earth** lies on a globe or flat, as the reader chooses with the Globe
+  and Map buttons (shown only for a frame of latitudes and longitudes; degrees
+  or radians, and an unstated unit is read as degrees).
+  - *The globe* is a sphere with a graticule: every 30 degrees on the whole
+    globe, with the equator and the prime meridian a little stronger, and finer
+    as the camera comes down (to 0.0001 degree), with its degrees written
+    beside it. It is geometry only: no coastline, border or place name is drawn
+    that the model does not declare. Each position stands at its declared
+    latitude and longitude, and at its altitude when that is declared in a
+    length unit (m, km, ft, mi), to scale, with a line down to the ground.
+    Positions that change over time move as they do on the map; trails,
+    sequence links and causal arcs follow great circles. Drag turns it; the
+    wheel zooms toward the point under the pointer, from orbit to about 600 m
+    above the surface, so that nearby points part (marks keep one size on the
+    screen; pan and W A S D are the map's). Home frames what is shown again.
+  - *The map* is the flat drawing, as before.
+  - *Which opens.* A frame whose points span more than 30 degrees of longitude
+    (measured round the circle) or latitude, at every time they can be where
+    they are declared, opens as a globe; any other as a map. The reader's
+    choice is the view setting `earth` (`globe` or `map`), written to the
+    address so that a reload or a shared link keeps it and kept in Space's saved
+    state; made on a view the model chose, it marks that view adjusted, and a
+    view the model chooses can set it.
+  - *No globe.* A frame whose axes are not latitude and longitude (a projected
+    EPSG frame in metres, a local frame), whose angles are in another unit, or
+    with a latitude beyond the poles at any time it can be there, is drawn as it
+    always was; a projection is never converted.
 - **Whose position** comes from a coordinate/position
   `event_referent_binding` whose target is the process. Its `interval` bounds
   the declaration. The process's stated meaning distinguishes bodily presence

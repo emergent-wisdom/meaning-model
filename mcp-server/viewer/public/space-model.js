@@ -23,6 +23,13 @@ const placeName = (referent) => { const first = String(referent?.boundary ?? '')
 // A referent's name: a short proper name when its boundary begins with one, else the first clause that bounds it.
 const labelOf = (referent) => { const lead = String(referent?.boundary ?? '').split(/[,;(]| - | — | as one /u)[0].trim(); return lead && lead.split(/\s+/u).length <= 4 && /^\p{Lu}/u.test(lead) ? nameOf(referent) : placeName(referent); };
 
+// The unit that names the frame a thing stands in. For a thing on the Earth it is the unit of its angles: a length beside them
+// (an altitude in metres) does not put it in a frame of its own, whichever of its coordinates is met first.
+const frameUnit = (axes, units, fallback) => {
+  const [la, lo] = ['latitude', 'longitude'].map((axis) => axes.indexOf(axis));
+  return la >= 0 && lo >= 0 ? units[la] ?? units[lo] ?? fallback : fallback;
+};
+
 // How precisely a coordinate is declared: exact, a standard deviation, an interval of values, or not declared.
 function precisionOf(uncertainty) {
   if (uncertainty?.kind === 'exact') return { kind: 'exact' };
@@ -77,7 +84,7 @@ export function spaceModel(model = {}) {
   };
   const objects = new Map();
   const objectFor = (key, process, extra) => {
-    if (!objects.has(key)) objects.set(key, { id: key, frame: process.reference_frame ?? null, unit: process.unit ?? null, axes: [], position: [], motion: [], precision: [], orientation: null, processIds: [], referentId: null, interval: null, laws: [], declaration: process.scale ?? {}, provenance: array(process.provenance), ...extra });
+    if (!objects.has(key)) objects.set(key, { id: key, frame: process.reference_frame ?? null, unit: process.unit ?? null, axes: [], axisUnits: [], position: [], motion: [], precision: [], orientation: null, processIds: [], referentId: null, interval: null, laws: [], declaration: process.scale ?? {}, provenance: array(process.provenance), ...extra });
     return objects.get(key);
   };
   const bind = (object, processId) => { const bound = boundTo.get(processId); if (bound && !object.referentId) { object.referentId = bound.referentId; object.interval = bound.interval; } };
@@ -89,6 +96,8 @@ export function spaceModel(model = {}) {
       if (!position.length || !position.every(finite)) continue;
       const object = objectFor(process.id, process, { kind: value.kind === 'object_pose' ? 'pose' : 'vector' });
       object.axes = position.map((_, i) => (declaredAxes.length === position.length ? declaredAxes[i] : AXES[i] ?? `axis ${i + 1}`));
+      // One process, one unit: every component of a vector or pose is in it.
+      object.axisUnits = position.map(() => process.unit ?? null);
       // A whole pose changes only by laws this view does not evaluate.
       object.position = [...position]; object.motion = position.map(() => (lawsOn.get(process.id)?.length ? null : { rate: 0 }));
       object.precision = position.map(() => precisionOf(process.uncertainty));
@@ -104,14 +113,15 @@ export function spaceModel(model = {}) {
     const object = objectFor(key, process, { kind: 'coordinates' });
     if (object.axes.includes(axis) || (object.frame ?? null) !== (process.reference_frame ?? null)) continue;
     const { motion, laws: moving } = motionOf(process.id);
-    object.axes.push(axis); object.position.push(value.value); object.motion.push(motion); object.precision.push(precisionOf(process.uncertainty));
+    object.axes.push(axis); object.axisUnits.push(process.unit ?? null); object.position.push(value.value); object.motion.push(motion); object.precision.push(precisionOf(process.uncertainty));
     object.processIds.push(process.id); object.laws.push(...moving); bind(object, process.id);
   }
   const placed = [...objects.values()].map((object) => {
     // Axes in their declared order: x, y, z first, then any others as declared.
     const order = object.axes.map((axis, i) => i).sort((a, b) => ((AXES.indexOf(object.axes[a]) + 1) || 9) - ((AXES.indexOf(object.axes[b]) + 1) || 9));
     const referent = referents.get(object.referentId); const place = referents.get(object.declaration.place_ref); const motion = order.map((i) => object.motion[i]);
-    return { ...object, axes: order.map((i) => object.axes[i]), position: order.map((i) => object.position[i]), motion, precision: order.map((i) => object.precision[i]),
+    const axes = order.map((i) => object.axes[i]), axisUnits = order.map((i) => object.axisUnits[i]);
+    return { ...object, axes, axisUnits, unit: frameUnit(axes, axisUnits, object.unit), position: order.map((i) => object.position[i]), motion, precision: order.map((i) => object.precision[i]),
       laws: [...new Set(object.laws)], placeId: place?.id ?? null, placeLabel: String(object.declaration.place_label ?? (place ? labelOf(place) : object.declaration.label ?? '')), periodLabel: String(object.declaration.label ?? ''),
       lifeLocation: object.declaration.spatial_status === 'coarse_life_location', locationRole: object.declaration.location_role ?? null,
       lifetime: array(meaning.events).find((event) => event.id === referent?.lifecycle_event_id)?.interval ?? null,
@@ -186,18 +196,202 @@ export function timeSpan(frame, modelEnd = null) {
   return { start, end: end > start ? end : start + 1 };
 }
 
+// ---- Units of angle and length ---------------------------------------------------------------------------------------------
+export const GLOBE_RADIUS = 100;            // the sphere's radius, in scene units
+export const EARTH_RADIUS_M = 6_371_008.8;  // the mean radius of the Earth the sphere stands for, in metres
+export const GRATICULE_LIFT = 0.002;        // lines and marks stand this far above the surface, in scene units
+export const WIDE_SPAN = 30;                // a frame whose points span more degrees than this opens as a globe
+
+const ANGLES = [[/^(decimal[ _])?(arc[ _]?)?(deg(ree)?s?([ _](north|south|east|west|[nsew]))?|°[nsew]?)$/iu, 1], [/^rad(ian)?s?$/iu, 180 / Math.PI]];
+const LENGTHS = [[/^(m|meters?|metres?)$/iu, 1], [/^(km|kilometers?|kilometres?)$/iu, 1000], [/^(ft|foot|feet)$/iu, 0.3048], [/^(mi|miles?)$/iu, 1609.344]];
+const unitScale = (table, unit) => table.find(([pattern]) => pattern.test(String(unit).trim()))?.[1] ?? null;
+const undeclared = (unit) => unit == null || String(unit).trim() === '';
+// Degrees in one unit of an angle (a unit left undeclared is read as degrees, as the map reads it), else null.
+export const degreesPer = (unit) => (undeclared(unit) ? 1 : unitScale(ANGLES, unit));
+// Metres in one unit of length, else null (so an altitude with no length unit is not placed).
+export const metresPer = (unit) => (undeclared(unit) ? null : unitScale(LENGTHS, unit));
+const METRES_PER_DEGREE = EARTH_RADIUS_M * Math.PI / 180;
+
 // How a frame's coordinates lie on the ground and upward: x east, y north and z up; or, when the frame's axes are
 // latitude and longitude, a map with longitude narrowed by the cosine of the frame's middle latitude (and altitude
 // up). A coordinate on any other axis is described, not drawn.
 export function planeOf(frame) {
   const axes = frame.axes ?? []; const geo = axes.includes('latitude') && axes.includes('longitude');
-  const latitudes = geo ? frame.objects.map((object) => object.position[object.axes.indexOf('latitude')]).filter(finite) : [];
+  // Each axis is read in its own unit: angles in degrees (a unit that is not an angle is read as it is given), and an altitude in
+  // a length as the degrees of arc that length spans, so that it stands in scale beside them.
+  const degrees = (object, axis) => (geo && (axis === 'latitude' || axis === 'longitude') ? degreesPer(object.axisUnits?.[object.axes.indexOf(axis)]) ?? 1 : 1);
+  const latitudes = geo ? frame.objects.map((object) => object.position[object.axes.indexOf('latitude')] * degrees(object, 'latitude')).filter(finite) : [];
   const narrow = geo && latitudes.length ? Math.cos((latitudes.reduce((sum, value) => sum + value, 0) / latitudes.length) * Math.PI / 180) : 1;
   const east = geo ? 'longitude' : 'x', north = geo ? 'latitude' : 'y', up = geo ? (axes.includes('altitude') ? 'altitude' : 'z') : 'z';
   return { geo, narrow, east, north, up, coordinates(object, position) {
     const at = (axis) => { const i = object.axes.indexOf(axis); return i >= 0 ? position[i] : 0; };
-    return { east: at(east) * (geo ? narrow : 1), north: at(north), up: at(up) };
+    const metres = geo && up === 'altitude' ? metresPer(object.axisUnits?.[object.axes.indexOf('altitude')]) : null;
+    return { east: at(east) * degrees(object, east) * (geo ? narrow : 1), north: at(north) * degrees(object, north), up: metres === null ? at(up) : at(up) * metres / METRES_PER_DEGREE };
   } };
+}
+
+
+// ---- The Earth as a globe ----------------------------------------------------------------------------------------------
+// A frame whose axes are latitude and longitude lies on a sphere as well as on a map. Everything below is geometry: where
+// a declared latitude, longitude and altitude stand on a sphere, the great circle between two of them, the lines of a
+// graticule and where to stand to see a set of points. No coastline, border or name is drawn that a model does not declare.
+// Latitude and longitude in degrees and altitude in metres of one position of an object, each in the unit its own process
+// declares. Null when the object has no latitude and longitude, they are not angles, or the latitude cannot lie on a sphere.
+export function geodetic(object, position) {
+  const axes = object?.axes ?? [], [la, lo, al] = ['latitude', 'longitude', 'altitude'].map((axis) => axes.indexOf(axis));
+  if (la < 0 || lo < 0 || !position) return null;
+  const unitOf = (i) => (object.axisUnits ? object.axisUnits[i] ?? null : object.unit ?? null);
+  const kLat = degreesPer(unitOf(la)), kLon = degreesPer(unitOf(lo));
+  if (kLat === null || kLon === null) return null;
+  const latitude = position[la] * kLat, longitude = position[lo] * kLon;
+  if (!finite(latitude) || !finite(longitude) || Math.abs(latitude) > 90) return null;
+  const kAlt = al >= 0 ? metresPer(unitOf(al)) : null, lifted = al >= 0 && kAlt !== null && finite(position[al]);
+  return { latitude, longitude, altitude: lifted ? position[al] * kAlt : 0, altitudeDrawn: al < 0 || lifted };
+}
+export const globeRadiusAt = (altitude = 0) => GLOBE_RADIUS * (1 + altitude / EARTH_RADIUS_M);
+// A point on the globe: north up (+y), longitude 0 toward +z and east toward +x, so that east lies to the right from outside.
+export function globeXYZ(latitude, longitude, radius = GLOBE_RADIUS) {
+  const phi = latitude * Math.PI / 180, lambda = longitude * Math.PI / 180, flat = Math.cos(phi);
+  return [radius * flat * Math.sin(lambda), radius * Math.sin(phi), radius * flat * Math.cos(lambda)];
+}
+// The latitude and longitude, in degrees, of the direction in which a point lies from the globe's centre.
+export function globeAngles([x, y, z]) {
+  const r = Math.hypot(x, y, z) || 1;
+  return { latitude: Math.asin(Math.max(-1, Math.min(1, y / r))) * 180 / Math.PI, longitude: Math.atan2(x, z) * 180 / Math.PI };
+}
+// How many degrees of longitude the shortest arc of the circle covers that holds all of these (179 and -179 are 2 apart).
+export function circularSpan(degrees) {
+  const wrapped = [...new Set(degrees.filter(finite).map((value) => ((value % 360) + 360) % 360))].sort((a, b) => a - b);
+  if (wrapped.length < 2) return 0;
+  let gap = wrapped[0] + 360 - wrapped.at(-1);
+  for (let i = 1; i < wrapped.length; i += 1) gap = Math.max(gap, wrapped[i] - wrapped[i - 1]);
+  return 360 - gap;
+}
+// The model times at which an object's position can differ: the start, the ends of the span, its own interval and each declared step.
+export const sampleTimes = (object, span = null) => [...new Set([0, span?.start, span?.end, object.interval?.start, object.interval?.end, ...object.motion.flatMap((motion) => motion?.steps?.map((step) => step.t) ?? [])].filter(finite))];
+
+/** Whether a frame can be drawn on a globe, and how far its points spread. Null when its axes are not latitude and
+ * longitude, any of its positions (declared, or reached over time) is not an angle pair on a sphere, or nothing in it has
+ * both. `objects` are those it can draw; `left` the positions of the frame that have no latitude or longitude. `wide` says
+ * the points span more than WIDE_SPAN degrees of latitude or longitude, the case that opens as a globe. */
+export function globeOf(frame, span = null) {
+  if (!planeOf(frame).geo) return null;
+  const objects = [], left = [], latitudes = [], longitudes = [];
+  for (const object of frame.objects) {
+    if (!object.axes.includes('latitude') || !object.axes.includes('longitude')) { left.push(object); continue; }
+    const positions = [object.position, ...sampleTimes(object, span).map((time) => positionAt(object, time)).filter(Boolean)];
+    for (const position of positions) {
+      const at = geodetic(object, position);
+      if (!at) return null;
+      latitudes.push(at.latitude); longitudes.push(at.longitude);
+    }
+    objects.push(object);
+  }
+  if (!objects.length) return null;
+  const latitudeSpan = Math.max(...latitudes) - Math.min(...latitudes), longitudeSpan = circularSpan(longitudes);
+  return { objects, left, latitudeSpan, longitudeSpan, wide: Math.max(latitudeSpan, longitudeSpan) > WIDE_SPAN,
+    altitudeUndrawn: objects.filter((object) => geodetic(object, object.position)?.altitudeDrawn === false) };
+}
+
+/** Points along the great circle between two points of the globe (each [x, y, z]), at most `maxStep` degrees apart. The radius
+ * runs from one end's to the other's, `bulge`, a fraction of the chord, raises the middle, and `lift` raises all of it, so that
+ * a line on the surface is not hidden by a facet of the sphere. Used for what joins two places, which a straight line would
+ * carry through the Earth. */
+export function arcBetween(a, b, { maxStep = 1, bulge = 0, lift = 0 } = {}) {
+  const ra = Math.hypot(...a), rb = Math.hypot(...b);
+  if (!(ra > 0) || !(rb > 0)) return [[...a], [...b]];
+  const ua = a.map((value) => value / ra), ub = b.map((value) => value / rb);
+  const angle = Math.acos(Math.max(-1, Math.min(1, ua[0] * ub[0] + ua[1] * ub[1] + ua[2] * ub[2])));
+  const steps = Math.max(1, Math.ceil(angle * 180 / Math.PI / maxStep)), chord = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  // Opposite points have no one great circle between them: turn through the direction perpendicular to the first.
+  let across = null;
+  if (Math.PI - angle < 1e-6) {
+    const seed = Math.abs(ua[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0], c = [ua[1] * seed[2] - ua[2] * seed[1], ua[2] * seed[0] - ua[0] * seed[2], ua[0] * seed[1] - ua[1] * seed[0]], size = Math.hypot(...c);
+    across = c.map((value) => value / size);
+  }
+  const points = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const s = i / steps; let direction;
+    if (across) direction = ua.map((value, k) => value * Math.cos(Math.PI * s) + across[k] * Math.sin(Math.PI * s));
+    else if (angle < 1e-9) direction = ua;
+    else direction = ua.map((value, k) => (value * Math.sin((1 - s) * angle) + ub[k] * Math.sin(s * angle)) / Math.sin(angle));
+    const radius = ra + (rb - ra) * s + bulge * chord * Math.sin(Math.PI * s) + lift;
+    points.push(direction.map((value) => value * radius));
+  }
+  // The ends are where the points are, raised by the lift like the rest.
+  if (!lift) { points[0] = [...a]; points[steps] = [...b]; }
+  return points;
+}
+
+export const GRATICULE_STEPS = [30, 10, 5, 2, 1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001, 0.0005, 0.0002, 0.0001];
+// The spacing, in degrees, of the graticule for a view that reaches `half` degrees from its centre to its nearest edge: the
+// largest that still leaves several cells across. A whole globe is seen at 30.
+export const graticuleStep = (half) => (finite(half) ? GRATICULE_STEPS.find((step) => step <= half / 2.2) ?? GRATICULE_STEPS.at(-1) : 30);
+
+/** How many degrees of the sphere a camera sees, centred on the point below it (the camera looks at the globe's centre): `half`
+ * to the nearest edge of the view and `reach` to its corner, both capped at the horizon. */
+export function viewArc(distance, fov, aspect, radius = GLOBE_RADIUS) {
+  const limb = Math.asin(Math.min(1, radius / Math.max(distance, radius)));
+  const central = (angle) => { const seen = Math.min(angle, limb); return (Math.asin(Math.min(1, distance * Math.sin(seen) / radius)) - seen) * 180 / Math.PI; };
+  const half = Math.tan(fov * Math.PI / 360);
+  return { half: central(Math.atan(half * Math.min(1, aspect))), reach: central(Math.atan(half * Math.hypot(1, aspect))) };
+}
+
+/** Latitude and longitude lines every `step` degrees, as pairs of end points of segments no longer than `segment` degrees. A
+ * finer graticule is drawn only around the view (`reach` degrees from `latitude`, `longitude`), so that it stays light. The
+ * equator and the prime meridian are returned apart, as `major`, to be drawn a little stronger. */
+export function graticuleLines({ step, latitude = 0, longitude = 0, reach = 180, segment = 0.5, radius = GLOBE_RADIUS + GRATICULE_LIFT }) {
+  const south = Math.max(-90, latitude - reach), north = Math.min(90, latitude + reach);
+  const lonReach = reach / Math.max(0.02, Math.cos(Math.min(89.9, Math.max(Math.abs(south), Math.abs(north))) * Math.PI / 180));
+  const everywhere = reach >= 90 || south <= -90 || north >= 90 || lonReach >= 180;
+  const west = everywhere ? -180 : longitude - lonReach, east = everywhere ? 180 : longitude + lonReach;
+  const clean = (value) => Number(value.toFixed(7)), parallels = [], meridians = [], minor = [], major = [];
+  for (let i = Math.ceil(south / step - 1e-9); i * step <= north + 1e-9; i += 1) { const value = clean(i * step); if (Math.abs(value) < 90 - 1e-9) parallels.push(value); }
+  for (let i = Math.ceil(west / step - 1e-9); i * step <= east + 1e-9; i += 1) { const value = clean(i * step); if (!everywhere || value < 180 - 1e-9) meridians.push(value); }
+  const run = (target, points) => { for (let k = 1; k < points.length; k += 1) target.push(...points[k - 1], ...points[k]); };
+  for (const value of parallels) {
+    const n = Math.max(1, Math.ceil((east - west) / segment));
+    run(value === 0 ? major : minor, Array.from({ length: n + 1 }, (_, k) => globeXYZ(value, west + (east - west) * k / n, radius)));
+  }
+  for (const value of meridians) {
+    const n = Math.max(1, Math.ceil((north - south) / segment));
+    run(value === 0 ? major : minor, Array.from({ length: n + 1 }, (_, k) => globeXYZ(south + (north - south) * k / n, value, radius)));
+  }
+  return { minor, major, parallels, meridians, everywhere, south, north, west, east };
+}
+
+/** Where to write the degrees of a graticule: latitudes down the western edge of the view and longitudes along its southern
+ * edge, so they stay beside whatever is looked at. `half` is the view's reach to its nearest edge, in degrees. */
+export function graticuleTicks({ step, latitude, longitude, half }) {
+  const decimals = Math.max(0, Math.ceil(-Math.log10(step) - 1e-9)), size = (value) => Math.abs(value).toFixed(decimals);
+  const wrap = (value) => { const turned = (((value + 180) % 360) + 360) % 360 - 180; return turned === -180 ? 180 : turned; };
+  const near = (values, around) => values.sort((a, b) => Math.abs(a - around) - Math.abs(b - around)).slice(0, 14);
+  const westLongitude = longitude - 0.6 * half / Math.max(0.25, Math.cos(latitude * Math.PI / 180)), southLatitude = Math.max(-88, Math.min(88, latitude - 0.6 * half));
+  const lats = [], lons = [], lonRange = 0.85 * half / Math.max(0.25, Math.cos(southLatitude * Math.PI / 180));
+  for (let i = Math.ceil((latitude - 0.85 * half) / step - 1e-9); i * step <= latitude + 0.85 * half + 1e-9; i += 1) { const value = Number((i * step).toFixed(7)); if (Math.abs(value) < 90 - 1e-9) lats.push(value); }
+  for (let i = Math.ceil((longitude - lonRange) / step - 1e-9); i * step <= longitude + lonRange + 1e-9; i += 1) lons.push(Number((i * step).toFixed(7)));
+  return [
+    ...near(lats, latitude).map((value) => ({ axis: 'latitude', value, text: `${size(value)}°${value > 0 ? 'N' : value < 0 ? 'S' : ''}`, latitude: value, longitude: westLongitude })),
+    ...near(lons, longitude).map((value) => { const at = wrap(value); return { axis: 'longitude', value: at, text: `${size(at)}°${at > 0 && at < 180 ? 'E' : at < 0 ? 'W' : ''}`, latitude: southLatitude, longitude: value }; }),
+  ];
+}
+
+/** Where to stand to see these points ([x, y, z] on or above the globe): over their centre, far enough away that all of them
+ * fit, or far enough to see the whole globe when they spread over more than half of it. The camera looks at the centre. */
+export function globeFraming(points, { fov = 42, aspect = 1.6, radius = GLOBE_RADIUS, minAltitude = 0.01 } = {}) {
+  const units = points.map(([x, y, z]) => { const r = Math.hypot(x, y, z) || 1; return [x / r, y / r, z / r]; });
+  const half = Math.atan(Math.tan(fov * Math.PI / 360) * Math.min(1, aspect)), whole = radius / Math.sin(half * 0.9);
+  let mean = units.reduce((sum, unit) => [sum[0] + unit[0], sum[1] + unit[1], sum[2] + unit[2]], [0, 0, 0]);
+  // Points all round the Earth have no centre, and no points have none either: start from the first, else from a fixed view.
+  if (Math.hypot(...mean) < 1e-6) mean = units[0] ?? [0.3, 0.4, 0.86];
+  const { latitude, longitude } = globeAngles(mean), direction = globeXYZ(Math.max(-85, Math.min(85, latitude)), longitude, 1);
+  const theta = units.reduce((worst, unit) => Math.max(worst, Math.acos(Math.max(-1, Math.min(1, unit[0] * direction[0] + unit[1] * direction[1] + unit[2] * direction[2])))), 0);
+  let distance = whole;
+  if (units.length && theta < 50 * Math.PI / 180) {
+    const need = Math.max(theta * 1.35, 0.4 * Math.PI / 180);
+    distance = Math.min(whole, radius * Math.cos(need) + radius * Math.sin(need) / Math.tan(half * 0.85));
+  }
+  return { direction, distance: Math.max(distance, radius + minAltitude), spread: theta * 180 / Math.PI };
 }
 
 
@@ -320,8 +514,10 @@ const isPassage = (node) => node?.role === 'story_passage' || /(^|[._])(passage|
 
 /** The Events a frame can show where they happen, as the model declares it, and what is attached to them. An Event is
  * placed where a position it moves stands (its `process_ids`), else at a place it is declared to be located in whose
- * position the frame holds. Nothing is placed by containment, participants or the words of a region. Notes and
- * passages come from the narrative graph's own edges to the Event; causal links join two placed Events. */
+ * position the frame holds: of several such places, the most specific, one no other of them lies within by the
+ * encapsulation cuts (a country before its region), and otherwise the first declared. Nothing is placed by containment
+ * alone, participants or the words of a region. Notes and passages come from the narrative graph's own edges to the
+ * Event; causal links join two placed Events. */
 export function placedEvents(model = {}, graph = {}, frames = []) {
   const meaning = model.meaning_model ?? {}, events = array(meaning.events);
   const byProcess = new Map(), byPlace = new Map();
@@ -330,8 +526,28 @@ export function placedEvents(model = {}, graph = {}, frames = []) {
     if (own) for (const id of object.processIds) if (!byProcess.has(id)) byProcess.set(id, { index, object });
     const ref = own ? object.referentId : object.placeId; if (ref && !byPlace.has(ref)) byPlace.set(ref, { index, object });
   } });
+  // The places each place lies within, by the encapsulation cuts, so an Event declared in a region and in a country
+  // inside it stands at the country.
+  const containers = new Map();
+  for (const cut of array(meaning.encapsulation_cuts)) for (const child of array(cut?.children)) {
+    if (!cut.parent_referent_id || !child?.referent_id) continue;
+    if (!containers.has(child.referent_id)) containers.set(child.referent_id, []);
+    containers.get(child.referent_id).push(cut.parent_referent_id);
+  }
+  const liesWithin = (inner, outer) => {
+    const seen = new Set(), stack = [...(containers.get(inner) ?? [])];
+    while (stack.length) { const at = stack.pop(); if (at === outer) return true; if (seen.has(at)) continue; seen.add(at); stack.push(...(containers.get(at) ?? [])); }
+    return false;
+  };
+  const declared = new Map();
+  for (const binding of array(meaning.event_referent_bindings)) if (binding?.target?.kind === 'event' && LOCATED.has(binding.binding_type) && byPlace.has(binding.referent_id)) {
+    const list = declared.get(binding.target.event_id) ?? []; if (!list.includes(binding.referent_id)) list.push(binding.referent_id); declared.set(binding.target.event_id, list);
+  }
   const located = new Map();
-  for (const binding of array(meaning.event_referent_bindings)) if (binding?.target?.kind === 'event' && LOCATED.has(binding.binding_type) && byPlace.has(binding.referent_id) && !located.has(binding.target.event_id)) located.set(binding.target.event_id, { ...byPlace.get(binding.referent_id), placeId: binding.referent_id });
+  for (const [eventId, places] of declared) {
+    const placeId = places.find((place) => !places.some((other) => other !== place && liesWithin(other, place))) ?? places[0];
+    located.set(eventId, { ...byPlace.get(placeId), placeId });
+  }
   const nodes = new Map(array(graph.nodes).map((node) => [node.id, node]));
   const attached = new Map();
   for (const edge of array(graph.edges)) {

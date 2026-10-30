@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { LifeSimulationService } from '../src/service.mjs';
 import { buildViewerData } from '../src/viewer-data.mjs';
+import { globeAngles, GLOBE_RADIUS, EARTH_RADIUS_M } from '../viewer/public/space-model.js';
+import { viewSettingsProblems } from '../viewer/public/view-settings.js';
 
 // Run the real Space and Graph renderers on real snapshots: the real three.js scene graph, a minimal page, and only the
 // WebGL output, the label layer and the camera controls replaced. A render path that throws (as a variable used
@@ -14,12 +16,12 @@ const publicUrl = new URL('../viewer/public/', import.meta.url).href;
 const harness = String.raw`
 import { registerHooks } from 'node:module';
 import { readFileSync } from 'node:fs';
-const [, publicUrl, snapshotPath, which] = process.argv;
+const [, publicUrl, snapshotPath, which, optionsText] = process.argv; const options = JSON.parse(optionsText ?? '{}');
 const errors = [];
 const fakes = {
   three: 'export * from ' + JSON.stringify(publicUrl + 'vendor/three/three.module.js') + ';\n' +
-    'export class WebGLRenderer { constructor() { this.domElement = document.createElement("canvas"); this.frames = 0; } setPixelRatio() {} setSize() {} render() { this.frames += 1; } dispose() {} }',
-  controls: 'import { Vector3, EventDispatcher } from "three"; export class OrbitControls extends EventDispatcher { constructor(camera, element) { super(); this.object = camera; this.domElement = element; this.target = new Vector3(); this.enabled = true; } update() { return false; } dispose() {} }',
+    'export class WebGLRenderer { constructor() { this.domElement = document.createElement("canvas"); this.domElement.renderer = this; this.frames = 0; } setPixelRatio() {} setSize() {} render(scene, camera) { this.frames += 1; this.scene = scene; this.camera = camera; scene.updateMatrixWorld(); } dispose() {} }',
+  controls: 'import { Vector3, EventDispatcher } from "three"; export class OrbitControls extends EventDispatcher { constructor(camera, element) { super(); this.object = camera; this.domElement = element; this.target = new Vector3(); this.enabled = true; globalThis.lastControls = this; } update() { this.object.lookAt(this.target); return false; } dispose() {} }',
   labels: 'import { Object3D, Vector2 } from "three"; export class CSS2DObject extends Object3D { constructor(element = document.createElement("div")) { super(); this.element = element; this.center = new Vector2(0.5, 0.5); } } export class CSS2DRenderer { constructor() { this.domElement = document.createElement("div"); } setSize() {} render() {} }',
 };
 registerHooks({
@@ -125,6 +127,57 @@ try {
     }
     report.state = view.getState(); report.summary = surface.querySelector('.space-summary')?.textContent?.slice(0, 200) ?? null;
     view.coarse?.(); run(1); view.recenter?.(); view.deactivate(); view.destroy();
+  } else if (which === 'globe') {
+    // The Earth drawn as a globe or flat: what the scene holds, where the marks stand, the choice kept in the address, and what a
+    // frame without latitude and longitude draws.
+    globalThis.location = { href: 'http://viewer.test/viewer/?view=space' + (options.search ?? ''), pathname: '/viewer/', search: '?view=space' + (options.search ?? '') };
+    globalThis.history = { state: null, replaceState(_state, _title, url) { const next = new URL(String(url)); globalThis.location.href = next.href; globalThis.location.search = next.search; } };
+    const { showSpace } = await import(publicUrl + 'space-view.js'); const { Vector3 } = await import('three');
+    const view = showSpace(data, { host, tools: controls, detail, surface, onSelect: () => {} });
+    view.activate('space', { selection: null, time: null }); run();
+    const renderer = host.querySelector('canvas').renderer, track = document.getElementById('track');
+    const buttons = () => Object.fromEntries(controls.querySelectorAll('button').filter((node) => node.textContent === 'Globe' || node.textContent === 'Map').map((node) => [node.textContent, { hidden: node.hidden, pressed: node.getAttribute('aria-pressed') }]));
+    const scan = () => {
+      const found = { sphere: 0, grids: 0, graticule: 0, major: 0, marks: {}, labels: {}, ticks: [], events: [], lights: [], spreads: [], lines: { trail: [], link: [], drop: [], causal: [] } };
+      renderer.scene.traverse((node) => {
+        const kind = node.userData ? node.userData.globe : undefined;
+        if (kind === 'sphere') found.sphere += 1;
+        if (kind === 'graticule') found.graticule += node.geometry.attributes.position.count / 2;
+        if (kind === 'major') found.major += node.geometry.attributes.position.count / 2;
+        if (node.type === 'GridHelper') found.grids += 1;
+        if (node.userData && node.userData.object) found.marks[node.userData.object.label] = { position: node.position.toArray(), visible: node.visible };
+        if (node.element && node.element.classes.has('space-label')) found.labels[node.element.textContent] = node.element.style.visibility;
+        if (node.element && node.element.classes.has('space-tick') && node.visible) found.ticks.push(node.element.textContent);
+        if (node.userData && node.userData.placed) found.events.push({ id: node.userData.placed.id, position: node.position.toArray(), visible: node.visible });
+        if (kind === 'spread') found.spreads.push({ centre: new Vector3(0, 1, 0).applyQuaternion(node.quaternion).toArray(), radians: node.geometry.parameters.thetaLength, visible: node.visible });
+        if (node.userData && node.userData.attachment) found.lights.push({ position: node.position.toArray(), visible: node.visible });
+        if (found.lines[kind]) {
+          const attribute = node.geometry.attributes.position, count = attribute ? Math.min(attribute.count, node.geometry.drawRange.count) : 0, points = [];
+          for (let i = 0; i < count; i += 1) points.push([attribute.getX(i), attribute.getY(i), attribute.getZ(i)]);
+          found.lines[kind].push({ visible: node.visible, points });
+        }
+      });
+      return found;
+    };
+    // What the controls and the light are set to: the globe changes them, and the map must find them as it always had them.
+    const settings = () => { const c = globalThis.lastControls; let sun = null; renderer.scene.traverse((node) => { if (node.isDirectionalLight) sun = node.position.toArray(); });
+      return { pan: c.enablePan, zoom: c.enableZoom, min: c.minDistance, max: String(c.maxDistance), zoomSpeed: c.zoomSpeed, rotateSpeed: c.rotateSpeed, target: c.target.toArray(), near: renderer.camera.near, far: renderer.camera.far, sun }; };
+    const look = () => ({ buttons: buttons(), state: view.getState(), scene: scan(), camera: renderer.camera.position.toArray(), address: globalThis.location.search, controls: settings() });
+    const click = (text) => { controls.querySelectorAll('button').find((node) => node.textContent === text).click(); run(2); };
+    const seek = (fraction) => { track.dispatchEvent({ type: 'pointerdown', clientX: fraction * 640, clientY: 0, pointerId: 1, preventDefault() {} }); run(2); };
+    report.opened = look();
+    // A click on the globe where nothing is picks nothing, and does not fail.
+    press(host.querySelector('canvas'), 320, 200); run(1);
+    if (options.script) {
+      seek(13 / 48); report.during = look();
+      seek(1); report.late = look();
+      seek(0); click('Map'); report.map = look();
+      click('Globe'); report.back = look();
+      // Seen from the far side of the world, what is behind the horizon is behind the globe, and its name is not shown.
+      const turned = view.getState(); turned.spaceCamera = { position: [0, 0, -300], target: [0, 0, 0], near: 1, far: 1000, fov: 42, zoom: 1, drawing: 'globe' };
+      view.activate('space', turned); run(2); report.antipode = look();
+    } else if (options.toggle) { click(options.toggle); report.toggled = look(); }
+    view.deactivate(); view.destroy();
   } else {
     const { showGraph } = await import(publicUrl + 'graph-view.js');
     const readerCopy = add(body, 'aside', 'graph-reader'); readerCopy.hidden = true; add(readerCopy, 'div', '', 'source');
@@ -153,11 +206,11 @@ try {
 process.stdout.write(JSON.stringify(report));
 `;
 
-function render(which, data) {
+function render(which, data, options = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'viewer-renderers-'));
   try {
     const path = join(dir, 'snapshot.json'); writeFileSync(path, JSON.stringify(data));
-    return JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', harness, publicUrl, path, which], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }));
+    return JSON.parse(execFileSync(process.execPath, ['--input-type=module', '-e', harness, publicUrl, path, which, JSON.stringify(options)], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }));
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 
@@ -206,6 +259,149 @@ test('the Space renderer runs every frame, focus, play and selection without an 
   assert.notDeepEqual(drawn.removedFramePosition, [999, 999, 999], 'a removed frame cannot restore its camera into another frame');
   const listed = render('space', plain);
   assert.deepEqual(listed.errors, []); assert.match(listed.summary ?? '', /No coordinates are declared/u);
+});
+
+// A small world in a geodetic frame: four cities on four continents (one with a declared spread), a ship that moves at a declared
+// rate, an aircraft with an altitude, two Events at once with one causing the other; and a pair of points close together.
+async function geoSnapshots(t) {
+  const service = new LifeSimulationService(); t.after(() => service.close()); await service.initialize();
+  const provenance = ['globe test'];
+  const scalar = (id, value, scale, extra = {}) => ({ id, value_type: { kind: 'scalar', bounds: { minimum: -1e7, maximum: 1e7 } }, initial_value: { kind: 'scalar', value }, uncertainty: { kind: 'exact' },
+    provenance, unit: 'degree', reference_frame: 'WGS84', scale: { semantic_role: 'position', ...scale }, support: ['a gazetteer'], access_scopes: [], update_mode: 'static', ...extra });
+  const at = (id, latitude, longitude, extra = {}) => [['latitude', latitude], ['longitude', longitude]].map(([axis, value]) => scalar(`${id}.position.${axis}`, value, { axis }, { support: [`spatial_entity:${id}`], ...extra }));
+  const named = (id, boundary) => ({ id, boundary, continuity_criterion: 'the same thing', provenance });
+  const bind = (referent, process) => ({ id: `where.${process}`, target: { kind: 'process', process_id: process }, role: 'position', referent_id: referent, binding_type: 'position of', provenance });
+  const register = async (name, model) => {
+    const registered = await service.registerModel({ requestId: name, model });
+    const { model: definition } = await service.inspectModel({ modelHash: registered.modelHash, includeDefinition: true });
+    return buildViewerData({ history: { models: [{ modelHash: registered.modelHash, definition }], revisions: [] }, generatedAt: '2026-10-25T12:00:00.000Z' });
+  };
+  const frame = (id, processes, meaning) => ({ schema: 'life-sim-rust-model/v1', id, time_unit: 'hour', revision: { number: 0, reason: 'Globe test', provenance }, processes, decomposition: [], dependencies: [], laws: [], initial_claims: [],
+    meaning_model: { schema: 'life-sim-rust-meaning-model/v1', context_roots: [{ event_id: 'tour', kind: 'accepted_world', provenance }], ...meaning } });
+  const world = frame('globe-world', [
+    ...at('london', 51.5074, -0.1278), ...at('new_york', 40.7128, -74.006, { uncertainty: { kind: 'standard_deviation', value: 0.5 } }), ...at('tokyo', 35.6762, 139.6503), ...at('sydney', -33.8688, 151.2093),
+    ...at('ship', 35, -60), scalar('ship.velocity.longitude', 1.5, { semantic_role: 'velocity', axis: 'longitude' }, { unit: 'degree/hour' }),
+    // The altitude is in metres beside angles in degrees; its id sorts before the latitude's, as a canonical model's does.
+    ...at('aircraft', 36.2, 138.2), scalar('aircraft.position.altitude', 10000, { axis: 'altitude' }, { unit: 'm', support: ['spatial_entity:aircraft'] }),
+  ], {
+    referents: [named('place.london', 'London, a city'), named('place.new_york', 'New York, a city'), named('place.tokyo', 'Tokyo, a city'), named('place.sydney', 'Sydney, a city'), named('thing.ship', 'The Atlantic Ship, a vessel'), named('thing.aircraft', 'The Aircraft, a plane')],
+    events: [{ id: 'tour', boundary: 'The tour', interval: { start: 0, end: 48 }, provenance },
+      { id: 'summit', boundary: 'A summit in Tokyo', interval: { start: 10, end: 16 }, process_ids: ['tokyo.position.latitude'], provenance },
+      { id: 'conference', boundary: 'A conference in New York', interval: { start: 12, end: 18 }, process_ids: ['new_york.position.latitude'], provenance }],
+    event_referent_bindings: [['place.london', 'london'], ['place.new_york', 'new_york'], ['place.tokyo', 'tokyo'], ['place.sydney', 'sydney'], ['thing.ship', 'ship'], ['thing.aircraft', 'aircraft']].map(([referent, id]) => bind(referent, `${id}.position.latitude`)),
+    event_relations: [{ id: 'c1', kind: 'contains', source_event_id: 'tour', target_event_id: 'summit', provenance }, { id: 'c2', kind: 'contains', source_event_id: 'tour', target_event_id: 'conference', provenance },
+      { id: 'cause', kind: 'causes', source_event_id: 'summit', target_event_id: 'conference', provenance }],
+  });
+  world.dependencies = [{ id: 'ship.dependency', source: 'ship.velocity.longitude', target: 'ship.position.longitude', kind: 'causes', law_id: 'ship.sails' }];
+  world.laws = [{ id: 'ship.sails', operator: { role: 'evolution', target: 'ship.position.longitude', derivative: { op: 'process', process: 'ship.velocity.longitude' } }, provenance }];
+  const pair = frame('globe-pair', [...at('swindon', 51.558, -1.782), ...at('avebury', 51.428, -1.854)], {
+    referents: [named('place.swindon', 'Swindon, a town'), named('place.avebury', 'Avebury, a village')], events: [{ id: 'tour', boundary: 'A day', interval: { start: 0, end: 24 }, provenance }],
+    event_referent_bindings: [bind('place.swindon', 'swindon.position.latitude'), bind('place.avebury', 'avebury.position.latitude')] });
+  return { world: await register('globe-world', world), pair: await register('globe-pair', pair) };
+}
+const where = (mark) => globeAngles(mark.position);
+const near = (actual, expected, tolerance, message) => assert.ok(Math.abs(actual - expected) < tolerance, `${message}: ${actual} is not ${expected}`);
+
+test('a frame of latitudes and longitudes opens as a globe when its points span a wide part of the Earth, with each position where it is declared', async (t) => {
+  const { world } = await geoSnapshots(t);
+  // A note on one Event and a passage on the other, from the story graph's own edges to them.
+  world.inspection.graph = { nodes: [{ id: 'note.summit', kind: 'understanding', node_type: 'understanding', text: 'What the summit settled.' }, { id: 'passage.conference', kind: 'passage', node_type: 'passage', role: 'story_passage', text: 'The delegates gathered.' }],
+    edges: [['note.summit', 'summit'], ['passage.conference', 'conference']].map(([node, event]) => ({ source: { kind: 'node', node_id: node }, target: { kind: 'anchor', anchor_kind: 'event', anchor_id: event }, relation: 'about', family: 'grounding' })) };
+  const drawn = render('globe', world, { script: true });
+  assert.deepEqual(drawn.errors, []);
+  const { opened } = drawn;
+  assert.equal(opened.state.spaceCamera.drawing, 'globe'); assert.equal(opened.state.space.earth, null, 'nothing is chosen yet: the span decides');
+  const { labels, ticks } = drawn.antipode.scene;
+  assert.deepEqual([labels.London, labels['New York'], labels.Sydney], ['hidden', 'hidden', 'visible'], 'from over the Pacific, London and New York are behind the globe and Sydney is not');
+  assert.ok(ticks.length > 4 && ticks.every((text) => /°/u.test(text)), 'the degrees are written beside the graticule, and nothing else');
+  assert.deepEqual(opened.buttons, { Globe: { hidden: false, pressed: 'true' }, Map: { hidden: false, pressed: 'false' } });
+  assert.equal(opened.scene.sphere, 1); assert.equal(opened.scene.grids, 0, 'the globe replaces the flat grid');
+  assert.ok(opened.scene.graticule > 100 && opened.scene.major > 100, 'a graticule is drawn, with the equator and the prime meridian apart');
+  // Each declared position is in the direction of its latitude and longitude from the globe's centre.
+  for (const [label, latitude, longitude] of [['London', 51.5074, -0.1278], ['New York', 40.7128, -74.006], ['Tokyo', 35.6762, 139.6503], ['Sydney', -33.8688, 151.2093], ['Aircraft', 36.2, 138.2], ['Atlantic Ship', 35, -60]]) {
+    const mark = opened.scene.marks[label]; assert.ok(mark, `${label} is drawn`);
+    const here = where(mark); near(here.latitude, latitude, 1e-6, `${label} latitude`); near(here.longitude, longitude, 1e-6, `${label} longitude`);
+  }
+  assert.ok(Math.hypot(...opened.camera) > GLOBE_RADIUS * 2 && Math.hypot(...opened.camera) < GLOBE_RADIUS * 5, 'a wide spread is seen from far enough to see the globe');
+  // The controls turn about the globe's centre without panning off it, and stop above the surface; wheel and drag scale with the height.
+  assert.deepEqual([opened.controls.pan, opened.controls.target, opened.controls.max], [false, [0, 0, 0], String(GLOBE_RADIUS * 7)]); assert.ok(opened.controls.min > GLOBE_RADIUS && opened.controls.min < GLOBE_RADIUS + 0.1);
+  assert.ok(opened.controls.zoomSpeed > 1 && opened.controls.zoomSpeed < 3.3 && opened.controls.rotateSpeed > 0.1 && opened.controls.rotateSpeed < 0.6, 'from orbit a notch of the wheel is about a seventh of the height');
+  assert.ok(opened.controls.near > 10 && opened.controls.far > Math.hypot(...opened.camera) + GLOBE_RADIUS, 'the clipping planes follow the camera');
+  // A declared spread is a cap of the sphere about the place, as wide as the declared angle (the longitude's narrowed by the cosine of the latitude).
+  const [cap] = opened.scene.spreads; assert.equal(opened.scene.spreads.length, 1, 'only New York declares a spread'); assert.ok(cap.visible);
+  const centre = where({ position: cap.centre }); near(centre.latitude, 40.7128, 1e-6, 'the cap is over New York'); near(centre.longitude, -74.006, 1e-6, 'the cap is over New York');
+  near(cap.radians * 180 / Math.PI, 0.5, 1e-9, 'half a degree across the surface');
+  // An altitude is to scale, with a line down to the ground that shows it is raised.
+  const [drop] = opened.scene.lines.drop; assert.equal(opened.scene.lines.drop.length, 1);
+  // (Line vertices are kept in single precision, so these are compared to a ten-thousandth.)
+  near(Math.hypot(...drop.points[0]), GLOBE_RADIUS, 1e-4, 'the ground'); near(Math.hypot(...drop.points[1]), GLOBE_RADIUS * (1 + 10000 / EARTH_RADIUS_M), 1e-4, 'the altitude of 10,000 metres');
+  // What moves, moves as declared: the ship's longitude grows 1.5 degrees an hour, and its trail follows the surface.
+  near(where(drawn.late.scene.marks['Atlantic Ship']).longitude, -60 + 1.5 * 48, 1e-6, 'the ship after 48 hours'); assert.equal(drawn.late.state.space.time, 48);
+  const [trail] = opened.scene.lines.trail; assert.equal(opened.scene.lines.trail.length, 1, 'only what moves leaves a trail');
+  const stand = trail.points.map((point) => globeAngles(point));
+  near(stand[0].longitude, -60, 1e-3, 'the trail starts where the ship does'); near(stand.at(-1).longitude, 12, 1e-3, 'and ends where it will be');
+  for (const [i, point] of trail.points.entries()) {
+    assert.ok(Math.hypot(...point) >= GLOBE_RADIUS, 'the trail is never inside the globe');
+    if (i) { const a = trail.points[i - 1], dot = (a[0] * point[0] + a[1] * point[1] + a[2] * point[2]) / (Math.hypot(...a) * Math.hypot(...point)); assert.ok(Math.acos(Math.min(1, dot)) * 180 / Math.PI <= 0.5 + 1e-3, 'in pieces of at most half a degree'); }
+  }
+  // Two Events at once, one causing the other, are joined by an arc that rises over the surface; apart in time they are not drawn.
+  assert.equal(opened.scene.lines.causal.length, 1); assert.equal(opened.scene.lines.causal[0].visible, false);
+  const [arc] = drawn.during.scene.lines.causal; assert.equal(arc.visible, true); assert.ok(arc.points.length > 3);
+  assert.ok(arc.points.every((point) => Math.hypot(...point) >= GLOBE_RADIUS), 'an arc between places does not pass through the Earth');
+  // Each Event stands over its place, with its note or passage beside it as a light; the stacks are as tall as the camera sets them.
+  const events = Object.fromEntries(drawn.during.scene.events.map((event) => [event.id, event]));
+  for (const [id, label] of [['summit', 'Tokyo'], ['conference', 'New York']]) {
+    assert.ok(events[id].visible, `${id} is drawn while it happens`);
+    const place = where(drawn.during.scene.marks[label]), over = where(events[id]);
+    assert.ok(Math.abs(place.latitude - over.latitude) < 25 && Math.abs(place.longitude - over.longitude) < 25, `${id} stands over its place`);
+    assert.ok(Math.hypot(...events[id].position) > GLOBE_RADIUS, `${id} stands above the surface`);
+  }
+  assert.equal(drawn.during.scene.lights.length, 2); assert.ok(drawn.during.scene.lights.every((light) => light.visible && Math.min(...drawn.during.scene.events.map((event) => Math.hypot(...light.position.map((v, i) => v - event.position[i])))) < 25), 'a note or passage is a light beside its Event');
+});
+
+test('the Globe and Map buttons change how the Earth is drawn, and the choice is kept in the address', async (t) => {
+  const { world } = await geoSnapshots(t);
+  const drawn = render('globe', world, { script: true });
+  assert.deepEqual(drawn.errors, []);
+  const { map, back } = drawn;
+  assert.equal(map.state.spaceCamera.drawing, 'map'); assert.equal(map.state.space.earth, 'map');
+  assert.equal(map.scene.sphere, 0, 'no globe on the map'); assert.equal(map.scene.grids, 1, 'the flat grid is back'); assert.equal(map.scene.graticule, 0);
+  assert.deepEqual(map.buttons, { Globe: { hidden: false, pressed: 'false' }, Map: { hidden: false, pressed: 'true' } });
+  assert.match(map.address, /[?&]earth=map(&|$)/u);
+  for (const mark of Object.values(map.scene.marks)) assert.ok(mark.position.every((value) => Math.abs(value) <= GLOBE_RADIUS), 'the map is drawn within its own scale');
+  // Back on the map, every control and the light are as the map has always had them: nothing of the globe is left behind.
+  assert.deepEqual([map.controls.pan, map.controls.zoom, map.controls.min, map.controls.max, map.controls.zoomSpeed, map.controls.rotateSpeed, map.controls.sun], [true, true, 0, 'Infinity', 1, 1, [30, 100, 40]]);
+  assert.equal(back.state.spaceCamera.drawing, 'globe'); assert.equal(back.scene.sphere, 1); assert.equal(back.scene.grids, 0, 'the globe leaves nothing of the map');
+  assert.equal(back.controls.pan, false, 'and the globe sets them again');
+  assert.match(back.address, /[?&]earth=globe(&|$)/u); assert.equal(back.state.space.earth, 'globe');
+  // A reload opens as the address says, whatever the span. The choice is a view setting, so a view the model chooses can set it
+  // and a change to a followed view marks it adjusted.
+  const asked = render('globe', world, { search: '&earth=map' });
+  assert.deepEqual(asked.errors, []); assert.equal(asked.opened.state.spaceCamera.drawing, 'map'); assert.equal(asked.opened.buttons.Map.pressed, 'true');
+  assert.deepEqual(viewSettingsProblems({ earth: 'map' }), []); assert.match(viewSettingsProblems({ earth: 'flat' })[0], /^earth=flat must be one of globe, map/u);
+});
+
+test('a frame of latitudes and longitudes that spans a small part of the Earth opens as a map, with the globe a click away', async (t) => {
+  const { pair } = await geoSnapshots(t);
+  const flat = render('globe', pair);
+  assert.deepEqual(flat.errors, []); assert.equal(flat.opened.state.spaceCamera.drawing, 'map'); assert.equal(flat.opened.scene.sphere, 0); assert.equal(flat.opened.scene.grids, 1);
+  assert.deepEqual(flat.opened.buttons, { Globe: { hidden: false, pressed: 'false' }, Map: { hidden: false, pressed: 'true' } }); assert.equal(flat.opened.state.space.earth, null);
+  const turned = render('globe', pair, { toggle: 'Globe' });
+  assert.deepEqual(turned.errors, []); assert.equal(turned.toggled.state.spaceCamera.drawing, 'globe'); assert.equal(turned.toggled.scene.sphere, 1);
+  const swindon = where(turned.toggled.scene.marks.Swindon), avebury = where(turned.toggled.scene.marks.Avebury);
+  near(swindon.latitude, 51.558, 1e-6, 'Swindon'); near(swindon.longitude, -1.782, 1e-6, 'Swindon'); near(avebury.latitude, 51.428, 1e-6, 'Avebury'); near(avebury.longitude, -1.854, 1e-6, 'Avebury');
+  assert.ok(Math.hypot(...turned.toggled.camera) - GLOBE_RADIUS < 20, 'two nearby points are seen from close by, not from orbit');
+  const asked = render('globe', pair, { search: '&earth=globe' });
+  assert.equal(asked.opened.state.spaceCamera.drawing, 'globe', 'a choice beats the span');
+});
+
+test('a frame without latitude and longitude is drawn as it always was, with no globe offered', async (t) => {
+  const { data } = await snapshots(t);
+  const drawn = render('globe', data);
+  assert.deepEqual(drawn.errors, []);
+  assert.equal(drawn.opened.state.spaceCamera.drawing, 'map'); assert.equal(drawn.opened.scene.sphere, 0); assert.equal(drawn.opened.scene.grids, 1);
+  assert.deepEqual([drawn.opened.buttons.Globe.hidden, drawn.opened.buttons.Map.hidden], [true, true], 'a projected frame in metres has no globe to choose');
+  assert.doesNotMatch(drawn.opened.address, /[?&]earth=/u, 'nothing is written for a choice that was not made');
 });
 
 test('the Graph renderer runs its overview, every record and a restored selection without an error', async (t) => {

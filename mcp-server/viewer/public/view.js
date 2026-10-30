@@ -13,7 +13,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { loadData, fillLinks, linksOf, processLabel, holderText, appendLegendNames } from './common.js';
+import { loadData, fillLinks, processLabel, holderText, appendLegendNames } from './common.js';
 import { partsAtTime, measureStoryUnits, firstNamedStoryParts } from './story-time.js';
 import { appendDocumentSpans } from './document-spans.js';
 import { appendDocumentProcesses } from './document-processes.js';
@@ -31,7 +31,13 @@ import { readingActs, actShares, actCounts } from './lens-readings.js';
 import { bigNamesOn, namePlace, nameHeight, screenHeight } from './character-names.js';
 import { readerInline } from './reader-markdown.js';
 import { onPlainClick } from './pointer-click.js';
-import { curationAt } from './view-settings.js';
+import { curationAt, openingLevel } from './view-settings.js';
+import { createFrameGate } from './frame-gate.js';
+import { timeAxis } from './time-axis.js';
+import { createGlowBatches } from './glow-batch.js';
+import { openingFrame, fitBox, cameraMoved } from './opening-frame.js';
+import { passDragsToCanvas, watchFingerDrag } from './scene-touch.js';
+import { partPending, whenPart } from './snapshot-format.js';
 
 let temporalActive = !window.modelViewer, temporalFrame = null, appliedSelection = null, hoveredRecord = null;
 // The thing under the pointer (a light, bar, link or card; null on a curtain or the ground) and the one the panel holds,
@@ -83,7 +89,7 @@ const boundedMeasure = (measure) => measure.kind === 'cut-answer' || measure.kin
 // links, moments, readings and notes it highlights. Everything is the last level and narrows nothing. It is kept in
 // opt.curation, since it is part of what the view shows.
 const chosenView = (data.views ?? []).find((view) => view.id === params.get('chosen')) ?? null;
-const chosenLevel = chosenView && params.has('level') && Number.isInteger(Number(params.get('level'))) ? Number(params.get('level')) : chosenView?.level ?? 0;
+const chosenLevel = chosenView && params.has('level') && Number.isInteger(Number(params.get('level'))) ? Number(params.get('level')) : chosenView ? openingLevel(chosenView) : 0;
 const curation = (() => {
   if (!chosenView) return null;
   const { rows, highlights } = curationAt(chosenView, chosenLevel);
@@ -213,10 +219,13 @@ for (const row of rows) for (const eventId of row.measure.sourceEventIds ?? []) 
 // finest one wide enough to see at the current zoom is shown, and where no reading covers a time there is no value.
 // Point samples (dated scalars and older authored series) are joined between samples and stop at the last one; nothing
 // is held after it and nothing comes before the first.
+// Samples are in time order, so the pair around t is found by halving: the last sample at or before t and the first after.
 const valueAt = (points, t) => {
   if (!points.length) return null;
   if (t < points[0].t || t > points.at(-1).t) return null; if (t === points[0].t) return points[0].v; if (t === points.at(-1).t) return points.at(-1).v;
-  const k = points.findIndex((p) => p.t > t); const a = points[k - 1]; const b = points[k]; return a.v + (b.v - a.v) * ((t - a.t) / (b.t - a.t));
+  let lo = 0, hi = points.length - 1;
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (points[mid].t > t) hi = mid; else lo = mid; }
+  const a = points[lo]; const b = points[hi]; return a.v + (b.v - a.v) * ((t - a.t) / (b.t - a.t));
 };
 const measurePosition = (points, t) => {
   if (!points.length) return { label: 'No recorded readings available at this construction step', samples: [] };
@@ -339,27 +348,12 @@ function measureValueLines(row, t) {
 }
 
 // ---- time: an axis from a moment to deep time ----------------------------------------------------------------------------
-// A view is a window [a, b] of years, by default the story's. Its mapping to the screen blends a linear scale with a log
-// scale of years before the present, by how wide the window is: linear across a few centuries, logarithmic across
-// millennia.
+// A view is a window [a, b] of years, by default the story's, on the axis time-axis.js maps to the screen.
 const reachOf = (event) => (Array.isArray(event.reach) ? event.reach : [event.start, event.end ?? event.start]);
 const allReach = data.events.map(reachOf).filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
 const PRESENT = Math.max(data.extent?.end ?? T1, T1, ...allReach.map(([, b]) => b));
 const EARLIEST = Math.min(data.extent?.start ?? T0, T0, ...allReach.map(([a]) => a));
-const KNEE = 3; const BOUNDS = [EARLIEST - (PRESENT - EARLIEST) * 0.015, Math.max(PRESENT, T1)]; const MIN_SPAN = calendarTime ? 0.004 : Math.max(Number.EPSILON, (BOUNDS[1] - BOUNDS[0]) * 1e-6);
-const G = (t) => -Math.log(KNEE + BOUNDS[1] - Math.min(t, BOUNDS[1] + KNEE * 0.999));
-const Ginv = (g) => BOUNDS[1] + KNEE - Math.exp(-g);
-const warpOf = (span) => calendarTime ? smooth((Math.log10(span) - 2.45) / 1.15) : 0;
-const frameOf = (a, b) => ({ a, b, s: b - a, w: warpOf(b - a), ga: G(a), gb: G(b) });
-const fracOf = (V, t) => (1 - V.w) * ((t - V.a) / V.s) + (V.w ? V.w * ((G(t) - V.ga) / (V.gb - V.ga)) : 0);
-function timeAt(V, u) { if (!V.w) return V.a + u * V.s; let lo = V.a - V.s * 4; let hi = Math.min(V.b + V.s * 4, BOUNDS[1] + KNEE * 0.99); for (let i = 0; i < 64; i += 1) { const mid = (lo + hi) / 2; if (fracOf(V, mid) < u) lo = mid; else hi = mid; } return (lo + hi) / 2; }
-// The window of a given width that keeps time t at screen fraction u.
-function windowAt(t, u, span) {
-  span = Math.max(MIN_SPAN, Math.min(span, BOUNDS[1] - BOUNDS[0]));
-  let lo = t - span; let hi = t;
-  for (let i = 0; i < 64; i += 1) { const mid = (lo + hi) / 2; if (fracOf(frameOf(mid, mid + span), t) > u) lo = mid; else hi = mid; }
-  const a = Math.max(BOUNDS[0], Math.min((lo + hi) / 2, BOUNDS[1] - span)); return [a, a + span];
-}
+const { BOUNDS, MIN_SPAN, G, Ginv, frameOf, fracOf, timeAt, windowAt } = timeAxis({ earliest: EARLIEST, present: PRESENT, calendar: calendarTime });
 let F = frameOf(T0, T1);
 const isStory = () => Math.abs(F.a - T0) < 1e-9 && Math.abs(F.b - T1) < 1e-9;
 const X = (t) => { const x = (fracOf(F, t) - 0.5) * LENGTH; return x < -3 * LENGTH ? -3 * LENGTH : x > 3 * LENGTH ? 3 * LENGTH : x; };
@@ -432,7 +426,10 @@ const label = (className, text, position, center = [0.5, 0.5], parent = field) =
 const additive = (hex, opacity = 1) => new THREE.LineBasicMaterial({ color: hex, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false });
 const glow = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
   r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.25, 'rgba(255,255,255,0.55)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
-const spark = (hex, size) => { const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: hex, transparent: true, opacity: opt.glare === 'soft' ? 0.5 : 1, blending: THREE.AdditiveBlending, depthWrite: false })); sprite.scale.setScalar(size); return sprite; };
+// The lights and the short lines are drawn in a few batches (glow-batch.js), copied from what is shown every drawn frame.
+const glowBatches = createGlowBatches(THREE, { map: glow }); scene.add(glowBatches.object);
+const batched = (object) => glowBatches.add(object);
+const spark = (hex, size) => { const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: glow, color: hex, transparent: true, opacity: opt.glare === 'soft' ? 0.5 : 1, blending: THREE.AdditiveBlending, depthWrite: false })); sprite.scale.setScalar(size); return batched(sprite); };
 
 // Growable buffers for what the panel adds and for the links the view redraws as it zooms: line segments, triangles and
 // glowing points, refilled whenever the view changes.
@@ -509,6 +506,15 @@ function unimportantEventIds() {
   return new Set(data.events.filter((event) => !UNRANKED.has(event.role) && !event.reading
     && !(event.importance ?? []).some((judgment) => judgment.scale === scale.id && judgment.rank <= top)).map((event) => event.id));
 }
+// The Events the reader's filters hide: those below the importance kept, and those not about the referent shown. A
+// reading stays with its row, which the referent filter keeps or hides on its own.
+function hiddenEventIds() {
+  const hidden = opt.importance ? unimportantEventIds() : null;
+  if (!opt.about) return hidden;
+  const out = new Set(hidden ?? []);
+  for (const event of data.events) if (!event.reading && event.role !== 'reading' && !opt.about.events.has(event.id)) out.add(event.id);
+  return out;
+}
 // A row's place in the tree: its process's depth (one below the Event it belongs to) and its home.
 const processById = new Map((data.processes ?? []).map((process) => [process.id, process]));
 for (const row of rows) {
@@ -545,6 +551,58 @@ const prose = (data.story?.units ?? []).filter((unit) => Number.isFinite(unit.t)
 const numericCuts = data.numerics?.cuts ?? [];
 const numericCutById = new Map(numericCuts.map((cut) => [cut.id, cut]));
 const bornAt = (item) => { const made = madeAt(item?.born); return Number.isFinite(made) ? made : -Infinity; };
+
+// ---- about one referent ------------------------------------------------------------------------------------------------
+// A referent picked in search (a place, a person, any thing the model bounds) narrows the time view to what the model
+// declares about it: the Events bound to it or to any referent it contains through its encapsulation Cuts, with the
+// Events that contain those, and the processes it or its parts own. Nothing is read from a name or from a region's words.
+const declaredMeaning = data.inspection?.model?.meaning_model ?? {};
+const referentIds = new Set([...(data.referents ?? []), ...(declaredMeaning.referents ?? [])].map((referent) => referent.id));
+const partsOfReferent = new Map(); const eventsOfReferent = new Map(); const processesOfReferent = new Map();
+for (const cut of declaredMeaning.encapsulation_cuts ?? []) for (const child of cut.children ?? []) if (cut.parent_referent_id && child.referent_id) push(partsOfReferent, cut.parent_referent_id, child.referent_id);
+for (const binding of declaredMeaning.event_referent_bindings ?? []) {
+  if (!binding.referent_id) continue;
+  const eventId = binding.target?.event_id ?? binding.event_id, processId = binding.target?.process_id;
+  if (eventId) push(eventsOfReferent, binding.referent_id, eventId);
+  if (processId) push(processesOfReferent, binding.referent_id, processId);
+}
+for (const event of data.events) for (const referent of new Set([event.owner, event.region, ...(event.participants ?? [])])) if (referentIds.has(referent)) push(eventsOfReferent, referent, event.id);
+for (const process of data.processes ?? []) if (process.owner) push(processesOfReferent, process.owner, process.id);
+const referentName = (id) => (data.referents ?? []).find((referent) => referent.id === id)?.name?.split(':')[0]
+  ?? String((declaredMeaning.referents ?? []).find((referent) => referent.id === id)?.boundary ?? id).split(/[,:;]/u)[0];
+function aboutSets(id) {
+  const within = new Set(); const walk = (referent) => { if (within.has(referent)) return; within.add(referent); for (const part of partsOfReferent.get(referent) ?? []) walk(part); }; walk(id);
+  const events = new Set(); const processes = new Set();
+  for (const referent of within) { for (const eventId of eventsOfReferent.get(referent) ?? []) events.add(eventId); for (const processId of processesOfReferent.get(referent) ?? []) processes.add(processId); }
+  const bound = new Set(events);
+  // The Events containing them stay, so the tree they sit in still reads.
+  const eventById = new Map(data.events.map((event) => [event.id, event]));
+  for (const eventId of bound) { let at = eventById.get(eventId)?.parent; for (let hops = 0; at && !events.has(at) && hops < 64; hops += 1) { events.add(at); at = eventById.get(at)?.parent; } }
+  return { id, name: referentName(id), within, bound, events, processes };
+}
+const rowProcess = (row) => row.measure?.processId ?? row.measure?.id;
+// A row is about the referent when its process is, when the referent or a part owns it, or when it answers a Cut on one of its Events.
+const aboutRow = (row, about) => about.processes.has(rowProcess(row)) || about.within.has(row.measure?.owner)
+  || (row.measure?.kind === 'cut-answer' && about.events.has(row.measure.home));
+// Terrain keeps its own landscape of every Event, as it does under the other filters, so the chip does not claim it there.
+function showAboutChip() {
+  const chip = document.getElementById('about-chip'); if (!chip) return;
+  chip.hidden = !opt.about || opt.layout === 'terrain';
+  if (!opt.about) return;
+  document.getElementById('about-name').textContent = `Showing ${opt.about.name}`;
+  chip.title = `Only what the model binds to ${opt.about.name} or its parts, and the processes they own. Click to show everything again.`;
+  chip.setAttribute('aria-label', `Showing only ${opt.about.name}. Show everything again`);
+}
+function setAbout(id, { quiet = false } = {}) {
+  opt.about = id && referentIds.has(id) ? aboutSets(id) : null;
+  // Rows narrow only when some are about the referent: otherwise its Events stand against the whole model's processes.
+  if (opt.about) opt.about.rowsNarrowed = rows.some((row) => aboutRow(row, opt.about));
+  showAboutChip();
+  if (quiet) return;
+  computeLayout(); apply(); syncPanel(); syncURL(true); extrasDirty = true;
+}
+document.getElementById('about-chip')?.addEventListener('click', () => setAbout(null));
+if (params.has('about')) setAbout(params.get('about'), { quiet: true });
 
 // ---- layout: Together is the processes view's field; Layers stacks the tree level by level ----------------------------------
 // Together keeps the rows where they always were; Events the panel adds get lanes in front of their group's rows. Layers are
@@ -584,6 +642,7 @@ function tracesChange(row) {
 }
 function eligibleRow(row) {
   if (!opt.show.has('processes')) return false;
+  if (opt.about?.rowsNarrowed && !aboutRow(row, opt.about)) return false;
   if (opt.detailProjection && !opt.detailProjection.rowIds.has(row.measure.id)) return false;
   const points = row.points ?? row.measure.points;
   if (boundedMeasure(row.measure) && (!points || points.length < 2)) return false;
@@ -665,7 +724,7 @@ function computeNestedLayout() {
   for (const node of nodes) node.displayGroup = tree.groupById.get(node.id) ?? together.groupById.get(node.id) ?? node.group;
 }
 function computeLayout() {
-  opt.unimportant = opt.importance ? unimportantEventIds() : null;
+  opt.unimportant = opt.importance || opt.about ? hiddenEventIds() : null;
   opt.detailProjection = Number.isInteger(opt.detailLevel) ? processDetail.project({ scope: opt.processScope, level: opt.detailLevel }) : null;
   if (opt.detailProjection) { opt.detailLevel = opt.detailProjection.level; opt.processScope = opt.detailProjection.scope; }
   for (const node of nodes) { node.inT = visibleNode(node, false); node.inL = visibleNode(node, true); node.shown = node.inT || node.inL; }
@@ -735,7 +794,9 @@ for (const row of rows) {
   const positions = new Float32Array(NX * 2 * 3); const colors = new Float32Array(NX * 2 * 4); const index = [];
   for (let i = 0; i < NX; i += 1) { colors.set([c.r, c.g, c.b, 0.0, c.r, c.g, c.b, open ? 0.08 : 0.3], i * 8); if (i) index.push((i - 1) * 2, (i - 1) * 2 + 1, i * 2, i * 2, (i - 1) * 2 + 1, i * 2 + 1); }
   const wall = new THREE.BufferGeometry(); wall.setAttribute('position', new THREE.BufferAttribute(positions, 3)); wall.setAttribute('color', new THREE.BufferAttribute(colors, 4)); wall.setIndex(index);
-  row.wall = new THREE.Mesh(wall, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+  // A curtain lies in its row's plane, so all of it faces one way: one pass draws it as three.js's two (its back faces,
+  // then its front) did, without a second draw and a second program check each frame.
+  row.wall = new THREE.Mesh(wall, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }));
   const line = new THREE.BufferGeometry(); line.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NX * 3), 3));
   // Per-sample brightness: full for a recorded level, dimmer for a derived one, dark where there is no value.
   line.setAttribute('color', new THREE.BufferAttribute(new Float32Array(NX * 3).fill(1), 3));
@@ -879,7 +940,7 @@ function bigNameFor(group) {
 const tickPool = [];
 for (let i = 0; i < 48; i += 1) {
   const object = label('year', '', new THREE.Vector3(0, 0, 0)); const lineGeometry = new THREE.BufferGeometry(); lineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
-  const line = new THREE.Line(lineGeometry, additive('#2a3246', 0.8)); line.frustumCulled = false; scene.add(line); tickPool.push({ object, line });
+  const line = batched(new THREE.Line(lineGeometry, additive('#2a3246', 0.8))); line.frustumCulled = false; scene.add(line); tickPool.push({ object, line });
 }
 
 // Events that move processes: a thread through the crests they touch, at the moment they begin.
@@ -889,11 +950,11 @@ for (const event of data.events) {
   if (!touched.length || !Number.isFinite(event.start)) continue;
   const group = new THREE.Group(); group.userData = { t: event.start, event, touched, lines: [], sparks: [] };
   for (const row of touched) {
-    const stem = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3)), additive('#ffffff', 0.35)); stem.frustumCulled = false; group.add(stem); group.userData.lines.push(stem);
+    const stem = batched(new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3)), additive('#ffffff', 0.35))); stem.frustumCulled = false; group.add(stem); group.userData.lines.push(stem);
     const s = spark('#ffffff', 1.5); s.userData.hover = { kind: 'Event', title: event.label, text: event.description, about: touched.map((item) => NAMES[item.measure.id] ?? item.measure.id),
       valueRows: touched, valueTime: event.start }; group.add(s); eventSparks.push(s); group.userData.sparks.push(s);
   }
-  if (touched.length > 1) { const link = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(touched.length * 3), 3)), additive('#fff3d6', 0.9)); link.frustumCulled = false; group.add(link); group.userData.link = link; }
+  if (touched.length > 1) { const link = batched(new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(touched.length * 3), 3)), additive('#fff3d6', 0.9))); link.frustumCulled = false; group.add(link); group.userData.link = link; }
   field.add(group); threads.push(group);
   if (touched.length >= 2) { const tag = label('event', clip(event.label, 70), new THREE.Vector3(0, 0, 0), [0.5, 1], group); tag.userData = { t: event.start, weight: touched.length }; group.userData.tag = tag; }
 }
@@ -1382,7 +1443,7 @@ function arcLines(target) {
 }
 
 // The sweep: a plane of light at the story's moment.
-const sweep = new THREE.Mesh(new THREE.PlaneGeometry(zFront - zBack + 12, AMP + 6), new THREE.MeshBasicMaterial({ color: '#9fb8ff', transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+const sweep = new THREE.Mesh(new THREE.PlaneGeometry(zFront - zBack + 12, AMP + 6), new THREE.MeshBasicMaterial({ color: '#9fb8ff', transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }));
 sweep.rotation.y = Math.PI / 2; sweep.position.set(0, (AMP + 6) / 2 - 0.5, (zFront + zBack) / 2 + 2); field.add(sweep);
 
 // ---- what the panel adds: the tree's Events, subsidiary processes, readings and prose ------------------------------------------
@@ -1511,7 +1572,11 @@ function drawSelectedStoryLinks() {
   }
 }
 
-// Labels of what the panel adds: placed by priority, never over each other or the panels.
+// Every panel the page shows over the scene: the heads-up parts, the side's controls and cards, an open pop-up, the reader.
+const panelBoxes = () => [...document.querySelectorAll('.hud, #side > *, .pop:not([hidden]), #reader, #qr-panel')].map((el) => el.getBoundingClientRect()).filter((r) => r.width && r.height);
+// The panels' boxes and those of the labels the scene shows, as the last declutter placed them.
+let labelRoom = { panels: [], labels: [] };
+// Labels of what the panel adds: placed by priority, never over each other, the scene's labels or the panels.
 const labels2 = (() => {
   const layer = document.getElementById('labels2'); const pool = new Map();
   const element = (key, className, html) => {
@@ -1523,6 +1588,9 @@ const labels2 = (() => {
     return item;
   };
   const esc = (text) => String(text).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  // An Event's name, shortened and escaped once rather than every frame.
+  const named = new Map();
+  const shortName = (text, n) => { const key = `${n}\u0000${text}`; let html = named.get(key); if (html === undefined) { html = esc(words(text, n)); named.set(key, html); } return html; };
   function update() {
     if (terrain.on) { for (const item of pool.values()) if (item.hidden !== true) { item.el.classList.add('hide'); item.hidden = true; } return; }
     const wanted = []; const m = smooth(blend.now); const left = -LENGTH / 2; const right = LENGTH / 2;
@@ -1540,20 +1608,21 @@ const labels2 = (() => {
       const x0 = Math.max(left, X(span.start)); const x1 = Math.min(right, X(span.end)); if (x1 < left || x0 > right) continue;
       const wide = x1 - x0; const top = p.y + (node.kind === 'sub' ? BAR * 1.6 : BAR); const big = node.depth <= 1 || wide > LENGTH * 0.25;
       const pri = 400 + Math.min(200, wide * 3) - node.depth * 20 + (node.event.cuts ?? 0) * 4 + (litChain.has(node.id) ? 400 : 0) + (opt.processScope === node.id ? 1000 : 0);
-      wanted.push({ key: `ev:${node.id}`, cls: `event${big ? ' big' : ''}${node.event.context === 'inner' ? ' inner' : ''}`, html: esc(words(node.event.name, big ? 52 : 40)), p: [wide > 1.2 ? x0 + 0.25 : (x0 + x1) / 2, top + 0.12, p.z], ax: wide > 1.2 ? 0 : 0.5, ay: 1, pri });
+      wanted.push({ key: `ev:${node.id}`, cls: `event${big ? ' big' : ''}${node.event.context === 'inner' ? ' inner' : ''}`, html: shortName(node.event.name, big ? 52 : 40), p: [wide > 1.2 ? x0 + 0.25 : (x0 + x1) / 2, top + 0.12, p.z], ax: wide > 1.2 ? 0 : 0.5, ay: 1, pri });
     }
     if (opt.show.has('prose')) { const top = mindTop(), z = opt.noteLayout === 'centered' ? centeredNoteBand().center : top.z + 4; for (const unit of prose) { if (opt.detailProjection && !(unit.tells ?? []).some((tell) => opt.detailProjection.eventIds.has(tell.eventId))) continue; if (opt.unimportant && (unit.tells ?? []).length && unit.tells.every((tell) => opt.unimportant.has(tell.eventId))) continue; if (!shownByPlay(unit.t, bornAt(unit))) continue; const x = X(unit.t); if (x >= left && x <= right) wanted.push({ key: `prose:${unit.id}`, cls: 'prose', html: esc(unit.title ?? ''), p: [x, top.y - 3.35, z], ax: 0.5, ay: 1, pri: 800 }); } }
-    for (const { event, point } of selectedLinks) wanted.push({ key: `selected-event:${event.id}`, cls: 'event', html: esc(words(event.label, 45)), p: [point.x, point.y + 0.4, point.z], ax: 0.5, ay: 1, pri: 1200 });
-    const panels = [...document.querySelectorAll('.hud.caption, .hud.bar, .hud.legend, .hud.title, .hud.stats, #tools, .pop:not([hidden]), #details:not([hidden])')].map((el) => el.getBoundingClientRect()).filter((r) => r.width);
-    const placed = [...panels.map((r) => ({ l: r.left - 6, r: r.right + 6, t: r.top - 4, b: r.bottom + 4 }))];
-    for (const el of labels.domElement.querySelectorAll('.label.row, .label.series, .label.group, .label.year, .label.lane, .label.lens-host .lens')) { if (el.style.display === 'none' || el.style.visibility === 'hidden') continue; const r = el.getBoundingClientRect(); if (r.width) placed.push({ l: r.left, r: r.right, t: r.top, b: r.bottom }); }
+    for (const { event, point } of selectedLinks) wanted.push({ key: `selected-event:${event.id}`, cls: 'event', html: shortName(event.label, 45), p: [point.x, point.y + 0.4, point.z], ax: 0.5, ay: 1, pri: 1200 });
+    // Clear of the panels and of every label the scene shows, as declutter placed them this frame.
+    const placed = [...labelRoom.panels.map((r) => ({ l: r.left - 6, r: r.right + 6, t: r.top - 4, b: r.bottom + 4 })), ...labelRoom.labels.map((r) => ({ l: r.left, r: r.right, t: r.top, b: r.bottom }))];
     wanted.sort((a, b) => b.pri - a.pri);
-    const items = wanted.map((want) => element(want.key, want.cls, want.html));
+    // Only what stands near the screen is given a label to measure and place.
+    const near = wanted.map((want) => ({ want, s: screen(...want.p) })).filter(({ s }) => s.ok && s.x >= -200 && s.x <= innerWidth + 200);
+    const items = near.map(({ want }) => element(want.key, want.cls, want.html));
     const fresh = items.filter((item) => !item.w); for (const item of fresh) { item.el.style.transform = 'translate(-9999px,0)'; item.transform = null; }
     for (const item of fresh) { item.w = item.el.offsetWidth; item.h = item.el.offsetHeight; }
     const next = new Map();
-    wanted.forEach((want, i) => {
-      const item = items[i]; const s = screen(...want.p); if (!s.ok || s.x < -200 || s.x > innerWidth + 200) return;
+    near.forEach(({ want, s }, i) => {
+      const item = items[i];
       const l = s.x - item.w * want.ax; const t = s.y - item.h * want.ay; const box = { l, r: l + item.w, t, b: t + item.h };
       if (box.l < 2 || box.r > innerWidth - 2 || box.t < 2 || box.b > innerHeight - 2) return;
       if (placed.some((o) => box.l < o.r + 3 && box.r > o.l - 3 && box.t < o.b + 1 && box.b > o.t - 1)) return;
@@ -1823,7 +1892,7 @@ function drawTerrainArcs() {
 }
 // Terrain labels that would cover the time marks, the panels or each other lift a little; the rest wait for the pointer.
 function declutterTerrain() {
-  const placed = []; const panels = [...document.querySelectorAll('.hud.caption, .hud.bar, .hud.legend, .hud.title, .hud.stats, #tools, .pop:not([hidden]), #details:not([hidden])')].map((el) => el.getBoundingClientRect());
+  const placed = []; const panels = panelBoxes();
   const under = (r) => panels.some((p) => r.left < p.right && r.right > p.left && r.top < p.bottom && r.bottom > p.top);
   for (const el of labels.domElement.querySelectorAll('.label.year, .label.group, .label.group-count')) { el.style.opacity = ''; const r = el.getBoundingClientRect(); if (!r.width) continue; if (under(r)) { el.style.opacity = '0'; continue; } placed.push(r); }
   placed.push(...panels);
@@ -2001,7 +2070,7 @@ function apply() {
   // Across the story's years the love-or-fear chips before them wait at their start, as they always did.
   for (const chip of lenses) chip.visible = ((!opt.detailProjection || opt.detailProjection.eventIds.has(chip.userData.eventId)) && !opt.unimportant?.has(chip.userData.eventId)) && opt.show.has('lovefear') && (isStory() || inView(chip.userData.t)) && shownByPlay(chip.userData.t, bornAt(chip.userData)) && chip.userData.placed;
   mind.visible = opt.show.has('notes');
-  for (const light of notes) light.visible = light.userData.id === selectedPart?.unit.id || pinnedTarget === light || ((!opt.curation?.notes.size || opt.curation.notes.has(light.userData.id)) && !(opt.hideUndated && undatedNote(light.userData.id)) && (!opt.detailProjection || (noteScopeEvents.get(light.userData.id) ?? []).some((id) => opt.detailProjection.eventIds.has(id))) && (construction ? bornAt(light.userData) <= tau : light.userData.t <= now));
+  for (const light of notes) light.visible = light.userData.id === selectedPart?.unit.id || pinnedTarget === light || ((!opt.curation?.notes.size || opt.curation.notes.has(light.userData.id)) && !(opt.hideUndated && undatedNote(light.userData.id)) && (!opt.detailProjection || (noteScopeEvents.get(light.userData.id) ?? []).some((id) => opt.detailProjection.eventIds.has(id))) && (!opt.about || (noteScopeEvents.get(light.userData.id) ?? []).some((id) => opt.about.bound.has(id))) && (construction ? bornAt(light.userData) <= tau : light.userData.t <= now));
   sweep.position.x = xOf(now); sweep.visible = playing && !construction;
   const fill = construction ? activeClock(tau) / activeClock.total : fracOf(F, now);
   document.getElementById('fill').style.width = `${Math.max(0, Math.min(1, fill)) * 100}%`;
@@ -2021,7 +2090,7 @@ function apply() {
     const clockInset = calendarTime ? 0.01 : 0;
     setText('clock', isStory() ? month(Math.min(now, T1 - clockInset)) : momentText(Math.min(now, F.b - clockInset)));
     const drawn = (thread) => Math.max(thread.userData.t, F.a);
-    const latest = threads.filter((thread) => thread.userData.t <= now && inView(thread.userData.t, 0.2)).sort((a, b) => drawn(b) - drawn(a))[0];
+    const latest = threads.filter((thread) => thread.userData.t <= now && inView(thread.userData.t, 0.2) && !opt.unimportant?.has(thread.userData.event.id)).sort((a, b) => drawn(b) - drawn(a))[0];
     const currentParts = partsNow().map((i) => storyParts[i]);
     const partCaption = currentParts.length === 1 ? `Part ${currentParts[0].n}: ${currentParts[0].title}`
       : currentParts.length ? `Parts ${currentParts.map((part) => part.n).join(', ')}` : '';
@@ -2071,11 +2140,14 @@ const LOCKED = { fov: 17, elevation: 0.8, pose: null, scroll: 0 };
 const HOME_DISTANCE = HOME.position.distanceTo(HOME.target); const FOG = 0.0048;
 function freeRoom() {
   const title = document.querySelector('.hud.title').getBoundingClientRect(); const stats = document.getElementById('stats').getBoundingClientRect(); const bar = document.querySelector('.hud.bar').getBoundingClientRect();
-  const side = [document.getElementById('details'), document.getElementById('legend'), document.getElementById('chosen-view')].filter(Boolean).map((el) => el.getBoundingClientRect()).find((r) => r.width && r.left > innerWidth * 0.5);
+  const panels = [document.getElementById('details'), document.getElementById('legend'), document.getElementById('chosen-view')].filter(Boolean).map((el) => el.getBoundingClientRect());
+  const side = panels.find((r) => r.width && r.left > innerWidth * 0.5);
+  // On a narrow screen a panel spans the width above the scene instead: the scene's room starts below it.
+  const above = Math.max(0, ...panels.filter((r) => r.height && r.width > innerWidth * 0.6).map((r) => r.bottom));
   const tools = document.getElementById('tools').getBoundingClientRect();
   // The caption and the reading position stand together above the time bar; the scene's room ends above them both.
   const dock = document.getElementById('dock')?.getBoundingClientRect(); const caption = dock?.height ? dock : document.querySelector('.hud.caption').getBoundingClientRect();
-  return { l: 28, r: side ? side.left - 20 : innerWidth - 28, t: Math.min(Math.max(title.bottom, stats.bottom, tools.bottom) + 24, innerHeight * 0.35), b: (caption.height ? caption.top : bar.top || innerHeight - 66) - 16 };
+  return { l: 28, r: side ? side.left - 20 : innerWidth - 28, t: Math.min(Math.max(title.bottom, stats.bottom, tools.bottom, above) + 24, innerHeight * 0.35), b: (caption.height ? caption.top : bar.top || innerHeight - 66) - 16 };
 }
 // The whole view fits the free room when it can. A tall one (a deep tree in layers) is never shrunk below three quarters
 // of the size that fills the width: it runs on below, and scrolls (shift and scroll, drag up and down, or the arrow keys).
@@ -2125,12 +2197,17 @@ function fieldFrame() {
 }
 const HOME_FRAME = { size: Math.hypot(LENGTH * 0.6, zFront + 6.5 - zBack, AMP * 1.5), cz: (zBack + zFront + 6.5) / 2, cy: AMP / 2 };
 let framed = HOME_FRAME;
+// Where the viewer itself last put the camera: unset until it has placed the opening one, so that the address never names
+// a camera that was only on its way there.
+let placed = params.has('pose') ? HOME : null;
 function reframe() {
   if (opt.camera === 'locked' || terrain.on) return;
   const now2 = fieldFrame();
   const k = now2.size / framed.size; const dz = now2.cz - framed.cz; const dy = now2.cy - framed.cy; framed = now2;
   if (Math.abs(k - 1) < 1e-9 && Math.abs(dz) < 1e-9 && Math.abs(dy) < 1e-9) return;
   const offset = camera.position.clone().sub(controls.target).multiplyScalar(k); controls.target.z += dz; controls.target.y += dy; camera.position.copy(controls.target).add(offset);
+  // The address keeps the pose the camera ends on, not the one it had before the field changed.
+  if (opt.camera === 'free') syncURL();
 }
 function setCamera(mode, first = false) {
   const was = opt.camera; opt.camera = mode; controls.autoRotate = mode === 'spin'; controls.enabled = mode !== 'locked';
@@ -2149,31 +2226,25 @@ function fitFree() {
     document.getElementById('stats').getBoundingClientRect().bottom, document.getElementById('tools').getBoundingClientRect().bottom);
   room.t = Math.min(Math.max(room.t, hudBottom + 16), room.b - 80);
   room.r = Math.max(room.l + 80, room.r);
-  const center = new THREE.Vector3(0, (box.y0 + box.y1) / 2, (box.z0 + box.z1) / 2);
   const direction = home.position.clone().sub(home.target).normalize();
-  const right = new THREE.Vector3().crossVectors(camera.up, direction).normalize();
-  const up = new THREE.Vector3().crossVectors(direction, right);
   camera.clearViewOffset(); camera.fov = terrain.on ? 42 : 40;
-  const vertical = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), horizontal = vertical * camera.aspect;
-  // Shift the target as well as backing away: the useful screen area is below
-  // the toolbar and beside the inspector, not necessarily the viewport centre.
+  // The useful screen area is below the toolbar and beside the inspector, not necessarily the viewport centre.
   const left = (room.l + 12) / innerWidth * 2 - 1, top = 1 - (room.t + 12) / innerHeight * 2;
-  const r = Math.max(left + .04, (room.r - 12) / innerWidth * 2 - 1);
+  const right = Math.max(left + .04, (room.r - 12) / innerWidth * 2 - 1);
   const bottom = Math.min(top - .04, 1 - (room.b - 12) / innerHeight * 2);
-  const cx = (left + r) / 2, cy = (bottom + top) / 2;
-  let distance = 30;
-  for (const x of [box.x0 ?? -LENGTH / 2 - 1.2, box.x1 ?? LENGTH / 2 + 1.2]) for (const y of [box.y0, box.y1]) for (const z of [box.z0, box.z1]) {
-    const offset = new THREE.Vector3(x, y, z).sub(center);
-    const dx = offset.dot(right) / horizontal, dy = offset.dot(up) / vertical, dz = offset.dot(direction);
-    distance = Math.max(distance, dz + 1, (dx + r * dz) / (r - cx), (-dx - left * dz) / (cx - left),
-      (dy + top * dz) / (top - cy), (-dy - bottom * dz) / (cy - bottom));
-  }
-  controls.target.copy(center).addScaledVector(right, -cx * distance * horizontal).addScaledVector(up, -cy * distance * vertical);
-  camera.position.copy(controls.target).addScaledVector(direction, distance);
-  camera.far = Math.max(900, distance * 4); camera.updateProjectionMatrix();
-  scene.fog.density = terrain.on ? TFOG * (terrain.homeDistance / distance) : FOG * (HOME_DISTANCE / distance);
+  const ndc = { left, right, top, bottom };
+  const extent = { x0: box.x0 ?? -LENGTH / 2 - 1.2, x1: box.x1 ?? LENGTH / 2 + 1.2, y0: box.y0, y1: box.y1, z0: box.z0, z1: box.z1 };
+  // The field opens framed from the side that makes it fill the room (opening-frame.js); the terrain keeps its view.
+  const frame = terrain.on
+    ? fitBox(THREE, { corners: [extent.x0, extent.x1].flatMap((x) => [extent.y0, extent.y1].flatMap((y) => [extent.z0, extent.z1].map((z) => new THREE.Vector3(x, y, z)))),
+      center: new THREE.Vector3(0, (box.y0 + box.y1) / 2, (box.z0 + box.z1) / 2), direction, fov: camera.fov, aspect: camera.aspect, room: ndc })
+    : openingFrame(THREE, { box: extent, usual: direction, fov: camera.fov, aspect: camera.aspect, room: ndc });
+  controls.target.copy(frame.target); camera.position.copy(frame.position);
+  camera.far = Math.max(900, frame.distance * 4); camera.updateProjectionMatrix();
+  scene.fog.density = terrain.on ? TFOG * (terrain.homeDistance / frame.distance) : FOG * (HOME_DISTANCE / frame.distance);
   controls.update();
   if (!terrain.on) framed = fieldFrame();
+  placed = { position: camera.position.clone(), target: controls.target.clone() };
 }
 function recenterView() {
   // Consume any remaining orbit inertia before restoring the current field.
@@ -2196,7 +2267,10 @@ function boundsNow() {
   if (opt.show.has('numbers')) for (const target of extraTargets) if (target.kind === 'number') { ys.push(target.wpt[1] + 0.5); zs.push(target.wpt[2] + 0.5); }
   if (opt.show.has('notes')) {
     if (opt.noteLayout === 'original') { const top = mindTop(); const layer = Math.max(0, ...graphNodes.map(noteLayer)); ys.push(top.y + layer * 1.6 + 3); zs.push(top.z - layer * 2.2 - 1); }
-    else for (const light of notes) { xs.push(light.position.x - 1, light.position.x + 1); ys.push(light.position.y + 2); zs.push(light.position.z - 1, light.position.z + 1); }
+    else for (const light of notes) {
+      if (opt.about && !(noteScopeEvents.get(light.userData.id) ?? []).some((id) => opt.about.bound.has(id))) continue;
+      xs.push(light.position.x - 1, light.position.x + 1); ys.push(light.position.y + 2); zs.push(light.position.z - 1, light.position.z + 1);
+    }
   }
   return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys) - 1, y1: Math.max(...ys) + 1, z0: Math.min(...zs) - 2, z1: Math.max(...zs) + 3 };
 }
@@ -2221,7 +2295,7 @@ let currentPreset = ['story', 'life', ...(calendarTime ? ['centuries'] : []), 'w
 function setView(a, b) { F = frameOf(a, b); tabulate(); relayout = true; dirty = true; }
 function animateTo(a, b, ms = 1400) {
   const fromG = [G(F.a), G(F.b)]; const toG = [G(a), G(b)]; const t0 = performance.now();
-  animation = (clock) => { const k = smooth(Math.min(1, (clock - t0) / ms)); setView(Ginv(fromG[0] + (toG[0] - fromG[0]) * k), Math.min(BOUNDS[1], Ginv(fromG[1] + (toG[1] - fromG[1]) * k))); if (k >= 1) { animation = null; setView(a, b); syncURL(); } };
+  animation = (clock) => { const k = smooth(Math.min(1, (clock - t0) / ms)); setView(Ginv(fromG[0] + (toG[0] - fromG[0]) * k), Math.min(BOUNDS[1], Ginv(fromG[1] + (toG[1] - fromG[1]) * k))); if (k >= 1) { animation = null; setView(a, b); syncPanel(); syncURL(); } };
 }
 function preset(name, animate = true) {
   if (name === 'centuries' && !calendarTime) return;
@@ -2236,6 +2310,30 @@ function pointerTime(clientX, clientY) {
   const u = hit.x / LENGTH + 0.5; return { u, t: timeAt(F, u) };
 }
 function zoomAt(clientX, clientY, factor) { animation = null; clearPreset(); const { u, t } = pointerTime(clientX, clientY); const [a, b] = windowAt(t, u, F.s / factor); setView(a, b); syncURL(); }
+// The bar's − and + halve or double the stretch of time shown, around the playhead, or around the middle of the window
+// when the playhead is outside it.
+function zoomTime(factor) {
+  if (!temporalActive) return;
+  const t = now >= F.a && now <= F.b ? now : (F.a + F.b) / 2;
+  const [a, b] = windowAt(t, fracOf(F, t), F.s * factor); clearPreset(); animateTo(a, b, 450);
+}
+for (const [id, factor] of [['zoom-in', 0.5], ['zoom-out', 2]]) document.getElementById(id)?.addEventListener('click', () => zoomTime(factor));
+// A stretch of time found by search, a period typed or an Event's own interval: shown whole, with room on both sides,
+// at once, so the camera can then be taken to what was found. The playhead moves to its end, so the curves are drawn
+// through it and what is read is the state at its close.
+function showSpan(start, end) {
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return false;
+  const lo = Math.min(start, end), hi = Math.max(start, end);
+  const pad = Math.max((hi - lo) * 0.06, calendarTime ? 0.5 : (BOUNDS[1] - BOUNDS[0]) * 0.002);
+  let [a, b] = [Math.max(BOUNDS[0], lo - pad), Math.min(BOUNDS[1], hi + pad)];
+  if (b - a < MIN_SPAN) [a, b] = windowAt((a + b) / 2, 0.5, MIN_SPAN);
+  if (playing) stop();
+  animation = null; currentPreset = null; setView(a, b);
+  // The playhead stands just inside the stretch's end, which is exclusive: 1914 to 1945 ends where 1946 begins.
+  if (!building()) { now = Math.max(a, Math.min(b, hi - (hi - lo) * 0.001)); atEnd = false; }
+  apply(); syncPanel(); syncURL(true);
+  return true;
+}
 { const canvas = renderer.domElement; let drag = null; const touches = new Map(); let pinch = null;
   canvas.addEventListener('wheel', (event) => {
     if (opt.camera !== 'locked' && !event.shiftKey) return;
@@ -2329,8 +2427,6 @@ function hud() {
     [...terrain.persons.map((person, i) => [person.name, HUES[i % HUES.length]]), ['the world', WORLD]]);
   showStats();
 }
-const inline = (text) => text.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
-  .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>');
 // Reading always opens the complete manuscript; neither playback clock filters the text.
 const readerUnits = () => data.story?.units ?? [];
 function renderReader(unitId = null) {
@@ -2823,6 +2919,7 @@ document.getElementById('lenses-all').addEventListener('click', () => { opt.lens
 function syncPanel() {
   if (!ready) return;
   syncProcessDataHint();
+  showAboutChip();
   const on = (selector, attr, value) => { for (const button of document.querySelectorAll(selector)) button.classList.toggle('on', button.dataset[attr] === String(value)); };
   document.getElementById('play').setAttribute('aria-label', building() ? 'Play the construction' : `Play ${playLabel.toLowerCase()}`);
   document.getElementById('layout-note').textContent = { together: 'Every process on its own scale in one field.', layers: "The model's tree level by level: the world, what it holds and the parts of each, every process at the level of what holds it.", terrain: data.people.length ? 'Every function of the model as one terrain: the lives and their shocks, the processes they run through, what they want, feel and expect, and the world behind them.' : 'Every function of the model as one terrain, with the Events that happen in them and the world behind them.' }[opt.layout];
@@ -2920,6 +3017,7 @@ function syncURL(immediate = false) {
     if (opt.names === 'big') next.set('names', 'big');
     if (Number.isInteger(opt.detailLevel)) next.set('detail', String(opt.detailLevel));
     if (opt.processScope) next.set('scope', opt.processScope);
+    if (opt.about) next.set('about', opt.about.id);
     if (opt.importance) { next.set('importance', opt.importance); if (opt.importanceTop !== 1) next.set('importanceTop', String(opt.importanceTop)); }
     if (opt.readingOverview === 'structure') next.set('readingOverview', 'structure');
     if (explicitNoteLayout) next.set('noteLayout', opt.noteLayout);
@@ -2930,7 +3028,7 @@ function syncURL(immediate = false) {
     else if (!currentPreset) { const digits = Math.max(0, Math.min(6, Math.ceil(-Math.log10(F.s)) + 3)); next.set('t0', F.a.toFixed(digits)); next.set('t1', F.b.toFixed(digits)); }
     const everything = explicitEverything && isEverything();
     next.set('view', opt.layout); if (!everything && (explicitDepth || opt.depth !== defaultDepth(opt.layout, MAX_DEPTH))) next.set('depth', String(opt.depth));
-    if (opt.camera === 'free' && (camera.position.distanceTo(HOME.position) > 0.05 || controls.target.distanceTo(HOME.target) > 0.05)) next.set('pose', [...camera.position.toArray(), ...controls.target.toArray()].map((v) => v.toFixed(1)).join(','));
+    if (opt.camera === 'free' && placed && cameraMoved(camera.position, controls.target, placed)) next.set('pose', [...camera.position.toArray(), ...controls.target.toArray()].map((v) => v.toFixed(1)).join(','));
     const show = [...opt.show].sort().join(','); const defaults = defaultShow(opt.layout).sort().join(',');
     if (everything) next.set('everything', '');
     else {
@@ -2941,7 +3039,8 @@ function syncURL(immediate = false) {
     const madeText = () => (constructionByClock ? new Date(tau).toISOString() : `step:${tau.toFixed(3)}`);
     if (!atEnd && !playing) next.set('at', opt.mode === 'construction' ? madeText() : now.toFixed(4)); else if (!atEnd && opt.mode === 'construction') next.set('at', madeText());
     if (!document.getElementById('reader').hidden) next.set('read', document.getElementById('reader').classList.contains('full') ? 'full' : ''); if (!qrPanel.hidden) next.set('qr', '');
-    const retained = new URLSearchParams(location.search); for (const key of ['record', 'timeView', 'chosen', 'level', 'adjusted']) if (retained.has(key)) next.set(key, retained.get(key));
+    // The Chart's opened process is the Chart's own setting; the time views keep it for when the Chart is shown again.
+    const retained = new URLSearchParams(location.search); for (const key of ['record', 'timeView', 'chosen', 'level', 'adjusted', 'within']) if (retained.has(key)) next.set(key, retained.get(key));
     const keptQuery = next.toString().replace(/%2C/g, ',').replace(/%3A/g, ':').replace(/\+/g, '%20').replace(/=(&|$)/g, '$1');
     history.replaceState(null, '', `${location.pathname}${keptQuery ? `?${keptQuery}` : ''}`); globalThis.modelViewer?.noteAddress?.();
   };
@@ -3016,6 +3115,15 @@ function relayOut() {
   apply(); syncPanel();
 }
 renderer.domElement.addEventListener('pointermove', (event) => { pointerAt = { x: event.clientX, y: event.clientY }; });
+// A pressed pointer drags or pinches the scene: nothing is hovered meanwhile (a click tests what it is on itself), and the
+// tip waits until it lifts.
+const pressed = new Set();
+renderer.domElement.addEventListener('pointerdown', (event) => { pressed.add(event.pointerId); tip.hidden = true; });
+for (const type of ['pointerup', 'pointercancel']) addEventListener(type, (event) => pressed.delete(event.pointerId));
+passDragsToCanvas(labels.domElement, renderer.domElement);
+// While a finger drags the scene its labels step aside: placing them is most of what a frame costs on a phone.
+let labelsAside = false;
+watchFingerDrag(renderer.domElement, (on) => { labelsAside = on; document.body.classList.toggle('labels-aside', on); drawing.wake(); });
 renderer.domElement.addEventListener('pointerleave', () => { pointerAt = null; tip.hidden = true; if (lit) { lit = null; drawNotes(); } });
 // A click on anything opens what it is beside the view, as in the understanding graph; a click on nothing closes it.
 const details = document.getElementById('details');
@@ -3085,71 +3193,95 @@ onPlainClick(renderer.domElement, (event) => {
 }, { signal: temporalEvents.signal });
 // Love-or-fear chips lift clear of each other; values and event names that would cover something wait for their turn.
 // The names of what the model highlighted stack upward where they would cover each other.
-function stackMarks() {
-  const items = [...marks.map((mark) => mark.tag), ...noteMarks].filter((tag) => tag.visible && tag.parent?.visible !== false)
-    .map((tag) => { tag.element.style.translate = ''; return { element: tag.element, r: tag.element.getBoundingClientRect() }; }).filter((item) => item.r.width);
-  const placed = [];
+function stackMarks(placed, free) {
+  // Every lift is taken off before any name is measured, so one layout serves them all. A name with no room on the
+  // screen, even lifted, waits.
+  const shownMarks = [...marks.map((mark) => mark.tag), ...noteMarks].filter((tag) => tag.visible && tag.parent?.visible !== false);
+  for (const tag of shownMarks) tag.element.style.translate = '';
+  const items = shownMarks.map((tag) => ({ element: tag.element, r: tag.element.getBoundingClientRect() })).filter((item) => item.r.width);
   for (const { element, r } of items.sort((a, b) => a.r.left - b.r.left)) {
     const hits = (top) => placed.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && top < p.bottom && top + r.height > p.top);
     let lift = 0; while (hits(r.top - lift) && lift < 240) lift += r.height + 2;
+    const box = { left: r.left, right: r.right, top: r.top - lift, bottom: r.bottom - lift }, shown = !hits(box.top) && free(box);
     element.style.translate = lift ? `0 -${lift}px` : ''; element.style.setProperty('--lift', `${lift}px`); // a lifted name keeps a line to its point
-    placed.push({ left: r.left, right: r.right, top: r.top - lift, bottom: r.bottom - lift });
+    element.style.visibility = shown ? '' : 'hidden';
+    if (shown) placed.push(box);
   }
 }
 function declutter() {
+  // One rule for every label: it shows only where all of it is on the screen, clear of every panel and of every label
+  // placed before it; where they cannot all fit, fewer show. They are placed in turn: a selected document, what the
+  // model highlighted, the time marks, the count of causal links, the names of groups and rows, the lens cards, the
+  // values, the Events' names on their threads, and then (labels2) the floating names. Each part reads the boxes it
+  // needs before it writes any style, so the page is laid out once for each part rather than once for each name.
+  const panels = panelBoxes(), placed = [];
+  const free = (r) => r.left >= 2 && r.right <= innerWidth - 2 && r.top >= 2 && r.bottom <= innerHeight - 2
+    && !panels.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top < p.bottom + 2 && r.bottom > p.top - 2);
   // A selected document may move out of view with the graph; never show a clipped badge.
-  const selectedLabel = selectedDocumentLabel.element; selectedLabel.style.visibility = '';
-  if (selectedDocumentLabel.visible) {
-    const r = selectedLabel.getBoundingClientRect();
-    if (r.left < 2 || r.right > innerWidth - 2 || r.top < 2 || r.bottom > innerHeight - 2) selectedLabel.style.visibility = 'hidden';
+  const selectedLabel = selectedDocumentLabel.element, selected = selectedDocumentLabel.visible ? selectedLabel.getBoundingClientRect() : null;
+  const ticks = tickPool.map(({ object }) => ({ el: object.element, r: object.visible ? object.element.getBoundingClientRect() : null }));
+  const lane = laneTag.visible && !terrain.on ? laneTag.element.getBoundingClientRect() : null;
+  const clipped = selected && (selected.left < 2 || selected.right > innerWidth - 2 || selected.top < 2 || selected.bottom > innerHeight - 2);
+  if (selectedLabel.style.visibility !== (clipped ? 'hidden' : '')) selectedLabel.style.visibility = clipped ? 'hidden' : '';
+  if (selected?.width && !clipped) placed.push(selected);
+  if (opt.curation) stackMarks(placed, free);
+  const marked = placed.length;
+  for (const { el, r } of ticks) {
+    const hidden = Boolean(r?.width) && (!free(r) || placed.some((p, i) => r.left < p.right + (i >= marked ? 6 : 0) && r.right > p.left - (i >= marked ? 6 : 0) && r.top < p.bottom && r.bottom > p.top));
+    if (r?.width && !hidden) placed.push(r);
+    if (el.style.visibility !== (hidden ? 'hidden' : '')) el.style.visibility = hidden ? 'hidden' : '';
   }
-  const tickRects = [];
-  for (const { object } of tickPool) {
-    const el = object.element; el.style.visibility = '';
-    if (!object.visible) continue;
-    const r = el.getBoundingClientRect(); if (!r.width) continue;
-    if (tickRects.some((p) => r.left < p.right + 6 && r.right > p.left - 6 && r.top < p.bottom && r.bottom > p.top)) el.style.visibility = 'hidden';
-    else tickRects.push(r);
+  // The count of causal links names their lane, beside the time marks.
+  if (lane?.width) {
+    const hidden = !free(lane) || placed.some((p) => lane.left < p.right && lane.right > p.left && lane.top < p.bottom && lane.bottom > p.top);
+    if (!hidden) placed.push(lane);
+    if (laneTag.element.style.visibility !== (hidden ? 'hidden' : '')) laneTag.element.style.visibility = hidden ? 'hidden' : '';
   }
-  if (opt.curation) stackMarks();
-  if (terrain.on) { declutterTerrain(); return; }
-  const panels = [...document.querySelectorAll('.hud.caption, .hud.bar, .hud.legend, .hud.title, .hud.stats')].map((el) => el.getBoundingClientRect());
-  for (const el of document.querySelectorAll('#tools, .pop:not([hidden]), #details:not([hidden])')) panels.push(el.getBoundingClientRect());
-  const placed = [...panels];
+  if (terrain.on) { declutterTerrain(); labelRoom = { panels, labels: placed }; return; }
   // Beyond the stage's field (the tree added, layers, another scale, or held still) the names of whoever and whatever
-  // would cover each other take turns, and a love-or-fear chip with no room waits; the stage's field keeps its own rules.
+  // would cover each other, or the marks placed before them, take turns, and a love-or-fear chip with no room waits;
+  // the stage's field keeps its own rules.
   const stage = !recordedMeasures.length && isStory() && blend.now === 0 && opt.camera !== 'locked' && !nodes.some((node) => node.inT);
   const names = [];
-  for (const object of [...groupLabels.map((item) => item.object), ...rows.flatMap((row) => row.caption ? [row.caption, row.name] : [row.name])]) {
-    const el = object.element; if (stage || !object.visible) { if (el.style.visibility) el.style.visibility = ''; continue; }
+  const nameObjects = [...groupLabels.map((item) => item.object), ...rows.flatMap((row) => row.caption ? [row.caption, row.name] : [row.name])];
+  const nameBoxes = nameObjects.map((object) => (stage || !object.visible ? null : object.element.getBoundingClientRect()));
+  nameObjects.forEach((object, i) => {
+    const el = object.element, box = nameBoxes[i];
     // A series caption's padding only lifts it clear of its first answer's name; it does not take room.
-    el.style.visibility = ''; const box = el.getBoundingClientRect(); if (!box.width) continue;
-    const r = el.classList?.contains('series') ? { left: box.left, right: box.right, top: box.top, bottom: box.bottom - 10 } : box;
-    const outside = r.left < 2 || r.right > innerWidth - 2 || r.top < 2 || r.bottom > innerHeight - 2;
-    const overPanel = panels.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top < p.bottom + 2 && r.bottom > p.top - 2);
-    if (outside || overPanel || names.some((o) => r.left < o.right && r.right > o.left && r.top < o.bottom - 4 && r.bottom > o.top + 4)) el.style.visibility = 'hidden'; else names.push(r);
-  }
-  for (const el of labels.domElement.querySelectorAll('.label.row, .label.series, .label.group, .label.year, .label.lane')) { if (el.style.visibility === 'hidden') continue; const r = el.getBoundingClientRect(); if (r.width) placed.push(r); }
-  const hits = (r, lift = 0) => placed.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top - lift < p.bottom + 2 && r.bottom - lift > p.top - 2);
+    let hidden = false;
+    if (box?.width) {
+      const r = el.classList?.contains('series') ? { left: box.left, right: box.right, top: box.top, bottom: box.bottom - 10 } : box;
+      const outside = r.left < 2 || r.right > innerWidth - 2 || r.top < 2 || r.bottom > innerHeight - 2;
+      const overPanel = panels.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top < p.bottom + 2 && r.bottom > p.top - 2);
+      hidden = outside || overPanel || [...placed, ...names].some((o) => r.left < o.right && r.right > o.left && r.top < o.bottom && r.bottom > o.top);
+      if (!hidden) names.push(r);
+    }
+    el.style.visibility = hidden ? 'hidden' : '';
+  });
+  placed.push(...names);
+  const hits = (r, lift = 0) => { const box = { left: r.left, right: r.right, top: r.top - lift, bottom: r.bottom - lift };
+    return !free(box) || placed.some((p) => box.left < p.right + 4 && box.right > p.left - 4 && box.top < p.bottom + 2 && box.bottom > p.top - 2); };
   // Where there is room for only some, the acts nearest the playhead take it, so playing the years shows the acts as they come.
   const nearNow = (item) => Math.abs(item.userData.t - (building() ? T1 : now));
   // In a big window the stage keeps every card, as it always did; in a smaller one a card with no room waits, rather than covering the scene.
   const roomy = innerWidth >= 1500 && innerHeight >= 950;
-  // Every card is measured before any is moved, so one layout serves them all.
+  // Every card, value and tag is measured before any is moved or faded.
   const cards = lenses.filter((item) => item.visible).sort((a, b) => nearNow(a) - nearNow(b) || a.userData.t - b.userData.t)
     .map((lens) => ({ inner: lens.element.firstElementChild, r: lens.element.getBoundingClientRect(), lift: 0, room: false }));
+  const values = rows.map((row) => ({ el: row.value.element, r: row.value.element.getBoundingClientRect() }));
+  const tags = threads.map((thread) => thread.userData.tag).filter((tag) => tag?.visible && tag.parent?.visible !== false).sort((a, b) => b.userData.weight - a.userData.weight || b.userData.t - a.userData.t)
+    .map((tag) => ({ el: tag.element, r: tag.element.getBoundingClientRect() }));
   for (const card of cards) {
     if (!card.r.width) continue; const { r } = card;
     while (card.lift <= 150 && hits(r, card.lift)) card.lift += 6;
     card.room = (stage && roomy) || card.lift <= 150; if (card.room) placed.push({ left: r.left, right: r.right, top: r.top - card.lift, bottom: r.bottom - card.lift });
   }
+  for (const value of values) { value.faded = Boolean(value.r.width) && hits(value.r); if (value.r.width && !value.faded) placed.push(value.r); }
+  for (const tag of tags) { if (!tag.r.width) continue; tag.faded = hits(tag.r); if (!tag.faded) placed.push(tag.r); }
   for (const card of cards) if (card.r.width) { card.inner.style.visibility = card.room ? '' : 'hidden'; card.inner.style.transform = `translateY(${-card.lift}px)`; }
-  for (const row of rows) { const el = row.value.element; el.style.opacity = ''; const r = el.getBoundingClientRect(); if (!r.width) continue; if (hits(r)) el.style.opacity = '0'; else placed.push(r); }
-  const tags = threads.map((thread) => thread.userData.tag).filter((tag) => tag?.visible && tag.parent?.visible !== false).sort((a, b) => b.userData.weight - a.userData.weight || b.userData.t - a.userData.t);
-  for (const tag of tags) {
-    const r = tag.element.getBoundingClientRect(); if (!r.width) continue;
-    const free = !hits(r); tag.element.style.opacity = free ? '' : '0'; if (free) placed.push(r);
-  }
+  for (const { el, faded } of values) if (el.style.opacity !== (faded ? '0' : '')) el.style.opacity = faded ? '0' : '';
+  for (const { el, r, faded } of tags) if (r.width && el.style.opacity !== (faded ? '0' : '')) el.style.opacity = faded ? '0' : '';
+  labelRoom = { panels, labels: placed };
 }
 const distToSeg = (p, a, b) => { const dx = b.x - a.x; const dy = b.y - a.y; const k = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1))); return Math.hypot(p.x - a.x - k * dx, p.y - a.y - k * dy); };
 const tipLine = (cls, text) => { const el = document.createElement('div'); el.className = cls; el.textContent = text; return el; };
@@ -3332,20 +3464,25 @@ function walk(dt) {
   if (yaw || pitch) { const look = controls.target.clone().sub(camera.position); look.applyAxisAngle(UP, yaw); const across = new THREE.Vector3().crossVectors(look, UP).normalize(); const turned = look.clone().applyAxisAngle(across, pitch); if (Math.abs(turned.clone().normalize().y) < 0.97) look.copy(turned); controls.target.copy(camera.position).add(look); }
 }
 let shiftDown = false; addEventListener('keydown', (event) => { if (event.key === 'Shift') shiftDown = true; }); addEventListener('keyup', (event) => { if (event.key === 'Shift') shiftDown = false; });
+// Whether the frame moved anything: a walk, an animation, a blend, a rising curtain, a layout or the terrain.
 function tick(clock, dt) {
   frameDt = dt;
+  let changed = held.size > 0 || animation !== null;
   walk(dt);
   if (animation) animation(clock);
   if (Math.abs(blend.now - blend.to) > 0.001) { blend.now += Math.sign(blend.to - blend.now) * Math.min(Math.abs(blend.to - blend.now), dt / 0.9); relayout = true; if (opt.camera === 'locked') { fitLocked(); placeLocked(true); } } else if (blend.now !== blend.to) { blend.now = blend.to; relayout = true; }
   // Curtains rise as the construction makes them, and sink when the play goes back before them.
   for (const row of rows) if (row.rise !== row.riseTo) { const rise = Math.max(0, Math.min(1, row.rise)); row.rise = row.riseTo > rise ? Math.min(row.riseTo, rise + dt / 0.8) : Math.max(row.riseTo, rise - dt / 0.4); relayout = true; }
+  changed ||= relayout || dirty || extrasDirty;
   if (relayout) relayOut(); else if (dirty) { dirty = false; apply(); }
   if (extrasDirty) { extrasDirty = false; if (!terrain.on) drawExtras(); }
   if (terrain.on) {
     let moving = false; for (const row of terrain.rows) if (row.scale !== row.target) { row.scale = Math.abs(row.target - row.scale) < 0.002 ? row.target : row.scale + (row.target - row.scale) * Math.min(1, dt * 7); moving = true; }
     if (moving) heightsTerrain();
-    terrain.mind.forEach((point, i) => { if (point.visible) point.position.y = point.userData.y + Math.sin(clock / 1250 + i) * 0.2 * TS; });
+    terrain.mind.forEach((point, i) => { if (point.visible) { point.position.y = point.userData.y + Math.sin(clock / 1250 + i) * 0.2 * TS; moving = true; } });
+    changed ||= moving;
   }
+  return changed;
 }
 // Each frame reads the clock itself: a frame's own time stamp can come from before the last one, and time never runs
 // backwards here.
@@ -3362,16 +3499,32 @@ function glideTo(points) {
   glide = { from: { position: camera.position.clone(), target: controls.target.clone() }, to: { position: center.clone().addScaledVector(direction, distance), target: center }, start: performance.now(), duration: 900 };
 }
 controls.addEventListener('start', () => { glide = null; });
+// The scene, its names and what is under the pointer are drawn only when the frame is due (frame-gate.js): a still view
+// costs nothing but its clock. Any input wakes it, as does any call from the other views.
+const drawing = createFrameGate();
+for (const type of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'keydown', 'keyup', 'touchstart', 'touchmove', 'touchend', 'resize', 'click', 'input', 'change', 'scroll', 'viewer-controls-change'])
+  addEventListener(type, () => drawing.wake(), { capture: true, passive: true });
+document.fonts?.addEventListener?.('loadingdone', () => drawing.wake());
+const cameraPose = () => [...camera.position.toArray(), ...camera.quaternion.toArray(), ...camera.projectionMatrix.elements];
+// The scene's world matrices are brought up to date once per drawing, for the scene and its names alike.
+scene.matrixWorldAutoUpdate = false;
+const syncBatches = () => glowBatches.sync(scene, camera);
+// The time views' labels never cover each other (declutter), so which stands in front needs no sorting each frame; the
+// terrain's may, and keeps it.
+function drawScene() { scene.updateMatrixWorld(); syncBatches(); composer.render(); if (labelsAside) return; labels.sortObjects = terrain.on; labels.render(scene, camera); }
 function frame() {
   temporalFrame = null; if (!temporalActive) return;
-  const clock = performance.now(); const dt = Math.max(0, Math.min(0.1, (clock - last) / 1000)); last = clock; tick(clock, dt);
+  const clock = performance.now(); const dt = Math.max(0, Math.min(0.1, (clock - last) / 1000)); last = clock;
+  const changed = tick(clock, dt) || glide !== null || playing;
   if (glide) { const u = Math.min(1, (clock - glide.start) / glide.duration), e = u * u * (3 - 2 * u); camera.position.lerpVectors(glide.from.position, glide.to.position, e); controls.target.lerpVectors(glide.from.target, glide.to.target, e); if (u >= 1) glide = null; }
   if (opt.camera === 'locked') placeLocked(); else controls.update();
-  composer.render(); labels.render(scene, camera); declutter(); labels2.update(); hover();
-  // Once the names are on the page their widths are known, and a locked view frames them.
-  // A still camera opened fresh frames the whole view in the room the panels leave, as Default does; a camera that came
-  // with a pose keeps it.
-  framesDrawn += 1; if (framesDrawn === 2 && opt.camera === 'locked') { fitLocked(); placeLocked(true); } else if (framesDrawn === 2 && opt.camera === 'free' && !posed) fitFree();
+  if (drawing.due(changed, cameraPose())) {
+    drawScene(); if (!labelsAside) { declutter(); labels2.update(); } if (!pressed.size) hover();
+    // Once the names are on the page their widths are known, and a locked view frames them.
+    // A still camera opened fresh frames the whole view in the room the panels leave, as Default does; a camera that came
+    // with a pose keeps it.
+    framesDrawn += 1; if (framesDrawn === 2) placed ??= HOME; if (framesDrawn === 2 && opt.camera === 'locked') { fitLocked(); placeLocked(true); } else if (framesDrawn === 2 && opt.camera === 'free' && !posed) { fitFree(); syncURL(); }
+  }
   temporalFrame = requestAnimationFrame(() => frame());
 }
 // For captures and tests: the window on screen, and the view's state.
@@ -3409,23 +3562,32 @@ window.explorer = {
   // Where each causal link crosses the screen, at its middle, to point at it in a test.
   arcs: (at = 0.5) => arcTargets.map((target) => { const p = target.pts[Math.floor((target.pts.length - 1) * at)]; const point = screen(p.x, p.y, p.z); return { kind: target.relation.kind, x: Math.round(point.x), y: Math.round(point.y) }; }),
   // The time a frame takes: laid out again each frame (as while zooming or turning to layers) or steady.
-  parts: (n = 20) => { const parts = { tick: () => tick(performance.now(), 1 / 60), camera: () => (opt.camera === 'locked' ? placeLocked() : controls.update()), render: () => composer.render(), labels: () => labels.render(scene, camera), declutter, labels2: () => labels2.update(), hover };
+  parts: (n = 20) => { const parts = { tick: () => tick(performance.now(), 1 / 60), camera: () => (opt.camera === 'locked' ? placeLocked() : controls.update()), render: () => { scene.updateMatrixWorld(); syncBatches(); composer.render(); }, labels: () => labels.render(scene, camera), declutter, labels2: () => labels2.update(), hover };
     return Object.fromEntries(Object.entries(parts).map(([name, fn]) => { const times = []; for (let i = 0; i < n; i += 1) { const t0 = performance.now(); fn(); times.push(performance.now() - t0); } times.sort((a, b) => a - b); return [name, +times[n >> 1].toFixed(2)]; })); },
-  profile: (n = 30, full = true) => { const times = []; for (let i = 0; i < n; i += 1) { const t0 = performance.now(); if (full) relayout = true; tick(performance.now(), 1 / 60); if (opt.camera === 'locked') placeLocked(); else controls.update(); composer.render(); labels.render(scene, camera); declutter(); labels2.update(); hover(); times.push(performance.now() - t0); } times.sort((a, b) => a - b); return { median: +times[n >> 1].toFixed(1), max: +times.at(-1).toFixed(1) }; },
+  profile: (n = 30, full = true) => { const times = []; for (let i = 0; i < n; i += 1) { const t0 = performance.now(); if (full) relayout = true; tick(performance.now(), 1 / 60); if (opt.camera === 'locked') placeLocked(); else controls.update(); drawScene(); declutter(); labels2.update(); hover(); times.push(performance.now() - t0); } times.sort((a, b) => a - b); return { median: +times[n >> 1].toFixed(1), max: +times.at(-1).toFixed(1) }; },
 };
 // Capture: a recorder sets the moment and draws one frame at a time, so a video plays at an even speed.
 if (params.has('capture')) {
   document.body.classList.add('capture');
-  window.__frame = (t, dt, sweeping = true) => { if (opt.mode === 'construction') tau = t; else now = t; atEnd = false; playing = sweeping; tick(performance.now(), dt ?? 0.016); apply(); if (opt.camera === 'locked') placeLocked(); else controls.update(dt); composer.render(); labels.render(scene, camera); declutter(); labels2.update(); return opt.mode === 'construction' ? [C0, C1] : [F.a, F.b]; };
+  window.__frame = (t, dt, sweeping = true) => { if (opt.mode === 'construction') tau = t; else now = t; atEnd = false; playing = sweeping; tick(performance.now(), dt ?? 0.016); apply(); if (opt.camera === 'locked') placeLocked(); else controls.update(dt); drawScene(); declutter(); labels2.update(); return opt.mode === 'construction' ? [C0, C1] : [F.a, F.b]; };
   window.__span = opt.mode === 'construction' ? [C0, C1] : [F.a, F.b];
 } else if (temporalActive) { frame(); if (params.has('play')) setTimeout(() => { if (temporalActive) play(); }, 1000); }
 
 let selectionGraph = null;
+// In a compact snapshot the graph's full records can still be on their way: a selection is shown once they are here,
+// unless another has been made meanwhile, and from the model's own records if they cannot be fetched.
+let selectionWaiting = null, graphUnavailable = false;
 function useSharedSelection(selection) {
-  const key = JSON.stringify(selection); if (key === appliedSelection) return; appliedSelection = key;
+  const key = JSON.stringify(selection); if (key === appliedSelection) return; appliedSelection = key; selectionWaiting = null;
   if (!selection) { hideDetails(); return; }
   if (selection.kind === 'narrative') {
     const pending = [...storyRoots]; while (pending.length) { const part = pending.pop(); if (part.unit.id === selection.id) { selectReadingPart(part); return; } pending.push(...part.children); }
+  }
+  if (partPending(data, 'inspection/graph') && !graphUnavailable) {
+    selectionWaiting = selection; appliedSelection = null;
+    const retry = () => { if (selectionWaiting === selection) useSharedSelection(selection); };
+    whenPart(data, 'inspection/graph').then(retry, () => { graphUnavailable = true; retry(); });
+    return;
   }
   selectionGraph ??= buildModelGraph(data.inspection);
   const record = selectionGraph.nodes.find((node) => node.kind === selection.kind && node.nativeId === selection.id);
@@ -3472,9 +3634,30 @@ export const temporalController = {
   // or reading opens as any selection does.
   // A search result: a row at its curve, a note or passage at its moments (with the notes layer on), any other record as
   // a highlight is shown.
+  // A stretch of time found by search, in the model's own time.
+  zoomTo(start, end) { return showSpan(start, end); },
   locate(target) {
     const row = target.rowId ? rowOf.get(target.rowId) : null;
+    // A record the referent filter hides is shown with everything else again.
+    if (row && opt.about?.rowsNarrowed && !aboutRow(row, opt.about)) setAbout(null);
     if (row) { locateRow(row); return; }
+    // An Event is shown across its own interval before it is highlighted.
+    if (target.kind === 'event') {
+      if (opt.about && !opt.about.events.has(target.id)) setAbout(null);
+      const event = data.events.find((item) => item.id === target.id);
+      if (event) { const [a, b] = reachOf(event); showSpan(a, b); }
+    }
+    // A referent narrows the view to what the model says about it; the window moves only when none of that is in it.
+    if (target.kind === 'referent' && referentIds.has(target.id)) {
+      setAbout(target.id);
+      const reaches = [...opt.about.bound].map((id) => treeById.get(id)?.reach).filter(Array.isArray);
+      if (reaches.length && !reaches.some(([a, b]) => b >= F.a && a <= F.b)) showSpan(Math.min(...reaches.map((reach) => reach[0])), Math.max(...reaches.map((reach) => reach[1])));
+      // It is selected where it is, and the camera frames what is left once the narrowed field and the opened card have
+      // settled: following the field as it narrows would keep the old framing's offset and push it aside.
+      const selection = { kind: 'referent', id: target.id }; useSharedSelection(selection); publishRecord(selection);
+      setTimeout(() => { if (temporalActive && opt.about?.id === target.id) recenterView(); }, 400);
+      return;
+    }
     if (target.kind === 'row') { if (target.record) this.showHighlight({ record: `${target.record.kind}:${target.record.id}` }); return; }
     if (target.kind === 'narrative' && noteById.has(target.id)) {
       if (!mind.visible) showThoughts(true);
@@ -3525,3 +3708,5 @@ export const temporalController = {
   getState() { return { timeView: opt.layout, time: { now, tau, atEnd, mode: opt.mode, start: F.a, end: F.b }, temporalCamera: { ...cameraState(camera, controls), layout: opt.layout, scroll: LOCKED.scroll } }; },
   destroy() { temporalActive = false; temporalEvents.abort(); clearInterval(timer); clearInterval(liveTimer); clearTimeout(urlTimer); cancelAnimationFrame(temporalFrame); controls.dispose(); composer.dispose(); renderer.dispose(); },
 };
+// What another view, search or the model's view card asks of the time views is drawn at once.
+for (const [name, method] of Object.entries(temporalController)) temporalController[name] = function (...rest) { drawing.wake(); return method.apply(this, rest); };

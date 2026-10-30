@@ -91,7 +91,7 @@ test('chosen detail and view changes preserve the reader camera mode while reset
       assert.equal(address.searchParams.get('camera'), camera, 'base, detail and Everything keep the reader mode, ignoring cameras in older recorded views');
       assert.equal(address.searchParams.get('data'), 'book');
       for (const key of ['pose', 'record', 'read']) assert.equal(address.searchParams.has(key), false, `${key} still resets when choosing a detail level`);
-      assert.equal(address.searchParams.get('at'), level === 2 ? null : '10');
+      assert.equal(address.searchParams.get('at'), '10', 'Everything keeps the view\'s moment, as it keeps its window');
     }
     const next = new URL(viewAddress(href, chosen('new', { view: 'layers' })));
     assert.equal(next.searchParams.get('camera'), camera, 'explicitly selecting a new view also keeps the reader mode');

@@ -14,7 +14,7 @@ export const VIEW_SETTINGS = Object.freeze({
   view: oneOf('together', 'layers', 'terrain', 'chart', 'graph', 'structure', 'space'), timeView: oneOf('together', 'layers', 'terrain'),
   camera: oneOf('spin', 'free', 'locked'), glare: oneOf('full', 'soft'), edges: oneOf('on', 'off'), reading: oneOf('on', 'off'),
   text: oneOf('on', 'off'), legend: oneOf(''), world: oneOf('above', 'below'), smooth: between(0, 1),
-  show: layers, everything: oneOf(''), nothoughts: oneOf(''), lenses: named, depth: whole, detail: whole, scope: named, focus: named,
+  show: layers, everything: oneOf(''), nothoughts: oneOf(''), lenses: named, depth: whole, detail: whole, scope: named, focus: named, about: named, within: named, earth: oneOf('globe', 'map'),
   importance: named, importanceTop: (value) => (/^\d+$/u.test(value) && Number(value) >= 1) || 'a whole number from 1',
   rows: oneOf('all'), flat: oneOf('hide'), unopened: oneOf('hide'), undated: oneOf('hide'), names: oneOf('big', 'small'),
   noteLayout: oneOf('floors', 'original', 'nearby', 'overhead', 'centered'), noteLinks: oneOf('some', 'all'),
@@ -47,18 +47,24 @@ export function viewSettingsProblems(settings) {
 }
 
 // A view's settings, rows and highlights at one level of detail: its own, then each level's added in order. The last
-// stop after the model's levels is Everything, which shows every record and no longer narrows to the model's choice.
+// stop after the model's levels is Everything, which shows every record and no longer narrows to the model's choice:
+// it lifts the settings that leave records out, and keeps how the view presents them (its window, moment, time mode,
+// the whole across the Chart's top, the drawing of the Earth).
+const NARROWING = new Set(['show', 'rows', 'everything', 'nothoughts', 'depth', 'detail', 'scope', 'about', 'within', 'importance', 'importanceTop', 'flat', 'unopened', 'undated', 'lenses', 'edges', 'text', 'noteLinks']);
 export const levelCount = (view) => (view?.levels?.length ?? 0) + 2;
 export const everythingLevel = (view) => levelCount(view) - 1;
 export function settingsAt(view, level) {
   if (level >= everythingLevel(view)) {
-    const kept = Object.fromEntries(Object.entries(settingsAt(view, everythingLevel(view) - 1)).filter(([key]) => ['view', 'timeView', 'glare', 't0', 't1', 'zoom', 'life', 'reading', 'smooth', 'world', 'names'].includes(key)));
+    const kept = Object.fromEntries(Object.entries(settingsAt(view, everythingLevel(view) - 1)).filter(([key]) => !NARROWING.has(key)));
     return { ...kept, everything: '', rows: 'all' };
   }
   let settings = viewOwn(view?.settings);
   for (const step of (view?.levels ?? []).slice(0, level)) settings = { ...settings, ...viewOwn(step.settings) };
   return settings;
 }
+// The level a followed view opens at: its fullest, Everything, so that a reader first sees all the model holds, with the
+// view's own levels a step away on its card. A view recorded with a later level than its first opens at that level.
+export const openingLevel = (view) => (Number.isInteger(view?.level) && view.level > 0 ? Math.min(view.level, everythingLevel(view)) : everythingLevel(view));
 export function curationAt(view, level) {
   if (level >= everythingLevel(view)) return { rows: [], highlights: [] };
   const rows = [...(view?.rows ?? [])], highlights = [...(view?.highlights ?? [])];
@@ -79,11 +85,11 @@ export const sameSettings = (a, b) => canonical(addressSettings(a)) === canonica
 export const currentView = (views = []) => views.filter((view) => !view.superseded).at(-1) ?? null;
 const levelOf = (url, view) => {
   const level = Number(url.searchParams.get('level'));
-  return url.searchParams.has('level') && Number.isInteger(level) && level >= 0 && level < levelCount(view) ? level : view.level ?? 0;
+  return url.searchParams.has('level') && Number.isInteger(level) && level >= 0 && level < levelCount(view) ? level : openingLevel(view);
 };
 // The address of a view at a level: the snapshot it shows, the view's settings, and which view it is. The reader's
 // camera mode always stays; keepPlace also retains their camera position, moment, open passage and selected record.
-export function viewAddress(href, view, level = view.level ?? 0, { keepPlace = false } = {}) {
+export function viewAddress(href, view, level = openingLevel(view), { keepPlace = false } = {}) {
   const url = new URL(href), next = new URLSearchParams(), settings = settingsAt(view, level);
   const sameTimeMode = (url.searchParams.get('mode') ?? 'story') === (settings.mode ?? 'story');
   for (const key of ['data', 'title', 'live', 'capture', ...(keepPlace ? PASSING : READER)]) {
@@ -92,7 +98,7 @@ export function viewAddress(href, view, level = view.level ?? 0, { keepPlace = f
   for (const [key, value] of Object.entries(settings)) {
     if (!keepPlace || !PASSING.has(key) || !next.has(key)) next.set(key, value);
   }
-  next.set('chosen', view.id); if (level !== (view.level ?? 0)) next.set('level', String(level));
+  next.set('chosen', view.id); if (level !== openingLevel(view)) next.set('level', String(level));
   url.search = next.toString().replace(/%2C/gu, ',').replace(/%3A/gu, ':').replace(/\+/gu, '%20').replace(/=(&|$)/gu, '$1');
   return url.href;
 }
@@ -107,7 +113,7 @@ export function openingView(href, views = []) {
   if (named && url.searchParams.has('adjusted')) return { href, state: 'adjusted', view: named, current, level: levelOf(url, named), newer: named.id !== current.id };
   if (named?.id === current.id) { const level = levelOf(url, current); return { href: viewAddress(href, current, level, { keepPlace: true }), state: 'following', view: current, current, level }; }
   if (named || !Object.keys(addressSettings(url.search)).length) {
-    const level = named ? current.level ?? 0 : levelOf(url, current);
+    const level = named ? openingLevel(current) : levelOf(url, current);
     return { href: viewAddress(href, current, level, { keepPlace: true }), state: named ? 'changed' : 'following', view: current, current, level, ...(named ? { previous: named.id } : {}) };
   }
   return { href, state: 'own', view: null, current, level: 0 };

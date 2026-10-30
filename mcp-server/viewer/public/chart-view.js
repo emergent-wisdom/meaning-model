@@ -1,8 +1,10 @@
 // The Chart: the whole model on one time axis, drawn from chart-model.js. The parts of one Event, as declared, run across the top, the Events
 // sit in rows under them with their causal links, and every process the model follows has a row of its own; the left
-// column names each row and reads it at the moment under the pointer. The panel beside it says how to read the chart
-// and shows whatever is opened. Opening a record shares it with the other views through the viewer session.
-import { chartModel, axisFraction, axisTicks, timeLabel, lengthLabel, readSeries, tagWord, tagStyle, tagOf, weaker, TAGS } from './chart-model.js';
+// column names each row and reads it at the moment under the pointer. A process with parts can be opened as the top of
+// the rows, so only it and what it holds are drawn, with the path to it above them; a process that declares its parts add
+// up to it shows them stacked beneath its curve. The panel beside it says how to read the chart and shows whatever is
+// opened. Opening a record shares it with the other views through the viewer session.
+import { chartModel, axisFraction, axisTicks, timeLabel, lengthLabel, readSeries, layerReading, tagCountsOf, tagWord, tagStyle, tagOf, weaker, TAGS } from './chart-model.js';
 import { prepareReadings } from './interval-readings.js';
 import { answerColor, ANSWER_PALETTE } from './recorded-numbers.js';
 import { currentView } from './view-settings.js';
@@ -17,6 +19,7 @@ const ROLE_WORDS = { enabling: 'made it possible', enable: 'made it possible', t
 // Colours are the viewer's own: a Cut's answers take the colour every view gives that answer (moved along the palette
 // only where two answers of one Cut would share one), and the parts of a process take the palette in order.
 const REST = answerColor('remainder');
+const OVER = '#ff6b81'; // where the parts of a declared sum exceed it
 function answerInks(keys) {
   const used = new Set(), inks = new Map();
   for (const key of keys) {
@@ -27,8 +30,10 @@ function answerInks(keys) {
   }
   return inks;
 }
+// The parts a row stacks: those of a divided process (its own row) or of a declared sum (stacked in the process's row).
+const partsOf = (row) => row.members ?? row.layers?.members ?? [];
 const inksOf = (row) => (row.kind === 'cut-series' ? answerInks(row.members.map((m) => m.key))
-  : new Map(row.members.map((m, i) => [m.id, ANSWER_PALETTE[i % ANSWER_PALETTE.length]])));
+  : new Map(partsOf(row).map((m, i) => [m.id, ANSWER_PALETTE[i % ANSWER_PALETTE.length]])));
 const inkOf = (row, m) => (m.remainder ? REST : inksOf(row).get(row.kind === 'cut-series' ? m.key : m.id));
 const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)') ?? { matches: false };
 
@@ -108,6 +113,12 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
     rowsOfEvents = C.eventRows(scaleId, new Set([...(whole ? [whole] : []), ...bandParts.map((p) => p.id)]));
   }
   layoutParts();
+  // The process opened as the top of the rows: the view's `within` setting. Only it and the parts it holds are drawn; without
+  // one the rows are the whole tree.
+  const withinSetting = new URLSearchParams(globalThis.location?.search ?? '').get('within');
+  let within = C.tree.from(withinSetting) ? withinSetting : null;
+  let shown = within ? C.tree.from(within) : null; // what the opened top draws: { rows, path, has }
+  let treeRows = shown ? shown.rows : C.rows;
   let focus = null;        // an opened stretch of time: it takes most of the axis
   let opened = null;       // what the panel shows: { kind, id }
   let pinT = null, hoverT = null;
@@ -141,6 +152,7 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
 
   // ---- DOM --------------------------------------------------------------------------------------------------------------------------
   const root = el('div', { class: 'cv' });
+  root.style.setProperty('--cv-over', OVER); root.style.setProperty('--cv-rest', REST);
   const chart = el('section', { class: 'cv-chart', 'aria-label': 'The model on one time axis' });
   const scroller = el('div', { class: 'cv-scroll' });
   const head = el('div', { class: 'cv-head' });
@@ -158,7 +170,8 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
   body.append(rowList, el('div', { class: 'cv-overlay', 'aria-hidden': 'true' }, [bodySel, bodyCursor]));
   scroller.append(head, body);
   const foot = el('div', { class: 'cv-foot' });
-  chart.append(scroller, foot);
+  const crumbs = el('nav', { class: 'cv-crumbs', 'aria-label': 'Where in the tree of processes the rows are opened', hidden: true });
+  chart.append(crumbs, scroller, foot);
   // The reading card: the viewer's details card, in the right column; it closes, and Reading in the controls brings it back.
   const panel = el('aside', { class: 'cv-panel', 'aria-label': 'Reading' });
   const panelNav = el('nav', { class: 'cv-panel-nav', 'aria-label': 'Reading' });
@@ -218,52 +231,84 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
   controls.push(zoomOut);
   tools?.append(...controls);
 
-  // ---- rows: one per row of the model's tree -----------------------------------------------------------------------------------------
-  const rowById = new Map(C.rows.map((r) => [r.id, r]));
-  // A process's own row (its first); a process with several series has a row for each.
-  const rowOfProcess = new Map();
-  for (const r of C.rows) if (r.kind === 'measure' && !rowOfProcess.has(r.process)) rowOfProcess.set(r.process, r);
+  // ---- rows: one per row of the model's tree, the whole of it or what one opened process holds -------------------------------------------
   // Whose a row's values are and, where one holder has several series, what tells this one apart.
   const heldBy = (row) => [row.holder ? `held by ${row.holder}` : 'no holder named', row.apart].filter(Boolean).join(' · ');
   const rowName = (row) => (row.holders > 1 ? `${row.label} (${heldBy(row)})` : row.label);
-  const rowScale = new Map();
-  for (const row of C.rows) {
-    if (row.kind === 'measure' && row.series) {
-      const points = row.series.points;
-      const values = points.flatMap((p) => [p.v, p.uncertainty?.lower, p.uncertainty?.upper]);
-      rowScale.set(row.id, row.series.states ? { kind: 'states', lo: -0.5, hi: row.series.states.length - 0.5 } : scaleFor(values, row.unit));
-    } else if (row.kind === 'stack') {
-      const times = [...new Set(row.members.flatMap((m) => m.series.points.map((p) => p.t)))];
-      const sums = times.map((t) => row.members.reduce((sum, m) => sum + Math.max(0, readSeries(m.series, t)?.v ?? 0), 0));
-      rowScale.set(row.id, { kind: 'stack', lo: 0, hi: Math.max(isPercent(row.unit) ? 100 : 0, ...sums) || 1 });
+  // A row that stacks the parts its process declares add up to it.
+  const stacksParts = (row) => Boolean(row.layers?.members.length);
+  let rowById = new Map(), rowOfProcess = new Map(), rowScale = new Map(), rowViews = [], viewById = new Map();
+  let hatches = 0;
+  // One line of a row's list of parts: a chip, a name and the value read at the moment.
+  const shareLine = (row, m, chip = null, title = null) => {
+    const val = el('span', { class: 'cv-share-val' });
+    return { val, li: el('li', { title }, [el('span', { class: `cv-chip${chip ? ` ${chip}` : ''}`, style: chip === 'is-over' ? null : `--chip:${m.remainder ? REST : inkOf(row, m)}`, 'aria-hidden': 'true' }),
+      el('span', { class: 'cv-share-name', text: m.label }), val]) };
+  };
+  function mountRows() {
+    rowById = new Map(treeRows.map((r) => [r.id, r]));
+    // A process's own row (its first); a process with several series has a row for each.
+    rowOfProcess = new Map();
+    for (const r of treeRows) if (r.kind === 'measure' && !rowOfProcess.has(r.process)) rowOfProcess.set(r.process, r);
+    rowScale = new Map();
+    for (const row of treeRows) {
+      if (row.kind === 'measure' && row.series) {
+        const points = row.series.points;
+        const values = points.flatMap((p) => [p.v, p.uncertainty?.lower, p.uncertainty?.upper]);
+        // Layers stand on zero and add up in the row's own unit, so a stacked row reads on a straight scale from zero.
+        rowScale.set(row.id, row.series.states ? { kind: 'states', lo: -0.5, hi: row.series.states.length - 0.5 }
+          : stacksParts(row) ? { kind: 'linear', lo: 0, hi: Math.max(row.layers.top, ...values.filter(Number.isFinite)) * 1.06 || 1 } : scaleFor(values, row.unit));
+      } else if (row.kind === 'stack') {
+        const times = [...new Set(row.members.flatMap((m) => m.series.points.map((p) => p.t)))];
+        const sums = times.map((t) => row.members.reduce((sum, m) => sum + Math.max(0, readSeries(m.series, t)?.v ?? 0), 0));
+        rowScale.set(row.id, { kind: 'stack', lo: 0, hi: Math.max(isPercent(row.unit) ? 100 : 0, ...sums) || 1 });
+      }
     }
+    rowList.replaceChildren();
+    rowViews = treeRows.map((row) => {
+      const hasKids = row.children.length > 0;
+      const scale = rowScale.get(row.id);
+      const layers = stacksParts(row) ? row.layers : null;
+      const stub = el('div', { class: 'cv-stub cv-row-stub', style: `--depth:${row.depth}` });
+      const toggle = hasKids ? el('button', { type: 'button', class: 'cv-disclose', 'aria-expanded': 'true', 'aria-label': `Hide what ${row.label} holds`, onclick: (event) => { event.stopPropagation(); toggleRow(row.id); } })
+        : el('span', { class: 'cv-disclose-space', 'aria-hidden': 'true' });
+      const name = el('button', { type: 'button', class: 'cv-row-name', title: `${row.label}${row.unit ? `, ${row.unit}` : ''}`, onclick: () => open(row.kind === 'group' && row.event ? { kind: 'event', id: row.event } : { kind: 'row', id: row.id }) },
+        el('span', { class: 'cv-row-label', text: row.kind === 'group' ? shortTitle(row.label) : row.label }));
+      // A process that holds parts can be opened as the top of the rows: only it and what it holds are drawn.
+      const openTop = row.kind === 'measure' && hasKids && row.process !== within
+        ? el('button', { type: 'button', class: 'cv-open', text: 'Open', title: `Open ${row.label} as the top: draw only it and its parts`, 'aria-label': `Open ${row.label} as the top of the rows`,
+          onclick: (event) => { event.stopPropagation(); setTop(row.process, { focus: true }); } }) : null;
+      const unitText = row.kind === 'group' ? (Number.isFinite(row.start) ? spanText(row.start, row.end) : '') : row.kind === 'cut-series' ? `${row.unit}${row.owner ? ` · ${row.owner}` : ''}`
+        : `${row.holders > 1 ? `${heldBy(row)} · ` : ''}${row.unit ?? ''}${scale?.kind === 'log' ? ' · log scale' : ''}`;
+      const unitLine = el('span', { class: 'cv-row-unit', text: unitText, title: unitText || null });
+      const val = el('span', { class: 'cv-row-val' }), tag = el('span', { class: 'cv-row-tag' });
+      // The parts a row lists: a divided process's own row, or the parts a declared sum stacks in its process's row, with
+      // the remainder and the excess where its values have them, and the parts it lists without stacking.
+      let values = null, stackVals = null;
+      if (row.members) values = el('ul', { class: 'cv-row-shares' }, row.members.map((m) => shareLine(row, m).li));
+      else if (layers || row.layers?.listed.length) {
+        const own = (layers?.members ?? []).map((m) => shareLine(row, m));
+        const rest = layers?.gap ? shareLine(row, { label: 'Remainder', remainder: true }, null, 'What the whole holds beyond its parts') : null;
+        const over = layers?.over ? shareLine(row, { label: 'Parts exceed it' }, 'is-over', 'Where its parts add up to more than the whole') : null;
+        const listed = row.layers.listed.length ? el('li', { class: 'cv-share-listed', text: `Not stacked: ${row.layers.listed.map((x) => x.label).join(', ')}`,
+          title: row.layers.listed.map((x) => `${x.label}: ${x.why}`).join('\n') }) : null;
+        values = el('ul', { class: 'cv-row-shares' }, [...own.map((x) => x.li), rest?.li, over?.li, listed]);
+        stackVals = { parts: own.map((x) => x.val), rest: rest?.val ?? null, over: over?.val ?? null };
+      }
+      stub.append(...[el('div', { class: 'cv-row-line' }, [toggle, name, openTop]), unitText ? el('div', { class: 'cv-row-line cv-row-line-2' }, unitLine) : null,
+        row.kind === 'measure' ? el('div', { class: 'cv-row-line cv-row-line-3' }, [val, tag]) : null, values].filter(Boolean));
+      const plot = el('div', { class: 'cv-plot cv-row-plot' });
+      const art = svg('svg', { class: 'cv-art', 'aria-hidden': 'true', focusable: 'false' });
+      plot.append(art);
+      const node = el('div', { class: `cv-row cv-row-${row.kind}`, role: 'listitem', 'data-id': row.id }, [stub, plot]);
+      rowList.append(node);
+      return { row, node, toggle, name, val, tag, values, stackVals, unitLine, art, plot, hatch: `cv-hatch-${++hatches}`, dirty: true, visible: true };
+    });
+    viewById = new Map(rowViews.map((v) => [v.row.id, v]));
+    io.disconnect();
+    for (const view of rowViews) io.observe(view.node);
+    applyCollapsed();
   }
-  const rowViews = C.rows.map((row) => {
-    const hasKids = row.children.length > 0;
-    const scale = rowScale.get(row.id);
-    const stub = el('div', { class: 'cv-stub cv-row-stub', style: `--depth:${row.depth}` });
-    const toggle = hasKids ? el('button', { type: 'button', class: 'cv-disclose', 'aria-expanded': 'true', 'aria-label': `Hide what ${row.label} holds`, onclick: (event) => { event.stopPropagation(); toggleRow(row.id); } })
-      : el('span', { class: 'cv-disclose-space', 'aria-hidden': 'true' });
-    const name = el('button', { type: 'button', class: 'cv-row-name', title: `${row.label}${row.unit ? `, ${row.unit}` : ''}`, onclick: () => open(row.kind === 'group' && row.event ? { kind: 'event', id: row.event } : { kind: 'row', id: row.id }) },
-      el('span', { class: 'cv-row-label', text: row.kind === 'group' ? shortTitle(row.label) : row.label }));
-    const unitText = row.kind === 'group' ? (Number.isFinite(row.start) ? spanText(row.start, row.end) : '') : row.kind === 'cut-series' ? `${row.unit}${row.owner ? ` · ${row.owner}` : ''}`
-      : `${row.holders > 1 ? `${heldBy(row)} · ` : ''}${row.unit ?? ''}${scale?.kind === 'log' ? ' · log scale' : ''}`;
-    const unitLine = el('span', { class: 'cv-row-unit', text: unitText });
-    const val = el('span', { class: 'cv-row-val' }), tag = el('span', { class: 'cv-row-tag' });
-    const members = row.members ?? null;
-    const values = members ? el('ul', { class: 'cv-row-shares' }, members.map((m, i) => el('li', {}, [
-      el('span', { class: 'cv-chip', style: `--chip:${inkOf(row, m)}`, 'aria-hidden': 'true' }),
-      el('span', { class: 'cv-share-name', text: m.label }), el('span', { class: 'cv-share-val' })]))) : null;
-    stub.append(...[el('div', { class: 'cv-row-line' }, [toggle, name]), unitText ? el('div', { class: 'cv-row-line cv-row-line-2' }, unitLine) : null,
-      row.kind === 'measure' ? el('div', { class: 'cv-row-line cv-row-line-3' }, [val, tag]) : null, values].filter(Boolean));
-    const plot = el('div', { class: 'cv-plot cv-row-plot' });
-    const art = svg('svg', { class: 'cv-art', 'aria-hidden': 'true', focusable: 'false' });
-    plot.append(art);
-    const node = el('div', { class: `cv-row cv-row-${row.kind}`, role: 'listitem', 'data-id': row.id }, [stub, plot]);
-    rowList.append(node);
-    return { row, node, toggle, val, tag, values, unitLine, art, plot, dirty: true, visible: true };
-  });
-  const viewById = new Map(rowViews.map((v) => [v.row.id, v]));
   const descendants = (id) => { const out = []; const walk = (r) => { for (const c of r?.children ?? []) { out.push(c); walk(rowById.get(c)); } }; walk(rowById.get(id)); return out; };
   function applyCollapsed() {
     const hidden = new Set([...collapsed].flatMap((c) => descendants(c)));
@@ -277,11 +322,47 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
     }
   }
   function toggleRow(id) { if (collapsed.has(id)) collapsed.delete(id); else collapsed.add(id); applyCollapsed(); drawRows(true); }
-  applyCollapsed();
   const io = new IntersectionObserver((entries) => {
     for (const entry of entries) { const view = viewById.get(entry.target.dataset.id); if (!view) continue; view.visible = entry.isIntersecting; if (view.visible && view.dirty) drawRow(view); }
   }, { root: scroller, rootMargin: '300px 0px' });
-  for (const view of rowViews) io.observe(view.node);
+  mountRows();
+
+  // ---- the path to the opened top, and opening and closing it --------------------------------------------------------------------
+  // All processes returns to the whole tree; each step of the path opens that level. The path is the chain above the top in
+  // the whole tree, so it reads the same however the top was reached.
+  function renderCrumbs() {
+    crumbs.hidden = !within;
+    if (!within) { crumbs.replaceChildren(); return; }
+    const path = shown.path;
+    crumbs.replaceChildren(el('button', { type: 'button', class: 'cv-crumb cv-crumb-all', text: 'All processes', title: 'Draw the whole tree of processes again', onclick: () => setTop(null, { focus: true }) }),
+      ...path.flatMap((step, i) => [el('span', { class: 'cv-crumb-sep', 'aria-hidden': 'true', text: '›' }),
+        i === path.length - 1 ? el('span', { class: 'cv-crumb is-here', 'aria-current': 'location', text: step.label, title: step.label })
+          : el('button', { type: 'button', class: 'cv-crumb', text: step.label, title: `Open ${step.label} as the top`, onclick: () => setTop(step.id, { focus: true }) })]));
+  }
+  // The top is the view's `within` setting, kept in the address as the focus is: a change to the model's chosen view marks
+  // it adjusted, so reopening or sharing the address keeps the reader's choice.
+  function setTop(id, { write = true, focus: keep = false } = {}) {
+    const next = id && C.tree.from(id) ? id : null;
+    if (next === within) return;
+    const before = within;
+    within = next; shown = within ? C.tree.from(within) : null; treeRows = shown ? shown.rows : C.rows;
+    if (within) collapsed.delete(within);
+    if (write) { try { const url = new URL(location.href); if (within) url.searchParams.set('within', within); else url.searchParams.delete('within'); history.replaceState(history.state, '', url); noteAddress(); } catch { /* the address is a convenience */ } }
+    // What was open stays open where it is still drawn; a row the new top leaves out closes.
+    mountRows(); renderCrumbs(); buildKey();
+    if (opened?.kind === 'row' && !rowById.has(opened.id)) { opened = null; onSelect(null); }
+    for (const v of rowViews) v.node.classList.toggle('is-selected', opened?.kind === 'row' && v.row.id === opened.id);
+    scroller.scrollTo({ top: 0 });
+    relayout(true); showOpened();
+    if (keep) viewById.get(within ?? before)?.name.focus?.();
+  }
+  // A process the rows do not draw, asked for from elsewhere (a search result, a link from an Event): the nearest level
+  // above the top that does draw it opens, up to the whole tree.
+  function widenFor(process) {
+    if (!within || rowOfProcess.has(process) || !C.tree.rowOf(process)) return;
+    const above = shown.path.map((step) => step.id).reverse().slice(1);
+    setTop(above.find((id) => C.tree.from(id)?.has.has(process)) ?? null);
+  }
 
   // ---- layout ---------------------------------------------------------------------------------------------------------------------------
   const headLabels = new Map();
@@ -328,7 +409,15 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
   // A row no importance scale sorts is laid out in up to three lanes, so fewer Events have to be counted together.
   const lanesOf = (row) => (row.key.startsWith('level:') ? 1 : row.events.length >= 12 ? 3 : row.events.length >= 6 ? 2 : 1);
   const labelOf = (id) => shortTitle(C.byId.get(id)?.label ?? data.events?.find((e) => e.id === id)?.label ?? id);
-  const rowHeight = (row) => (row.kind === 'group' ? (L.narrow ? 26 : 30) : row.kind === 'stack' || row.kind === 'cut-series' ? (L.narrow ? 70 : 96) : row.depth === 0 ? (L.narrow ? 42 : 54) : (L.narrow ? 36 : 46));
+  // A row that stacks parts is as tall as the list of them beside it needs.
+  const listedLines = (row) => row.layers.members.length + (row.layers.gap ? 1 : 0) + (row.layers.over ? 1 : 0) + (row.layers.listed.length ? 1 : 0);
+  function rowHeight(row) {
+    if (row.kind === 'group') return L.narrow ? 26 : 30;
+    if (row.kind === 'stack' || row.kind === 'cut-series') return L.narrow ? 70 : 96;
+    if (stacksParts(row)) return L.narrow ? 70 : Math.max(96, 60 + 15 * listedLines(row));
+    const plain = row.depth === 0 ? (L.narrow ? 42 : 54) : (L.narrow ? 36 : 46);
+    return row.layers?.listed.length && !L.narrow ? Math.max(plain, 76) : plain;
+  }
 
   // ---- Events: single marks, or counted groups where marks would overlap ------------------------------------------------------------
   let units = [], tickXs = [], tickNodes = [];
@@ -590,13 +679,13 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
     for (const x of tickXs) parts.push(svg('line', { x1: f1(x), x2: f1(x), y1: 0, y2: h, class: 'cv-tick-line' }));
     if (row.kind === 'group') {
       if (Number.isFinite(row.start)) { const x0 = along(row.start), x1 = along(row.end); parts.push(svg('rect', { x: f1(x0), y: f1(h / 2 - 3), width: f1(Math.max(2, x1 - x0)), height: 6, rx: 3, class: 'cv-life' })); }
-    } else if (row.kind === 'measure' && row.series) drawLine(parts, row, h, W);
+    } else if (row.kind === 'measure' && row.series) drawLine(parts, row, h, W, view);
     else if (row.kind === 'stack') drawStack(parts, row, h, W);
     else if (row.kind === 'cut-series') drawCutSeries(parts, row, h);
     art.replaceChildren(...parts);
     view.dirty = false;
   }
-  function drawLine(parts, row, h, W) {
+  function drawLine(parts, row, h, W, view) {
     const scale = rowScale.get(row.id), ys = yScale(scale, h);
     const points = row.series.points;
     if (scale.kind === 'log') {
@@ -613,6 +702,7 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
       parts.push(svg('line', { x1: 0, x2: W - L.padR + 4, y1: f1(ys(scale.lo)), y2: f1(ys(scale.lo)), class: 'cv-base-line' }));
       if (!L.narrow) { parts.push(svg('text', { x: W - L.padR + 8, y: f1(ys(scale.hi) + 7), class: 'cv-axis-label' }, axisText(scale.hi, row))); parts.push(svg('text', { x: W - L.padR + 8, y: f1(ys(scale.lo) - 1), class: 'cv-axis-label' }, axisText(scale.lo, row))); }
     }
+    if (stacksParts(row)) drawLayers(parts, row, h, view);
     // Only between the first and last recorded values: unrecorded time stays empty.
     const times = stepsBetween(points.map((p) => p.t).filter((t) => t >= C.axis.start && t <= C.axis.end));
     const readings = times.map((t) => readSeries(row.series, t));
@@ -629,7 +719,12 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
       if (!seg || seg.style !== style) { if (seg) { seg.pts.push(point); lines.push(seg); } seg = { style, pts: [point] }; } else seg.pts.push(point);
     }
     if (seg) lines.push(seg);
-    for (const line of lines) if (line.pts.length > 1) parts.push(svg('path', { d: `M${line.pts.join(row.series.interpolation?.kind === 'step-hold' ? 'L' : 'L')}`, class: `cv-line is-${line.style}` }));
+    for (const line of lines) {
+      if (line.pts.length < 2) continue;
+      const d = `M${line.pts.join(row.series.interpolation?.kind === 'step-hold' ? 'L' : 'L')}`;
+      if (stacksParts(row)) parts.push(svg('path', { d, class: 'cv-line-halo' }));
+      parts.push(svg('path', { d, class: `cv-line is-${line.style}` }));
+    }
     if (points.length === 1 || lines.every((line) => line.pts.length < 2)) for (const p of points) parts.push(svg('circle', { cx: f1(along(p.t)), cy: f1(ys(p.v)), r: 2.4, class: 'cv-dot' }));
   }
   function drawStack(parts, row, h) {
@@ -646,6 +741,40 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
     });
     if (isPercent(row.unit)) parts.push(svg('line', { x1: 0, x2: L.plotW - L.padR + 4, y1: f1(across(100)), y2: f1(across(100)), class: 'cv-grid-line' }));
     if (!L.narrow) parts.push(svg('text', { x: L.plotW - L.padR + 8, y: f1(across(scale.hi) + 7), class: 'cv-axis-label' }, axisText(scale.hi, row)));
+  }
+  // The parts a declared sum stacks, in the process's own row and beneath its curve: each between the running total before
+  // it and after it, over the time where the whole and every part are recorded (as a divided process is stacked, never
+  // rescaled to fill the whole). What the whole holds beyond them is the remainder, plain. Where they add up to more than
+  // the whole the excess is hatched and outlined, so it is marked, not hidden.
+  function drawLayers(parts, row, h, view) {
+    const layers = row.layers, ys = yScale(rowScale.get(row.id), h);
+    const times = stepsBetween(layers.times.filter((t) => t >= C.axis.start && t <= C.axis.end));
+    const reads = times.map((t) => layerReading(row, t));
+    const runs = []; let run = [];
+    reads.forEach((r, i) => { if (r) run.push([times[i], r]); else if (run.length) { runs.push(run); run = []; } });
+    if (run.length) runs.push(run);
+    const band = (points, upper, lower) => `M${[...points.map(([t, r]) => `${f1(along(t))},${f1(ys(upper(r)))}`), ...points.map(([t, r]) => `${f1(along(t))},${f1(ys(lower(r)))}`).reverse()].join('L')}Z`;
+    if (layers.over) parts.push(svg('defs', {}, svg('pattern', { id: view.hatch, width: 5, height: 5, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(45)' },
+      svg('line', { x1: 0, y1: 0, x2: 0, y2: 5, stroke: OVER, 'stroke-width': 1.7 }))));
+    for (const points of runs.filter((r) => r.length > 1)) {
+      layers.members.forEach((m, k) => parts.push(svg('path', { d: band(points, (r) => r.tops[k], (r) => (k ? r.tops[k - 1] : 0)), fill: inkOf(row, m), class: 'cv-band-path is-layer' })));
+      if (layers.gap) parts.push(svg('path', { d: band(points, (r) => r.sum + r.gap, (r) => r.sum), fill: REST, class: 'cv-band-path is-layer is-rest' }));
+      if (!layers.over) continue;
+      // The excess, stretch by stretch, so only where it is gets an outline; each stretch tapers to nothing at its ends.
+      for (let i = 0; i < points.length; i += 1) {
+        if (!(points[i][1].over > 0)) continue;
+        let j = i; while (j + 1 < points.length && points[j + 1][1].over > 0) j += 1;
+        const stretch = points.slice(Math.max(0, i - 1), Math.min(points.length, j + 2));
+        parts.push(svg('path', { d: band(stretch, (r) => r.sum, (r) => r.sum - r.over), fill: `url(#${view.hatch})`, stroke: OVER, class: 'cv-over' }));
+        i = j;
+      }
+    }
+    // A small flag above the stack at each date where the parts add up to more than the whole, however thin the excess.
+    for (const x of layers.exceeds.filter((x) => x.t >= C.axis.start && x.t <= C.axis.end)) {
+      const cx = along(x.t), top = ys(x.sum);
+      parts.push(svg('path', { d: `M${f1(cx - 3.6)},${f1(top - 10)}L${f1(cx + 3.6)},${f1(top - 10)}L${f1(cx)},${f1(top - 3)}Z`, fill: OVER, class: 'cv-over-flag' },
+        svg('title', {}, `${at(x.t, 1)}: its parts add up to ${figure(x.sum, row.unit)}, more than the whole by ${figure(x.by, row.unit)}${x.inRange ? ', within the range it states' : ''}`)));
+    }
   }
   // A Cut series is drawn as the reading column reads it (readingAt, at the current zoom), its answers stacked: between
   // each pair of neighbouring reading boundaries, each answer's level at the middle of that stretch. Inside a longer
@@ -709,6 +838,13 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
         view.val.textContent = !r ? (row.series ? 'no value then' : '') : r.state ? words(r.state) : `${r.between ? '~\u2009' : ''}${figure(r.v, row.unit)}`;
         view.val.title = r?.between ? 'Between two recorded values: read along the line joining them' : '';
         view.tag.textContent = r ? tagWord(r.tag) : ''; view.tag.className = `cv-row-tag is-${r ? tagStyle(r.tag) : 'none'}`;
+        if (view.stackVals) {
+          // Each part is read as any value is; the remainder and the excess only where the whole and every part have a value.
+          const read = layerReading(row, when), mark = read?.between ? '~\u2009' : '';
+          row.layers.members.forEach((m, i) => { const x = readSeries(m.series, when); view.stackVals.parts[i].textContent = x ? `${x.between ? '~\u2009' : ''}${figure(x.v, row.unit)}` : '—'; });
+          if (view.stackVals.rest) view.stackVals.rest.textContent = read ? `${mark}${read.gap > 0 ? figure(read.gap, row.unit) : '0'}` : '—';
+          if (view.stackVals.over) view.stackVals.over.textContent = read ? (read.over > 0 ? `${mark}by ${figure(read.over, row.unit)}` : 'none') : '—';
+        }
       } else if (row.kind === 'stack') {
         view.values.querySelectorAll('.cv-share-val').forEach((node, i) => { const r = readSeries(row.members[i].series, when); node.textContent = r ? `${r.between ? '~\u2009' : ''}${figure(r.v, row.unit)}` : '—'; });
       } else if (row.kind === 'cut-series') {
@@ -770,17 +906,24 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
   });
 
   // ---- the key -----------------------------------------------------------------------------------------------------------------------
-  {
+  // Only what the rows drawn carry: the tags of their values, a range, stacked parts, a remainder and an excess where they have them.
+  function buildKey() {
+    const tagCounts = tagCountsOf(treeRows);
     const items = [];
     if (C.events.some((e) => e.weighed)) items.push(el('li', {}, [el('span', { class: 'cv-key-mark is-weighed', 'aria-hidden': 'true' }), 'Filled: its causes are weighed']), el('li', {}, [el('span', { class: 'cv-key-mark', 'aria-hidden': 'true' }), 'Open: not weighed']));
     items.push(el('li', {}, [el('span', { class: 'cv-key-count', 'aria-hidden': 'true', text: '3' }), 'Events too close to draw apart: open the list']));
-    for (const [tag, info] of Object.entries(TAGS)) if (C.tagCounts[tag]) items.push(el('li', { title: info.long }, [el('span', { class: `cv-key-line is-${info.style}`, 'aria-hidden': 'true' }), capital(info.word)]));
-    for (const tag of Object.keys(C.tagCounts).filter((tag) => !TAGS[tag])) items.push(el('li', {}, [el('span', { class: 'cv-key-line is-rough', 'aria-hidden': 'true' }), capital(tag)]));
-    if (C.rows.some((r) => r.series?.points?.some((p) => p.uncertainty?.kind === 'interval'))) items.push(el('li', {}, [el('span', { class: 'cv-key-range', 'aria-hidden': 'true' }), 'Range']));
+    for (const [tag, info] of Object.entries(TAGS)) if (tagCounts[tag]) items.push(el('li', { title: info.long }, [el('span', { class: `cv-key-line is-${info.style}`, 'aria-hidden': 'true' }), capital(info.word)]));
+    for (const tag of Object.keys(tagCounts).filter((tag) => !TAGS[tag])) items.push(el('li', {}, [el('span', { class: 'cv-key-line is-rough', 'aria-hidden': 'true' }), capital(tag)]));
+    if (treeRows.some((r) => r.series?.points?.some((p) => p.uncertainty?.kind === 'interval'))) items.push(el('li', {}, [el('span', { class: 'cv-key-range', 'aria-hidden': 'true' }), 'Range']));
+    if (treeRows.some(stacksParts)) items.push(el('li', { title: 'A process the model declares as the sum of its parts shows them stacked in its own unit, adding up to it' }, [el('span', { class: 'cv-key-layers', 'aria-hidden': 'true', style: `--a:${ANSWER_PALETTE[0]};--b:${ANSWER_PALETTE[1]};--c:${ANSWER_PALETTE[2]}` }), 'Stacked parts that add up to it']));
+    if (treeRows.some((r) => r.layers?.gap)) items.push(el('li', {}, [el('span', { class: 'cv-key-rest', 'aria-hidden': 'true' }), 'Remainder: what the whole holds beyond its parts']));
+    if (treeRows.some((r) => r.layers?.over)) items.push(el('li', {}, [el('span', { class: 'cv-key-over', 'aria-hidden': 'true' }), 'Hatched: its parts add up to more than the whole']));
     items.push(el('li', {}, [el('b', { text: '~' }), 'between two recorded values']));
-    foot.append(el('ul', { class: 'cv-key', 'aria-label': 'How to read the marks and lines' }, items),
+    foot.replaceChildren(el('ul', { class: 'cv-key', 'aria-label': 'How to read the marks and lines' }, items),
       el('p', { class: 'cv-axis-note', text: C.axis.kind === 'log' ? `Time is squeezed toward the past: each step to the left covers more time (a log scale of time before ${at(C.latest, Infinity)}). An opened part, or a stretch dragged across, is drawn evenly.` : 'Time runs evenly from left to right.' }));
   }
+  buildKey();
+  renderCrumbs();
 
   // ---- the panel --------------------------------------------------------------------------------------------------------------------
   const link = (target, text, cls = 'cv-link') => el('button', { type: 'button', class: cls, text, onclick: () => open(target) });
@@ -810,17 +953,26 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
   }
   const eyebrow = (text) => el('p', { class: 'cv-eyebrow', text });
   function guide() {
-    const rowCount = C.rows.filter((r) => r.kind !== 'group').length;
+    const rowCount = treeRows.filter((r) => r.kind !== 'group').length;
     const weighed = C.events.filter((e) => e.weighed).length;
+    // What the rows drawn can do, said only where their records have it.
+    const hasParts = treeRows.some((r) => r.kind === 'measure' && r.children.length);
+    const treeNotes = [
+      within ? `Opened at ${shown.path.at(-1).label}: only it and the parts it holds are drawn (${rowCount} ${rowCount === 1 ? 'row' : 'rows'}), with the path to it above them. All processes draws the whole tree again.`
+        : hasParts ? 'Open, on a process that holds parts, draws only it and its parts, with the path to it above the rows.' : null,
+      treeRows.some(stacksParts) ? `A process the model declares as the sum of its parts shows them stacked beneath its curve, in its own unit, adding up to it.${treeRows.some((r) => r.layers?.gap) ? ' Grey is what the whole holds beyond them.' : ''}${treeRows.some((r) => r.layers?.over) ? ' Hatched marks where they add up to more than the whole.' : ''}` : null,
+    ].filter(Boolean);
     const items = !showTop ? [`The parts and Events above the time axis are off, so the rows have the whole height. Turn on Events in the controls to show them${C.events.length ? ` (${C.events.length})` : ''}.`,
       `Below the time axis, ${rowCount} rows, each read at the moment under the pointer, with how its value is known.`,
+      ...treeNotes,
       C.axis.kind === 'log' ? 'Time is squeezed toward the past: each step to the left covers more time.' : null].filter(Boolean) : [
       whole ? `Across the top: the parts of ${labelOf(whole)}, as the model contains them, each across its own time; parts that overlap share lanes. Open one to widen it and lay out its own parts.`
         : C.wholes.length ? 'Choose an Event under Parts of to lay out its parts across the top.' : null,
       `Then the Events, ${C.events.length} of them${scale() ? `, in rows by how important they are for ${lower(scale().audience ?? words(scale().id))} (${rowsOfEvents.map((r) => `${r.label}: ${r.events.length}`).join('; ')})` : ''}. ${weighed ? `A filled mark is one whose causes the model weighed (${weighed}). ` : ''}Open an Event to draw the links to and from it.`,
-      `Below them the time axis, then ${rowCount} rows: ${C.rows.some((r) => r.kind === 'measure') ? 'the processes the model follows, each indented under the process it refines' : ''}${C.rows.some((r) => r.kind === 'cut-series') ? `${C.rows.some((r) => r.kind === 'measure') ? ', and ' : ''}shares the model recorded again and again (Cuts), each reading drawn across the time it averages` : ''}. Each row is read at the moment under the pointer, with how its value is known.`,
+      `Below them the time axis, then ${rowCount} rows: ${treeRows.some((r) => r.kind === 'measure') ? 'the processes the model follows, each indented under the process it refines' : ''}${treeRows.some((r) => r.kind === 'cut-series') ? `${treeRows.some((r) => r.kind === 'measure') ? ', and ' : ''}shares the model recorded again and again (Cuts), each reading drawn across the time it averages` : ''}. Each row is read at the moment under the pointer, with how its value is known.`,
+      ...treeNotes,
       C.axis.kind === 'log' ? `Time is squeezed toward the past: each step to the left covers more time, so the recent stretch, where most records are, keeps room. An opened part, or a stretch dragged across, is drawn evenly.` : null,
-      C.unvalued ? `${C.unvalued} ${C.unvalued === 1 ? 'process has' : 'processes have'} no dated values and no row.` : null,
+      C.unvalued && !within ? `${C.unvalued} ${C.unvalued === 1 ? 'process has' : 'processes have'} no dated values and no row.` : null,
       pinTop ? 'Pin keeps the parts and Events fixed above the rows while they scroll; turn it off, or turn off Events, to give the rows more height.'
         : 'The parts and Events scroll away as you scroll down the rows, and the time axis stays. Pin keeps them fixed, for a tall screen; turning off Events gives the rows the whole height.',
     ].filter(Boolean);
@@ -856,8 +1008,8 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
     const into = C.links.filter((l) => l.to === id), out2 = C.links.filter((l) => l.from === id);
     if (into.length) out.push(sec('Came from', el('ul', { class: 'cv-list' }, into.map((l) => el('li', {}, [link({ kind: 'event', id: l.from }, shortTitle(fullTitle(l.from))), el('span', { class: 'cv-meta', text: ` ${KIND_WORDS[l.kind] ?? words(l.kind)} it` })])))));
     if (out2.length) out.push(sec('Led to', el('ul', { class: 'cv-list' }, out2.map((l) => el('li', {}, [el('span', { class: 'cv-meta', text: `${capital(KIND_WORDS[l.kind] ?? words(l.kind))} ` }), link({ kind: 'event', id: l.to }, shortTitle(fullTitle(l.to)))])))));
-    const moves = (e?.processIds ?? record?.process_ids ?? []).filter((p) => rowOfProcess.has(p));
-    if (moves.length) out.push(sec('Moves', el('ul', { class: 'cv-list' }, moves.map((p) => el('li', {}, link({ kind: 'row', id: rowOfProcess.get(p).id }, rowOfProcess.get(p).label))))));
+    const moves = (e?.processIds ?? record?.process_ids ?? []).filter((p) => C.tree.rowOf(p));
+    if (moves.length) out.push(sec('Moves', el('ul', { class: 'cv-list' }, moves.map((p) => { const there = C.tree.rowOf(p); return el('li', {}, link({ kind: 'row', id: there.id, process: p }, there.label)); }))));
     // Its parts, as the model contains them.
     const parts = C.partsOf(id).sort((a, b) => a.start - b.start);
     if (parts.length) out.push(sec(`Its parts (${parts.length})`, el('ul', { class: 'cv-list' }, parts.map((x) => el('li', {}, [link({ kind: 'event', id: x.id }, shortTitle(x.label)), el('span', { class: 'cv-meta', text: ` ${spanText(x.start, x.end)}` })])))));
@@ -868,6 +1020,8 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
   function rowPanel(id) {
     const row = rowById.get(id); if (!row) return [el('p', { text: `No row: ${id}` })];
     const out = [eyebrow(row.kind === 'cut-series' ? 'Shares over time' : row.kind === 'stack' ? 'Parts of a process' : row.kind === 'group' ? 'Processes' : 'Process'), el('h2', { class: 'cv-title', text: row.label }), meta(row.unit || null, row.holders > 1 ? heldBy(row) : row.holder ? `held by ${row.holder}` : null), para(row.about)];
+    if (row.kind === 'measure' && row.children.length && row.process !== within) out.push(el('p', { class: 'cv-actions' }, el('button', { type: 'button', class: 'cv-open cv-open-card', text: 'Open as the top',
+      title: `Draw only ${row.label} and the parts it holds`, onclick: () => setTop(row.process, { focus: true }) })));
     if (row.kind === 'measure' && row.series) {
       const points = row.series.points;
       const first = points[0], last = points.at(-1);
@@ -879,10 +1033,21 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
     }
     if (row.members) out.push(sec(row.kind === 'cut-series' ? 'Its answers' : 'Its parts', el('ul', { class: 'cv-shares' }, row.members.map((m, k) => el('li', {}, [el('span', { class: 'cv-chip', style: `--chip:${inkOf(row, m)}` }),
       m.id && rowOfProcess.has(m.id) ? link({ kind: 'row', id: rowOfProcess.get(m.id).id }, m.label) : el('span', { text: m.label })])))));
+    // A process that declares its parts add up to it: the parts stacked beneath its curve, and those it lists without stacking.
+    if (row.layers) {
+      const { members, listed } = row.layers, name = (x) => (rowOfProcess.has(x.id) ? link({ kind: 'row', id: rowOfProcess.get(x.id).id }, x.label) : el('span', { text: x.label }));
+      out.push(sec('Its parts add up to it', para(members.length ? `The model declares this process the sum of its parts. They are stacked beneath its curve, in its own unit${row.layers.gap ? '; grey is what the whole holds beyond them' : ''}${row.layers.over ? '; hatched is where they add up to more than the whole' : ''}.`
+        : 'The model declares this process the sum of its parts, but none of them can be stacked here.', 'cv-note'),
+        members.length ? el('ul', { class: 'cv-shares' }, members.map((m) => el('li', {}, [el('span', { class: 'cv-chip', style: `--chip:${inkOf(row, m)}` }), name(m)]))) : null,
+        row.layers.exceeds.length ? para(`At ${row.layers.exceeds.length} recorded ${row.layers.exceeds.length === 1 ? 'date' : 'dates'} the parts add up to more than the whole: ${row.layers.exceeds.slice(0, 8)
+          .map((x) => `${at(x.t, Infinity)}, by ${figure(x.by, row.unit)}${x.inRange ? ' (within the range it states)' : ''}`).join('; ')}${row.layers.exceeds.length > 8 ? `; and ${row.layers.exceeds.length - 8} more` : ''}.`, 'cv-note') : null,
+        listed.length ? [el('p', { class: 'cv-meta', text: 'Listed, not stacked:' }), el('ul', { class: 'cv-list' }, listed.map((x) => el('li', {}, [name(x), el('span', { class: 'cv-meta', text: ` ${x.why}` })])))] : null));
+    }
     if (row.kind === 'cut-series') out.push(para(`${row.members[0]?.points.length ?? 0} readings, each the average over the time it covers. The remainder is what the answers leave open.`, 'cv-note'));
-    const parent = row.parent ? rowById.get(row.parent) : null;
-    const tree = [parent ? el('li', {}, [el('span', { class: 'cv-meta', text: 'Part of ' }), link({ kind: 'row', id: parent.id }, parent.label)]) : null,
-      ...(row.alsoUnder ?? []).map((p) => el('li', {}, [el('span', { class: 'cv-meta', text: 'Also part of ' }), el('span', { text: rowById.get(p)?.label ?? p })])),
+    // The row above it: in the rows drawn, or, for the top that was opened, the process it was opened from.
+    const parent = row.parent ? rowById.get(row.parent) : row.up ? C.tree.rowOf(row.up) : null;
+    const tree = [parent ? el('li', {}, [el('span', { class: 'cv-meta', text: 'Part of ' }), link({ kind: 'row', id: parent.id, process: parent.process }, parent.label)]) : null,
+      ...(row.alsoUnder ?? []).map((p) => el('li', {}, [el('span', { class: 'cv-meta', text: 'Also part of ' }), el('span', { text: C.tree.rowOf(p)?.label ?? rowById.get(p)?.label ?? p })])),
       ...row.children.map((c) => el('li', {}, [el('span', { class: 'cv-meta', text: 'Divides into ' }), link({ kind: 'row', id: c }, rowById.has(c) ? rowName(rowById.get(c)) : c)]))].filter(Boolean);
     if (tree.length) out.push(sec('In the tree', el('ul', { class: 'cv-list' }, tree)));
     return out;
@@ -931,6 +1096,7 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
   const lineage = (id) => { const out = []; for (let at = id, hops = 0; at && hops < 256; at = parentOf.get(at), hops += 1) out.push(at); return out; };
   function open(target, { share = true, pin = true } = {}) {
     if (target.kind === 'tour') { const stop = stops[target.index]; target = stop ? { kind: stop.event ? 'event' : 'note', id: stop.event ?? null, tour: target.index } : { kind: 'guide' }; }
+    if (target.kind === 'row' && target.process && !rowById.has(target.id)) widenFor(target.process);
     opened = target.kind === 'guide' ? null : target;
     if (opened && panel.hidden) showPanel(true);
     const id = opened?.id;
@@ -1009,6 +1175,7 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
       // The shared selection: an Event or process the Chart draws is opened (a process in the row already open for it,
       // when one is); a selection cleared elsewhere, or one the Chart cannot show, leaves the guide. Nothing is sent back.
       const wanted = state.selection;
+      if (wanted?.kind === 'process') widenFor(wanted.id);
       const processRow = wanted?.kind === 'process' ? (opened?.kind === 'row' && rowById.get(opened.id)?.process === wanted.id ? rowById.get(opened.id) : rowOfProcess.get(wanted.id)) : null;
       if (wanted?.kind === 'event' && (eventById.has(wanted.id) || C.byId.has(wanted.id))) open({ kind: 'event', id: wanted.id }, { share: false, pin: !timeGiven });
       else if (processRow) open({ kind: 'row', id: processRow.id }, { share: false });
@@ -1024,6 +1191,14 @@ export function showChart(data, { host: surface, tools, onSelect = () => {}, not
       return { chart: { scale: scaleId, links: showAllLinks, reading: !panel.hidden, top: showTop, pin: pinTop }, ...(time ? { time } : {}) };
     },
     recenter() { setFocus(null); scroller.scrollTo({ top: 0 }); },
+    // A stretch of time found by search takes most of the axis, as a dragged stretch does, and the rows are read just
+    // inside its end.
+    zoomTo(start, end) {
+      const a = Math.max(C.axis.start, Math.min(start, end)), b = Math.min(C.axis.end, Math.max(start, end));
+      if (!(b > a)) return false;
+      pinT = b - (b - a) * 0.001; pinnedHere = true; setFocus({ id: null, start: a, end: b }); placeOverlays();
+      return true;
+    },
     destroy() { active = false; resizeObserver.disconnect(); io.disconnect(); removeEventListener('keydown', keys); removeEventListener('pointermove', onDragMove); removeEventListener('pointerup', onDragEnd); cancelAnimationFrame(animation); for (const node of controls) node.remove(); surface.replaceChildren(); },
   };
 }

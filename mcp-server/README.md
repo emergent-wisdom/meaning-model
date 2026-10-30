@@ -103,7 +103,15 @@ The search field on the toolbar (press **/**) finds any record by name, ID or
 what it says: Events, processes and rows under the names the views show,
 people, Cuts, notes with everything they store, and passages, in full. Every word must
 match, ignoring case and accents. A result opens in the view you are in: at its
-moment in a time view, selected in Graph, Structure and Space.
+moment in a time view, selected in Graph, Structure and Space. In a time view an
+Event opens across its own interval, and a time typed in the model's own clock
+opens that stretch: `1914–1945`, `500 BCE`, `the 19th century` or `30,000 years
+ago` in a calendar, plain numbers in any other unit. A referent, such as a place
+or a person, keeps Processes and Tree to what the model binds to it or to the
+referents its encapsulation Cuts contain, the Events containing those, and the
+processes they own (address setting `about`); **Showing … ✕** shows everything
+again. Terrain and the Chart draw every Event, so a referent picked there opens
+in Tree; a time typed in the Chart opens that stretch on its own axis. The **−** and **+** beside **Time** zoom out and in around the playhead.
 
 The alternative **Graph mode** displays the native records and links. Filter record
 types, and select a record to inspect its declared incoming
@@ -120,7 +128,10 @@ decomposition and conditional Cut answers. Shared nodes remain references and
 answer weights remain local to each question. Use **Show it as** to switch among
 Processes, Tree, Terrain, Chart, Graph, Structure and Space on the same page. **Chart** puts the whole
 model on one time axis: the declared parts of one Event, its Events in rows by importance with their causal links, and a row for every
-process it follows, each read at the moment under the pointer. The selected
+process it follows, each read at the moment under the pointer. **Open** on a row
+makes that process the top of the rows, with the path to it above them (address
+setting `within`), and a process that declares its parts add up to it
+(`scale.aggregate: "sum"`) shows them stacked beneath its curve. The selected
 record and time position remain available across these representations. **Coarse view**
 returns to the broadest process overview; expose subprocesses with more detail.
 **Recenter** (or Home outside text fields) fits the current representation.
@@ -134,7 +145,12 @@ sequence connectors do not assert travel routes or speeds. Unlocated periods sta
 unplaced, while qualitative settings remain inspectable. Space shares the bottom
 Play, time cursor and full-story reader. **Coarse view** stays in Space and returns
 to its broad overview; the selected record and world-time cursor carry across
-representation switches. The other layouts do not represent physical geography.
+representation switches. A frame of latitude and longitude that spans a wide part
+of the Earth opens on a globe you can turn and zoom into, down to about 600 m;
+**Globe** and **Map** switch drawings (address setting `earth`). The globe has a
+latitude and longitude grid and nothing else: no coastline, border or name is drawn
+that the model does not declare. The other layouts do not represent physical
+geography.
 
 In the original viewer, the reading-position track follows document order, with
 segment widths based on prose words. Click a part or use Previous/Next to highlight
