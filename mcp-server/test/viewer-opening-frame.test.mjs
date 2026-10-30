@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from '../viewer/public/vendor/three/three.core.js';
-import { openingFrame, openingDirection, deepness, coverage, axisShown, fitBox } from '../viewer/public/opening-frame.js';
+import { readFileSync } from 'node:fs';
+import { openingFrame, openingDirection, deepness, coverage, axisShown, fitBox, cameraMoved } from '../viewer/public/opening-frame.js';
 
 // The time views' field: time along x, rows along z with the front at z1. The usual direction is the one the view has
 // always opened from; the rooms are the free parts of a wide and of a tall screen, in normalised coordinates.
@@ -69,4 +70,19 @@ test('the deeper the field, the further it turns, and a field only a little deep
   for (let i = 1; i < turns.length; i += 1) assert.ok(turns[i] > turns[i - 1]);
   const slight = openingDirection(THREE, { box: field(48), usual, ...wide });
   assert.ok(Math.abs(azimuth(slight) - azimuth(usual)) < 0.1);
+});
+
+test('the address names a camera only when the reader has moved it from where the viewer placed it', () => {
+  const placed = { position: new THREE.Vector3(10, 20, 30), target: new THREE.Vector3(1, 2, 3) };
+  assert.equal(cameraMoved(placed.position.clone(), placed.target.clone(), placed), false);
+  assert.equal(cameraMoved(new THREE.Vector3(10, 20, 31), placed.target.clone(), placed), true);
+  assert.equal(cameraMoved(placed.position.clone(), new THREE.Vector3(1, 2, 4), placed), true);
+});
+
+test('the view rewrites the address once it has placed the opening camera, and remembers where it placed it', () => {
+  const source = readFileSync(new URL('../viewer/public/view.js', import.meta.url), 'utf8');
+  assert.match(source, /framesDrawn === 2 && opt\.camera === 'free' && !posed\) \{ fitFree\(\); syncURL\(\); \}/);
+  assert.match(source, /placed = \{ position: camera\.position\.clone\(\), target: controls\.target\.clone\(\) \}/);
+  assert.match(source, /placed && cameraMoved\(camera\.position, controls\.target, placed\)\) next\.set\('pose'/);
+  assert.match(source, /let placed = params\.has\('pose'\) \? HOME : null;/);
 });

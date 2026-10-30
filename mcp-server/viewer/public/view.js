@@ -35,7 +35,7 @@ import { curationAt, openingLevel } from './view-settings.js';
 import { createFrameGate } from './frame-gate.js';
 import { timeAxis } from './time-axis.js';
 import { createGlowBatches } from './glow-batch.js';
-import { openingFrame, fitBox } from './opening-frame.js';
+import { openingFrame, fitBox, cameraMoved } from './opening-frame.js';
 import { partPending, whenPart } from './snapshot-format.js';
 
 let temporalActive = !window.modelViewer, temporalFrame = null, appliedSelection = null, hoveredRecord = null;
@@ -2196,6 +2196,9 @@ function fieldFrame() {
 }
 const HOME_FRAME = { size: Math.hypot(LENGTH * 0.6, zFront + 6.5 - zBack, AMP * 1.5), cz: (zBack + zFront + 6.5) / 2, cy: AMP / 2 };
 let framed = HOME_FRAME;
+// Where the viewer itself last put the camera: unset until it has placed the opening one, so that the address never names
+// a camera that was only on its way there.
+let placed = params.has('pose') ? HOME : null;
 function reframe() {
   if (opt.camera === 'locked' || terrain.on) return;
   const now2 = fieldFrame();
@@ -2240,6 +2243,7 @@ function fitFree() {
   scene.fog.density = terrain.on ? TFOG * (terrain.homeDistance / frame.distance) : FOG * (HOME_DISTANCE / frame.distance);
   controls.update();
   if (!terrain.on) framed = fieldFrame();
+  placed = { position: camera.position.clone(), target: controls.target.clone() };
 }
 function recenterView() {
   // Consume any remaining orbit inertia before restoring the current field.
@@ -3023,7 +3027,7 @@ function syncURL(immediate = false) {
     else if (!currentPreset) { const digits = Math.max(0, Math.min(6, Math.ceil(-Math.log10(F.s)) + 3)); next.set('t0', F.a.toFixed(digits)); next.set('t1', F.b.toFixed(digits)); }
     const everything = explicitEverything && isEverything();
     next.set('view', opt.layout); if (!everything && (explicitDepth || opt.depth !== defaultDepth(opt.layout, MAX_DEPTH))) next.set('depth', String(opt.depth));
-    if (opt.camera === 'free' && (camera.position.distanceTo(HOME.position) > 0.05 || controls.target.distanceTo(HOME.target) > 0.05)) next.set('pose', [...camera.position.toArray(), ...controls.target.toArray()].map((v) => v.toFixed(1)).join(','));
+    if (opt.camera === 'free' && placed && cameraMoved(camera.position, controls.target, placed)) next.set('pose', [...camera.position.toArray(), ...controls.target.toArray()].map((v) => v.toFixed(1)).join(','));
     const show = [...opt.show].sort().join(','); const defaults = defaultShow(opt.layout).sort().join(',');
     if (everything) next.set('everything', '');
     else {
@@ -3514,7 +3518,7 @@ function frame() {
     // Once the names are on the page their widths are known, and a locked view frames them.
     // A still camera opened fresh frames the whole view in the room the panels leave, as Default does; a camera that came
     // with a pose keeps it.
-    framesDrawn += 1; if (framesDrawn === 2 && opt.camera === 'locked') { fitLocked(); placeLocked(true); } else if (framesDrawn === 2 && opt.camera === 'free' && !posed) fitFree();
+    framesDrawn += 1; if (framesDrawn === 2) placed ??= HOME; if (framesDrawn === 2 && opt.camera === 'locked') { fitLocked(); placeLocked(true); } else if (framesDrawn === 2 && opt.camera === 'free' && !posed) { fitFree(); syncURL(); }
   }
   temporalFrame = requestAnimationFrame(() => frame());
 }

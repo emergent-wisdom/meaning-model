@@ -14,6 +14,10 @@ const AXIS_LEAST = 1 / 7; // the least share of the front row's time axis that s
 const FILLED = 3 / 4; // the share of the room a field covers when it fills it
 const AXIS_POINTS = 29;
 
+// Whether the reader has moved the camera from where the viewer placed it. Only then does the address name a camera, so
+// that a reloaded or shared address opens framed for the screen it lands on, not for the one it was copied from.
+export const cameraMoved = (position, target, placed) => position.distanceTo(placed.position) > 0.05 || target.distanceTo(placed.target) > 0.05;
+
 // The camera's distance and target that fit a box's corners inside the room, looking along `direction` (the room in
 // normalised device coordinates; the same fit the view has always used).
 export function fitBox(THREE, { corners, center, direction, fov, aspect, room }) {

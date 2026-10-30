@@ -51,7 +51,8 @@ unpublished work stays under Unreleased. This is not a development transcript.
   in until the field fills three quarters of that space, the rows running on into the distance. Framed whole from the
   front, the world history filled a fifth of it. A model no deeper than it is long still opens whole, from higher up
   on a tall screen, and a small one is never enlarged. The camera follows only from the size of what is drawn and of
-  the screen; an address that names a camera keeps it.
+  the screen; an address that names a camera keeps it. A camera goes in the address only once the reader has moved it, so
+  a reloaded or shared address opens framed for the screen it lands on.
 - No label in Processes and Tree covers another label, a panel (the model's card and the controls among them) or the
   edge of the screen; where they cannot all fit, fewer show, in a fixed order: the model's highlights, the time marks,
   the names of groups and rows, lens cards, values, then the Events' names. Labels have a darker edge, so a value
