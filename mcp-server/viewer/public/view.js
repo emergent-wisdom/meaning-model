@@ -215,10 +215,13 @@ for (const row of rows) for (const eventId of row.measure.sourceEventIds ?? []) 
 // finest one wide enough to see at the current zoom is shown, and where no reading covers a time there is no value.
 // Point samples (dated scalars and older authored series) are joined between samples and stop at the last one; nothing
 // is held after it and nothing comes before the first.
+// Samples are in time order, so the pair around t is found by halving: the last sample at or before t and the first after.
 const valueAt = (points, t) => {
   if (!points.length) return null;
   if (t < points[0].t || t > points.at(-1).t) return null; if (t === points[0].t) return points[0].v; if (t === points.at(-1).t) return points.at(-1).v;
-  const k = points.findIndex((p) => p.t > t); const a = points[k - 1]; const b = points[k]; return a.v + (b.v - a.v) * ((t - a.t) / (b.t - a.t));
+  let lo = 0, hi = points.length - 1;
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (points[mid].t > t) hi = mid; else lo = mid; }
+  const a = points[lo]; const b = points[hi]; return a.v + (b.v - a.v) * ((t - a.t) / (b.t - a.t));
 };
 const measurePosition = (points, t) => {
   if (!points.length) return { label: 'No recorded readings available at this construction step', samples: [] };
