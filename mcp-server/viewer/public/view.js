@@ -13,7 +13,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { loadData, fillLinks, linksOf, processLabel, holderText, appendLegendNames } from './common.js';
+import { loadData, fillLinks, processLabel, holderText, appendLegendNames } from './common.js';
 import { partsAtTime, measureStoryUnits, firstNamedStoryParts } from './story-time.js';
 import { appendDocumentSpans } from './document-spans.js';
 import { appendDocumentProcesses } from './document-processes.js';
@@ -2428,8 +2428,6 @@ function hud() {
     [...terrain.persons.map((person, i) => [person.name, HUES[i % HUES.length]]), ['the world', WORLD]]);
   showStats();
 }
-const inline = (text) => text.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
-  .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/\*(.+?)\*/g, '<em>$1</em>');
 // Reading always opens the complete manuscript; neither playback clock filters the text.
 const readerUnits = () => data.story?.units ?? [];
 function renderReader(unitId = null) {
