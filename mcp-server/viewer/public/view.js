@@ -1587,6 +1587,9 @@ const labels2 = (() => {
     return item;
   };
   const esc = (text) => String(text).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  // An Event's name, shortened and escaped once rather than every frame.
+  const named = new Map();
+  const shortName = (text, n) => { const key = `${n}\u0000${text}`; let html = named.get(key); if (html === undefined) { html = esc(words(text, n)); named.set(key, html); } return html; };
   function update() {
     if (terrain.on) { for (const item of pool.values()) if (item.hidden !== true) { item.el.classList.add('hide'); item.hidden = true; } return; }
     const wanted = []; const m = smooth(blend.now); const left = -LENGTH / 2; const right = LENGTH / 2;
@@ -1604,19 +1607,21 @@ const labels2 = (() => {
       const x0 = Math.max(left, X(span.start)); const x1 = Math.min(right, X(span.end)); if (x1 < left || x0 > right) continue;
       const wide = x1 - x0; const top = p.y + (node.kind === 'sub' ? BAR * 1.6 : BAR); const big = node.depth <= 1 || wide > LENGTH * 0.25;
       const pri = 400 + Math.min(200, wide * 3) - node.depth * 20 + (node.event.cuts ?? 0) * 4 + (litChain.has(node.id) ? 400 : 0) + (opt.processScope === node.id ? 1000 : 0);
-      wanted.push({ key: `ev:${node.id}`, cls: `event${big ? ' big' : ''}${node.event.context === 'inner' ? ' inner' : ''}`, html: esc(words(node.event.name, big ? 52 : 40)), p: [wide > 1.2 ? x0 + 0.25 : (x0 + x1) / 2, top + 0.12, p.z], ax: wide > 1.2 ? 0 : 0.5, ay: 1, pri });
+      wanted.push({ key: `ev:${node.id}`, cls: `event${big ? ' big' : ''}${node.event.context === 'inner' ? ' inner' : ''}`, html: shortName(node.event.name, big ? 52 : 40), p: [wide > 1.2 ? x0 + 0.25 : (x0 + x1) / 2, top + 0.12, p.z], ax: wide > 1.2 ? 0 : 0.5, ay: 1, pri });
     }
     if (opt.show.has('prose')) { const top = mindTop(), z = opt.noteLayout === 'centered' ? centeredNoteBand().center : top.z + 4; for (const unit of prose) { if (opt.detailProjection && !(unit.tells ?? []).some((tell) => opt.detailProjection.eventIds.has(tell.eventId))) continue; if (opt.unimportant && (unit.tells ?? []).length && unit.tells.every((tell) => opt.unimportant.has(tell.eventId))) continue; if (!shownByPlay(unit.t, bornAt(unit))) continue; const x = X(unit.t); if (x >= left && x <= right) wanted.push({ key: `prose:${unit.id}`, cls: 'prose', html: esc(unit.title ?? ''), p: [x, top.y - 3.35, z], ax: 0.5, ay: 1, pri: 800 }); } }
-    for (const { event, point } of selectedLinks) wanted.push({ key: `selected-event:${event.id}`, cls: 'event', html: esc(words(event.label, 45)), p: [point.x, point.y + 0.4, point.z], ax: 0.5, ay: 1, pri: 1200 });
+    for (const { event, point } of selectedLinks) wanted.push({ key: `selected-event:${event.id}`, cls: 'event', html: shortName(event.label, 45), p: [point.x, point.y + 0.4, point.z], ax: 0.5, ay: 1, pri: 1200 });
     // Clear of the panels and of every label the scene shows, as declutter placed them this frame.
     const placed = [...labelRoom.panels.map((r) => ({ l: r.left - 6, r: r.right + 6, t: r.top - 4, b: r.bottom + 4 })), ...labelRoom.labels.map((r) => ({ l: r.left, r: r.right, t: r.top, b: r.bottom }))];
     wanted.sort((a, b) => b.pri - a.pri);
-    const items = wanted.map((want) => element(want.key, want.cls, want.html));
+    // Only what stands near the screen is given a label to measure and place.
+    const near = wanted.map((want) => ({ want, s: screen(...want.p) })).filter(({ s }) => s.ok && s.x >= -200 && s.x <= innerWidth + 200);
+    const items = near.map(({ want }) => element(want.key, want.cls, want.html));
     const fresh = items.filter((item) => !item.w); for (const item of fresh) { item.el.style.transform = 'translate(-9999px,0)'; item.transform = null; }
     for (const item of fresh) { item.w = item.el.offsetWidth; item.h = item.el.offsetHeight; }
     const next = new Map();
-    wanted.forEach((want, i) => {
-      const item = items[i]; const s = screen(...want.p); if (!s.ok || s.x < -200 || s.x > innerWidth + 200) return;
+    near.forEach(({ want, s }, i) => {
+      const item = items[i];
       const l = s.x - item.w * want.ax; const t = s.y - item.h * want.ay; const box = { l, r: l + item.w, t, b: t + item.h };
       if (box.l < 2 || box.r > innerWidth - 2 || box.t < 2 || box.b > innerHeight - 2) return;
       if (placed.some((o) => box.l < o.r + 3 && box.r > o.l - 3 && box.t < o.b + 1 && box.b > o.t - 1)) return;
@@ -3206,6 +3211,7 @@ function declutter() {
   // A selected document may move out of view with the graph; never show a clipped badge.
   const selectedLabel = selectedDocumentLabel.element, selected = selectedDocumentLabel.visible ? selectedLabel.getBoundingClientRect() : null;
   const ticks = tickPool.map(({ object }) => ({ el: object.element, r: object.visible ? object.element.getBoundingClientRect() : null }));
+  const lane = laneTag.visible && !terrain.on ? laneTag.element.getBoundingClientRect() : null;
   const clipped = selected && (selected.left < 2 || selected.right > innerWidth - 2 || selected.top < 2 || selected.bottom > innerHeight - 2);
   if (selectedLabel.style.visibility !== (clipped ? 'hidden' : '')) selectedLabel.style.visibility = clipped ? 'hidden' : '';
   if (selected?.width && !clipped) placed.push(selected);
@@ -3215,6 +3221,12 @@ function declutter() {
     const hidden = Boolean(r?.width) && (!free(r) || placed.some((p, i) => r.left < p.right + (i >= marked ? 6 : 0) && r.right > p.left - (i >= marked ? 6 : 0) && r.top < p.bottom && r.bottom > p.top));
     if (r?.width && !hidden) placed.push(r);
     if (el.style.visibility !== (hidden ? 'hidden' : '')) el.style.visibility = hidden ? 'hidden' : '';
+  }
+  // The count of causal links names their lane, beside the time marks.
+  if (lane?.width) {
+    const hidden = !free(lane) || placed.some((p) => lane.left < p.right && lane.right > p.left && lane.top < p.bottom && lane.bottom > p.top);
+    if (!hidden) placed.push(lane);
+    if (laneTag.element.style.visibility !== (hidden ? 'hidden' : '')) laneTag.element.style.visibility = hidden ? 'hidden' : '';
   }
   if (terrain.on) { declutterTerrain(); labelRoom = { panels, labels: placed }; return; }
   // Beyond the stage's field (the tree added, layers, another scale, or held still) the names of whoever and whatever
@@ -3238,7 +3250,6 @@ function declutter() {
     el.style.visibility = hidden ? 'hidden' : '';
   });
   placed.push(...names);
-  for (const el of labels.domElement.querySelectorAll('.label.lane')) { if (el.style.visibility === 'hidden') continue; const r = el.getBoundingClientRect(); if (r.width) placed.push(r); }
   const hits = (r, lift = 0) => { const box = { left: r.left, right: r.right, top: r.top - lift, bottom: r.bottom - lift };
     return !free(box) || placed.some((p) => box.left < p.right + 4 && box.right > p.left - 4 && box.top < p.bottom + 2 && box.bottom > p.top - 2); };
   // Where there is room for only some, the acts nearest the playhead take it, so playing the years shows the acts as they come.
@@ -3489,7 +3500,9 @@ const cameraPose = () => [...camera.position.toArray(), ...camera.quaternion.toA
 // The scene's world matrices are brought up to date once per drawing, for the scene and its names alike.
 scene.matrixWorldAutoUpdate = false;
 const syncBatches = () => glowBatches.sync(scene, camera);
-function drawScene() { scene.updateMatrixWorld(); syncBatches(); composer.render(); labels.render(scene, camera); }
+// The time views' labels never cover each other (declutter), so which stands in front needs no sorting each frame; the
+// terrain's may, and keeps it.
+function drawScene() { scene.updateMatrixWorld(); syncBatches(); composer.render(); labels.sortObjects = terrain.on; labels.render(scene, camera); }
 function frame() {
   temporalFrame = null; if (!temporalActive) return;
   const clock = performance.now(); const dt = Math.max(0, Math.min(0.1, (clock - last) / 1000)); last = clock;

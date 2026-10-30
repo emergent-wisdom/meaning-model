@@ -213,7 +213,7 @@ test('native curves reserve no field row or tree floor until two current authore
 });
 
 test('native curve names use collision handling in Processes even when all interval bars are hidden', () => {
-  const collisionSource = between('  const stage =', '  for (const el of labels.domElement');
+  const collisionSource = between('  const stage =', '  placed.push(...names);');
   for (const native of [false, true]) {
     const rows = Array.from({ length: 118 }, () => ({ name: { visible: true, element: { style: {},
       getBoundingClientRect: () => ({ left: 10, right: 250, top: 10, bottom: 30, width: 240 }) } } }));
@@ -227,7 +227,7 @@ test('native curve names use collision handling in Processes even when all inter
 });
 
 test('native row and group names cannot scroll through toolbar panels or viewport edges', () => {
-  const collisionSource = between('  const stage =', '  for (const el of labels.domElement');
+  const collisionSource = between('  const stage =', '  placed.push(...names);');
   const label = (rect) => ({ visible: true, element: { style: {}, getBoundingClientRect: () => ({ width: rect.right - rect.left, ...rect }) } });
   const overTitle = label({ left: 20, right: 130, top: 50, bottom: 70 });
   const outside = label({ left: 20, right: 130, top: -3, bottom: 17 });
