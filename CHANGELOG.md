@@ -44,6 +44,9 @@ unpublished work stays under Unreleased. This is not a development transcript.
 - Processes, Tree and Terrain draw only when something changes (a camera move, an input, playback, an animation or a
   call from another view) and once a second besides. Left still, the world history kept an emulated phone's processor
   (a laptop's slowed four times) busy almost all the time, and a laptop's about a quarter; now both are nearly idle.
+- While a finger or a mouse button drags or pinches the scene, nothing under it is tested for hovering, and the
+  scene's positions are worked out once per frame instead of twice. Dragging and pinching the world history on that
+  phone runs at about 60 frames a second, up from 25; the twelve-books story at 56, up from 12.
 
 ## 0.17.0 — 2026-10-29
 

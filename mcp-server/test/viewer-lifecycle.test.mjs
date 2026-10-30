@@ -37,7 +37,7 @@ test('the actual temporal controller owns one frame loop and pauses keyboard/pla
     recenterCalls: 0, recenterView() { context.recenterCalls += 1; },
     syncPanel() {}, syncURL() {}, fitLocked() {}, placeLocked() {}, tick() {}, declutter() {}, hover() {},
     stop() { context.playing = false; }, keyboardCalls: 0,
-    drawing: createFrameGate({ now: () => 100 }), cameraPose: () => [0],
+    drawing: createFrameGate({ now: () => 100 }), cameraPose: () => [0], pressed: new Set(), drawScene() { context.composer.render(); },
   };
   vm.createContext(context);
   const guard = source.slice(source.indexOf('let temporalActive ='), source.indexOf('\nfunction publishRecord'));

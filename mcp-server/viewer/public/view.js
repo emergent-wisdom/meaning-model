@@ -3111,6 +3111,11 @@ function relayOut() {
   apply(); syncPanel();
 }
 renderer.domElement.addEventListener('pointermove', (event) => { pointerAt = { x: event.clientX, y: event.clientY }; });
+// A pressed pointer drags or pinches the scene: nothing is hovered meanwhile (a click tests what it is on itself), and the
+// tip waits until it lifts.
+const pressed = new Set();
+renderer.domElement.addEventListener('pointerdown', (event) => { pressed.add(event.pointerId); tip.hidden = true; });
+for (const type of ['pointerup', 'pointercancel']) addEventListener(type, (event) => pressed.delete(event.pointerId));
 renderer.domElement.addEventListener('pointerleave', () => { pointerAt = null; tip.hidden = true; if (lit) { lit = null; drawNotes(); } });
 // A click on anything opens what it is beside the view, as in the understanding graph; a click on nothing closes it.
 const details = document.getElementById('details');
@@ -3469,6 +3474,9 @@ for (const type of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'keydown
   addEventListener(type, () => drawing.wake(), { capture: true, passive: true });
 document.fonts?.addEventListener?.('loadingdone', () => drawing.wake());
 const cameraPose = () => [...camera.position.toArray(), ...camera.quaternion.toArray(), ...camera.projectionMatrix.elements];
+// The scene's world matrices are brought up to date once per drawing, for the scene and its names alike.
+scene.matrixWorldAutoUpdate = false;
+function drawScene() { scene.updateMatrixWorld(); composer.render(); labels.render(scene, camera); }
 function frame() {
   temporalFrame = null; if (!temporalActive) return;
   const clock = performance.now(); const dt = Math.max(0, Math.min(0.1, (clock - last) / 1000)); last = clock;
@@ -3476,7 +3484,7 @@ function frame() {
   if (glide) { const u = Math.min(1, (clock - glide.start) / glide.duration), e = u * u * (3 - 2 * u); camera.position.lerpVectors(glide.from.position, glide.to.position, e); controls.target.lerpVectors(glide.from.target, glide.to.target, e); if (u >= 1) glide = null; }
   if (opt.camera === 'locked') placeLocked(); else controls.update();
   if (drawing.due(changed, cameraPose())) {
-    composer.render(); labels.render(scene, camera); declutter(); labels2.update(); hover();
+    drawScene(); declutter(); labels2.update(); if (!pressed.size) hover();
     // Once the names are on the page their widths are known, and a locked view frames them.
     // A still camera opened fresh frames the whole view in the room the panels leave, as Default does; a camera that came
     // with a pose keeps it.
@@ -3519,14 +3527,14 @@ window.explorer = {
   // Where each causal link crosses the screen, at its middle, to point at it in a test.
   arcs: (at = 0.5) => arcTargets.map((target) => { const p = target.pts[Math.floor((target.pts.length - 1) * at)]; const point = screen(p.x, p.y, p.z); return { kind: target.relation.kind, x: Math.round(point.x), y: Math.round(point.y) }; }),
   // The time a frame takes: laid out again each frame (as while zooming or turning to layers) or steady.
-  parts: (n = 20) => { const parts = { tick: () => tick(performance.now(), 1 / 60), camera: () => (opt.camera === 'locked' ? placeLocked() : controls.update()), render: () => composer.render(), labels: () => labels.render(scene, camera), declutter, labels2: () => labels2.update(), hover };
+  parts: (n = 20) => { const parts = { tick: () => tick(performance.now(), 1 / 60), camera: () => (opt.camera === 'locked' ? placeLocked() : controls.update()), render: () => { scene.updateMatrixWorld(); composer.render(); }, labels: () => labels.render(scene, camera), declutter, labels2: () => labels2.update(), hover };
     return Object.fromEntries(Object.entries(parts).map(([name, fn]) => { const times = []; for (let i = 0; i < n; i += 1) { const t0 = performance.now(); fn(); times.push(performance.now() - t0); } times.sort((a, b) => a - b); return [name, +times[n >> 1].toFixed(2)]; })); },
-  profile: (n = 30, full = true) => { const times = []; for (let i = 0; i < n; i += 1) { const t0 = performance.now(); if (full) relayout = true; tick(performance.now(), 1 / 60); if (opt.camera === 'locked') placeLocked(); else controls.update(); composer.render(); labels.render(scene, camera); declutter(); labels2.update(); hover(); times.push(performance.now() - t0); } times.sort((a, b) => a - b); return { median: +times[n >> 1].toFixed(1), max: +times.at(-1).toFixed(1) }; },
+  profile: (n = 30, full = true) => { const times = []; for (let i = 0; i < n; i += 1) { const t0 = performance.now(); if (full) relayout = true; tick(performance.now(), 1 / 60); if (opt.camera === 'locked') placeLocked(); else controls.update(); drawScene(); declutter(); labels2.update(); hover(); times.push(performance.now() - t0); } times.sort((a, b) => a - b); return { median: +times[n >> 1].toFixed(1), max: +times.at(-1).toFixed(1) }; },
 };
 // Capture: a recorder sets the moment and draws one frame at a time, so a video plays at an even speed.
 if (params.has('capture')) {
   document.body.classList.add('capture');
-  window.__frame = (t, dt, sweeping = true) => { if (opt.mode === 'construction') tau = t; else now = t; atEnd = false; playing = sweeping; tick(performance.now(), dt ?? 0.016); apply(); if (opt.camera === 'locked') placeLocked(); else controls.update(dt); composer.render(); labels.render(scene, camera); declutter(); labels2.update(); return opt.mode === 'construction' ? [C0, C1] : [F.a, F.b]; };
+  window.__frame = (t, dt, sweeping = true) => { if (opt.mode === 'construction') tau = t; else now = t; atEnd = false; playing = sweeping; tick(performance.now(), dt ?? 0.016); apply(); if (opt.camera === 'locked') placeLocked(); else controls.update(dt); drawScene(); declutter(); labels2.update(); return opt.mode === 'construction' ? [C0, C1] : [F.a, F.b]; };
   window.__span = opt.mode === 'construction' ? [C0, C1] : [F.a, F.b];
 } else if (temporalActive) { frame(); if (params.has('play')) setTimeout(() => { if (temporalActive) play(); }, 1000); }
 
