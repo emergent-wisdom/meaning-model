@@ -9,6 +9,7 @@ import { mountChosenView, noteAddress } from './chosen-view.js';
 import { mountSearch } from './search.js';
 import { parseTimeQuery } from './time-query.js';
 import { isCalendarTime } from './temporal-layout.js';
+import { whenPart, whenAllParts } from './snapshot-format.js';
 
 // A branch of the model is hypothetical: say so above everything it shows, with the premise it assumes.
 function showBranch(branch) {
@@ -114,22 +115,29 @@ function spaceParts() {
   return { surface, host, detail, tools: document.getElementById('space-controls') };
 }
 let selection = null, chartView = null;
+// The graph's full records, which a compact snapshot keeps in a file of its own until a view needs them.
+const graphRecords = () => whenPart(data, 'inspection/graph').catch((error) => { throw Object.assign(new Error(`The model's full records could not be read: ${error.message}`), { snapshotPart: true }); });
 try { const value = JSON.parse(params.get('record') ?? 'null'); if (value && typeof value.kind === 'string' && typeof value.id === 'string') selection = value; } catch { /* An invalid UI selection does not change the snapshot. */ }
 const session = createViewerSession({
   temporal, initialView, state: { selection, timeView: params.get('timeView'), ...restoredState },
   mounts: {
     temporal: async () => (await import('./view.js')).temporalController,
     graph: async () => {
+      await graphRecords();
       const { showGraph } = await import('./graph-view.js'), parts = graphParts();
       try { return showGraph(data, { ...parts, onSelect: (record) => session.selectRecord(record) }); }
       catch (error) { parts.surface.remove(); parts.detail.remove(); parts.reader.remove(); parts.tools.replaceChildren(); throw error; }
     },
-    structure: async () => showInspector(data, notice, { host: structureHost, onSelect: (record) => session.selectRecord(record) }),
+    structure: async () => {
+      const unavailable = await graphRecords().then(() => null, (error) => error.message);
+      return showInspector(data, [notice, unavailable].filter(Boolean).join(' ') || null, { host: structureHost, onSelect: (record) => session.selectRecord(record) });
+    },
     chart: async () => {
       const { showChart } = await import('./chart-view.js');
       return (chartView = showChart(data, { host: chartHost, tools: document.getElementById('chart-controls'), onSelect: (record) => session.selectRecord(record), noteAddress }));
     },
     space: async () => {
+      await graphRecords();
       const { showSpace } = await import('./space-view.js'), parts = spaceParts();
       try { return showSpace(data, { ...parts, onSelect: (record) => session.selectRecord(record) }); }
       catch (error) { parts.surface.remove(); parts.detail.remove(); parts.tools.replaceChildren(); throw error; }
@@ -171,7 +179,7 @@ async function switchView(view) {
     await new Promise((done) => { const timer = setTimeout(done, 60); globalThis.requestAnimationFrame?.(() => setTimeout(() => { clearTimeout(timer); done(); }, 0)); });
   }
   try { const state = await session.setView(view); opened.add(key); if (state.view === 'chart') chosenCard?.fold(true); return state; }
-  catch (error) { console.error(error); notice = 'The 3D view is unavailable in this browser. The recorded model is available below.'; return session.setView('structure'); }
+  catch (error) { console.error(error); notice = error.snapshotPart ? error.message : 'The 3D view is unavailable in this browser. The recorded model is available below.'; return session.setView('structure'); }
   finally { document.body.setAttribute('aria-busy', 'false'); }
 }
 window.modelViewer = { switchView, selectRecord: (record) => session.selectRecord(record), getState: () => session.snapshot(), getSnapshot: () => ({ name: dataName, data }), noteAddress };
@@ -228,6 +236,8 @@ addEventListener('keydown', (event) => {
 addEventListener('pagehide', (event) => { if (!event.persisted) session.destroy(); });
 await mountModelPicker();
 await switchView(initialView);
+// What the first view did not need is fetched while the reader looks at it, so the other views open at once.
+if (data) setTimeout(() => whenAllParts(data).catch(() => {}), 0);
 // A highlight opens in the time view when there is a clock, otherwise as a native record in Graph (or its fallback).
 chosenCard = mountChosenView({ data, opening, onHighlight: async (target) => {
   if (!temporal) {

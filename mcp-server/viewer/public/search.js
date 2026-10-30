@@ -5,6 +5,7 @@ import { buildModelGraph } from './model-graph.js';
 import { cutTrajectories } from './cut-trajectories.js';
 import { typedScalarTrajectories } from './scalar-trajectories.js';
 import { processLabel } from './common.js';
+import { partPending, whenPart } from './snapshot-format.js';
 
 const KINDS = Object.freeze({
   event: 'Event', process: 'Process', referent: 'Referent', normalized_cut: 'Cut', narrative: 'Note or passage',
@@ -159,8 +160,10 @@ export function searchRecords(index, query, limit = 30) {
 export function mountSearch({ data, input, list, open, onOpenList = () => {}, timeQuery = null }) {
   if (!input || !list) return null;
   if (!data) { input.disabled = true; return null; }
-  let index = null, results = [], active = -1;
+  let index = null, results = [], active = -1, graphUnavailable = false;
   const ensure = () => (index ??= buildSearchIndex(data));
+  // The notes and passages are the graph's full records, which a compact snapshot fetches when first needed.
+  const waiting = () => !index && !graphUnavailable && partPending(data, 'inspection/graph');
   const close = () => { list.hidden = true; input.setAttribute('aria-expanded', 'false'); input.removeAttribute('aria-activedescendant'); };
   const mark = (next) => {
     active = next;
@@ -176,12 +179,19 @@ export function mountSearch({ data, input, list, open, onOpenList = () => {}, ti
   const render = () => {
     const query = input.value;
     if (!query.trim()) { results = []; close(); return; }
+    if (waiting()) {
+      results = []; const head = document.createElement('div'); head.className = 'search-head'; head.textContent = 'Reading the model\'s full records…';
+      list.replaceChildren(head); if (list.hidden) onOpenList(); list.hidden = false; input.setAttribute('aria-expanded', 'true');
+      whenPart(data, 'inspection/graph').catch(() => { graphUnavailable = true; }).then(() => { if (document.activeElement === input && input.value.trim()) render(); });
+      return;
+    }
     const found = searchRecords(ensure(), query);
     const time = timeQuery?.(query) ?? null;
     results = [...(time ? [{ kind: 'time', id: 'time', label: `Go to ${time.label}`, kindLabel: 'Time', start: time.start, end: time.end }] : []), ...found.results];
     const head = document.createElement('div'); head.className = 'search-head';
     head.textContent = found.total ? `${found.total} match${found.total === 1 ? '' : 'es'}${found.total > found.results.length ? `, the first ${found.results.length} shown` : ''}`
       : time ? 'A time; no record matches every word.' : 'No record matches every word.';
+    if (graphUnavailable) head.textContent += ' The notes and passages could not be read, so they are not searched.';
     const rows = results.map((result, i) => {
       const row = document.createElement('div'); row.className = 'search-row'; row.id = `search-result-${i}`; row.setAttribute('role', 'option'); row.setAttribute('aria-selected', 'false');
       const kind = document.createElement('span'); kind.className = 'search-kind'; kind.textContent = result.withdrawn ? `${result.kindLabel}, withdrawn` : result.kindLabel;

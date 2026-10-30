@@ -142,6 +142,26 @@ When only Event spans are available, a note explains that bars show intervals an
 asks the agent to check recorded values and their display representation. Hiding
 curves or viewing constant values does not trigger that note.
 
+## Compact snapshots for hosting
+
+A snapshot is one JSON file (`schema: "meaning-model-viewer/2"`), and every host keeps working with it: the local
+MCP viewer serves only this form. For a host that serves files, `compact-snapshot.mjs` writes an optional compact form
+of the same data:
+
+```sh
+node mcp-server/viewer/compact-snapshot.mjs path/to/world-history.json out/
+```
+
+`out/world-history.json` (`schema: "meaning-model-viewer/3"`) holds each dated series' points as columns, and
+`out/world-history.inspection-graph.json` holds the graph's full records (`inspection.graph`). Put both where the
+snapshot was. The viewer opens the first and fetches the second when Graph, Structure, Space, search or a selected
+record first needs it, or soon after the first view is drawn. `public/snapshot-format.js` reads either form into the
+same object, so every view sees exactly the data of the whole file; the command reads its output back and compares it
+with the original before it writes anything. The part's file carries the sha256 the snapshot names, and the viewer
+refuses one from another snapshot. Measured on three models, the file the viewer needs before it can draw is 36–66%
+smaller gzipped (the world history: 3.49 MB to 2.25 MB). A host whose own loader hands the viewer its data directly
+should keep the whole file, or pass the parsed JSON through `openSnapshot(data, { url })` first.
+
 ## Following a story as it grows
 
 While authoring, open `life_model_viewer_open` with `graphHash` and `mode: "live"`.

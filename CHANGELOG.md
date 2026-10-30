@@ -47,6 +47,10 @@ unpublished work stays under Unreleased. This is not a development transcript.
 - While a finger or a mouse button drags or pinches the scene, nothing under it is tested for hovering, and the
   scene's positions are worked out once per frame instead of twice. Dragging and pinching the world history on that
   phone runs at about 60 frames a second, up from 25; the twelve-books story at 56, up from 12.
+- An optional compact snapshot for hosting (`meaning-model-viewer/3`, written by `viewer/compact-snapshot.mjs`): the
+  same data, with each dated series' points as columns and the graph's full records in a file the viewer fetches when
+  a view first needs them. What the viewer must download before it draws is 36–66% smaller (the world history 3.49 to
+  2.25 MB gzipped). The whole one-file snapshot is still what the MCP serves, and it opens as before.
 
 ## 0.17.0 — 2026-10-29
 

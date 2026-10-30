@@ -33,6 +33,7 @@ import { readerInline } from './reader-markdown.js';
 import { onPlainClick } from './pointer-click.js';
 import { curationAt } from './view-settings.js';
 import { createFrameGate } from './frame-gate.js';
+import { partPending, whenPart } from './snapshot-format.js';
 
 let temporalActive = !window.modelViewer, temporalFrame = null, appliedSelection = null, hoveredRecord = null;
 // The thing under the pointer (a light, bar, link or card; null on a curtain or the ground) and the one the panel holds,
@@ -3539,11 +3540,20 @@ if (params.has('capture')) {
 } else if (temporalActive) { frame(); if (params.has('play')) setTimeout(() => { if (temporalActive) play(); }, 1000); }
 
 let selectionGraph = null;
+// In a compact snapshot the graph's full records can still be on their way: a selection is shown once they are here,
+// unless another has been made meanwhile, and from the model's own records if they cannot be fetched.
+let selectionWaiting = null, graphUnavailable = false;
 function useSharedSelection(selection) {
-  const key = JSON.stringify(selection); if (key === appliedSelection) return; appliedSelection = key;
+  const key = JSON.stringify(selection); if (key === appliedSelection) return; appliedSelection = key; selectionWaiting = null;
   if (!selection) { hideDetails(); return; }
   if (selection.kind === 'narrative') {
     const pending = [...storyRoots]; while (pending.length) { const part = pending.pop(); if (part.unit.id === selection.id) { selectReadingPart(part); return; } pending.push(...part.children); }
+  }
+  if (partPending(data, 'inspection/graph') && !graphUnavailable) {
+    selectionWaiting = selection; appliedSelection = null;
+    const retry = () => { if (selectionWaiting === selection) useSharedSelection(selection); };
+    whenPart(data, 'inspection/graph').then(retry, () => { graphUnavailable = true; retry(); });
+    return;
   }
   selectionGraph ??= buildModelGraph(data.inspection);
   const record = selectionGraph.nodes.find((node) => node.kind === selection.kind && node.nativeId === selection.id);

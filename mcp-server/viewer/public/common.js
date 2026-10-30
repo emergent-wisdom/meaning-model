@@ -1,4 +1,5 @@
 // What the view needs besides itself: which run to open, the links it names, and what a process is called.
+import { openSnapshot } from './snapshot-format.js';
 
 // The run named by ?data=, else the one an agent worked on last. Without one, the page says how to open a run.
 export async function loadData(params) {
@@ -14,7 +15,8 @@ export async function loadData(params) {
     document.body.append(note);
     throw new Error(note.textContent);
   }
-  return { name, data: await response.json() };
+  // A compact snapshot (snapshot-format.js) is read into the same object as a whole one, its parts beside it.
+  return { name, data: await openSnapshot(await response.json(), { url: response.url }) };
 }
 
 // The links a view shows: the run's own (its viewer.json), then this viewer and the Meaning Model.
