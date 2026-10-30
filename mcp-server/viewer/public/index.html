@@ -180,7 +180,7 @@
   .reader h1 { font-size: 36px; line-height: 1.15; font-weight: 600; margin: 0 0 28px; } .reader h2 { font-size: 23px; font-weight: 600; margin: 2.2em 0 0.8em; }
   .reader p { margin: 0; text-indent: 1.5em; } .reader h1 + p, .reader h2 + p { text-indent: 0; }
   @media (max-width: 640px) { .reader, .reader.full { font-size: 17px; } .reader .reader-scroll, .reader.full .reader-scroll { padding: 0 16px 80px; } .reader-head { margin-right: 0; } }
-  .label { color: var(--ink-2); font-size: 12px; white-space: nowrap; text-shadow: 0 0 6px #000, 0 0 2px #000; }
+  .label { color: var(--ink-2); font-size: 12px; white-space: nowrap; text-shadow: 0 0 1px #000, 0 0 2px #000, 0 0 3px #000, 0 0 6px #000; }
   .label.row { font-size: 13px; color: #e9e8e2; pointer-events: auto; cursor: default; }
   .label.series { font-size: 11px; color: var(--muted); max-width: min(220px, 30vw); white-space: normal; text-align: right; line-height: 1.25; padding-bottom: 10px; pointer-events: auto; cursor: default; }
   .label.value { font-size: 12px; font-variant-numeric: tabular-nums; }
@@ -380,7 +380,7 @@
   .keys-help { color: var(--muted); font-size: 11.5px; line-height: 1.5; } .keys-help b { color: var(--ink-2); font-weight: 600; }
   /* Labels of what the details add, placed so they never pile up. */
   #labels2 { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
-  .lbl { position: absolute; left: 0; top: 0; white-space: nowrap; color: var(--ink-2); font-size: 12px; text-shadow: 0 0 6px #000, 0 0 2px #000; will-change: transform; transition: opacity 0.2s; }
+  .lbl { position: absolute; left: 0; top: 0; white-space: nowrap; color: var(--ink-2); font-size: 12px; text-shadow: 0 0 1px #000, 0 0 2px #000, 0 0 3px #000, 0 0 6px #000; will-change: transform; transition: opacity 0.2s; }
   .lbl.hide { opacity: 0; }
   .lbl.event { color: #f2f1ec; font-size: 12px; font-weight: 500; } .lbl.event.big { font-size: 13.5px; font-weight: 600; color: #fff; } .lbl.event.inner { font-style: italic; color: #e7e3ff; }
   .lbl.floor { color: #fff; font-size: 14px; font-weight: 600; text-align: right; } .lbl.floor span { display: block; color: var(--muted); font-size: 11.5px; font-weight: 400; }
