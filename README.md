@@ -340,7 +340,7 @@ serves. See the [forecasting add-on guide](profiles/FORECASTING_ADDON.md).
 
 ## Papers and worked example
 
-The paper was revised on October 29, 2026, and the grammar appendix on October 17, 2026.
+The paper was revised on October 30, 2026, and the grammar appendix on October 17, 2026.
 The [Zenodo series](https://doi.org/10.5281/zenodo.22313515) provides the
 archived versions.
 
@@ -361,8 +361,11 @@ archived versions.
   [emergent-wisdom/world-history](https://github.com/emergent-wisdom/world-history)
   under CC BY 4.0, and its README says how to load the construction record into
   an empty store with `life_construction_import` and replay it. The repository
-  holds the state of October 18, 2026, and in its history that of October 15;
-  the passes of October 19 and 20 that the paper reports are not yet published.
+  holds a continuation of the October 18, 2026 state, with places, explicit laws,
+  source-based corrections and the gaps still open after them. The paper pins
+  this October 28 snapshot to model revision 566, its commit and its content
+  hashes. The separate passes of October 19 and 20 that the paper reports are
+  not yet published.
 
 The six world-record forms are Concept, Thing, Event, Binding, Cut, and
 Realization. A Cut divides one declared unit among exclusive sibling answers

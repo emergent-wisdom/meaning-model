@@ -4,6 +4,16 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## Unreleased
+
+- The paper reports the separate October 28 World History continuation: places,
+  checks of recorded values through explicit laws, corrections and unresolved gaps.
+  It distinguishes this branch from the October 20 account and identifies the
+  snapshot by commit and content hashes. None of the ten reviewed findings is a
+  discovery. The tool is unchanged.
+- The alien-search comparison now states that its text-distance measure uses
+  twenty content words per idea, matching the published analysis.
+
 ## 0.18.0 — 2026-10-30
 
 **Large constructions**

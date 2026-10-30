@@ -54,9 +54,11 @@ revising them openly. The world, its meanings, the modeler's reasons, and the
 prose or code written from it share one medium, so a change shows what depends on
 it, and discovered concepts anchor further inference. An agent built \emph{The Book
 of Conditions}, a novel, from a premise and historical sources. A history of
-humankind from about 300,000 years ago to 2025 was built in agent passes: 539
-processes, 44,569 dated values, and 2,240 Events. Both show that such accounts can
-be built. They do not
+humankind from about 300,000 years ago to 2025 was built in agent passes, reaching
+539 processes, 44,569 dated values, and 2,240 Events on 20 October 2026. A separate
+continuation used explicit laws to check the account's numbers against each
+other, exposing errors and known effects, not discoveries. These constructions
+show that such accounts can be built and checked for internal consistency. They do not
 yet show that explicit structure improves on what a model does implicitly, or that
 the medium can train better models, which the companion paper Life Simulation
 develops.
@@ -2642,7 +2644,8 @@ rated more likely to work in eight of the ten worlds: 4.3 against 3.1 on a
 seven-point scale, paired Wilcoxon $p = 0.016$. They were rated less original:
 3.9 against 4.7. They stayed more varied than ten direct answers from the same
 model (mean successive distance 0.64 against 0.38), but less varied than the
-written-only ideas (0.80). The two searches also differ in the tool version and in
+written-only ideas (0.80), with each idea cut to twenty content words for this
+comparison. The two searches also differ in the tool version and in
 one added instruction to every role, to say plainly where something does not work.
 So the comparison shows a difference, not its cause; a search with world modelling
 switched off on the same version would separate them.
@@ -3056,8 +3059,10 @@ published as an open repository
 CC BY 4.0) whose exported construction histories import into a fresh engine
 with the same hashes, the first on the released 0.13.1 and the second on
 0.15.0; the passes of 19 and 20 October reported below continue them and are
-not yet published, and Appendix~\ref{app:world-history-passes} gives the tool
-version of each pass. The
+not yet published. A separate continuation of the 18 October state, with places
+and laws, is reported below at its 28 October snapshot.
+Appendix~\ref{app:world-history-passes} gives the tool versions and identifies
+that snapshot by its commit and content hashes. The
 account runs from about 300,000 years ago, as \emph{Homo sapiens} emerges, to
 2025, inside History, the lifecycle of the Universe, with the Earth and life on
 Earth as its setting.
@@ -3147,7 +3152,7 @@ its reasons, from one tool version to the next. It does not establish the
 account's historical accuracy, beyond the corrections recorded, or that its
 categories are the best available.
 
-The latest state of the construction was then tested without changing it, on a
+The 20 October state of the construction was then tested without changing it, on a
 copy of its store read with the engine it was built on. From the third pass of
 19 and 20 October, the engine refused to rebind the Understanding Graph, whose
 stored data had reached its limit of 64 MiB for a session, so the graph stays
@@ -3155,8 +3160,8 @@ bound to model revision 631 while the model runs on to 842, and the last two
 passes recorded their notes in the model instead. The 843 model revisions on the
 way to the head form one linear chain, with 109 more kept on abandoned branches.
 
-Table~\ref{tab:world-history-states} counts the three states this section
-reports, and Figure~\ref{fig:world-history-growth} shows the growth along the
+Table~\ref{tab:world-history-states} counts these three states, and
+Figure~\ref{fig:world-history-growth} shows the growth along the
 chain: coarse values first, then Events, then a finer tree, and from 19 October
 new roots beside it. History, with 314 of the 539 processes, divides into the
 Earth and humanity, with humanity's means, its places in the six UN M49 areas
@@ -3180,7 +3185,7 @@ the other has begun. The tool compares a whole's dated values with its parts'
 only where a process declares that its parts sum or average to it, and then
 within one holder's account and at dates where every comparable part has a value; 45
 parents now declare a sum, and parts whose unit differs from the parent's, 12 in
-all, are named rather than compared. The tool's report on the latest state finds no
+all, are named rather than compared. The tool's report on the 20 October state finds no
 contradiction and no unexplained residual, and applying its rule across the
 chain, no revision holds a sum its parts contradict. At the head, all 5,333 dated
 comparisons fall well inside the parent's band: 98.4\% agree exactly and the rest
@@ -3194,6 +3199,61 @@ made: the construction does not record, value by value, which values the model
 recalled and which follow its long-term fill, recorded partly from published
 data from 1500 on, so agreement could not separate the model's own knowledge
 from what it had read.
+
+\subsubsection{A separate continuation: places and laws}
+\label{sec:world-history-laws}
+
+The passes of 25 to 28 October returned to the 18 October state, rather than
+extending the 20 October branch. They asked where things happened and whether
+the account's numbers agree with one another. At model revision 566 this branch
+holds 543 processes and 1,400 Events. The counts include 278 position processes,
+one for each of 248 countries and areas and 30 regions, and 19 processes derived
+by laws. The places' own lives account for 278 Events; excluding them leaves
+1,122. A script recorded the places and their representative points; agents placed
+Events in countries where the account supported that placement.
+
+Twenty-one laws express relations among the processes: identities such as world
+output as people times output per person, bridges from fertility and life
+expectancy to births and deaths, and bounds such as the largest town being no
+larger than all town dwellers. Their derived values are held apart from the
+recorded ones. A script compares them using duration-weighted intervals; this
+pass is a check of recorded numbers, not a dynamic world run. Two laws that
+would change recorded growth and atmospheric carbon are disabled while the gaps
+remain unresolved.
+
+A fresh agent checked ten apparent findings against literature it could read,
+recording how much of each source it reached. Its assessment was two known
+effects, seven errors in the model, and one agreement that held by construction;
+none was a discovery. The largest discrepancy, births minus deaths implying
+more growth than the population counts before 1950, leads back to the published
+forager population paradox. Normal-year vital rates need not describe long-run
+growth through crises; Gurven and Davison study catastrophes together with
+changes in fertility and mortality as an explanation~\cite{gurvenDavison2019}.
+That literature supplies a hypothesis for checking the account, not a new
+finding about humanity.
+
+The corrections changed pandemic timing and plague waves, fossil-fuel carbon
+and energy, and land-use carbon, and added a series for crises the account does
+not date. Two further issues were left open: a surplus bound compares shares with
+different denominators, and a lower estimate for \c{C}atalh\"oy\"uk had not been
+checked against the underlying study. Revision 566 also repairs a correction
+that had broken the output identity at 549 and 610: output is set to people
+times output per person at both dates, with the continents adjusted in
+proportion. The final report, rather than the earlier correction ledger, is the
+record of those results.
+
+After correction, the central pre-1950 growth gap remains about 0.4--0.6
+percentage points a year; adding crises did not resolve it. The births factor
+was calibrated on the model's own 1950--2025 values, and its use in earlier eras
+remains a hypothesis. The broad bands overlap at all but one interval
+(1961.9--1962), so the central gap alone does not establish a contradiction
+beyond uncertainty.
+Nor do agreements obtained by deriving one series from another test historical
+accuracy: output set to its defining product at 549 and 610 and an airborne fraction computed
+from the recorded carbon rise are examples. This continuation shows that
+explicit relations can expose errors and guide repairs in an account. It
+supplies neither a historical discovery nor independent validation of the
+corrected account. Its literature checks and judgments are model work.
 
 \subsection{Prospective comparative evaluation}
 \label{sec:prospective-evaluation}
@@ -4363,6 +4423,28 @@ pattern's full hash. They took the tree to 539 processes under 13 roots and the
 construction to 843 model definitions, and the coverage report no longer finds
 the work complete: 36 processes still skip over Events that should move them,
 and 73 turns in the values have no recorded reason.
+
+The separate continuation of 25--28 October starts from 18 October and was
+exported with the released tool 0.15.0. Its 567 model definitions end at model
+revision 566, with 557 graph revisions. The account in
+Section~\ref{sec:world-history-laws} uses
+\href{https://github.com/emergent-wisdom/world-history/blob/30772fc2fb69e52d3b9cd1e47a7780f7dd361064/laws/report.md}{the final laws report},
+\href{https://github.com/emergent-wisdom/world-history/blob/30772fc2fb69e52d3b9cd1e47a7780f7dd361064/METHOD.md}{the method}, and
+\href{https://github.com/emergent-wisdom/world-history/blob/30772fc2fb69e52d3b9cd1e47a7780f7dd361064/laws/README.md}{the laws record's reading notes}
+at commit \texttt{30772fc2fb69e52d3b9cd1e47a7780f7dd361064}.
+The correction ledger predates the repair at revision 566 and must not be read
+as the final state. The
+\href{https://github.com/emergent-wisdom/world-history/blob/30772fc2fb69e52d3b9cd1e47a7780f7dd361064/construction/MANIFEST.json}{construction manifest}
+identifies the content independently of that commit:
+\begin{quote}
+\small
+Head model:\\
+\nolinkurl{9dd100274f97b6943076fcbb39f9ae67e11e223431041a0d6ed16782ee555c24}\\
+Head graph:\\
+\nolinkurl{4d57a4399d19fc4256c97554600f2485423657e18bf3f5e96d6bfed585efe18f}\\
+Construction file SHA-256:\\
+\nolinkurl{3e54d10e928a40d3ca1c911dfaf59b7aa3fe30292ad44c833327ee6006c215f1}
+\end{quote}
 
 \section{Concepts as Processes: A Test}
 \label{app:concepts-as-processes}
