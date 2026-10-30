@@ -152,6 +152,25 @@ and moment, its time mode, the whole across the Chart's top, the drawing of the 
 levels as steps, one tap each, and keeps the model's **What to notice** at every level. A view recorded with a later
 level than 0 opens there, and an address that names a level opens at it.
 
+## Where the time views' camera opens, and which labels show
+
+Processes and Tree open with a camera worked out from the box of what is drawn and the part of the screen the panels
+leave free (`opening-frame.js`); nothing depends on what the model is about. A field no deeper than it is long is
+framed whole, from the side it has always been seen from, and from higher up where its picture is flatter than the
+free room (a short field on a tall phone screen). The deeper a field runs for its length, the further the camera turns
+toward the side of the present and lowers, until, four times as deep as long, its rows run back along the free room's
+diagonal: across a wide screen, up a tall one. It then comes in until the field covers three quarters of the room,
+with the rows running on into the distance, but never so close that less of the front row's time axis stays on the
+screen than a seventh of it. An address that names a camera (`pose`) opens with that camera, and **Default** and
+recentring frame the view by the same rule.
+
+One rule decides which labels show, at the opening and as the view moves: a label shows only where all of it is on
+the screen, clear of every panel (the controls and their toggle, the model's card, an open pop-up, the reader) and of
+every label placed before it. Where they cannot all fit, fewer show. They are placed in this order: a selected
+document, what the model highlighted, the time marks, the count of causal links, the names of groups and rows, the
+lens cards, the values, the Events' names on their threads, and the names of the tree's Events. The terrain keeps its
+own rule.
+
 ## Compact snapshots for hosting
 
 A snapshot is one JSON file (`schema: "meaning-model-viewer/2"`), and every host keeps working with it: the local

@@ -46,6 +46,16 @@ unpublished work stays under Unreleased. This is not a development transcript.
   which keeps the model's What to notice at every level. Everything now keeps how the view presents its records (its
   window, moment, time mode, the Chart's whole and the Earth's drawing) and lifts only what leaves records out. A
   view recorded with a later level opens there, and `life_model_viewer_view` describes `level` so.
+- A model of many rows opens in Processes and Tree as big as it is: the camera looks from the side of its present, so
+  the rows run back along the free part of the screen's diagonal (across a laptop's screen, up a phone's), and it comes
+  in until the field fills three quarters of that space, the rows running on into the distance. Framed whole from the
+  front, the world history filled a fifth of it. A model no deeper than it is long still opens whole, from higher up
+  on a tall screen, and a small one is never enlarged. The camera follows only from the size of what is drawn and of
+  the screen; an address that names a camera keeps it.
+- No label in Processes and Tree covers another label, a panel (the model's card and the controls among them) or the
+  edge of the screen; where they cannot all fit, fewer show, in a fixed order: the model's highlights, the time marks,
+  the names of groups and rows, lens cards, values, then the Events' names. Labels have a darker edge, so a value
+  standing on a bright light stays readable.
 - On a phone (up to 760 px wide) the viewer opens on the model: the controls start hidden behind **Show controls**, and
   the model's card starts folded to its title and its levels, which scroll sideways as one row of steps. Before, the
   controls and the card covered the whole screen and the time bar's buttons. The Chart, Structure and Space start
@@ -55,8 +65,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
   call from another view) and once a second besides. Left still, the world history kept an emulated phone's processor
   (a laptop's slowed four times) busy almost all the time, and a laptop's about a quarter; now both are nearly idle.
 - While a finger or a mouse button drags or pinches the scene, nothing under it is tested for hovering, and the
-  scene's positions are worked out once per frame instead of twice. Dragging and pinching the world history on that
-  phone runs at about 60 frames a second, up from 25, and a story model's at 56, up from 12.
+  scene's positions are worked out once per frame instead of twice. The thousands of lights and short lines are drawn
+  in a few batches (the world history's 6,000 draw calls a frame became about 1,000), each curtain of light in one
+  pass instead of two, and the labels are measured and placed with less work. At its opening, with all its curves,
+  dragging and pinching the world history on that phone runs at about 15 frames a second, twice the rate before, and
+  the two story models at about 40 and 50, up from 21 and 25; on a laptop the world history runs at 37, up from 25.
 - An optional compact snapshot for hosting (`meaning-model-viewer/3`, written by `viewer/compact-snapshot.mjs`): the
   same data, with each dated series' points as columns and the graph's full records in a file the viewer fetches when
   a view first needs them. What the viewer must download before it draws is 36–66% smaller (the world history 3.49 to
