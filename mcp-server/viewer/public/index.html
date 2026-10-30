@@ -26,6 +26,7 @@
   #selection-label { overflow-wrap: anywhere; }
   body[aria-busy="true"], body[aria-busy="true"] * { cursor: progress !important; }
   body.no-text .scene-labels, body.no-text #labels2 { display: none; }
+  .scene-labels * { touch-action: none; }
   :root { --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781; --panel: rgba(18, 18, 17, 0.74); --ring: rgba(255, 255, 255, 0.10); --love: #ffb057; --fear: #58b4ff;
     /* One scale for the whole HUD: its distance from the edge, the height of a control, its corners, the width of the side panels, the room for the mark. */
     --edge: 14px; --control: 30px; --radius: 8px; --panel-width: 360px; --title-width: min(640px, 30vw); --mark: 32px; }

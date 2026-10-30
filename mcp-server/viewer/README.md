@@ -164,6 +164,8 @@ with the rows running on into the distance, but never so close that less of the 
 screen than a seventh of it. An address that names a camera (`pose`) opens with that camera, and **Default** and
 recentring frame the view by the same rule.
 
+A drag that starts on a label moves the view as one beside it does; a press that stays put stays the label's.
+
 One rule decides which labels show, at the opening and as the view moves: a label shows only where all of it is on
 the screen, clear of every panel (the controls and their toggle, the model's card, an open pop-up, the reader) and of
 every label placed before it. Where they cannot all fit, fewer show. They are placed in this order: a selected

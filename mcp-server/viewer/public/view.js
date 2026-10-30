@@ -36,6 +36,7 @@ import { createFrameGate } from './frame-gate.js';
 import { timeAxis } from './time-axis.js';
 import { createGlowBatches } from './glow-batch.js';
 import { openingFrame, fitBox, cameraMoved } from './opening-frame.js';
+import { passDragsToCanvas } from './scene-touch.js';
 import { partPending, whenPart } from './snapshot-format.js';
 
 let temporalActive = !window.modelViewer, temporalFrame = null, appliedSelection = null, hoveredRecord = null;
@@ -3119,6 +3120,7 @@ renderer.domElement.addEventListener('pointermove', (event) => { pointerAt = { x
 const pressed = new Set();
 renderer.domElement.addEventListener('pointerdown', (event) => { pressed.add(event.pointerId); tip.hidden = true; });
 for (const type of ['pointerup', 'pointercancel']) addEventListener(type, (event) => pressed.delete(event.pointerId));
+passDragsToCanvas(labels.domElement, renderer.domElement);
 renderer.domElement.addEventListener('pointerleave', () => { pointerAt = null; tip.hidden = true; if (lit) { lit = null; drawNotes(); } });
 // A click on anything opens what it is beside the view, as in the understanding graph; a click on nothing closes it.
 const details = document.getElementById('details');
