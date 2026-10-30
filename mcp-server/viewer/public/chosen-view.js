@@ -110,10 +110,10 @@ export function mountChosenView({ data, opening, onHighlight = () => {}, documen
     label.htmlFor = slider.id = 'chosen-level';
     levels.append(label, slider, stops); card.append(levels);
     // What to notice: the highlights up to this level, what the level added first, each with why it matters; picking
-    // one opens it.
+    // one opens it. Everything draws every record and marks none, and the card still lists all the model chose.
     const groups = [{ label: names[0], highlights: view.highlights ?? [] }, ...(view.levels ?? []).slice(0, level).map((item) => ({ label: item.label, highlights: item.highlights ?? [] }))]
       .filter((group) => group.highlights.length).reverse();
-    if (level < everythingLevel(view) && groups.length) {
+    if (groups.length) {
       const heading = document.createElement('h3'); heading.textContent = 'What to notice'; card.append(heading);
       for (const group of groups) {
         if (groups.length > 1) { const sub = document.createElement('h4'); sub.textContent = group.label; card.append(sub); }

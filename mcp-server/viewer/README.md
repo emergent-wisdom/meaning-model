@@ -142,6 +142,16 @@ When only Event spans are available, a note explains that bars show intervals an
 asks the agent to check recorded values and their display representation. Hiding
 curves or viewing constant values does not trigger that note.
 
+## How the model's chosen view opens
+
+A view recorded with `life_model_viewer_view` has its own settings, rows and highlights, and levels that each add
+more; the viewer adds **Everything** last (`view-settings.js`). A followed view opens at Everything, so a reader first
+sees every record the model holds rather than the few rows its first level names. Everything lifts only the settings
+that leave records out (layers, rows, filters, depth and the like) and keeps how the view presents them: its window
+and moment, its time mode, the whole across the Chart's top, the drawing of the Earth. The card lists the view and its
+levels as steps, one tap each, and keeps the model's **What to notice** at every level. A view recorded with a later
+level than 0 opens there, and an address that names a level opens at it.
+
 ## Compact snapshots for hosting
 
 A snapshot is one JSON file (`schema: "meaning-model-viewer/2"`), and every host keeps working with it: the local

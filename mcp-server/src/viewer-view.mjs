@@ -32,7 +32,7 @@ export const viewerViewSchema = z.object({
   caption: z.string().trim().min(1).max(1_200).describe('One to three sentences: what this view shows and what to notice.'),
   settings, rows: z.array(row).max(16).default([]), highlights: z.array(highlight).max(24).default([]),
   levels: z.array(level).max(6).default([]).describe('Levels of detail after the view itself, each adding settings, rows and highlights; the viewer adds Everything last.'),
-  level: z.number().int().min(0).default(0).describe('The level the view opens at: 0 is the view itself.'),
+  level: z.number().int().min(0).default(0).describe('The level the view opens at. 0, the default, opens at Everything, so a reader first sees all the model holds, with the view and its levels a step away on its card; a later level opens there.'),
 }).strict().superRefine((input, context) => {
   const steps = [['', input], ...input.levels.map((item, index) => [`levels[${index}].`, item])];
   for (const [where, step] of steps) {

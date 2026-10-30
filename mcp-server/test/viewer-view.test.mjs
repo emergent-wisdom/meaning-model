@@ -88,7 +88,12 @@ test('an address opens the model\'s view unless the reader has chosen, and a new
   const views = [{ ...view, id: 'v1', superseded: true }, view];
   const opened = openingView('https://x.test/m/?data=book', views);
   assert.equal(opened.state, 'following');
-  assert.equal(new URL(opened.href).search, '?data=book&show=processes&t0=1800&t1=1876&chosen=v2');
+  // A followed view opens at its fullest level, Everything; its own levels are a step away and name themselves.
+  assert.equal(opened.level, everythingLevel(view));
+  assert.equal(new URL(opened.href).search, '?data=book&t0=1800&t1=1876&everything&rows=all&chosen=v2');
+  assert.equal(new URL(viewAddress('https://x.test/m/?data=book', view, 0)).search, '?data=book&show=processes&t0=1800&t1=1876&chosen=v2&level=0');
+  assert.equal(openingView(`${opened.href}&level=0`, views).level, 0);
+  assert.equal(openingView('https://x.test/m/?data=book', [{ ...view, level: 1 }]).level, 1, 'a view recorded with a later level opens there');
   assert.ok(sameSettings('?show=processes&camera=free', '?show=processes'), 'turning the camera does not leave the view');
   assert.equal(openingView(opened.href, views).href, opened.href, 'an address on the current view stays as it is');
   assert.equal(openingView(`${opened.href}&level=2`, views).level, 2);
@@ -100,7 +105,7 @@ test('an address opens the model\'s view unless the reader has chosen, and a new
   assert.equal(openingView('https://x.test/m/?data=book&show=notes', views).state, 'own', 'a link set by hand keeps its settings');
   assert.equal(openingView('https://x.test/m/?data=book&chosen=gone', views).state, 'following', 'a view no longer there opens the current one');
   assert.equal(openingView('https://x.test/m/?data=book', []).state, 'none');
-  assert.equal(new URL(viewAddress('https://x.test/m/?data=book&live', view, 3)).search, '?data=book&live&t0=1800&t1=1876&everything&rows=all&chosen=v2&level=3');
+  assert.equal(new URL(viewAddress('https://x.test/m/?data=book&live', view, 3)).search, '?data=book&live&t0=1800&t1=1876&everything&rows=all&chosen=v2');
   // Moving the camera, playing time or opening a passage does not leave the view.
   assert.ok(sameSettings('?show=processes&camera=locked&chosen=v2', '?camera=locked&show=processes&pose=1,2,3,4,5,6&at=1851.3&read&chosen=v2&level=1'));
   assert.ok(!sameSettings('?show=processes&camera=locked', '?show=processes,notes&camera=locked'));

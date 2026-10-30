@@ -41,6 +41,11 @@ unpublished work stays under Unreleased. This is not a development transcript.
   that the model does not declare, and a projected or local frame is drawn as before.
 
 **The viewer on phones and with big models**
+- The model's chosen view opens at its fullest level, Everything, so a big model first shows all it holds: the world
+  history opened on 7 of its 239 curves and now opens on all of them. The view and its levels are steps on its card,
+  which keeps the model's What to notice at every level. Everything now keeps how the view presents its records (its
+  window, moment, time mode, the Chart's whole and the Earth's drawing) and lifts only what leaves records out. A
+  view recorded with a later level opens there, and `life_model_viewer_view` describes `level` so.
 - Processes, Tree and Terrain draw only when something changes (a camera move, an input, playback, an animation or a
   call from another view) and once a second besides. Left still, the world history kept an emulated phone's processor
   (a laptop's slowed four times) busy almost all the time, and a laptop's about a quarter; now both are nearly idle.

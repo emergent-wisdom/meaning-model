@@ -31,7 +31,7 @@ import { readingActs, actShares, actCounts } from './lens-readings.js';
 import { bigNamesOn, namePlace, nameHeight, screenHeight } from './character-names.js';
 import { readerInline } from './reader-markdown.js';
 import { onPlainClick } from './pointer-click.js';
-import { curationAt } from './view-settings.js';
+import { curationAt, openingLevel } from './view-settings.js';
 import { createFrameGate } from './frame-gate.js';
 import { partPending, whenPart } from './snapshot-format.js';
 
@@ -85,7 +85,7 @@ const boundedMeasure = (measure) => measure.kind === 'cut-answer' || measure.kin
 // links, moments, readings and notes it highlights. Everything is the last level and narrows nothing. It is kept in
 // opt.curation, since it is part of what the view shows.
 const chosenView = (data.views ?? []).find((view) => view.id === params.get('chosen')) ?? null;
-const chosenLevel = chosenView && params.has('level') && Number.isInteger(Number(params.get('level'))) ? Number(params.get('level')) : chosenView?.level ?? 0;
+const chosenLevel = chosenView && params.has('level') && Number.isInteger(Number(params.get('level'))) ? Number(params.get('level')) : chosenView ? openingLevel(chosenView) : 0;
 const curation = (() => {
   if (!chosenView) return null;
   const { rows, highlights } = curationAt(chosenView, chosenLevel);
