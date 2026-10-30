@@ -13,11 +13,11 @@ use crate::model::narrative::{
     validate_expected_graph_hash, validate_narrative_access_scopes, CompiledNarrativeGraph,
     NarrativeAnchorKind, NarrativeEdge, NarrativeEndpoint, NarrativeGraphQuery,
     NarrativeHistorySpec, NarrativeInclusionPolicy, NarrativeNode, NarrativeRenderSpec,
-    NarrativeTraversalDirection, StoredNarrativeGraph, StoredNarrativeRevision,
-    MAX_NARRATIVE_NEIGHBORHOOD_DEPTH, MAX_NARRATIVE_NODES, MAX_NARRATIVE_ROOTS,
-    NARRATIVE_GRAPH_VIEW_SCHEMA, NARRATIVE_HISTORY_SCHEMA, NARRATIVE_RENDER_SCHEMA,
-    NARRATIVE_TRAINING_SCHEMA,
+    NarrativeTraversalDirection, StoredNarrativeGraph, MAX_NARRATIVE_NEIGHBORHOOD_DEPTH,
+    MAX_NARRATIVE_NODES, MAX_NARRATIVE_ROOTS, NARRATIVE_GRAPH_VIEW_SCHEMA,
+    NARRATIVE_HISTORY_SCHEMA, NARRATIVE_RENDER_SCHEMA, NARRATIVE_TRAINING_SCHEMA,
 };
+use crate::session::NarrativeEntry;
 use crate::session::{
     encode, machine_error, required, MachineCommand, MachineError, MachineSession,
 };
@@ -278,7 +278,7 @@ impl MachineSession {
                     .map_or(u64::MAX, |revision| revision.operation_sequence)
             });
         }
-        let mut ordered: Vec<&StoredNarrativeRevision> = self
+        let mut ordered: Vec<&NarrativeEntry> = self
             .narrative_revisions
             .values()
             .filter(|revision| selected.contains(revision.graph_hash.as_str()))

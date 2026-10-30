@@ -63,7 +63,7 @@ test('npm stage contains an executable JavaScript server, Rust sources, and ever
   const { packageDirectory } = await stageNpmPackage(root, temporary);
   const metadata = JSON.parse(await readFile(join(packageDirectory, 'package.json'), 'utf8'));
   assert.equal(metadata.name, '@emergent-wisdom/meaning-model-mcp');
-  assert.equal(metadata.version, '0.17.0');
+  assert.equal(metadata.version, '0.18.0');
   // The npm page's install command installs this version; from 0.10.0 through 0.12.0 it still said 0.10.0.
   const pinned = [...(await readFile(join(packageDirectory, 'README.md'), 'utf8')).matchAll(/meaning-model-mcp@(\d+\.\d+\.\d+)/gu)].map((match) => match[1]);
   assert.ok(pinned.length > 0, 'the npm page has an install command');

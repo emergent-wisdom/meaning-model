@@ -32,13 +32,13 @@ impl MachineSession {
         {
             return Err(error("session object-count limit exceeded"));
         }
-        let model_bytes = self.models.stored_bytes();
+        let model_bytes = self.models.held_bytes();
         let world_bytes = serialized_sum(self.worlds.values())?;
         let world_revision_bytes = serialized_sum(self.world_revisions.values())?;
         let candidate_bytes = serialized_sum(self.candidates.values())?
             .checked_add(self.candidates.len().saturating_mul(16))
             .ok_or_else(|| error("candidate storage estimate overflow"))?;
-        let narrative_bytes = self.narrative_storage_bytes;
+        let narrative_bytes = self.narrative_held_bytes();
         let project_bytes = self.project_storage_bytes()?;
         if model_bytes > MAX_SESSION_MODEL_BYTES
             || world_bytes > MAX_SESSION_WORLD_BYTES
@@ -48,33 +48,19 @@ impl MachineSession {
             || project_bytes > MAX_PROJECT_STORAGE_BYTES
         {
             return Err(error(format!(
-                "session byte limit exceeded (models {model_bytes}/{MAX_SESSION_MODEL_BYTES}, worlds {world_bytes}/{MAX_SESSION_WORLD_BYTES}, candidates {candidate_bytes}/{MAX_SESSION_CANDIDATE_BYTES}, narrative graphs {narrative_bytes}/{MAX_SESSION_NARRATIVE_BYTES}, project checkpoints {project_bytes}/{MAX_PROJECT_STORAGE_BYTES})"
+                "session byte limit exceeded (models held {model_bytes}/{MAX_SESSION_MODEL_BYTES}, worlds {world_bytes}/{MAX_SESSION_WORLD_BYTES}, candidates {candidate_bytes}/{MAX_SESSION_CANDIDATE_BYTES}, narrative graphs held {narrative_bytes}/{MAX_SESSION_NARRATIVE_BYTES}, project checkpoints {project_bytes}/{MAX_PROJECT_STORAGE_BYTES})"
             )));
         }
         Ok(())
-    }
-
-    pub(super) fn compute_narrative_storage_bytes(&self) -> EngineResult<usize> {
-        let snapshots: Vec<StoredNarrativeSourceSnapshot> = self
-            .narrative_source_snapshots
-            .iter()
-            .map(|(snapshot_hash, snapshot)| StoredNarrativeSourceSnapshot {
-                snapshot_hash: snapshot_hash.clone(),
-                snapshot: snapshot.clone(),
-            })
-            .collect();
-        serialized_sum(snapshots.iter())?
-            .checked_add(serialized_sum(self.narrative_revisions.values())?)
-            .ok_or_else(|| error("session narrative storage estimate overflow"))
     }
 
     pub(super) fn ensure_narrative_insert(
         &self,
         revision: &StoredNarrativeRevision,
         snapshot: &NarrativeSourceSnapshot,
-    ) -> EngineResult<usize> {
+    ) -> EngineResult<(usize, usize)> {
         if self.narrative_revisions.contains_key(&revision.graph_hash) {
-            return Ok(0);
+            return Ok((0, 0));
         }
         if self.narrative_revisions.len() >= MAX_SESSION_NARRATIVE_GRAPHS {
             return Err(error(format!(
@@ -93,20 +79,17 @@ impl MachineSession {
             })?
         };
         let revision_bytes = serialized_size(revision)?;
-        let added_bytes = snapshot_bytes
-            .checked_add(revision_bytes)
-            .ok_or_else(|| error("session narrative graph byte estimate overflow"))?;
         let bytes = self
-            .narrative_storage_bytes
+            .narrative_held_bytes()
             .checked_add(snapshot_bytes)
             .and_then(|value| value.checked_add(revision_bytes))
             .ok_or_else(|| error("session narrative graph byte estimate overflow"))?;
         if bytes > MAX_SESSION_NARRATIVE_BYTES {
             return Err(error(format!(
-                "session narrative graph bytes would exceed {MAX_SESSION_NARRATIVE_BYTES}"
+                "session narrative graph bytes held in memory would exceed {MAX_SESSION_NARRATIVE_BYTES}"
             )));
         }
-        Ok(added_bytes)
+        Ok((snapshot_bytes, revision_bytes))
     }
 
     pub(super) fn project_storage_bytes(&self) -> EngineResult<usize> {
@@ -144,7 +127,7 @@ impl MachineSession {
         }
         let bytes = self
             .models
-            .stored_bytes()
+            .held_bytes()
             .checked_add(serialized_size(stored)?)
             .ok_or_else(|| error("session model byte estimate overflow"))?;
         if bytes > MAX_SESSION_MODEL_BYTES {
@@ -304,5 +287,13 @@ impl MachineSession {
             )));
         }
         Ok(())
+    }
+}
+
+impl MachineSession {
+    pub(super) fn narrative_held_bytes(&self) -> usize {
+        self.narrative_records
+            .held_bytes()
+            .saturating_add(self.narrative_source_snapshots.rows.held_bytes())
     }
 }

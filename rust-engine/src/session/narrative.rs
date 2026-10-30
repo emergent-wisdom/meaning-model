@@ -24,6 +24,9 @@ use crate::model::narrative::{
     NARRATIVE_REVISION_STORE_SCHEMA,
 };
 use crate::session::operation::NarrativeOperation;
+use crate::session::persistence::decode_sqlite_json;
+use crate::session::store_rows::{self, NarrativeHeader, SealKind};
+use crate::session::NarrativeEntry;
 use crate::session::{
     encode, machine_error, required, DirtyRow, MachineCommand, MachineError, MachineSession,
 };
@@ -477,14 +480,17 @@ impl MachineSession {
     ) -> EngineResult<()> {
         validate_narrative_revision_record_hash(&revision)?;
         let parent = match revision.revision.previous_graph_hash.as_deref() {
-            Some(previous_hash) => Some(
-                self.narrative_materialized
-                    .get(previous_hash)
-                    .ok_or_else(|| error("narrative revision parent is not materialized"))?,
-            ),
+            Some(previous_hash) => Some(self.materialized_narrative(previous_hash).map_err(
+                |cause| {
+                    error(format!(
+                        "narrative revision parent is not available: {}",
+                        cause.0
+                    ))
+                },
+            )?),
             None => None,
         };
-        let materialized = MaterializedNarrative::apply(parent, &revision)?;
+        let materialized = MaterializedNarrative::apply(parent.as_ref(), &revision)?;
         if !materialized.matches(definition) {
             return Err(error(
                 "narrative revision record does not reconstruct its compiled graph",
@@ -498,14 +504,19 @@ impl MachineSession {
         if hash_serializable(&snapshot)? != revision.snapshot_hash {
             return Err(error("narrative source snapshot hash is invalid"));
         }
-        if let Some(existing) = self.narrative_source_snapshots.get(&revision.snapshot_hash) {
-            if existing != &snapshot {
+        if self
+            .narrative_source_snapshots
+            .contains_key(&revision.snapshot_hash)
+        {
+            let existing = self.narrative_snapshot(&revision.snapshot_hash)?;
+            if existing.as_ref() != &snapshot {
                 return Err(error(
                     "narrative snapshot hash is already bound to different content",
                 ));
             }
         }
-        let added_storage_bytes = self.ensure_narrative_insert(&revision, &snapshot)?;
+        let (snapshot_bytes, revision_bytes) =
+            self.ensure_narrative_insert(&revision, &snapshot)?;
         let next = self
             .next_narrative_operation_sequence
             .checked_add(1)
@@ -513,25 +524,49 @@ impl MachineSession {
         let snapshot_is_new = !self
             .narrative_source_snapshots
             .contains_key(&revision.snapshot_hash);
-        self.narrative_source_snapshots
-            .entry(revision.snapshot_hash.clone())
-            .or_insert(snapshot);
         let snapshot_hash = revision.snapshot_hash.clone();
         let graph_hash = revision.graph_hash.clone();
-        if self
-            .narrative_revisions
-            .insert(revision.graph_hash.clone(), revision)
-            .is_some()
-        {
+        if self.narrative_revisions.contains_key(&graph_hash) {
             return Err(error("narrative graph hash insertion collided"));
         }
+        if snapshot_is_new {
+            self.narrative_source_snapshots
+                .index
+                .insert(snapshot_hash.clone(), snapshot.model_hash.clone());
+            self.narrative_source_snapshots.rows.hold(
+                snapshot_hash.clone(),
+                std::sync::Arc::new(snapshot),
+                snapshot_bytes,
+            );
+        }
+        let previous_hash = revision.revision.previous_graph_hash.clone();
+        self.narrative_revisions.insert(
+            graph_hash.clone(),
+            NarrativeEntry {
+                header: NarrativeHeader::from(&revision),
+                row_bytes: revision_bytes,
+                seal: None,
+            },
+        );
+        self.narrative_records.hold(
+            graph_hash.clone(),
+            std::sync::Arc::new(revision),
+            revision_bytes,
+        );
+        if let Some(previous_hash) = &previous_hash {
+            *self
+                .narrative_children
+                .entry(previous_hash.clone())
+                .or_default() += 1;
+            self.narrative_materialized
+                .borrow_mut()
+                .unpin(previous_hash);
+        }
+        self.narrative_children.insert(graph_hash.clone(), 0);
         self.narrative_materialized
-            .insert(graph_hash.clone(), materialized);
+            .borrow_mut()
+            .pin(graph_hash.clone(), materialized);
         self.next_narrative_operation_sequence = next;
-        self.narrative_storage_bytes = self
-            .narrative_storage_bytes
-            .checked_add(added_storage_bytes)
-            .ok_or_else(|| error("session narrative graph byte estimate overflow"))?;
         if snapshot_is_new {
             self.mark_dirty(DirtyRow::NarrativeSourceSnapshot, snapshot_hash);
         }
@@ -721,20 +756,15 @@ impl MachineSession {
             .narrative_revisions
             .get(graph_hash)
             .ok_or_else(|| error(format!("unknown narrative graph {graph_hash}")))?;
-        let materialized = self.narrative_materialized.get(graph_hash).ok_or_else(|| {
-            error(format!(
-                "narrative graph {graph_hash} is stored without its materialization"
-            ))
-        })?;
+        let materialized = self.materialized_narrative(graph_hash)?;
         let snapshot = self
-            .narrative_source_snapshots
-            .get(&target.snapshot_hash)
-            .ok_or_else(|| error("narrative revision names an unknown source snapshot"))?
+            .narrative_snapshot(&target.snapshot_hash)?
+            .as_ref()
             .clone();
         Ok(StoredNarrativeGraph {
             graph_hash: target.graph_hash.clone(),
             snapshot_hash: target.snapshot_hash.clone(),
-            definition: materialized.definition(target),
+            definition: materialized.definition(&target.header),
             snapshot,
         })
     }
@@ -878,5 +908,122 @@ impl MachineSession {
             ));
         }
         Ok(())
+    }
+}
+
+impl MachineSession {
+    pub(super) fn narrative_record(
+        &self,
+        graph_hash: &str,
+    ) -> EngineResult<std::sync::Arc<StoredNarrativeRevision>> {
+        if let Some(record) = self
+            .narrative_records
+            .held(graph_hash)
+            .or_else(|| self.narrative_records.cached(graph_hash))
+        {
+            return Ok(record);
+        }
+        let entry = self
+            .narrative_revisions
+            .get(graph_hash)
+            .ok_or_else(|| error(format!("unknown narrative graph {graph_hash}")))?;
+        let reader = self
+            .reader
+            .as_ref()
+            .ok_or_else(|| error(format!("narrative revision {graph_hash} is not held")))?;
+        let bytes = reader.narrative_row(graph_hash)?.ok_or_else(|| {
+            error(format!(
+                "narrative revision {graph_hash} is missing from the state file"
+            ))
+        })?;
+        let seal = entry.seal.as_ref().ok_or_else(|| {
+            error(format!(
+                "narrative revision {graph_hash} is neither held nor sealed"
+            ))
+        })?;
+        store_rows::check_row(SealKind::Narrative, graph_hash, &bytes, seal)?;
+        let record: StoredNarrativeRevision =
+            decode_sqlite_json(bytes.clone(), "narrative revision")?;
+        if NarrativeHeader::from(&record) != entry.header {
+            return Err(error(format!(
+                "narrative revision {graph_hash} does not match its sealed header"
+            )));
+        }
+        let record = std::sync::Arc::new(record);
+        self.narrative_records
+            .cache(graph_hash.to_owned(), record.clone(), bytes.len());
+        crate::heartbeat::tick();
+        Ok(record)
+    }
+
+    pub(super) fn narrative_snapshot(
+        &self,
+        snapshot_hash: &str,
+    ) -> EngineResult<std::sync::Arc<NarrativeSourceSnapshot>> {
+        self.narrative_source_snapshots
+            .get(snapshot_hash, self.reader.as_deref())?
+            .ok_or_else(|| error("narrative revision names an unknown source snapshot"))
+    }
+
+    pub(super) fn is_narrative_head(&self, graph_hash: &str) -> bool {
+        self.narrative_children
+            .get(graph_hash)
+            .copied()
+            .unwrap_or_default()
+            == 0
+    }
+
+    pub(super) fn keep_materialized(&self, graph_hash: &str, materialized: MaterializedNarrative) {
+        let mut cache = self.narrative_materialized.borrow_mut();
+        if self.is_narrative_head(graph_hash) {
+            cache.pin(graph_hash.to_owned(), materialized);
+        } else {
+            cache.keep(graph_hash.to_owned(), materialized);
+        }
+    }
+
+    pub(super) fn materialized_narrative(
+        &self,
+        graph_hash: &str,
+    ) -> EngineResult<MaterializedNarrative> {
+        if let Some(found) = self.narrative_materialized.borrow_mut().get(graph_hash) {
+            return Ok(found);
+        }
+        let mut path = Vec::new();
+        let mut cursor = Some(graph_hash.to_owned());
+        let mut base = None;
+        while let Some(hash) = cursor {
+            if hash != graph_hash {
+                if let Some(found) = self.narrative_materialized.borrow_mut().get(&hash) {
+                    base = Some(found);
+                    break;
+                }
+            }
+            let entry = self
+                .narrative_revisions
+                .get(&hash)
+                .ok_or_else(|| error(format!("unknown narrative graph {hash}")))?;
+            cursor = entry.revision.previous_graph_hash.clone();
+            path.push(hash);
+            if path.len() > self.narrative_revisions.len() {
+                return Err(error("narrative revisions form a cycle"));
+            }
+        }
+        let total = path.len();
+        for (step, hash) in path.into_iter().rev().enumerate() {
+            let record = self.narrative_record(&hash)?;
+            let next = MaterializedNarrative::apply(base.as_ref(), &record)?;
+            crate::heartbeat::tick();
+            // Keep the revision asked for, and every 32nd one of a long replay, so a later read nearby starts close.
+            if step + 1 == total || (total - step - 1) % 32 == 0 {
+                self.keep_materialized(&hash, next.clone());
+            }
+            base = Some(next);
+        }
+        base.ok_or_else(|| {
+            error(format!(
+                "narrative graph {graph_hash} could not be materialized"
+            ))
+        })
     }
 }

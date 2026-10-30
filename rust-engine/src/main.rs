@@ -84,18 +84,23 @@ fn main() {
         .any(|argument| argument == "--help" || argument == "-h")
     {
         eprintln!(
-            "life-sim-engine [--ndjson] [--pretty] [--state-file PATH]\n\nReads JSON commands from stdin and writes JSON responses to stdout. Durable state is opt-in through --state-file or LIFE_SIM_STATE_FILE."
+            "life-sim-engine [--ndjson] [--pretty] [--state-file PATH] [--audit [--reseal]]\n\nReads JSON commands from stdin and writes JSON responses to stdout. Durable state is opt-in through --state-file or LIFE_SIM_STATE_FILE.\n--audit validates every revision in the state file again, prints the result and exits; --reseal also replaces seals that are missing or differ.\nLIFE_SIM_HEARTBEAT_MS=N writes a heartbeat line to stderr every N ms."
         );
         return;
     }
+    let heartbeat = life_sim_engine::heartbeat::start_from_environment();
     let mut ndjson = false;
     let mut pretty = false;
+    let mut audit = false;
+    let mut reseal = false;
     let mut state_file = None;
     let mut index = 0;
     while index < arguments.len() {
         match arguments[index].as_str() {
             "--ndjson" => ndjson = true,
             "--pretty" => pretty = true,
+            "--audit" => audit = true,
+            "--reseal" => reseal = true,
             "--state-file" => {
                 index += 1;
                 let Some(path) = arguments.get(index) else {
@@ -115,8 +120,33 @@ fn main() {
         state_file = env::var("LIFE_SIM_STATE_FILE").ok();
     }
 
+    let _ = heartbeat;
     let stdout = io::stdout();
     let mut output = stdout.lock();
+    if audit {
+        let Some(path) = state_file else {
+            eprintln!("--audit requires --state-file or LIFE_SIM_STATE_FILE");
+            std::process::exit(2);
+        };
+        let session = MachineSession::with_state_file(path).unwrap_or_else(|cause| {
+            eprintln!("failed to open the state file: {cause}");
+            std::process::exit(1);
+        });
+        let command = serde_json::json!({
+            "schema": life_sim_engine::COMMAND_SCHEMA,
+            "request_id": "audit",
+            "operation": "audit_store",
+            "store_audit": { "reseal": reseal },
+        });
+        let mut session = session;
+        let response = session.parse_and_execute(&command.to_string());
+        let ok = response.ok;
+        if let Err(cause) = write_response(&mut output, &response, true) {
+            eprintln!("{cause}");
+            std::process::exit(1);
+        }
+        std::process::exit(if ok { 0 } else { 1 });
+    }
     let mut session = match state_file {
         Some(path) => MachineSession::with_state_file(path).unwrap_or_else(|cause| {
             eprintln!("failed to initialize durable session: {cause}");

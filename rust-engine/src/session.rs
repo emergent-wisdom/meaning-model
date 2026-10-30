@@ -30,9 +30,9 @@ use crate::model::compile::CompiledModel;
 use crate::model::definition::ModelDefinition;
 use crate::model::graph::{GraphQuery, GraphQueryError};
 use crate::model::narrative::{
-    MaterializedNarrative, NarrativeGraphBatch, NarrativeGraphChange, NarrativeGraphDefinition,
-    NarrativeGraphQuery, NarrativeHistorySpec, NarrativeRenderSpec, NarrativeSourceSnapshot,
-    NarrativeTrainingSpec, StoredNarrativeGraph, StoredNarrativeRevision,
+    NarrativeGraphBatch, NarrativeGraphChange, NarrativeGraphDefinition, NarrativeGraphQuery,
+    NarrativeHistorySpec, NarrativeRenderSpec, NarrativeTrainingSpec, StoredNarrativeGraph,
+    StoredNarrativeRevision,
 };
 use crate::model::project::{
     ProjectCheckpointDefinition, StoredProjectCheckpoint, StoredProjectDocument,
@@ -44,10 +44,12 @@ use crate::model::world::{WorldHead, WorldRevision, WorldRevisionSpec};
 use crate::profiles::ProfileCompilationRequest;
 use crate::session::model_store::ModelStore;
 use crate::session::operation::MachineOperation;
-use crate::session::persistence::{
-    load_sqlite_session, persist_sqlite_changes, PersistenceFailure,
-};
+use crate::session::persistence::{persist_sqlite_changes, write_seals, PersistenceFailure};
 use crate::{error, EngineResult, ErrorBody, ResponseEnvelope};
+use store_rows::{
+    MaterializedCache, ModelHeader, NarrativeHeader, RowCache, SealKind, SealRef, SnapshotStore,
+    StoreReader, NARRATIVE_ROWS_CACHED_BYTES,
+};
 
 // The command handlers, one per operation group, and the reads of narrative graphs.
 mod candidates;
@@ -66,10 +68,12 @@ mod model_store;
 mod operation;
 mod persistence;
 mod restore;
+mod store_queries;
+mod store_rows;
 pub use operation::is_machine_operation;
 
 /// The name of every machine operation, in the order `describe` lists them.
-pub(crate) fn machine_operation_names() -> [&'static str; 32] {
+pub(crate) fn machine_operation_names() -> [&'static str; 36] {
     MachineOperation::ALL.map(MachineOperation::name)
 }
 
@@ -132,6 +136,55 @@ struct MachineCommand {
     project_checkpoint: Option<ProjectCheckpointDefinition>,
     #[serde(default)]
     project_checkpoint_id: Option<String>,
+    #[serde(default)]
+    model_lineage: Option<ModelLineageSpec>,
+    #[serde(default)]
+    model_heads: Option<ModelHeadsSpec>,
+    #[serde(default)]
+    store_audit: Option<StoreAuditSpec>,
+}
+
+/// A walk back along a model revision's predecessors, by header, without rebuilding any revision.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ModelLineageSpec {
+    #[serde(default)]
+    stop_at_model_hash: Option<String>,
+    #[serde(default)]
+    limit: Option<usize>,
+}
+
+/// The revisions nothing was made from, optionally of one model id or descending from one revision.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ModelHeadsSpec {
+    #[serde(default)]
+    model_id: Option<String>,
+    #[serde(default)]
+    descending_from: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoreAuditSpec {
+    #[serde(default)]
+    reseal: bool,
+}
+
+pub const MODEL_LINEAGE_SCHEMA: &str = "life-sim-rust-model-lineage/v1";
+pub const MODEL_HEADS_SCHEMA: &str = "life-sim-rust-model-heads/v1";
+pub const STORE_AUDIT_SCHEMA: &str = "life-sim-rust-store-audit/v1";
+pub const STORE_STATUS_SCHEMA: &str = "life-sim-rust-store-status/v1";
+
+fn model_header_json(model_hash: &str, header: &ModelHeader) -> serde_json::Value {
+    serde_json::json!({
+        "model_hash": model_hash,
+        "model_id": header.id,
+        "revision_number": header.revision_number,
+        "previous_model_hash": header.previous_model_hash,
+        "reason": header.reason,
+        "provenance": header.provenance,
+    })
 }
 
 #[derive(Debug)]
@@ -250,43 +303,66 @@ thread_local! {
     static FAIL_AFTER_EXECUTE: std::cell::RefCell<Option<MachineError>> = const { std::cell::RefCell::new(None) };
 }
 
-/// The authoritative store of one engine process: model revisions, world heads and their revisions, candidates,
-/// narrative graph revisions and project checkpoints. It answers every machine command through `parse_and_execute`.
-/// Opened with `with_state_file` it is durable: each command's changes are written to the SQLite file before the
-/// command is answered, and reopening the file restores the session after checking all of it.
+/// A graph revision as the session knows it without its records: its header, the size of its stored row, and its
+/// seal once it has one.
+#[derive(Debug, Clone)]
+struct NarrativeEntry {
+    header: NarrativeHeader,
+    row_bytes: usize,
+    seal: Option<SealRef>,
+}
+
+impl std::ops::Deref for NarrativeEntry {
+    type Target = NarrativeHeader;
+
+    fn deref(&self) -> &NarrativeHeader {
+        &self.header
+    }
+}
+
+impl<T> Default for RowCache<T> {
+    fn default() -> Self {
+        RowCache::new(NARRATIVE_ROWS_CACHED_BYTES)
+    }
+}
+
+/// The authoritative store of one engine process. A durable session writes each command's changes before answering.
+/// Reopening checks the revision seals and validates unsealed revisions; sealed rows are checked when read.
 #[derive(Debug, Default)]
 pub struct MachineSession {
     models: ModelStore,
     worlds: BTreeMap<String, WorldHead>,
     world_revisions: BTreeMap<String, WorldRevision>,
     candidates: BTreeMap<String, StoredCandidate>,
-    narrative_source_snapshots: BTreeMap<String, NarrativeSourceSnapshot>,
-    narrative_revisions: BTreeMap<String, StoredNarrativeRevision>,
-    // Every stored revision materialized, sharing unchanged records with its
-    // parent. Rebuilt on restore and extended by insert_narrative_revision;
-    // never persisted, because the revision records are the durable form.
-    narrative_materialized: BTreeMap<String, MaterializedNarrative>,
+    narrative_source_snapshots: SnapshotStore,
+    // Every graph revision's header. The records themselves are held until they are written, and read from the file
+    // through a cache after that (store_rows.rs).
+    narrative_revisions: BTreeMap<String, NarrativeEntry>,
+    narrative_records: RowCache<StoredNarrativeRevision>,
+    // How many revisions were made from each revision; a graph's heads have none.
+    narrative_children: BTreeMap<String, usize>,
+    // Revisions materialized in separate byte-budgeted head/recent caches, sharing unchanged records. Evicted
+    // revisions are rebuilt from the nearest one kept. Never persisted: revision records are the durable form.
+    narrative_materialized: std::cell::RefCell<MaterializedCache>,
     project_documents: BTreeMap<String, StoredProjectDocument>,
     project_model_snapshots: BTreeMap<String, CompiledModel>,
     project_world_snapshots: BTreeMap<String, WorldHead>,
     project_graph_snapshots: BTreeMap<String, StoredNarrativeGraph>,
     project_checkpoints: BTreeMap<String, StoredProjectCheckpoint>,
     project_checkpoint_names: BTreeMap<String, String>,
-    // Exact serialized size of the compact narrative snapshots and revision
-    // records. It is rebuilt once on restore and then maintained
-    // incrementally, so an append does not rescan the whole history.
-    narrative_storage_bytes: usize,
     next_narrative_operation_sequence: u64,
     next_project_checkpoint_sequence: u64,
     persistence_generation: u64,
     dirty: SessionDirty,
     state_file: Option<PathBuf>,
+    // Reads what the session does not hold from its state file.
+    reader: Option<std::sync::Arc<StoreReader>>,
 }
 
 impl MachineSession {
     /// Opens a single-writer durable session. If the path does not exist, the
-    /// first successful mutation creates it; construction itself has no file
-    /// side effects.
+    /// first successful mutation creates it. An existing file's unsealed revisions
+    /// are validated and, if writable, sealed to make later opens cheaper.
     pub fn with_state_file(path: impl Into<PathBuf>) -> EngineResult<Self> {
         let path = path.into();
         if path.as_os_str().is_empty() {
@@ -298,9 +374,18 @@ impl MachineSession {
                 ..Self::default()
             });
         }
-        let persisted = load_sqlite_session(&path)?;
-        let mut session = Self::restore(persisted)?;
-        session.state_file = Some(path);
+        let (session, seals, _) = Self::open_store(&path, true)?;
+        // Revisions validated now, because they had no usable seal, are sealed so the next open trusts them. A file
+        // that cannot be written still opens; it is validated again next time.
+        if !seals.is_empty() {
+            if let Err(cause) = write_seals(&path, &seals) {
+                eprintln!(
+                    "life-sim-engine: validated {} unsealed revisions but could not seal them: {}",
+                    seals.len(),
+                    cause.0
+                );
+            }
+        }
         Ok(session)
     }
 
@@ -338,22 +423,58 @@ impl MachineSession {
         if self.dirty.is_empty() {
             return Ok(());
         }
-        let Some(path) = &self.state_file else {
+        let Some(path) = self.state_file.clone() else {
             return Ok(());
         };
-        let next_generation = persist_sqlite_changes(path, self)?;
+        let (next_generation, seals) = persist_sqlite_changes(&path, self)?;
         self.persistence_generation = next_generation;
-        self.dirty = SessionDirty::default();
+        let dirty = std::mem::take(&mut self.dirty);
+        // The file has the rows now. Those sealed in the same write leave memory for the caches; a row left unsealed
+        // (one whose predecessor has no seal, in a file migrated from v2) stays held until the next open seals it.
+        if self.reader.is_none() {
+            let reader = std::sync::Arc::new(StoreReader::new(path));
+            self.models.set_reader(Some(reader.clone()));
+            self.reader = Some(reader);
+        }
+        let mut sealed_models = Vec::new();
+        let mut sealed_narratives = Vec::new();
+        for seal in &seals {
+            match seal.kind {
+                SealKind::Model => {
+                    self.models.set_seal(&seal.object_hash, SealRef::from(seal));
+                    sealed_models.push(seal.object_hash.clone());
+                }
+                SealKind::Narrative => {
+                    if let Some(entry) = self.narrative_revisions.get_mut(&seal.object_hash) {
+                        entry.seal = Some(SealRef::from(seal));
+                    }
+                    sealed_narratives.push(seal.object_hash.clone());
+                }
+            }
+        }
+        self.models.release(sealed_models);
+        self.narrative_records.release(sealed_narratives);
+        self.narrative_source_snapshots
+            .rows
+            .release(dirty.narrative_source_snapshots);
         Ok(())
     }
 
     /// Answers one command. A machine operation is run by this session; any other command (`describe`,
     /// `compile_registry`, `roll`, or an operation nothing knows) is answered by the legacy registry commands.
     pub fn parse_and_execute(&mut self, input: &str) -> ResponseEnvelope {
+        crate::heartbeat::begin("command", None);
+        let response = self.parse_and_execute_command(input);
+        crate::heartbeat::end();
+        response
+    }
+
+    fn parse_and_execute_command(&mut self, input: &str) -> ResponseEnvelope {
         let command = match read_machine_command(input) {
             Ok(command) => command,
             Err(answered) => return answered,
         };
+        crate::heartbeat::begin(command.operation.name(), command.request_id.as_deref());
         let request_id = command.request_id.clone();
         let outcome = self.execute_durably(command);
         answer(request_id, outcome)
@@ -446,6 +567,7 @@ impl MachineSession {
         }
         match command.operation {
             MachineOperation::Model(operation) => self.execute_model_command(operation, command),
+            MachineOperation::Store(operation) => self.execute_store_command(operation, command),
             MachineOperation::World(operation) => self.execute_world_command(operation, command),
             MachineOperation::Candidate(operation) => {
                 self.execute_candidate_command(operation, command)
@@ -472,6 +594,12 @@ fn read_machine_command(input: &str) -> Result<MachineCommand, ResponseEnvelope>
         .and_then(serde_json::Value::as_str)
         .is_some_and(is_machine_operation);
     if !names_machine_operation {
+        if let Some(operation) = probe.get("operation").and_then(serde_json::Value::as_str) {
+            crate::heartbeat::begin(
+                operation,
+                probe.get("request_id").and_then(serde_json::Value::as_str),
+            );
+        }
         return Err(crate::parse_and_execute(input));
     }
     let probed_request_id = probe

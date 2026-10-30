@@ -6,15 +6,17 @@ import * as z from 'zod/v4';
 import { stringifyJson } from './exact-json.mjs';
 import { applyModelDelta, computeModelDelta, MODEL_DELTA_SCHEMA } from './model-delta.mjs';
 
-// Under the longest string Node holds (about 512 MiB), since a history file is read and parsed as one string.
+// A history held whole, as one object or one string: an inline result, the viewer's, or a file read by readHistoryFile.
+// It stays under the longest string Node holds (about 512 MiB). The construction tools read and write files one
+// revision at a time (history-stream.mjs), with no limit on the file.
 export const MAX_HISTORY_FILE_BYTES = 480 * 1024 * 1024;
 export const HISTORY_SCHEMA = 'meaning-model-construction-history/v1';
 // A v2 file writes each model revision whose previous revision it also holds as its changes from that one. Reading
 // expands them, so the history a reader sees, and its bundleSha256, do not depend on how the file was written.
 export const HISTORY_FILE_SCHEMA_V2 = 'meaning-model-construction-history/v2';
 
-// The engine holds at most 4,096 model revisions in a session, each at most 128 MiB.
-export const MAX_HISTORY_MODELS = 4_096;
+// The engine knows at most 262,144 model revisions in a session (their headers), each at most 128 MiB.
+export const MAX_HISTORY_MODELS = 262_144;
 export const MAX_HISTORY_MODEL_BYTES = 128 * 1024 * 1024;
 // A reader expanding a file in order keeps a model expanded until the last entry written as changes from it, and never
 // more than eight of the largest models' worth at once, however small the file. A file written here never needs more.
@@ -55,54 +57,91 @@ export function encodeHistoryModels(models, maximumKeptBytes = MAX_HISTORY_KEPT_
 /// earlier entry, and how many there are. The plan records which entry each change is kept against and the last entry
 /// that needs each one, so expanding can release a model as soon as nothing later is kept against it.
 export function planHistoryModels(history) {
-  const schema = history?.schema;
-  if (schema !== HISTORY_SCHEMA && schema !== HISTORY_FILE_SCHEMA_V2) throw new Error(`Unsupported construction history schema ${schema}.`);
+  const plan = startPlan(history?.schema);
   const models = history.models;
   if (!Array.isArray(models)) throw new Error('A construction history lists its models.');
   if (models.length > MAX_HISTORY_MODELS) throw new Error(`A construction history may hold at most ${MAX_HISTORY_MODELS} models; this one holds ${models.length}.`);
-  const index = new Map(), bases = [], lastUse = models.map((_, i) => i);
-  models.forEach((entry, i) => {
-    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error(`History model ${i} is not an entry.`);
-    if (typeof entry.modelHash !== 'string' || !MODEL_HASH.test(entry.modelHash)) throw new Error(`History model ${i} lacks a valid modelHash.`);
-    if (index.has(entry.modelHash)) throw new Error(`History model ${i} repeats ${entry.modelHash}.`);
-    const whole = entry.definition !== undefined, changes = entry.delta !== undefined;
-    if (whole === changes) throw new Error(`History model ${i} must hold exactly one of a definition or a delta.`);
-    if (whole) {
-      if (!entry.definition || typeof entry.definition !== 'object' || Array.isArray(entry.definition)) throw new Error(`History model ${i} has no valid definition.`);
-      bases.push(null);
-    } else {
-      if (schema !== HISTORY_FILE_SCHEMA_V2) throw new Error(`History model ${i} is written as changes, which a ${schema} file cannot hold.`);
-      if (entry.delta?.schema !== MODEL_DELTA_SCHEMA || !Array.isArray(entry.delta.changes)) throw new Error(`History model ${i} has no valid model delta.`);
-      const base = index.get(entry.baseModelHash);
-      if (base === undefined) throw new Error(`History model ${i} is written as changes from ${entry.baseModelHash}, which the file does not hold before it.`);
-      bases.push(base);
-      lastUse[base] = i;
-    }
-    index.set(entry.modelHash, i);
-  });
-  return { count: models.length, bases, lastUse };
+  models.forEach((entry, i) => planEntry(plan, entry, i));
+  return finishPlan(plan);
 }
+
+/// The same for a file's models read one at a time (history-stream.mjs). Returns the plan and each entry's sha256, so a
+/// later reading can prove it reads the same bytes.
+export async function planHistoryEntries(schema, entries) {
+  const plan = startPlan(schema), digests = [];
+  let i = 0;
+  for await (const { value, sha256 } of entries) {
+    if (i >= MAX_HISTORY_MODELS) throw new Error(`A construction history may hold at most ${MAX_HISTORY_MODELS} models; this one holds more.`);
+    planEntry(plan, value, i);
+    digests.push(sha256);
+    i += 1;
+  }
+  return { plan: finishPlan(plan), digests };
+}
+
+function startPlan(schema) {
+  if (schema !== HISTORY_SCHEMA && schema !== HISTORY_FILE_SCHEMA_V2) throw new Error(`Unsupported construction history schema ${schema}.`);
+  return { schema, index: new Map(), bases: [], lastUse: [] };
+}
+
+function planEntry(plan, entry, i) {
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error(`History model ${i} is not an entry.`);
+  if (typeof entry.modelHash !== 'string' || !MODEL_HASH.test(entry.modelHash)) throw new Error(`History model ${i} lacks a valid modelHash.`);
+  if (plan.index.has(entry.modelHash)) throw new Error(`History model ${i} repeats ${entry.modelHash}.`);
+  const whole = entry.definition !== undefined, changes = entry.delta !== undefined;
+  if (whole === changes) throw new Error(`History model ${i} must hold exactly one of a definition or a delta.`);
+  plan.lastUse.push(i);
+  if (whole) {
+    if (!entry.definition || typeof entry.definition !== 'object' || Array.isArray(entry.definition)) throw new Error(`History model ${i} has no valid definition.`);
+    plan.bases.push(null);
+  } else {
+    if (plan.schema !== HISTORY_FILE_SCHEMA_V2) throw new Error(`History model ${i} is written as changes, which a ${plan.schema} file cannot hold.`);
+    if (entry.delta?.schema !== MODEL_DELTA_SCHEMA || !Array.isArray(entry.delta.changes)) throw new Error(`History model ${i} has no valid model delta.`);
+    const base = plan.index.get(entry.baseModelHash);
+    if (base === undefined) throw new Error(`History model ${i} is written as changes from ${entry.baseModelHash}, which the file does not hold before it.`);
+    plan.bases.push(base);
+    plan.lastUse[base] = i;
+  }
+  plan.index.set(entry.modelHash, i);
+}
+
+const finishPlan = (plan) => ({ count: plan.bases.length, bases: plan.bases, lastUse: plan.lastUse });
 
 /// Expands the models in order, one at a time, each at most MAX_HISTORY_MODEL_BYTES, keeping an expanded model only
 /// until the last change kept against it, and refusing a file that would need more than maximumKeptBytes of them kept
 /// at once. Memory follows how many models are still needed, never the history's length.
 export function* expandHistoryModels(history, plan = planHistoryModels(history), { maximumKeptBytes = MAX_HISTORY_KEPT_BYTES, onRetained } = {}) {
-  // A model is kept as its JSON, which is what its bytes count and what the engine and the checksum read.
-  const kept = new Map(); let keptBytes = 0;
-  for (const [i, entry] of history.models.entries()) {
-    const base = plan.bases[i];
-    const definition = base === null ? entry.definition : applyModelDelta(JSON.parse(kept.get(base).json), entry.delta);
-    const json = stringifyJson(definition), bytes = Buffer.byteLength(json);
-    if (bytes > MAX_HISTORY_MODEL_BYTES) throw new Error(`History model ${i} is ${bytes} bytes once expanded; a model may be at most ${MAX_HISTORY_MODEL_BYTES}.`);
-    if (base !== null && plan.lastUse[base] <= i) { keptBytes -= kept.get(base).bytes; kept.delete(base); }
-    if (plan.lastUse[i] > i) {
-      keptBytes += bytes;
-      if (keptBytes > maximumKeptBytes) throw new Error(`Reading history model ${i} would keep ${kept.size + 1} expanded models at once, ${keptBytes} bytes; a reader keeps at most ${maximumKeptBytes}.`);
-      kept.set(i, { json, bytes });
-    }
-    onRetained?.(kept.size);
-    yield { modelHash: entry.modelHash, definition };
+  const state = { kept: new Map(), keptBytes: 0 };
+  for (const [i, entry] of history.models.entries()) yield expandEntry(state, plan, entry, i, maximumKeptBytes, onRetained);
+}
+
+/// The same over a file's entries read one at a time; each entry's bytes must be those the plan read (digests).
+export async function* expandHistoryEntries(entries, plan, digests, { maximumKeptBytes = MAX_HISTORY_KEPT_BYTES } = {}) {
+  const state = { kept: new Map(), keptBytes: 0 };
+  let i = 0;
+  for await (const { value, sha256 } of entries) {
+    if (digests[i] !== sha256) throw new Error(`History model ${i} changed while the file was read.`);
+    yield expandEntry(state, plan, value, i, maximumKeptBytes);
+    i += 1;
   }
+  if (i !== plan.count) throw new Error('The history file changed while it was read.');
+}
+
+function expandEntry(state, plan, entry, i, maximumKeptBytes, onRetained) {
+  // A model is kept as its JSON, which is what its bytes count and what the engine and the checksum read.
+  const { kept } = state;
+  const base = plan.bases[i];
+  const definition = base === null ? entry.definition : applyModelDelta(JSON.parse(kept.get(base).json), entry.delta);
+  const json = stringifyJson(definition), bytes = Buffer.byteLength(json);
+  if (bytes > MAX_HISTORY_MODEL_BYTES) throw new Error(`History model ${i} is ${bytes} bytes once expanded; a model may be at most ${MAX_HISTORY_MODEL_BYTES}.`);
+  if (base !== null && plan.lastUse[base] <= i) { state.keptBytes -= kept.get(base).bytes; kept.delete(base); }
+  if (plan.lastUse[i] > i) {
+    state.keptBytes += bytes;
+    if (state.keptBytes > maximumKeptBytes) throw new Error(`Reading history model ${i} would keep ${kept.size + 1} expanded models at once, ${state.keptBytes} bytes; a reader keeps at most ${maximumKeptBytes}.`);
+    kept.set(i, { json, bytes });
+  }
+  onRetained?.(kept.size);
+  return { modelHash: entry.modelHash, definition };
 }
 
 /// The bundleSha256 of a history as a reader sees it, expanded, computed while expanding one model at a time; it
@@ -118,6 +157,36 @@ export function expandedHistoryDigest(history, plan, models = expandHistoryModel
     if (length >= 64 * 1024) flush();
   }
   flush();
+  return digest.digest('hex');
+}
+
+/// The same for a file read one entry at a time: fields are its top-level fields other than the models and revisions,
+/// models its expanded models and revisions its revision entries, both async and in order. onModel and onRevision see
+/// each one as it passes.
+export async function expandedHistoryDigestStream(fields, { models = null, revisions = null, onModel, onRevision } = {}) {
+  const { bundleSha256: _, ...content } = fields;
+  const logical = { ...content, schema: HISTORY_SCHEMA, ...(models ? { models: null } : {}), ...(revisions ? { revisions: null } : {}) };
+  const digest = createHash('sha256');
+  let parts = [], length = 0;
+  const add = (token) => { parts.push(token); length += token.length; if (length >= 64 * 1024) { digest.update(parts.join('')); parts = []; length = 0; } };
+  const list = async (items, seen) => {
+    add('['); let index = 0;
+    for await (const item of items) { if (index) add(','); index += 1; seen?.(item); for (const token of jsonTokens(item)) add(token); }
+    add(']');
+  };
+  const sorted = Object.keys(Object.fromEntries(Object.keys(logical).sort().map((key) => [key, null])));
+  add('{'); let first = true;
+  for (const key of sorted) {
+    const value = logical[key];
+    if (value === undefined || typeof value === 'function' || typeof value === 'symbol') continue;
+    if (!first) add(','); first = false;
+    add(stringifyJson(key)); add(':');
+    if (key === 'models' && models) await list(models, onModel);
+    else if (key === 'revisions' && revisions) await list(revisions, onRevision);
+    else for (const token of jsonTokens(value)) add(token);
+  }
+  add('}');
+  digest.update(parts.join(''));
   return digest.digest('hex');
 }
 
@@ -191,7 +260,7 @@ export async function writeLocalJsonFile(destinationPath, value, options) {
   return writeLocalJsonChunks(destinationPath, historyJsonChunks(value), options);
 }
 
-async function writeLocalJsonChunks(destinationPath, chunks, { maximumBytes, tooLarge, exists, unfinished }) {
+export async function writeLocalJsonChunks(destinationPath, chunks, { maximumBytes, tooLarge, exists, unfinished }) {
   const path = resolve(absoluteHistoryPath.parse(destinationPath));
   if (path.endsWith(sep)) throw new Error('destinationPath must name a new JSON file.');
   let file;
@@ -203,7 +272,7 @@ async function writeLocalJsonChunks(destinationPath, chunks, { maximumBytes, too
   }
   const identity = await file.stat(), digest = createHash('sha256'); let bytes = 0;
   try {
-    for (const chunk of chunks) {
+    for await (const chunk of chunks) {
       const buffer = typeof chunk === 'string' ? Buffer.from(chunk) : chunk; bytes += buffer.length;
       if (bytes > maximumBytes) throw new Error(tooLarge);
       digest.update(buffer); let offset = 0;

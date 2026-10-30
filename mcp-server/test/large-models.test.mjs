@@ -1,6 +1,7 @@
 // Models as large as 0.12.1 allows. Every read and write either succeeds whole or says plainly what it left out, and
 // nothing fails after a write has happened. Each test is a case found in review of the first 0.12.1 candidate.
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -12,6 +13,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { LifeSimulationService } from '../src/service.mjs';
 import { RustEngineProcess, resolveEngineBinary } from '../src/rust-engine-process.mjs';
 import { exportConstructionHistory, replayConstruction } from '../src/construction-record.mjs';
+import { stringifyJson } from '../src/exact-json.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -120,7 +122,7 @@ test('replay and export reach revision 0 of a history longer than 1,024 revision
 
 test('a model with 25,000 long process ids inspects, exports and revises with results that fit', { timeout: 300_000 }, async (t) => {
   const directory = await scratch(t);
-  const { ok } = await connect(t);
+  const { ok, call } = await connect(t);
   const { model } = await example();
   // A small model's summary is unchanged: whole, with nothing cut.
   const small = await ok('life_model_register', { requestId: 'small', model });
@@ -134,10 +136,13 @@ test('a model with 25,000 long process ids inspects, exports and revises with re
   model.processes = Array.from({ length: 25_000 }, (_, n) => ({ ...sample, id: `p${String(n).padStart(5, '0')}_${'x'.repeat(193)}` }));
   const { modelHash } = await registerFromFile(directory, ok, 'long-ids', model);
   for (const includeDefinition of [false, true]) {
-    const inspected = await ok('life_model_inspect', { modelHash, includeDefinition });
+    const result = await call('life_model_inspect', { modelHash, includeDefinition });
+    assert.ok(!result.isError, JSON.stringify(result).slice(0, 600));
+    const inspected = result.structuredContent;
     assert.equal(inspected.summary.process_count, 25_000);
     assert.equal(inspected.listsCut['summary.process_ids'].of, 25_000);
-    assert.ok(inspected.summary.process_ids.length > 100 && inspected.summary.process_ids.length < 25_000, 'the first ids, not all');
+    assert.ok(inspected.summary.process_ids.length > (includeDefinition ? 0 : 100)
+      && inspected.summary.process_ids.length < 25_000, 'the first ids, not all');
     assert.equal(inspected.summary.process_ids[0], model.processes[0].id);
     assert.match(inspected.listsCutNote, /life_model_export/u);
     // Nothing is lost: the shown summary names the file of the whole one.
@@ -147,6 +152,16 @@ test('a model with 25,000 long process ids inspects, exports and revises with re
       assert.match(inspected.definitionNotInline, /life_model_export/u);
       const definition = JSON.parse(await readFile(inspected.definitionFile.path, 'utf8'));
       assert.deepEqual(definition.processes.map((process) => process.id), model.processes.map((process) => process.id));
+      const completeText = stringifyJson(definition);
+      const page = inspected.definitionPage;
+      assert.equal(page.start, 0);
+      assert.ok(page.text.length > 0 && page.end < completeText.length);
+      assert.equal(page.text, completeText.slice(0, page.end), 'the page is the exact prefix of the whole definition');
+      assert.equal(page.totalChars, completeText.length);
+      assert.equal(page.sha256, createHash('sha256').update(completeText).digest('hex'));
+      assert.ok(page.nextCursor, 'the rest remains reachable');
+      assert.ok(result.content.map((part) => part.text ?? '').join('').length <= 100_000,
+        'the summary and escaped definition page fit the declared result limit together');
     }
   }
   const exported = await ok('life_model_export', { modelHash, destinationPath: join(directory, 'long-ids-out.json') });

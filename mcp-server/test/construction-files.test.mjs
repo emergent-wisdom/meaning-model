@@ -102,6 +102,9 @@ test('export accounts for ancestor bytes while reading, before accumulating an o
     async queryNarrativeGraph() { return {graph_hash:graphHash,graph,content_included:true,for_revision:true,roots:[],nodes:[],edges:[]}; },
     async listNarrativeRevisions() { return {revisions:[{graph_hash:graphHash,previous_graph_hash:null}],heads:[graphHash]}; },
     async inspectModel({modelHash}) { reads += 1; const index=Number(modelHash[0]); return {modelHash,model:{id:'model',revision:{number:5-index,previous_model_hash:index<5?String(index+1).repeat(64):null},payload:'x'.repeat(600*1024)}}; },
+    // The ancestry comes from headers, which hold no model's bytes.
+    async modelLineage({modelHash}) { const revisions = []; for (let index = Number(modelHash[0]); index <= 5; index += 1) revisions.push({modelHash:String(index).repeat(64),previous:index<5?String(index+1).repeat(64):null,number:5-index}); return {revisions,complete:true,reachedStopAt:null}; },
+    async validateModel({model}) { return {modelHash:String(5-model.revision.number).repeat(64)}; },
   };
   await assert.rejects(exportConstructionHistory(service,{graphHash},{maximumBytes:MAX_INLINE_HISTORY_BYTES}),/Use destinationPath/);
   assert.equal(reads,2,'the five-model chain is stopped as soon as accumulated bytes exceed the limit');

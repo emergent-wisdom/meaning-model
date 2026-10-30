@@ -754,8 +754,13 @@ fn model_revisions_are_stored_as_their_changes_and_rebuild_exactly() {
     );
     let session = MachineSession::with_state_file(&state_file).unwrap();
     assert!(
-        session.models.stored_bytes() * 8 < full,
-        "the session limit counts what is stored"
+        session.models.row_bytes_total() * 8 < full,
+        "the stored rows take what each revision changed"
+    );
+    assert_eq!(
+        session.models.held_bytes(),
+        0,
+        "a reopened session holds no rows beyond its caches: the file has them"
     );
     drop(session);
     assert_lineage_rebuilds(&state_file, &lineage);
@@ -1169,7 +1174,7 @@ fn restart_rejects_a_status_tampered_accepted_lineage() {
 }
 
 /// Every machine operation, and whether it changes the session and so is written to a state file.
-const OPERATION_CLASSIFICATION: [(&str, bool); 32] = [
+const OPERATION_CLASSIFICATION: [(&str, bool); 36] = [
     ("compile_profiles", false),
     ("validate_model", false),
     ("register_model", true),
@@ -1202,6 +1207,10 @@ const OPERATION_CLASSIFICATION: [(&str, bool); 32] = [
     ("reroll_candidate", true),
     ("reject_candidate", true),
     ("commit_candidate", true),
+    ("model_lineage", false),
+    ("model_heads", false),
+    ("store_status", false),
+    ("audit_store", true),
 ];
 
 fn unique_state_path(label: &str) -> PathBuf {
@@ -1292,7 +1301,7 @@ fn unflushed_rows_refuse_exactly_the_mutating_operations_of_a_durable_session() 
         assert!(is_machine_operation(operation), "{operation}");
         let line = command(operation, serde_json::json!({}));
         let unguarded = serde_json::to_value(memory.parse_and_execute(&line)).unwrap();
-        let answered = serde_json::to_value(durable.parse_and_execute(&line)).unwrap();
+        let mut answered = serde_json::to_value(durable.parse_and_execute(&line)).unwrap();
         assert_ne!(unguarded["error"]["code"], "internal_error", "{operation}");
         if mutating {
             assert_eq!(
@@ -1309,6 +1318,12 @@ fn unflushed_rows_refuse_exactly_the_mutating_operations_of_a_durable_session() 
                 "{operation}"
             );
         } else {
+            if operation == "store_status" {
+                assert_eq!(answered["result"]["state_file"], true);
+                assert_eq!(unguarded["result"]["state_file"], false);
+                // This status field deliberately distinguishes durable and memory-only sessions.
+                answered["result"]["state_file"] = serde_json::json!(false);
+            }
             assert_eq!(answered, unguarded, "{operation}");
         }
     }
@@ -1674,4 +1689,21 @@ fn query_graph_full_exposes_factor_payloads_ast_edges_and_overlays_without_mutat
         .as_str()
         .is_some_and(|id| id.starts_with("edge:"))));
     assert_eq!(hash_serializable(&session.snapshot()).unwrap(), before);
+}
+
+#[test]
+fn a_sealed_store_still_loads_whole_as_an_engine_without_seals_reads_it() {
+    // An engine that predates seals reads every row and validates it; the seal table is ignored.
+    let state_file = stored_model_state_file("sealed-whole-load");
+    let lineage = stored_model_lineage(&state_file, 6);
+    let persisted = load_sqlite_session(&state_file).unwrap();
+    assert_eq!(persisted.models.len(), 7);
+    let mut restored = MachineSession::restore(persisted).unwrap();
+    let (head, definition) = lineage.last().unwrap();
+    let read = result(restored.parse_and_execute(&command(
+        "get_model",
+        serde_json::json!({ "model_hash": head }),
+    )));
+    assert_eq!(&read["model"], definition);
+    remove_state_file(&state_file);
 }

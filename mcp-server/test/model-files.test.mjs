@@ -2,6 +2,7 @@
 // writes a stored model to a new file, and life_model_register reads one back with sourcePath. A model larger than one
 // result holds is registered from a file, inspected without failing, and exported whole.
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -57,6 +58,30 @@ test('a stored model exports to a new file and registers back from it with the s
   assert.ok(neither.isError && /one of the two/u.test(JSON.stringify(neither.content)));
 });
 
+test('a definition above the declared client limit is readable in escaped JSON pages', async (t) => {
+  const { ok } = await setup(t);
+  const model = await minimalModel();
+  model.meaning_model.events[0].description = '"\\\n'.repeat(21_000);
+  const registered = await ok('life_model_register', { requestId: 'escaped.pages', model });
+  let cursor = null; const parts = []; let digest;
+  do {
+    const result = await ok('life_model_inspect', { modelHash: registered.modelHash, includeDefinition: true,
+      definitionPageChars: 400_000, ...(cursor ? { definitionCursor: cursor } : {}) });
+    assert.equal(result.model, undefined);
+    assert.ok(JSON.stringify(result, null, 2).length <= 100_000);
+    assert.ok(result.definitionPage.text.length > 0);
+    digest ??= result.definitionPage.sha256;
+    assert.equal(result.definitionPage.sha256, digest);
+    parts.push(result.definitionPage.text);
+    cursor = result.definitionPage.nextCursor;
+  } while (cursor);
+  assert.ok(parts.length > 1);
+  const text = parts.join('');
+  assert.equal(createHash('sha256').update(text).digest('hex'), digest);
+  const restored = JSON.parse(text).meaning_model.events.find((event) => event.id === model.meaning_model.events[0].id);
+  assert.equal(restored.description, model.meaning_model.events[0].description);
+});
+
 test('a model larger than one message registers from a file, inspects without failing and exports whole', async (t) => {
   const { directory, ok } = await setup(t);
   const model = await minimalModel();
@@ -64,7 +89,7 @@ test('a model larger than one message registers from a file, inspects without fa
   const points = Array.from({ length: 12 }, (_, time) => ({ time, value: 900_000 - time * 1_000, lower: 850_000, upper: 950_000, tag: 'sketch' }));
   model.value_series = [];
   for (let n = 0; n < 9_000; n += 1) {
-    model.processes.push({ ...structuredClone(debt), id: `bakery.branch_${n}.debt_nok` });
+    model.processes.push({ ...structuredClone(debt), id: `bakery.branch_${n}.debt_nok`, provenance: ['"\\\n'.repeat(20)] });
     model.value_series.push({ id: `series.branch-${n}`, holder: 'modeler', process_id: `bakery.branch_${n}.debt_nok`, points, provenance: ['model-files test'] });
   }
   const text = JSON.stringify(model);
@@ -81,6 +106,28 @@ test('a model larger than one message registers from a file, inspects without fa
   assert.equal(inspected.definitionFile.path, join(directory, 'results', `${inspected.definitionFile.sha256}.json`));
   const fromFile = await ok('life_model_register', { requestId: 'large-file', sourcePath: inspected.definitionFile.path });
   assert.equal(fromFile.modelHash, registered.modelHash, 'the inspect file holds the whole definition');
+  // The definition is read in parts instead: each the next stretch of its JSON text, bound to this model.
+  const first = inspected.definitionPage;
+  assert.equal(first.start, 0);
+  assert.equal(first.text.length, 40_000);
+  assert.ok(first.totalChars > 10 * 1024 * 1024 && first.nextCursor);
+  const next = await ok('life_model_inspect', { modelHash: registered.modelHash, includeDefinition: true, definitionCursor: first.nextCursor });
+  assert.equal(next.summary, undefined, 'a later part comes alone');
+  assert.equal(next.definitionPage.start, 40_000);
+  assert.equal(next.definitionPage.sha256, first.sha256);
+  // Read whole in the largest parts, the parts join into the definition: its checksum holds, and it parses.
+  const parts = [];
+  let cursor = null;
+  do {
+    const result = await ok('life_model_inspect', { modelHash: registered.modelHash, includeDefinition: true, definitionPageChars: 400_000, ...(cursor ? { definitionCursor: cursor } : {}) });
+    assert.ok(JSON.stringify(result, null, 2).length <= 100_000, 'each definition page fits the declared client result limit');
+    const part = result.definitionPage;
+    parts.push(part.text);
+    cursor = part.nextCursor;
+  } while (cursor);
+  const joined = parts.join('');
+  assert.equal(createHash('sha256').update(joined).digest('hex'), first.sha256);
+  assert.equal(JSON.parse(joined).processes.length, model.processes.length);
   const exported = await ok('life_model_export', { modelHash: registered.modelHash, destinationPath: join(directory, 'large-out.json') });
   const back = await ok('life_model_register', { requestId: 'large-back', sourcePath: exported.definitionFile.path });
   assert.equal(back.modelHash, registered.modelHash, 'the exported file holds the same model');

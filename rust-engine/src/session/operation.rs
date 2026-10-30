@@ -13,6 +13,7 @@ use serde::{Deserialize, Deserializer};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum MachineOperation {
     Model(ModelOperation),
+    Store(StoreOperation),
     World(WorldOperation),
     Candidate(CandidateOperation),
     Query(QueryOperation),
@@ -76,14 +77,43 @@ pub(super) enum CheckpointOperation {
     QueryProjectCheckpointGraph,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum StoreOperation {
+    ModelLineage,
+    ModelHeads,
+    AuditStore,
+    StoreStatus,
+}
+
+impl StoreOperation {
+    fn name(self) -> &'static str {
+        match self {
+            Self::ModelLineage => "model_lineage",
+            Self::ModelHeads => "model_heads",
+            Self::AuditStore => "audit_store",
+            Self::StoreStatus => "store_status",
+        }
+    }
+    fn mutates(self) -> bool {
+        match self {
+            Self::AuditStore => true,
+            Self::ModelLineage | Self::ModelHeads | Self::StoreStatus => false,
+        }
+    }
+}
+
 impl MachineOperation {
     /// Every machine operation, in the order `describe` lists them.
-    pub(super) const ALL: [Self; 32] = [
+    pub(super) const ALL: [Self; 36] = [
         Self::Model(ModelOperation::CompileProfiles),
         Self::Model(ModelOperation::ValidateModel),
         Self::Model(ModelOperation::RegisterModel),
         Self::Model(ModelOperation::ReviseModel),
         Self::Model(ModelOperation::GetModel),
+        Self::Store(StoreOperation::ModelLineage),
+        Self::Store(StoreOperation::ModelHeads),
+        Self::Store(StoreOperation::AuditStore),
+        Self::Store(StoreOperation::StoreStatus),
         Self::World(WorldOperation::CreateWorld),
         Self::World(WorldOperation::GetWorld),
         Self::World(WorldOperation::RefineGenesisWorld),
@@ -124,6 +154,7 @@ impl MachineOperation {
     pub(super) fn name(self) -> &'static str {
         match self {
             Self::Model(operation) => operation.name(),
+            Self::Store(operation) => operation.name(),
             Self::World(operation) => operation.name(),
             Self::Candidate(operation) => operation.name(),
             Self::Query(operation) => operation.name(),
@@ -136,6 +167,7 @@ impl MachineOperation {
     pub(super) fn mutates(self) -> bool {
         match self {
             Self::Model(operation) => operation.mutates(),
+            Self::Store(operation) => operation.mutates(),
             Self::World(operation) => operation.mutates(),
             Self::Candidate(operation) => operation.mutates(),
             Self::Query(operation) => operation.mutates(),
@@ -304,7 +336,7 @@ mod tests {
             assert_eq!(parsed, operation, "{name}");
             assert!(is_machine_operation(name), "{name}");
         }
-        assert_eq!(names.len(), 32);
+        assert_eq!(names.len(), 36);
     }
 
     #[test]
@@ -350,6 +382,7 @@ mod tests {
             [
                 "register_model",
                 "revise_model",
+                "audit_store",
                 "create_world",
                 "refine_genesis_world",
                 "revise_world",

@@ -1337,15 +1337,26 @@ LIFE_SIM_ENGINE_BIN=/absolute/path/to/life-sim-engine LIFE_SIM_STATE_FILE=/absol
 
 An unavailable, malformed, oversized, timed-out, or unexpectedly terminated
 Rust process fails explicitly. The adapter bounds each command to 256 MiB, each
-response line to 256 MiB, aggregate pending command bytes to 512 MiB, pending
-calls to 32, and a call to 30 seconds. Starting the engine has its own limit of
-10 minutes, because opening a store first rebuilds every stored model revision,
-about 0.01 s per megabyte of each. Node caches only 32 recent model summaries
-and permits up to 32 concurrent model writes; cache eviction leaves immutable
-revisions in Rust available for inspection and continuation. The Rust engine
-currently allows 4,096 model revisions and 2 GiB of stored model data per
-session, including loaded history. Revisions are stored as changes when smaller
-than a whole definition; each expanded model is limited to 128 MiB. Read the live native storage limits from
+response line to 256 MiB, aggregate pending command bytes to 512 MiB, and pending
+calls to 32. A call may run 10 minutes when it reads, 30 when it writes and 60
+when it computes (validation, rolls, graph queries, training export, audits).
+The engine beats on stderr every 2 seconds while it runs, with what it is doing
+and a progress count; a call fails within a minute of the beats stopping, and a
+call that runs out of time says whether the engine was still making progress.
+Opening a store has a limit of 60 minutes: each model and graph revision is
+validated once and sealed (the sha256 of its stored row, its header and its
+parent's seal), so an open checks the seals and validates only what is
+unsealed. The first open of a store written before seals validates everything
+once; later opens check the stored seals instead of rebuilding every revision. First validation and full audits
+still hold unsealed rows during validation and may need substantial memory. `audit_store` (or `life-sim-engine --audit --state-file PATH`)
+validates everything again. Node caches only 32 recent model summaries and
+permits up to 32 concurrent model writes; cache eviction leaves immutable
+revisions in Rust available for inspection and continuation. A durable session
+keeps its revisions in the file and holds in memory every revision's header,
+the rows not yet written and bounded caches of what it read; it allows 262,144
+model revisions and 2 GiB of model rows held in memory. Revisions are stored as
+changes when smaller than a whole definition; each expanded model is limited to
+128 MiB. Read the live native storage limits from
 `life_engine_status.engine.nativeLimits`.
 
 The adapter also caps world/candidate handles, receipts and retained receipt
@@ -1404,8 +1415,13 @@ with its exact `graphHash`, scopes covering the complete retained graph history,
 and `destinationPath`, for example
 `/absolute/private/path/backups/story-2026-09-27.json`. The destination must be an
 absolute path without `..`, its parent must exist, and the file must be new.
-Export writes private JSON, up to 256 MiB, and returns its path, byte count,
-checksums and revision counts instead of echoing the bundle through MCP.
+Export writes private JSON one revision at a time, with no size limit, and
+returns its path, byte count, checksums and revision counts instead of echoing
+the bundle through MCP; import reads it the same way. By default the export stays pinned to the selected graph and the model revisions
+it requires. Set `includeModelHeads: true` to also carry newer revisions on the
+bound model's line, with their ancestry. The receipt identifies them in
+`modelLineage`, and the file names them in `modelHeadHashes`. All included
+revisions must be visible under the supplied access scopes.
 
 Version 0.8.0 writes history files in `meaning-model-construction-history/v2`.
 Model revisions use changes from earlier models where this reduces file size;

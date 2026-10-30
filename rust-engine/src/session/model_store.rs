@@ -1,9 +1,16 @@
-//! Every model revision a session holds, kept compactly: a revision whose predecessor is held is kept as its changes
+//! Every model revision a session knows, kept compactly: a revision whose predecessor is known is kept as its changes
 //! from it, and only a revision without one is kept whole. A full model is rebuilt from those changes when it is asked
 //! for and checked against its hash; the most recently used ones stay rebuilt. Memory and the stored history therefore
 //! grow with what each revision changed, not with the size of the whole model times the number of revisions.
+//!
+//! A durable session keeps the rows in its file. It holds every revision's header (id, number, predecessor and
+//! provenance, from its seal), the rows not yet written, and a cache of rows it has read; a row read from the file is
+//! checked against its seal before it is used. A session without a file holds every row.
 
 use super::model_delta::{self, ModelDelta};
+use super::store_rows::{
+    check_row, ModelHeader, RowCache, SealKind, SealRef, StoreReader, MODEL_ROWS_CACHED_BYTES,
+};
 use crate::limits::serialized_size;
 use crate::model::{compile_model, CompiledModel, ModelDefinition};
 use crate::{error, EngineResult};
@@ -51,21 +58,82 @@ impl StoredModel {
             }
         }
     }
+
+    pub fn base_model_hash(&self) -> Option<&str> {
+        match self {
+            StoredModel::Changes {
+                base_model_hash, ..
+            } => Some(base_model_hash),
+            StoredModel::Whole { .. } => None,
+        }
+    }
+
+    /// Reads a row as the file holds it.
+    pub fn from_row(
+        model_hash: String,
+        bytes: &[u8],
+        base_model_hash: Option<String>,
+    ) -> EngineResult<Self> {
+        Ok(match base_model_hash {
+            None => StoredModel::Whole {
+                definition: Box::new(serde_json::from_slice(bytes).map_err(|cause| {
+                    error(format!(
+                        "failed to decode stored model {model_hash}: {cause}"
+                    ))
+                })?),
+                model_hash,
+            },
+            Some(base_model_hash) => StoredModel::Changes {
+                delta: serde_json::from_slice(bytes).map_err(|cause| {
+                    error(format!(
+                        "failed to decode stored model {model_hash}: {cause}"
+                    ))
+                })?,
+                model_hash,
+                base_model_hash,
+            },
+        })
+    }
+}
+
+pub fn model_header(model: &CompiledModel) -> ModelHeader {
+    ModelHeader {
+        id: model.id.clone(),
+        revision_number: model.revision.number,
+        previous_model_hash: model.revision.previous_model_hash.clone(),
+        reason: model.revision.reason.clone(),
+        provenance: model.revision.provenance.clone(),
+    }
 }
 
 /// What is known about a revision without rebuilding it.
 #[derive(Debug, Clone)]
 pub struct ModelEntry {
-    pub id: String,
-    pub revision_number: u64,
-    pub stored: StoredModel,
+    pub header: ModelHeader,
+    /// The revision the row is kept against, or none for a row kept whole.
+    pub base_model_hash: Option<String>,
+    pub row_bytes: usize,
+    /// The seal a row read from the file must match. A row not yet written has none.
+    pub seal: Option<SealRef>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ModelStore {
     entries: BTreeMap<String, ModelEntry>,
-    stored_bytes: usize,
+    rows: RowCache<StoredModel>,
+    reader: Option<Arc<StoreReader>>,
     rebuilt: RefCell<Rebuilt>,
+}
+
+impl Default for ModelStore {
+    fn default() -> Self {
+        Self {
+            entries: BTreeMap::new(),
+            rows: RowCache::new(MODEL_ROWS_CACHED_BYTES),
+            reader: None,
+            rebuilt: RefCell::default(),
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -88,9 +156,23 @@ impl ModelStore {
         self.entries.contains_key(model_hash)
     }
 
-    /// The bytes the stored revisions take: whole definitions and changes as they are written.
-    pub fn stored_bytes(&self) -> usize {
-        self.stored_bytes
+    /// Reads rows the session does not hold from this file from now on.
+    pub fn set_reader(&mut self, reader: Option<Arc<StoreReader>>) {
+        self.reader = reader;
+    }
+
+    /// The bytes of the rows held in memory because the file does not have them yet (all of them without a file).
+    pub fn held_bytes(&self) -> usize {
+        self.rows.held_bytes()
+    }
+
+    pub fn cached_bytes(&self) -> usize {
+        self.rows.cached_bytes()
+    }
+
+    /// The bytes every stored row takes, held or in the file.
+    pub fn row_bytes_total(&self) -> usize {
+        self.entries.values().map(|entry| entry.row_bytes).sum()
     }
 
     pub fn entries(&self) -> impl Iterator<Item = (&String, &ModelEntry)> {
@@ -101,7 +183,64 @@ impl ModelStore {
         self.entries.get(model_hash)
     }
 
-    /// The revision with this hash, rebuilt if it is not ready, or `None` when the session does not hold it.
+    pub fn set_seal(&mut self, model_hash: &str, seal: SealRef) {
+        if let Some(entry) = self.entries.get_mut(model_hash) {
+            entry.seal = Some(seal);
+        }
+    }
+
+    /// Moves written rows from what is held to the cache: the file has them now.
+    pub fn release(&mut self, model_hashes: impl IntoIterator<Item = String>) {
+        if self.reader.is_some() {
+            self.rows.release(model_hashes);
+        }
+    }
+
+    /// A stored row: held, cached, or read from the file and checked against its seal.
+    pub fn row(&self, model_hash: &str) -> EngineResult<Arc<StoredModel>> {
+        if let Some(row) = self
+            .rows
+            .held(model_hash)
+            .or_else(|| self.rows.cached(model_hash))
+        {
+            return Ok(row);
+        }
+        let entry = self
+            .entries
+            .get(model_hash)
+            .ok_or_else(|| error(format!("unknown model {model_hash}")))?;
+        let reader = self
+            .reader
+            .as_ref()
+            .ok_or_else(|| error(format!("stored model revision {model_hash} is not held")))?;
+        let (bytes, base_model_hash) = reader.model_row(model_hash)?.ok_or_else(|| {
+            error(format!(
+                "stored model revision {model_hash} is missing from the state file"
+            ))
+        })?;
+        let seal = entry.seal.as_ref().ok_or_else(|| {
+            error(format!(
+                "stored model revision {model_hash} is neither held nor sealed"
+            ))
+        })?;
+        check_row(SealKind::Model, model_hash, &bytes, seal)?;
+        if base_model_hash != entry.base_model_hash {
+            return Err(error(format!(
+                "stored model revision {model_hash} names another base than its seal"
+            )));
+        }
+        let row = Arc::new(StoredModel::from_row(
+            model_hash.to_owned(),
+            &bytes,
+            base_model_hash,
+        )?);
+        self.rows
+            .cache(model_hash.to_owned(), row.clone(), bytes.len());
+        crate::heartbeat::tick();
+        Ok(row)
+    }
+
+    /// The revision with this hash, rebuilt if it is not ready, or `None` when the session does not know it.
     pub fn get(&self, model_hash: &str) -> EngineResult<Option<Arc<CompiledModel>>> {
         if !self.entries.contains_key(model_hash) {
             return Ok(None);
@@ -114,7 +253,7 @@ impl ModelStore {
         Ok(Some(model))
     }
 
-    /// How a new revision would be kept: as its changes from its previous revision when the session holds that one
+    /// How a new revision would be kept: as its changes from its previous revision when the session knows that one
     /// and the changes are smaller than the whole, otherwise whole.
     pub fn kept_form(&self, model: &CompiledModel) -> EngineResult<StoredModel> {
         match &model.revision.previous_model_hash {
@@ -128,7 +267,7 @@ impl ModelStore {
         }
     }
 
-    /// Rebuilds a stored revision whose base, if it has one, the session already holds, and checks it against its hash.
+    /// Rebuilds a stored revision whose base, if it has one, the session already knows, and checks it against its hash.
     pub fn rebuild_stored(&self, stored: &StoredModel) -> EngineResult<CompiledModel> {
         let (model_hash, definition) = match stored {
             StoredModel::Whole {
@@ -168,12 +307,79 @@ impl ModelStore {
         Ok(model)
     }
 
-    /// Adds a revision exactly as it was stored, after the caller has rebuilt it and checked its hash.
+    /// Adds a revision held in memory until it is written: a new one, or any one in a session without a file. The
+    /// caller has rebuilt it and checked its hash.
     pub fn insert_stored(
         &mut self,
         model: Arc<CompiledModel>,
         stored: StoredModel,
     ) -> EngineResult<()> {
+        self.check_new(&model, &stored)?;
+        let bytes = serialized_size(&stored)?;
+        self.entries.insert(
+            model.model_hash.clone(),
+            ModelEntry {
+                header: model_header(&model),
+                base_model_hash: stored.base_model_hash().map(str::to_owned),
+                row_bytes: bytes,
+                seal: None,
+            },
+        );
+        self.rows
+            .hold(model.model_hash.clone(), Arc::new(stored), bytes);
+        self.keep(&model);
+        Ok(())
+    }
+
+    /// Adds a revision the file has and that was validated as it was read: its row goes to the cache.
+    pub fn insert_validated(
+        &mut self,
+        model: Arc<CompiledModel>,
+        stored: StoredModel,
+        row_bytes: usize,
+        seal: Option<SealRef>,
+    ) -> EngineResult<()> {
+        self.check_new(&model, &stored)?;
+        self.entries.insert(
+            model.model_hash.clone(),
+            ModelEntry {
+                header: model_header(&model),
+                base_model_hash: stored.base_model_hash().map(str::to_owned),
+                row_bytes,
+                seal,
+            },
+        );
+        self.rows
+            .cache(model.model_hash.clone(), Arc::new(stored), row_bytes);
+        self.keep(&model);
+        Ok(())
+    }
+
+    /// Adds a sealed revision by its header alone; its row stays in the file until it is needed.
+    pub fn insert_sealed(
+        &mut self,
+        model_hash: String,
+        header: ModelHeader,
+        base_model_hash: Option<String>,
+        row_bytes: usize,
+        seal: SealRef,
+    ) -> EngineResult<()> {
+        if self.entries.contains_key(&model_hash) {
+            return Err(error("a sealed model revision repeats a known hash"));
+        }
+        self.entries.insert(
+            model_hash,
+            ModelEntry {
+                header,
+                base_model_hash,
+                row_bytes,
+                seal: Some(seal),
+            },
+        );
+        Ok(())
+    }
+
+    fn check_new(&self, model: &CompiledModel, stored: &StoredModel) -> EngineResult<()> {
         if stored.model_hash() != model.model_hash || self.entries.contains_key(&model.model_hash) {
             return Err(error(
                 "a stored model revision does not match its place in the session",
@@ -181,33 +387,14 @@ impl ModelStore {
         }
         if let StoredModel::Changes {
             base_model_hash, ..
-        } = &stored
+        } = stored
         {
             if !self.entries.contains_key(base_model_hash) {
                 return Err(error(
-                    "a stored model revision names a base the session does not hold",
+                    "a stored model revision names a base the session does not know",
                 ));
             }
         }
-        self.add_entry(&model, stored)?;
-        self.keep(&model);
-        Ok(())
-    }
-
-    fn add_entry(&mut self, model: &CompiledModel, stored: StoredModel) -> EngineResult<()> {
-        let stored_bytes = serialized_size(&stored)?;
-        self.stored_bytes = self
-            .stored_bytes
-            .checked_add(stored_bytes)
-            .ok_or_else(|| error("stored model byte count overflow"))?;
-        self.entries.insert(
-            model.model_hash.clone(),
-            ModelEntry {
-                id: model.id.clone(),
-                revision_number: model.revision.number,
-                stored,
-            },
-        );
         Ok(())
     }
 
@@ -243,40 +430,59 @@ impl ModelStore {
     /// Rebuilds a revision from the nearest ancestor that is ready or kept whole, applying each revision's changes in
     /// turn to one working copy, and checks the result against its hash.
     fn rebuild(&self, model_hash: &str) -> EngineResult<CompiledModel> {
-        let mut changes: Vec<&ModelDelta> = Vec::new();
-        let mut cursor = model_hash;
+        self.rebuild_with_rows(model_hash, |hash| self.row(hash))
+    }
+
+    fn rebuild_with_rows(
+        &self,
+        model_hash: &str,
+        mut read: impl FnMut(&str) -> EngineResult<Arc<StoredModel>>,
+    ) -> EngineResult<CompiledModel> {
+        // Walk headers first. Holding the delta rows here would defeat their cache's byte budget: an evicted row
+        // would remain alive in this walk until the entire lineage had been reconstructed.
+        let mut changes: Vec<String> = Vec::new();
+        let mut cursor = model_hash.to_owned();
         let mut value = loop {
             if changes.len() > self.entries.len() {
                 return Err(error("stored model revisions form a cycle"));
             }
             if cursor != model_hash {
-                if let Some(model) = self.ready(cursor) {
+                if let Some(model) = self.ready(&cursor) {
                     break definition_value(model.definition())?;
                 }
             }
-            let entry = self.entries.get(cursor).ok_or_else(|| {
+            let entry = self.entries.get(&cursor).ok_or_else(|| {
                 error(format!(
                     "stored model revision {model_hash} lacks its base {cursor}"
                 ))
             })?;
-            match &entry.stored {
-                StoredModel::Whole { definition, .. } => break definition_value(definition)?,
-                StoredModel::Changes {
-                    base_model_hash,
-                    delta,
-                    ..
-                } => {
-                    changes.push(delta);
-                    cursor = base_model_hash;
+            match &entry.base_model_hash {
+                None => {
+                    let row = read(&cursor)?;
+                    let StoredModel::Whole { definition, .. } = row.as_ref() else {
+                        return Err(error("stored model revision does not match its header"));
+                    };
+                    break definition_value(definition)?;
+                }
+                Some(base_model_hash) => {
+                    let next = base_model_hash.clone();
+                    changes.push(cursor);
+                    cursor = next;
                 }
             }
         };
-        for delta in changes.iter().rev() {
-            model_delta::apply(&mut value, delta).map_err(|cause| {
-                error(format!(
-                    "stored model revision {model_hash} does not rebuild: {cause}"
-                ))
-            })?;
+        for hash in changes.iter().rev() {
+            let row = read(hash)?;
+            if let StoredModel::Changes { delta, .. } = row.as_ref() {
+                model_delta::apply(&mut value, delta).map_err(|cause| {
+                    error(format!(
+                        "stored model revision {model_hash} does not rebuild: {cause}"
+                    ))
+                })?;
+                crate::heartbeat::tick();
+            } else {
+                return Err(error("stored model revision does not match its header"));
+            }
         }
         let definition: ModelDefinition = serde_json::from_value(value).map_err(|cause| {
             error(format!(
@@ -290,6 +496,103 @@ impl ModelStore {
             )));
         }
         Ok(model)
+    }
+
+    /// A revision's ancestry from its header chain, newest first, without rebuilding any: at most `limit` revisions,
+    /// stopping after `stop_at`. Returns the headers and whether the walk reached a first revision or `stop_at`.
+    pub fn lineage(
+        &self,
+        model_hash: &str,
+        stop_at: Option<&str>,
+        limit: usize,
+    ) -> EngineResult<(Vec<(String, ModelHeader)>, bool)> {
+        let mut found = Vec::new();
+        let mut cursor = Some(model_hash.to_owned());
+        let mut seen = BTreeSet::new();
+        while let Some(hash) = cursor {
+            if found.len() >= limit {
+                return Ok((found, false));
+            }
+            if !seen.insert(hash.clone()) {
+                return Err(error("stored model revisions form a cycle"));
+            }
+            let entry = self
+                .entries
+                .get(&hash)
+                .ok_or_else(|| error(format!("unknown model {hash}")))?;
+            let reached = stop_at == Some(hash.as_str());
+            cursor = entry.header.previous_model_hash.clone();
+            found.push((hash, entry.header.clone()));
+            if reached {
+                return Ok((found, true));
+            }
+        }
+        Ok((found, true))
+    }
+
+    /// The revisions nothing was made from, each with its header.
+    pub fn leaves(&self) -> Vec<(&String, &ModelHeader)> {
+        let parents: BTreeSet<&str> = self
+            .entries
+            .values()
+            .filter_map(|entry| entry.header.previous_model_hash.as_deref())
+            .collect();
+        self.entries
+            .iter()
+            .filter(|(hash, _)| !parents.contains(hash.as_str()))
+            .map(|(hash, entry)| (hash, &entry.header))
+            .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cold_lineage_rebuild_drops_each_delta_before_reading_the_next() {
+        let mut store = ModelStore::default();
+        let mut source = BTreeMap::new();
+        let mut expected = None;
+        for number in 0..24 {
+            let mut definition = crate::test_support::test_model();
+            definition.revision.number = number;
+            definition.revision.previous_model_hash = expected
+                .as_ref()
+                .map(|model: &Arc<CompiledModel>| model.model_hash.clone());
+            definition.revision.reason = format!("reading {number}");
+            let model = Arc::new(compile_model(definition).unwrap());
+            let row = store.kept_form(&model).unwrap();
+            if number > 0 {
+                assert!(matches!(row, StoredModel::Changes { .. }));
+            }
+            source.insert(model.model_hash.clone(), row.clone());
+            store.insert_stored(model.clone(), row).unwrap();
+            expected = Some(model);
+        }
+        // Simulate cold reads after eviction, so no cache or previously compiled ancestor keeps the lineage alive.
+        store.rows = RowCache::new(0);
+        *store.rebuilt.borrow_mut() = Rebuilt::default();
+        let expected = expected.unwrap();
+        let mut prior = std::sync::Weak::<StoredModel>::new();
+        let mut reads = 0;
+        let actual = store
+            .rebuild_with_rows(&expected.model_hash, |hash| {
+                assert_eq!(
+                    prior.strong_count(),
+                    0,
+                    "the prior row is still retained outside the cache"
+                );
+                let row = Arc::new(source[hash].clone());
+                prior = Arc::downgrade(&row);
+                reads += 1;
+                Ok(row)
+            })
+            .unwrap();
+        assert_eq!(reads, source.len());
+        assert_eq!(prior.strong_count(), 0);
+        assert_eq!(actual.model_hash, expected.model_hash);
+        assert_eq!(actual.definition(), expected.definition());
     }
 }
 
@@ -328,32 +631,37 @@ fn definition_value(definition: &ModelDefinition) -> EngineResult<Value> {
         .map_err(|cause| error(format!("failed to encode a model definition: {cause}")))
 }
 
-/// The order in which stored revisions can be rebuilt: every revision after the one it is rebuilt from.
-pub fn rebuild_order(stored: &[StoredModel]) -> EngineResult<Vec<usize>> {
-    let index: BTreeMap<&str, usize> = stored
+/// The order in which revisions can be rebuilt: every revision after the one it is rebuilt from. Each item is a
+/// revision's hash and the hash it is rebuilt after; one rebuilt after a revision outside the list must be whole or
+/// known already, which `known` decides.
+pub fn rebuild_order_of(
+    items: &[(String, Option<String>, bool)],
+    known: impl Fn(&str) -> bool,
+) -> EngineResult<Vec<usize>> {
+    let index: BTreeMap<&str, usize> = items
         .iter()
         .enumerate()
-        .map(|(i, row)| (row.model_hash(), i))
+        .map(|(i, (hash, _, _))| (hash.as_str(), i))
         .collect();
-    if index.len() != stored.len() {
+    if index.len() != items.len() {
         return Err(error("state file contains a duplicate model hash"));
     }
     let mut children: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
     let mut roots = Vec::new();
-    for (i, row) in stored.iter().enumerate() {
-        match row.rebuilt_after().and_then(|hash| index.get(hash)) {
+    for (i, (hash, after, is_changes)) in items.iter().enumerate() {
+        match after.as_deref().and_then(|hash| index.get(hash)) {
             Some(parent) => children.entry(*parent).or_default().push(i),
             None => {
-                if let StoredModel::Changes { model_hash, .. } = row {
+                if *is_changes && !after.as_deref().is_some_and(&known) {
                     return Err(error(format!(
-                        "stored model revision {model_hash} lacks its base"
+                        "stored model revision {hash} lacks its base"
                     )));
                 }
                 roots.push(i);
             }
         }
     }
-    let mut order = Vec::with_capacity(stored.len());
+    let mut order = Vec::with_capacity(items.len());
     let mut stack: Vec<usize> = roots.into_iter().rev().collect();
     let mut seen = BTreeSet::new();
     while let Some(i) = stack.pop() {
@@ -365,8 +673,32 @@ pub fn rebuild_order(stored: &[StoredModel]) -> EngineResult<Vec<usize>> {
             stack.extend(next.iter().rev());
         }
     }
-    if order.len() != stored.len() {
+    if order.len() != items.len() {
         return Err(error("stored model revisions form a cycle"));
     }
     Ok(order)
+}
+
+/// The order in which stored revisions can be rebuilt: every revision after the one it is rebuilt from.
+#[cfg(test)]
+pub fn rebuild_order(stored: &[StoredModel]) -> EngineResult<Vec<usize>> {
+    rebuild_order_after(stored, |_| false)
+}
+
+/// The same, for rows some of which are rebuilt after a revision the session already knows (`known`).
+pub fn rebuild_order_after(
+    stored: &[StoredModel],
+    known: impl Fn(&str) -> bool,
+) -> EngineResult<Vec<usize>> {
+    let items: Vec<(String, Option<String>, bool)> = stored
+        .iter()
+        .map(|row| {
+            (
+                row.model_hash().to_owned(),
+                row.rebuilt_after().map(str::to_owned),
+                matches!(row, StoredModel::Changes { .. }),
+            )
+        })
+        .collect();
+    rebuild_order_of(&items, known)
 }

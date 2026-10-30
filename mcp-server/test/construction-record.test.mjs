@@ -269,8 +269,10 @@ test('an ancestry lookup that fails is reported as unknown, not as another branc
   const start = await setup(t);
   const { service, graphHash } = start;
   const line = await successorLine(service, start, 'a', 'The loan falls due first.');
-  // The revision-chain walk reads model summaries; here those time out, while everything else answers.
+  // The revision-chain walk reads model headers (or, without them, summaries); here those time out, while everything
+  // else answers.
   const timingOut = new Proxy(service, { get(target, key) {
+    if (key === 'modelLineage') return () => Promise.reject(new Error('Timed out inspecting the model.'));
     if (key === 'inspectModel') return (args) => (args?.includeDefinition ? target.inspectModel(args) : Promise.reject(new Error('Timed out inspecting the model.')));
     const value = target[key];
     return typeof value === 'function' ? value.bind(target) : value;

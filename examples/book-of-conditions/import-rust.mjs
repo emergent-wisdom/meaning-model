@@ -20,6 +20,15 @@ const manifestName = 'PUBLICATION-MANIFEST.json';
 const proseName = 'BOOK-DRAFT.md';
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const writeJson = (out, name, value) => fs.writeFileSync(path.join(out, name), `${stringifyJson(value, null, 2)}\n`, { flag: 'wx' });
+function inspectedDefinition(inspected) {
+  if (inspected.model !== undefined) return inspected.model;
+  const file = inspected.definitionFile;
+  assert(file && typeof file.path === 'string', 'Model inspection returned neither an inline definition nor a definition file');
+  const bytes = fs.readFileSync(file.path);
+  assert.equal(bytes.byteLength, file.bytes, 'The exported definition size does not match its receipt');
+  assert.equal(digest(bytes), file.sha256, 'The exported definition checksum does not match its receipt');
+  return JSON.parse(bytes.toString('utf8'));
+}
 
 export async function readEdition(sourceDirectory = directory) {
   const files = Object.fromEntries([manifestName, proseName].map(name => [name, fs.readFileSync(path.join(sourceDirectory, name))]));
@@ -161,7 +170,7 @@ export async function runImport(outputDirectory, binary = defaultEngine) {
     writeJson(out, 'import.json', imported);
     const model = await call('life_model_inspect', { modelHash: manifest.modelHash, includeDefinition: true });
     assert.equal(model.modelHash, manifest.modelHash);
-    writeJson(out, 'model.json', model.model);
+    writeJson(out, 'model.json', inspectedDefinition(model));
     const graph = await call('life_narrative_query', { graphHash: manifest.graphHash, expectedGraphHash: manifest.graphHash,
       accessScopes: manifest.accessScopes, mode: 'full', includeContent: true, forRevision: true });
     assert.equal(graph.graph_hash, manifest.graphHash);
@@ -181,9 +190,10 @@ export async function runImport(outputDirectory, binary = defaultEngine) {
     for (const author of authors) {
       const life = await call('life_model_inspect', { modelHash: author.modelHash, includeDefinition: true });
       assert.equal(life.modelHash, author.modelHash);
-      assert(life.model.meaning_model.referents.some(person => person.id === author.personId), 'Author life must contain its declared person');
+      const definition = inspectedDefinition(life);
+      assert(definition.meaning_model.referents.some(person => person.id === author.personId), 'Author life must contain its declared person');
       if (!inspectedAuthors.some(item => item.modelHash === author.modelHash)) {
-        writeJson(out, `author-${author.modelHash}.json`, life.model);
+        writeJson(out, `author-${author.modelHash}.json`, definition);
         inspectedAuthors.push(author);
       }
     }

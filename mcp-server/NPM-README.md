@@ -24,6 +24,16 @@ operational guidance. Reading the papers is optional.
 
 See the [changelog](https://github.com/emergent-wisdom/meaning-model/blob/main/CHANGELOG.md) for release changes and upgrade notes.
 
+## Upgrading to 0.18.0
+
+Install the matching 0.18.0 engine. Back up your saved store before upgrading. Its first open validates and seals
+older revisions and may take longer; later opens check the seals and load revisions as needed. Model and graph hashes
+and portable history formats stay the same. Exports remain pinned to the selected graph unless you set
+`includeModelHeads: true`. Large history files stream one revision at a time, and large definitions can be read in
+pages or through their complete local files. The first open and a full audit still retain unsealed rows during
+validation; the lower-memory startup applies to later sealed opens. Older engines retain their earlier revision
+limits even though the storage format is unchanged.
+
 ## Upgrading to 0.17.0
 
 Install the matching 0.17.0 engine. Models, graphs, histories and their hashes keep the same format; no data
@@ -360,7 +370,7 @@ can use the explicit source build below.
 In a directory where you want to keep the installation, run:
 
 ```sh
-npm install @emergent-wisdom/meaning-model-mcp@0.17.0
+npm install @emergent-wisdom/meaning-model-mcp@0.18.0
 npx meaning-model-mcp --install-engine
 ```
 
@@ -829,7 +839,7 @@ configuration looks like this:
   "mcpServers": {
     "meaning-model": {
       "command": "npx",
-      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.17.0"],
+      "args": ["--yes", "@emergent-wisdom/meaning-model-mcp@0.18.0"],
       "env": {
         "LIFE_SIM_ENGINE_BIN": "/absolute/path/to/life-sim-engine",
         "LIFE_SIM_STATE_FILE": "/absolute/private/path/meaning-model.sqlite"
@@ -903,7 +913,7 @@ for release.
 Record the reviewed tarball's checksum and inspect the publication preview:
 
 ```sh
-release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.17.0.tgz"
+release_tarball="/absolute/path/to/emergent-wisdom-meaning-model-mcp-0.18.0.tgz"
 shasum -a 256 "$release_tarball"
 npm publish "$release_tarball" --dry-run --access public --ignore-scripts --registry=https://registry.npmjs.org/
 ```
@@ -915,7 +925,7 @@ exact tarball, authenticate with an npm account that can publish to
 ```sh
 npm whoami --registry=https://registry.npmjs.org/
 npm publish "$release_tarball" --access public --ignore-scripts --registry=https://registry.npmjs.org/
-npm view @emergent-wisdom/meaning-model-mcp@0.17.0 version dist.integrity --registry=https://registry.npmjs.org/
+npm view @emergent-wisdom/meaning-model-mcp@0.18.0 version dist.integrity --registry=https://registry.npmjs.org/
 ```
 
 A dry run does not establish registry authentication or scope access. Any change

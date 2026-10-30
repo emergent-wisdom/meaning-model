@@ -38,7 +38,10 @@ use crate::model::{
     WORLD_REVISION_SCHEMA,
 };
 use crate::profiles::PROFILE_COMPILATION_SCHEMA;
-use crate::session::{machine_operation_names, SESSION_STATE_SCHEMA};
+use crate::session::{
+    machine_operation_names, MODEL_HEADS_SCHEMA, MODEL_LINEAGE_SCHEMA, SESSION_STATE_SCHEMA,
+    STORE_AUDIT_SCHEMA, STORE_STATUS_SCHEMA,
+};
 
 /// The legacy registry commands, which the crate root handles, then every machine operation.
 fn described_operations() -> Vec<&'static str> {
@@ -237,7 +240,9 @@ pub fn machine_description() -> serde_json::Value {
             "failure_semantics": "no success response before transaction commit; failures reload authoritative SQLite state; an ambiguous failed COMMIT is reported as persistence_uncertain",
             "writer_model": "generation_compare_and_swap_rejects_stale_session_writers; SQLite serializes transactions",
             "longevity": "bounded append-only narrative deltas and row-addressed mutable world/candidate heads; no destructive pruning operation",
-            "narrative_materialization": "cold lookup replays one selected chain and compiles only its final graph; startup validation reuses each parent and retains only the live branch frontier; no durable cache or checkpoint compaction"
+            "narrative_materialization": "graph heads and recent revisions each use a 64 MiB serialized-payload cache, with one oversized entry allowed per cache; recent entries also capped at 64; evicted revisions replay from the nearest cached ancestor; no durable cache or checkpoint compaction",
+            "seals": "each model and graph revision is sealed when it is written, or validated and sealed on the first open of a store without seals: the sha256 of its row's bytes, its header, and its parent's seal; an open trusts a whole seal chain and validates only unsealed revisions; a row read later is checked against its seal; audit_store (or --audit) validates everything again",
+            "held_in_memory": "a durable session holds every revision's header, the rows not yet written, and bounded caches of rows read; a session without a file holds every row"
         },
         "execution_limits": {
             "max_command_bytes": crate::MAX_COMMAND_BYTES,
@@ -295,8 +300,19 @@ pub fn machine_description() -> serde_json::Value {
     description["schemas"]["project_checkpoint_export"] =
         serde_json::json!(PROJECT_CHECKPOINT_EXPORT_SCHEMA);
     description["persistence"]["startup_validation"] = serde_json::json!(
-        "SQLite identity/integrity/foreign keys/relational shadow columns/bounds, model/world/narrative hashes, exact narrative source snapshots, canonical deltas, unique append-only operation sequences, causal evidence cutoffs, complete lineage, and deterministic candidate replay"
+        "SQLite identity/integrity/foreign keys/relational shadow columns/bounds, seal chains and header links for sealed revisions, and for unsealed ones model/world/narrative hashes, exact narrative source snapshots, canonical deltas, unique append-only operation sequences, causal evidence cutoffs, complete lineage, and deterministic candidate replay; every graph head and newest model revision rebuilt and checked against its hash"
     );
+    description["heartbeat"] = serde_json::json!({
+        "schema": crate::heartbeat::HEARTBEAT_SCHEMA,
+        "environment": crate::heartbeat::HEARTBEAT_ENV,
+        "stream": "stderr",
+        "interval_ms": crate::heartbeat::interval_ms(),
+        "fields": ["sequence", "progress", "busy.operation", "busy.request_id", "busy.elapsed_ms"]
+    });
+    description["schemas"]["model_lineage"] = serde_json::json!(MODEL_LINEAGE_SCHEMA);
+    description["schemas"]["model_heads"] = serde_json::json!(MODEL_HEADS_SCHEMA);
+    description["schemas"]["store_audit"] = serde_json::json!(STORE_AUDIT_SCHEMA);
+    description["schemas"]["store_status"] = serde_json::json!(STORE_STATUS_SCHEMA);
     description["execution_limits"]["max_session_narrative_graphs"] =
         serde_json::json!(MAX_SESSION_NARRATIVE_GRAPHS);
     description["schemas"]["world_revision"] = serde_json::json!(WORLD_REVISION_SCHEMA);

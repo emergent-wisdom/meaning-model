@@ -14,7 +14,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const COMMAND: &str = "life-sim-rust-command/v1";
 
 /// Each machine operation with the error it answers when sent without fields, or `None` when it needs none.
-const MACHINE_OPERATIONS: [(&str, Option<&str>); 32] = [
+const MACHINE_OPERATIONS: [(&str, Option<&str>); 36] = [
     (
         "compile_profiles",
         Some("compile_profiles requires profile_request"),
@@ -23,6 +23,13 @@ const MACHINE_OPERATIONS: [(&str, Option<&str>); 32] = [
     ("register_model", Some("model operation requires model")),
     ("revise_model", Some("model operation requires model")),
     ("get_model", Some("get_model requires model_hash")),
+    ("model_lineage", Some("model_lineage requires model_hash")),
+    ("model_heads", None),
+    (
+        "audit_store",
+        Some("audit_store needs a session opened with a state file"),
+    ),
+    ("store_status", None),
     ("create_world", Some("create_world requires model_hash")),
     ("get_world", Some("get_world requires world_id")),
     (
@@ -109,7 +116,8 @@ const MACHINE_OPERATIONS: [(&str, Option<&str>); 32] = [
     ),
 ];
 
-/// The operations that change a session and are written to its state file.
+/// Operations that change authoritative session rows and advance its generation. `audit_store` can separately
+/// repair seal metadata, without changing a model or advancing the generation; large_store tests that path.
 const MUTATING_OPERATIONS: [&str; 14] = [
     "register_model",
     "revise_model",
@@ -316,6 +324,10 @@ fn every_machine_operation_is_known_dispatched_and_described() {
             "register_model",
             "revise_model",
             "get_model",
+            "model_lineage",
+            "model_heads",
+            "audit_store",
+            "store_status",
             "create_world",
             "get_world",
             "refine_genesis_world",
@@ -430,7 +442,7 @@ fn malformed_unknown_and_legacy_commands_keep_their_envelopes() {
         (
             r#"{"schema":"life-sim-rust-command/v1","request_id":"r","operation":"get_model","bogus":1}"#,
             json!({"schema": "life-sim-rust-response/v1", "request_id": "r", "ok": false,
-            "error": {"code": "invalid_json", "message": "unknown field `bogus`, expected one of `schema`, `request_id`, `operation`, `model`, `profile_request`, `model_hash`, `world_id`, `world_revision`, `world_revision_hash`, `candidate_hash`, `query`, `trajectory_summary`, `view`, `graph_query`, `narrative_graph`, `preserve_narrative_source_snapshot`, `narrative_batch`, `narrative_change`, `narrative_graph_hash`, `narrative_query`, `narrative_render`, `narrative_training`, `narrative_history`, `project_checkpoint`, `project_checkpoint_id`"}}),
+            "error": {"code": "invalid_json", "message": "unknown field `bogus`, expected one of `schema`, `request_id`, `operation`, `model`, `profile_request`, `model_hash`, `world_id`, `world_revision`, `world_revision_hash`, `candidate_hash`, `query`, `trajectory_summary`, `view`, `graph_query`, `narrative_graph`, `preserve_narrative_source_snapshot`, `narrative_batch`, `narrative_change`, `narrative_graph_hash`, `narrative_query`, `narrative_render`, `narrative_training`, `narrative_history`, `project_checkpoint`, `project_checkpoint_id`, `model_lineage`, `model_heads`, `store_audit`"}}),
         ),
         (
             r#"{"schema":"life-sim-rust-command/v1","request_id":7,"operation":"get_model"}"#,
@@ -978,6 +990,10 @@ fn every_mutating_operation_is_written_to_sqlite_and_nothing_else_is() {
                 json!({"profile_request": person_profile_request()}),
                 false,
             ),
+            step("model_lineage", json!({"model_hash": base_hash}), false),
+            step("model_heads", json!({}), false),
+            step("store_status", json!({}), false),
+            step("audit_store", json!({}), false),
         ],
         &mut session,
         &mut known,

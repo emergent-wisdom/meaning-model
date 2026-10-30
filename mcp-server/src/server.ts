@@ -12,6 +12,8 @@ import * as z from 'zod/v4';
 import { fitsOneMessage, toolResult } from './tool-result.mjs';
 import { writeResultFile } from './result-files.mjs';
 import { absoluteHistoryPath, modelFileText, readModelFile, writeModelFile } from './construction-files.mjs';
+import { stringifyJson } from './exact-json.mjs';
+import { pagedText, readKey } from './paging.mjs';
 import { boundLists, cutLists } from './bounded-lists.mjs';
 import { describeTool } from './tool-guides.mjs';
 import { CONFIGURED_INSTRUCTIONS_URI, INSTRUCTIONS_URI, composeInstructions, configuredMustBeRead, configuredReadFirst, followsOurInstructions, resolveAgentInstructions } from './agent-instructions.mjs';
@@ -96,7 +98,7 @@ const fullInstructions = `${processBreakdownHead}\n\n${startHereText}\n\n${userF
 const serverInstructions = composeInstructions(agentInstructions, { full: fullInstructions, simple: simpleInstructions });
 const server = new McpServer({
   name: 'meaning-model',
-  version: '0.17.0',
+  version: '0.18.0',
 }, {
   instructions: serverInstructions,
 });
@@ -181,7 +183,9 @@ const declaredWriteResult = (name: string) => (value: any) => {
   const reportFile = writeResultFile(value);
   return toolResult({ ...identity, reportFile, reportOmitted: `The write was stored whole, but its report is longer than this result can hold (${limit} characters), because some of its records carry very long text. The whole report is in ${reportFile.path}. life_model_questions on modelHash ${value.modelHash ?? ''} reads what the model still lacks.` });
 };
-const DEFINITION_NOT_INLINE = 'The definition does not fit in one result with its summary, so it was written whole to the file definitionFile names. life_model_export writes it to a file you choose, checked against the model\'s hash; life_values_query, life_meaning_query and life_model_outline read parts of it.';
+const DEFINITION_NOT_INLINE = 'The definition does not fit in one result with its summary. It is written whole to definitionFile, and definitionPage holds its first part as JSON text. Pass definitionPage.nextCursor as definitionCursor to life_model_inspect for the next part. life_model_export writes the whole definition to a file you choose, checked against the model hash.';
+// A definition page leaves room for the result's other fields.
+const DEFINITION_PAGE_CHARS = 40_000;
 const requestIdSchema = z.string().min(1).max(256);
 // What the deepen and breadth checks named on the model a write revised, so each line shows again only when that changes.
 const previousTops = (previous: any) => { const tops = reportTops(questionModel(previous, [])); return { previousTop: tops.deepen, previousBreadth: tops.breadth }; };
@@ -645,24 +649,38 @@ server.registerTool(
 server.registerTool(
   'life_model_inspect',
   {
-    description: 'Inspect a Rust-stored typed model summary. includeDefinition is an administrative operation: it returns the bounded complete definition, including process initial values, and must be protected by authentication/authorization outside this local MCP service. A definition too large for one message is written whole to a local file the result names (definitionFile), and a summary too large on its own lists the first ids of each list, with listsCut counting them all and the whole summary in the file listsComplete names.',
+    description: 'Inspect a Rust-stored typed model summary. includeDefinition is an administrative operation: it returns the complete definition, including process initial values, and must be protected by authentication/authorization outside this local MCP service. A definition too large for one result is written whole to definitionFile and its first part is returned as JSON text in definitionPage. Pass definitionPage.nextCursor as definitionCursor for later parts; check their joined text against definitionPage.sha256. A large summary lists the first ids with listsCut counting them and listsComplete naming the complete file.',
     inputSchema: z.object({
       modelHash: z.string().length(64),
       includeDefinition: z.boolean().default(false),
+      definitionCursor: z.string().max(1_024).optional().describe('Read the next part of a definition read in parts: the nextCursor of the previous part. Returns that part alone.'),
+      definitionPageChars: z.number().int().min(2_000).max(400_000).default(DEFINITION_PAGE_CHARS).describe('Requested maximum characters per part; JSON escaping and the declared result limit may make a part shorter.'),
     }),
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   async (input) => {
     // Whatever fits in one result comes back whole, as in 0.12.0. Only what would not fit changes: first the definition
-    // is written whole to a file the result names, then the summary's id lists show their first ids, with the whole
-    // summary in a file too.
-    const inspected = await service.inspectModel(input);
+    // is written whole to a file and offered in pages, then the summary's id lists show their first ids,
+    // with the complete summary in a file too.
+    const definitionPage = (model, cursor = null) => pagedText(stringifyJson(model), { kind: 'definition', key: readKey({ modelHash: input.modelHash }), cursor, size: input.definitionPageChars, maxSerializedChars: RESULT_CHARACTERS.life_model_inspect - 20_000 });
+    if (input.definitionCursor) {
+      const { schema, modelHash, model } = await service.inspectModel({ modelHash: input.modelHash, includeDefinition: true });
+      return toolResult({ schema, modelHash, definitionPage: definitionPage(model, input.definitionCursor) });
+    }
+    const inspected = await service.inspectModel({ modelHash: input.modelHash, includeDefinition: input.includeDefinition });
     let value = inspected;
     if (input.includeDefinition) {
-      if (fitsOneMessage(inspected)) return toolResult(inspected);
+      if (fitsOneMessage(inspected) && stringifyJson(inspected, null, 2).length <= RESULT_CHARACTERS.life_model_inspect) return toolResult(inspected);
       const { model, ...rest } = inspected;
       const definitionFile = writeResultFile(model);
-      value = { ...rest, definitionBytes: Buffer.byteLength(JSON.stringify(model)), definitionFile, definitionNotInline: DEFINITION_NOT_INLINE };
+      const page = definitionPage(model);
+      const summary = boundLists(rest, 12_000, BOUNDED_SUMMARY_NOTE);
+      value = { ...summary, definitionBytes: Buffer.byteLength(stringifyJson(model)), definitionFile, definitionNotInline: DEFINITION_NOT_INLINE, definitionPage: page };
+      if (stringifyJson(value, null, 2).length > RESULT_CHARACTERS.life_model_inspect) {
+        // A long scalar can remain after lists are bounded. Keep the page readable and preserve the full summary.
+        value = { schema: inspected.schema, modelHash: inspected.modelHash, definitionBytes: value.definitionBytes,
+          definitionFile, definitionNotInline: DEFINITION_NOT_INLINE, definitionPage: page, summaryFile: writeResultFile(rest) };
+      }
     }
     return fitsOneMessage(value) ? toolResult(value) : toolResult(boundLists(value, BOUNDED_SUMMARY_BYTES, BOUNDED_SUMMARY_NOTE));
   },

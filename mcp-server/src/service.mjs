@@ -407,6 +407,18 @@ function ensureHandle(value, label) {
   ensureBoundedNonemptyString(value, label, MAX_HANDLE_LENGTH);
 }
 
+// A model revision's header as the engine gives it, in the server's names.
+function headerFromEngine(header) {
+  return {
+    modelHash: header.model_hash,
+    modelId: header.model_id,
+    number: header.revision_number,
+    previous: header.previous_model_hash ?? null,
+    reason: header.reason ?? '',
+    provenance: header.provenance ?? [],
+  };
+}
+
 function ensureHash(value, label) {
   if (typeof value !== 'string' || value.length !== 64) {
     throw new Error(`${label} must be a 64-character hash.`);
@@ -1061,6 +1073,9 @@ export class LifeSimulationService {
   async engineStatus() {
     const description = await this.initialize();
     const backendStatus = this.backend.status();
+    // What the engine holds in memory against its bounds, and how many revisions it knows by header alone; an engine
+    // without the call gives none.
+    const store = description.operations?.includes('store_status') ? await this.storeStatus().catch(() => null) : null;
     return {
       schema: 'life-sim-mcp-status/v2',
       mcpHost: 'TypeScript/Node MCP SDK v2 over stdio',
@@ -1077,6 +1092,7 @@ export class LifeSimulationService {
         execution: description.execution ?? null,
         nativeLimits: description.execution_limits ?? null,
         operations: description.operations,
+        store,
       },
       implementationCoverage: {
         normalizedSemanticFamilies: 33,
@@ -1342,6 +1358,39 @@ export class LifeSimulationService {
       summary: result.summary,
       ...(includeDefinition ? { model: result.model } : {}),
     };
+  }
+
+  // A revision's ancestry from the engine's headers, newest first, without rebuilding any revision: each one's hash, model
+  // id, number, predecessor and provenance. stopAt ends the walk at an ancestor (included); limit bounds it.
+  async modelLineage({ modelHash, stopAt = null, limit = null }) {
+    ensureHash(modelHash, 'modelHash');
+    if (stopAt !== null) ensureHash(stopAt, 'stopAt');
+    const spec = { ...(stopAt === null ? {} : { stop_at_model_hash: stopAt }), ...(limit === null ? {} : { limit }) };
+    const result = await this.backend.call('model_lineage', { model_hash: modelHash, model_lineage: spec });
+    return {
+      revisions: result.revisions.map(headerFromEngine),
+      complete: result.complete,
+      reachedStopAt: result.reached_stop_at ?? null,
+    };
+  }
+
+  // The revisions nothing was made from (heads), newest first, optionally of one model id or descending from one revision
+  // (each then with how many revisions it lies after it).
+  async modelHeads({ modelId = null, descendingFrom = null } = {}) {
+    if (descendingFrom !== null) ensureHash(descendingFrom, 'descendingFrom');
+    const spec = { ...(modelId === null ? {} : { model_id: modelId }), ...(descendingFrom === null ? {} : { descending_from: descendingFrom }) };
+    const result = await this.backend.call('model_heads', { model_heads: spec });
+    return result.heads.map((head) => ({ ...headerFromEngine(head), ...(head.steps_from === undefined ? {} : { stepsFrom: head.steps_from }) }));
+  }
+
+  // What the engine holds in memory against its bounds, and what it knows by header alone.
+  async storeStatus() {
+    return this.backend.call('store_status', {});
+  }
+
+  // Validates every revision in the store again and compares the seals; reseal replaces missing or differing ones.
+  async auditStore({ reseal = false } = {}) {
+    return this.backend.call('audit_store', { store_audit: { reseal } });
   }
 
   async queryMeaningModel({

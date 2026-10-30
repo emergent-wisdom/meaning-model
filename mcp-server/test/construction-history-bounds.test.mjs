@@ -13,6 +13,8 @@ const big = () => ({ schema: 'life-sim-rust-model/v1', id: 'story', time_unit: '
   revision: { number: 0, reason: 'root', provenance: [] }, processes: [{ id: 'p', value_type: 'number' }],
   meaning_model: { events: Array.from({ length: 2000 }, (_, i) => ({ id: `ev.${String(i).padStart(5, '0')}`, boundary: 'a moment of the story '.repeat(4) })) } });
 const added = (n) => ({ schema: MODEL_DELTA_SCHEMA, changes: [{ op: 'records', path: ['meaning_model', 'events'], upsert: [{ id: `ev.new.${n}`, boundary: 'added' }], sorted: true }] });
+// Give each file valid graph metadata, so its checksum or model bound is the first guard it reaches.
+const graphRevision = () => ({ graphHash: hash(9), definition: { id: 'g' } });
 // No service is reached: every case here is refused before anything is stored.
 const unreachable = new Proxy({}, { get: () => { throw new Error('nothing may be stored before the file is checked'); } });
 
@@ -29,14 +31,14 @@ test('a history file is checked before any model in it is expanded', async (t) =
   const models = [{ modelHash: hash(1), definition: big() },
     ...Array.from({ length: 300 }, (_, i) => ({ modelHash: hash(i + 2), baseModelHash: hash(1), delta: added(i) }))];
   models.at(-1).delta = { schema: MODEL_DELTA_SCHEMA, changes: [{ op: 'records', path: ['meaning_model', 'events'], remove: ['missing'], sorted: true }] };
-  const path = await file(t, { schema: HISTORY_FILE_SCHEMA_V2, graphId: 'g', headGraphHash: hash(9), revisionCount: 0, models, revisions: [] });
+  const path = await file(t, { schema: HISTORY_FILE_SCHEMA_V2, graphId: 'g', headGraphHash: hash(9), revisionCount: 1, models, revisions: [graphRevision()] });
   await assert.rejects(importConstructionHistory(unreachable, { requestId: 'bounds.checksum', sourcePath: path }), /bundleSha256 checksum/);
 });
 
 test('a history file whose checksum is wrong is refused before anything is stored', async (t) => {
   const models = [{ modelHash: hash(1), definition: big() },
     ...Array.from({ length: 40 }, (_, i) => ({ modelHash: hash(i + 2), baseModelHash: hash(1), delta: added(i) }))];
-  const path = await file(t, { schema: HISTORY_FILE_SCHEMA_V2, graphId: 'g', headGraphHash: hash(9), revisionCount: 0, models, revisions: [], bundleSha256: hash(7) });
+  const path = await file(t, { schema: HISTORY_FILE_SCHEMA_V2, graphId: 'g', headGraphHash: hash(9), revisionCount: 1, models, revisions: [graphRevision()], bundleSha256: hash(7) });
   await assert.rejects(importConstructionHistory(unreachable, { requestId: 'bounds.wrong', sourcePath: path }), /does not match its bundleSha256/);
 });
 
@@ -105,7 +107,7 @@ test('randomized lineages written within any limit always read back within it, e
 
 test('a history holding more models than a session can is refused before expanding them', async (t) => {
   const models = Array.from({ length: MAX_HISTORY_MODELS + 1 }, (_, i) => ({ modelHash: hash(i + 1), definition: { id: `m${i}` } }));
-  const path = await file(t, { schema: HISTORY_SCHEMA, graphId: 'g', headGraphHash: hash(9), revisionCount: 0, models: models.map((entry) => ({ ...entry, definition: { id: entry.definition.id } })), revisions: [], bundleSha256: hash(7) });
+  const path = await file(t, { schema: HISTORY_SCHEMA, graphId: 'g', headGraphHash: hash(9), revisionCount: 1, models: models.map((entry) => ({ ...entry, definition: { id: entry.definition.id } })), revisions: [graphRevision()], bundleSha256: hash(7) });
   await assert.rejects(importConstructionHistory(unreachable, { requestId: 'bounds.count', sourcePath: path }), new RegExp(`at most ${MAX_HISTORY_MODELS} models`, 'u'));
 });
 

@@ -6,6 +6,7 @@
 // are exact and need no tokenizer; billed tokens are not measured. Shorter write results are checked against complete
 // ones on two servers, one with them turned off.
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,6 +42,32 @@ async function server(t, environment = {}) {
   return call;
 }
 
+// Count the entire definition as an agent receives it, including every page's envelope and repeated metadata.
+async function completeDefinition(call, modelHash) {
+  const first = await call('life_model_inspect', { modelHash, includeDefinition: true });
+  if (first.value.model) return { value: first.value.model, characters: first.characters };
+  let result = first;
+  let text = '';
+  let characters = 0;
+  for (;;) {
+    const page = result.value.definitionPage;
+    assert.equal(page.start, text.length, 'every part of the definition is read, in order');
+    assert.equal(page.sha256, first.value.definitionPage.sha256);
+    assert.equal(page.totalChars, first.value.definitionPage.totalChars);
+    text += page.text;
+    characters += result.characters;
+    assert.equal(page.end, text.length);
+    if (!page.nextCursor) break;
+    result = await call('life_model_inspect', { modelHash, definitionCursor: page.nextCursor });
+  }
+  assert.equal(text.length, first.value.definitionPage.totalChars);
+  assert.equal(createHash('sha256').update(text).digest('hex'), first.value.definitionPage.sha256);
+  const definition = JSON.parse(text);
+  assert.deepEqual(definition, JSON.parse(await readFile(first.value.definitionFile.path, 'utf8')),
+    'all pages together preserve the complete definition');
+  return { value: definition, characters };
+}
+
 test('each targeted read agrees with its full read, for a bounded share of its characters', async (t) => {
   const call = await server(t);
   const model = await frozenBookModel();
@@ -54,7 +81,11 @@ test('each targeted read agrees with its full read, for a bounded share of its c
   // One process's dated values, against reading the whole model to find them.
   const series = model.value_series.find((item) => item.points?.length >= 10);
   assert.ok(series, 'the frozen Book holds a series of values');
-  const whole = await call('life_model_inspect', { modelHash, includeDefinition: true });
+  const whole = await completeDefinition(call, modelHash);
+  const restored = await call('life_model_register', { requestId: 'read-cost-roundtrip', model: whole.value });
+  assert.equal(restored.value.modelHash, modelHash, 'the full reading preserves the frozen model hash');
+  assert.deepEqual(whole.value.value_series.find((item) => item.id === series.id).points, series.points,
+    'the full definition holds every original value, band, tag and note');
   const values = await call('life_values_query', { modelHash, processIds: [series.process_id], maxPoints: 400 });
   assert.deepEqual(values.value.series.find((item) => item.seriesId === series.id).points, series.points, 'every value, band, tag and note as stored');
   compare(`values of ${series.process_id}`, whole, values, 0.01);

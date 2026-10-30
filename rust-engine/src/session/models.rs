@@ -108,8 +108,8 @@ impl MachineSession {
         }
         let Some(previous_hash) = &model.revision.previous_model_hash else {
             if self.models.entries().any(|(hash, existing)| {
-                existing.id == model.id
-                    && existing.revision_number == 0
+                existing.header.id == model.id
+                    && existing.header.revision_number == 0
                     && hash != &model.model_hash
             }) {
                 return Err(machine_error(

@@ -3,7 +3,9 @@
 // Event's numbers their meaning, notes are linked to the records they concern, reviews are held by
 // their actual reviewers, and the whole development can be read back as an outline or replayed.
 import { resolveAppendHead } from './graph-head.mjs';
-import { MAX_LINEAGE_LINKS, modelLineageSteps } from './model-lineage.mjs';
+import { branchesAlong, MAX_LINEAGE_LINKS, modelLineageSteps } from './model-lineage.mjs';
+import { HistoryFileWriter, openHistoryFile } from './history-stream.mjs';
+import { pagedText, readKey } from './paging.mjs';
 import { NARRATIVE_HISTORY_REPLAY } from './narrative-grounding.mjs';
 import { createHash } from 'node:crypto';
 import * as z from 'zod/v4';
@@ -11,7 +13,7 @@ import { assertDescribedEvents, descriptionCoverage } from './description-covera
 import { constructionRecordInstructions } from './construction-principles.mjs';
 import { additiveNarrativeBatch, applyNarrativeDefinitionDelta, definitionFromCompleteView, narrativeDefinitionDelta } from './narrative-delta.mjs';
 import { recordsQuoting, removedFragments, textRecords } from './prose-drift.mjs';
-import { absoluteHistoryPath, encodeHistoryModels, expandedHistoryDigest, expandHistoryModels, HISTORY_FILE_SCHEMA_V2, HISTORY_SCHEMA, historyDigest, MAX_HISTORY_FILE_BYTES, MAX_HISTORY_MODELS, MAX_INLINE_HISTORY_BYTES, planHistoryModels, readHistoryFile, writeHistoryFile } from './construction-files.mjs';
+import { absoluteHistoryPath, expandedHistoryDigest, expandedHistoryDigestStream, expandHistoryEntries, expandHistoryModels, HISTORY_FILE_SCHEMA_V2, HISTORY_SCHEMA, historyDigest, MAX_HISTORY_FILE_BYTES, MAX_HISTORY_MODELS, MAX_INLINE_HISTORY_BYTES, planHistoryEntries, planHistoryModels } from './construction-files.mjs';
 import { requireCompleteModelScopes } from './construction-scope.mjs';
 import { maxOf, pushAll } from './arrays.mjs';
 import { keptWholeLeaves, processTree, treeHeadline, valueReach } from './process-tree.mjs';
@@ -466,6 +468,7 @@ export const outlineSchema = z.object({
   // the result's other fields and escaping on top of the outline).
   maxChars: z.number().int().min(2_000).max(400_000).default(45_000),
   detail: z.enum(['full', 'skeleton']).default('full'),
+  cursor: z.string().max(1_024).optional().describe('Continue a cut outline where its last part ended: the nextCursor of the previous read with the same arguments.'),
 }).strict().refine((input) => Boolean(input.graphHash || input.modelHash), 'Supply graphHash (the graph and its bound model, with notes) or modelHash (a model alone); both only when the graph is bound to that model.');
 
 function anchoredNotes(view) {
@@ -763,21 +766,26 @@ export async function outlineModel(service, raw) {
     const passages = view.nodes.filter((node) => node.role === 'story_passage' && node.render !== 'exclude');
     for (const document of documents) lines.push(`- ${document.id}: ${clip(oneLine(notePayload(document).text), input.textLimit)} (${passages.length} rendered passage${passages.length === 1 ? '' : 's'}, ${passages.reduce((sum, node) => sum + (node.text ?? '').split(/\s+/u).filter(Boolean).length, 0)} words in the graph)`);
   }
-  let text = lines.join('\n');
-  const truncated = text.length > input.maxChars;
+  const whole = lines.join('\n');
+  // A cut outline is read on in parts: each part ends where maxChars ends it, and nextCursor starts the next one.
+  const { cursor: _cursor, maxChars: _maxChars, ...asked } = input;
+  const page = pagedText(whole, { kind: 'outline', key: readKey({ ...asked, modelHash, graphHash: view?.graph_hash ?? null }), cursor: input.cursor ?? null, size: input.maxChars });
+  let text = page.text;
+  const truncated = page.nextCursor !== null;
   let truncatedIn = null; let notShown = [];
   if (truncated) {
     // Name what the cut left out, as the sections to ask for, so a reader knows what it has not seen.
-    const headings = [...text.matchAll(/^## (\S+)/gmu)].map((match) => ({ section: OUTLINE_SECTION_OF_HEADING[match[1]], at: match.index }))
+    const headings = [...whole.matchAll(/^## (\S+)/gmu)].map((match) => ({ section: OUTLINE_SECTION_OF_HEADING[match[1]], at: match.index }))
       .filter((heading) => heading.section);
-    truncatedIn = headings.filter((heading) => heading.at < input.maxChars).at(-1)?.section ?? null;
-    notShown = headings.filter((heading) => heading.at >= input.maxChars).map((heading) => heading.section);
-    text = `${text.slice(0, input.maxChars)}\n… (outline truncated at ${input.maxChars} characters${truncatedIn ? `, part way through ${truncatedIn}` : ''}`
+    truncatedIn = headings.filter((heading) => heading.at < page.end).at(-1)?.section ?? null;
+    notShown = headings.filter((heading) => heading.at >= page.end).map((heading) => heading.section);
+    text = `${text}\n… (outline ${page.start ? `part from character ${page.start} ` : ''}truncated at ${input.maxChars} characters${truncatedIn ? `, part way through ${truncatedIn}` : ''}`
       + `${notShown.length ? `; not shown: ${notShown.join(', ')}. Read those with sections ${JSON.stringify(notShown)}` : ''}`
-      + `; narrow it with sections or focusEventId, or read the whole shape with detail "skeleton")`;
+      + `; narrow it with sections or focusEventId, read the whole shape with detail "skeleton", or read on with cursor set to nextCursor)`;
   }
+  const part = page.start || truncated ? { part: { start: page.start, end: page.end, totalChars: page.totalChars, sha256: page.sha256 }, nextCursor: page.nextCursor } : {};
   return { schema: 'meaning-model-outline/v1', modelHash, graphHash: view?.graph_hash ?? null, coverage, understanding: input.understanding,
-    ...(skeleton ? { detail: 'skeleton' } : {}), noteModelBases, truncated, ...(truncated ? { truncatedIn, notShown } : {}), text };
+    ...(skeleton ? { detail: 'skeleton' } : {}), noteModelBases, truncated, ...(truncated ? { truncatedIn, notShown } : {}), ...part, text };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -888,6 +896,12 @@ async function graphLineage(service, head) {
 // provenance, previous hash). Definitions are not kept: a long history of a large model need not fit in memory, and a
 // step that needs a whole definition reads it with cachedModel.
 async function modelChain(service, fromHash, untilHash, limit = 64) {
+  if (typeof service.modelLineage === 'function') {
+    // Headers from the engine, in one call and without rebuilding a revision.
+    const { revisions } = await service.modelLineage({ modelHash: fromHash, stopAt: untilHash, limit: limit + (untilHash ? 1 : 0) });
+    return revisions.filter((header) => header.modelHash !== untilHash).slice(0, limit).reverse()
+      .map((header) => ({ hash: header.modelHash, model: { revision: { number: header.number, previous_model_hash: header.previous, reason: header.reason, provenance: header.provenance } } }));
+  }
   const chain = []; let cursor = fromHash;
   while (cursor && cursor !== untilHash && chain.length < limit) {
     const revision = modelCaches.get(service)?.get(cursor)?.model?.revision ?? (await service.inspectModel({ modelHash: cursor })).summary?.revision ?? null;
@@ -1077,12 +1091,13 @@ export async function replayConstruction(service, raw) {
 // and replayed on another engine with the same hashes.
 
 export const historyExportSchema = z.object({ graphHash: hash, accessScopes: z.array(id).max(64).default([]),
-  destinationPath: absoluteHistoryPath.optional().describe('Write a portable JSON file at this explicit absolute path instead of returning the bundle inline. Parent directory must exist; existing files are never overwritten. File limit: 480 MiB.'),
+  includeModelHeads: z.boolean().default(false).describe('Also include newer revisions on the bound model lineage. By default export only the selected graph and the model revisions it requires.'),
+  destinationPath: absoluteHistoryPath.optional().describe('Write a portable JSON file at this explicit absolute path instead of returning the bundle inline. Parent directory must exist; existing files are never overwritten. Written one revision at a time, with no size limit.'),
 }).strict();
 export const historyImportSchema = z.object({
   requestId: id,
   history: z.object({ schema: z.literal('meaning-model-construction-history/v1') }).passthrough().optional(),
-  sourcePath: absoluteHistoryPath.optional().describe('Read a regular local JSON bundle, at most 480 MiB, instead of echoing history through MCP. Its bundle hash is checked before any model or graph mutation.'),
+  sourcePath: absoluteHistoryPath.optional().describe('Read a regular local JSON bundle instead of echoing history through MCP, one revision at a time and with no size limit. Its bundle hash is checked before any model or graph mutation.'),
 }).strict().refine((input) => Boolean(input.history) !== Boolean(input.sourcePath), 'Supply exactly one of history or sourcePath.');
 
 async function definitionAt(service, graphHash, accessScopes) {
@@ -1132,88 +1147,226 @@ function declaredExternalModels(definition) {
   return references;
 }
 
-export async function exportConstructionHistory(service, raw, { maximumBytes = MAX_HISTORY_FILE_BYTES } = {}) {
+// The newest revisions made after the model the graph's head is bound to, on its own line: the heads descending from it
+// that enter no branch forked after it, the newest of them (each of them when several are equally new). None when the
+// graph's model is itself the newest. An export includes them only when the caller requests includeModelHeads.
+export async function modelHeadsAfter(service, graphModelHash) {
+  if (!graphModelHash || typeof service.modelHeads !== 'function') return [];
+  const trunk = [];
+  for (const head of await service.modelHeads({ descendingFrom: graphModelHash })) {
+    if (head.modelHash === graphModelHash) continue;
+    const { branches } = await branchesAlong(service, head.modelHash, { stopAt: graphModelHash });
+    if (!branches.length) trunk.push(head);
+  }
+  const newest = Math.max(...trunk.map((head) => head.number));
+  return trunk.filter((head) => head.number === newest);
+}
+
+// A revision's ancestry that the export does not hold yet (known), newest first, as each one's hash and predecessor.
+// Headers come from the engine in pieces, without rebuilding a revision; a service without them is read one summary at a
+// time.
+async function ancestryNotHeld(service, modelHash, known) {
+  const pending = [];
+  if (typeof service.modelLineage !== 'function') {
+    for (let cursor = modelHash; cursor && !known.has(cursor);) {
+      if (pending.length >= MAX_HISTORY_MODELS) throw new Error(`Construction export exceeds the supported model ancestry depth of ${MAX_HISTORY_MODELS} revisions.`);
+      const inspected = await service.inspectModel({ modelHash: cursor });
+      const revision = inspected?.summary?.revision ?? inspected?.model?.revision;
+      if (!revision) throw new Error('The model is not stored.');
+      const previous = revision.previous_model_hash ?? null;
+      pending.push({ modelHash: cursor, previous });
+      cursor = previous;
+    }
+    return pending;
+  }
+  for (let cursor = modelHash; cursor && !known.has(cursor);) {
+    const { revisions } = await service.modelLineage({ modelHash: cursor, limit: 512 });
+    let reached = false;
+    for (const header of revisions) {
+      if (known.has(header.modelHash)) { reached = true; break; }
+      pending.push(header);
+    }
+    if (pending.length > MAX_HISTORY_MODELS) throw new Error(`Construction export exceeds the supported model ancestry depth of ${MAX_HISTORY_MODELS} revisions.`);
+    if (reached || !revisions.length) break;
+    cursor = revisions.at(-1).previous;
+  }
+  return pending;
+}
+
+// The models in file order: each after the revision it was made from, in the order they were found.
+function modelOrder(parentOf) {
+  const ordered = []; const placed = new Set();
+  while (ordered.length < parentOf.size) {
+    const before = ordered.length;
+    for (const [modelHash, parent] of parentOf) {
+      if (!placed.has(modelHash) && (!parent || placed.has(parent) || !parentOf.has(parent))) { ordered.push(modelHash); placed.add(modelHash); }
+    }
+    if (ordered.length === before) throw new Error('The model revisions do not form a chain.');
+  }
+  return ordered;
+}
+
+/// Exports a graph's lineage with the models it needs. Inline, the history is built whole within maximumBytes. To a
+/// file, nothing is held whole: each graph revision and each model is read, checked and written in turn
+/// (history-stream.mjs). With includeModelHeads, also include the model's own newer revisions when the graph lags it
+/// and say so. progress(what, done, total) reports the work as it goes.
+export async function exportConstructionHistory(service, raw, { maximumBytes = MAX_HISTORY_FILE_BYTES, progress = () => {} } = {}) {
   const input = historyExportSchema.parse(raw);
-  const budget = input.destinationPath ? MAX_HISTORY_FILE_BYTES : maximumBytes;
+  const writer = input.destinationPath ? await HistoryFileWriter.create(input.destinationPath) : null;
+  try {
+    return await exportHistory(service, input, writer, { maximumBytes, includeModelHeads: input.includeModelHeads, progress });
+  } catch (error) {
+    await writer?.abort();
+    throw error;
+  }
+}
+
+async function exportHistory(service, input, writer, { maximumBytes, includeModelHeads, progress }) {
+  const budget = maximumBytes;
   let retainedBytes = 0;
   const retain = (record) => {
     retainedBytes += historyDigest(record, budget).bytes;
-    if (retainedBytes > budget) throw new Error(`Construction history exceeds ${budget} UTF-8 bytes. ${budget <= MAX_INLINE_HISTORY_BYTES ? 'Use destinationPath to export it to a local JSON file instead of an inline MCP response.' : 'The portable-file limit is 480 MiB.'}`);
+    if (retainedBytes > budget) throw new Error(`Construction history exceeds ${budget} UTF-8 bytes. ${budget <= MAX_INLINE_HISTORY_BYTES ? 'Use destinationPath to export it to a local JSON file instead of an inline MCP response.' : `A history held whole is limited to ${MAX_HISTORY_FILE_BYTES} bytes; use destinationPath, which writes one revision at a time.`}`);
   };
   const head = await readGraph(service, input.graphHash, input.accessScopes);
   const lineage = await graphLineage(service, head);
   const revisions = []; let previous = null; const bound = []; const declared = new Map();
-  for (const entry of lineage.path) {
+  for (const [index, entry] of lineage.path.entries()) {
     const definition = await definitionAt(service, entry.graph_hash, input.accessScopes);
     if (definition.source?.kind !== 'model') throw new Error('A portable history currently covers model-bound graphs; this revision is bound to a world or candidate.');
     if (!bound.includes(definition.source.model_hash)) bound.push(definition.source.model_hash);
     for (const reference of declaredExternalModels(definition)) if (!declared.has(reference.modelHash)) declared.set(reference.modelHash, reference);
     const revision = previous ? { graphHash: entry.graph_hash, delta: narrativeDefinitionDelta(previous, definition) } : { graphHash: entry.graph_hash, definition };
-    retain(revision); revisions.push(revision);
+    if (writer) await writer.addRevision(revision);
+    else { retain(revision); revisions.push(revision); }
     previous = definition;
+    progress('graph revisions', index + 1, lineage.path.length);
   }
-  // Include the graph's models and explicitly referenced other worlds/lives, with
-  // their ancestry. Otherwise a successful round-trip silently strands references.
-  const models = new Map();
-  for (const modelHash of [...new Set([...bound, ...declared.keys()])]) {
-    const pending = []; let cursor = modelHash;
-    while (cursor && !models.has(cursor)) {
-      if (pending.length >= MAX_HISTORY_MODELS) throw new Error(`Construction export exceeds the supported model ancestry depth of ${MAX_HISTORY_MODELS} revisions.`);
-      let model;
-      try {
-        model = await cachedModel(service, cursor);
-        if (!model) throw new Error('The model is not stored.');
-      } catch (cause) {
-        const reference = declared.get(modelHash);
-        if (!reference) throw cause;
-        throw new Error(`Construction export cannot include model ${cursor}, required by ${reference.nodeId} (${reference.field}: ${modelHash}). Import or restore that declared model and its ancestry, or explicitly revise the reference; no incomplete bundle was exported.`, { cause });
-      }
-      requireCompleteModelScopes(model, input.accessScopes);
-      if (!input.destinationPath) retain({ modelHash: cursor, definition: model });
-      pending.push({ hash: cursor, model });
-      cursor = model.revision?.previous_model_hash ?? null;
+  previous = null;
+  // The graph's models, the explicitly referenced other worlds and lives, and the model's own newer revisions when the
+  // graph lags it, each with its ancestry. Otherwise a successful round trip silently strands references or revisions.
+  const graphModelHash = boundModelHash(head);
+  const heads = includeModelHeads ? await modelHeadsAfter(service, graphModelHash) : [];
+  const parentOf = new Map();
+  for (const modelHash of [...new Set([...bound, ...declared.keys(), ...heads.map((item) => item.modelHash)])]) {
+    let pending;
+    try {
+      pending = await ancestryNotHeld(service, modelHash, parentOf);
+    } catch (cause) {
+      const reference = declared.get(modelHash);
+      if (!reference) throw cause;
+      throw new Error(`Construction export cannot include model ${modelHash}, required by ${reference.nodeId} (${reference.field}: ${modelHash}). Import or restore that declared model and its ancestry, or explicitly revise the reference; no incomplete bundle was exported.`, { cause });
     }
-    for (const entry of pending.reverse()) models.set(entry.hash, entry.model);
+    if (parentOf.size + pending.length > MAX_HISTORY_MODELS) throw new Error(`Construction export exceeds the supported model ancestry depth of ${MAX_HISTORY_MODELS} revisions.`);
+    for (const header of pending.reverse()) parentOf.set(header.modelHash, header.previous ?? null);
+    progress('model ancestry', parentOf.size, null);
   }
-  const ordered = []; const placed = new Set();
-  while (ordered.length < models.size) {
-    const before = ordered.length;
-    for (const [modelHash, model] of models) {
-      const parent = model.revision?.previous_model_hash ?? null;
-      if (!placed.has(modelHash) && (!parent || placed.has(parent) || !models.has(parent))) { ordered.push({ modelHash, definition: model }); placed.add(modelHash); }
-    }
-    if (ordered.length === before) throw new Error('The model revisions do not form a chain.');
-  }
-  // JavaScript keeps a zero's sign, but cannot keep every Rust JSON number (for example, an integer above 2^53 or
-  // 1.0 versus 1 in an untyped parameter). Prove the transported definition still has its engine identity before
-  // returning a bundle or opening its destination. Never export silently changed content under the original hash.
-  for (const { modelHash, definition } of ordered) {
+  const ordered = modelOrder(parentOf);
+  const modelHeadHashes = heads.map((item) => item.modelHash);
+  const fields = { graphId: head.graph.id, headGraphHash: head.graph_hash, ...(modelHeadHashes.length ? { modelHeadHashes } : {}) };
+  writer?.beginModels(fields, ordered, parentOf);
+  // Each model is read whole once, in order. JavaScript keeps a zero's sign, but cannot keep every Rust JSON number
+  // (an integer above 2^53, or 1.0 against 1 in an untyped parameter), so each must still have its engine identity
+  // after passing through JSON here: never export silently changed content under the original hash.
+  const models = [];
+  for (const [index, modelHash] of ordered.entries()) {
+    const definition = (await service.inspectModel({ modelHash, includeDefinition: true }))?.model;
+    if (!definition) throw new Error(`Model ${modelHash} is not stored.`);
+    requireCompleteModelScopes(definition, input.accessScopes);
     const rebuilt = await service.validateModel({ model: definition });
     if (rebuilt.modelHash !== modelHash) {
       throw new Error(`Construction export cannot preserve model ${modelHash} exactly through JavaScript JSON numbers (rebuilt as ${rebuilt.modelHash}). No history was exported; preserve the native session file instead.`);
     }
+    if (writer) await writer.addModel(index, modelHash, definition);
+    else { retain({ modelHash, definition }); models.push({ modelHash, definition }); }
+    progress('models', index + 1, ordered.length);
   }
-  const history = { schema: 'meaning-model-construction-history/v1', graphId: head.graph.id, headGraphHash: head.graph_hash,
-    revisionCount: revisions.length, models: ordered, revisions };
-  if (!input.destinationPath) return { ...history, bundleSha256: historyDigest(history, budget).sha256 };
-  // A file writes model revisions as their changes and is bounded by what it holds; the checksum covers the history
-  // as a reader sees it, expanded, however large that is.
-  const fileModels = encodeHistoryModels(ordered);
-  for (const entry of fileModels) retain(entry);
-  const bundle = { ...history, bundleSha256: historyDigest(history, Number.MAX_SAFE_INTEGER).sha256 };
-  const file = await writeHistoryFile(input.destinationPath, { ...bundle, schema: HISTORY_FILE_SCHEMA_V2, models: fileModels });
-  return { schema: 'meaning-model-construction-file-export/v1', ...file, bundleSha256: bundle.bundleSha256,
-    graphId: history.graphId, headGraphHash: history.headGraphHash, revisionCount: revisions.length, modelCount: ordered.length,
-    graphMutation: false, worldMutation: false, nextStep: 'Import with life_construction_import using sourcePath and a requestId. The file contains complete history within this selected model-bound lineage.' };
+  const lag = heads.length ? {
+    graphModelHash, modelHeadHashes, modelHeadRevision: heads[0].number,
+    graphLagsModelBy: heads[0].stepsFrom ?? null,
+    note: `The graph's head is bound to model ${graphModelHash.slice(0, 12)}, ${heads[0].stepsFrom ?? 'some'} revision(s) behind the model's newest revision ${heads[0].number} (${modelHeadHashes.map((hash) => hash.slice(0, 12)).join(', ')}). The export carries the model's lineage through ${modelHeadHashes.length === 1 ? 'it' : 'each of them'} as well as the graph's; rebind the graph to record the newer revisions in it.`,
+  } : null;
+  if (!writer) {
+    const history = { schema: HISTORY_SCHEMA, ...fields, revisionCount: revisions.length, models, revisions };
+    return { ...history, bundleSha256: historyDigest(history, budget).sha256 };
+  }
+  const file = await writer.finish();
+  progress('file', 1, 1);
+  return { schema: 'meaning-model-construction-file-export/v1', path: file.path, bytes: file.bytes, fileSha256: file.fileSha256, bundleSha256: file.bundleSha256,
+    graphId: fields.graphId, headGraphHash: fields.headGraphHash, revisionCount: lineage.path.length, modelCount: ordered.length,
+    ...(lag ? { modelLineage: lag } : {}),
+    graphMutation: false, worldMutation: false,
+    nextStep: `Import with life_construction_import using sourcePath and a requestId. The file contains complete history within this selected model-bound lineage${lag ? ', and the model\'s newer revisions' : ''}.` };
+}
+
+// Stores models in order, each checked to rebuild with its hash.
+async function storeModels(service, requestId, models) {
+  let index = -1;
+  for await (const entry of models) {
+    index += 1;
+    const definition = entry.definition;
+    const stored = definition.revision?.number === 0 || !definition.revision?.previous_model_hash
+      ? await service.registerModel({ requestId: `${requestId}.model.${index}`, model: definition })
+      : await service.reviseModel({ requestId: `${requestId}.model.${index}`, previousModelHash: definition.revision.previous_model_hash, model: definition });
+    if (stored.modelHash !== entry.modelHash) throw new Error(`Model ${index} rebuilt as ${stored.modelHash}, not ${entry.modelHash}; the history cannot be reproduced.`);
+  }
+  return index + 1;
+}
+
+// Applies graph revisions in order: a step that only added records goes in as an additive batch, any other as a revision
+// by change; neither keeps a copy of the whole graph in its receipt, so a long history fits the receipt budget.
+async function storeRevisions(service, requestId, revisions, scopes) {
+  let definition = null; let graphHash = null; let count = 0;
+  const applied = { registered: 0, additiveBatches: 0, revisionsByChange: 0 };
+  for await (const entry of revisions) {
+    const index = count; count += 1;
+    const stepId = `${requestId}.graph.${index}`;
+    if (index === 0) {
+      definition = entry.definition;
+      graphHash = (await service.registerNarrativeGraph({ requestId: stepId, narrativeGraph: definition, [NARRATIVE_HISTORY_REPLAY]: true })).graphHash;
+      applied.registered += 1;
+    } else {
+      const next = applyNarrativeDefinitionDelta(definition, entry.delta);
+      const batch = additiveNarrativeBatch(definition, entry.delta, graphHash);
+      let stored = null;
+      if (batch) {
+        try {
+          stored = await service.applyNarrativeBatch({ requestId: stepId, previousGraphHash: graphHash, narrativeBatch: batch, [NARRATIVE_HISTORY_REPLAY]: true });
+          applied.additiveBatches += 1;
+        } catch (cause) {
+          // A batch must connect every new part to what exists; a step that added a part the original
+          // revision connected another way is stored as a revision by change instead.
+          if (cause?.indeterminate === true) throw cause;
+        }
+      }
+      if (!stored) {
+        stored = await service.reviseNarrativeGraphByDelta({ requestId: stepId, previousGraphHash: graphHash, delta: entry.delta, accessScopes: scopes, [NARRATIVE_HISTORY_REPLAY]: true });
+        applied.revisionsByChange += 1;
+      }
+      graphHash = stored.graphHash;
+      definition = next;
+    }
+    if (graphHash !== entry.graphHash) throw new Error(`Graph revision ${index} rebuilt as ${graphHash}, not ${entry.graphHash}; the history cannot be reproduced.`);
+  }
+  return { graphHash, count, applied };
+}
+
+// The newer model heads a history carries beyond its graph, and whether this engine now holds each.
+async function importedModelHeads(service, fields) {
+  if (!Array.isArray(fields.modelHeadHashes) || !fields.modelHeadHashes.length) return {};
+  const held = [];
+  for (const modelHash of fields.modelHeadHashes) {
+    try { held.push(Boolean((await service.inspectModel({ modelHash }))?.summary)); } catch { held.push(false); }
+  }
+  return { modelHeadHashes: fields.modelHeadHashes, modelHeadsStored: held.every(Boolean) };
 }
 
 export async function importConstructionHistory(service, raw) {
   const input = historyImportSchema.parse(raw);
-  const file = input.sourcePath ? await readHistoryFile(input.sourcePath) : null;
-  const history = file ? z.object({ schema: z.enum([HISTORY_SCHEMA, HISTORY_FILE_SCHEMA_V2]) }).passthrough().parse(file.history) : input.history;
+  if (input.sourcePath) return importHistoryFile(service, input);
+  const history = input.history;
   const { bundleSha256 } = history;
-  if (file && !/^[a-f0-9]{64}$/u.test(bundleSha256 ?? '')) throw new Error('A portable history file must include its bundleSha256 checksum.');
-  // Nothing is expanded before the file's structure is known to be sound, models are expanded one at a time, and
+  // Nothing is expanded before the history's structure is known to be sound, models are expanded one at a time, and
   // nothing is stored before the checksum holds: one pass checks it (collecting the models' access scopes), a second
   // stores the models.
   const plan = planHistoryModels(history);
@@ -1224,54 +1377,83 @@ export async function importConstructionHistory(service, raw) {
   } else {
     for (const _ of checked());
   }
-  let index = -1;
-  for (const entry of expandHistoryModels(history, plan)) {
-    index += 1;
-    const definition = entry.definition;
-    const stored = definition.revision?.number === 0 || !definition.revision?.previous_model_hash
-      ? await service.registerModel({ requestId: `${input.requestId}.model.${index}`, model: definition })
-      : await service.reviseModel({ requestId: `${input.requestId}.model.${index}`, previousModelHash: definition.revision.previous_model_hash, model: definition });
-    if (stored.modelHash !== entry.modelHash) throw new Error(`Model ${index} rebuilt as ${stored.modelHash}, not ${entry.modelHash}; the history cannot be reproduced.`);
-  }
-  // A step that only added records goes in as an additive batch, any other as a revision by change;
-  // neither keeps a copy of the whole graph in its receipt, so a long history fits the receipt budget.
+  await storeModels(service, input.requestId, expandHistoryModels(history, plan));
   const scopes = [...scopesIn(history.revisions, modelScopes)].sort();
   if (scopes.length > 64) throw new Error(`The history uses ${scopes.length} access scopes; an import can read at most 64 at once.`);
-  let definition = null; let graphHash = null;
-  const applied = { registered: 0, additiveBatches: 0, revisionsByChange: 0 };
-  for (const [index, entry] of (history.revisions ?? []).entries()) {
-    const requestId = `${input.requestId}.graph.${index}`;
-    if (index === 0) {
-      definition = entry.definition;
-      graphHash = (await service.registerNarrativeGraph({ requestId, narrativeGraph: definition, [NARRATIVE_HISTORY_REPLAY]: true })).graphHash;
-      applied.registered += 1;
-    } else {
-      const next = applyNarrativeDefinitionDelta(definition, entry.delta);
-      const batch = additiveNarrativeBatch(definition, entry.delta, graphHash);
-      let stored = null;
-      if (batch) {
-        try {
-          stored = await service.applyNarrativeBatch({ requestId, previousGraphHash: graphHash, narrativeBatch: batch, [NARRATIVE_HISTORY_REPLAY]: true });
-          applied.additiveBatches += 1;
-        } catch (cause) {
-          // A batch must connect every new part to what exists; a step that added a part the original
-          // revision connected another way is stored as a revision by change instead.
-          if (cause?.indeterminate === true) throw cause;
-        }
-      }
-      if (!stored) {
-        stored = await service.reviseNarrativeGraphByDelta({ requestId, previousGraphHash: graphHash, delta: entry.delta, accessScopes: scopes, [NARRATIVE_HISTORY_REPLAY]: true });
-        applied.revisionsByChange += 1;
-      }
-      graphHash = stored.graphHash;
-      definition = next;
-    }
-    if (graphHash !== entry.graphHash) throw new Error(`Graph revision ${index} rebuilt as ${graphHash}, not ${entry.graphHash}; the history cannot be reproduced.`);
-  }
+  const { graphHash, applied } = await storeRevisions(service, input.requestId, history.revisions ?? [], scopes);
   return { schema: 'meaning-model-construction-import/v1', graphId: history.graphId, headGraphHash: graphHash, revisions: history.revisions.length, models: plan.count,
-    ...(file ? { sourceFile: { path: file.path, bytes: file.bytes, fileSha256: file.fileSha256 }, bundleSha256 } : {}),
+    ...(await importedModelHeads(service, history)),
     applied, verified: graphHash === history.headGraphHash, graphMutation: true, worldMutation: false,
     nextStep: 'Replay it with life_construction_replay on headGraphHash.' };
+}
+
+// A file is read one entry at a time, three times over its models and twice over its revisions: to check its structure,
+// to check its checksum (collecting access scopes), and to store it. Each later reading must meet the same bytes, entry
+// by entry, so a file that changes meanwhile stops the import instead of storing content that was never checked.
+const historyFileMetadataSchema = z.object({
+  schema: z.enum([HISTORY_SCHEMA, HISTORY_FILE_SCHEMA_V2]),
+  graphId: id,
+  headGraphHash: hash,
+  // Earlier callers could omit the count; when present it must describe the actual entries.
+  revisionCount: z.number().int().min(1).optional(),
+  modelHeadHashes: z.array(hash).optional(),
+}).passthrough();
+
+async function importHistoryFile(service, input) {
+  const file = await openHistoryFile(input.sourcePath);
+  try {
+    const fields = file.fields;
+    historyFileMetadataSchema.parse(fields);
+    const { bundleSha256 } = fields;
+    if (!/^[a-f0-9]{64}$/u.test(bundleSha256 ?? '')) throw new Error('A portable history file must include its bundleSha256 checksum.');
+    if (!file.hasModels) throw new Error('A construction history lists its models.');
+    if (!file.hasRevisions) throw new Error('A construction history lists its graph revisions.');
+    const { plan, digests } = await planHistoryEntries(fields.schema, file.entries('models'));
+    const scopes = new Set(); const revisionDigests = []; let lastGraphHash = null;
+    const checkedRevisions = async function* () {
+      for await (const { value, sha256 } of file.entries('revisions')) {
+        const index = revisionDigests.length;
+        if (!hash.safeParse(value.graphHash).success) throw new Error(`Graph revision ${index} lacks a valid graphHash.`);
+        if (index === 0 && (!value.definition || typeof value.definition !== 'object' || Array.isArray(value.definition))) {
+          throw new Error('The first graph revision must hold its complete definition.');
+        }
+        if (index === 0 && value.definition.id !== fields.graphId) throw new Error('The first graph revision does not match the history graphId.');
+        revisionDigests.push(sha256);
+        lastGraphHash = value.graphHash;
+        yield value;
+      }
+    };
+    const digest = await expandedHistoryDigestStream(fields, {
+      models: expandHistoryEntries(file.entries('models'), plan, digests),
+      revisions: checkedRevisions(),
+      onModel: (model) => scopesIn(model, scopes), onRevision: (revision) => scopesIn(revision, scopes),
+    });
+    if (digest !== bundleSha256) throw new Error('The history bundle does not match its bundleSha256.');
+    if (!revisionDigests.length) throw new Error('A construction history must hold at least one graph revision.');
+    if (fields.revisionCount !== undefined && fields.revisionCount !== revisionDigests.length) throw new Error('The history revisionCount does not match its graph revisions.');
+    if (lastGraphHash !== fields.headGraphHash) throw new Error('The history headGraphHash does not match its final graph revision.');
+    const sortedScopes = [...scopes].sort();
+    if (sortedScopes.length > 64) throw new Error(`The history uses ${sortedScopes.length} access scopes; an import can read at most 64 at once.`);
+    await file.unchanged();
+    await storeModels(service, input.requestId, expandHistoryEntries(file.entries('models'), plan, digests));
+    let index = 0;
+    const revisions = async function* () {
+      for await (const { value, sha256 } of file.entries('revisions')) {
+        if (revisionDigests[index] !== sha256) throw new Error(`Graph revision ${index} changed while the file was read.`);
+        index += 1;
+        yield value;
+      }
+      if (index !== revisionDigests.length) throw new Error('The graph revision list changed while the file was read.');
+    };
+    const { graphHash, count, applied } = await storeRevisions(service, input.requestId, revisions(), sortedScopes);
+    return { schema: 'meaning-model-construction-import/v1', graphId: fields.graphId, headGraphHash: graphHash, revisions: count, models: plan.count,
+      ...(await importedModelHeads(service, fields)),
+      sourceFile: { path: file.path, bytes: file.bytes, fileSha256: file.fileSha256 }, bundleSha256,
+      applied, verified: graphHash === fields.headGraphHash, graphMutation: true, worldMutation: false,
+      nextStep: 'Replay it with life_construction_replay on headGraphHash.' };
+  } finally {
+    await file.close();
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1298,17 +1480,17 @@ export function registerConstructionRecordTools(server, service, { toolResult })
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await readNotes(service, input)));
   server.registerTool('life_model_outline', {
-    description: 'Read the present state as a readable outline: description coverage (which Events carry numbers without a description), Things, the Event tree with descriptions and the Cuts under each Event, the tree of processes (each under the one it was carved from, with its measure and how far its values reach, headed by its size level by level), concepts, understanding roots and documents. With a graphHash it overlays the Understanding Nodes linked to each record, at the chosen depth: none, count, first_line or full. Shown notes mark different or unknown model bases, with parsed writtenAgainstModel/currentModel in noteModelBases; these marks do not establish ancestry or invalidity. Use life_revision_check with exact models to identify affected records and notes. Narrow it with sections or focusEventId; detail "skeleton" gives the whole shape (ids, times, names and counts) in little room, to choose what to read in full. A read narrowed to one Event starts with where it sits: the path down from the top and the top two levels of the tree.',
+    description: 'Read the present state as a readable outline: description coverage (which Events carry numbers without a description), Things, the Event tree with descriptions and the Cuts under each Event, the tree of processes (each under the one it was carved from, with its measure and how far its values reach, headed by its size level by level), concepts, understanding roots and documents. With a graphHash it overlays the Understanding Nodes linked to each record, at the chosen depth: none, count, first_line or full. Shown notes mark different or unknown model bases, with parsed writtenAgainstModel/currentModel in noteModelBases; these marks do not establish ancestry or invalidity. Use life_revision_check with exact models to identify affected records and notes. Narrow it with sections or focusEventId; detail "skeleton" gives the whole shape (ids, times, names and counts) in little room, to choose what to read in full. An outline longer than maxChars comes in parts: pass its nextCursor as cursor, with the same arguments, to read the next part. A read narrowed to one Event starts with where it sits: the path down from the top and the top two levels of the tree.',
     inputSchema: outlineSchema,
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await outlineModel(service, input)));
   server.registerTool('life_construction_export', {
-    description: 'Export a model-bound graph lineage as portable history: every bound model revision, explicitly declared external model_reference targets and author_reader life models with all their ancestors, the first graph revision in full, and later graph changes, with a bundle hash. Missing declared dependencies refuse export with repair guidance. Prefer destinationPath for a local JSON file: explicit absolute path, existing parent directory, no overwrite, maximum 480 MiB, compact receipt only. Without a path, inline output is capped at 1 MiB. Import rebuilds the same hashes. Needs accessScopes revealing every graph and model record, including external lives; arbitrary hashes quoted in prose do not introduce dependencies.',
+    description: 'Export a model-bound graph lineage as portable history: every bound model revision, explicitly declared external model_reference targets and author_reader life models with all their ancestors, optionally the model\'s own newer revisions when includeModelHeads is true (the receipt says so, under modelLineage), the first graph revision in full, and later graph changes, with a bundle hash. Missing declared dependencies refuse export with repair guidance. Prefer destinationPath for a local JSON file: explicit absolute path, existing parent directory, no overwrite, written one revision at a time with no size limit, compact receipt only. Without a path, inline output is capped at 1 MiB. Import rebuilds the same hashes. Needs accessScopes revealing every graph and model record, including external lives; arbitrary hashes quoted in prose do not introduce dependencies.',
     inputSchema: historyExportSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await exportConstructionHistory(service, input, { maximumBytes: MAX_INLINE_HISTORY_BYTES })));
   server.registerTool('life_construction_import', {
-    description: 'Rebuild exported construction history on this engine. Supply exactly one of inline history or an explicit absolute sourcePath to a regular local JSON file of at most 480 MiB. File imports check the bundle checksum before any mutation. Register model and graph revisions in order, verifying each rebuilt hash, then replay with life_construction_replay. Source files are never modified; importing is a sequence of immutable registrations, not one all-or-nothing database transaction.',
+    description: 'Rebuild exported construction history on this engine. Supply exactly one of inline history or an explicit absolute sourcePath to a regular local JSON file, read one revision at a time with no size limit. File imports check the bundle checksum before any mutation. Register model and graph revisions in order, verifying each rebuilt hash, then replay with life_construction_replay. Source files are never modified; importing is a sequence of immutable registrations, not one all-or-nothing database transaction.',
     inputSchema: historyImportSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   }, async (input) => toolResult(await importConstructionHistory(service, input)));

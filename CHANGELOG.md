@@ -4,6 +4,27 @@ User-facing changes to the Meaning Model engine, MCP package, and bundled
 artifacts. Released entries use package versions and UTC publication dates;
 unpublished work stays under Unreleased. This is not a development transcript.
 
+## Unreleased
+
+**Large constructions (planned 0.18.0)**
+- Durable stores keep revision headers in memory and load saved model and narrative rows when needed. Bounded caches
+  retain recent rows; the session can address more revisions without holding every stored revision in memory.
+- Opening an older store validates and seals each revision once. Later opens check the seals; each saved row is
+  checked against its digest when loaded. An explicit store audit validates the revisions again. Content hashes and portable history formats remain
+  unchanged.
+- History files are imported and exported one revision at a time. Their checksums are verified before import writes
+  begin, and each reread is checked against the inspected entries. Existing whole-file and inline paths retain their
+  size limits; individual revisions and session resources remain bounded.
+- Exports stay pinned to the selected graph and the model revisions it requires. `includeModelHeads: true` also
+  includes newer revisions on that model's line, if the supplied scopes reveal them, and names them in the receipt.
+- Large process outlines and model definitions can be read in pages. Definition pages carry a checksum and a cursor;
+  JSON escaping and Unicode boundaries are included in their size checks. Complete definition files remain available.
+- Engine calls use execution ceilings appropriate to reads, writes and expensive computations. A queued read cannot
+  exhaust its execution allowance while a healthy earlier computation is running. Heartbeats identify silent engines,
+  and a closed input pipe returns an error instead of terminating the MCP server.
+- Streaming imports reject malformed delimiters, duplicate metadata and inconsistent history headers before writes.
+  Metadata keys such as `__proto__` remain ordinary data.
+
 ## 0.17.0 — 2026-10-29
 
 The engine is reorganized into smaller modules for models, sessions, persistence and the numerical registry.

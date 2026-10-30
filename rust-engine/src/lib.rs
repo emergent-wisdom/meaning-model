@@ -21,6 +21,8 @@ use std::fmt::{Display, Formatter};
 mod graph_algorithms;
 pub(crate) use graph_algorithms::ensure_acyclic;
 
+pub mod heartbeat;
+
 mod limits;
 
 mod model;

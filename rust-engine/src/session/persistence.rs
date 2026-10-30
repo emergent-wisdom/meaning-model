@@ -1,5 +1,5 @@
-//! The SQLite state file: its tables, the transaction that writes a session's dirty rows, and the load that reads a
-//! whole session back and checks it before the session is rebuilt from it (session/restore.rs).
+//! The SQLite state file: its tables, the transaction that writes a session's dirty rows and seals, and the load that
+//! reads revision headers plus the working set before the session is rebuilt (session/restore.rs).
 //!
 //! A write is one transaction. It first compare-and-swaps the file's generation, from the one this session last read or
 //! wrote to the next, so a session opened before another writer's commit cannot overwrite that commit. It then writes
@@ -7,7 +7,10 @@
 //! whether its COMMIT was attempted, which is what decides whether its outcome is certain. A load reads one consistent
 //! snapshot of the file, even while another session migrates it.
 
-use std::collections::BTreeSet;
+use crate::session::store_rows::{
+    sha256_hex, ModelHeader, NarrativeHeader, Seal, SealKind, SealRef, StoreReader,
+};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
@@ -246,7 +249,7 @@ fn encode_sqlite_json(value: &impl Serialize) -> EngineResult<Vec<u8>> {
         .map_err(|cause| error(format!("failed to encode SQLite session row: {cause}")))
 }
 
-fn decode_sqlite_json<T: for<'de> Deserialize<'de>>(
+pub(super) fn decode_sqlite_json<T: for<'de> Deserialize<'de>>(
     bytes: Vec<u8>,
     label: &str,
 ) -> EngineResult<T> {
@@ -280,7 +283,7 @@ fn sqlite_table_exists(connection: &Connection, table: &str) -> EngineResult<boo
         .map_err(|cause| sqlite_error("failed to inspect SQLite table availability", cause))
 }
 
-fn preflight_sqlite_limits(connection: &Connection) -> EngineResult<()> {
+fn preflight_sqlite_limits(connection: &Connection, indexed: bool) -> EngineResult<()> {
     let (model_count, model_bytes) = sqlite_count_and_bytes(
         connection,
         "SELECT count(*), coalesce(sum(length(definition_json)), 0) FROM models",
@@ -361,6 +364,11 @@ fn preflight_sqlite_limits(connection: &Connection) -> EngineResult<()> {
             .ok_or_else(|| error("SQLite project checkpoint byte count overflow"))?
     } else {
         0
+    };
+    let (model_bytes, narrative_bytes) = if indexed {
+        (0, 0)
+    } else {
+        (model_bytes, narrative_bytes)
     };
     if model_count > MAX_SESSION_MODELS
         || model_bytes > MAX_SESSION_MODEL_BYTES
@@ -450,7 +458,7 @@ fn initialize_sqlite_schema(transaction: &Transaction<'_>) -> EngineResult<bool>
     }
 }
 
-fn persist_model_row(transaction: &Transaction<'_>, stored: &StoredModel) -> EngineResult<()> {
+fn persist_model_row(transaction: &Transaction<'_>, stored: &StoredModel) -> EngineResult<Vec<u8>> {
     let (json, base_model_hash) = match stored {
         StoredModel::Whole { definition, .. } => (encode_sqlite_json(definition)?, None),
         StoredModel::Changes {
@@ -467,7 +475,7 @@ fn persist_model_row(transaction: &Transaction<'_>, stored: &StoredModel) -> Eng
             params![stored.model_hash(), json, base_model_hash],
         )
         .map_err(|cause| sqlite_error("failed to persist model row", cause))?;
-    Ok(())
+    Ok(json)
 }
 
 fn persist_world_row(transaction: &Transaction<'_>, world: &WorldHead) -> EngineResult<()> {
@@ -522,7 +530,7 @@ fn persist_narrative_snapshot_row(
 fn persist_narrative_revision_row(
     transaction: &Transaction<'_>,
     revision: &StoredNarrativeRevision,
-) -> EngineResult<()> {
+) -> EngineResult<Vec<u8>> {
     let operation_sequence = i64::try_from(revision.operation_sequence)
         .map_err(|_| error("narrative operation sequence exceeds SQLite integer range"))?;
     let revision_number = i64::try_from(revision.revision.number)
@@ -545,7 +553,7 @@ fn persist_narrative_revision_row(
             ],
         )
         .map_err(|cause| sqlite_error("failed to persist narrative revision", cause))?;
-    Ok(())
+    Ok(json)
 }
 
 fn persist_project_document_row(
@@ -652,7 +660,7 @@ fn persist_project_checkpoint_row(
 pub(super) fn persist_sqlite_changes(
     path: &Path,
     after: &MachineSession,
-) -> Result<u64, PersistenceFailure> {
+) -> Result<(u64, Vec<Seal>), PersistenceFailure> {
     let parent = state_parent(path);
     if !parent.is_dir() {
         return Err(PersistenceFailure {
@@ -666,6 +674,7 @@ pub(super) fn persist_sqlite_changes(
     let existed_before = path.exists();
     let mut commit_attempted = false;
     let mut committed_generation = None;
+    let mut seals: Vec<Seal> = Vec::new();
     let write_result = (|| -> EngineResult<()> {
         let mut connection = Connection::open(path).map_err(|cause| {
             sqlite_error(
@@ -679,6 +688,11 @@ pub(super) fn persist_sqlite_changes(
             .transaction()
             .map_err(|cause| sqlite_error("failed to begin SQLite session transaction", cause))?;
         let migrated = initialize_sqlite_schema(&transaction)?;
+        transaction
+            .execute_batch(SQLITE_SEAL_SCHEMA)
+            .map_err(|cause| sqlite_error("failed to prepare the seal table", cause))?;
+        // A new revision's seal chains to its predecessor's, written earlier or in this same transaction.
+        let mut batch_seals: BTreeMap<(SealKind, String), String> = BTreeMap::new();
 
         let next_generation = after
             .persistence_generation
@@ -720,15 +734,35 @@ pub(super) fn persist_sqlite_changes(
                     .models
                     .entry(hash)
                     .ok_or_else(|| error("dirty model key is unavailable"))?;
-                if let StoredModel::Changes {
-                    base_model_hash, ..
-                } = &entry.stored
-                {
+                if let Some(base_model_hash) = &entry.base_model_hash {
                     if pending.contains(base_model_hash) && !written.contains(base_model_hash) {
                         continue;
                     }
                 }
-                persist_model_row(&transaction, &entry.stored)?;
+                let row = after.models.row(hash)?;
+                let bytes = persist_model_row(&transaction, &row)?;
+                let parent_seal = match &entry.header.previous_model_hash {
+                    None => Some(None),
+                    Some(previous) => batch_seals
+                        .get(&(SealKind::Model, previous.clone()))
+                        .cloned()
+                        .or_else(|| {
+                            after
+                                .models
+                                .entry(previous)
+                                .and_then(|previous| previous.seal.as_ref())
+                                .map(|seal| seal.seal_sha256.clone())
+                        })
+                        .map(Some),
+                };
+                if let Some(parent_seal) = parent_seal {
+                    let seal =
+                        Seal::new(SealKind::Model, hash, &bytes, &entry.header, parent_seal)?;
+                    insert_seal(&transaction, &seal)?;
+                    batch_seals
+                        .insert((SealKind::Model, (*hash).clone()), seal.seal_sha256.clone());
+                    seals.push(seal);
+                }
                 written.insert(*hash);
             }
             if written.len() == before {
@@ -762,24 +796,54 @@ pub(super) fn persist_sqlite_changes(
         for hash in &after.dirty.narrative_source_snapshots {
             let snapshot = after
                 .narrative_source_snapshots
-                .get(hash)
+                .rows
+                .held(hash)
                 .ok_or_else(|| error("dirty narrative snapshot key is unavailable"))?;
-            persist_narrative_snapshot_row(&transaction, hash, snapshot)?;
+            persist_narrative_snapshot_row(&transaction, hash, &snapshot)?;
         }
-        let mut new_revisions: Vec<&StoredNarrativeRevision> = after
+        let mut new_revisions: Vec<std::sync::Arc<StoredNarrativeRevision>> = after
             .dirty
             .narrative_revisions
             .iter()
             .map(|hash| {
                 after
-                    .narrative_revisions
-                    .get(hash)
+                    .narrative_records
+                    .held(hash)
                     .ok_or_else(|| error("dirty narrative revision key is unavailable"))
             })
             .collect::<EngineResult<Vec<_>>>()?;
         new_revisions.sort_by_key(|revision| revision.operation_sequence);
         for revision in new_revisions {
-            persist_narrative_revision_row(&transaction, revision)?;
+            let bytes = persist_narrative_revision_row(&transaction, &revision)?;
+            let parent_seal = match &revision.revision.previous_graph_hash {
+                None => Some(None),
+                Some(previous) => batch_seals
+                    .get(&(SealKind::Narrative, previous.clone()))
+                    .cloned()
+                    .or_else(|| {
+                        after
+                            .narrative_revisions
+                            .get(previous)
+                            .and_then(|previous| previous.seal.as_ref())
+                            .map(|seal| seal.seal_sha256.clone())
+                    })
+                    .map(Some),
+            };
+            if let Some(parent_seal) = parent_seal {
+                let seal = Seal::new(
+                    SealKind::Narrative,
+                    &revision.graph_hash,
+                    &bytes,
+                    &NarrativeHeader::from(revision.as_ref()),
+                    parent_seal,
+                )?;
+                insert_seal(&transaction, &seal)?;
+                batch_seals.insert(
+                    (SealKind::Narrative, revision.graph_hash.clone()),
+                    seal.seal_sha256.clone(),
+                );
+                seals.push(seal);
+            }
         }
         for hash in &after.dirty.project_documents {
             let document = after
@@ -846,7 +910,12 @@ pub(super) fn persist_sqlite_changes(
         }
     }
     write_result
-        .map(|()| committed_generation.expect("successful commit records a generation"))
+        .map(|()| {
+            (
+                committed_generation.expect("successful commit records a generation"),
+                seals,
+            )
+        })
         .map_err(|cause| PersistenceFailure {
             cause,
             // A failed SQLite COMMIT can be ambiguous at the filesystem boundary.
@@ -887,7 +956,398 @@ fn before_commit(transaction: &Transaction<'_>) {
     }
 }
 
+#[cfg(test)]
 pub(super) fn load_sqlite_session(path: &Path) -> EngineResult<PersistedSession> {
+    load_sqlite(path, LoadMode::Whole).map(|(persisted, _)| persisted)
+}
+
+const SQLITE_SEAL_SCHEMA: &str = r#"
+CREATE TABLE IF NOT EXISTS revision_seals (
+    kind TEXT NOT NULL,
+    object_hash TEXT NOT NULL,
+    row_sha256 TEXT NOT NULL,
+    row_bytes INTEGER NOT NULL CHECK(row_bytes >= 0),
+    header_json BLOB NOT NULL,
+    parent_seal TEXT,
+    seal_sha256 TEXT NOT NULL,
+    PRIMARY KEY(kind, object_hash)
+);
+"#;
+
+/// How much of a state file a load reads.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum LoadMode {
+    /// Every row, as a session held in memory needs.
+    Whole,
+    /// Headers from the seals, and whole rows only for revisions without a valid seal.
+    Trusting,
+    /// Every revision's row, ignoring the seals, so each is validated again.
+    Auditing,
+}
+
+/// A durable session's view of its file: the sealed revisions by header, the digests of the unsealed rows read whole,
+/// the source snapshots by hash, and the seals as the file holds them.
+pub(super) struct StoreIndex {
+    pub(super) reader: std::sync::Arc<StoreReader>,
+    pub(super) sealed_models: Vec<(String, ModelHeader, Option<String>, usize, SealRef)>,
+    pub(super) sealed_narratives: Vec<(NarrativeHeader, usize, SealRef)>,
+    pub(super) row_digests: BTreeMap<(SealKind, String), (String, usize)>,
+    pub(super) snapshots: BTreeMap<String, String>,
+    pub(super) stored_seals: BTreeMap<(SealKind, String), Seal>,
+}
+
+pub(super) fn insert_seal(connection: &Connection, seal: &Seal) -> EngineResult<()> {
+    connection
+        .execute(
+            "INSERT OR REPLACE INTO revision_seals(kind, object_hash, row_sha256, row_bytes, header_json, parent_seal, seal_sha256)\
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                seal.kind.as_str(),
+                seal.object_hash,
+                seal.row_sha256,
+                i64::try_from(seal.row_bytes).map_err(|_| error("a sealed row is too large to record"))?,
+                seal.header_json,
+                seal.parent_seal,
+                seal.seal_sha256
+            ],
+        )
+        .map_err(|cause| sqlite_error("failed to record a seal", cause))?;
+    Ok(())
+}
+
+pub(super) fn write_seals(path: &Path, seals: &[Seal]) -> EngineResult<()> {
+    let mut connection = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_WRITE)
+        .map_err(|cause| {
+            sqlite_error(
+                &format!("failed to open SQLite state file {}", path.display()),
+                cause,
+            )
+        })?;
+    configure_sqlite(&connection)?;
+    let transaction = connection
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(|cause| sqlite_error("failed to begin the seal write", cause))?;
+    transaction
+        .execute_batch(SQLITE_SEAL_SCHEMA)
+        .map_err(|cause| sqlite_error("failed to prepare the seal table", cause))?;
+    for seal in seals {
+        insert_seal(&transaction, seal)?;
+    }
+    transaction
+        .commit()
+        .map_err(|cause| sqlite_error("failed to commit the seals", cause))
+}
+
+pub(super) fn read_seals(
+    connection: &Connection,
+) -> EngineResult<BTreeMap<(SealKind, String), Seal>> {
+    let mut seals = BTreeMap::new();
+    if !sqlite_table_exists(connection, "revision_seals")? {
+        return Ok(seals);
+    }
+    let mut statement = connection
+        .prepare("SELECT kind, object_hash, row_sha256, row_bytes, header_json, parent_seal, seal_sha256 FROM revision_seals")
+        .map_err(|cause| sqlite_error("failed to prepare the seal read", cause))?;
+    let mut rows = statement
+        .query([])
+        .map_err(|cause| sqlite_error("failed to query seals", cause))?;
+    while let Some(row) = rows
+        .next()
+        .map_err(|cause| sqlite_error("failed to read a seal", cause))?
+    {
+        let kind: String = row
+            .get(0)
+            .map_err(|cause| sqlite_error("invalid seal kind", cause))?;
+        let kind = match kind.as_str() {
+            "model" => SealKind::Model,
+            "narrative" => SealKind::Narrative,
+            // A kind a later engine seals is not this one's to trust or refuse.
+            _ => continue,
+        };
+        let row_bytes: i64 = row
+            .get(3)
+            .map_err(|cause| sqlite_error("invalid seal row size", cause))?;
+        let seal = Seal {
+            kind,
+            object_hash: row
+                .get(1)
+                .map_err(|cause| sqlite_error("invalid seal object hash", cause))?,
+            row_sha256: row
+                .get(2)
+                .map_err(|cause| sqlite_error("invalid seal row digest", cause))?,
+            row_bytes: u64::try_from(row_bytes)
+                .map_err(|_| error("a seal names a negative row size"))?,
+            header_json: row
+                .get(4)
+                .map_err(|cause| sqlite_error("invalid seal header", cause))?,
+            parent_seal: row
+                .get(5)
+                .map_err(|cause| sqlite_error("invalid parent seal", cause))?,
+            seal_sha256: row
+                .get(6)
+                .map_err(|cause| sqlite_error("invalid seal hash", cause))?,
+        };
+        seals.insert((kind, seal.object_hash.clone()), seal);
+    }
+    Ok(seals)
+}
+
+pub(super) fn read_store_index(
+    connection: &Connection,
+    path: &Path,
+    trust: bool,
+) -> EngineResult<(Vec<StoredModel>, Vec<StoredNarrativeRevision>, StoreIndex)> {
+    let stored_seals = read_seals(connection)?;
+    let usable = |kind: SealKind, hash: &str, bytes: usize| -> Option<&Seal> {
+        let seal = stored_seals.get(&(kind, hash.to_owned()))?;
+        (trust && seal.row_bytes == bytes as u64 && seal.is_intact()).then_some(seal)
+    };
+
+    // Models, by hash, base and row size, without their rows.
+    let mut model_rows: BTreeMap<String, (Option<String>, usize)> = BTreeMap::new();
+    {
+        let mut statement = connection
+            .prepare("SELECT model_hash, base_model_hash, length(definition_json) FROM models")
+            .map_err(|cause| sqlite_error("failed to prepare the model index", cause))?;
+        let mut rows = statement
+            .query([])
+            .map_err(|cause| sqlite_error("failed to query the model index", cause))?;
+        while let Some(row) = rows
+            .next()
+            .map_err(|cause| sqlite_error("failed to read the model index", cause))?
+        {
+            let hash: String = row
+                .get(0)
+                .map_err(|cause| sqlite_error("invalid model hash column", cause))?;
+            let base: Option<String> = row
+                .get(1)
+                .map_err(|cause| sqlite_error("invalid model base column", cause))?;
+            let bytes: i64 = row
+                .get(2)
+                .map_err(|cause| sqlite_error("invalid model row size", cause))?;
+            model_rows.insert(
+                hash,
+                (
+                    base,
+                    usize::try_from(bytes).map_err(|_| error("invalid model row size"))?,
+                ),
+            );
+        }
+    }
+    // A model is trusted when its seal is usable and its predecessor is trusted, with the seal it names.
+    let mut trusted_models: BTreeMap<String, Option<(ModelHeader, SealRef)>> = BTreeMap::new();
+    for start in model_rows.keys() {
+        let mut stack = vec![start.clone()];
+        let mut visiting = BTreeSet::new();
+        while let Some(hash) = stack.last().cloned() {
+            if trusted_models.contains_key(&hash) {
+                stack.pop();
+                continue;
+            }
+            visiting.insert(hash.clone());
+            let (base, bytes) = &model_rows[&hash];
+            let decided = match usable(SealKind::Model, &hash, *bytes)
+                .map(|seal| (seal, seal.header::<ModelHeader>()))
+            {
+                Some((seal, Ok(header)))
+                    if base.is_none() || base == &header.previous_model_hash =>
+                {
+                    match header.previous_model_hash.clone() {
+                        None => Some(
+                            seal.parent_seal
+                                .is_none()
+                                .then(|| (header, SealRef::from(seal))),
+                        ),
+                        Some(previous)
+                            if !model_rows.contains_key(&previous)
+                                || visiting.contains(&previous)
+                                    && !trusted_models.contains_key(&previous) =>
+                        {
+                            Some(None)
+                        }
+                        Some(previous) => match trusted_models.get(&previous) {
+                            None => {
+                                stack.push(previous);
+                                None
+                            }
+                            Some(parent) => Some(parent.as_ref().and_then(|(_, parent)| {
+                                (seal.parent_seal.as_deref() == Some(parent.seal_sha256.as_str()))
+                                    .then(|| (header, SealRef::from(seal)))
+                            })),
+                        },
+                    }
+                }
+                _ => Some(None),
+            };
+            if let Some(decided) = decided {
+                trusted_models.insert(hash, decided);
+                stack.pop();
+            }
+        }
+    }
+    let mut models = Vec::new();
+    let mut sealed_models = Vec::new();
+    let mut row_digests = BTreeMap::new();
+    for (hash, (base, bytes)) in &model_rows {
+        match trusted_models.remove(hash).flatten() {
+            Some((header, seal)) => {
+                sealed_models.push((hash.clone(), header, base.clone(), *bytes, seal))
+            }
+            None => {
+                let (json, stored_base): (Vec<u8>, Option<String>) = connection
+                    .query_row(
+                        "SELECT definition_json, base_model_hash FROM models WHERE model_hash = ?1",
+                        [hash],
+                        |row| Ok((row.get(0)?, row.get(1)?)),
+                    )
+                    .map_err(|cause| sqlite_error("failed to read an unsealed model row", cause))?;
+                row_digests.insert(
+                    (SealKind::Model, hash.clone()),
+                    (sha256_hex(&json), json.len()),
+                );
+                models.push(StoredModel::from_row(hash.clone(), &json, stored_base)?);
+                crate::heartbeat::tick();
+            }
+        }
+    }
+
+    // Graph revisions in operation order: a predecessor always comes first.
+    let mut narrative_revisions = Vec::new();
+    let mut sealed_narratives = Vec::new();
+    {
+        let mut trusted: BTreeMap<String, Option<String>> = BTreeMap::new();
+        let mut statement = connection
+            .prepare("SELECT graph_hash, operation_sequence, graph_id, revision_number, previous_graph_hash, snapshot_hash, length(revision_json) FROM narrative_revisions ORDER BY operation_sequence")
+            .map_err(|cause| sqlite_error("failed to prepare the narrative index", cause))?;
+        let mut rows = statement
+            .query([])
+            .map_err(|cause| sqlite_error("failed to query the narrative index", cause))?;
+        while let Some(row) = rows
+            .next()
+            .map_err(|cause| sqlite_error("failed to read the narrative index", cause))?
+        {
+            let key: String = row
+                .get(0)
+                .map_err(|cause| sqlite_error("invalid narrative graph hash column", cause))?;
+            let sequence: i64 = row
+                .get(1)
+                .map_err(|cause| sqlite_error("invalid narrative operation sequence", cause))?;
+            let graph_id: String = row
+                .get(2)
+                .map_err(|cause| sqlite_error("invalid narrative graph id column", cause))?;
+            let revision_number: i64 = row
+                .get(3)
+                .map_err(|cause| sqlite_error("invalid narrative revision number", cause))?;
+            let previous_graph_hash: Option<String> = row
+                .get(4)
+                .map_err(|cause| sqlite_error("invalid previous narrative graph hash", cause))?;
+            let snapshot_hash: String = row
+                .get(5)
+                .map_err(|cause| sqlite_error("invalid narrative snapshot hash", cause))?;
+            let bytes: i64 = row
+                .get(6)
+                .map_err(|cause| sqlite_error("invalid narrative row size", cause))?;
+            let bytes = usize::try_from(bytes).map_err(|_| error("invalid narrative row size"))?;
+            let parent_seal = match &previous_graph_hash {
+                None => Some(None),
+                Some(previous) => trusted.get(previous).cloned().flatten().map(Some),
+            };
+            let accepted = parent_seal.and_then(|parent_seal| {
+                let seal = usable(SealKind::Narrative, &key, bytes)?;
+                let header = seal.header::<NarrativeHeader>().ok()?;
+                (header.graph_hash == key
+                    && i64::try_from(header.operation_sequence).ok() == Some(sequence)
+                    && header.graph_id == graph_id
+                    && i64::try_from(header.revision.number).ok() == Some(revision_number)
+                    && header.revision.previous_graph_hash == previous_graph_hash
+                    && header.snapshot_hash == snapshot_hash
+                    && seal.parent_seal == parent_seal)
+                    .then(|| (header, SealRef::from(seal)))
+            });
+            match accepted {
+                Some((header, seal)) => {
+                    trusted.insert(key, Some(seal.seal_sha256.clone()));
+                    sealed_narratives.push((header, bytes, seal));
+                }
+                None => {
+                    trusted.insert(key.clone(), None);
+                    let json: Vec<u8> = connection
+                        .query_row(
+                            "SELECT revision_json FROM narrative_revisions WHERE graph_hash = ?1",
+                            [&key],
+                            |row| row.get(0),
+                        )
+                        .map_err(|cause| {
+                            sqlite_error("failed to read an unsealed narrative revision", cause)
+                        })?;
+                    row_digests.insert(
+                        (SealKind::Narrative, key.clone()),
+                        (sha256_hex(&json), json.len()),
+                    );
+                    let stored: StoredNarrativeRevision =
+                        decode_sqlite_json(json, "narrative revision")?;
+                    if stored.graph_hash != key
+                        || i64::try_from(stored.operation_sequence).ok() != Some(sequence)
+                        || stored.graph_id != graph_id
+                        || i64::try_from(stored.revision.number).ok() != Some(revision_number)
+                        || stored.revision.previous_graph_hash != previous_graph_hash
+                        || stored.snapshot_hash != snapshot_hash
+                    {
+                        return Err(error(
+                            "SQLite narrative revision columns do not match their content",
+                        ));
+                    }
+                    narrative_revisions.push(stored);
+                    crate::heartbeat::tick();
+                }
+            }
+        }
+    }
+
+    let mut snapshots = BTreeMap::new();
+    {
+        let mut statement = connection
+            .prepare("SELECT snapshot_hash, model_hash, json_extract(CAST(snapshot_json AS TEXT), '$.snapshot.model_hash') FROM narrative_source_snapshots")
+            .map_err(|cause| sqlite_error("failed to prepare the snapshot index", cause))?;
+        let mut rows = statement
+            .query([])
+            .map_err(|cause| sqlite_error("failed to query the snapshot index", cause))?;
+        while let Some(row) = rows
+            .next()
+            .map_err(|cause| sqlite_error("failed to read the snapshot index", cause))?
+        {
+            let snapshot_hash = row
+                .get::<_, String>(0)
+                .map_err(|cause| sqlite_error("invalid narrative snapshot hash column", cause))?;
+            let model_hash = row.get::<_, String>(1).map_err(|cause| {
+                sqlite_error("invalid narrative snapshot model hash column", cause)
+            })?;
+            let content_model_hash = row
+                .get::<_, String>(2)
+                .map_err(|cause| sqlite_error("invalid narrative snapshot model binding", cause))?;
+            if model_hash != content_model_hash {
+                return Err(error(format!(
+                    "narrative source snapshot {snapshot_hash} does not match its model binding"
+                )));
+            }
+            snapshots.insert(snapshot_hash, model_hash);
+        }
+    }
+    let index = StoreIndex {
+        reader: std::sync::Arc::new(StoreReader::new(path.to_path_buf())),
+        sealed_models,
+        sealed_narratives,
+        row_digests,
+        snapshots,
+        stored_seals,
+    };
+    Ok((models, narrative_revisions, index))
+}
+
+pub(super) fn load_sqlite(
+    path: &Path,
+    mode: LoadMode,
+) -> EngineResult<(PersistedSession, Option<StoreIndex>)> {
     let identity =
         Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|cause| {
             sqlite_error(
@@ -975,10 +1435,20 @@ pub(super) fn load_sqlite_session(path: &Path) -> EngineResult<PersistedSession>
             "SQLite session foreign-key check failed at {failure}"
         )));
     }
-    preflight_sqlite_limits(&connection)?;
+    // A v2 file holds every revision whole and has no seals; it is read whole and migrated on its first write.
+    let indexed = mode != LoadMode::Whole && kept_as_changes;
+    preflight_sqlite_limits(&connection, indexed)?;
 
     let mut models = Vec::new();
-    {
+    let mut narrative_revisions = Vec::new();
+    let mut index = None;
+    if indexed {
+        let (unsealed_models, unsealed_narratives, store_index) =
+            read_store_index(&connection, path, mode == LoadMode::Trusting)?;
+        models = unsealed_models;
+        narrative_revisions = unsealed_narratives;
+        index = Some(store_index);
+    } else {
         // Each row's hash is checked when the session rebuilds it (restore), once per revision.
         let mut statement = connection
             .prepare(if kept_as_changes {
@@ -1110,7 +1580,7 @@ pub(super) fn load_sqlite_session(path: &Path) -> EngineResult<PersistedSession>
         }
     }
     let mut narrative_source_snapshots = Vec::new();
-    {
+    if !indexed {
         let mut statement = connection
             .prepare(
                 "SELECT snapshot_hash, model_hash, snapshot_json FROM narrative_source_snapshots ORDER BY snapshot_hash",
@@ -1143,8 +1613,7 @@ pub(super) fn load_sqlite_session(path: &Path) -> EngineResult<PersistedSession>
             narrative_source_snapshots.push(stored);
         }
     }
-    let mut narrative_revisions = Vec::new();
-    {
+    if !indexed {
         let mut statement = connection
             .prepare(
                 "SELECT graph_hash, operation_sequence, graph_id, revision_number, previous_graph_hash, snapshot_hash, revision_json FROM narrative_revisions ORDER BY operation_sequence",
@@ -1382,24 +1851,27 @@ pub(super) fn load_sqlite_session(path: &Path) -> EngineResult<PersistedSession>
             }
         }
     }
-    Ok(PersistedSession {
-        // A v2 file's whole revisions are read into the same form; the file itself is migrated on its first write.
-        schema: if kept_as_changes {
-            schema
-        } else {
-            SESSION_STATE_SCHEMA.to_owned()
+    Ok((
+        PersistedSession {
+            // A v2 file's whole revisions are read into the same form; the file itself is migrated on its first write.
+            schema: if kept_as_changes {
+                schema
+            } else {
+                SESSION_STATE_SCHEMA.to_owned()
+            },
+            persistence_generation,
+            models,
+            worlds,
+            world_revisions,
+            candidates,
+            narrative_source_snapshots,
+            narrative_revisions,
+            project_documents,
+            project_model_snapshots,
+            project_world_snapshots,
+            project_graph_snapshots,
+            project_checkpoints,
         },
-        persistence_generation,
-        models,
-        worlds,
-        world_revisions,
-        candidates,
-        narrative_source_snapshots,
-        narrative_revisions,
-        project_documents,
-        project_model_snapshots,
-        project_world_snapshots,
-        project_graph_snapshots,
-        project_checkpoints,
-    })
+        index,
+    ))
 }

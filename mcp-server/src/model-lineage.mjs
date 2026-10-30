@@ -1,11 +1,39 @@
 // A model revision's place on its revision chain. Two hashes that differ say nothing about which came first; only the
 // chain of previous_model_hash links does.
-// The walk follows at most this many links back from a revision.
+//
+// The engine keeps every revision's header (model id, number, predecessor, provenance) and answers a whole ancestry in
+// one call, without rebuilding a revision, so a walk has no bound. A service without that call (a stand-in holding
+// only summaries) is walked one summary at a time, at most this many links back.
 export const MAX_LINEAGE_LINKS = 255;
 
-// Links from modelHash back to ancestorHash along the revision chain, or null when ancestorHash is not reached within
-// the bound. A failed inspection is thrown, not read as the end of the chain.
+const readsHeaders = (service) => typeof service?.modelLineage === 'function';
+
+// The headers from modelHash back to stopAt (included) or to a first revision, newest first, remembered for later walks.
+async function lineageHeaders(service, modelHash, stopAt = null) {
+  const lineage = await service.modelLineage({ modelHash, stopAt });
+  const cache = cacheFor(headerCache, service);
+  for (const { modelHash: hash, ...header } of lineage.revisions) remember(cache, hash, header);
+  return lineage;
+}
+
+// The headers from modelHash back, newest first: modelHash's own from its definition when it is given (a revision
+// about to be stored has no stored header yet), then the stored ancestry.
+async function headersFrom(service, modelHash, model, stopAt) {
+  if (model?.revision && modelHash !== stopAt) {
+    const own = { modelHash, ...headerOf(model) };
+    if (!own.previous) return [own];
+    return [own, ...(await lineageHeaders(service, own.previous, stopAt)).revisions];
+  }
+  return (await lineageHeaders(service, modelHash, stopAt)).revisions;
+}
+
+// Links from modelHash back to ancestorHash along the revision chain, or null when ancestorHash is not on it (or, for a
+// service that walks summaries, not within the bound). A failed lookup is thrown, not read as the end of the chain.
 export async function modelLineageSteps(service, ancestorHash, modelHash) {
+  if (readsHeaders(service)) {
+    const lineage = await lineageHeaders(service, modelHash, ancestorHash);
+    return lineage.reachedStopAt ? lineage.revisions.length - 1 : null;
+  }
   let cursor = modelHash;
   for (let links = 0; cursor; links += 1) {
     if (cursor === ancestorHash) return links;
@@ -49,6 +77,10 @@ export function rememberModelRevision(service, modelHash, model) {
 export async function revisionHeader(service, modelHash, model = null) {
   const cache = cacheFor(headerCache, service);
   if (cache.has(modelHash)) return cache.get(modelHash);
+  if (!model && readsHeaders(service)) {
+    await lineageHeaders(service, modelHash, modelHash);
+    return cache.get(modelHash) ?? null;
+  }
   const summary = model ? { id: model.id, revision: model.revision } : (await service.inspectModel({ modelHash }))?.summary ?? null;
   const header = headerOf(summary);
   if (header) remember(cache, modelHash, header);
@@ -72,6 +104,17 @@ export const isForkRevision = (model) => Boolean(branchMarkerOf(model?.revision)
 // truncated says the walk ran out of links first.
 // floor ends the walk below a revision number, where no fork of interest can lie.
 export async function branchesAlong(service, modelHash, { stopAt = null, floor = null, model = null } = {}) {
+  if (readsHeaders(service)) {
+    const found = [];
+    let reached = false;
+    for (const header of await headersFrom(service, modelHash, model, stopAt)) {
+      if (header.modelHash === stopAt) { reached = true; break; }
+      if (floor !== null && header.number < floor) break;
+      const marker = branchMarkerOf(header);
+      if (marker) found.push({ ...marker, forkModelHash: header.modelHash });
+    }
+    return { branches: found, truncated: false, ...(stopAt === null ? {} : { reachedStopAt: reached }) };
+  }
   const found = [];
   let cursor = modelHash;
   const seen = new Set();
@@ -98,6 +141,18 @@ export const BRANCH_GRAPH_PREFIX = 'future.';
 // reported, never interpreted as proof that the revision is a trunk.
 export async function branchesOf(service, modelHash, { model = null } = {}) {
   const cache = cacheFor(ancestryCache, service);
+  if (readsHeaders(service) && !cache.has(modelHash)) {
+    // The whole ancestry in one call, folded from the first revision forward.
+    const revisions = await headersFrom(service, modelHash, model, null);
+    let inherited = [];
+    for (const header of [...revisions].reverse()) {
+      if (cache.has(header.modelHash)) { inherited = cache.get(header.modelHash); continue; }
+      const marker = branchMarkerOf(header);
+      if (marker) inherited = [{ ...marker, forkModelHash: header.modelHash }, ...inherited];
+      remember(cache, header.modelHash, inherited);
+    }
+    return { branches: inherited, truncated: false };
+  }
   const pending = [], seen = new Set();
   let cursor = modelHash, inherited = null;
   // A cold store can have a longer lineage than a relative rebind's 255-link check. Read headers in bounded batches

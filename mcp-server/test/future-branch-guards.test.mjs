@@ -297,8 +297,11 @@ test('complete, delta and convenience rebinds after a real restart do not inspec
     const restarted = start();
     await restarted.initialize();
     const visited = [];
+    let lineageCalls = 0;
     const inspect = restarted.inspectModel.bind(restarted);
     restarted.inspectModel = async (input) => { visited.push(input.modelHash); return inspect(input); };
+    const lineage = restarted.modelLineage.bind(restarted);
+    restarted.modelLineage = async (input) => { lineageCalls += 1; return lineage(input); };
     const revision = { number: 1, previous_graph_hash: stored.graphHash, reason: `${route} after a restart.`, provenance };
     const source = { kind: 'model', model_hash: nextModelHash };
     const result = route === 'complete'
@@ -307,9 +310,10 @@ test('complete, delta and convenience rebinds after a real restart do not inspec
         ? await restarted.reviseNarrativeGraphByDelta({ requestId: 'restart.delta', previousGraphHash: stored.graphHash, delta: { revision, source }, accessScopes: scopes })
         : await rebindNarrativeGraph(restarted, { requestId: 'restart.rebind', graphHash: stored.graphHash, modelHash: nextModelHash, accessScopes: scopes });
     assert.equal(result.stored, true);
-    assert.ok(visited.length > 0);
     assert.ok(visited.every((hash) => hash === nextModelHash), `${route} must not read any of the 25 shared revisions`);
-    if (route !== 'rebind') assert.deepEqual(visited, [nextModelHash]);
+    if (route !== 'rebind') assert.ok(visited.length <= 1);
+    // The ancestry comes from the engine's headers in a call or two, not revision by revision.
+    assert.ok(lineageCalls >= 1 && lineageCalls <= 3, `${route} read the ancestry in ${lineageCalls} calls`);
     await restarted.close();
   }
 });

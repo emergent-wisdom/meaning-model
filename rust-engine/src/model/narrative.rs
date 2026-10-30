@@ -1223,10 +1223,33 @@ pub(crate) fn apply_narrative_revision_record(
     })
 }
 
+/// What a revision's definition takes from its stored record besides its roots, nodes and edges.
+pub(crate) trait RevisionFields {
+    fn graph_schema(&self) -> &str;
+    fn graph_id(&self) -> &str;
+    fn revision(&self) -> &NarrativeGraphRevision;
+    fn source(&self) -> &NarrativeGraphSource;
+}
+
+impl RevisionFields for StoredNarrativeRevision {
+    fn graph_schema(&self) -> &str {
+        &self.graph_schema
+    }
+    fn graph_id(&self) -> &str {
+        &self.graph_id
+    }
+    fn revision(&self) -> &NarrativeGraphRevision {
+        &self.revision
+    }
+    fn source(&self) -> &NarrativeGraphSource {
+        &self.source
+    }
+}
+
 /// One stored revision's roots, nodes and edges. Nodes and edges are persistent
-/// maps keyed by id: a revision shares every unchanged record with its parent,
-/// so the session keeps every revision materialized, a read never replays the
-/// history, and a new revision costs about the size of its change. Iteration
+/// maps keyed by id: a revision shares every unchanged record with its parent.
+/// The session caches heads and recently read revisions; another revision is rebuilt
+/// from the nearest cached ancestor. Iteration
 /// is in id order, the order a compiled definition keeps.
 #[derive(Debug, Clone)]
 pub(crate) struct MaterializedNarrative {
@@ -1236,6 +1259,19 @@ pub(crate) struct MaterializedNarrative {
 }
 
 impl MaterializedNarrative {
+    /// A conservative cache charge: serialized payload bytes for every record, even when records are shared.
+    /// Counting avoids allocating a second serialized graph. An unrepresentable charge keeps at most this entry.
+    pub(crate) fn cache_bytes(&self) -> usize {
+        let roots = crate::limits::serialized_size(&self.roots).unwrap_or(usize::MAX);
+        self.nodes
+            .iter()
+            .map(|(_, node)| crate::limits::serialized_size(node.as_ref()).unwrap_or(usize::MAX))
+            .chain(self.edges.iter().map(|(_, edge)| {
+                crate::limits::serialized_size(edge.as_ref()).unwrap_or(usize::MAX)
+            }))
+            .fold(roots, usize::saturating_add)
+    }
+
     /// Applies one stored revision to its parent's materialization; a root
     /// record has no parent. Rejects exactly what the positional applier rejects.
     pub(crate) fn apply(
@@ -1371,12 +1407,12 @@ impl MaterializedNarrative {
     }
 
     /// The definition this revision holds, with nodes and edges in id order.
-    pub(crate) fn definition(&self, record: &StoredNarrativeRevision) -> NarrativeGraphDefinition {
+    pub(crate) fn definition(&self, record: &impl RevisionFields) -> NarrativeGraphDefinition {
         NarrativeGraphDefinition {
-            schema: record.graph_schema.clone(),
-            id: record.graph_id.clone(),
-            revision: record.revision.clone(),
-            source: record.source.clone(),
+            schema: record.graph_schema().to_owned(),
+            id: record.graph_id().to_owned(),
+            revision: record.revision().clone(),
+            source: record.source().clone(),
             roots: self.roots.clone(),
             nodes: self
                 .nodes

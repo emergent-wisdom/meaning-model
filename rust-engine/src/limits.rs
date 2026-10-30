@@ -33,24 +33,22 @@ pub(super) const MAX_MODEL_IDENTIFIER_BYTES: usize = 1_024;
 // model of 2.8 MB takes under half a second. Larger models need changes applied in the engine instead of whole
 // definitions passing through the server.
 pub(super) const MAX_MODEL_DEFINITION_BYTES: usize = 128 * 1024 * 1024;
-// Every model revision is kept, since a construction replays through each one, and a story model is revised often
-// (every applied estimate is a revision). The byte bound below limits memory; the count bounds restart validation,
-// which rebuilds every revision: about 0.01 s per megabyte of model for each one.
-pub(super) const MAX_SESSION_MODELS: usize = 4_096;
+// Every revision keeps a header in memory. Durable stores leave sealed revision rows on disk; the byte bound below
+// applies to unwritten rows (all rows in an in-memory session), separately from the bounded read caches.
+pub(super) const MAX_SESSION_MODELS: usize = 262_144;
 pub(super) const MAX_SESSION_WORLDS: usize = 64;
 pub(super) const MAX_SESSION_CANDIDATES: usize = 2_048;
 pub(super) const MAX_SESSION_WORLD_REVISIONS: usize = 2_048;
 pub(super) const MAX_SESSION_WORLD_REVISION_BYTES: usize = 64 * 1024 * 1024;
-// Revisions are kept materialized with every unchanged record shared with the
-// parent, so this count bounds restart validation, which is linear in it.
-pub(super) const MAX_SESSION_NARRATIVE_GRAPHS: usize = 4_096;
+// Every graph revision keeps its header. Heads and recently used revisions are materialized with shared records.
+pub(super) const MAX_SESSION_NARRATIVE_GRAPHS: usize = 262_144;
 pub(super) const MAX_SESSION_MODEL_BYTES: usize = 2 * 1024 * 1024 * 1024;
 pub(super) const MAX_SESSION_WORLD_BYTES: usize = 64 * 1024 * 1024;
 pub(super) const MAX_SESSION_CANDIDATE_BYTES: usize = 128 * 1024 * 1024;
 // Narrative history is stored as shared source snapshots plus append-only
-// revision deltas. This bound applies to that compact durable representation,
-// not to transient materialized graph views.
-pub(super) const MAX_SESSION_NARRATIVE_BYTES: usize = 64 * 1024 * 1024;
+// revision deltas. This bound applies to unwritten rows and snapshots (all rows in an in-memory session),
+// not to the complete disk history or transient materialized graph views.
+pub(super) const MAX_SESSION_NARRATIVE_BYTES: usize = 1024 * 1024 * 1024;
 pub(super) const MAX_PROJECT_CHECKPOINTS: usize = 1_024;
 pub(super) const MAX_PROJECT_DOCUMENT_BYTES: usize = 16 * 1024 * 1024;
 pub(super) const MAX_PROJECT_STORAGE_BYTES: usize = 2 * 1024 * 1024 * 1024;

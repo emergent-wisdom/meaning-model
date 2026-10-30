@@ -7,11 +7,27 @@ import { stringifyJson } from './exact-json.mjs';
 
 const COMMAND_SCHEMA = 'life-sim-rust-command/v1';
 const RESPONSE_SCHEMA = 'life-sim-rust-response/v1';
-const DEFAULT_TIMEOUT_MS = 30_000;
-// Starting the engine opens its store, which rebuilds every stored model revision before the engine answers: about
-// 0.01 s per megabyte of each revision, measured on the world history. Ten minutes covers about 60,000 revision-megabytes,
-// such as 600 revisions of a 100 MB model. Every later call keeps the 30-second limit.
-const DEFAULT_STARTUP_TIMEOUT_MS = 600_000;
+// Execution ceilings depend on the operation. Heartbeats on stderr (LIFE_SIM_HEARTBEAT_MS) distinguish a silent
+// engine from one that is still running; a finite ceiling also stops work that keeps beating but never finishes.
+const DEFAULT_TIMEOUTS_MS = Object.freeze({ read: 10 * 60_000, write: 30 * 60_000, heavy: 60 * 60_000 });
+// Opening a store validates and seals the revisions that have no seal yet: every revision, once, for a store written
+// before seals. Later opens check those seals instead of validating every revision again.
+const DEFAULT_STARTUP_TIMEOUT_MS = 60 * 60_000;
+const DEFAULT_HEARTBEAT_INTERVAL_MS = 2_000;
+// A call fails when an engine that has been beating falls silent this long.
+const DEFAULT_HEARTBEAT_SILENCE_MS = 60_000;
+const HEARTBEAT_SCHEMA = 'life-sim-rust-heartbeat/v1';
+// Calls that compute rather than read or store: they get the longest ceiling.
+const HEAVY_OPERATIONS = new Set([
+  'validate_model',
+  'compile_profiles',
+  'roll_world',
+  'reroll_candidate',
+  'summarize_trajectory',
+  'query_graph',
+  'export_narrative_training',
+  'audit_store',
+]);
 // A command or response carries at most a whole model (128 MiB) and its envelope.
 const DEFAULT_MAX_COMMAND_BYTES = 256 * 1024 * 1024;
 const DEFAULT_MAX_PENDING_COMMAND_BYTES = 512 * 1024 * 1024;
@@ -33,6 +49,7 @@ const MUTATING_OPERATIONS = new Set([
   'revise_narrative_graph_by_change',
   'apply_narrative_batch',
   'register_project_checkpoint',
+  'audit_store',
 ]);
 const REQUIRED_OPERATIONS = Object.freeze([
   'compile_profiles',
@@ -60,7 +77,16 @@ const REQUIRED_OPERATIONS = Object.freeze([
   'query_narrative_graph',
   'render_narrative_graph',
   'export_narrative_training',
+  'model_lineage',
+  'model_heads',
+  'store_status',
 ]);
+
+export function operationKind(operation) {
+  if (HEAVY_OPERATIONS.has(operation)) return 'heavy';
+  if (MUTATING_OPERATIONS.has(operation)) return 'write';
+  return 'read';
+}
 
 const engineFilename = process.platform === 'win32' ? 'life-sim-engine.exe' : 'life-sim-engine';
 const releaseBinary = fileURLToPath(
@@ -126,8 +152,13 @@ export class EngineError extends Error {
 export class RustEngineProcess {
   constructor({
     binaryPath = resolveEngineBinary(),
-    timeoutMs = DEFAULT_TIMEOUT_MS,
+    // One limit for every call, including its queue wait, as before kinds. Otherwise each kind has its own
+    // execution budget (timeouts), starting after earlier requests have answered.
+    timeoutMs = null,
+    timeouts = {},
     startupTimeoutMs = DEFAULT_STARTUP_TIMEOUT_MS,
+    heartbeatIntervalMs = DEFAULT_HEARTBEAT_INTERVAL_MS,
+    heartbeatSilenceMs = DEFAULT_HEARTBEAT_SILENCE_MS,
     maxCommandBytes = DEFAULT_MAX_COMMAND_BYTES,
     maxPendingCommandBytes = DEFAULT_MAX_PENDING_COMMAND_BYTES,
     maxResponseBytes = DEFAULT_MAX_RESPONSE_BYTES,
@@ -144,12 +175,17 @@ export class RustEngineProcess {
     this.arguments = testFixture?.args ?? ['--ndjson'];
     // A stateless engine keeps nothing on disk: the state file setting is not passed on to it.
     const { LIFE_SIM_STATE_FILE: _stateFile, ...withoutStateFile } = process.env;
-    this.childEnvironment = testFixture?.env
-      ? { ...process.env, ...testFixture.env }
-      : stateless ? withoutStateFile : process.env;
+    const heartbeat = heartbeatIntervalMs > 0 ? { LIFE_SIM_HEARTBEAT_MS: String(heartbeatIntervalMs) } : {};
+    this.childEnvironment = { ...(stateless ? withoutStateFile : process.env), ...heartbeat, ...(testFixture?.env ?? {}) };
     this.testFixture = testFixture !== null;
     this.timeoutMs = timeoutMs;
+    this.timeouts = { ...DEFAULT_TIMEOUTS_MS, ...timeouts };
     this.startupTimeoutMs = startupTimeoutMs;
+    this.heartbeatSilenceMs = heartbeatSilenceMs;
+    // What the engine's last beat said; null until it beats, and an engine that never beats is held to the limits.
+    this.heartbeat = null;
+    this.heartbeatWatch = null;
+    this.stderrPartial = '';
     this.maxCommandBytes = maxCommandBytes;
     this.maxPendingCommandBytes = maxPendingCommandBytes;
     this.maxResponseBytes = maxResponseBytes;
@@ -212,6 +248,14 @@ export class RustEngineProcess {
     child.stderr.setEncoding('utf8');
     child.stdout.on('data', (chunk) => this.#consumeStdout(chunk));
     child.stderr.on('data', (chunk) => this.#consumeStderr(chunk));
+    // A write to an engine that has ended raises EPIPE on stdin. Without a listener Node ends the whole server with an
+    // unhandled 'error' before the call is rejected with the reason the engine ended. The first failure stays the reason.
+    child.stdin.on('error', (cause) => {
+      this.#fail(errorWithCause(
+        `Life Simulation Rust process stopped accepting commands (${cause.code ?? cause.message}).`,
+        cause,
+      ));
+    });
     child.once('error', (cause) => {
       this.#fail(errorWithCause(`Life Simulation Rust process error: ${cause.message}`, cause));
     });
@@ -250,7 +294,12 @@ export class RustEngineProcess {
     return this.#dispatch(operation, payload);
   }
 
-  #dispatch(operation, payload, timeoutMs = this.timeoutMs) {
+  /// How long a call of this operation may run.
+  timeoutFor(operation) {
+    return this.timeoutMs ?? this.timeouts[operationKind(operation)];
+  }
+
+  #dispatch(operation, payload, timeoutMs = this.timeoutFor(operation)) {
     if (this.failure) return Promise.reject(this.failure);
     if (!this.child || this.closed) {
       return Promise.reject(new Error('Life Simulation Rust process is not running.'));
@@ -295,26 +344,48 @@ export class RustEngineProcess {
     }
 
     return new Promise((resolveCall, rejectCall) => {
-      const timer = setTimeout(() => {
-        const cause = new Error(
-          `Life Simulation Rust operation ${operation} timed out after ${timeoutMs} ms.` +
-          (operation === 'describe' ? ' Starting the engine opens its store and first rebuilds every stored model revision, about 0.01 s per megabyte of each.' : ''),
-        );
-        this.#fail(cause);
-      }, timeoutMs);
-      timer.unref?.();
-      this.pending.set(requestId, {
+      const pending = {
         operation,
         resolve: resolveCall,
         reject: rejectCall,
-        timer,
+        timer: null,
+        timeoutMs,
         commandBytes: byteLength,
         writeState: 'queued',
-      });
+        // Set when this call's budget starts, not while an earlier request is doing work.
+        progressAtStart: null,
+      };
+      this.pending.set(requestId, pending);
+      if (this.timeoutMs !== null) this.#startCallTimer(pending);
+      else this.#startFirstCallTimer();
       this.pendingCommandBytes += byteLength;
       this.writeQueue.push({ requestId, operation, encoded });
       this.#scheduleWrites();
     });
+  }
+
+  // Rust executes requests serially. A queued read must not kill a healthy, longer-running computation ahead of it.
+  // The first outstanding request always has a timer, so queue wait is still bounded by the finite budgets of the
+  // requests ahead of it (at most maxPendingCalls), and the heartbeat watch still detects a stopped process.
+  #startFirstCallTimer() {
+    const first = this.pending.values().next().value;
+    if (first) this.#startCallTimer(first);
+  }
+
+  #startCallTimer(pending) {
+    if (pending.timer || this.failure || this.closed) return;
+    pending.progressAtStart = this.heartbeat?.progress ?? null;
+    const { operation, timeoutMs } = pending;
+    pending.timer = setTimeout(() => {
+      const cause = new Error(
+        `Life Simulation Rust operation ${operation} timed out after ${timeoutMs} ms` +
+        `${operation === 'describe' ? ' (opening the store)' : ` (a ${operationKind(operation)} call)`}. ` +
+        this.#heartbeatReport(pending.progressAtStart) +
+        (operation === 'describe' ? ' Opening validates and seals every revision that has no seal yet, once; later opens check seals.' : ''),
+      );
+      this.#fail(cause);
+    }, timeoutMs);
+    pending.timer.unref?.();
   }
 
   #scheduleWrites() {
@@ -450,6 +521,7 @@ export class RustEngineProcess {
     this.pending.delete(response.request_id);
     this.pendingCommandBytes -= pending.commandBytes;
     clearTimeout(pending.timer);
+    this.#startFirstCallTimer();
     if (response.ok) {
       if (!Object.hasOwn(response, 'result')) {
         pending.reject(new Error(`Rust operation ${pending.operation} returned no result.`));
@@ -466,12 +538,78 @@ export class RustEngineProcess {
     }));
   }
 
+  // Heartbeat lines are read and left out of the stderr kept for error messages; every other line is kept.
   #consumeStderr(chunk) {
-    this.stderrBuffer += chunk;
+    const text = this.stderrPartial + String(chunk);
+    const lines = text.split('\n');
+    this.stderrPartial = lines.pop();
+    if (Buffer.byteLength(this.stderrPartial) > this.maxStderrBytes) {
+      lines.push(this.stderrPartial);
+      this.stderrPartial = '';
+    }
+    for (const line of lines) {
+      if (line.includes(`"${HEARTBEAT_SCHEMA}"`) && this.#consumeHeartbeat(line)) continue;
+      this.#keepStderr(`${line}\n`);
+    }
+  }
+
+  #keepStderr(text) {
+    this.stderrBuffer += text;
     if (Buffer.byteLength(this.stderrBuffer) > this.maxStderrBytes) {
       const bytes = Buffer.from(this.stderrBuffer);
       this.stderrBuffer = bytes.subarray(bytes.length - this.maxStderrBytes).toString('utf8');
     }
+  }
+
+  #consumeHeartbeat(line) {
+    let beat;
+    try { beat = JSON.parse(line); } catch { return false; }
+    if (beat?.schema !== HEARTBEAT_SCHEMA) return false;
+    this.heartbeat = { at: Date.now(), sequence: beat.sequence, progress: beat.progress, busy: beat.busy ?? null };
+    for (const pending of this.pending.values()) {
+      if (pending.timer) pending.progressAtStart ??= beat.progress;
+    }
+    this.#watchHeartbeat();
+    return true;
+  }
+
+  // Once the engine beats, a pending call fails when the beats stop: the engine has stopped (killed, frozen, or
+  // swapped out entirely), not merely slowed down.
+  #watchHeartbeat() {
+    if (this.heartbeatWatch || !(this.heartbeatSilenceMs > 0)) return;
+    this.heartbeatWatch = setInterval(() => {
+      if (this.failure || this.closed) {
+        clearInterval(this.heartbeatWatch);
+        return;
+      }
+      if (!this.pending.size || !this.heartbeat) return;
+      const silent = Date.now() - this.heartbeat.at;
+      if (silent < this.heartbeatSilenceMs) return;
+      const [first] = this.pending.values();
+      this.#fail(new Error(
+        `Life Simulation Rust process stopped answering: no heartbeat for ${silent} ms while ${first.operation} ran. ` +
+        `Its last beat said ${this.#describeBeat()}. The process was stopped; restart the server to reopen the store.`,
+      ));
+    }, Math.min(5_000, Math.max(10, Math.floor(this.heartbeatSilenceMs / 4))));
+    this.heartbeatWatch.unref?.();
+  }
+
+  #describeBeat() {
+    const beat = this.heartbeat;
+    if (!beat) return 'nothing';
+    const busy = beat.busy ? `busy with ${beat.busy.operation} for ${beat.busy.elapsed_ms} ms` : 'idle';
+    return `${busy}, progress ${beat.progress}`;
+  }
+
+  // Whether an engine that ran out of time was slow or had stopped.
+  #heartbeatReport(progressAtStart) {
+    if (!this.heartbeat) return 'The engine sent no heartbeat, so whether it was still working is not known.';
+    const ago = Date.now() - this.heartbeat.at;
+    const moved = progressAtStart === null ? null : this.heartbeat.progress - progressAtStart;
+    return `Its last heartbeat came ${ago} ms ago (${this.#describeBeat()})` +
+      (moved === null ? '.' : moved > 0
+        ? `; its progress count moved by ${moved} during the call, so it was slow, not stopped.`
+        : '; its progress count did not move during the call, so it may be stuck.');
   }
 
   #fail(cause) {
@@ -494,12 +632,14 @@ export class RustEngineProcess {
     this.pending.clear();
     this.pendingCommandBytes = 0;
     this.writeQueue.length = 0;
+    if (this.heartbeatWatch) clearInterval(this.heartbeatWatch);
     if (this.child && !this.child.killed) this.child.kill('SIGKILL');
   }
 
   async close() {
     if (this.closed) return;
     this.closed = true;
+    if (this.heartbeatWatch) clearInterval(this.heartbeatWatch);
     const child = this.child;
     const closeCause = new Error('Life Simulation Rust process closed before responding.');
     for (const [requestId, pending] of this.pending.entries()) {
@@ -545,8 +685,13 @@ export class RustEngineProcess {
         ? 'optional-single-writer-state-file'
         : 'process-memory',
       fixture: this.testFixture,
+      heartbeat: this.heartbeat
+        ? { lastBeatMsAgo: Date.now() - this.heartbeat.at, progress: this.heartbeat.progress, busy: this.heartbeat.busy }
+        : null,
       limits: {
         timeoutMs: this.timeoutMs,
+        timeouts: this.timeouts,
+        heartbeatSilenceMs: this.heartbeatSilenceMs,
         startupTimeoutMs: this.startupTimeoutMs,
         maxCommandBytes: this.maxCommandBytes,
         maxPendingCommandBytes: this.maxPendingCommandBytes,

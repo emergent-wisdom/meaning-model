@@ -9,6 +9,7 @@ the invariants it keeps.
 | Module | Purpose | Invariants it owns |
 |---|---|---|
 | `main.rs` | The process: arguments, stdin and stdout, one session | Every command gets exactly one response; an oversized or non-UTF-8 command never reaches the session |
+| `heartbeat.rs` | Optional progress notices during commands | Notices go to stderr and never alter stdout responses |
 | `lib.rs` | What every command shares: the response envelope, `EngineError`, the canonical hash | One canonical encoding: `hash_serializable` and `hex_digest` produce every content hash |
 | `limits.rs` | Every bound the engine enforces, reported by `describe` | A bound is checked before the work or change it limits |
 | `graph_algorithms.rs` | The shared cycle check | A refusal names one cycle |
@@ -33,13 +34,14 @@ Inside `model/`:
 
 Inside `session/`:
 - **The command handlers**, one per operation group: `models`, `worlds`, `candidates`, `queries`, `narrative`,
-  `narrative_views` and `checkpoints`.
+  `narrative_views`, `checkpoints` and `store_queries` (lineage, heads, status and audit).
 - **The store:**
   - `operation`: every operation, its group, and whether it mutates;
   - `capacity`: the session's bounds;
   - `model_store` and `model_delta`: revisions kept as their changes;
-  - `persistence`: the SQLite file;
-  - `restore`: reopening a session and checking everything.
+  - `store_rows`: revision seals, on-demand file reads and bounded row caches;
+  - `persistence`: the SQLite file and atomic revision/seal writes;
+  - `restore`: reopening from checked headers and the working set, or rebuilding every revision for an audit.
 
 **Dependencies point one way:** `main` → `session` → `model` → crate root. `profiles` depends on the model, and the
 session on `profiles` for `compile_profiles`. `model` imports nothing above the crate root, and the session's fields
@@ -61,6 +63,29 @@ are private to `session/`. The one loop is the legacy command path: the session 
    the write fails, the session reloads its file, and the caller gets `persistence_error` (not written) or
    `persistence_uncertain` (the COMMIT may have happened).
 7. **Answer:** the result or error goes into the response envelope.
+
+## Reading a large construction
+
+A durable session holds the header of each revision and rows it has not written yet. Sealed revision rows stay in
+SQLite until needed. A seal records the exact row's digest, its header and its parent's seal; reopening checks those
+chains. Unsealed revisions are fully validated before seals are added. A later row read checks its digest before
+using it. `audit_store` validates every revision again, and can replace the seals after a successful audit.
+
+Row caches have byte budgets, with at most one oversized row retained. Model reconstruction walks headers first,
+then reads and applies one delta at a time, so a long ancestry does not retain every delta outside the cache. Four
+rebuilt models remain cached. Narrative revisions share unchanged records; heads and recent materializations each
+have a 64 MiB cache budget, charged by serialized record size even when records are shared. At most one oversized
+materialization remains in each cache. The recent cache also keeps at most 64 entries. Evicted heads can be rebuilt
+on demand. These budgets measure payloads, not total process memory; revision headers and indexes still grow with
+the construction, and rebuilding or answering a request needs temporary memory.
+
+The first open of an unsealed store and a full audit still collect the unsealed rows before validating them. They do
+not receive the sealed startup path's memory benefit; a store that is too large for that first validation must be
+opened on a machine with enough memory. Subsequent sealed opens read the working set on demand.
+
+`model_lineage` and `model_heads` use headers without rebuilding models. These store changes preserve the existing
+revision rows and v3 SQLite format, so an engine without seal support can still read the same history. Seals are
+integrity metadata, not a signature or protection against a party that can rewrite the database and its seals.
 
 **Content addressing** runs through every step: a model, world head, candidate, narrative revision and checkpoint
 are each named by the hash of their canonical content. A hash already bound to other content is a `conflict`.

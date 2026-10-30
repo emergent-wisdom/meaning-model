@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +12,32 @@ import { noEventLinkDeclaration } from '../src/narrative-grounding.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serverPath = join(here, '..', 'src', 'server.ts');
+
+async function inspectCompleteDefinition(client, modelHash) {
+  const inspected = await client.callTool({ name: 'life_model_inspect', arguments: { modelHash, includeDefinition: true } });
+  assert.equal(inspected.isError, undefined);
+  if (inspected.structuredContent.model) return inspected.structuredContent.model;
+  const first = inspected.structuredContent.definitionPage;
+  let page = first;
+  let text = '';
+  for (;;) {
+    assert.equal(page.start, text.length, 'definition pages are contiguous');
+    assert.equal(page.sha256, first.sha256);
+    assert.equal(page.totalChars, first.totalChars);
+    text += page.text;
+    assert.equal(page.end, text.length);
+    if (!page.nextCursor) break;
+    const next = await client.callTool({ name: 'life_model_inspect', arguments: { modelHash, definitionCursor: page.nextCursor } });
+    assert.equal(next.isError, undefined);
+    page = next.structuredContent.definitionPage;
+  }
+  assert.equal(text.length, first.totalChars);
+  assert.equal(createHash('sha256').update(text).digest('hex'), first.sha256);
+  const definition = JSON.parse(text);
+  assert.deepEqual(definition, JSON.parse(await readFile(inspected.structuredContent.definitionFile.path, 'utf8')),
+    'the pages contain the same complete model as its file');
+  return definition;
+}
 
 test('memory is usable through the core MCP and leads back to its modeled processes', async (t) => {
   const client = new Client({ name: 'memory-workflow-test', version: '0.1.0' });
@@ -659,12 +686,8 @@ test('official MCP client discovers and calls the local stdio server', async () 
     assert.equal(emptyView.isError, undefined);
     assert.deepEqual(emptyView.structuredContent.projection.state, {});
 
-    const inspectedModel = await client.callTool({
-      name: 'life_model_inspect',
-      arguments: { modelHash: created.structuredContent.modelHash, includeDefinition: true },
-    });
-    assert.equal(inspectedModel.isError, undefined);
-    const process = inspectedModel.structuredContent.model.processes[0];
+    const inspectedDefinition = await inspectCompleteDefinition(client, created.structuredContent.modelHash);
+    const process = inspectedDefinition.processes[0];
     const estimationRequest = await client.callTool({
       name: 'life_estimation_request_create',
       arguments: {
@@ -685,7 +708,7 @@ test('official MCP client discovers and calls the local stdio server', async () 
     assert.equal(estimationRequest.isError, undefined);
     assert.equal(estimationRequest.structuredContent.modelHash, created.structuredContent.modelHash);
     assert.equal(estimationRequest.structuredContent.acceptedHeadHash, created.structuredContent.headHash);
-    const proposedModel = structuredClone(inspectedModel.structuredContent.model);
+    const proposedModel = structuredClone(inspectedDefinition);
     proposedModel.revision = {
       number: 1,
       previous_model_hash: created.structuredContent.modelHash,
@@ -787,8 +810,8 @@ test('official MCP client discovers and calls the local stdio server', async () 
     assert.equal(refinedWorld.structuredContent.headVersion, 0);
 
     // A revision sent as its change: the server applies it to the stored predecessor.
-    const inspectedRevised = await client.callTool({ name: 'life_model_inspect', arguments: { modelHash: revised.structuredContent.modelHash, includeDefinition: true } });
-    const firstProcess = inspectedRevised.structuredContent.model.processes[0];
+    const inspectedRevised = await inspectCompleteDefinition(client, revised.structuredContent.modelHash);
+    const firstProcess = inspectedRevised.processes[0];
     const byChange = await client.callTool({ name: 'life_model_revise', arguments: { requestId: 'protocol-revise-by-change', previousModelHash: revised.structuredContent.modelHash,
       change: { reason: 'Restate one process to test the change form.', upsert: { processes: [firstProcess] } } } });
     assert.equal(byChange.isError, undefined, JSON.stringify(byChange));
