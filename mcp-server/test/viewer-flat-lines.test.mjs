@@ -217,7 +217,7 @@ test('native curve names use collision handling in Processes even when all inter
   for (const native of [false, true]) {
     const rows = Array.from({ length: 118 }, () => ({ name: { visible: true, element: { style: {},
       getBoundingClientRect: () => ({ left: 10, right: 250, top: 10, bottom: 30, width: 240 }) } } }));
-    const context = { DEFAULT_SMOOTHING: 0.2, isCharacter: () => true, rows, groupLabels: [], panels: [], innerWidth: 505, innerHeight: 788, recordedMeasures: native ? [{ kind: 'cut-answer' }] : [],
+    const context = { DEFAULT_SMOOTHING: 0.2, isCharacter: () => true, rows, groupLabels: [], panels: [], placed: [], innerWidth: 505, innerHeight: 788, recordedMeasures: native ? [{ kind: 'cut-answer' }] : [],
       isStory: () => true, blend: { now: 0 }, opt: { camera: 'spin', hideFlat: true }, nodes: [{ inT: false }] };
     vm.createContext(context); vm.runInContext(collisionSource, context);
     const hidden = rows.filter((row) => row.name.element.style.visibility === 'hidden').length;
@@ -233,7 +233,7 @@ test('native row and group names cannot scroll through toolbar panels or viewpor
   const outside = label({ left: 20, right: 130, top: -3, bottom: 17 });
   const clear = label({ left: 20, right: 130, top: 160, bottom: 180 });
   const context = { DEFAULT_SMOOTHING: 0.2, isCharacter: () => true, rows: [{ name: overTitle }, { name: outside }, { name: clear }], groupLabels: [],
-    panels: [{ left: 10, right: 250, top: 10, bottom: 100 }], innerWidth: 505, innerHeight: 788,
+    panels: [{ left: 10, right: 250, top: 10, bottom: 100 }], placed: [], innerWidth: 505, innerHeight: 788,
     recordedMeasures: [{ kind: 'cut-answer' }], isStory: () => true, blend: { now: 1 }, opt: { camera: 'locked', hideFlat: true }, nodes: [] };
   vm.runInNewContext(collisionSource, context);
   assert.equal(overTitle.element.style.visibility, 'hidden');

@@ -1569,7 +1569,11 @@ function drawSelectedStoryLinks() {
   }
 }
 
-// Labels of what the panel adds: placed by priority, never over each other or the panels.
+// Every panel the page shows over the scene: the heads-up parts, the side's controls and cards, an open pop-up, the reader.
+const panelBoxes = () => [...document.querySelectorAll('.hud, #side > *, .pop:not([hidden]), #reader, #qr-panel')].map((el) => el.getBoundingClientRect()).filter((r) => r.width && r.height);
+// The panels' boxes and those of the labels the scene shows, as the last declutter placed them.
+let labelRoom = { panels: [], labels: [] };
+// Labels of what the panel adds: placed by priority, never over each other, the scene's labels or the panels.
 const labels2 = (() => {
   const layer = document.getElementById('labels2'); const pool = new Map();
   const element = (key, className, html) => {
@@ -1602,9 +1606,8 @@ const labels2 = (() => {
     }
     if (opt.show.has('prose')) { const top = mindTop(), z = opt.noteLayout === 'centered' ? centeredNoteBand().center : top.z + 4; for (const unit of prose) { if (opt.detailProjection && !(unit.tells ?? []).some((tell) => opt.detailProjection.eventIds.has(tell.eventId))) continue; if (opt.unimportant && (unit.tells ?? []).length && unit.tells.every((tell) => opt.unimportant.has(tell.eventId))) continue; if (!shownByPlay(unit.t, bornAt(unit))) continue; const x = X(unit.t); if (x >= left && x <= right) wanted.push({ key: `prose:${unit.id}`, cls: 'prose', html: esc(unit.title ?? ''), p: [x, top.y - 3.35, z], ax: 0.5, ay: 1, pri: 800 }); } }
     for (const { event, point } of selectedLinks) wanted.push({ key: `selected-event:${event.id}`, cls: 'event', html: esc(words(event.label, 45)), p: [point.x, point.y + 0.4, point.z], ax: 0.5, ay: 1, pri: 1200 });
-    const panels = [...document.querySelectorAll('.hud.caption, .hud.bar, .hud.legend, .hud.title, .hud.stats, #tools, .pop:not([hidden]), #details:not([hidden])')].map((el) => el.getBoundingClientRect()).filter((r) => r.width);
-    const placed = [...panels.map((r) => ({ l: r.left - 6, r: r.right + 6, t: r.top - 4, b: r.bottom + 4 }))];
-    for (const el of labels.domElement.querySelectorAll('.label.row, .label.series, .label.group, .label.year, .label.lane, .label.lens-host .lens')) { if (el.style.display === 'none' || el.style.visibility === 'hidden') continue; const r = el.getBoundingClientRect(); if (r.width) placed.push({ l: r.left, r: r.right, t: r.top, b: r.bottom }); }
+    // Clear of the panels and of every label the scene shows, as declutter placed them this frame.
+    const placed = [...labelRoom.panels.map((r) => ({ l: r.left - 6, r: r.right + 6, t: r.top - 4, b: r.bottom + 4 })), ...labelRoom.labels.map((r) => ({ l: r.left, r: r.right, t: r.top, b: r.bottom }))];
     wanted.sort((a, b) => b.pri - a.pri);
     const items = wanted.map((want) => element(want.key, want.cls, want.html));
     const fresh = items.filter((item) => !item.w); for (const item of fresh) { item.el.style.transform = 'translate(-9999px,0)'; item.transform = null; }
@@ -1881,7 +1884,7 @@ function drawTerrainArcs() {
 }
 // Terrain labels that would cover the time marks, the panels or each other lift a little; the rest wait for the pointer.
 function declutterTerrain() {
-  const placed = []; const panels = [...document.querySelectorAll('.hud.caption, .hud.bar, .hud.legend, .hud.title, .hud.stats, #tools, .pop:not([hidden]), #details:not([hidden])')].map((el) => el.getBoundingClientRect());
+  const placed = []; const panels = panelBoxes();
   const under = (r) => panels.some((p) => r.left < p.right && r.right > p.left && r.top < p.bottom && r.bottom > p.top);
   for (const el of labels.domElement.querySelectorAll('.label.year, .label.group, .label.group-count')) { el.style.opacity = ''; const r = el.getBoundingClientRect(); if (!r.width) continue; if (under(r)) { el.style.opacity = '0'; continue; } placed.push(r); }
   placed.push(...panels);
@@ -3174,41 +3177,47 @@ onPlainClick(renderer.domElement, (event) => {
 }, { signal: temporalEvents.signal });
 // Love-or-fear chips lift clear of each other; values and event names that would cover something wait for their turn.
 // The names of what the model highlighted stack upward where they would cover each other.
-function stackMarks() {
-  // Every lift is taken off before any name is measured, so one layout serves them all.
+function stackMarks(placed, free) {
+  // Every lift is taken off before any name is measured, so one layout serves them all. A name with no room on the
+  // screen, even lifted, waits.
   const shownMarks = [...marks.map((mark) => mark.tag), ...noteMarks].filter((tag) => tag.visible && tag.parent?.visible !== false);
   for (const tag of shownMarks) tag.element.style.translate = '';
   const items = shownMarks.map((tag) => ({ element: tag.element, r: tag.element.getBoundingClientRect() })).filter((item) => item.r.width);
-  const placed = [];
   for (const { element, r } of items.sort((a, b) => a.r.left - b.r.left)) {
     const hits = (top) => placed.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && top < p.bottom && top + r.height > p.top);
     let lift = 0; while (hits(r.top - lift) && lift < 240) lift += r.height + 2;
+    const box = { left: r.left, right: r.right, top: r.top - lift, bottom: r.bottom - lift }, shown = !hits(box.top) && free(box);
     element.style.translate = lift ? `0 -${lift}px` : ''; element.style.setProperty('--lift', `${lift}px`); // a lifted name keeps a line to its point
-    placed.push({ left: r.left, right: r.right, top: r.top - lift, bottom: r.bottom - lift });
+    element.style.visibility = shown ? '' : 'hidden';
+    if (shown) placed.push(box);
   }
 }
 function declutter() {
-  // Each part of the pass reads the boxes it needs before it writes any style: hiding a name or fading a value moves no
-  // box, so the page is laid out once for each part rather than once for each name. The rules and their order are as
-  // they were.
+  // One rule for every label: it shows only where all of it is on the screen, clear of every panel and of every label
+  // placed before it; where they cannot all fit, fewer show. They are placed in turn: a selected document, what the
+  // model highlighted, the time marks, the names of groups and rows, the lens cards, the values, the Events' names on
+  // their threads, and then (labels2) the floating names. Each part reads the boxes it needs before it writes any
+  // style, so the page is laid out once for each part rather than once for each name.
+  const panels = panelBoxes(), placed = [];
+  const free = (r) => r.left >= 2 && r.right <= innerWidth - 2 && r.top >= 2 && r.bottom <= innerHeight - 2
+    && !panels.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top < p.bottom + 2 && r.bottom > p.top - 2);
   // A selected document may move out of view with the graph; never show a clipped badge.
   const selectedLabel = selectedDocumentLabel.element, selected = selectedDocumentLabel.visible ? selectedLabel.getBoundingClientRect() : null;
   const ticks = tickPool.map(({ object }) => ({ el: object.element, r: object.visible ? object.element.getBoundingClientRect() : null }));
   const clipped = selected && (selected.left < 2 || selected.right > innerWidth - 2 || selected.top < 2 || selected.bottom > innerHeight - 2);
   if (selectedLabel.style.visibility !== (clipped ? 'hidden' : '')) selectedLabel.style.visibility = clipped ? 'hidden' : '';
-  const tickRects = [];
+  if (selected?.width && !clipped) placed.push(selected);
+  if (opt.curation) stackMarks(placed, free);
+  const marked = placed.length;
   for (const { el, r } of ticks) {
-    const hidden = Boolean(r?.width) && tickRects.some((p) => r.left < p.right + 6 && r.right > p.left - 6 && r.top < p.bottom && r.bottom > p.top);
-    if (r?.width && !hidden) tickRects.push(r);
+    const hidden = Boolean(r?.width) && (!free(r) || placed.some((p, i) => r.left < p.right + (i >= marked ? 6 : 0) && r.right > p.left - (i >= marked ? 6 : 0) && r.top < p.bottom && r.bottom > p.top));
+    if (r?.width && !hidden) placed.push(r);
     if (el.style.visibility !== (hidden ? 'hidden' : '')) el.style.visibility = hidden ? 'hidden' : '';
   }
-  if (opt.curation) stackMarks();
-  if (terrain.on) { declutterTerrain(); return; }
-  const panels = [...document.querySelectorAll('.hud.caption, .hud.bar, .hud.legend, .hud.title, .hud.stats')].map((el) => el.getBoundingClientRect());
-  for (const el of document.querySelectorAll('#tools, .pop:not([hidden]), #details:not([hidden])')) panels.push(el.getBoundingClientRect());
-  const placed = [...panels];
+  if (terrain.on) { declutterTerrain(); labelRoom = { panels, labels: placed }; return; }
   // Beyond the stage's field (the tree added, layers, another scale, or held still) the names of whoever and whatever
-  // would cover each other take turns, and a love-or-fear chip with no room waits; the stage's field keeps its own rules.
+  // would cover each other, or the marks placed before them, take turns, and a love-or-fear chip with no room waits;
+  // the stage's field keeps its own rules.
   const stage = !recordedMeasures.length && isStory() && blend.now === 0 && opt.camera !== 'locked' && !nodes.some((node) => node.inT);
   const names = [];
   const nameObjects = [...groupLabels.map((item) => item.object), ...rows.flatMap((row) => row.caption ? [row.caption, row.name] : [row.name])];
@@ -3221,13 +3230,15 @@ function declutter() {
       const r = el.classList?.contains('series') ? { left: box.left, right: box.right, top: box.top, bottom: box.bottom - 10 } : box;
       const outside = r.left < 2 || r.right > innerWidth - 2 || r.top < 2 || r.bottom > innerHeight - 2;
       const overPanel = panels.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top < p.bottom + 2 && r.bottom > p.top - 2);
-      hidden = outside || overPanel || names.some((o) => r.left < o.right && r.right > o.left && r.top < o.bottom - 4 && r.bottom > o.top + 4);
+      hidden = outside || overPanel || [...placed, ...names].some((o) => r.left < o.right && r.right > o.left && r.top < o.bottom && r.bottom > o.top);
       if (!hidden) names.push(r);
     }
     el.style.visibility = hidden ? 'hidden' : '';
   });
-  for (const el of labels.domElement.querySelectorAll('.label.row, .label.series, .label.group, .label.year, .label.lane')) { if (el.style.visibility === 'hidden') continue; const r = el.getBoundingClientRect(); if (r.width) placed.push(r); }
-  const hits = (r, lift = 0) => placed.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top - lift < p.bottom + 2 && r.bottom - lift > p.top - 2);
+  placed.push(...names);
+  for (const el of labels.domElement.querySelectorAll('.label.lane')) { if (el.style.visibility === 'hidden') continue; const r = el.getBoundingClientRect(); if (r.width) placed.push(r); }
+  const hits = (r, lift = 0) => { const box = { left: r.left, right: r.right, top: r.top - lift, bottom: r.bottom - lift };
+    return !free(box) || placed.some((p) => box.left < p.right + 4 && box.right > p.left - 4 && box.top < p.bottom + 2 && box.bottom > p.top - 2); };
   // Where there is room for only some, the acts nearest the playhead take it, so playing the years shows the acts as they come.
   const nearNow = (item) => Math.abs(item.userData.t - (building() ? T1 : now));
   // In a big window the stage keeps every card, as it always did; in a smaller one a card with no room waits, rather than covering the scene.
@@ -3248,6 +3259,7 @@ function declutter() {
   for (const card of cards) if (card.r.width) { card.inner.style.visibility = card.room ? '' : 'hidden'; card.inner.style.transform = `translateY(${-card.lift}px)`; }
   for (const { el, faded } of values) if (el.style.opacity !== (faded ? '0' : '')) el.style.opacity = faded ? '0' : '';
   for (const { el, r, faded } of tags) if (r.width && el.style.opacity !== (faded ? '0' : '')) el.style.opacity = faded ? '0' : '';
+  labelRoom = { panels, labels: placed };
 }
 const distToSeg = (p, a, b) => { const dx = b.x - a.x; const dy = b.y - a.y; const k = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1))); return Math.hypot(p.x - a.x - k * dx, p.y - a.y - k * dy); };
 const tipLine = (cls, text) => { const el = document.createElement('div'); el.className = cls; el.textContent = text; return el; };
