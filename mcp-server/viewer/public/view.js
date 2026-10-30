@@ -3181,8 +3181,10 @@ onPlainClick(renderer.domElement, (event) => {
 // Love-or-fear chips lift clear of each other; values and event names that would cover something wait for their turn.
 // The names of what the model highlighted stack upward where they would cover each other.
 function stackMarks() {
-  const items = [...marks.map((mark) => mark.tag), ...noteMarks].filter((tag) => tag.visible && tag.parent?.visible !== false)
-    .map((tag) => { tag.element.style.translate = ''; return { element: tag.element, r: tag.element.getBoundingClientRect() }; }).filter((item) => item.r.width);
+  // Every lift is taken off before any name is measured, so one layout serves them all.
+  const shownMarks = [...marks.map((mark) => mark.tag), ...noteMarks].filter((tag) => tag.visible && tag.parent?.visible !== false);
+  for (const tag of shownMarks) tag.element.style.translate = '';
+  const items = shownMarks.map((tag) => ({ element: tag.element, r: tag.element.getBoundingClientRect() })).filter((item) => item.r.width);
   const placed = [];
   for (const { element, r } of items.sort((a, b) => a.r.left - b.r.left)) {
     const hits = (top) => placed.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && top < p.bottom && top + r.height > p.top);
@@ -3192,19 +3194,19 @@ function stackMarks() {
   }
 }
 function declutter() {
+  // Each part of the pass reads the boxes it needs before it writes any style: hiding a name or fading a value moves no
+  // box, so the page is laid out once for each part rather than once for each name. The rules and their order are as
+  // they were.
   // A selected document may move out of view with the graph; never show a clipped badge.
-  const selectedLabel = selectedDocumentLabel.element; selectedLabel.style.visibility = '';
-  if (selectedDocumentLabel.visible) {
-    const r = selectedLabel.getBoundingClientRect();
-    if (r.left < 2 || r.right > innerWidth - 2 || r.top < 2 || r.bottom > innerHeight - 2) selectedLabel.style.visibility = 'hidden';
-  }
+  const selectedLabel = selectedDocumentLabel.element, selected = selectedDocumentLabel.visible ? selectedLabel.getBoundingClientRect() : null;
+  const ticks = tickPool.map(({ object }) => ({ el: object.element, r: object.visible ? object.element.getBoundingClientRect() : null }));
+  const clipped = selected && (selected.left < 2 || selected.right > innerWidth - 2 || selected.top < 2 || selected.bottom > innerHeight - 2);
+  if (selectedLabel.style.visibility !== (clipped ? 'hidden' : '')) selectedLabel.style.visibility = clipped ? 'hidden' : '';
   const tickRects = [];
-  for (const { object } of tickPool) {
-    const el = object.element; el.style.visibility = '';
-    if (!object.visible) continue;
-    const r = el.getBoundingClientRect(); if (!r.width) continue;
-    if (tickRects.some((p) => r.left < p.right + 6 && r.right > p.left - 6 && r.top < p.bottom && r.bottom > p.top)) el.style.visibility = 'hidden';
-    else tickRects.push(r);
+  for (const { el, r } of ticks) {
+    const hidden = Boolean(r?.width) && tickRects.some((p) => r.left < p.right + 6 && r.right > p.left - 6 && r.top < p.bottom && r.bottom > p.top);
+    if (r?.width && !hidden) tickRects.push(r);
+    if (el.style.visibility !== (hidden ? 'hidden' : '')) el.style.visibility = hidden ? 'hidden' : '';
   }
   if (opt.curation) stackMarks();
   if (terrain.on) { declutterTerrain(); return; }
@@ -3215,36 +3217,43 @@ function declutter() {
   // would cover each other take turns, and a love-or-fear chip with no room waits; the stage's field keeps its own rules.
   const stage = !recordedMeasures.length && isStory() && blend.now === 0 && opt.camera !== 'locked' && !nodes.some((node) => node.inT);
   const names = [];
-  for (const object of [...groupLabels.map((item) => item.object), ...rows.flatMap((row) => row.caption ? [row.caption, row.name] : [row.name])]) {
-    const el = object.element; if (stage || !object.visible) { if (el.style.visibility) el.style.visibility = ''; continue; }
+  const nameObjects = [...groupLabels.map((item) => item.object), ...rows.flatMap((row) => row.caption ? [row.caption, row.name] : [row.name])];
+  const nameBoxes = nameObjects.map((object) => (stage || !object.visible ? null : object.element.getBoundingClientRect()));
+  nameObjects.forEach((object, i) => {
+    const el = object.element, box = nameBoxes[i];
     // A series caption's padding only lifts it clear of its first answer's name; it does not take room.
-    el.style.visibility = ''; const box = el.getBoundingClientRect(); if (!box.width) continue;
-    const r = el.classList?.contains('series') ? { left: box.left, right: box.right, top: box.top, bottom: box.bottom - 10 } : box;
-    const outside = r.left < 2 || r.right > innerWidth - 2 || r.top < 2 || r.bottom > innerHeight - 2;
-    const overPanel = panels.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top < p.bottom + 2 && r.bottom > p.top - 2);
-    if (outside || overPanel || names.some((o) => r.left < o.right && r.right > o.left && r.top < o.bottom - 4 && r.bottom > o.top + 4)) el.style.visibility = 'hidden'; else names.push(r);
-  }
+    let hidden = false;
+    if (box?.width) {
+      const r = el.classList?.contains('series') ? { left: box.left, right: box.right, top: box.top, bottom: box.bottom - 10 } : box;
+      const outside = r.left < 2 || r.right > innerWidth - 2 || r.top < 2 || r.bottom > innerHeight - 2;
+      const overPanel = panels.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top < p.bottom + 2 && r.bottom > p.top - 2);
+      hidden = outside || overPanel || names.some((o) => r.left < o.right && r.right > o.left && r.top < o.bottom - 4 && r.bottom > o.top + 4);
+      if (!hidden) names.push(r);
+    }
+    el.style.visibility = hidden ? 'hidden' : '';
+  });
   for (const el of labels.domElement.querySelectorAll('.label.row, .label.series, .label.group, .label.year, .label.lane')) { if (el.style.visibility === 'hidden') continue; const r = el.getBoundingClientRect(); if (r.width) placed.push(r); }
   const hits = (r, lift = 0) => placed.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top - lift < p.bottom + 2 && r.bottom - lift > p.top - 2);
   // Where there is room for only some, the acts nearest the playhead take it, so playing the years shows the acts as they come.
   const nearNow = (item) => Math.abs(item.userData.t - (building() ? T1 : now));
   // In a big window the stage keeps every card, as it always did; in a smaller one a card with no room waits, rather than covering the scene.
   const roomy = innerWidth >= 1500 && innerHeight >= 950;
-  // Every card is measured before any is moved, so one layout serves them all.
+  // Every card, value and tag is measured before any is moved or faded.
   const cards = lenses.filter((item) => item.visible).sort((a, b) => nearNow(a) - nearNow(b) || a.userData.t - b.userData.t)
     .map((lens) => ({ inner: lens.element.firstElementChild, r: lens.element.getBoundingClientRect(), lift: 0, room: false }));
+  const values = rows.map((row) => ({ el: row.value.element, r: row.value.element.getBoundingClientRect() }));
+  const tags = threads.map((thread) => thread.userData.tag).filter((tag) => tag?.visible && tag.parent?.visible !== false).sort((a, b) => b.userData.weight - a.userData.weight || b.userData.t - a.userData.t)
+    .map((tag) => ({ el: tag.element, r: tag.element.getBoundingClientRect() }));
   for (const card of cards) {
     if (!card.r.width) continue; const { r } = card;
     while (card.lift <= 150 && hits(r, card.lift)) card.lift += 6;
     card.room = (stage && roomy) || card.lift <= 150; if (card.room) placed.push({ left: r.left, right: r.right, top: r.top - card.lift, bottom: r.bottom - card.lift });
   }
+  for (const value of values) { value.faded = Boolean(value.r.width) && hits(value.r); if (value.r.width && !value.faded) placed.push(value.r); }
+  for (const tag of tags) { if (!tag.r.width) continue; tag.faded = hits(tag.r); if (!tag.faded) placed.push(tag.r); }
   for (const card of cards) if (card.r.width) { card.inner.style.visibility = card.room ? '' : 'hidden'; card.inner.style.transform = `translateY(${-card.lift}px)`; }
-  for (const row of rows) { const el = row.value.element; el.style.opacity = ''; const r = el.getBoundingClientRect(); if (!r.width) continue; if (hits(r)) el.style.opacity = '0'; else placed.push(r); }
-  const tags = threads.map((thread) => thread.userData.tag).filter((tag) => tag?.visible && tag.parent?.visible !== false).sort((a, b) => b.userData.weight - a.userData.weight || b.userData.t - a.userData.t);
-  for (const tag of tags) {
-    const r = tag.element.getBoundingClientRect(); if (!r.width) continue;
-    const free = !hits(r); tag.element.style.opacity = free ? '' : '0'; if (free) placed.push(r);
-  }
+  for (const { el, faded } of values) if (el.style.opacity !== (faded ? '0' : '')) el.style.opacity = faded ? '0' : '';
+  for (const { el, r, faded } of tags) if (r.width && el.style.opacity !== (faded ? '0' : '')) el.style.opacity = faded ? '0' : '';
 }
 const distToSeg = (p, a, b) => { const dx = b.x - a.x; const dy = b.y - a.y; const k = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1))); return Math.hypot(p.x - a.x - k * dx, p.y - a.y - k * dy); };
 const tipLine = (cls, text) => { const el = document.createElement('div'); el.className = cls; el.textContent = text; return el; };
