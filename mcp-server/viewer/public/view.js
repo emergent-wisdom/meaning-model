@@ -3202,9 +3202,9 @@ function stackMarks(placed, free) {
 function declutter() {
   // One rule for every label: it shows only where all of it is on the screen, clear of every panel and of every label
   // placed before it; where they cannot all fit, fewer show. They are placed in turn: a selected document, what the
-  // model highlighted, the time marks, the names of groups and rows, the lens cards, the values, the Events' names on
-  // their threads, and then (labels2) the floating names. Each part reads the boxes it needs before it writes any
-  // style, so the page is laid out once for each part rather than once for each name.
+  // model highlighted, the time marks, the count of causal links, the names of groups and rows, the lens cards, the
+  // values, the Events' names on their threads, and then (labels2) the floating names. Each part reads the boxes it
+  // needs before it writes any style, so the page is laid out once for each part rather than once for each name.
   const panels = panelBoxes(), placed = [];
   const free = (r) => r.left >= 2 && r.right <= innerWidth - 2 && r.top >= 2 && r.bottom <= innerHeight - 2
     && !panels.some((p) => r.left < p.right + 4 && r.right > p.left - 4 && r.top < p.bottom + 2 && r.bottom > p.top - 2);
